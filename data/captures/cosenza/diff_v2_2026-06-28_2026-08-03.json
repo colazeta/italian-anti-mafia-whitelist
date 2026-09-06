@@ -1,0 +1,67 @@
+{
+  "records": {
+    "before": 1327,
+    "after": 1334,
+    "net": 7
+  },
+  "mention_observations": {
+    "added": 21,
+    "disappeared": 14,
+    "common": 1313,
+    "record_content_changed": 66
+  },
+  "source_status": {
+    "before_counts": {
+      "pending": 661,
+      "listed": 452,
+      "renewal_update_in_progress": 202,
+      "renewal_requested": 11,
+      "other_or_unknown": 1
+    },
+    "after_counts": {
+      "pending": 657,
+      "listed": 461,
+      "renewal_update_in_progress": 201,
+      "renewal_requested": 14,
+      "other_or_unknown": 1
+    },
+    "changed_common_mentions": 55,
+    "transition_counts": {
+      "listed->pending": 3,
+      "listed->renewal_requested": 10,
+      "listed->renewal_update_in_progress": 1,
+      "pending->listed": 25,
+      "renewal_requested->listed": 2,
+      "renewal_requested->renewal_update_in_progress": 6,
+      "renewal_update_in_progress->listed": 8
+    }
+  },
+  "structured_field_coverage": {
+    "before": {
+      "registered_office": 1327,
+      "secondary_office": 1,
+      "identifier_field": 1327,
+      "requested_activities": 1327,
+      "application_date_field": 1327,
+      "outcome": 1327,
+      "observed_listing_date": 452,
+      "observed_expiry_date": 213
+    },
+    "after": {
+      "registered_office": 1334,
+      "secondary_office": 1,
+      "identifier_field": 1334,
+      "requested_activities": 1334,
+      "application_date_field": 1334,
+      "outcome": 1334,
+      "observed_listing_date": 461,
+      "observed_expiry_date": 215
+    }
+  },
+  "interpretation_guardrails": [
+    "row detection does not require a formally valid tax/VAT identifier",
+    "all source columns remain source observations, not canonical administrative facts",
+    "observed_listing_date and observed_expiry_date are parsed from source Esito wording",
+    "appearance/disappearance is observational and is not an administrative registration/removal event"
+  ]
+}
