@@ -29,9 +29,20 @@ CREATE UNIQUE INDEX public_authority_code_unique
 
 -- A register can be known to exist even when its exact administrative start
 -- date has not yet been established from evidence. NULL means unknown, not
--- unbounded.
+-- unbounded. Both the nullability and the validation CHECK must therefore be
+-- relaxed: dropping only NOT NULL would leave the 0.1.0 CHECK rejecting NULL.
 ALTER TABLE whitelist.white_list_register
     ALTER COLUMN effective_period DROP NOT NULL;
+
+ALTER TABLE whitelist.white_list_register
+    DROP CONSTRAINT white_list_register_effective_valid;
+
+ALTER TABLE whitelist.white_list_register
+    ADD CONSTRAINT white_list_register_effective_valid
+    CHECK (
+        effective_period IS NULL
+        OR (NOT isempty(effective_period) AND lower(effective_period) IS NOT NULL)
+    );
 
 ALTER TABLE source.source_series
     ADD COLUMN series_code text NULL;
