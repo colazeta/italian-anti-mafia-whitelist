@@ -17,6 +17,7 @@ white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:mai
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
 white-list-persist-capture-manifests = "white_list_archive.persistence.capture_manifest:main"
 white-list-persist-parsed-records = "white_list_archive.persistence.parsed_records:main"
+white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
