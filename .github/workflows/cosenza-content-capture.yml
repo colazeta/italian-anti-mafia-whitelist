@@ -5,12 +5,16 @@ on:
     branches:
       - main
       - research/cosenza-content-capture
+      - feature/cosenza-parser-v2
     paths:
       - 'src/white_list_archive/acquisition/cosenza_capture.py'
       - 'src/white_list_archive/parsers/cosenza_combined_mentions.py'
+      - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'src/white_list_archive/persistence/capture_manifest.py'
       - 'src/white_list_archive/persistence/parsed_records.py'
+      - 'src/white_list_archive/persistence/parsed_records_v2.py'
       - 'src/white_list_archive/publishing/explorer_bundle.py'
+      - 'src/white_list_archive/publishing/explorer_bundle_v2.py'
       - 'explorer/**'
       - 'data/source_registry/**'
       - 'data/captures/cosenza/combined_2026-06-28.json'
@@ -21,6 +25,7 @@ on:
       - 'db/schema/046_parse_operational_metadata.sql'
       - 'db/schema/070_views.sql'
       - 'db/tests/004_cosenza_live_parsed_counts.sql'
+      - 'db/tests/005_cosenza_v2_live_counts.sql'
       - 'pyproject.toml'
       - '.github/workflows/cosenza-content-capture.yml'
   workflow_dispatch:
@@ -69,11 +74,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-
-          live = {
-              item['reference_date']: item
-              for item in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
-          }
+          live = {item['reference_date']: item for item in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())}
           frozen = {
               '2026-06-28': json.loads(Path('data/captures/cosenza/combined_2026-06-28.json').read_text()),
               '2026-08-03': json.loads(Path('data/captures/cosenza/combined_2026-08-03.json').read_text()),
@@ -83,16 +84,9 @@ jobs:
           keys = ['resource_url', 'sha256', 'text_sha256', 'schema_fingerprint', 'page_count']
           for reference_date, expected in frozen.items():
               observed = live[reference_date]
-              mismatches = {
-                  key: {'expected': expected[key], 'observed': observed[key]}
-                  for key in keys
-                  if observed.get(key) != expected.get(key)
-              }
+              mismatches = {key: {'expected': expected[key], 'observed': observed[key]} for key in keys if observed.get(key) != expected.get(key)}
               if mismatches:
-                  raise SystemExit(
-                      f'Frozen content identity mismatch for {reference_date}: {mismatches}. '
-                      'Do not attach this parse to the frozen ContentObject; review as a new capture.'
-                  )
+                  raise SystemExit(f'Frozen content identity mismatch for {reference_date}: {mismatches}. Review as a new capture.')
           print('Frozen Cosenza content identities verified.')
           PY
       - name: Persist frozen source and capture graph
@@ -100,63 +94,81 @@ jobs:
           white-list-persist-capture-manifests --dsn "$TEST_DSN" \
             data/captures/cosenza/combined_2026-06-28.json \
             data/captures/cosenza/combined_2026-08-03.json
-      - name: Parse source mentions and compute observational diff
+
+      # Parser v1 is retained and re-run as a historical QA baseline.
+      - name: Parse legacy v1 source mentions
         run: |
           white-list-cosenza-mentions \
             artifacts/cosenza-capture/2026-06-28/combined.txt \
             artifacts/cosenza-capture/2026-08-03/combined.txt \
-            --output-dir artifacts/cosenza-mentions
-      - name: Persist real parsed source observations
+            --output-dir artifacts/cosenza-mentions-v1
+      - name: Persist legacy v1 parsed observations
         run: |
           white-list-persist-parsed-records --dsn "$TEST_DSN" \
             --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
-            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+            --parse-manifest artifacts/cosenza-mentions-v1/parse_manifest.json \
             --parse-label before \
-            --records artifacts/cosenza-mentions/before_records.csv
+            --records artifacts/cosenza-mentions-v1/before_records.csv
           white-list-persist-parsed-records --dsn "$TEST_DSN" \
             --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
-            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+            --parse-manifest artifacts/cosenza-mentions-v1/parse_manifest.json \
             --parse-label after \
-            --records artifacts/cosenza-mentions/after_records.csv
-      - name: Validate real row-level persistence
+            --records artifacts/cosenza-mentions-v1/after_records.csv
+      - name: Validate legacy v1 baseline
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/004_cosenza_live_parsed_counts.sql
-      - name: Build private checkpoint Data Explorer
+
+      - name: Parse rich Cosenza v2 source rows
         run: |
-          white-list-build-explorer-preview \
-            --before-records artifacts/cosenza-mentions/before_records.csv \
-            --after-records artifacts/cosenza-mentions/after_records.csv \
-            --diff artifacts/cosenza-mentions/diff_summary.json \
-            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+          white-list-cosenza-v2 \
+            artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --output-dir artifacts/cosenza-v2
+      - name: Persist rich v2 source observations
+        run: |
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label before \
+            --records artifacts/cosenza-v2/before_records_v2.csv
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label after \
+            --records artifacts/cosenza-v2/after_records_v2.csv
+      - name: Validate v2 row coverage and rich fields
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/005_cosenza_v2_live_counts.sql
+      - name: Build rich private checkpoint Data Explorer v2
+        run: |
+          white-list-build-explorer-preview-v2 \
+            --before-records artifacts/cosenza-v2/before_records_v2.csv \
+            --after-records artifacts/cosenza-v2/after_records_v2.csv \
+            --diff artifacts/cosenza-v2/diff_summary_v2.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
             --mode internal \
             --acknowledge-internal-row-data \
-            --output artifacts/data-explorer-preview/index.html
-      - name: Print aggregate structural comparison
+            --output artifacts/data-explorer-preview-v2/index.html
+      - name: Print v1-to-v2 QA correction
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          capture = json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
-          diff = json.loads(Path('artifacts/cosenza-mentions/diff_summary.json').read_text())
-          parse = json.loads(Path('artifacts/cosenza-mentions/parse_manifest.json').read_text())
-          print('=== CAPTURE MANIFEST ===')
-          for row in capture:
-              print({k: row[k] for k in ['reference_date','resource_url','http_status','captured_at','etag','last_modified','sha256','byte_size','content_type','page_count','text_sha256','schema_fingerprint']})
-          print('same_schema_fingerprint=', len({r['schema_fingerprint'] for r in capture}) == 1)
-          print('=== PARSE RUN ===')
-          print({k: parse[k] for k in ['parser_name','parser_version','processing_revision','configuration_hash','started_at','completed_at']})
-          print('=== OBSERVATIONAL DIFF ===')
-          print(json.dumps(diff, indent=2, ensure_ascii=False))
+          v1=json.loads(Path('artifacts/cosenza-mentions-v1/diff_summary.json').read_text())
+          v2=json.loads(Path('artifacts/cosenza-v2/diff_summary_v2.json').read_text())
+          print('v1 records:', v1['records'])
+          print('v2 records:', v2['records'])
+          print('v2 structured field coverage:', json.dumps(v2['structured_field_coverage'], indent=2))
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: cosenza-content-capture
+          name: cosenza-content-capture-v2
           path: |
             artifacts/cosenza-capture/
-            artifacts/cosenza-mentions/
+            artifacts/cosenza-mentions-v1/
+            artifacts/cosenza-v2/
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: data-explorer-preview
-          path: artifacts/data-explorer-preview/index.html
+          name: data-explorer-preview-v2
+          path: artifacts/data-explorer-preview-v2/index.html
           if-no-files-found: error
           retention-days: 30
