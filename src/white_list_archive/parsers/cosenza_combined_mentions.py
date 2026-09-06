@@ -4,14 +4,26 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 ID_RE = re.compile(r"(?<!\d)(\d{11})(?!\d)")
 FIELD_SPLIT_RE = re.compile(r"\s{3,}")
 WS_RE = re.compile(r"\s+")
+
+PARSER_NAME = "white_list_archive.parsers.cosenza_combined_mentions"
+PARSER_VERSION = "1"
+PARSER_CONFIGURATION = (
+    "Cosenza combined-list mention parser v1: source-row starts require an 11-digit "
+    "identifier plus a non-empty name column; record identity is the normalised full "
+    "row block; operator names and source identifiers are preserved as source values; "
+    "source_status is a parser annotation and not a legal-effect determination."
+)
+PARSER_CONFIGURATION_HASH = hashlib.sha256(PARSER_CONFIGURATION.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -24,6 +36,10 @@ class MentionRecord:
     record_hash: str
     mention_key: str
     raw_block: str
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def normalise_name(value: str) -> str:
@@ -189,6 +205,17 @@ def write_records(records: list[MentionRecord], path: Path) -> None:
             writer.writerow(asdict(record))
 
 
+def _input_metadata(label: str, source_path: Path, records_path: Path, records: list[MentionRecord]) -> dict[str, object]:
+    source_text = source_path.read_text(encoding="utf-8", errors="replace")
+    return {
+        "label": label,
+        "input_path": str(source_path),
+        "text_sha256": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+        "records_path": str(records_path),
+        "record_count": len(records),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("before_text", type=Path)
@@ -196,14 +223,43 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/cosenza-mentions"))
     args = parser.parse_args()
 
-    before = parse_mentions(args.before_text.read_text(encoding="utf-8", errors="replace"))
-    after = parse_mentions(args.after_text.read_text(encoding="utf-8", errors="replace"))
+    started_at = _utc_now()
+    before_text = args.before_text.read_text(encoding="utf-8", errors="replace")
+    after_text = args.after_text.read_text(encoding="utf-8", errors="replace")
+    before = parse_mentions(before_text)
+    after = parse_mentions(after_text)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    write_records(before, args.output_dir / "before_records.csv")
-    write_records(after, args.output_dir / "after_records.csv")
+    before_records_path = args.output_dir / "before_records.csv"
+    after_records_path = args.output_dir / "after_records.csv"
+    write_records(before, before_records_path)
+    write_records(after, after_records_path)
+
     summary = diff_mentions(before, after)
     summary_path = args.output_dir / "diff_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    completed_at = _utc_now()
+    parse_manifest = {
+        "parser_name": PARSER_NAME,
+        "parser_version": PARSER_VERSION,
+        "processing_revision": os.environ.get("GITHUB_SHA", "local-unversioned"),
+        "configuration_hash": PARSER_CONFIGURATION_HASH,
+        "started_at": started_at,
+        "completed_at": completed_at,
+        "inputs": [
+            _input_metadata("before", args.before_text, before_records_path, before),
+            _input_metadata("after", args.after_text, after_records_path, after),
+        ],
+        "interpretation_guardrails": [
+            "the parser emits source mentions, not canonical entities",
+            "source_status is a parser annotation and not a legal-effect determination",
+            "raw_block is preserved so later parser versions can extract additional source fields without rewriting this run",
+        ],
+    }
+    parse_manifest_path = args.output_dir / "parse_manifest.json"
+    parse_manifest_path.write_text(
+        json.dumps(parse_manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     print(summary_path.read_text(encoding="utf-8"))
 
 
