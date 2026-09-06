@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import hashlib
 import json
 import re
 import subprocess
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -24,11 +24,26 @@ class Link:
 
 
 @dataclass(frozen=True)
+class ResponsePayload:
+    body: bytes
+    content_type: str
+    final_url: str
+    http_status: int
+    captured_at: str
+    etag: str | None
+    last_modified: str | None
+
+
+@dataclass(frozen=True)
 class CaptureManifest:
     reference_date: str
     page_url: str
     resource_url: str
     final_url: str
+    http_status: int
+    captured_at: str
+    etag: str | None
+    last_modified: str | None
     sha256: str
     byte_size: int
     content_type: str
@@ -62,20 +77,30 @@ class _Links(HTMLParser):
             self._text = []
 
 
-def _request(url: str) -> tuple[bytes, str, str]:
+def _request(url: str) -> ResponsePayload:
     req = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(req, timeout=60) as response:
-        return response.read(), response.headers.get_content_type(), response.geturl()
+        body = response.read()
+        captured_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        return ResponsePayload(
+            body=body,
+            content_type=response.headers.get_content_type(),
+            final_url=response.geturl(),
+            http_status=response.status,
+            captured_at=captured_at,
+            etag=response.headers.get("ETag"),
+            last_modified=response.headers.get("Last-Modified"),
+        )
 
 
 def resolve_combined_resource(page_url: str) -> tuple[str, str]:
-    body, _, final = _request(page_url)
+    response = _request(page_url)
     parser = _Links()
-    parser.feed(body.decode("utf-8", errors="replace"))
+    parser.feed(response.body.decode("utf-8", errors="replace"))
     matches = [link for link in parser.links if COMBINED_RE.search(link.text)]
     if len(matches) != 1:
         raise RuntimeError(f"Expected exactly one combined White List attachment; found {len(matches)}")
-    return urljoin(final, matches[0].url), matches[0].text
+    return urljoin(response.final_url, matches[0].url), matches[0].text
 
 
 def _reference_date(page_url: str, title: str) -> str:
@@ -84,11 +109,24 @@ def _reference_date(page_url: str, title: str) -> str:
         d, m, y = map(int, match.groups())
         return f"{y:04d}-{m:02d}-{d:02d}"
     slug = page_url.rstrip("/").split("/")[-1]
-    months = {"gennaio":1,"febbraio":2,"marzo":3,"aprile":4,"maggio":5,"giugno":6,"luglio":7,"agosto":8,"settembre":9,"ottobre":10,"novembre":11,"dicembre":12}
-    m = re.search(r"-(\d{1,2})-([a-z]+)-(20\d{2})$", slug)
-    if not m or m.group(2) not in months:
+    months = {
+        "gennaio": 1,
+        "febbraio": 2,
+        "marzo": 3,
+        "aprile": 4,
+        "maggio": 5,
+        "giugno": 6,
+        "luglio": 7,
+        "agosto": 8,
+        "settembre": 9,
+        "ottobre": 10,
+        "novembre": 11,
+        "dicembre": 12,
+    }
+    match = re.search(r"-(\d{1,2})-([a-z]+)-(20\d{2})$", slug)
+    if not match or match.group(2) not in months:
         raise RuntimeError(f"Cannot infer explicit reference date from {page_url}")
-    return f"{int(m.group(3)):04d}-{months[m.group(2)]:02d}-{int(m.group(1)):02d}"
+    return f"{int(match.group(3)):04d}-{months[match.group(2)]:02d}-{int(match.group(1)):02d}"
 
 
 def _pdf_text(path: Path) -> tuple[str, int | None]:
@@ -104,8 +142,8 @@ def _pdf_text(path: Path) -> tuple[str, int | None]:
 
 
 def _schema_fingerprint(text: str) -> str:
-    # Deliberately structural rather than content-addressed: normalise dates,
-    # identifiers and long number runs, then fingerprint the recurring first-page labels.
+    # Structural rather than content-addressed: normalise dates and identifiers,
+    # then fingerprint the recurring first-page table labels/layout text.
     head = "\n".join(text.splitlines()[:180]).upper()
     head = re.sub(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b", "<DATE>", head)
     head = re.sub(r"\b\d{7,16}\b", "<ID>", head)
@@ -116,8 +154,13 @@ def _schema_fingerprint(text: str) -> str:
 def capture(page_url: str, output_dir: Path) -> CaptureManifest:
     resource_url, title = resolve_combined_resource(page_url)
     reference_date = _reference_date(page_url, title)
-    data, content_type, final_url = _request(resource_url)
-    ext = ".pdf" if data.startswith(b"%PDF") or content_type == "application/pdf" else Path(urlparse(final_url).path).suffix or ".bin"
+    response = _request(resource_url)
+    data = response.body
+    ext = (
+        ".pdf"
+        if data.startswith(b"%PDF") or response.content_type == "application/pdf"
+        else Path(urlparse(response.final_url).path).suffix or ".bin"
+    )
     edition_dir = output_dir / reference_date
     edition_dir.mkdir(parents=True, exist_ok=True)
     path = edition_dir / f"combined{ext}"
@@ -137,10 +180,14 @@ def capture(page_url: str, output_dir: Path) -> CaptureManifest:
         reference_date=reference_date,
         page_url=page_url,
         resource_url=resource_url,
-        final_url=final_url,
+        final_url=response.final_url,
+        http_status=response.http_status,
+        captured_at=response.captured_at,
+        etag=response.etag,
+        last_modified=response.last_modified,
         sha256=hashlib.sha256(data).hexdigest(),
         byte_size=len(data),
-        content_type=content_type,
+        content_type=response.content_type,
         local_path=str(path),
         page_count=page_count,
         text_sha256=text_sha,
@@ -156,7 +203,10 @@ def main() -> None:
     args = parser.parse_args()
     manifests = [capture(url, args.output_dir) for url in args.page_urls]
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
-    args.manifest.write_text(json.dumps([asdict(m) for m in manifests], indent=2, ensure_ascii=False), encoding="utf-8")
+    args.manifest.write_text(
+        json.dumps([asdict(manifest) for manifest in manifests], indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     print(args.manifest.read_text(encoding="utf-8"))
 
 
