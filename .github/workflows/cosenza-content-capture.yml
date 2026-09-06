@@ -1,0 +1,57 @@
+name: Cosenza content capture
+
+on:
+  push:
+    branches:
+      - research/cosenza-content-capture
+    paths:
+      - 'src/white_list_archive/acquisition/cosenza_capture.py'
+      - 'src/white_list_archive/parsers/cosenza_combined_mentions.py'
+      - '.github/workflows/cosenza-content-capture.yml'
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PDF utilities
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Capture two adjacent Cosenza editions
+        run: |
+          python -m white_list_archive.acquisition.cosenza_capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+        env:
+          PYTHONPATH: src
+      - name: Parse source mentions and compute observational diff
+        run: |
+          python -m white_list_archive.parsers.cosenza_combined_mentions \
+            artifacts/cosenza-capture/2026-06-28/combined.txt \
+            artifacts/cosenza-capture/2026-08-03/combined.txt
+        env:
+          PYTHONPATH: src
+      - name: Print aggregate structural comparison
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          capture = json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
+          diff = json.loads(Path('artifacts/cosenza-mentions/diff_summary.json').read_text())
+          print('=== CAPTURE MANIFEST ===')
+          for row in capture:
+              print({k: row[k] for k in ['reference_date','resource_url','http_status','captured_at','etag','last_modified','sha256','byte_size','content_type','page_count','text_sha256','schema_fingerprint']})
+          print('same_schema_fingerprint=', len({r['schema_fingerprint'] for r in capture}) == 1)
+          print('=== OBSERVATIONAL DIFF ===')
+          print(json.dumps(diff, indent=2, ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosenza-content-capture
+          path: |
+            artifacts/cosenza-capture/
+            artifacts/cosenza-mentions/
+          if-no-files-found: error
