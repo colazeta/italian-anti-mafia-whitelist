@@ -6,13 +6,14 @@ This page is the authoritative human-readable guide to the data currently availa
 
 Start with [`../data/catalog.csv`](../data/catalog.csv). It is the machine-readable inventory of every persistent CSV/JSON artifact committed under `data/`.
 
-At the current project stage there are three useful places to look:
+At the current project stage there are four useful access layers:
 
 1. [`../data/source_registry/`](../data/source_registry/) — national source-discovery and coverage data.
 2. [`../data/captures/`](../data/captures/) — immutable capture manifests and safe aggregate diagnostics from real source acquisitions.
-3. [`../data/releases/`](../data/releases/) — intentionally released data products. This directory currently contains no row-level White List release.
+3. **PostgreSQL marts** — row-level internal source observations and, later, canonical data.
+4. [`../data/releases/`](../data/releases/) — intentionally released data products. This directory currently contains no row-level White List release.
 
-## What is visible now
+## What is directly visible in GitHub
 
 ### National source registry
 
@@ -36,46 +37,67 @@ These are **source-discovery data**, not company observations.
 
 The capture manifests expose provenance such as official resource URL, HTTP response metadata, UTC capture time, SHA-256, byte size, page count and structural schema fingerprint. The diff contains aggregate diagnostics only.
 
-## What is not yet directly browseable in GitHub
+## Where the row-level Cosenza observations are
 
-The pilot parser extracted row-level source mentions from the two Cosenza PDFs (1,325 and 1,332 rows respectively), but those row-level working extracts are **not committed to Git and are not yet a stable data product**.
+The parser extracts 1,325 source rows from the 28 June 2026 edition and 1,332 from the 3 August 2026 edition. Those row-level observations are intentionally **not committed as CSV/JSON under `data/` and are not a public release**.
 
-During the pilot they were generated inside GitHub Actions artifacts. That storage is operational/ephemeral and must not be presented as the durable archive or as the public dataset.
+The 0.1.1 development ingestion layer can persist them in PostgreSQL as:
 
-The PostgreSQL importer currently persists the source graph — authority, register, source series, editions, resources, content objects, captures and schema version — but row-level `ParsedRecord` / `SourceFieldValue` objects are the next ingestion milestone.
+`ParseRun -> ParsedRecord -> SourceFieldValue -> EntityMention`.
 
-## How to inspect the database representation
+For parser v1, the persisted structured source fields are the source business name and source `Codice fiscale/Partita IVA` value; the full raw row block is also retained. Entity mentions remain unresolved and parsing does not create canonical companies.
 
-For development, start a local PostgreSQL 18 database and apply the schema:
+A readable view is provided:
+
+```sql
+SELECT *
+FROM mart.cosenza_source_mentions
+ORDER BY edition_code, record_locator
+LIMIT 50;
+```
+
+The view exposes edition, raw/normalised source name, source identifier, raw row text, record hash and parser/content provenance. It is a **source-observation view**, not the canonical White List dataset.
+
+## How to inspect the database representation locally
+
+Start a local PostgreSQL 18 database and apply the schema:
 
 ```bash
 cp .env.example .env
 make db-up
 make db-apply
 make db-test
+python -m pip install -e '.[database]'
 ```
 
-Then install the database extra and load the frozen Cosenza capture manifests:
+The frozen source/capture graph can be loaded with:
 
 ```bash
-python -m pip install -e '.[database]'
 white-list-persist-capture-manifests \
   --dsn "$DATABASE_URL" \
   data/captures/cosenza/combined_2026-06-28.json \
   data/captures/cosenza/combined_2026-08-03.json
 ```
 
-This materialises the source/provenance graph in PostgreSQL. It does not yet materialise the 2,657 row-level source observations.
+Row-level parsing requires the extracted parser outputs produced by the Cosenza capture workflow. `white-list-persist-parsed-records` then verifies the parser input hash against the frozen capture manifest before creating the ParseRun and source observations.
 
-## Intended stable browsing model
+The live Cosenza workflow is designed to re-download the two official historical PDFs and first require exact agreement with their frozen URL, PDF SHA-256, text SHA-256, page count and structural fingerprint. If the official bytes have changed, the workflow refuses to attach the new parse to the old ContentObject.
 
-The project will use three distinct interfaces rather than making the Git tree itself the final data browser:
+## What is not yet a stable public data browser
+
+There is not yet a hosted public row-level White List browser. GitHub is useful for the project catalog, source-registry CSVs, capture manifests and documentation, but it should not become the final user interface for the database.
+
+The intended stable browsing model is:
 
 1. **Data catalog** — inventory, coverage and release status of datasets.
 2. **Database/API layer** — complete provenance-aware internal archive and query interface.
 3. **Release/browser layer** — human-readable tables and downloadable CSV/Parquet/JSON products after dissemination review.
 
-`data/releases/` is reserved for versioned release-ready outputs. A later website/dashboard can consume those release products or a read-only API without weakening the distinction between raw source evidence, canonical administrative interpretation and public dissemination.
+A future website/dashboard should consume reviewed release products or a read-only API. It should make source observations, canonical administrative interpretation and public-release status visually distinct.
+
+## Release status
+
+`data/releases/` is reserved for versioned release-ready outputs. There is currently no row-level company release there. Public availability in a Prefecture source does not, by itself, imply that every field should automatically be republished in bulk without reuse/privacy review.
 
 ## Interpretation warning
 

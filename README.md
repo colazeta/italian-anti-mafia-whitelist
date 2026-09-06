@@ -12,7 +12,7 @@ A national, standardised, longitudinal and provenance-aware data infrastructure 
 
 ## Current status
 
-The last frozen database baseline is **schema 0.1.0**. The live development line is **0.1.1.dev0**, which adds operational metadata required by the first real source captures without silently redefining the frozen 0.1.0 semantics.
+The last frozen database baseline is **schema 0.1.0**. The live development line is **0.1.1.dev0**, which adds operational metadata required by the first real source captures and row-level parse persistence without silently redefining the frozen 0.1.0 semantics.
 
 The project currently contains:
 
@@ -30,10 +30,12 @@ The project currently contains:
 - a real Cosenza content-capture pilot for the **28 June 2026** and **3 August 2026** editions;
 - frozen Cosenza capture manifests with HTTP provenance, SHA-256 and structural fingerprints;
 - a validated aggregate observational diff between those two editions;
-- an idempotent PostgreSQL importer that persists the Cosenza source graph;
+- an idempotent PostgreSQL importer for the Cosenza source/capture graph;
+- a reproducible row-level persistence layer for `ParseRun`, immutable `ParsedRecord`, `SourceFieldValue` and unresolved `EntityMention` objects;
+- a readable `mart.cosenza_source_mentions` source-observation view;
 - static repository governance tests and PostgreSQL integration/constraint tests.
 
-The project does **not** yet contain a complete national scrape or a public row-level company dataset. Row-level Cosenza parser output exists in the ingestion workflow but has not yet been promoted to durable `ParsedRecord` / `SourceFieldValue` persistence or a reviewed release product.
+The project does **not** yet contain a complete national scrape or a public row-level company dataset. Row-level source observations belong to the internal database/archive until a reviewed release profile is approved; parsing them does not create canonical companies or administrative states.
 
 ## Where the data are
 
@@ -43,6 +45,7 @@ The repository intentionally distinguishes discovery data, capture metadata, int
 data/catalog.csv             inventory of persistent repository data
 data/source_registry/        national source discovery and coverage research
 data/captures/               immutable capture manifests + aggregate diagnostics
+PostgreSQL marts             row-level internal observations / later canonical data
 data/releases/               reviewed release products (no row-level release yet)
 ```
 
@@ -67,6 +70,7 @@ See [`docs/data-access.md`](docs/data-access.md) for the exact current contents 
 13. Territorial White List URLs are discovered or verified; they are never guessed from URL conventions.
 14. Authority coverage, source-series discovery and company observations are separate layers.
 15. Persistent repository data must be represented in the machine-readable data catalog.
+16. A parsed source record is immutable and does not by itself establish canonical entity identity or White List legal effect.
 
 ## Repository layout
 
@@ -95,7 +99,9 @@ make db-test
 
 The compose file uses PostgreSQL 18. Complex temporal integrity is enforced with GiST exclusion constraints; taxonomy and cross-table semantic consistency are enforced through relational constraints and targeted validation triggers.
 
-## Inspect the Cosenza capture graph locally
+## Inspect Cosenza source observations
+
+The capture graph can be loaded with:
 
 ```bash
 python -m pip install -e '.[database]'
@@ -105,7 +111,16 @@ white-list-persist-capture-manifests \
   data/captures/cosenza/combined_2026-08-03.json
 ```
 
-The importer is idempotent: importing the same frozen manifests repeatedly must not duplicate the logical source graph.
+The row-level persistence command consumes parser outputs and verifies their input text SHA-256 against the frozen capture manifest before creating a ParseRun. Once loaded, inspect source observations with:
+
+```sql
+SELECT *
+FROM mart.cosenza_source_mentions
+ORDER BY edition_code, record_locator
+LIMIT 50;
+```
+
+This view contains source mentions and provenance; it is not the canonical White List dataset.
 
 ## Validation status
 
@@ -117,15 +132,19 @@ GitHub Actions validates both the repository and PostgreSQL 18 model. The suite 
 - entity/procedure resolution uniqueness;
 - content identity and capture provenance;
 - idempotent Cosenza manifest persistence;
+- idempotent row-level ParseRun/ParsedRecord persistence;
+- zero implicit canonical entities created by parsing;
 - data-catalog and documentation governance.
+
+The dedicated live Cosenza workflow re-downloads the two frozen official PDFs and refuses row-level persistence unless URL, PDF SHA-256, text SHA-256, page count and structural schema fingerprint still match their frozen capture identities.
 
 ## Next implementation steps
 
-1. Persist Cosenza row-level `ParsedRecord`, `SourceFieldValue` and `EntityMention` objects with a genuine `ParseRun`.
-2. Apply the validated Cosenza schema family across the identified historical editions and construct the first longitudinal observation history.
-3. Continue resolving and verifying the remaining national source pages and source series.
-4. Add durable content-addressed raw-byte storage and promote `ContentObject.storage_status` from `ephemeral` to `durable` only when real storage exists.
+1. Apply the validated Cosenza schema family across the identified historical editions and construct the first longitudinal observation history.
+2. Continue resolving and verifying the remaining national source pages and source series.
+3. Add durable content-addressed raw-byte storage and promote `ContentObject.storage_status` from `ephemeral` to `durable` only when real storage exists.
+4. Improve the Cosenza parser to isolate additional raw source fields (including exact `Esito`) while preserving parser-v1 history.
 5. Backfill historical sector schemes before 7 June 2020.
 6. Add source-schema families/parsers for additional Prefectures.
-7. Build reviewed current-state/history marts and a stable data-browser/export layer.
+7. Build reviewed current-state/history marts and a stable hosted data-browser/API layer.
 8. Publish versioned release products only after reuse/privacy review.

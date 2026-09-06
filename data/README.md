@@ -27,9 +27,9 @@ The complete architecture separates repository-tracked metadata from:
 - canonical resolved White List facts/states in PostgreSQL;
 - release-ready exports in `data/releases/`.
 
-The current Cosenza pilot has persisted its source/capture graph in PostgreSQL, while row-level `ParsedRecord` / `SourceFieldValue` persistence is the next ingestion milestone.
+The Cosenza ingestion layer now supports persistence of the source/capture graph and row-level parser observations as `ParseRun`, immutable `ParsedRecord`, `SourceFieldValue` and unresolved `EntityMention` objects. These rows are intentionally kept out of repository-tracked `data/` files until a deliberate release profile is approved.
 
-For a practical guide, read [`../docs/data-access.md`](../docs/data-access.md).
+For readable database inspection, use `mart.cosenza_source_mentions`. For the practical access guide, read [`../docs/data-access.md`](../docs/data-access.md).
 
 ## Rule
 

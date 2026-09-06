@@ -10,6 +10,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 | Find the data that currently exist | [`data-access.md`](data-access.md) and [`../data/catalog.csv`](../data/catalog.csv) |
 | Understand project rules and what belongs where | [`project-rules.md`](project-rules.md) |
 | Understand the database and entity model | [`architecture/`](architecture/) |
+| Understand row-level source-observation persistence | [`architecture/parsed-record-persistence-0.1.1-dev.md`](architecture/parsed-record-persistence-0.1.1-dev.md) |
 | Understand canonical fields | [`data-dictionary/canonical-fields.md`](data-dictionary/canonical-fields.md) |
 | Understand source discovery and Prefecture heterogeneity | [`sources/`](sources/) |
 | Check frozen releases and release notes | [`releases/`](releases/) |
