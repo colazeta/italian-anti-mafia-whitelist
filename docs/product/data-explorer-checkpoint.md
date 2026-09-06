@@ -1,69 +1,131 @@
-# Data Explorer checkpoint — Cosenza pilot
+# Dataset Explorer checkpoint — Cosenza end-to-end pilot
 
 ## Purpose
 
-Before scaling parsing across all territorial authorities, the project exposes the current validated stage as an **internal review product**. The aim is to let a curator inspect whether the data model, parser output, temporal comparison and provenance presentation are correct enough to replicate nationally.
+Before scaling ingestion across all territorial authorities, the project exposes the current stage as an **internal review product**. The checkpoint is meant to let the curator inspect not only parser output, but the whole data model actually populated by the pipeline.
 
 This is deliberately a checkpoint, not a final public portal.
 
-## Why the checkpoint mattered
+## What the checkpoint has already corrected
 
-The first Explorer immediately revealed that parser v1 was too poor: important source columns such as registered office, activities, application dates, listing date and nominal expiry were not structured. A deeper row-level audit then found that v1 also missed three real rows and produced one false positive per snapshot because row detection depended on an 11-digit numeric identifier.
+The first Explorer showed that parser v1 was too poor: useful columns were trapped in raw text, and row detection depended on an 11-digit identifier. Parser v2 corrected those defects.
 
-This is exactly the kind of defect the checkpoint is intended to discover before national scale-out.
+The next Explorer review then exposed a second architectural problem: parsing populated only the source-observation layer, while many ontology/canonical tables remained empty even though the source contained enough information to populate them safely.
 
-Parser v1 remains preserved as historical provenance. The current checkpoint uses **parser v2**, a lossless-first PDF-coordinate parser documented in [`../architecture/cosenza-parser-v2.md`](../architecture/cosenza-parser-v2.md).
+The current checkpoint therefore validates the full path:
+
+```text
+source → parser family → record contract → semantic projection → resolution → canonical model → Explorer
+```
+
+The parser-family/semantic architecture is documented in [`../architecture/parser-families-and-semantic-pipeline.md`](../architecture/parser-families-and-semantic-pipeline.md).
 
 ## Current scope
 
 The Explorer combines:
 
 - the 106-authority national coverage registry;
-- current verified-primary-page and source-series counts;
-- the Cosenza historical-edition inventory;
-- the frozen 28 June 2026 and 3 August 2026 Cosenza source captures;
-- **1,327 + 1,334 = 2,661 parser-v2 source observations**;
-- all seven source columns for each observation;
-- observed listing dates and nominal expiry dates parsed from source `Esito` wording;
-- aggregate snapshot differences;
-- parser/content provenance and v1→v2 QA correction.
+- parser-family, source-binding and semantic-profile routing;
+- the frozen 28 June 2026 and 3 August 2026 Cosenza captures;
+- 2,661 parser-v2 source observations;
+- the complete typed semantic projection;
+- guarded entity/procedure resolution;
+- canonical entities, White List relationships, relationship states and procedures;
+- explicit unresolved/review items;
+- real PostgreSQL table counts and population statuses;
+- source/parser/semantic/resolver provenance.
+
+## Current validated database population
+
+The end-to-end live workflow currently yields:
+
+### Source/parser layer
+
+- 2,661 current parser-v2 observations;
+- 18,627 v2 source-field values;
+- seven source columns per row;
+- legacy parser-v1 runs retained for reproducibility.
+
+### Semantic layer
+
+- 2,661 entity observations;
+- 3,258 identifier observations;
+- 2,663 establishment observations;
+- 2,661 relationship observations;
+- 3,226 procedure observations;
+- 8,710 requested procedure-sector observations;
+- 600 explicit QA/review issues.
+
+### Resolution/canonical layer
+
+- 1,343 canonical `LegalEntity` rows;
+- 2,655 accepted entity resolutions;
+- 6 deliberately unresolved entity observations;
+- 3,248 ambiguity-safe canonical identifier observations;
+- 1,298 address objects;
+- 2,657 establishments;
+- 1,343 White List relationships;
+- 2,655 relationship-state versions;
+- 1,368 canonical procedures;
+- 2,651 procedure versions;
+- 3,614 requested procedure-sector links.
+
+The current source does not independently prove listed relationship sectors, so `whitelist.relationship_sector` correctly remains `0 / NOT_APPLICABLE_FROM_CURRENT_SOURCE` rather than being filled from requested activities.
 
 ## User-facing sections
 
-1. **Overview** — project-stage metrics and explicit v1→v2 parser QA correction.
-2. **Osservazioni ricche** — searchable/filterable table exposing business name, registered office, source identifiers, requested activities, application dates, observed listing date, observed nominal expiry, source outcome and snapshot comparison.
-3. **Confronto** — added/disappeared/common observations, changed records, source-status changes and field-coverage metrics.
-4. **Copertura nazionale** — authority coverage and verified-source/source-series state.
-5. **Provenance** — parser revision/configuration and frozen source byte identities.
-6. **Metodo** — the lossless-first source-observation contract and separation from canonical facts.
+The product uses the deliberately minimal, dense management-system visual language defined in `docs/product/ui-style.md`.
 
-The row detail drawer retains full raw source evidence and parsed multi-valued identifiers/dates so extraction can be inspected against the original row.
+1. **Struttura dataset** — the full model as actually reconstructed in PostgreSQL, with table name, row count, layer, status and reason for zero/unresolved states.
+2. **Dati Cosenza** — dense searchable source-observation table with all parser-v2 fields.
+3. **Confronto snapshot** — observational comparison between editions with strict removal/registration guardrails.
+4. **Copertura nazionale** — authority and source-series discovery coverage.
+5. **Pipeline / provenance** — selected parser family, schema fingerprint, record contract, semantic projector, field mappings and canonicalisation result.
+6. **Metodo** — source → semantic → canonical separation and parser-family strategy.
+
+## Why “empty” now has a meaning
+
+The Explorer no longer hard-codes whether a model object is populated. The live workflow generates a `model_population` manifest directly from PostgreSQL.
+
+Every object receives a status such as:
+
+- `POPULATED`;
+- `POPULATED_WITH_UNRESOLVED_EDGE_CASES`;
+- `POPULATED_WITH_REVIEW_ITEMS`;
+- `REQUIRES_RESOLUTION`;
+- `REQUIRES_REVIEW`;
+- `NOT_APPLICABLE_FROM_CURRENT_SOURCE`;
+- `NOT_YET_PROCESSED`;
+- `NOT_YET_POPULATED`.
+
+This prevents a zero-row table from being presented as though the project simply forgot to populate it.
 
 ## Data classification
 
-The versioned Explorer template is committed to Git. The real 2,661-row payload is **not** committed.
+The versioned Explorer template is committed to Git. Row-level source, semantic and canonical data are not committed as a public release.
 
-The private Cosenza workflow builds a self-contained v2 `index.html` only after:
+The private workflow builds the self-contained `data-explorer-preview-v2` artifact only after:
 
-1. official PDF byte/text identities match the frozen captures;
-2. v1 is reproduced as the historical QA baseline;
-3. v2 parsing completes;
-4. v2 rows are persisted to PostgreSQL;
-5. database checks prove 2,661 rows, 18,627 source field values, seven source fields, recovered false negatives and absence of the known v1 false positive.
-
-The resulting artifact is named `data-explorer-preview-v2`. It is an internal review surface, not a release dataset.
+1. frozen official source identity checks;
+2. parser-v2 persistence;
+3. parser-family/record-contract selection;
+4. semantic projection;
+5. guarded canonicalisation;
+6. chronology/ambiguity/sector semantic assertions;
+7. a second pipeline run proving idempotence;
+8. database population export.
 
 ## Review questions before national scale-out
 
-The curator should specifically assess:
+The curator should now assess:
 
-- whether all useful source columns now appear in the main table;
-- whether listing/expiry dates are labelled clearly as source observations rather than canonical dates;
-- whether multi-valued and malformed source identifiers are represented honestly;
-- whether raw source evidence makes parser QA practical;
-- whether the snapshot diff avoids implying that disappearance equals administrative removal;
-- whether the Prefecture/source-edition navigation is the right product hierarchy;
-- whether provenance and parser-version differences are sufficiently visible;
-- whether any remaining source information is still trapped only inside raw text rather than structured explicitly.
+- whether the complete dataset structure is understandable without reading SQL;
+- whether source, semantic, resolution and canonical layers are visually distinct enough;
+- whether the reason attached to every empty/unresolved object is useful;
+- whether canonical entity/relationship/procedure concepts match the intended ontology;
+- whether the parser-family → record-contract → semantic-projector routing is visible enough for audit;
+- whether any Cosenza fact is still mapped to the wrong semantic object;
+- whether the automatic resolver is appropriately conservative;
+- whether additional ontology concepts are needed before expanding to another source family.
 
-Material feedback from this checkpoint should be resolved before large-scale parser implementation across additional Prefectures.
+Large-scale parser rollout should follow this reviewed architecture rather than the earlier source-only ingestion path.

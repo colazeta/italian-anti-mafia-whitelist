@@ -19,6 +19,8 @@ white-list-cosenza-v2 = "white_list_archive.parsers.cosenza_combined_v2:main"
 white-list-persist-capture-manifests = "white_list_archive.persistence.capture_manifest:main"
 white-list-persist-parsed-records = "white_list_archive.persistence.parsed_records:main"
 white-list-persist-parsed-records-v2 = "white_list_archive.persistence.parsed_records_v2:main"
+white-list-semantic-pipeline = "white_list_archive.semantic.pipeline_current:main"
+white-list-model-population = "white_list_archive.publishing.model_population:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 

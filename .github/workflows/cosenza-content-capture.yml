@@ -6,26 +6,23 @@ on:
       - main
       - research/cosenza-content-capture
       - feature/cosenza-parser-v2
+      - feature/automatic-semantic-projection
     paths:
       - 'src/white_list_archive/acquisition/cosenza_capture.py'
-      - 'src/white_list_archive/parsers/cosenza_combined_mentions.py'
-      - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
-      - 'src/white_list_archive/persistence/capture_manifest.py'
-      - 'src/white_list_archive/persistence/parsed_records.py'
-      - 'src/white_list_archive/persistence/parsed_records_v2.py'
-      - 'src/white_list_archive/publishing/explorer_bundle.py'
-      - 'src/white_list_archive/publishing/explorer_bundle_v2.py'
+      - 'src/white_list_archive/parsers/**'
+      - 'src/white_list_archive/persistence/**'
+      - 'src/white_list_archive/semantic/**'
+      - 'src/white_list_archive/publishing/**'
       - 'explorer/**'
       - 'data/source_registry/**'
       - 'data/captures/cosenza/combined_2026-06-28.json'
       - 'data/captures/cosenza/combined_2026-08-03.json'
       - 'db/apply.sql'
-      - 'db/schema/040_source.sql'
-      - 'db/schema/045_capture_operational_metadata.sql'
-      - 'db/schema/046_parse_operational_metadata.sql'
-      - 'db/schema/070_views.sql'
+      - 'db/schema/**'
+      - 'db/seeds/**'
       - 'db/tests/004_cosenza_live_parsed_counts.sql'
       - 'db/tests/005_cosenza_v2_live_counts.sql'
+      - 'db/tests/006_cosenza_semantic_pipeline.sql'
       - 'pyproject.toml'
       - '.github/workflows/cosenza-content-capture.yml'
   workflow_dispatch:
@@ -137,26 +134,55 @@ jobs:
             --records artifacts/cosenza-v2/after_records_v2.csv
       - name: Validate v2 row coverage and rich fields
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/005_cosenza_v2_live_counts.sql
-      - name: Build rich private checkpoint Data Explorer v2
+
+      - name: Project semantics and canonicalise safe observations automatically
+        run: |
+          white-list-semantic-pipeline \
+            --dsn "$TEST_DSN" \
+            --series-code cosenza-combined \
+            > artifacts/cosenza-v2/semantic_pipeline.json
+          cat artifacts/cosenza-v2/semantic_pipeline.json
+      - name: Validate semantic projection and canonical population
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+      - name: Prove semantic pipeline idempotence
+        run: |
+          white-list-semantic-pipeline \
+            --dsn "$TEST_DSN" \
+            --series-code cosenza-combined \
+            > artifacts/cosenza-v2/semantic_pipeline_second_run.json
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+      - name: Export real database population manifest
+        run: |
+          white-list-model-population \
+            --dsn "$TEST_DSN" \
+            --output artifacts/cosenza-v2/model_population.json
+          cat artifacts/cosenza-v2/model_population.json
+
+      - name: Build private Dataset Explorer from populated database state
         run: |
           white-list-build-explorer-preview-v2 \
             --before-records artifacts/cosenza-v2/before_records_v2.csv \
             --after-records artifacts/cosenza-v2/after_records_v2.csv \
             --diff artifacts/cosenza-v2/diff_summary_v2.json \
             --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --model-population artifacts/cosenza-v2/model_population.json \
+            --semantic-pipeline artifacts/cosenza-v2/semantic_pipeline.json \
             --mode internal \
             --acknowledge-internal-row-data \
             --output artifacts/data-explorer-preview-v2/index.html
-      - name: Print v1-to-v2 QA correction
+      - name: Print v1-to-v2 and semantic QA summary
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           v1=json.loads(Path('artifacts/cosenza-mentions-v1/diff_summary.json').read_text())
           v2=json.loads(Path('artifacts/cosenza-v2/diff_summary_v2.json').read_text())
+          semantic=json.loads(Path('artifacts/cosenza-v2/semantic_pipeline.json').read_text())
           print('v1 records:', v1['records'])
           print('v2 records:', v2['records'])
           print('v2 structured field coverage:', json.dumps(v2['structured_field_coverage'], indent=2))
+          print('semantic projection:', json.dumps(semantic['semantic_projection'], indent=2))
+          print('canonicalisation:', json.dumps(semantic['canonicalisation'], indent=2))
           PY
       - uses: actions/upload-artifact@v4
         with:
