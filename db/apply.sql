@@ -16,4 +16,5 @@ BEGIN;
 \ir seeds/020_regime_and_sector_2020.sql
 \ir seeds/030_canonical_fields.sql
 \ir seeds/040_governance.sql
+\ir seeds/050_semantic_pipeline.sql
 COMMIT;
