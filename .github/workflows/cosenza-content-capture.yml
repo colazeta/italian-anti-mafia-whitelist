@@ -1,0 +1,48 @@
+name: Cosenza content capture
+
+on:
+  push:
+    branches:
+      - research/cosenza-content-capture
+    paths:
+      - 'src/white_list_archive/acquisition/cosenza_capture.py'
+      - '.github/workflows/cosenza-content-capture.yml'
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PDF utilities
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Capture two adjacent Cosenza editions
+        run: |
+          python -m white_list_archive.acquisition.cosenza_capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+        env:
+          PYTHONPATH: src
+      - name: Print structural comparison
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
+          print('=== CAPTURE SUMMARY ===')
+          for row in data:
+              print(row)
+          print('same_schema_fingerprint=', len({r['schema_fingerprint'] for r in data}) == 1)
+          for row in data:
+              p = Path(row['local_path']).with_suffix('.txt')
+              print(f"=== TEXT HEAD {row['reference_date']} ===")
+              print('\n'.join(p.read_text(errors='replace').splitlines()[:100]))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosenza-content-capture
+          path: artifacts/cosenza-capture/
+          if-no-files-found: error
