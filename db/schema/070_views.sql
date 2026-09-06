@@ -161,7 +161,7 @@ GROUP BY
     co.sha256;
 
 COMMENT ON VIEW mart.cosenza_source_mentions IS
-    'Legacy readable source-observation mart for Cosenza parser v1. Kept for provenance comparison; use mart.cosenza_source_observations_v2 for the rich lossless-first parser.';
+    'Legacy readable source-observation mart for Cosenza parser v1. Rows are not canonical entities. Kept for provenance comparison; use mart.cosenza_source_observations_v2 for the rich lossless-first parser.';
 
 CREATE OR REPLACE VIEW mart.cosenza_source_observations_v2 AS
 SELECT
@@ -247,4 +247,4 @@ GROUP BY
     co.sha256;
 
 COMMENT ON VIEW mart.cosenza_source_observations_v2 IS
-    'Rich lossless-first Cosenza source-observation mart. Listing/expiry dates are observations parsed from source Esito wording and are not canonical legal-effect facts.';
+    'Rich lossless-first Cosenza source-observation mart. Rows are not canonical entities. Listing/expiry dates are observations parsed from source Esito wording and are not canonical legal-effect facts.';
