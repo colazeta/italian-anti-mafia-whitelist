@@ -1,0 +1,59 @@
+{
+  "authority_key": "cosenza",
+  "source_series_key": "cosenza-combined",
+  "before_reference_date": "2026-06-28",
+  "after_reference_date": "2026-08-03",
+  "processing_revision": "3c6c5829a7085ea4ca649c542105df21fbe4ebe1",
+  "workflow_run_id": 34051655207,
+  "same_schema_fingerprint": true,
+  "schema_fingerprint": "fbb124c5a43d26bef93316844b3021096060f7ed9d2cc0f8f6081f6df935dc97",
+  "records": {
+    "before": 1325,
+    "after": 1332,
+    "net": 7
+  },
+  "mention_observations": {
+    "added": 21,
+    "disappeared": 14,
+    "common": 1311,
+    "record_content_changed": 67
+  },
+  "identifier_observations": {
+    "new_identifiers": 19,
+    "disappeared_identifiers": 12,
+    "stable_identifier_name_changes": 2,
+    "ambiguous_identifiers": 1
+  },
+  "source_status": {
+    "before_counts": {
+      "pending": 658,
+      "listed": 452,
+      "renewal_update_in_progress": 202,
+      "renewal_requested": 11,
+      "other_or_unknown": 2
+    },
+    "after_counts": {
+      "pending": 654,
+      "listed": 461,
+      "renewal_update_in_progress": 201,
+      "renewal_requested": 14,
+      "other_or_unknown": 2
+    },
+    "changed_common_mentions": 55,
+    "transition_counts": {
+      "listed->pending": 3,
+      "listed->renewal_requested": 10,
+      "listed->renewal_update_in_progress": 1,
+      "pending->listed": 25,
+      "renewal_requested->listed": 2,
+      "renewal_requested->renewal_update_in_progress": 6,
+      "renewal_update_in_progress->listed": 8
+    }
+  },
+  "interpretation_guardrails": [
+    "added/disappeared are source-observation events, not administrative registration/removal events",
+    "source_status is parsed from published Esito wording and is not a legal-effect determination",
+    "identifier values are source fields and are not assumed to uniquely identify canonical LegalEntity rows",
+    "this file contains aggregate diagnostics only and does not publish row-level personal or company data"
+  ]
+}
