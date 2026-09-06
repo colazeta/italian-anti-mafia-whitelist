@@ -1,0 +1,81 @@
+{
+  "profile_id": "cosenza-parsed-observations-2026-06-28-2026-08-03",
+  "authority_key": "cosenza",
+  "source_series_key": "cosenza-combined",
+  "validated_at": "2026-09-06T19:21:05Z",
+  "processing_revision": "b47e9b39837bbfd9333d2c22746be9a7e23d2f66",
+  "workflow_run_id": 34054557175,
+  "workflow_artifact_id": 9995571927,
+  "workflow_artifact_sha256": "e950ac9c93accafe40f68529a1f5de25366a894a5cd9453f9bc570b03242ecd4",
+  "parser": {
+    "name": "white_list_archive.parsers.cosenza_combined_mentions",
+    "version": "1",
+    "configuration_hash": "4b5d6781b28d04687fb9746a976084cb9be047c86f02fc659d5bf9c175b52b86"
+  },
+  "source_identity_verification": {
+    "result": "passed",
+    "checked_fields": [
+      "resource_url",
+      "sha256",
+      "text_sha256",
+      "schema_fingerprint",
+      "page_count"
+    ],
+    "schema_fingerprint": "fbb124c5a43d26bef93316844b3021096060f7ed9d2cc0f8f6081f6df935dc97"
+  },
+  "editions": [
+    {
+      "reference_date": "2026-06-28",
+      "content_sha256": "565a71d89c4d684b68303949974a6c63410b9432eefe9f3773ac540a4318a07d",
+      "text_sha256": "6e40ed4d509aa26f114d4a217abfc9699d854b7aca17f53f710fbb0a32201cd7",
+      "page_count": 69,
+      "parse_run_code": "6d0bb9c07947217ec6301c8459d4ebdbb98e02fb00509a15be3aaef092996f01",
+      "parsed_record_count": 1325,
+      "source_field_value_count": 2650,
+      "entity_mention_count": 1325
+    },
+    {
+      "reference_date": "2026-08-03",
+      "content_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+      "text_sha256": "5f1db5d7caf3452f442523311196b702ff15edf7e7e787458318c5acd8d6bfc5",
+      "page_count": 69,
+      "parse_run_code": "fa4225cb37e832198c2aac8212b1dfa709824ecb90e38876b0dc69bd9dee6a12",
+      "parsed_record_count": 1332,
+      "source_field_value_count": 2664,
+      "entity_mention_count": 1332
+    }
+  ],
+  "totals": {
+    "parse_run_count": 2,
+    "parsed_record_count": 2657,
+    "source_field_value_count": 5314,
+    "entity_mention_count": 2657,
+    "canonical_entities_created": 0
+  },
+  "persisted_parser_v1_fields": [
+    {
+      "source_label": "Ragione sociale",
+      "structural_locator": "cosenza_combined_v1:operator_name"
+    },
+    {
+      "source_label": "Codice fiscale/Partita IVA",
+      "structural_locator": "cosenza_combined_v1:identifier",
+      "parsed_identifier_scheme": "UNRESOLVED_CF_OR_VAT"
+    }
+  ],
+  "query_surface": "mart.cosenza_source_mentions",
+  "storage_and_access": {
+    "row_level_files_committed_to_git": false,
+    "workflow_artifact_status": "ephemeral",
+    "durable_hosted_database_status": "not_yet_available",
+    "public_row_level_release": false,
+    "reproducible_database_persistence": true
+  },
+  "interpretation_guardrails": [
+    "Rows are source observations and unresolved entity mentions, not canonical companies.",
+    "Source identifiers are not assumed to uniquely identify canonical entities.",
+    "Parser source_status diagnostics are not canonical legal-effect determinations.",
+    "The live validation database is ephemeral; this profile records a successful reproducible persistence validation, not the existence of a durable hosted database.",
+    "No row-level public release has been approved."
+  ]
+}
