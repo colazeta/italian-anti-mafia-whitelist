@@ -22,6 +22,8 @@ def test_capture_operational_schema_patch_is_applied():
         "etag",
         "last_modified",
         "ALTER COLUMN effective_period DROP NOT NULL",
+        "DROP CONSTRAINT white_list_register_effective_valid",
+        "effective_period IS NULL",
     ]:
         assert required in ddl
 
@@ -36,6 +38,7 @@ def test_cosenza_manifest_resolves_against_research_registry_without_guessing_so
         ROOT / "data/source_registry/source_series_inventory.csv",
     )
     assert context.authority_key == "cosenza"
+    assert context.authority_name == "Prefettura - Ufficio Territoriale del Governo di Cosenza"
     assert context.authority_type_code == "prefecture_utg"
     assert context.source_series_key == "cosenza-combined"
     assert context.regime_code == "WL-REGIME-L190-2012"
