@@ -7,6 +7,7 @@ BEGIN;
 \ir schema/030_whitelist.sql
 \ir schema/040_source.sql
 \ir schema/045_capture_operational_metadata.sql
+\ir schema/046_parse_operational_metadata.sql
 \ir schema/050_mapping_provenance.sql
 \ir schema/060_derived_governance.sql
 \ir schema/070_views.sql
