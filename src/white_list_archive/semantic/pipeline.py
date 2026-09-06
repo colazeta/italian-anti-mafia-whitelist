@@ -26,107 +26,34 @@ from white_list_archive.semantic.canonicalise import canonicalise_series
 
 MAPPING_VERSION = "prefecture-combined-whitelist-v1"
 
-# Source-field -> canonical ontology mapping belongs to the semantic profile,
-# not to the physical parser implementation. Different parsers that emit the
-# same record contract can therefore reuse the same mapping rules.
 FIELD_MAPPINGS: dict[str, list[dict[str, Any]]] = {
     "ragione_sociale": [
-        {
-            "canonical_path": "entity_name.name",
-            "rule": "preserve raw business name; normalisation remains supplementary",
-            "confidence": 1.0,
-            "loss": False,
-        }
+        {"canonical_path": "entity_name.name", "rule": "preserve raw business name; normalisation remains supplementary", "confidence": 1.0, "loss": False}
     ],
     "sede_legale": [
-        {
-            "canonical_path": "establishment.address",
-            "rule": "project source registered-office string as establishment address observation",
-            "confidence": 1.0,
-            "loss": False,
-        }
+        {"canonical_path": "establishment.address", "rule": "project source registered-office string as establishment address observation", "confidence": 1.0, "loss": False}
     ],
     "sede_secondaria": [
-        {
-            "canonical_path": "establishment.address",
-            "rule": "project source secondary-office string as establishment address observation",
-            "confidence": 1.0,
-            "loss": False,
-        }
+        {"canonical_path": "establishment.address", "rule": "project source secondary-office string as establishment address observation", "confidence": 1.0, "loss": False}
     ],
     "codice_fiscale_partita_iva": [
-        {
-            "canonical_path": "entity_identifier.value",
-            "rule": "split composite identifier field into preserved source identifier observations",
-            "confidence": 1.0,
-            "loss": True,
-        },
-        {
-            "canonical_path": "entity_identifier.scheme",
-            "rule": "annotate possible identifier scheme from syntax/source hints without forcing identity",
-            "confidence": 0.9,
-            "loss": True,
-        },
+        {"canonical_path": "entity_identifier.value", "rule": "split composite identifier field into preserved source identifier observations", "confidence": 1.0, "loss": True},
+        {"canonical_path": "entity_identifier.scheme", "rule": "annotate possible identifier scheme from syntax/source hints without forcing identity", "confidence": 0.9, "loss": True},
     ],
     "attivita_richiesta_iscrizione": [
-        {
-            "canonical_path": "procedure.sector_concept",
-            "rule": "map requested activity wording to the applicable versioned White List sector concept",
-            "confidence": 1.0,
-            "loss": True,
-        }
+        {"canonical_path": "procedure.sector_concept", "rule": "map requested activity wording to the applicable versioned White List sector concept", "confidence": 1.0, "loss": True}
     ],
     "data_presentazione_istanza": [
-        {
-            "canonical_path": "procedure.application_date",
-            "rule": "parse each source application-date token while preserving parenthesized-source flag",
-            "confidence": 1.0,
-            "loss": False,
-        }
+        {"canonical_path": "procedure.application_date", "rule": "parse each source application-date token while preserving parenthesized-source flag", "confidence": 1.0, "loss": False}
     ],
     "esito": [
-        {
-            "canonical_path": "relationship_state.administrative_disposition",
-            "rule": "interpret explicit source Esito wording through versioned semantic projector",
-            "confidence": 0.95,
-            "loss": True,
-        },
-        {
-            "canonical_path": "relationship_state.legal_effect_status",
-            "rule": "project only legal-effect states supported by explicit source wording; otherwise unknown",
-            "confidence": 0.9,
-            "loss": True,
-        },
-        {
-            "canonical_path": "relationship_state.nominal_valid_from",
-            "rule": "extract observed listing date from explicit Esito wording",
-            "confidence": 1.0,
-            "loss": True,
-        },
-        {
-            "canonical_path": "relationship_state.nominal_valid_until",
-            "rule": "extract nominal expiry date from explicit Esito wording",
-            "confidence": 1.0,
-            "loss": True,
-        },
-        {
-            "canonical_path": "procedure.status",
-            "rule": "project procedure status from explicit Esito wording and renewal/update markers",
-            "confidence": 0.95,
-            "loss": True,
-        },
-        {
-            "canonical_path": "procedure.outcome",
-            "rule": "project approved/rejected/cancelled only when supported by explicit source wording",
-            "confidence": 0.95,
-            "loss": True,
-        },
-        {
-            "canonical_path": "procedure.decision_date",
-            "rule": "use explicitly observed insertion/decision date only for eligible completed procedures",
-            "confidence": 0.95,
-            "loss": True,
-        },
+        {"canonical_path": "relationship_state.administrative_disposition", "rule": "interpret explicit source Esito wording through versioned semantic projector", "confidence": 0.95, "loss": True},
+        {"canonical_path": "relationship_state.legal_effect_status", "rule": "project only legal-effect states supported by explicit source wording; otherwise unknown", "confidence": 0.9, "loss": True},
+        {"canonical_path": "relationship_state.nominal_valid_from", "rule": "extract observed listing date from explicit Esito wording", "confidence": 1.0, "loss": True},
+        {"canonical_path": "relationship_state.nominal_valid_until", "rule": "extract nominal expiry date from explicit Esito wording", "confidence": 1.0, "loss": True},
+        {"canonical_path": "procedure.status", "rule": "project procedure status from explicit Esito wording and renewal/update markers", "confidence": 0.95, "loss": True},
+        {"canonical_path": "procedure.outcome", "rule": "project approved/rejected/cancelled only when supported by explicit source wording", "confidence": 0.95, "loss": True},
+        {"canonical_path": "procedure.decision_date", "rule": "use explicitly observed insertion/decision date only for eligible completed procedures", "confidence": 0.95, "loss": True},
     ],
 }
 
@@ -176,7 +103,12 @@ def _select_family(series_code: str, fingerprints: list[str], families_path, bin
     return selections[0]
 
 
-def ensure_field_mappings(conn, series_id, record_contract_code: str) -> dict[str, int]:
+def ensure_field_mappings(
+    conn,
+    series_id,
+    record_contract_code: str,
+    field_locator_prefix: str,
+) -> dict[str, int]:
     if record_contract_code != "prefecture-combined-whitelist-v1":
         raise LookupError(
             f"No field-mapping profile implemented for record contract {record_contract_code!r}"
@@ -203,9 +135,9 @@ def ensure_field_mappings(conn, series_id, record_contract_code: str) -> dict[st
             FROM source.source_field_definition fd
             JOIN source.source_schema_version sv ON sv.schema_version_id=fd.schema_version_id
             JOIN source.source_schema ss ON ss.source_schema_id=sv.source_schema_id
-            WHERE ss.series_id=%s
+            WHERE ss.series_id=%s AND fd.structural_locator LIKE %s
             """,
-            (series_id,),
+            (series_id, field_locator_prefix + "%"),
         )
         definitions = cur.fetchall()
         observed_labels = {row[1] for row in definitions}
@@ -213,8 +145,8 @@ def ensure_field_mappings(conn, series_id, record_contract_code: str) -> dict[st
         missing = required - observed_labels
         if missing:
             raise ValueError(
-                f"Source series violates semantic record contract {record_contract_code!r}; "
-                f"missing source-field definitions {sorted(missing)}"
+                f"Parser-family field namespace {field_locator_prefix!r} violates semantic record contract "
+                f"{record_contract_code!r}; missing definitions {sorted(missing)}"
             )
 
         for field_definition_id, source_label in definitions:
@@ -263,23 +195,20 @@ def run_pipeline(
 ) -> dict[str, Any]:
     with conn.cursor() as cur:
         context = _series_context(cur, series_code)
-    selection = _select_family(
-        series_code, context["fingerprints"], families_path, bindings_path
-    )
-    profile = semantic_profile_for_family(
-        selection.family, profiles_path=semantic_profiles_path
-    )
+    selection = _select_family(series_code, context["fingerprints"], families_path, bindings_path)
+    profile = semantic_profile_for_family(selection.family, profiles_path=semantic_profiles_path)
 
     mappings = ensure_field_mappings(
-        conn, context["series_id"], selection.family.record_contract_code
+        conn,
+        context["series_id"],
+        selection.family.record_contract_code,
+        selection.family.field_locator_prefix,
     )
 
     module = importlib.import_module(profile.projector_module)
     project_series = getattr(module, "project_series", None)
     if project_series is None:
-        raise AttributeError(
-            f"Semantic projector {profile.projector_module!r} has no project_series()"
-        )
+        raise AttributeError(f"Semantic projector {profile.projector_module!r} has no project_series()")
     projection = project_series(conn, series_code)
     canonicalisation = canonicalise_series(conn, series_code)
 
@@ -290,6 +219,7 @@ def run_pipeline(
             "family_code": selection.family.code,
             "implementation_module": selection.family.implementation_module,
             "parser_version": selection.family.parser_version,
+            "field_locator_prefix": selection.family.field_locator_prefix,
             "selection_basis": selection.selection_basis,
         },
         "record_contract_code": selection.family.record_contract_code,
@@ -334,9 +264,7 @@ def main() -> None:
     parser.add_argument("--series-code", required=True)
     parser.add_argument("--parser-families", type=Path, default=DEFAULT_FAMILIES)
     parser.add_argument("--parser-bindings", type=Path, default=DEFAULT_BINDINGS)
-    parser.add_argument(
-        "--semantic-profiles", type=Path, default=DEFAULT_SEMANTIC_PROFILES
-    )
+    parser.add_argument("--semantic-profiles", type=Path, default=DEFAULT_SEMANTIC_PROFILES)
     args = parser.parse_args()
     result = run_from_dsn(
         args.dsn,
