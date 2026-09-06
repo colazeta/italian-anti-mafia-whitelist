@@ -70,8 +70,15 @@ BEGIN
     SELECT count(*) INTO n FROM core.entity_name;
     IF n <> 2655 THEN RAISE EXCEPTION 'Expected 2655 source-supported canonical name observations, got %', n; END IF;
 
+    -- Two accepted observations contain one ambiguous identifier plus a second,
+    -- independent safe identifier. The entity may be resolved, but the ambiguous
+    -- identifier itself must remain semantic-only and never enter EntityIdentifier.
     SELECT count(*) INTO n FROM core.entity_identifier;
-    IF n <> 3250 THEN RAISE EXCEPTION 'Expected 3250 source-supported canonical identifier observations, got %', n; END IF;
+    IF n <> 3248 THEN RAISE EXCEPTION 'Expected 3248 ambiguity-safe canonical identifier observations, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM core.entity_identifier
+     WHERE normalised_value IN ('03579010780','03865410785','03849810787');
+    IF n <> 0 THEN RAISE EXCEPTION 'Found % ambiguous source identifier(s) promoted to canonical EntityIdentifier', n; END IF;
 
     SELECT count(*) INTO n FROM core.address;
     IF n <> 1298 THEN RAISE EXCEPTION 'Expected 1298 distinct source-address objects, got %', n; END IF;
@@ -109,15 +116,5 @@ BEGIN
     SELECT count(*) INTO n FROM provenance.procedure_resolution
      WHERE decision_status_code='accepted' AND resolution_method_code <> 'deterministic_source_fields';
     IF n <> 0 THEN RAISE EXCEPTION 'Found % procedure resolutions using the wrong resolution-method semantics', n; END IF;
-
-    -- Three strong identifier values are deliberately ambiguous across distinct
-    -- names; none may silently resolve all six affected observations.
-    SELECT count(*) INTO n
-      FROM semantic.entity_projection_resolution epr
-      JOIN semantic.entity_observation eo USING(entity_observation_id)
-      JOIN semantic.identifier_observation io USING(entity_observation_id)
-     WHERE io.normalised_value IN ('03579010780','03865410785','03849810787')
-       AND epr.decision_status_code='accepted';
-    IF n <> 0 THEN RAISE EXCEPTION 'Ambiguous identifier observations were incorrectly canonicalised (% accepted)', n; END IF;
 END;
 $$;
