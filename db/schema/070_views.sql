@@ -109,3 +109,55 @@ FROM source.source_schema ss
 JOIN source.source_schema_version ssv ON ssv.source_schema_id = ss.source_schema_id
 JOIN source.source_field_definition fd ON fd.schema_version_id = ssv.schema_version_id
 LEFT JOIN source.source_series series ON series.series_id = ss.series_id;
+
+CREATE OR REPLACE VIEW mart.cosenza_source_mentions AS
+SELECT
+    e.edition_code,
+    e.reference_period,
+    pr.parsed_record_id,
+    pr.record_locator,
+    pr.record_hash,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v1:operator_name'
+    ) AS operator_name_raw,
+    MAX(sfv.parsed_value_json ->> 'normalised') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v1:operator_name'
+    ) AS operator_name_normalised,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v1:identifier'
+    ) AS identifier_raw,
+    MAX(sfv.parsed_value_json ->> 'scheme_code') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v1:identifier'
+    ) AS identifier_scheme_parsed,
+    pr.raw_record_text,
+    run.parse_run_code,
+    pa.software_name AS parser_name,
+    pa.software_version AS parser_version,
+    pa.configuration_hash AS parser_configuration_hash,
+    co.sha256 AS content_sha256
+FROM source.parsed_record pr
+JOIN source.parse_run run ON run.parse_run_id = pr.parse_run_id
+JOIN provenance.processing_activity pa ON pa.processing_activity_id = run.processing_activity_id
+JOIN source.content_object co ON co.content_object_id = run.content_object_id
+JOIN source.source_capture cap ON cap.content_object_id = co.content_object_id
+JOIN source.capture_edition ce ON ce.capture_id = cap.capture_id
+JOIN source.source_edition e ON e.edition_id = ce.edition_id
+JOIN source.source_series series ON series.series_id = e.series_id
+LEFT JOIN source.source_field_value sfv ON sfv.parsed_record_id = pr.parsed_record_id
+LEFT JOIN source.source_field_definition fd ON fd.field_definition_id = sfv.field_definition_id
+WHERE series.series_code = 'cosenza-combined'
+GROUP BY
+    e.edition_code,
+    e.reference_period,
+    pr.parsed_record_id,
+    pr.record_locator,
+    pr.record_hash,
+    pr.raw_record_text,
+    run.parse_run_code,
+    pa.software_name,
+    pa.software_version,
+    pa.configuration_hash,
+    co.sha256;
+
+COMMENT ON VIEW mart.cosenza_source_mentions IS
+    'Readable source-observation mart for the Cosenza combined-list parser. Rows are parsed source mentions, not canonical entities or administrative legal-effect determinations.';
