@@ -35,6 +35,12 @@ jobs:
         run: python -m pip install -e .[dev,database]
       - name: Run repository tests
         run: pytest -q
+      - name: Generate synthetic Cosenza parser outputs
+        run: |
+          white-list-cosenza-mentions \
+            tests/fixtures/cosenza_parser/before.txt \
+            tests/fixtures/cosenza_parser/after.txt \
+            --output-dir artifacts/cosenza-fixture
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply schema and seeds
@@ -51,3 +57,19 @@ jobs:
             data/captures/cosenza/combined_2026-08-03.json
       - name: Validate persisted capture graph
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/002_cosenza_manifest_persistence.sql
+      - name: Persist synthetic parsed records twice
+        run: |
+          for pass in 1 2; do
+            white-list-persist-parsed-records --dsn "$TEST_DSN" \
+              --capture-manifest tests/fixtures/cosenza_parser/before_capture.json \
+              --parse-manifest artifacts/cosenza-fixture/parse_manifest.json \
+              --parse-label before \
+              --records artifacts/cosenza-fixture/before_records.csv
+            white-list-persist-parsed-records --dsn "$TEST_DSN" \
+              --capture-manifest tests/fixtures/cosenza_parser/after_capture.json \
+              --parse-manifest artifacts/cosenza-fixture/parse_manifest.json \
+              --parse-label after \
+              --records artifacts/cosenza-fixture/after_records.csv
+          done
+      - name: Validate parsed-record persistence
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/003_cosenza_parsed_record_persistence.sql
