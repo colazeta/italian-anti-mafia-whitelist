@@ -5,7 +5,8 @@ A national, standardised, longitudinal and provenance-aware data infrastructure 
 ## Start here
 
 - **Want to see the data?** Read [`docs/data-access.md`](docs/data-access.md) and open [`data/catalog.csv`](data/catalog.csv).
-- **Want to review the current product checkpoint?** See [`docs/product/data-explorer-checkpoint.md`](docs/product/data-explorer-checkpoint.md); the private live workflow builds the row-level Data Explorer artifact.
+- **Want to review the current product checkpoint?** See [`docs/product/data-explorer-checkpoint.md`](docs/product/data-explorer-checkpoint.md); the private live workflow builds the row-level Data Explorer v2 artifact.
+- **Want to understand the current parser QA?** See [`docs/architecture/cosenza-parser-v2.md`](docs/architecture/cosenza-parser-v2.md).
 - **Want to understand the project rules?** Read [`docs/project-rules.md`](docs/project-rules.md).
 - **Want the documentation map?** Start from [`docs/README.md`](docs/README.md).
 - **Want to understand the database?** See [`docs/architecture/`](docs/architecture/).
@@ -13,7 +14,7 @@ A national, standardised, longitudinal and provenance-aware data infrastructure 
 
 ## Current status
 
-The last frozen database baseline is **schema 0.1.0**. The live development line is **0.1.1.dev0**, which adds operational metadata required by the first real source captures and row-level parse persistence without silently redefining the frozen 0.1.0 semantics.
+The last frozen database baseline is **schema 0.1.0**. The live development line is **0.1.1.dev0**, which adds operational metadata required by real source captures and versioned row-level parsing without silently redefining the frozen 0.1.0 semantics.
 
 The project currently contains:
 
@@ -30,23 +31,25 @@ The project currently contains:
 - an official national-index discovery parser and manual GitHub workflow;
 - a real Cosenza content-capture pilot for the **28 June 2026** and **3 August 2026** editions;
 - frozen Cosenza capture manifests with HTTP provenance, SHA-256 and structural fingerprints;
-- a validated aggregate observational diff between those two editions;
-- an idempotent PostgreSQL importer for the Cosenza source/capture graph;
-- a reproducible row-level persistence layer for `ParseRun`, immutable `ParsedRecord`, `SourceFieldValue` and unresolved `EntityMention` objects;
-- a readable `mart.cosenza_source_mentions` source-observation view;
-- a versioned **Data Explorer checkpoint UI** that the live Cosenza workflow fills with the validated 2,657 source observations and uploads as a private self-contained HTML artifact;
-- static repository governance tests and PostgreSQL integration/constraint tests.
+- a versioned parser history: v1 retained as a documented QA baseline and **v2 as the current lossless-first Cosenza parser**;
+- **1,327 + 1,334 = 2,661** validated v2 source observations;
+- seven persisted Cosenza source columns per observation: business name, registered office, secondary office, source identifiers, requested activities, application dates and outcome;
+- observed listing dates and nominal expiry dates parsed from source `Esito` wording while remaining non-canonical observations;
+- **18,627** v2 `SourceFieldValue` objects and zero canonical entities created by parsing;
+- a readable `mart.cosenza_source_observations_v2` source-observation view;
+- a versioned **Data Explorer v2 checkpoint UI** populated only after frozen-source identity checks and PostgreSQL QA pass;
+- static repository-governance tests and PostgreSQL integration/constraint tests.
 
-The project does **not** yet contain a complete national scrape or a public row-level company dataset. Row-level source observations belong to the internal database/archive until a reviewed release profile is approved; parsing them does not create canonical companies or administrative states.
+The project does **not** yet contain a complete national scrape or a public row-level company dataset. Row-level source observations belong to the internal database/archive until a reviewed release profile is approved; parsing does not itself establish canonical companies or administrative states.
 
 ## Where the data are
 
 The repository intentionally distinguishes discovery data, capture metadata, internal database state and release-ready data.
 
 ```text
-data/catalog.csv             inventory of persistent repository data
+data/catalog.csv             inventory of persistent repository data and parser profiles
 data/source_registry/        national source discovery and coverage research
-data/captures/               immutable capture manifests + aggregate diagnostics
+data/captures/               immutable capture manifests + parser-validation profiles
 PostgreSQL marts             row-level internal observations / later canonical data
 Explorer workflow artifact  private curator checkpoint over validated row-level data
 data/releases/               reviewed release products (no row-level release yet)
@@ -75,6 +78,7 @@ See [`docs/data-access.md`](docs/data-access.md) for the exact current contents 
 15. Persistent repository data must be represented in the machine-readable data catalog.
 16. A parsed source record is immutable and does not by itself establish canonical entity identity or White List legal effect.
 17. Product surfaces must visually distinguish source observations from canonical facts and release status.
+18. A parser is not production-ready merely because it identifies most rows: it must inventory and preserve the observable source schema, cardinality and representative edge cases before scale-out.
 
 ## Repository layout
 
@@ -85,9 +89,9 @@ CONTRIBUTING.md             contribution workflow
 docs/                       documentation index, rules, architecture, product, sources and dictionary
 data/                       catalogued persistent research/capture/release artifacts
 db/                         PostgreSQL schema, seeds and integrity tests
-explorer/                   versioned checkpoint Data Explorer template
+explorer/                   versioned checkpoint Data Explorer templates
 src/white_list_archive/     acquisition, parsing, persistence, publishing and normalisation code
-tests/                      code, registry and repository-governance tests
+tests/                      code, parser, registry and repository-governance tests
 .github/workflows/          CI and reproducible acquisition/product workflows
 ```
 
@@ -106,26 +110,16 @@ The compose file uses PostgreSQL 18. Complex temporal integrity is enforced with
 
 ## Inspect Cosenza source observations
 
-The capture graph can be loaded with:
-
-```bash
-python -m pip install -e '.[database]'
-white-list-persist-capture-manifests \
-  --dsn "$DATABASE_URL" \
-  data/captures/cosenza/combined_2026-06-28.json \
-  data/captures/cosenza/combined_2026-08-03.json
-```
-
-The row-level persistence command consumes parser outputs and verifies their input text SHA-256 against the frozen capture manifest before creating a ParseRun. Once loaded, inspect source observations with:
+After loading the frozen capture graph and parser-v2 outputs, inspect the current source-observation mart with:
 
 ```sql
 SELECT *
-FROM mart.cosenza_source_mentions
+FROM mart.cosenza_source_observations_v2
 ORDER BY edition_code, record_locator
 LIMIT 50;
 ```
 
-This view contains source mentions and provenance; it is not the canonical White List dataset.
+The legacy `mart.cosenza_source_mentions` view is retained only for parser-v1 provenance comparison.
 
 ## Validation status
 
@@ -136,22 +130,23 @@ GitHub Actions validates both the repository and PostgreSQL 18 model. The suite 
 - parser/schema consistency and source-value immutability;
 - entity/procedure resolution uniqueness;
 - content identity and capture provenance;
-- idempotent Cosenza manifest persistence;
-- idempotent row-level ParseRun/ParsedRecord persistence;
+- idempotent Cosenza source/capture persistence;
+- versioned v1/v2 ParseRun persistence;
+- v2 row coverage and rich source-field persistence;
+- known v1 false-negative/false-positive regression cases;
 - zero implicit canonical entities created by parsing;
-- sanitized Data Explorer generation in ordinary CI;
+- Data Explorer generation;
 - data-catalog and documentation governance.
 
-The dedicated live Cosenza workflow re-downloads the two frozen official PDFs and refuses row-level persistence unless URL, PDF SHA-256, text SHA-256, page count and structural schema fingerprint still match their frozen capture identities. After validation it generates the private full-row Data Explorer checkpoint artifact.
+The dedicated live Cosenza workflow re-downloads the two frozen official PDFs and refuses parsing/persistence unless source identities still match. It reproduces v1 as a historical QA baseline, runs/persists v2, validates v2 counts and edge cases in PostgreSQL, and only then generates the private full-row Data Explorer v2 artifact.
 
 ## Next implementation steps
 
-1. Review the Cosenza Data Explorer checkpoint and resolve material UI/parser/model feedback before national parser scale-out.
-2. Apply the validated Cosenza schema family across the identified historical editions and construct the first longitudinal observation history.
+1. Review the richer Cosenza Data Explorer v2 checkpoint and resolve material UI/parser/model feedback before national parser scale-out.
+2. Apply the validated v2 Cosenza schema family across the identified historical editions and construct the first longitudinal observation history.
 3. Continue resolving and verifying the remaining national source pages and source series.
 4. Add durable content-addressed raw-byte storage and promote `ContentObject.storage_status` from `ephemeral` to `durable` only when real storage exists.
-5. Improve the Cosenza parser to isolate additional raw source fields (including exact `Esito`) while preserving parser-v1 history.
-6. Backfill historical sector schemes before 7 June 2020.
-7. Add source-schema families/parsers for additional Prefectures.
-8. Build reviewed current-state/history marts and a stable hosted data-browser/API layer.
-9. Publish versioned release products only after reuse/privacy review.
+5. Backfill historical sector schemes before 7 June 2020.
+6. Add source-schema families/parsers for additional Prefectures using the v2 lossless-first quality rule.
+7. Build reviewed current-state/history marts and a stable hosted data-browser/API layer.
+8. Publish versioned release products only after reuse/privacy review.

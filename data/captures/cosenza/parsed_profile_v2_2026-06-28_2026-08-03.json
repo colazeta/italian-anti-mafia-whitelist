@@ -1,0 +1,88 @@
+{
+  "profile_id": "cosenza-parsed-observations-v2-2026-06-28-2026-08-03",
+  "authority_key": "cosenza",
+  "source_series_key": "cosenza-combined",
+  "validated_at": "2026-09-06T20:14:58Z",
+  "workflow_run_id": 34057337000,
+  "processing_revision": "9b25bb79708a5b540c22b9f9dd54625aa8ca7b68",
+  "capture_artifact": {
+    "artifact_id": 9996370386,
+    "sha256": "c8b725b735ebed0fea7a816cde10ef3f3d53fbc5bd04d3e28831cbcb5026e505"
+  },
+  "explorer_artifact": {
+    "artifact_id": 9996370845,
+    "sha256": "396ea4cbfe2921a00ed2249f2ea916f32cb80cf849a811e88b45855e6225696a"
+  },
+  "parser": {
+    "name": "white_list_archive.parsers.cosenza_combined_v2",
+    "version": "2",
+    "configuration_hash": "f777739a5c813e3382837c9edef14628423a0d25de5ef39441129e9a972a1e62",
+    "method": "PDF word-coordinate parsing using pdftotext -bbox-layout",
+    "schema_fingerprint": "fbb124c5a43d26bef93316844b3021096060f7ed9d2cc0f8f6081f6df935dc97"
+  },
+  "source_fields_persisted": [
+    "Ragione sociale",
+    "Sede legale",
+    "Sede secondaria",
+    "Codice fiscale/Partita IVA",
+    "Attività per cui è richiesta l’iscrizione",
+    "Data di presentazione dell’istanza",
+    "Esito"
+  ],
+  "editions": [
+    {
+      "reference_date": "2026-06-28",
+      "content_sha256": "565a71d89c4d684b68303949974a6c63410b9432eefe9f3773ac540a4318a07d",
+      "parse_run_code": "c6234e08204f0ea5164a54e37397fcc533e79a0387eda1bce3aa9d2129c94b25",
+      "parsed_record_count": 1327,
+      "source_field_value_count": 9289,
+      "entity_mention_count": 1327,
+      "observed_listing_date_count": 452,
+      "observed_expiry_date_count": 213
+    },
+    {
+      "reference_date": "2026-08-03",
+      "content_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+      "parse_run_code": "16375815b0d66ac029bac0270390a847ef28ae7cd7a95486b85cfbce3e851f22",
+      "parsed_record_count": 1334,
+      "source_field_value_count": 9338,
+      "entity_mention_count": 1334,
+      "observed_listing_date_count": 461,
+      "observed_expiry_date_count": 215
+    }
+  ],
+  "totals": {
+    "parse_run_count": 2,
+    "parsed_record_count": 2661,
+    "source_field_value_count": 18627,
+    "entity_mention_count": 2661,
+    "observed_listing_date_count": 913,
+    "observed_expiry_date_count": 428,
+    "canonical_entities_created": 0
+  },
+  "v1_quality_audit": {
+    "v1_counts": {"2026-06-28": 1325, "2026-08-03": 1332},
+    "v2_counts": {"2026-06-28": 1327, "2026-08-03": 1334},
+    "false_negative_rows_per_snapshot": 3,
+    "false_positive_rows_per_snapshot": 1,
+    "recovered_real_rows": ["GENISE FORTUNATO", "NICASTRO GIUSEPPE", "ANDREOLI ELIO"],
+    "false_positive_example": "ABBREVIATAMENTE SMIC S.R.L.",
+    "root_cause": "v1 used an 11-digit numeric identifier as a row-start requirement and could split continuation lines containing another identifier",
+    "resolution": "v2 detects rows from table geometry and application/outcome context; identifier validity is never a row-existence criterion"
+  },
+  "storage_and_access": {
+    "row_level_files_committed_to_git": false,
+    "workflow_artifact_status": "ephemeral_private",
+    "durable_hosted_database_status": "not_yet_available",
+    "public_row_level_release": false,
+    "reproducible_database_persistence": true,
+    "query_surface": "mart.cosenza_source_observations_v2"
+  },
+  "interpretation_guardrails": [
+    "Rows are source observations and unresolved entity mentions, not canonical companies.",
+    "Source identifier syntax is preserved even when malformed or ambiguous.",
+    "Observed listing and expiry dates are parsed from source Esito wording and are not automatically canonical administrative dates.",
+    "Appearance/disappearance between editions is observational and is not an administrative registration/removal event.",
+    "Parser v1 remains preserved as historical provenance and a documented QA baseline."
+  ]
+}

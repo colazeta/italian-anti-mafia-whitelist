@@ -146,6 +146,7 @@ JOIN source.source_series series ON series.series_id = e.series_id
 LEFT JOIN source.source_field_value sfv ON sfv.parsed_record_id = pr.parsed_record_id
 LEFT JOIN source.source_field_definition fd ON fd.field_definition_id = sfv.field_definition_id
 WHERE series.series_code = 'cosenza-combined'
+  AND pa.software_name = 'white_list_archive.parsers.cosenza_combined_mentions'
 GROUP BY
     e.edition_code,
     e.reference_period,
@@ -160,4 +161,90 @@ GROUP BY
     co.sha256;
 
 COMMENT ON VIEW mart.cosenza_source_mentions IS
-    'Readable source-observation mart for the Cosenza combined-list parser. Rows are parsed source mentions, not canonical entities or administrative legal-effect determinations.';
+    'Legacy readable source-observation mart for Cosenza parser v1. Rows are not canonical entities. Kept for provenance comparison; use mart.cosenza_source_observations_v2 for the rich lossless-first parser.';
+
+CREATE OR REPLACE VIEW mart.cosenza_source_observations_v2 AS
+SELECT
+    e.edition_code,
+    e.reference_period,
+    pr.parsed_record_id,
+    pr.record_locator,
+    pr.record_hash,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:operator_name'
+    ) AS operator_name_raw,
+    MAX(sfv.parsed_value_json ->> 'normalised') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:operator_name'
+    ) AS operator_name_normalised,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:registered_office'
+    ) AS registered_office_raw,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:secondary_office'
+    ) AS secondary_office_raw,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:identifier'
+    ) AS identifier_field_raw,
+    (MAX(sfv.parsed_value_json::text) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:identifier'
+    ))::jsonb AS identifiers_parsed,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:requested_activities'
+    ) AS requested_activities_raw,
+    (MAX(sfv.parsed_value_json::text) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:requested_activities'
+    ))::jsonb AS requested_activities_parsed,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:application_dates'
+    ) AS application_date_field_raw,
+    (MAX(sfv.parsed_value_json::text) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:application_dates'
+    ))::jsonb AS application_dates_parsed,
+    MAX(sfv.raw_value) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:outcome'
+    ) AS outcome_raw,
+    (MAX(sfv.parsed_value_json::text) FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:outcome'
+    ))::jsonb AS outcome_parsed,
+    MAX(sfv.parsed_value_json ->> 'status') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:outcome'
+    ) AS source_status,
+    MAX(sfv.parsed_value_json ->> 'observed_listing_date') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:outcome'
+    ) AS observed_listing_date,
+    MAX(sfv.parsed_value_json ->> 'observed_expiry_date') FILTER (
+        WHERE fd.structural_locator = 'cosenza_combined_v2:outcome'
+    ) AS observed_expiry_date,
+    pr.raw_record_text,
+    run.parse_run_code,
+    pa.software_name AS parser_name,
+    pa.software_version AS parser_version,
+    pa.configuration_hash AS parser_configuration_hash,
+    co.sha256 AS content_sha256
+FROM source.parsed_record pr
+JOIN source.parse_run run ON run.parse_run_id = pr.parse_run_id
+JOIN provenance.processing_activity pa ON pa.processing_activity_id = run.processing_activity_id
+JOIN source.content_object co ON co.content_object_id = run.content_object_id
+JOIN source.source_capture cap ON cap.content_object_id = co.content_object_id
+JOIN source.capture_edition ce ON ce.capture_id = cap.capture_id
+JOIN source.source_edition e ON e.edition_id = ce.edition_id
+JOIN source.source_series series ON series.series_id = e.series_id
+LEFT JOIN source.source_field_value sfv ON sfv.parsed_record_id = pr.parsed_record_id
+LEFT JOIN source.source_field_definition fd ON fd.field_definition_id = sfv.field_definition_id
+WHERE series.series_code = 'cosenza-combined'
+  AND pa.software_name = 'white_list_archive.parsers.cosenza_combined_v2'
+GROUP BY
+    e.edition_code,
+    e.reference_period,
+    pr.parsed_record_id,
+    pr.record_locator,
+    pr.record_hash,
+    pr.raw_record_text,
+    run.parse_run_code,
+    pa.software_name,
+    pa.software_version,
+    pa.configuration_hash,
+    co.sha256;
+
+COMMENT ON VIEW mart.cosenza_source_observations_v2 IS
+    'Rich lossless-first Cosenza source-observation mart. Rows are not canonical entities. Listing/expiry dates are observations parsed from source Esito wording and are not canonical legal-effect facts.';
