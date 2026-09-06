@@ -3,6 +3,10 @@ INSERT INTO registry.activity_type(code,label) VALUES
 ('canonicalise','Canonicalisation')
 ON CONFLICT DO NOTHING;
 
+INSERT INTO registry.resolution_method(code,label) VALUES
+('deterministic_source_fields','Deterministic source-field rule')
+ON CONFLICT DO NOTHING;
+
 INSERT INTO mapping.canonical_field(
     canonical_path, semantic_domain, definition, datatype, cardinality, standard_uri
 ) VALUES (
