@@ -3,37 +3,120 @@ name: Cosenza content capture
 on:
   push:
     branches:
+      - main
       - research/cosenza-content-capture
     paths:
       - 'src/white_list_archive/acquisition/cosenza_capture.py'
       - 'src/white_list_archive/parsers/cosenza_combined_mentions.py'
+      - 'src/white_list_archive/persistence/capture_manifest.py'
+      - 'src/white_list_archive/persistence/parsed_records.py'
+      - 'data/captures/cosenza/combined_2026-06-28.json'
+      - 'data/captures/cosenza/combined_2026-08-03.json'
+      - 'db/apply.sql'
+      - 'db/schema/040_source.sql'
+      - 'db/schema/045_capture_operational_metadata.sql'
+      - 'db/schema/046_parse_operational_metadata.sql'
+      - 'db/schema/070_views.sql'
+      - 'db/tests/004_cosenza_live_parsed_counts.sql'
+      - 'pyproject.toml'
       - '.github/workflows/cosenza-content-capture.yml'
   workflow_dispatch:
 
 jobs:
   capture:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install PDF utilities
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install project and acquisition utilities
+        run: |
+          python -m pip install -e .[database]
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils postgresql-client
+      - name: Apply PostgreSQL schema
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
       - name: Capture two adjacent Cosenza editions
         run: |
-          python -m white_list_archive.acquisition.cosenza_capture \
+          white-list-cosenza-capture \
             https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
             https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
-        env:
-          PYTHONPATH: src
+      - name: Verify live bytes and extracted text against frozen capture identities
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          live = {
+              item['reference_date']: item
+              for item in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
+          }
+          frozen = {
+              '2026-06-28': json.loads(Path('data/captures/cosenza/combined_2026-06-28.json').read_text()),
+              '2026-08-03': json.loads(Path('data/captures/cosenza/combined_2026-08-03.json').read_text()),
+          }
+          if set(live) != set(frozen):
+              raise SystemExit(f'Unexpected live edition set: {sorted(live)}')
+          keys = ['resource_url', 'sha256', 'text_sha256', 'schema_fingerprint', 'page_count']
+          for reference_date, expected in frozen.items():
+              observed = live[reference_date]
+              mismatches = {
+                  key: {'expected': expected[key], 'observed': observed[key]}
+                  for key in keys
+                  if observed.get(key) != expected.get(key)
+              }
+              if mismatches:
+                  raise SystemExit(
+                      f'Frozen content identity mismatch for {reference_date}: {mismatches}. '
+                      'Do not attach this parse to the frozen ContentObject; review as a new capture.'
+                  )
+          print('Frozen Cosenza content identities verified.')
+          PY
+      - name: Persist frozen source and capture graph
+        run: |
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
       - name: Parse source mentions and compute observational diff
         run: |
-          python -m white_list_archive.parsers.cosenza_combined_mentions \
+          white-list-cosenza-mentions \
             artifacts/cosenza-capture/2026-06-28/combined.txt \
-            artifacts/cosenza-capture/2026-08-03/combined.txt
-        env:
-          PYTHONPATH: src
+            artifacts/cosenza-capture/2026-08-03/combined.txt \
+            --output-dir artifacts/cosenza-mentions
+      - name: Persist real parsed source observations
+        run: |
+          white-list-persist-parsed-records --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+            --parse-label before \
+            --records artifacts/cosenza-mentions/before_records.csv
+          white-list-persist-parsed-records --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+            --parse-label after \
+            --records artifacts/cosenza-mentions/after_records.csv
+      - name: Validate real row-level persistence
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/004_cosenza_live_parsed_counts.sql
       - name: Print aggregate structural comparison
         run: |
           python - <<'PY'
@@ -41,10 +124,13 @@ jobs:
           from pathlib import Path
           capture = json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())
           diff = json.loads(Path('artifacts/cosenza-mentions/diff_summary.json').read_text())
+          parse = json.loads(Path('artifacts/cosenza-mentions/parse_manifest.json').read_text())
           print('=== CAPTURE MANIFEST ===')
           for row in capture:
               print({k: row[k] for k in ['reference_date','resource_url','http_status','captured_at','etag','last_modified','sha256','byte_size','content_type','page_count','text_sha256','schema_fingerprint']})
           print('same_schema_fingerprint=', len({r['schema_fingerprint'] for r in capture}) == 1)
+          print('=== PARSE RUN ===')
+          print({k: parse[k] for k in ['parser_name','parser_version','processing_revision','configuration_hash','started_at','completed_at']})
           print('=== OBSERVATIONAL DIFF ===')
           print(json.dumps(diff, indent=2, ensure_ascii=False))
           PY
