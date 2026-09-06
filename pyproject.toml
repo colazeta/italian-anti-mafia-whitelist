@@ -15,8 +15,10 @@ white-list-national-index = "white_list_archive.acquisition.national_index:main"
 white-list-cosenza-snapshot = "white_list_archive.acquisition.cosenza_snapshot:main"
 white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:main"
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
+white-list-cosenza-v2 = "white_list_archive.parsers.cosenza_combined_v2:main"
 white-list-persist-capture-manifests = "white_list_archive.persistence.capture_manifest:main"
 white-list-persist-parsed-records = "white_list_archive.persistence.parsed_records:main"
+white-list-persist-parsed-records-v2 = "white_list_archive.persistence.parsed_records_v2:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 
 [project.optional-dependencies]
