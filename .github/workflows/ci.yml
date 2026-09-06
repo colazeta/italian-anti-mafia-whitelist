@@ -24,6 +24,7 @@ jobs:
 
     env:
       PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install project and Python test dependencies
-        run: python -m pip install -e .[dev]
+        run: python -m pip install -e .[dev,database]
       - name: Run repository tests
         run: pytest -q
       - name: Install PostgreSQL client
@@ -40,3 +41,13 @@ jobs:
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
       - name: Run database integrity tests
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
+      - name: Persist frozen Cosenza capture manifests twice
+        run: |
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
+      - name: Validate persisted capture graph
+        run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/002_cosenza_manifest_persistence.sql

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "italian-anti-mafia-whitelist"
-version = "0.1.0"
+version = "0.1.1.dev0"
 description = "Open, provenance-aware and longitudinal archive of Italian anti-mafia White Lists"
 requires-python = ">=3.12"
 authors = [{name = "Project contributors"}]
@@ -15,6 +15,7 @@ white-list-national-index = "white_list_archive.acquisition.national_index:main"
 white-list-cosenza-snapshot = "white_list_archive.acquisition.cosenza_snapshot:main"
 white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:main"
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
+white-list-persist-capture-manifests = "white_list_archive.persistence.capture_manifest:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
