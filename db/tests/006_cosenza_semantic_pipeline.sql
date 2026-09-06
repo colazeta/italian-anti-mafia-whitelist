@@ -28,8 +28,26 @@ BEGIN
     SELECT count(*) INTO n FROM semantic.procedure_sector_observation WHERE mapping_status_code <> 'mapped';
     IF n <> 0 THEN RAISE EXCEPTION 'Expected zero unmapped requested activities, got %', n; END IF;
 
+    -- Semantic issues remain part of the data, not parser failures. The current
+    -- frozen pair contains 569 parenthesized application dates, two unexpected
+    -- identifier shapes and 29 rows where a published listing date predates a
+    -- later/current application date and therefore cannot be promoted as that
+    -- procedure's decision date.
     SELECT count(*) INTO n FROM semantic.projection_issue;
-    IF n <> 571 THEN RAISE EXCEPTION 'Expected 571 projection QA issues (569 parenthesized dates + 2 unexpected identifier shapes), got %', n; END IF;
+    IF n <> 600 THEN RAISE EXCEPTION 'Expected 600 projection QA issues, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM semantic.projection_issue WHERE issue_code='PARENTHESIZED_APPLICATION_DATE';
+    IF n <> 569 THEN RAISE EXCEPTION 'Expected 569 parenthesized application-date issues, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM semantic.projection_issue WHERE issue_code='IDENTIFIER_UNEXPECTED_SHAPE';
+    IF n <> 2 THEN RAISE EXCEPTION 'Expected 2 unexpected identifier-shape issues, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM semantic.projection_issue WHERE issue_code='LISTING_DATE_PRECEDES_APPLICATION_DATE';
+    IF n <> 29 THEN RAISE EXCEPTION 'Expected 29 chronology guard issues, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM semantic.procedure_observation
+     WHERE observed_decision_date IS NOT NULL AND observed_decision_date < application_date;
+    IF n <> 0 THEN RAISE EXCEPTION 'Found % procedure observations with decision date before application date', n; END IF;
 
     SELECT count(*) INTO n FROM mapping.field_mapping WHERE mapping_version='prefecture-combined-whitelist-v1' AND effective_to IS NULL;
     IF n <> 14 THEN RAISE EXCEPTION 'Expected 14 active field mappings for selected parser family, got %', n; END IF;
@@ -78,11 +96,19 @@ BEGIN
     SELECT count(*) INTO n FROM whitelist.procedure_version;
     IF n <> 2651 THEN RAISE EXCEPTION 'Expected 2651 eligible procedure observations, got %', n; END IF;
 
+    SELECT count(*) INTO n FROM whitelist.procedure_version
+     WHERE decision_date IS NOT NULL AND decision_date < application_date;
+    IF n <> 0 THEN RAISE EXCEPTION 'Found % canonical procedure versions with decision date before application date', n; END IF;
+
     SELECT count(*) INTO n FROM whitelist.procedure_sector;
     IF n <> 3614 THEN RAISE EXCEPTION 'Expected 3614 unique procedure-sector links, got %', n; END IF;
 
     SELECT count(*) INTO n FROM provenance.procedure_resolution WHERE decision_status_code='accepted';
     IF n <> 2651 THEN RAISE EXCEPTION 'Expected 2651 accepted procedure resolutions, got %', n; END IF;
+
+    SELECT count(*) INTO n FROM provenance.procedure_resolution
+     WHERE decision_status_code='accepted' AND resolution_method_code <> 'deterministic_source_fields';
+    IF n <> 0 THEN RAISE EXCEPTION 'Found % procedure resolutions using the wrong resolution-method semantics', n; END IF;
 
     -- Three strong identifier values are deliberately ambiguous across distinct
     -- names; none may silently resolve all six affected observations.
