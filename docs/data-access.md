@@ -6,12 +6,13 @@ This page is the authoritative human-readable guide to the data currently availa
 
 Start with [`../data/catalog.csv`](../data/catalog.csv). It is the machine-readable inventory of every persistent data artifact/profile committed under `data/`.
 
-At the current project stage there are four useful access layers:
+At the current project stage there are five useful access layers:
 
 1. [`../data/source_registry/`](../data/source_registry/) — national source-discovery and coverage data.
 2. [`../data/captures/`](../data/captures/) — immutable capture manifests, validation profiles and safe aggregate diagnostics from real source acquisitions.
 3. **PostgreSQL marts** — row-level internal source observations and, later, canonical data.
-4. [`../data/releases/`](../data/releases/) — intentionally released data products. This directory currently contains no row-level White List release.
+4. **Data Explorer checkpoint** — a private self-contained browser generated from the validated Cosenza row-level data for curator review before national scale-out.
+5. [`../data/releases/`](../data/releases/) — intentionally released data products. This directory currently contains no row-level White List release.
 
 ## What is directly visible in GitHub
 
@@ -70,6 +71,26 @@ The view exposes edition, raw/normalised source name, source identifier, raw row
 
 The live workflow has successfully validated this path against the frozen official PDFs. The workflow PostgreSQL database and its uploaded row-level artifact are still operational/ephemeral: there is **not yet a durable hosted database that you can open in a browser**. This distinction is recorded explicitly in the parsed-data profile.
 
+## Internal Data Explorer checkpoint
+
+Before parsing additional Prefectures at scale, the project builds a private, self-contained HTML Data Explorer from the validated Cosenza parser output.
+
+The versioned UI template lives under `explorer/`, but the real 2,657-row payload is **not committed to Git**. The Cosenza live workflow embeds the validated rows only while generating a private GitHub Actions artifact called `data-explorer-preview`.
+
+The checkpoint includes:
+
+- national coverage metrics and searchable territorial-authority coverage;
+- a Cosenza page with snapshot totals and parser-status diagnostics;
+- a searchable/filterable table of all 2,657 source observations;
+- row detail with source name, source CF/P.IVA, raw block, record hash and mention key;
+- added/disappeared/common and status/content-change comparison between the two snapshots;
+- capture/parser provenance;
+- explicit methodological guardrails showing that source observations are not canonical administrative facts.
+
+The Explorer is designed as a curator review surface. Feedback on parsing, labels, hierarchy, temporal comparison and provenance should be resolved before broad parser scale-out.
+
+See [`product/data-explorer-checkpoint.md`](product/data-explorer-checkpoint.md) for the product contract.
+
 ## How to inspect the database representation locally
 
 Start a local PostgreSQL 18 database and apply the schema:
@@ -97,9 +118,9 @@ The live Cosenza workflow re-downloads the two official historical PDFs and requ
 
 ## What is not yet a stable public data browser
 
-There is not yet a hosted public row-level White List browser. GitHub is useful for the project catalog, source-registry CSVs, capture/parse profiles and documentation, but it should not become the final user interface for the database.
+The internal Data Explorer checkpoint is not the final hosted public browser. GitHub is useful for the project catalog, source-registry CSVs, capture/parse profiles and documentation, while the private Explorer is useful for curator QA.
 
-The intended stable browsing model is:
+The intended stable browsing model remains:
 
 1. **Data catalog** — inventory, coverage and release status of datasets.
 2. **Database/API layer** — complete provenance-aware internal archive and query interface.
