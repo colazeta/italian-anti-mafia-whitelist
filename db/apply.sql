@@ -10,6 +10,7 @@ BEGIN;
 \ir schema/046_parse_operational_metadata.sql
 \ir schema/050_mapping_provenance.sql
 \ir schema/055_semantic_projection.sql
+\ir schema/056_semantic_resolution_versioning.sql
 \ir schema/060_derived_governance.sql
 \ir schema/070_views.sql
 \ir seeds/010_lookup_values.sql
