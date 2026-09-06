@@ -20,6 +20,7 @@ white-list-persist-capture-manifests = "white_list_archive.persistence.capture_m
 white-list-persist-parsed-records = "white_list_archive.persistence.parsed_records:main"
 white-list-persist-parsed-records-v2 = "white_list_archive.persistence.parsed_records_v2:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
+white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
