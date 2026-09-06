@@ -213,7 +213,7 @@ def build_payload(args: argparse.Namespace) -> dict[str, object]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--template", type=Path, default=Path("explorer/v2.html"))
+    parser.add_argument("--template", type=Path, default=Path("explorer/dataset.html"))
     parser.add_argument("--before-records", type=Path, required=True)
     parser.add_argument("--after-records", type=Path, required=True)
     parser.add_argument("--before-date", default="2026-06-28")
@@ -261,7 +261,7 @@ def main() -> None:
     template = args.template.read_text(encoding="utf-8")
     marker = "__DATA_PAYLOAD__"
     if marker not in template:
-        raise SystemExit(f"Explorer v2 template missing marker {marker}")
+        raise SystemExit(f"Explorer template missing marker {marker}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         template.replace(
