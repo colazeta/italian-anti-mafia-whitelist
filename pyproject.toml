@@ -10,6 +10,9 @@ requires-python = ">=3.12"
 authors = [{name = "Project contributors"}]
 dependencies = []
 
+[project.scripts]
+white-list-national-index = "white_list_archive.acquisition.national_index:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 database = ["psycopg[binary]>=3.2"]

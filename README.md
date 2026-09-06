@@ -4,19 +4,22 @@ A national, standardised, longitudinal and provenance-aware data infrastructure 
 
 ## Current status
 
-This repository is a **pre-alpha implementation baseline**. It contains:
+The validated database baseline is **schema 0.1.0**. The project is now in the national source-registry phase. It contains:
 
 - the audited and corrected **ERD v0.2**;
-- a PostgreSQL 18 bootstrap schema;
+- a PostgreSQL 18 schema validated in GitHub Actions;
 - versioned White List sector taxonomy support;
 - source capture, content-addressed storage metadata and versioned parser runs;
 - entity/procedure resolution and evidence provenance;
 - tri-temporal canonical state (`effective`, `observation`, `system` time);
 - explicit lineage from canonical versions to processing activities;
 - seed vocabularies and the current post-2020 White List sector scheme;
+- a 106-authority national territorial coverage registry;
+- verified White List landing pages and heterogeneous pilot source profiles;
+- an official national-index discovery parser and manual GitHub workflow;
 - static repository tests and a PostgreSQL integration/constraint suite.
 
-It does **not** yet contain a national scrape or production data. The PostgreSQL integration suite still requires execution against a live PostgreSQL 18 server before the database schema is tagged as a release.
+It does **not** yet contain a complete national scrape or production company data. Source coverage, historical source recovery and parser implementation are being built incrementally and must remain evidence-backed.
 
 ## Core invariants
 
@@ -32,14 +35,17 @@ It does **not** yet contain a national scrape or production data. The PostgreSQL
 10. A source field value cannot combine a parsed record and field definition from different source-schema versions.
 11. A sector scheme membership must match both the canonical sector and the White List regime of the relationship/register in which it is used.
 12. The internal archive and public release layer are distinct and publication policy is profile-specific.
+13. Territorial White List URLs are discovered or verified; they are never guessed from URL conventions.
+14. Authority coverage, source-series discovery and company observations are separate layers.
 
 ## Repository layout
 
 ```text
 db/                    PostgreSQL schema, seeds and integrity tests
-docs/                  architecture and canonical data dictionary
-src/white_list_archive future acquisition/normalisation pipeline
-tests/                 repository-level static tests
+docs/                  architecture, source methodology and data dictionary
+src/white_list_archive acquisition/normalisation implementation
+tests/                 static and source-registry tests
+data/source_registry/  territorial coverage and verified source research data
 data/                   intentionally excludes raw production data
 ```
 
@@ -58,7 +64,7 @@ The compose file uses PostgreSQL 18. Complex tri-temporal integrity is enforced 
 
 ## Validation status
 
-Static tests currently verify repository structure and the audited SQL design invariants. The database integration suite additionally tests:
+The schema and seed set have been executed successfully against PostgreSQL 18 in GitHub Actions. The database integration suite tests:
 
 - true unbounded range semantics;
 - tri-temporal overlap rejection;
@@ -74,12 +80,26 @@ Static tests currently verify repository structure and the audited SQL design in
 - current marts;
 - derived-event input lineage.
 
+The source-registry suite additionally checks the territorial coverage baseline, special authority types, verified-source referential integrity, pilot-source diversity and national-index parsing.
+
+## National source discovery
+
+The Ministry national White List index can be parsed with:
+
+```bash
+python -m pip install -e .
+white-list-national-index --output national-white-list-index.csv
+```
+
+A manual GitHub Actions workflow, **Discover national White List index**, runs the same discovery and preserves the CSV as a workflow artifact. The index is a discovery/provenance source; canonical company observations must be traced to the territorial source content.
+
 ## Next implementation steps
 
-1. Execute and pass the full suite on a live PostgreSQL 18 instance.
-2. Backfill the historical sector schemes before 7 June 2020.
-3. Build the national source registry for every Prefecture/competent authority.
-4. Implement acquisition and content-addressed archiving.
-5. Implement parsers per source schema version.
-6. Introduce durable migration tooling before persistent production deployment.
-7. Publish canonical current-state and history marts only after reuse/privacy review.
+1. Resolve and independently verify the primary White List landing page for all 106 territorial authority entries.
+2. Enumerate every distinct source series exposed by each authority (listed companies, applicants, sectors, special registers and historical series).
+3. Backfill historical sector schemes before 7 June 2020.
+4. Recover historical source editions and fingerprint source-schema families.
+5. Implement acquisition and content-addressed archiving for verified source series.
+6. Implement parsers by source-schema family, beginning with the audited pilot models.
+7. Introduce durable migration tooling before persistent production deployment.
+8. Publish canonical current-state and history marts only after reuse/privacy review.

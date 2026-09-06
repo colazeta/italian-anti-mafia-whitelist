@@ -30,8 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install Python test dependencies
-        run: python -m pip install pytest
+      - name: Install project and Python test dependencies
+        run: python -m pip install -e .[dev]
       - name: Run repository tests
         run: pytest -q
       - name: Install PostgreSQL client
