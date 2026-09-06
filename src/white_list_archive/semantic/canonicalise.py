@@ -572,7 +572,7 @@ def _ensure_procedure(cur, relationship_id, proc_obs, activity_id, field_ids):
             INSERT INTO provenance.procedure_resolution(
                 procedure_mention_id,procedure_id,resolution_method_code,
                 confidence_score,decision_status_code,processing_activity_id
-            ) VALUES (%s,%s,'exact_identifier',0.9900,'accepted',%s)
+            ) VALUES (%s,%s,'deterministic_source_fields',0.9900,'accepted',%s)
             """,
             (proc_obs["procedure_mention_id"], procedure_id, activity_id),
         )
