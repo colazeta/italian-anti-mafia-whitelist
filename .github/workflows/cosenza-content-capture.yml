@@ -10,6 +10,9 @@ on:
       - 'src/white_list_archive/parsers/cosenza_combined_mentions.py'
       - 'src/white_list_archive/persistence/capture_manifest.py'
       - 'src/white_list_archive/persistence/parsed_records.py'
+      - 'src/white_list_archive/publishing/explorer_bundle.py'
+      - 'explorer/**'
+      - 'data/source_registry/**'
       - 'data/captures/cosenza/combined_2026-06-28.json'
       - 'data/captures/cosenza/combined_2026-08-03.json'
       - 'db/apply.sql'
@@ -117,6 +120,16 @@ jobs:
             --records artifacts/cosenza-mentions/after_records.csv
       - name: Validate real row-level persistence
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/004_cosenza_live_parsed_counts.sql
+      - name: Build private checkpoint Data Explorer
+        run: |
+          white-list-build-explorer-preview \
+            --before-records artifacts/cosenza-mentions/before_records.csv \
+            --after-records artifacts/cosenza-mentions/after_records.csv \
+            --diff artifacts/cosenza-mentions/diff_summary.json \
+            --parse-manifest artifacts/cosenza-mentions/parse_manifest.json \
+            --mode internal \
+            --acknowledge-internal-row-data \
+            --output artifacts/data-explorer-preview/index.html
       - name: Print aggregate structural comparison
         run: |
           python - <<'PY'
@@ -141,3 +154,9 @@ jobs:
             artifacts/cosenza-capture/
             artifacts/cosenza-mentions/
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-explorer-preview
+          path: artifacts/data-explorer-preview/index.html
+          if-no-files-found: error
+          retention-days: 30
