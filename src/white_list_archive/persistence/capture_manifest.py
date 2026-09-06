@@ -5,6 +5,7 @@ import csv
 import json
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -47,6 +48,18 @@ def _read_csv_index(path: Path, key: str) -> dict[str, dict[str, str]]:
     return {row[key]: row for row in rows}
 
 
+def _authority_preferred_name(authority: dict[str, str]) -> str:
+    jurisdiction = authority["jurisdiction_name"]
+    office_type = authority["office_type"]
+    if office_type == "prefettura_utg":
+        return f"Prefettura - Ufficio Territoriale del Governo di {jurisdiction}"
+    if office_type == "government_commissariat":
+        return f"Commissariato del Governo per la Provincia di {jurisdiction}"
+    if office_type == "valle_d_aosta_special":
+        return "Questura di Aosta - Divisione Anticrimine - Ufficio antimafia"
+    raise ValueError(f"Cannot derive authority preferred name for office_type={office_type}")
+
+
 def load_context(
     manifest: dict[str, Any],
     authority_csv: Path,
@@ -81,7 +94,7 @@ def load_context(
 
     return RegistryContext(
         authority_key=authority_key,
-        authority_name=authority["authority_name"],
+        authority_name=_authority_preferred_name(authority),
         authority_type_code=authority_type_code,
         jurisdiction_name=authority["jurisdiction_name"],
         source_series_key=series_key,
@@ -274,6 +287,12 @@ def ensure_content_object(cur, manifest: dict[str, Any]):
     return _fetchone_value(cur)
 
 
+def _parse_last_modified(value: str | None):
+    if not value:
+        return None
+    return parsedate_to_datetime(value)
+
+
 def ensure_capture(cur, resource_id, content_object_id, manifest: dict[str, Any]):
     captured_at = datetime.fromisoformat(manifest["captured_at"])
     cur.execute(
@@ -303,7 +322,7 @@ def ensure_capture(cur, resource_id, content_object_id, manifest: dict[str, Any]
             manifest["origin_type"],
             manifest.get("final_url"),
             manifest.get("etag"),
-            manifest.get("last_modified"),
+            _parse_last_modified(manifest.get("last_modified")),
         ),
     )
     return _fetchone_value(cur)
