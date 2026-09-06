@@ -41,6 +41,21 @@ jobs:
             tests/fixtures/cosenza_parser/before.txt \
             tests/fixtures/cosenza_parser/after.txt \
             --output-dir artifacts/cosenza-fixture
+      - name: Build sanitized Data Explorer fixture
+        run: |
+          white-list-build-explorer-preview \
+            --before-records artifacts/cosenza-fixture/before_records.csv \
+            --after-records artifacts/cosenza-fixture/after_records.csv \
+            --diff artifacts/cosenza-fixture/diff_summary.json \
+            --parse-manifest artifacts/cosenza-fixture/parse_manifest.json \
+            --output artifacts/explorer-check/index.html
+          python - <<'PY'
+          from pathlib import Path
+          html = Path('artifacts/explorer-check/index.html').read_text(encoding='utf-8')
+          assert '__DATA_PAYLOAD__' not in html
+          assert 'SANITIZED PREVIEW' in html
+          assert '[omitted in sanitized preview]' in html
+          PY
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Apply schema and seeds
