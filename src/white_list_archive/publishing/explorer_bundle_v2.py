@@ -86,6 +86,17 @@ def sanitize_records(records: list[dict[str, object]]) -> None:
         row["raw_block"] = "[omitted in sanitized preview]"
 
 
+def _load_optional_json(path: Path | None) -> dict[str, object] | None:
+    if path is None:
+        return None
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected JSON object in {path}")
+    return value
+
+
 def build_payload(args: argparse.Namespace) -> dict[str, object]:
     before = load_records(args.before_records, args.before_date)
     after = load_records(args.after_records, args.after_date)
@@ -124,6 +135,8 @@ def build_payload(args: argparse.Namespace) -> dict[str, object]:
     parse_manifest = json.loads(args.parse_manifest.read_text(encoding="utf-8"))
     capture_before = json.loads(args.capture_before.read_text(encoding="utf-8"))
     capture_after = json.loads(args.capture_after.read_text(encoding="utf-8"))
+    model_population = _load_optional_json(args.model_population)
+    semantic_pipeline = _load_optional_json(args.semantic_pipeline)
 
     snapshots = []
     for reference_date, rows in ((args.before_date, before), (args.after_date, after)):
@@ -158,6 +171,8 @@ def build_payload(args: argparse.Namespace) -> dict[str, object]:
             "cosenza_historical_editions": len(historical),
             "authorities": authorities_payload,
         },
+        "model_population": model_population,
+        "semantic_pipeline": semantic_pipeline,
         "cosenza": {
             "total_records": len(before) + len(after),
             "snapshots": snapshots,
@@ -205,6 +220,8 @@ def main() -> None:
     parser.add_argument("--after-date", default="2026-08-03")
     parser.add_argument("--diff", type=Path, required=True)
     parser.add_argument("--parse-manifest", type=Path, required=True)
+    parser.add_argument("--model-population", type=Path)
+    parser.add_argument("--semantic-pipeline", type=Path)
     parser.add_argument(
         "--capture-before",
         type=Path,
@@ -259,6 +276,8 @@ def main() -> None:
                 "output": str(args.output),
                 "records": payload["cosenza"]["total_records"],
                 "mode": args.mode,
+                "model_population": bool(payload.get("model_population")),
+                "semantic_pipeline": bool(payload.get("semantic_pipeline")),
             },
             indent=2,
         )
