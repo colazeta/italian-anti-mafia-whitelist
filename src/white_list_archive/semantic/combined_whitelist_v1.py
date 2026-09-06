@@ -8,13 +8,14 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 PROJECTOR_CODE = "prefecture-combined-whitelist-v1"
-PROJECTOR_VERSION = "1"
+PROJECTOR_VERSION = "2"
 RECORD_CONTRACT_CODE = "prefecture-combined-whitelist-v1"
 PROJECTOR_CONFIGURATION = (
     "Project a parsed combined Prefecture White List record into typed semantic "
     "entity, identifier, establishment, relationship, procedure and requested-sector "
     "observations. Source values remain authoritative evidence; canonicalisation is a "
-    "separate guarded activity."
+    "separate guarded activity. A source listing date is associated with a procedure "
+    "decision only when it is not earlier than that procedure's application date."
 )
 PROJECTOR_CONFIGURATION_HASH = hashlib.sha256(PROJECTOR_CONFIGURATION.encode()).hexdigest()
 
@@ -439,6 +440,29 @@ def project_series(conn, series_code: str) -> dict[str, int]:
                         totals["issues"] += 1
                         continue
                     parenthesized = bool(date_item.get("parenthesized"))
+                    observed_decision_date = None
+                    if procedure_outcome == "approved" and listing_date is not None:
+                        if listing_date >= application_date:
+                            observed_decision_date = listing_date
+                        else:
+                            _issue(
+                                cur,
+                                projection_run_id,
+                                parsed_record_id,
+                                "LISTING_DATE_PRECEDES_APPLICATION_DATE",
+                                "warning",
+                                "esito",
+                                outcome_field["raw"],
+                                {
+                                    "application_date": application_date.isoformat(),
+                                    "observed_listing_date": listing_date.isoformat(),
+                                    "interpretation": (
+                                        "The listing date may refer to a prior registration/relationship state "
+                                        "rather than a decision on this later application."
+                                    ),
+                                },
+                            )
+                            totals["issues"] += 1
                     material = "\x1f".join(
                         [
                             str(parsed_record_id),
@@ -476,7 +500,7 @@ def project_series(conn, series_code: str) -> dict[str, int]:
                             procedure_type,
                             procedure_status,
                             procedure_outcome,
-                            listing_date if procedure_outcome == "approved" else None,
+                            observed_decision_date,
                             not parenthesized,
                         ),
                     )
