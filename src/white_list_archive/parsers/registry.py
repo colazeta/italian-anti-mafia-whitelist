@@ -17,6 +17,7 @@ class ParserFamily:
     parser_version: str
     record_contract_code: str
     semantic_profile_code: str
+    field_locator_prefix: str
     supported_schema_fingerprints: tuple[str, ...]
     validation_status: str
     description: str
@@ -54,12 +55,16 @@ def load_families(path: Path = DEFAULT_FAMILIES) -> dict[str, ParserFamily]:
             for item in row["supported_schema_fingerprints"].split(";")
             if item.strip()
         )
+        prefix = row["field_locator_prefix"].strip()
+        if not prefix:
+            raise ValueError(f"Parser family {code!r} requires a field_locator_prefix")
         result[code] = ParserFamily(
             code=code,
             implementation_module=row["implementation_module"],
             parser_version=row["parser_version"],
             record_contract_code=row["record_contract_code"],
             semantic_profile_code=row["semantic_profile_code"],
+            field_locator_prefix=prefix,
             supported_schema_fingerprints=fingerprints,
             validation_status=row["validation_status"],
             description=row["description"],
@@ -94,9 +99,9 @@ def select_parser(
     """Select a validated parser family.
 
     Explicit source-series bindings win. If none exists, an exact validated
-    schema-fingerprint match can suggest/reuse a family. A parser family is a
-    physical extraction implementation; its output contract and semantic
-    projector are selected separately.
+    schema-fingerprint match can reuse a family. A parser family is a physical
+    extraction implementation; its output contract and semantic projector are
+    selected separately.
     """
     families = load_families(families_path)
     bindings = [
