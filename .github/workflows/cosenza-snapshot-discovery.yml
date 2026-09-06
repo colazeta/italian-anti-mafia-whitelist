@@ -1,0 +1,26 @@
+name: Cosenza snapshot discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Official dated Cosenza White List page URL
+        required: true
+        type: string
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install project
+        run: python -m pip install -e .
+      - name: Discover edition resources
+        run: white-list-cosenza-snapshot "${{ inputs.url }}" --output cosenza-snapshot.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosenza-snapshot-discovery
+          path: cosenza-snapshot.csv
