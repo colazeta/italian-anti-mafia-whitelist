@@ -1,0 +1,158 @@
+name: Istat municipality format probe
+
+on:
+  push:
+    branches:
+      - research/anncsu-open-api-probe
+    paths:
+      - '.github/workflows/istat-municipality-format-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download and inspect official permanent municipality workbook
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+
+          url = 'https://www.istat.it/storage/codici-unita-amministrative/Elenco-comuni-italiani.xlsx'
+          out = Path('artifacts/istat-municipalities')
+          out.mkdir(parents=True, exist_ok=True)
+          xlsx = out / 'Elenco-comuni-italiani.xlsx'
+
+          request = urllib.request.Request(
+              url,
+              headers={
+                  'User-Agent': 'italian-anti-mafia-whitelist/istat-format-probe (+https://github.com/colazeta/italian-anti-mafia-whitelist)',
+                  'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              payload = response.read()
+              http = {
+                  'status': response.status,
+                  'final_url': response.geturl(),
+                  'content_type': response.headers.get('Content-Type'),
+                  'content_length': response.headers.get('Content-Length'),
+                  'last_modified': response.headers.get('Last-Modified'),
+                  'etag': response.headers.get('ETag'),
+              }
+          if not payload.startswith(b'PK'):
+              raise SystemExit('Istat permanent municipality workbook is not an XLSX/ZIP payload')
+          xlsx.write_bytes(payload)
+
+          NS = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+          REL_NS = {'r': 'http://schemas.openxmlformats.org/package/2006/relationships'}
+          OFFICE_REL = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+
+          def column_index(ref: str) -> int:
+              letters = re.match(r'([A-Z]+)', ref).group(1)
+              value = 0
+              for char in letters:
+                  value = value * 26 + ord(char) - 64
+              return value - 1
+
+          with zipfile.ZipFile(xlsx) as archive:
+              bad = archive.testzip()
+              if bad is not None:
+                  raise SystemExit(f'Corrupt XLSX member: {bad}')
+
+              shared = []
+              if 'xl/sharedStrings.xml' in archive.namelist():
+                  root = ET.fromstring(archive.read('xl/sharedStrings.xml'))
+                  for si in root.findall('m:si', NS):
+                      shared.append(''.join(t.text or '' for t in si.iterfind('.//m:t', NS)))
+
+              workbook = ET.fromstring(archive.read('xl/workbook.xml'))
+              rels = ET.fromstring(archive.read('xl/_rels/workbook.xml.rels'))
+              rel_map = {rel.attrib['Id']: rel.attrib['Target'] for rel in rels.findall('r:Relationship', REL_NS)}
+
+              sheets = []
+              for sheet in workbook.find('m:sheets', NS):
+                  name = sheet.attrib['name']
+                  rel_id = sheet.attrib[OFFICE_REL]
+                  target = rel_map[rel_id]
+                  path = target.lstrip('/')
+                  if not path.startswith('xl/'):
+                      path = 'xl/' + path
+                  path = re.sub(r'/+', '/', path.replace('xl/../', ''))
+                  sheets.append((name, path))
+
+              def cell_text(cell):
+                  cell_type = cell.attrib.get('t')
+                  if cell_type == 'inlineStr':
+                      inline = cell.find('m:is', NS)
+                      if inline is None:
+                          return ''
+                      return ''.join(t.text or '' for t in inline.iterfind('.//m:t', NS))
+                  value = cell.find('m:v', NS)
+                  if value is None or value.text is None:
+                      return ''
+                  raw = value.text
+                  if cell_type == 's':
+                      return shared[int(raw)]
+                  return raw
+
+              report_sheets = []
+              wanted = ('COSENZA', 'RENDE', 'CORIGLIANO')
+              for sheet_name, sheet_path in sheets:
+                  root = ET.fromstring(archive.read(sheet_path))
+                  parsed_rows = []
+                  matches = []
+                  total_rows = 0
+                  max_cols = 0
+                  for row in root.findall('.//m:sheetData/m:row', NS):
+                      values = {}
+                      for cell in row.findall('m:c', NS):
+                          idx = column_index(cell.attrib['r'])
+                          values[idx] = cell_text(cell)
+                          max_cols = max(max_cols, idx + 1)
+                      if not values:
+                          continue
+                      total_rows += 1
+                      dense = [values.get(i, '') for i in range(max(values) + 1)]
+                      if len(parsed_rows) < 8:
+                          parsed_rows.append(dense)
+                      haystack = ' | '.join(str(v).upper() for v in dense)
+                      if any(token in haystack for token in wanted) and len(matches) < 12:
+                          matches.append(dense)
+                  report_sheets.append({
+                      'name': sheet_name,
+                      'path': sheet_path,
+                      'nonempty_rows': total_rows,
+                      'max_observed_columns': max_cols,
+                      'first_rows': parsed_rows,
+                      'municipality_samples': matches,
+                  })
+
+          report = {
+              'source_url': url,
+              'captured_at_workflow': True,
+              'http': http,
+              'xlsx': {
+                  'bytes': len(payload),
+                  'sha256': hashlib.sha256(payload).hexdigest(),
+              },
+              'sheets': report_sheets,
+          }
+          (out / 'report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: istat-municipality-format-probe
+          path: artifacts/istat-municipalities/report.json
+          if-no-files-found: error
