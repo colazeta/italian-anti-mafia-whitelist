@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Archivio pubblico sperimentale delle White List antimafia italiane, con storico, provenienza e indicatori di qualità.">
+  <title>Open Italian Anti-Mafia White List Archive</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="desktop">
+    <main class="window" aria-labelledby="app-title">
+      <header class="titlebar">
+        <span id="app-title">Open Italian Anti-Mafia White List Archive</span>
+        <span class="titlebar-meta">PUBLIC DATA VIEW</span>
+      </header>
+
+      <nav class="menubar" aria-label="Sezioni del portale">
+        <button class="tab active" data-view="home">Home</button>
+        <button class="tab" data-view="cosenza">Cosenza</button>
+        <button class="tab" data-view="history">Storico</button>
+        <button class="tab" data-view="quality">Qualità</button>
+        <button class="tab" data-view="method">Metodo</button>
+        <button class="tab" data-view="sources">Fonti</button>
+      </nav>
+
+      <div class="content">
+        <noscript><div class="note bad">Questo portale richiede JavaScript per caricare il dataset pubblico.</div></noscript>
+        <section class="view active" id="view-home" aria-live="polite"></section>
+        <section class="view" id="view-cosenza"></section>
+        <section class="view" id="view-history"></section>
+        <section class="view" id="view-quality"></section>
+        <section class="view" id="view-method"></section>
+        <section class="view" id="view-sources"></section>
+      </div>
+
+      <footer class="statusbar">
+        <div class="statuscell" id="status">Caricamento dati pubblici…</div>
+        <div class="statuscell" id="asof"></div>
+        <div class="statuscell">SOURCE → ARCHIVE → VALIDATION → PUBLICATION</div>
+      </footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
