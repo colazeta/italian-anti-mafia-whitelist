@@ -65,7 +65,14 @@ def _configuration_hash(configuration: dict[str, Any]) -> str:
     return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
 
-def _select_addresses(cur, *, provider_version: str, endpoint: str, refresh: bool, max_addresses: int | None):
+def _select_addresses(
+    cur,
+    *,
+    provider_version: str,
+    endpoint: str,
+    refresh: bool,
+    max_addresses: int | None,
+):
     sql = """
         SELECT a.address_id, a.full_address
         FROM core.address a
@@ -180,7 +187,7 @@ def _insert_candidate(
     )
 
 
-def _insert_not_found(
+def _insert_terminal_result(
     cur,
     *,
     address_id,
@@ -191,8 +198,18 @@ def _insert_not_found(
     provider_data_updated: datetime,
     activity_id,
 ) -> None:
+    """Persist every attempted non-candidate outcome as provider-specific not_found.
+
+    `not_found` here means ANNCSU produced no usable candidate under the exact
+    linkage policy. The specific reason (including ambiguity or out-of-region)
+    is retained in provider_payload so it is never confused with a claim that
+    the source address itself does not exist.
+    """
     payload = dict(resolution.detail)
     payload["resolution_status"] = resolution.status
+    payload["matching_policy"] = (
+        "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available"
+    )
     cur.execute(
         """
         INSERT INTO geo.address_geocode_result(
@@ -235,7 +252,9 @@ def enrich_addresses_from_anncsu(
     )
     provider_version = str(anncsu["provider_version"])
     endpoint = str(anncsu["source_url"])
-    provider_data_updated = datetime.fromisoformat(provider_version).replace(tzinfo=timezone.utc)
+    provider_data_updated = datetime.fromisoformat(provider_version).replace(
+        tzinfo=timezone.utc
+    )
     configuration = {
         "software": SOFTWARE_NAME,
         "software_version": SOFTWARE_VERSION,
@@ -245,9 +264,12 @@ def enrich_addresses_from_anncsu(
         "istat_crosswalk_version": istat.get("provider_version"),
         "istat_crosswalk_sha256": istat["crosswalk_csv"]["sha256"],
         "dataset_region_name": dataset_region_name,
-        "matching_policy": "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available",
+        "matching_policy": (
+            "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available"
+        ),
         "street_coordinate_fallback": "median_of_anncsu_street_access_coordinates",
         "candidate_by_default": True,
+        "terminal_accounting": "persist_provider_specific_not_found_with_reason",
     }
     config_hash = _configuration_hash(configuration)
 
@@ -267,7 +289,6 @@ def enrich_addresses_from_anncsu(
                 "selected_address_ids": 0,
                 "candidate": 0,
                 "not_found": 0,
-                "unresolved_or_out_of_scope": 0,
                 "configuration_hash": config_hash,
             }
 
@@ -284,6 +305,8 @@ def enrich_addresses_from_anncsu(
         resolution_by_source = {item.source_address: item for item in resolutions}
         counts = Counter()
         precision_counts = Counter()
+        candidate_count = 0
+        terminal_count = 0
 
         with conn.cursor() as cur:
             activity_id = _create_activity(cur, config_hash)
@@ -291,8 +314,8 @@ def enrich_addresses_from_anncsu(
                 resolution = resolution_by_source[source_address]
                 counts[resolution.status] += len(address_ids)
                 for address_id in address_ids:
+                    _close_current_provider_results(cur, address_id, endpoint)
                     if resolution.candidate is not None:
-                        _close_current_provider_results(cur, address_id, endpoint)
                         _insert_candidate(
                             cur,
                             address_id=address_id,
@@ -303,10 +326,12 @@ def enrich_addresses_from_anncsu(
                             provider_data_updated=provider_data_updated,
                             activity_id=activity_id,
                         )
-                        precision_counts[resolution.candidate.precision_code or "none"] += 1
-                    elif resolution.status == "no_exact_street_match":
-                        _close_current_provider_results(cur, address_id, endpoint)
-                        _insert_not_found(
+                        candidate_count += 1
+                        precision_counts[
+                            resolution.candidate.precision_code or "none"
+                        ] += 1
+                    else:
+                        _insert_terminal_result(
                             cur,
                             address_id=address_id,
                             source_address=source_address,
@@ -316,15 +341,16 @@ def enrich_addresses_from_anncsu(
                             provider_data_updated=provider_data_updated,
                             activity_id=activity_id,
                         )
+                        terminal_count += 1
             cur.execute(
-                "UPDATE provenance.processing_activity SET completed_at=%s WHERE processing_activity_id=%s",
+                "UPDATE provenance.processing_activity SET completed_at=%s "
+                "WHERE processing_activity_id=%s",
                 (_utc_now(), activity_id),
             )
         conn.commit()
 
-    candidate_count = sum(
-        count for status, count in counts.items() if status.startswith("exact_") and status not in {"exact_street_ambiguous", "exact_civic_ambiguous"}
-    )
+    if candidate_count + terminal_count != len(selected):
+        raise RuntimeError("ANNCSU result accounting does not reconcile with selected addresses")
     return {
         "provider": PROVIDER_NAME,
         "provider_version": provider_version,
@@ -332,12 +358,12 @@ def enrich_addresses_from_anncsu(
         "selected_address_ids": len(selected),
         "unique_source_addresses": len(by_source),
         "candidate": candidate_count,
-        "not_found": counts.get("no_exact_street_match", 0),
-        "unresolved_or_out_of_scope": len(selected) - candidate_count - counts.get("no_exact_street_match", 0),
+        "not_found": terminal_count,
         "resolution_status_counts": dict(sorted(counts.items())),
         "precision_counts": dict(sorted(precision_counts.items())),
         "configuration_hash": config_hash,
         "candidate_by_default": True,
+        "all_selected_addresses_accounted_for": True,
     }
 
 
