@@ -247,7 +247,7 @@ def normalise_addresses(
     countrycodes: str | None = None,
     max_addresses: int | None = None,
     refresh: bool = False,
-    auto_accept_unique_address_level: bool = True,
+    auto_accept_unique_address_level: bool = False,
 ) -> dict[str, Any]:
     """Normalise canonical addresses through a configurable Nominatim-compatible endpoint.
 
@@ -255,6 +255,9 @@ def normalise_addresses(
     cache unless ``refresh`` is requested. Multiple address IDs sharing the same
     exact query are deduplicated within each run. Source text is sent unchanged
     to the provider; preprocessing is intentionally not part of this baseline.
+
+    Provider results remain candidates by default. Optional auto-acceptance is
+    deliberately an explicit policy choice rather than normalisation behaviour.
     """
     _require_psycopg()
     endpoint = endpoint.strip().rstrip("/")
@@ -396,6 +399,7 @@ def normalise_addresses(
         "provider_data_updated": status.data_updated.isoformat() if status.data_updated else None,
         "configuration_hash": config_hash,
         "public_osmf_service": client.is_public_osmf_service,
+        "auto_accept_unique_address_level": auto_accept_unique_address_level,
         "cache_policy": "skip current accepted/candidate/not_found results unless --refresh",
         **counts,
     }
@@ -422,9 +426,12 @@ def main() -> None:
     parser.add_argument("--max-addresses", type=int)
     parser.add_argument("--refresh", action="store_true")
     parser.add_argument(
-        "--no-auto-accept-unique-address-level",
+        "--auto-accept-unique-address-level",
         action="store_true",
-        help="Keep even a single address-level candidate as candidate rather than accepted.",
+        help=(
+            "Opt in to accepting a single address-level candidate with house number and coordinates. "
+            "Without this flag, all provider matches remain candidates."
+        ),
     )
     args = parser.parse_args()
     result = normalise_addresses(
@@ -437,7 +444,7 @@ def main() -> None:
         countrycodes=args.countrycodes,
         max_addresses=args.max_addresses,
         refresh=args.refresh,
-        auto_accept_unique_address_level=not args.no_auto_accept_unique_address_level,
+        auto_accept_unique_address_level=args.auto_accept_unique_address_level,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
