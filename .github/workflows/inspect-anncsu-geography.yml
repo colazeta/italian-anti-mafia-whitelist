@@ -1,0 +1,50 @@
+name: Inspect ANNCSU geography sources
+
+on:
+  push:
+    branches:
+      - feature/geography-and-population-coverage
+    paths:
+      - '.github/workflows/inspect-anncsu-geography.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install xlsx reader
+        run: python -m pip install openpyxl
+      - name: Download official sources and print schemas
+        run: |
+          python - <<'PY'
+          import csv, io, os, urllib.request, zipfile
+          from pathlib import Path
+          from openpyxl import load_workbook
+
+          ua={'User-Agent':'OpenItalianAntiMafiaWhiteListArchive/0.1 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+          ann='https://anncsu.open.agenziaentrate.gov.it/age-inspire/opendata/anncsu/getds.php?INDIR_CALA='
+          req=urllib.request.Request(ann,headers=ua)
+          with urllib.request.urlopen(req,timeout=120) as r:
+              data=r.read(); print('ANNCSU status/content-type/bytes:',r.status,r.headers.get('content-type'),len(data)); print('Content-Disposition:',r.headers.get('content-disposition'))
+          z=zipfile.ZipFile(io.BytesIO(data)); print('ANNCSU members:',[(n,z.getinfo(n).file_size) for n in z.namelist()][:10])
+          member=next(n for n in z.namelist() if n.lower().endswith(('.csv','.txt')))
+          raw=z.read(member)
+          for enc in ('utf-8-sig','utf-8','cp1252','latin1'):
+              try: text=raw[:200000].decode(enc); encoding=enc; break
+              except UnicodeDecodeError: pass
+          sample='\n'.join(text.splitlines()[:8]); dialect=csv.Sniffer().sniff(sample,delimiters=';,|\t')
+          reader=csv.reader(io.StringIO(text),dialect); rows=[next(reader) for _ in range(3)]
+          print('ANNCSU encoding/delimiter:',encoding,repr(dialect.delimiter)); print('ANNCSU rows:',rows)
+
+          istat='https://www.istat.it/storage/codici-unita-amministrative/Elenco-comuni-italiani.xlsx'
+          req=urllib.request.Request(istat,headers=ua)
+          with urllib.request.urlopen(req,timeout=120) as r: x=r.read(); print('ISTAT status/bytes:',r.status,len(x))
+          p=Path('/tmp/comuni.xlsx'); p.write_bytes(x); wb=load_workbook(p,read_only=True,data_only=True); print('ISTAT sheets:',wb.sheetnames)
+          ws=wb[wb.sheetnames[0]]
+          for i,row in enumerate(ws.iter_rows(values_only=True),start=1):
+              print('ISTAT row',i, row)
+              if i>=8: break
+          PY
