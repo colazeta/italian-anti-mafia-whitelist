@@ -4,196 +4,202 @@ These rules make the archive readable, reproducible and safe to extend. They are
 
 ## 1. One concept, one layer
 
-The project separates seven different things that must never be conflated:
+Never conflate:
 
-1. **Source discovery** — where a White List source exists and what type of publication it is.
-2. **Source capture** — what exact resource was retrieved, when, with which HTTP metadata and byte identity.
-3. **Parsed source observations** — what records and raw values were observed in captured content.
-4. **Semantic projection** — typed ontology-level observations produced from a declared parser record contract.
-5. **Resolution / canonical administrative data** — resolved entities, relationships, sectors, procedures and temporal states.
-6. **Derived data** — reproducible longitudinal events or analytical views generated from canonical/source history.
-7. **Release data** — reviewed outputs intentionally prepared for reuse or publication.
+1. source discovery;
+2. source capture;
+3. parsed source observations;
+4. semantic projection;
+5. resolution/canonical administrative data;
+6. geography and other derived enrichment;
+7. derived longitudinal/analytical data;
+8. release data.
 
-A file or table must have a single primary role in one of these layers.
+A file/table has one primary role. Product surfaces must show the layer explicitly.
 
 ## 2. Repository placement
 
 ```text
 README.md                   project entry point
 CONTRIBUTING.md             contribution workflow
-
-docs/                       human documentation
-  README.md                 documentation index
-  project-rules.md          this file
-  data-access.md            where data can be seen
-  architecture/             durable architecture decisions and audits
-  data-dictionary/          semantic definitions
-  sources/                  source methodology and source-specific notes
-  releases/                 frozen release documentation
-
-data/
-  catalog.csv               machine-readable inventory of persistent data artifacts
-  source_registry/          source discovery + parser-family/binding/semantic-profile registry
-  captures/                 immutable capture manifests and safe aggregate diagnostics
-  releases/                 reviewed, intentionally released data products
-
-db/                         PostgreSQL schema, seeds, migrations/patches and DB tests
-src/white_list_archive/     acquisition, parser families, semantic projection, resolution, persistence and export code
-explorer/                   versioned Dataset Explorer templates
-tests/                      Python/static governance and source-registry tests
-.github/workflows/          automated verification and acquisition workflows
+docs/                       human documentation and durable design decisions
+data/catalog.csv             machine-readable persistent-data inventory
+data/source_registry/        source/parser/binding/semantic registries
+data/captures/               immutable capture manifests + safe diagnostics
+data/releases/               deliberately reviewed release products
+db/                          PostgreSQL schema, seeds and database tests
+src/white_list_archive/      acquisition/parsing/persistence/semantic/resolution/export code
+explorer/                    versioned Dataset Explorer templates
+tests/                       Python/static governance tests
+.github/workflows/           CI and live ingestion workflows
 ```
 
-Raw source bytes and row-level working extracts are not committed to Git unless a later, explicit storage and dissemination decision says otherwise. Original source bytes belong in a dedicated evidence-storage backend or a bounded internal evidence package, not in the source-code repository by default.
+Raw source bytes and row-level working extracts are not committed to Git by default. Original bytes belong in bounded evidence packages or dedicated durable content-addressed storage.
 
 ## 3. Source facts and evidence are immutable
 
-- Never overwrite raw source values to make them fit the canonical schema.
+- Never overwrite raw source values to fit the ontology.
 - Byte identity is SHA-256-addressed.
-- A new parser produces a new parse run; it does not rewrite an earlier parse.
-- Source captures retain acquisition time and available HTTP metadata.
-- A URL is not a document identity; the same URL may serve different editions over time.
-- When legally and operationally permitted, the exact original bytes used by a production parser should be preserved as first-class evidence.
-- Preserved source bytes must be linked to their `ContentObject` identity and verified against the recorded SHA-256 before they are used as parser evidence.
-- A durable storage locator is not valid merely because a workflow downloaded a file once. Storage status must distinguish ephemeral/bounded copies from durable evidence storage.
-- GitHub Actions artifacts are evidence packages for review, not a substitute for permanent archival storage.
-- Git is not the default binary archive. Durable production bytes should live in immutable/content-addressed object storage, with the database preserving identity and storage lineage.
-- Parser output should retain a physical source locator where reliable (for example PDF page, table, row or bounding box) so an independent reviewer can return to the original evidence.
-- Physical locators are provenance metadata, not administrative identifiers; never invent greater locator precision than the parser can reliably establish.
+- A new parser version creates a new parse run.
+- Capture time and available HTTP metadata are retained.
+- URL is not document identity.
+- Exact original bytes used by a production parser should be preserved when legally/operationally permitted.
+- Durable storage status is set only after successful durable persistence and integrity verification.
+- GitHub Actions artifacts are bounded review evidence, not permanent archival storage.
+- Parser output should retain a reliable physical source locator such as PDF page/table/row/bbox; never invent greater precision.
 
 See [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md).
 
 ## 4. Parser-family and semantic-projection rules
 
-- Do not create one parser merely because a source has a different URL.
-- Do not use an unversioned universal parser that silently handles incompatible layouts.
-- Physical extraction implementations are organised as **parser families**.
-- A parser family may cover multiple source series only after explicit validation of schema/layout compatibility.
-- Explicit `SourceSeries -> ParserFamily` bindings take precedence; exact validated schema fingerprints may allow family reuse; otherwise selection must fail rather than guess.
-- Every production parser family declares a stable **record contract** and a field-locator namespace.
+- Do not create a parser merely because a URL differs.
+- Do not use an unversioned universal parser for incompatible layouts.
+- Physical extraction is organised as reusable **parser families**.
+- A family may cover multiple source series only after compatibility validation.
+- Explicit `SourceSeries → ParserFamily` binding wins; an exact validated fingerprint may permit reuse; otherwise selection fails rather than guesses.
+- Each production family declares a versioned record contract and field-locator namespace.
 - Physical parsers do not write canonical ontology tables directly.
-- A versioned semantic profile/projector maps a record contract to ontology-level observations.
-- Two physically different parsers may reuse one semantic projector when they emit the same semantic record contract.
-- If a source contains a concept not represented by the ontology, record it as unmapped/requires-review. Do not silently mutate the canonical ontology.
-- Conservatism applies to inference, not to ontology population: safely typed source facts should reach the semantic layer automatically.
+- A versioned semantic projector maps record contracts to typed observations.
+- Equivalent semantics may reuse one projector across different physical parsers.
+- Unmappable concepts become explicit review items; the parser never silently changes the ontology.
+- Conservatism applies to inference, not ontology population: safely typed source facts should reach the semantic layer automatically.
 
-## 5. No inferred administrative event without evidence
+## 5. Mandatory listed/applicant source completeness
 
-- Absence from one edition is not administrative removal.
-- Nominal expiry is not automatically loss of legal effect.
-- A source `Esito` label is not automatically a canonical legal-effect status.
-- A change between editions is first an observational fact. Administrative interpretation belongs in a separate, evidence-backed layer.
-- Unknown dates remain unknown. Do not invent start dates or replace unknown periods with artificial unbounded ranges.
-- A source listing date that predates a later application date may describe an earlier relationship state; it must not become the decision date of that later procedure.
+For every verified White List authority/register/regime scope, source discovery must explicitly account for two logical populations:
 
-## 6. Identity rules
+```text
+listed
+applicant
+```
 
-- Never use a name as a canonical identity key.
+Rules:
+
+- separate physical listed/applicant sources may satisfy the two targets separately;
+- one `listed_and_applicant` combined series may satisfy both without creating fake duplicate sources;
+- finding only the listed population never makes the scope complete;
+- finding only the applicant population never makes the scope complete;
+- an undiscovered target is `UNRESOLVED_REQUIRES_REVIEW`, not `NOT_PUBLISHED`;
+- absence from our registry is never evidence of source absence;
+- completeness is assessed per register/regime, not merely per authority;
+- special regimes such as Bologna post-sisma remain separate completeness scopes;
+- source-discovery progress metrics must report complete and unresolved scopes separately.
+
+The CI-tested coverage ledger is generated by `white-list-source-population-coverage`.
+
+See [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md).
+
+## 6. No inferred administrative event without evidence
+
+- Absence from one edition is not removal.
+- Nominal expiry is not automatic loss of legal effect.
+- A source `Esito` is not automatically a canonical legal-effect status.
+- Changes between editions are observational first.
+- Unknown dates remain unknown.
+- A listing date predating a later application must not become that later procedure's decision date.
+
+## 7. Identity rules
+
+- Never use name as canonical identity key.
 - Source identifiers are evidence, not infallible primary keys.
-- Composite `CF/P.IVA` fields preserve every source value and candidate scheme.
-- An identifier observed against more than one distinct source name is ambiguous until resolved by stronger evidence.
-- A row containing an ambiguous identifier may still be resolved through another independent, non-ambiguous identifier; the ambiguous identifier itself must remain semantic-only until separately resolved.
-- Entity and procedure resolution are explicit, versioned, reviewable processes with provenance.
-- Stable project codes may support idempotent ingestion, but must be labelled as internal project identifiers and never presented as administrative identifiers.
+- Composite CF/P.IVA fields preserve every source value and candidate scheme.
+- Cross-name identifier ambiguity requires stronger resolution evidence.
+- An entity may resolve through one safe identifier while another ambiguous identifier in the same row remains semantic-only.
+- Entity/procedure resolution is explicit, versioned and auditable.
+- Internal project codes are never presented as administrative identifiers.
 
-## 7. Taxonomy rules
+## 8. Sector/taxonomy rules
 
 - White List section notation is version-dependent.
-- A notation such as `I` or `X` must always be interpreted through a `SectorSchemeVersion`.
 - Stable sector concepts are distinct from section numbers.
-- White List listed sectors are administrative list associations, not NACE classifications and not necessarily the exclusive legal-effect scope of White List registration.
-- Requested activities belong to procedures. They must not be promoted to `relationship_sector` unless the source separately proves that the sector is represented/listed on the relationship.
+- White List sectors are not NACE categories.
+- Requested activities belong to procedures.
+- `relationship_sector` requires independent evidence that a sector is represented/listed on the relationship.
 
-## 8. Temporal rules
+## 9. Geography rules
 
-Keep the time dimensions separate:
+Geography is derived enrichment and never rewrites the source-supported address.
 
-- `effective_time` — when an administrative/canonical fact applies;
-- `source_reference_time` — what date/period a source claims to describe;
-- `capture_time` — when the resource was retrieved;
-- `observation_time` — when the source supports an observed state;
-- `system_time` — when the archive recorded a canonical version.
+- Preserve the source/canonical address independently of geocoder output.
+- Coordinates belong to provider/version-specific `geo.address_geocode_result` records.
+- Record coordinate precision explicitly (`rooftop`, `street`, `locality`, `centroid`, etc.).
+- Never present a locality/centroid fallback as an exact civic coordinate.
+- Retain candidate/rejected/not-found/error outcomes where relevant for auditability.
+- Only one current accepted geocode may represent the address, while prior/candidate results remain traceable.
+- Prefer official Italian address data (ANNCSU) for civic matching/coordinates when available; external geocoders are labelled fallbacks.
+- Municipality/province-level/region classifications use versioned official ISTAT/SITUAS reference data.
+- NUTS 1/2/3 assignments carry their NUTS version; NUTS is not a timeless label.
+- Geographic-unit assignments carry method, confidence, processing activity and system time.
+- Statistical access should use `mart.address_geography`, not denormalise unversioned geography into `core.address`.
 
-Uncertainty must be represented as uncertainty, including lower/upper bounds and precision where appropriate.
+See [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md).
 
-## 9. Provenance rules
+## 10. Temporal rules
 
-- Canonical facts can have multiple supporting or contradicting source items.
-- Do not use a single source FK as the entire provenance model for important canonical facts.
-- Every transformation that matters for reproducibility must be attributable to a processing activity or exact code revision.
-- Parser family, parser version, schema fingerprint, record contract, semantic projector and resolver version are part of transformation lineage.
-- Where the source is a document, provenance should allow the reviewer to traverse from a parsed/canonical fact back to the exact `ContentObject` and a physical locator into the preserved original bytes.
-- Derived events must carry a derivation rule/version and input lineage.
+Keep separate:
 
-## 10. Data publication rules
+- `effective_time`;
+- `source_reference_time`;
+- `capture_time`;
+- `observation_time`;
+- `system_time`.
 
-The internal archive and a public release are separate products.
+Reference classifications (sector schemes, ISTAT units, NUTS) are also versioned/effective-time objects. Uncertainty remains uncertainty.
 
-- `data/source_registry/` may contain research metadata about sources, parser families and semantic profiles.
-- `data/captures/` may contain capture manifests and safe aggregate diagnostics.
-- Row-level source, semantic or canonical data are not automatically public merely because the original administrative source was public.
-- Internal preservation of original source bytes does not automatically authorize public redistribution of those bytes.
-- `data/releases/` contains only outputs deliberately approved for release.
-- Publication/reuse decisions must account for personal-data fields, sole traders, licensing and transformation needs.
+## 11. Provenance rules
 
-## 11. Dataset Explorer rules
+- Canonical facts can have multiple supporting/contradicting evidence items.
+- Important facts do not use a single source FK as their entire provenance model.
+- Transformations are attributable to processing activity/code revision.
+- Parser family/version, schema fingerprint, record contract, semantic projector and resolver version are lineage.
+- Document-backed facts should be traceable to exact `ContentObject` + physical locator.
+- Geocoding/classification results retain source/provider/version/method lineage.
+- Derived events carry rule/version and input lineage.
 
-- The Dataset Explorer reads actual database-population counts/status where available; it must not hard-code the appearance that a layer is populated or empty.
-- An empty object must state why: e.g. `NOT_APPLICABLE_FROM_CURRENT_SOURCE`, `NOT_YET_PROCESSED`, `REQUIRES_RESOLUTION`, or `NOT_YET_POPULATED`.
-- Every model object shown in **Struttura dataset** should be inspectable at data level in the internal curator build: table schema, real preview rows and a complete internal export where practical.
-- A row-level parser observation should expose the preserved original document and physical source locator when such evidence exists.
-- The Explorer must display evidence identity (at minimum SHA-256 for preserved binary documents) rather than relying only on a mutable source URL.
-- Source observations, semantic observations, canonical data and release status must remain visibly distinct.
-- Internal table CSVs and preserved documents packaged with an Explorer are audit materials, not automatically public releases.
-- The interface is dense, table-first and minimal; decorative dashboard conventions must not obscure the data model. The current retro/1990s management-system visual language is intentional unless explicitly redesigned.
+## 12. Data publication rules
 
-## 12. Documentation and catalog coupling
+Internal archive and public release are separate products.
 
-A pull request must update documentation when it changes semantics, storage, parser-family routing, record contracts, semantic mapping, workflow or release state.
+- Source/parser research metadata may be persisted in repository registries.
+- Capture manifests/safe diagnostics may be stored under `data/captures/`.
+- Row-level source/semantic/canonical/geography data are not automatically public.
+- Preserving original source bytes does not automatically authorize redistribution.
+- `data/releases/` contains only deliberately approved products.
+- Publication decisions account for personal data, sole traders, licensing and transformation needs.
 
-Every persistent `.csv` or `.json` under `data/` must be listed in `data/catalog.csv`, except the catalog itself. Each catalog entry states the data layer, scope, status and release class.
+## 13. Dataset Explorer rules
 
-## 13. Change workflow
+- Read actual database-population counts/status; do not hard-code whether a layer is populated.
+- A zero-row object must explain why (`NOT_YET_PROCESSED`, `NOT_APPLICABLE...`, etc.).
+- Every model object should be inspectable in the internal curator build with schema, real preview rows and complete export where practical.
+- Row-level observations should expose original evidence + physical locator when available.
+- Evidence identity includes SHA-256 rather than relying only on mutable URLs.
+- The **Copertura nazionale** view must expose listed/applicant completeness separately and cannot mark incomplete scopes as complete.
+- Geography objects must distinguish “schema ready” from “enrichment actually run”.
+- Source, semantic, canonical, geography and release layers remain visibly distinct.
+- Audit CSVs/PDFs are not automatically public releases.
+- UI remains dense, table-first and intentionally retro/management-system-like unless explicitly redesigned.
 
-Substantive changes should follow:
+## 14. Documentation and catalog coupling
 
-`research/evidence -> branch -> implementation -> tests -> documentation -> PR -> CI -> merge -> post-merge verification`
+A PR updates documentation whenever it changes semantics, geography, source-population coverage, storage, parser routing, record contracts, semantic mapping, workflow or release state.
 
-Schema changes additionally require:
+Every persistent CSV/JSON under `data/` is listed in `data/catalog.csv` except the catalog itself.
 
-- a documented semantic reason;
-- relational/constraint tests where enforceable;
-- compatibility or development-release notes;
-- no silent reinterpretation of already frozen release semantics.
+## 15. Change workflow and definition of done
 
-A new parser family additionally requires:
+Substantive changes follow:
 
-- source-schema inventory/fingerprint;
-- representative edge-case fixtures or live QA;
-- declared record contract;
-- parser-family registry entry;
-- source-series binding or validated fingerprint compatibility;
-- semantic-profile compatibility check;
-- row recall/precision review before production use.
+`research/evidence → branch → implementation → tests → documentation → PR → CI → merge → post-merge verification`
 
-A production evidence-storage implementation additionally requires:
+Schema changes require documented semantic rationale and relational/constraint tests. A new parser family requires schema inventory, edge-case QA, record contract, registry/binding, semantic-profile compatibility and recall/precision review. A production evidence store requires content-addressed immutability and hash verification. A geography production pipeline requires input-version provenance, match-quality reporting and review of ambiguous/low-confidence matches.
 
-- content-addressed immutable object identity;
-- integrity verification against `ContentObject.sha256`;
-- explicit durable/ephemeral storage state;
-- provenance from source capture to stored object;
-- no silent overwrite of existing content;
-- retention/backup policy separate from dissemination policy.
+A change is complete only when:
 
-## 14. Definition of done
-
-A change is not complete merely because code runs. It is complete when:
-
-- the relevant tests pass;
+- relevant tests pass;
 - provenance is preserved;
-- evidence bytes and physical locators are retained where the workflow claims auditability;
-- the data catalog is current;
-- documentation explains how the new object is interpreted and where it lives;
-- parser-family/semantic-profile routing is explicit where applicable;
-- no unresolved empirical assumption has been silently converted into a fact;
+- unresolved assumptions remain explicit;
+- data catalog/documentation are current;
+- source-population completeness is not overstated;
+- geography enrichment is not overstated;
 - post-merge CI on `main` is green.

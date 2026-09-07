@@ -51,6 +51,9 @@ OBJECTS = [
     ("procedure_sector", "Settori richiesti per procedura", "whitelist.procedure_sector", "canonical", "Canonical requested sectors attached to procedures."),
     ("procedure_resolution", "Procedure resolution", "provenance.procedure_resolution", "resolution", "Auditable procedure-mention resolutions."),
     ("field_mapping", "Field mapping", "mapping.field_mapping", "mapping", "Versioned source-field to canonical-field mappings."),
+    ("geographic_unit", "Unità geografiche/statistiche", "geo.geographic_unit", "geography_reference", "Versioned ISTAT administrative and NUTS geographic units."),
+    ("address_geocode_result", "Risultati geocodifica indirizzi", "geo.address_geocode_result", "geography_enrichment", "Provider-specific candidate/accepted coordinates for canonical addresses."),
+    ("address_geographic_unit", "Classificazione geografica indirizzi", "geo.address_geographic_unit", "geography_enrichment", "Assignments of canonical addresses to municipality, province-level, region and NUTS units."),
     ("derived_event", "Eventi derivati", "derived.derived_event", "derived", "Reproducible historical/observational events derived after canonical history exists."),
 ]
 
@@ -70,6 +73,16 @@ def _status(kind: str, count: int, *, unresolved: int, projection_issues: int) -
         return (
             "NOT_YET_PROCESSED",
             "Derived longitudinal events are intentionally generated only after canonical history is established.",
+        )
+    if kind == "geography_reference" and count == 0:
+        return (
+            "NOT_YET_POPULATED",
+            "The geography model is ready; official versioned ISTAT/NUTS reference units have not yet been loaded into this reconstructed pilot database.",
+        )
+    if kind == "geography_enrichment" and count == 0:
+        return (
+            "NOT_YET_PROCESSED",
+            "Canonical addresses exist, but geocoding/geographic enrichment has not yet been executed in this pilot database.",
         )
     if kind == "semantic_issue":
         if count:

@@ -16,6 +16,7 @@ ENHANCEMENT_JS = r"""
 (()=>{
 const TC=window.__TABLE_CATALOG__||{objects:{}};
 const SE=window.__SOURCE_EVIDENCE__||{editions:{}};
+const PC=window.__POPULATION_COVERAGE__||null;
 const esc=window.E||((s)=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])));
 function scalar(v){if(v===null||v===undefined)return '';if(typeof v==='object')return JSON.stringify(v);return String(v)}
 function openDataset(code){
@@ -50,6 +51,15 @@ function enhanceProvenance(){
  const rows=dates.map(sourceEditionCard).join('');
  const box=document.createElement('div');box.className='section';box.innerHTML=`<div class="section-title">ARCHIVIO EVIDENZA — DOCUMENTI ORIGINALI</div><div class="section-body"><div class="note">I PDF originali usati dal parser sono inclusi nel pacchetto di evidenza e verificati contro lo SHA-256 congelato prima del parsing.</div><div class="gridwrap"><table class="tree"><thead><tr><th>Edizione</th><th>Pagine</th><th>SHA-256</th><th>Copia verificata</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;view.prepend(box);
 }
+function coverageLabel(status){
+ if(String(status).startsWith('COVERED_'))return `<span class="ok mono">${esc(status)}</span>`;
+ return `<span class="warn mono">${esc(status)}</span>`;
+}
+function enhancePopulationCoverage(){
+ const view=document.querySelector('#view-coverage'); if(!view||!PC||!Array.isArray(PC.scopes))return;
+ const rows=PC.scopes.map(s=>`<tr><td><b>${esc(s.authority_key)}</b></td><td class="mono">${esc(s.regime_code)}</td><td>${coverageLabel(s.listed_status)}</td><td>${coverageLabel(s.applicant_status)}</td><td>${s.source_population_complete?'<span class="ok mono">COMPLETO</span>':'<span class="warn mono">DA RISOLVERE</span>'}</td></tr>`).join('');
+ const box=document.createElement('div');box.className='section';box.innerHTML=`<div class="section-title">COMPLETEZZA SORGENTI — LISTED + APPLICANTS</div><div class="section-body"><div class="note"><b>Una Prefettura/registro non è considerata completa finché non sono contabilizzate entrambe le popolazioni logiche.</b> Una serie combinata può coprire entrambe; una serie mancante resta UNRESOLVED e non viene interpretata come “non pubblicata”.</div><table class="summary"><tr><th>Autorità verificate</th><td>${Number(PC.verified_authority_count||0).toLocaleString('it-IT')}</td><th>Scope registro</th><td>${Number(PC.register_scope_count||0).toLocaleString('it-IT')}</td><th>Completi</th><td>${Number(PC.complete_register_scope_count||0).toLocaleString('it-IT')}</td><th>Da risolvere</th><td>${Number(PC.incomplete_register_scope_count||0).toLocaleString('it-IT')}</td></tr></table><div class="gridwrap"><table class="tree"><thead><tr><th>Autorità</th><th>Regime/register scope</th><th>Listed</th><th>Applicants</th><th>Completezza</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;view.prepend(box);
+}
 const baseOpenDetail=window.openDetail||openDetail;
 window.openDetail=openDetail=function(r){
  baseOpenDetail(r);
@@ -58,21 +68,28 @@ window.openDetail=openDetail=function(r){
  const href=ed.pdf_path+(page?`#page=${page}`:'');
  const box=document.createElement('div');box.className='note';box.innerHTML=`<b>Verifica indipendente:</b> <a href="${esc(href)}" target="_blank">apri il PDF originale${page?` a pagina ${page}`:''}</a><br><span class="mono">SHA-256 ${esc(ed.sha256)}</span><br><span class="muted">Locator fisico ricostruito dallo stesso layout a coordinate usato dal parser.</span>`;document.querySelector('#detail-body').prepend(box);
 };
-enhanceStructure(); enhanceProvenance();
+enhanceStructure(); enhanceProvenance(); enhancePopulationCoverage();
 })();
 """
 
 
-def patch_explorer(index_path: Path, table_catalog: Path, source_evidence: Path) -> None:
+def patch_explorer(
+    index_path: Path,
+    table_catalog: Path,
+    source_evidence: Path,
+    population_coverage: Path | None = None,
+) -> None:
     html = index_path.read_text(encoding="utf-8")
     if "__AUDIT_DRILLDOWN_V1__" in html:
         raise ValueError("Explorer already contains audit drilldown patch")
     table_payload = _load(table_catalog)
     evidence_payload = _load(source_evidence)
+    coverage_payload = _load(population_coverage) if population_coverage else {}
     injection = (
         "\n<!-- __AUDIT_DRILLDOWN_V1__ -->\n<script>"
         "window.__TABLE_CATALOG__=" + json.dumps(table_payload, ensure_ascii=False, separators=(",", ":")) + ";"
         "window.__SOURCE_EVIDENCE__=" + json.dumps(evidence_payload, ensure_ascii=False, separators=(",", ":")) + ";"
+        "window.__POPULATION_COVERAGE__=" + json.dumps(coverage_payload, ensure_ascii=False, separators=(",", ":")) + ";"
         "</script>\n<script>" + ENHANCEMENT_JS + "</script>\n"
     )
     if "</body>" not in html:
@@ -81,12 +98,13 @@ def patch_explorer(index_path: Path, table_catalog: Path, source_evidence: Path)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Add database drilldown and original-source evidence controls to a generated Dataset Explorer.")
+    parser = argparse.ArgumentParser(description="Add database drilldown, source evidence and source-population completeness controls to a generated Dataset Explorer.")
     parser.add_argument("--index", type=Path, required=True)
     parser.add_argument("--table-catalog", type=Path, required=True)
     parser.add_argument("--source-evidence", type=Path, required=True)
+    parser.add_argument("--population-coverage", type=Path)
     args = parser.parse_args()
-    patch_explorer(args.index, args.table_catalog, args.source_evidence)
+    patch_explorer(args.index, args.table_catalog, args.source_evidence, args.population_coverage)
     print(json.dumps({"patched": str(args.index)}, indent=2))
 
 
