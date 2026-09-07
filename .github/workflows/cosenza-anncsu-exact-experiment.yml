@@ -1,0 +1,146 @@
+name: Cosenza ANNCSU exact-linkage experiment
+
+on:
+  push:
+    branches:
+      - research/cosenza-structured-query-experiment
+    paths:
+      - '.github/workflows/cosenza-anncsu-exact-experiment.yml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install project and utilities
+        run: |
+          python -m pip install -e .[dev,database]
+          pytest -q tests/test_structured_query.py tests/test_anncsu_exact_experiment.py tests/test_anncsu_acquisition.py
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils postgresql-client
+
+      - name: Apply schema and reconstruct frozen Cosenza addresses
+        run: |
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+          white-list-cosenza-capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          live = {item['reference_date']: item for item in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())}
+          frozen = {
+              '2026-06-28': json.loads(Path('data/captures/cosenza/combined_2026-06-28.json').read_text()),
+              '2026-08-03': json.loads(Path('data/captures/cosenza/combined_2026-08-03.json').read_text()),
+          }
+          keys = ['resource_url', 'sha256', 'text_sha256', 'schema_fingerprint', 'page_count']
+          for reference_date, expected in frozen.items():
+              observed = live.get(reference_date)
+              if observed is None:
+                  raise SystemExit(f'Missing live Cosenza edition {reference_date}')
+              mismatches = {key: {'expected': expected[key], 'observed': observed.get(key)} for key in keys if observed.get(key) != expected.get(key)}
+              if mismatches:
+                  raise SystemExit(f'Frozen content identity mismatch for {reference_date}: {mismatches}')
+          PY
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
+          white-list-cosenza-v2 \
+            artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --output-dir artifacts/cosenza-v2
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label before \
+            --records artifacts/cosenza-v2/before_records_v2.csv
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label after \
+            --records artifacts/cosenza-v2/after_records_v2.csv
+          white-list-semantic-pipeline \
+            --dsn "$TEST_DSN" \
+            --series-code cosenza-combined \
+            > artifacts/cosenza-v2/semantic_pipeline.json
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+
+      - name: Acquire frozen Istat and ANNCSU reference datasets
+        run: |
+          mkdir -p artifacts/istat-municipalities artifacts/anncsu
+          white-list-istat-municipalities-acquire \
+            --output-dir artifacts/istat-municipalities \
+            --expected-sha256 83842076860450f7e482daecea6b7a769f5f93d0bf5b0d48802b44896d7a26d5 \
+            > artifacts/istat-municipalities/acquisition.json
+          white-list-anncsu-acquire \
+            --dataset INDIR_CALA \
+            --output-dir artifacts/anncsu \
+            --expected-sha256 65136ad879e33bca5e776f526fe77d17bd3b141a434575591873c842e23ef0aa \
+            > artifacts/anncsu/acquisition.json
+
+      - name: Run exact-only ANNCSU linkage benchmark
+        run: |
+          mkdir -p artifacts/cosenza-anncsu-exact
+          ISTAT_CSV=$(find artifacts/istat-municipalities -maxdepth 1 -name 'istat-municipalities-*.csv' -print -quit)
+          ANNCSU_CSV=$(find artifacts/anncsu -maxdepth 1 -name 'INDIR_CALA_*.csv' -print -quit)
+          test -n "$ISTAT_CSV"
+          test -n "$ANNCSU_CSV"
+          python -m white_list_archive.geocoding.anncsu_exact_experiment \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --anncsu-csv "$ANNCSU_CSV" \
+            --output-dir artifacts/cosenza-anncsu-exact \
+            | tee artifacts/cosenza-anncsu-exact/stdout.json
+          cat artifacts/cosenza-anncsu-exact/summary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate benchmark accounting only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('artifacts/cosenza-anncsu-exact/summary.json').read_text())
+          if summary['population_addresses'] != 1298:
+              raise SystemExit(f"Unexpected population: {summary['population_addresses']}")
+          if summary['anncsu_rows_scanned'] < 1_000_000:
+              raise SystemExit(f"ANNCSU scan unexpectedly small: {summary['anncsu_rows_scanned']}")
+          if sum(summary['outcome_counts'].values()) != 1298:
+              raise SystemExit('ANNCSU outcome counts do not reconcile with canonical population')
+          print('ANNCSU exact benchmark accounting validated; coverage is an empirical output.')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cosenza-anncsu-exact-experiment
+          path: |
+            artifacts/cosenza-anncsu-exact/
+            artifacts/istat-municipalities/*.manifest.json
+            artifacts/anncsu/*.manifest.json
+            artifacts/istat-municipalities/acquisition.json
+            artifacts/anncsu/acquisition.json
+          if-no-files-found: warn
+          retention-days: 30
