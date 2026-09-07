@@ -19,6 +19,7 @@ INSERT INTO registry.geocode_match_status(code,label,description) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO registry.geocode_precision(code,label,description) VALUES
+('civic_access','Civic access','Official coordinate of the physical civic access/entrance represented by the address source'),
 ('address','Address','Address/building-level geocoder result; coordinate may represent an address point or object centroid'),
 ('rooftop','Rooftop','Building/rooftop-level coordinate'),
 ('parcel','Parcel','Parcel or cadastral-level coordinate'),
