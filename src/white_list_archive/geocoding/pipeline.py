@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .models import GeocodeCandidate
-from .nominatim import NominatimClient, query_variants
+from .nominatim import NominatimClient
 
 try:
     import psycopg
@@ -20,7 +20,7 @@ else:
 
 SOFTWARE_NAME = "white_list_archive.geocoding.pipeline"
 SOFTWARE_VERSION = "1"
-PUBLIC_ONE_TIME_MAX_NETWORK_REQUESTS = 2000
+PUBLIC_ONE_TIME_MAX_UNIQUE_QUERIES = 2000
 
 
 def _require_psycopg() -> None:
@@ -253,9 +253,8 @@ def normalise_addresses(
 
     Existing successful/current results for the same endpoint are a persistent
     cache unless ``refresh`` is requested. Multiple address IDs sharing the same
-    exact source address are deduplicated within each run. When a raw source
-    string yields no result, one lightweight syntactic variant may be attempted;
-    this fallback never parses or rewrites the canonical address.
+    exact query are deduplicated within each run. Source text is sent unchanged
+    to the provider; preprocessing is intentionally not part of this baseline.
     """
     _require_psycopg()
     endpoint = endpoint.strip().rstrip("/")
@@ -272,7 +271,7 @@ def normalise_addresses(
         "language": language,
         "countrycodes": countrycodes,
         "auto_accept_unique_address_level": auto_accept_unique_address_level,
-        "query_fallback": "raw_then_light_syntactic_cleanup",
+        "query_preprocessing": "none",
     }
     config_hash = _configuration_hash(configuration)
 
@@ -285,74 +284,47 @@ def normalise_addresses(
                 refresh=refresh,
                 max_addresses=max_addresses,
             )
-            by_source_query: dict[str, list[Any]] = defaultdict(list)
+            by_query: dict[str, list[Any]] = defaultdict(list)
             for address_id, full_address in selected:
-                by_source_query[full_address.strip()].append(address_id)
+                by_query[full_address.strip()].append(address_id)
 
-            potential_requests = sum(
-                len(query_variants(source_query)) for source_query in by_source_query
-            )
-            if (
-                client.is_public_osmf_service
-                and potential_requests > PUBLIC_ONE_TIME_MAX_NETWORK_REQUESTS
-            ):
+            if client.is_public_osmf_service and len(by_query) > PUBLIC_ONE_TIME_MAX_UNIQUE_QUERIES:
                 raise RuntimeError(
-                    "Refusing a public OSMF Nominatim batch that could require more than "
-                    f"{PUBLIC_ONE_TIME_MAX_NETWORK_REQUESTS} network requests. "
+                    "Refusing a public OSMF Nominatim batch larger than "
+                    f"{PUBLIC_ONE_TIME_MAX_UNIQUE_QUERIES} unique queries. "
                     "Configure a managed or self-hosted Nominatim-compatible endpoint instead."
                 )
 
             activity_id = _create_activity(cur, config_hash)
             counts = {
                 "selected_address_ids": len(selected),
-                "unique_source_queries": len(by_source_query),
-                "potential_network_queries": potential_requests,
+                "unique_queries": len(by_query),
                 "network_queries": 0,
-                "fallback_queries_used": 0,
                 "accepted": 0,
                 "candidate": 0,
                 "not_found": 0,
                 "error": 0,
             }
 
-            for source_query, address_ids in by_source_query.items():
-                attempted_queries: list[str] = []
-                candidates: list[GeocodeCandidate] = []
-                used_query = source_query
-                provider_error: Exception | None = None
-
-                for variant_index, query in enumerate(query_variants(source_query)):
-                    attempted_queries.append(query)
-                    counts["network_queries"] += 1
-                    try:
-                        candidates = client.search(
-                            query,
-                            limit=search_limit,
-                            language=language,
-                            countrycodes=countrycodes,
-                        )
-                    except Exception as exc:  # noqa: BLE001 - provider failure must be recorded
-                        provider_error = exc
-                        used_query = query
-                        break
-                    used_query = query
-                    if candidates:
-                        if variant_index > 0:
-                            counts["fallback_queries_used"] += 1
-                        break
-
-                if provider_error is not None:
+            for query, address_ids in by_query.items():
+                counts["network_queries"] += 1
+                try:
+                    candidates = client.search(
+                        query,
+                        limit=search_limit,
+                        language=language,
+                        countrycodes=countrycodes,
+                    )
+                except Exception as exc:  # noqa: BLE001 - provider failure must be recorded, not hidden
                     error_payload = {
-                        "source_address": source_query,
-                        "attempted_queries": attempted_queries,
-                        "error_type": type(provider_error).__name__,
-                        "message": str(provider_error),
+                        "error_type": type(exc).__name__,
+                        "message": str(exc),
                     }
                     for address_id in address_ids:
                         _insert_terminal_result(
                             cur,
                             address_id=address_id,
-                            query=used_query,
+                            query=query,
                             match_status="error",
                             provider_name=status.provider_name,
                             endpoint=status.endpoint,
@@ -383,17 +355,13 @@ def normalise_addresses(
                         _insert_terminal_result(
                             cur,
                             address_id=address_id,
-                            query=used_query,
+                            query=query,
                             match_status="not_found",
                             provider_name=status.provider_name,
                             endpoint=status.endpoint,
                             provider_version=status.software_version,
                             provider_data_updated=status.data_updated,
-                            payload={
-                                "source_address": source_query,
-                                "attempted_queries": attempted_queries,
-                                "features": [],
-                            },
+                            payload={"features": []},
                             activity_id=activity_id,
                         )
                         counts["not_found"] += 1
@@ -405,36 +373,11 @@ def normalise_addresses(
                             if auto_accept and candidate.candidate_rank == 1
                             else "candidate"
                         )
-                        payload = dict(candidate.payload)
-                        payload["_normalisation"] = {
-                            "source_address": source_query,
-                            "attempted_queries": attempted_queries,
-                            "used_query": used_query,
-                        }
-                        enriched_candidate = GeocodeCandidate(
-                            provider_result_id=candidate.provider_result_id,
-                            candidate_rank=candidate.candidate_rank,
-                            matched_address=candidate.matched_address,
-                            street_name=candidate.street_name,
-                            house_number=candidate.house_number,
-                            postal_code=candidate.postal_code,
-                            locality=candidate.locality,
-                            admin_unit_l2=candidate.admin_unit_l2,
-                            admin_unit_l1=candidate.admin_unit_l1,
-                            country_name=candidate.country_name,
-                            country_code=candidate.country_code,
-                            latitude=candidate.latitude,
-                            longitude=candidate.longitude,
-                            precision_code=candidate.precision_code,
-                            attribution=candidate.attribution,
-                            licence=candidate.licence,
-                            payload=payload,
-                        )
                         _insert_candidate(
                             cur,
                             address_id=address_id,
-                            query=used_query,
-                            candidate=enriched_candidate,
+                            query=query,
+                            candidate=candidate,
                             match_status=match_status,
                             provider_name=status.provider_name,
                             endpoint=status.endpoint,
