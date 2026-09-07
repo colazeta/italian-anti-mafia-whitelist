@@ -1,0 +1,21 @@
+{
+  "review_name": "Cosenza ANNCSU substantive address review",
+  "review_date": "2026-09-07",
+  "sample_fingerprint": "128436f8ad826af033dc03282a1f598a17c987d9a443e27ea4658d9476925eec",
+  "original_review_export_sha256": "105de28cc4fc242fe59f966b540661a56fc98b9486379f8896c50261a6f0f59b",
+  "original_review_export_rows": 150,
+  "versioned_decision_file": "data/validation/cosenza/address-review-2026-09-07.csv",
+  "population": 1298,
+  "candidate_population": 624,
+  "candidate_sample_rows": 78,
+  "not_found_sample_rows": 72,
+  "reviewer_interpretation": {
+    "not_found": "coverage_failure",
+    "note": "The reviewer explicitly stated after export that all not_found cases are to be treated as failed outcomes. The raw export contained 14 explicit incorrect verdicts and 58 blank not_found verdicts; the blanks are not interpreted as returned false matches."
+  },
+  "analysis_semantics": {
+    "precision_denominator": "candidate rows with determinate overall verdict only",
+    "not_found_in_precision": false,
+    "not_found_in_end_to_end_yield": true
+  }
+}
