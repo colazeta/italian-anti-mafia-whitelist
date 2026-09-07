@@ -12,6 +12,7 @@ def row(
     status: str = "candidate",
     precision: str | None = "street",
     candidate_count: int = 1,
+    source_country_code: str | None = "IT",
     country_code: str | None = "IT",
     street: str | None = "Via Roma",
     house: str | None = None,
@@ -19,6 +20,7 @@ def row(
     return ValidationRow(
         address_id=f"id-{suffix}",
         source_address=f"source-{suffix}",
+        source_country_code=source_country_code,
         match_status=status,
         candidate_count=candidate_count,
         provider_name="nominatim" if status != "unprocessed" else None,
@@ -41,14 +43,14 @@ def row(
     )
 
 
-def test_summary_distinguishes_match_failure_precision_and_ambiguity():
+def test_summary_distinguishes_match_failure_precision_ambiguity_and_country_conflict():
     rows = [
         row("a", precision="address", house="1"),
         row("b", precision="street", candidate_count=2),
         row("c", status="not_found"),
         row("d", status="error"),
         row("e", status="unprocessed"),
-        row("f", precision="street", country_code="FR"),
+        row("f", precision="street", source_country_code="IT", country_code="FR"),
     ]
     result = summarize(rows)
     assert result["total_canonical_addresses"] == 6
@@ -59,7 +61,9 @@ def test_summary_distinguishes_match_failure_precision_and_ambiguity():
     assert result["unprocessed"] == 1
     assert result["precision_counts"] == {"address": 1, "street": 2}
     assert result["candidate_multiplicity"]["multiple_candidates"] == 1
-    assert result["country_counts"] == {"FR": 1, "IT": 2}
+    assert result["provider_country_counts"] == {"FR": 1, "IT": 2}
+    assert result["source_country_counts"] == {"IT": 6}
+    assert result["source_provider_country_conflicts"] == 1
     assert result["field_completeness"]["house_number"]["present"] == 1
 
 
