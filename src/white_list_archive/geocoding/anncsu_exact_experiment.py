@@ -25,31 +25,39 @@ TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
 TERMINAL_CIVIC_RE = re.compile(
     r"^(?P<street>.*?)(?:,\s*|\s+)(?P<number>\d{1,5})(?:\s*(?:/|-)\s*(?P<exponent>[A-Za-z]))?\s*$"
 )
-NO_CIVIC_RE = re.compile(r"(?:\bS\s*\.?\s*N\s*\.?\s*C\s*\.?\b|\bS\s*\.?\s*N\s*\.?\b)\s*$", re.IGNORECASE)
+NO_CIVIC_RE = re.compile(
+    r"(?:\bS\s*\.?\s*N\s*\.?\s*C\s*\.?\b|\bS\s*\.?\s*N\s*\.?\b)\s*$",
+    re.IGNORECASE,
+)
 
-PREFIXES = (
-    ("strada", "statale"),
-    ("strada", "provinciale"),
-    ("c", "da"),
-    ("p", "zza"),
-    ("s", "s"),
-    ("s", "p"),
-    ("localita",),
-    ("contrada",),
-    ("frazione",),
-    ("piazza",),
-    ("viale",),
-    ("corso",),
-    ("strada",),
-    ("vicolo",),
-    ("vico",),
-    ("largo",),
-    ("rione",),
-    ("fraz",),
-    ("loc",),
-    ("via",),
-    ("ss",),
-    ("sp",),
+# Canonicalise only the road-type spelling. The road type remains part of the
+# key so e.g. VIA ROMA cannot silently match PIAZZA ROMA in the same Comune.
+ROAD_TYPE_PREFIXES = (
+    (("strada", "statale"), "ss"),
+    (("s", "s"), "ss"),
+    (("ss",), "ss"),
+    (("strada", "provinciale"), "sp"),
+    (("s", "p"), "sp"),
+    (("sp",), "sp"),
+    (("c", "da"), "contrada"),
+    (("cda",), "contrada"),
+    (("contrada",), "contrada"),
+    (("p", "zza"), "piazza"),
+    (("pzza",), "piazza"),
+    (("piazza",), "piazza"),
+    (("piazzale",), "piazzale"),
+    (("localita",), "localita"),
+    (("loc",), "localita"),
+    (("frazione",), "frazione"),
+    (("fraz",), "frazione"),
+    (("viale",), "viale"),
+    (("via",), "via"),
+    (("corso",), "corso"),
+    (("strada",), "strada"),
+    (("vicolo",), "vicolo"),
+    (("vico",), "vico"),
+    (("largo",), "largo"),
+    (("rione",), "rione"),
 )
 ROUTE_TRAILING_PREFIXES = {
     ("ss",),
@@ -73,16 +81,25 @@ def _tokens(value: str) -> list[str]:
 
 
 def canonical_street_key(value: str) -> str:
+    """Return a conservative road-type-preserving street key.
+
+    This normalises punctuation, case, diacritics and a small set of explicit
+    road-type abbreviations. It deliberately does not drop road type and does
+    not use fuzzy/edit-distance matching.
+    """
     tokens = _tokens(value)
-    changed = True
-    while tokens and changed:
-        changed = False
-        for prefix in PREFIXES:
-            if tuple(tokens[: len(prefix)]) == prefix:
-                tokens = tokens[len(prefix) :]
-                changed = True
-                break
-    return " ".join(tokens)
+    if not tokens:
+        return ""
+    road_type = "unspecified"
+    name_tokens = tokens
+    for prefix, canonical_type in ROAD_TYPE_PREFIXES:
+        if tuple(tokens[: len(prefix)]) == prefix:
+            road_type = canonical_type
+            name_tokens = tokens[len(prefix) :]
+            break
+    if not name_tokens:
+        return ""
+    return road_type + "|" + " ".join(name_tokens)
 
 
 @dataclass(frozen=True)
@@ -110,7 +127,9 @@ def parse_source_street_and_civic(value: str) -> CivicParse:
 
     street_tokens = _tokens(street)
     for route_prefix in ROUTE_TRAILING_PREFIXES:
-        if len(street_tokens) >= len(route_prefix) and tuple(street_tokens[-len(route_prefix) :]) == route_prefix:
+        if len(street_tokens) >= len(route_prefix) and tuple(
+            street_tokens[-len(route_prefix) :]
+        ) == route_prefix:
             return CivicParse(text, "terminal_number_is_route_number")
     return CivicParse(street, "civic", number, exponent)
 
@@ -152,6 +171,7 @@ def run_experiment(
     matcher = MunicipalityPrefixMatcher.from_istat_csv(istat_csv)
     prepared: list[dict[str, Any]] = []
     wanted: dict[str, set[str]] = defaultdict(set)
+    prepared_calabria_count = 0
     for address in addresses:
         split = matcher.split(address)
         if split.status != "structured" or split.query is None:
@@ -190,6 +210,7 @@ def run_experiment(
             "source_exponent": civic.exponent,
         }
         prepared.append(item)
+        prepared_calabria_count += 1
         wanted[query.cadastral_code].add(street_key)
 
     anncsu_index: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
@@ -245,8 +266,6 @@ def run_experiment(
             results.append(item)
             continue
 
-        # Multiple source rows can occasionally describe the same access. Only
-        # accept a coordinate when the surviving coordinate/provider identity is unique.
         identities: dict[tuple[str, str, str, str], dict[str, str]] = {}
         for row in exact:
             identity = (
@@ -265,9 +284,17 @@ def run_experiment(
             continue
 
         row = next(iter(identities.values()))
+        latitude = parse_decimal_coordinate(row.get("COORD_Y_COMUNE") or "")
+        longitude = parse_decimal_coordinate(row.get("COORD_X_COMUNE") or "")
+        has_coordinate_pair = latitude is not None and longitude is not None
+        status = (
+            "exact_civic_unique_with_coordinates"
+            if has_coordinate_pair
+            else "exact_civic_unique_without_coordinates"
+        )
         item.update(
             {
-                "status": "exact_civic_unique",
+                "status": status,
                 "anncsu_exact_rows": len(exact),
                 "anncsu_progressivo_nazionale": (row.get("PROGRESSIVO_NAZIONALE") or "").strip(),
                 "anncsu_progressivo_accesso": (row.get("PROGRESSIVO_ACCESSO") or "").strip(),
@@ -275,21 +302,27 @@ def run_experiment(
                 "anncsu_dizione_lingua1": (row.get("DIZIONE_LINGUA1") or "").strip(),
                 "anncsu_civico": (row.get("CIVICO") or "").strip(),
                 "anncsu_esponente": (row.get("ESPONENTE") or "").strip(),
-                "latitude": parse_decimal_coordinate(row.get("COORD_Y_COMUNE") or ""),
-                "longitude": parse_decimal_coordinate(row.get("COORD_X_COMUNE") or ""),
+                "latitude": latitude,
+                "longitude": longitude,
                 "anncsu_metodo": (row.get("METODO") or "").strip(),
             }
         )
-        outcome_counts[item["status"]] += 1
-        method_counts[item["anncsu_metodo"] or "UNKNOWN"] += 1
+        outcome_counts[status] += 1
+        if has_coordinate_pair:
+            method_counts[item["anncsu_metodo"] or "UNKNOWN"] += 1
         results.append(item)
 
-    exact_coordinate = outcome_counts["exact_civic_unique"]
+    exact_access_unique = (
+        outcome_counts["exact_civic_unique_with_coordinates"]
+        + outcome_counts["exact_civic_unique_without_coordinates"]
+    )
+    exact_coordinate = outcome_counts["exact_civic_unique_with_coordinates"]
     exact_street_any = sum(
         count
         for status, count in outcome_counts.items()
         if status in {
-            "exact_civic_unique",
+            "exact_civic_unique_with_coordinates",
+            "exact_civic_unique_without_coordinates",
             "exact_civic_ambiguous",
             "exact_street_civic_not_found",
             "exact_street_without_confident_civic",
@@ -299,14 +332,19 @@ def run_experiment(
         "population_addresses": len(addresses),
         "anncsu_rows_scanned": scanned,
         "anncsu_index_rows_retained": retained,
-        "prepared_calabria_addresses": sum(item.get("status") == "prepared" for item in prepared),
+        "prepared_calabria_addresses": prepared_calabria_count,
         "outcome_counts": dict(sorted(outcome_counts.items())),
         "exact_street_any": exact_street_any,
         "exact_street_any_rate_pct": round(100 * exact_street_any / len(addresses), 2),
-        "exact_civic_unique": exact_coordinate,
-        "exact_civic_unique_rate_pct": round(100 * exact_coordinate / len(addresses), 2),
+        "exact_civic_unique_access": exact_access_unique,
+        "exact_civic_unique_access_rate_pct": round(100 * exact_access_unique / len(addresses), 2),
+        "exact_civic_unique_with_coordinates": exact_coordinate,
+        "exact_civic_unique_with_coordinates_rate_pct": round(100 * exact_coordinate / len(addresses), 2),
         "anncsu_method_counts_for_unique_coordinates": dict(sorted(method_counts.items())),
-        "matching_policy": "exact Istat municipality prefix + exact normalized street key + exact terminal civic/exponent; no fuzzy matching",
+        "matching_policy": (
+            "exact Istat municipality prefix + road-type-preserving exact normalized street key "
+            "+ exact terminal civic/exponent + unique ANNCSU access identity; no fuzzy matching"
+        ),
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -322,7 +360,9 @@ def run_experiment(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark exact-only linkage of canonical addresses to ANNCSU Calabria.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark conservative exact-only linkage of canonical addresses to ANNCSU Calabria."
+    )
     parser.add_argument("--dsn", required=True)
     parser.add_argument("--istat-csv", type=Path, required=True)
     parser.add_argument("--anncsu-csv", type=Path, required=True)
