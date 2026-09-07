@@ -1,0 +1,143 @@
+name: Cosenza recomposed-query experiment
+
+on:
+  push:
+    branches:
+      - research/cosenza-structured-query-experiment
+    paths:
+      - '.github/workflows/cosenza-recomposed-query-experiment.yml'
+
+concurrency:
+  group: cosenza-recomposed-query-experiment
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+      NOMINATIM_ENDPOINT: https://nominatim.openstreetmap.org
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install project and utilities
+        run: |
+          python -m pip install -e .[dev,database]
+          pytest -q tests/test_structured_query.py tests/test_nominatim_provider.py
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils postgresql-client
+
+      - name: Apply schema and reconstruct Cosenza addresses
+        run: |
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+          white-list-cosenza-capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          live = {item['reference_date']: item for item in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())}
+          frozen = {
+              '2026-06-28': json.loads(Path('data/captures/cosenza/combined_2026-06-28.json').read_text()),
+              '2026-08-03': json.loads(Path('data/captures/cosenza/combined_2026-08-03.json').read_text()),
+          }
+          keys = ['resource_url', 'sha256', 'text_sha256', 'schema_fingerprint', 'page_count']
+          for reference_date, expected in frozen.items():
+              observed = live.get(reference_date)
+              if observed is None:
+                  raise SystemExit(f'Missing live Cosenza edition {reference_date}')
+              mismatches = {key: {'expected': expected[key], 'observed': observed.get(key)} for key in keys if observed.get(key) != expected.get(key)}
+              if mismatches:
+                  raise SystemExit(f'Frozen content identity mismatch for {reference_date}: {mismatches}')
+          PY
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
+          white-list-cosenza-v2 \
+            artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --output-dir artifacts/cosenza-v2
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label before \
+            --records artifacts/cosenza-v2/before_records_v2.csv
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label after \
+            --records artifacts/cosenza-v2/after_records_v2.csv
+          white-list-semantic-pipeline \
+            --dsn "$TEST_DSN" \
+            --series-code cosenza-combined \
+            > artifacts/cosenza-v2/semantic_pipeline.json
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+
+      - name: Acquire current official Istat municipality crosswalk
+        run: |
+          mkdir -p artifacts/istat-municipalities
+          white-list-istat-municipalities-acquire \
+            --output-dir artifacts/istat-municipalities \
+            > artifacts/istat-municipalities/acquisition.json
+
+      - name: Run recomposed free-form experiment on the frozen paired sample rule
+        run: |
+          mkdir -p artifacts/cosenza-recomposed-query-experiment
+          ISTAT_CSV=$(find artifacts/istat-municipalities -maxdepth 1 -name 'istat-municipalities-*.csv' -print -quit)
+          test -n "$ISTAT_CSV"
+          python -m white_list_archive.geocoding.recomposed_query_experiment \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --endpoint "$NOMINATIM_ENDPOINT" \
+            --allow-public-nominatim \
+            --sample-size 200 \
+            --search-limit 3 \
+            --output-dir artifacts/cosenza-recomposed-query-experiment \
+            | tee artifacts/cosenza-recomposed-query-experiment/stdout.json
+          cat artifacts/cosenza-recomposed-query-experiment/summary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate experiment accounting only
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = json.loads(Path('artifacts/cosenza-recomposed-query-experiment/summary.json').read_text())
+          if summary['population_addresses'] != 1298:
+              raise SystemExit(f"Unexpected population: {summary['population_addresses']}")
+          if summary['structured_query_eligible'] != 1258:
+              raise SystemExit(f"Istat-prefix eligible population drifted: {summary['structured_query_eligible']}")
+          if summary['sample_size'] != 200 or summary['network_search_requests'] != 200:
+              raise SystemExit('Experiment request/sample accounting mismatch')
+          print('Experiment accounting validated; match quality remains an empirical output.')
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cosenza-recomposed-query-experiment
+          path: |
+            artifacts/cosenza-recomposed-query-experiment/
+            artifacts/istat-municipalities/*.manifest.json
+          if-no-files-found: warn
+          retention-days: 30
