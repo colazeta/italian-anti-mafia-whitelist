@@ -57,6 +57,14 @@ processing activity / configuration hash
 
 Provider-specific fields that are not part of the common address contract remain in `provider_payload` rather than leaking into the canonical schema.
 
+## Baseline query rule
+
+The production baseline sends the source-supported canonical address to the provider **once and unchanged**. It does not attempt municipality parsing, fuzzy rewriting, abbreviation expansion or cascading retry heuristics.
+
+A controlled pilot tested a lightweight syntactic retry on difficult Prefecture strings. It increased provider requests without recovering the failed examples, so it was deliberately excluded from production. Any future preprocessing must therefore demonstrate a measurable improvement on a representative validation sample before being introduced.
+
+This keeps network cost predictable and makes geocoding quality attributable to the provider rather than to hidden address-rewriting logic.
+
 ## Nominatim-compatible first provider
 
 The first implementation uses the Nominatim Search API with `format=geocodejson` and `addressdetails=1`. GeocodeJSON is preferred because Nominatim documents it as the more stable address-category representation.
@@ -94,13 +102,14 @@ The public endpoint is therefore suitable for a deliberate small one-off pilot s
 
 ## Long-term operating model
 
-For national recurring ingestion, one of the following must be configured:
+For national recurring ingestion the preferred operational order is:
 
 ```text
-managed Nominatim-compatible endpoint
-                OR
-self-hosted Nominatim
+1. managed Nominatim-compatible endpoint
+2. self-hosted Nominatim if volume, cost or control justify operating it
 ```
+
+A managed endpoint is the default long-term assumption because it avoids running and updating a specialised PostgreSQL/PostGIS search stack. Self-hosting remains technically feasible: Nominatim explicitly supports regional/country OSM extracts and incremental updates. It is nevertheless a material infrastructure commitment. The official Nominatim documentation recommends roughly 128 GB RAM and at least 1 TB disk for a full-planet installation; country extracts substantially reduce the imported dataset, but their exact hardware requirement depends on scope and update strategy and should be benchmarked before committing to self-hosting.
 
 The choice is operational, not architectural. The command remains:
 
@@ -111,6 +120,12 @@ white-list-normalise-addresses \
 ```
 
 Only new/unseen canonical addresses require network calls. Existing addresses remain cached until an explicit refresh is justified, so recurring costs scale with address churn rather than total database size.
+
+## Pilot evidence
+
+A one-shot, policy-compliant integration test against the public OSMF endpoint used three real address strings extracted from the Cosenza White List source. The complete path `core.address -> provider -> persistence -> mart.address_normalisation` succeeded with no provider/runtime errors.
+
+The sample also showed why normalisation and acceptance must remain separate: one address produced street-level candidates, while two source strings produced no result, and **none** was automatically accepted as an address-level coordinate. The pipeline therefore proved technically viable without converting imperfect geocoder coverage into false precision.
 
 ## Acceptance policy
 
