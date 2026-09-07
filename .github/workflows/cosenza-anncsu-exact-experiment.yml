@@ -1,4 +1,5 @@
 name: Cosenza ANNCSU exact-linkage experiment
+# Strict benchmark v2: road type preserved and coordinates required for geocoded status.
 
 on:
   push:
