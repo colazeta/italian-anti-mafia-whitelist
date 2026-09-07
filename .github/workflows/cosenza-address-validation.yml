@@ -1,15 +1,6 @@
 name: Cosenza address validation
 
 on:
-  # Temporary branch trigger validates this workflow before merge. Remove it after the green pilot.
-  push:
-    branches:
-      - feature/explorer-address-validation
-    paths:
-      - '.github/workflows/cosenza-address-validation.yml'
-      - 'src/white_list_archive/geocoding/**'
-      - 'src/white_list_archive/publishing/**'
-      - 'pyproject.toml'
   workflow_dispatch:
 
 concurrency:
