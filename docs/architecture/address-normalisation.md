@@ -125,13 +125,15 @@ Only new/unseen canonical addresses require network calls. Existing addresses re
 
 A one-shot, policy-compliant integration test against the public OSMF endpoint used three real address strings extracted from the Cosenza White List source. The complete path `core.address -> provider -> persistence -> mart.address_normalisation` succeeded with no provider/runtime errors.
 
-The sample also showed why normalisation and acceptance must remain separate: one address produced street-level candidates, while two source strings produced no result, and **none** was automatically accepted as an address-level coordinate. The pipeline therefore proved technically viable without converting imperfect geocoder coverage into false precision.
+The sample also showed why normalisation and acceptance must remain separate: one address produced street-level candidates, while two source strings produced no result, and **none** was accepted as an address-level coordinate. A tested lightweight retry increased the number of provider calls without improving those failed cases and was removed. The pipeline therefore proved technically viable without converting imperfect geocoder coverage into false precision or unnecessary traffic.
 
 ## Acceptance policy
 
 Normalisation and geographic acceptance are deliberately separate.
 
-A provider result is automatically marked `accepted` only when:
+**By default every provider match remains `candidate`**, even if the provider returns only one address-level object. This means the normalised address and candidate coordinates are immediately usable through `mart.address_normalisation`, while `mart.address_geography` remains protected from unreviewed provider assertions.
+
+An explicit `--auto-accept-unique-address-level` option is available for controlled workflows. Even then, acceptance is limited to the narrow case where:
 
 - the provider returns exactly one candidate;
 - the candidate is address/building level;
@@ -139,8 +141,6 @@ A provider result is automatically marked `accepted` only when:
 - latitude and longitude are present.
 
 All other returned results remain `candidate`. `not_found` and `error` are explicitly represented. No artificial numerical confidence score is generated.
-
-`mart.address_normalisation` exposes the best current result even when it remains a candidate. `mart.address_geography` continues to expose coordinates only from accepted results.
 
 ## Coordinate precision
 
