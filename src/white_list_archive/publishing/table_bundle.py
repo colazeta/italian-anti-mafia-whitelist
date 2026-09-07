@@ -145,9 +145,17 @@ def main() -> None:
     if args.preview_limit < 1 or args.preview_limit > 500:
         raise SystemExit("--preview-limit must be between 1 and 500")
     payload = build_from_dsn(args.dsn, args.output_dir, args.preview_limit)
+    payload_json = json.dumps(payload, ensure_ascii=False)
     catalog_path = args.output_dir / "table_catalog.json"
     catalog_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({"output": str(catalog_path), "objects": len(payload["objects"])}, indent=2))
+    js_path = args.output_dir / "table_catalog.js"
+    js_path.write_text(f"window.__TABLE_CATALOG__={payload_json};\n", encoding="utf-8")
+    print(
+        json.dumps(
+            {"output": str(catalog_path), "javascript": str(js_path), "objects": len(payload["objects"])},
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
