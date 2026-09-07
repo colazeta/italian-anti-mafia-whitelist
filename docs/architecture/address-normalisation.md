@@ -2,27 +2,199 @@
 
 ## Design goal
 
-Address normalisation is a routine enrichment step, not a separate territorial-data project.
+Address normalisation is derived, provenance-aware enrichment. It must never rewrite or launder the address published by a source authority.
 
-The production chain is:
+The common production contract is:
 
 ```text
 source-supported canonical address
         ↓
-provider-agnostic geocoder interface
+versioned provider / linkage process
         ↓
-standard normalised address fields + candidate coordinates
+standard normalised fields + candidate coordinates
         ↓
-optional acceptance for geography
+validation / optional acceptance
         ↓
-optional official ANNCSU / Istat validation and statistical enrichment
+statistical geography
 ```
 
-The geocoder never overwrites `core.address`. Provider output is stored in `geo.address_geocode_result` and exposed through `mart.address_normalisation`.
+`core.address` remains immutable source-supported evidence. Provider output is stored in `geo.address_geocode_result` and exposed through `mart.address_normalisation`. `mart.address_geography` remains accepted-only.
 
-## Standard normalised fields
+## Provider order for Italian addresses
 
-The provider-neutral projection currently stores:
+The Cosenza experiments support an official-first operating order:
+
+```text
+Italian source address
+        ↓
+exact municipality prefix against versioned Istat crosswalk
+        ↓
+ANNCSU exact ODONIMO / typed-street linkage
+        ↓
+exact civic/access linkage when available
+        ↓
+ANNCSU candidate normalisation / coordinates
+        ↓
+unresolved remainder → optional configurable geocoder fallback
+```
+
+Addresses that cannot be placed in an Italian municipality, including foreign addresses, can go directly to the configurable geocoder layer.
+
+This is a provider-order decision, not a schema fork: ANNCSU and Nominatim-compatible providers persist through the same provider-neutral result contract.
+
+## Why ANNCSU is primary for Italian addresses
+
+ANNCSU is the national reference for municipal street and address registers maintained by Istat and the Agenzia delle Entrate. Its open-data service provides bulk regional/national datasets, so national enrichment does not require one remote geocoder request per White List row.
+
+Operational advantages include:
+
+- official municipality-certified street/address identities;
+- free bulk acquisition;
+- reproducible regional inputs with SHA-256 identities;
+- local linkage after acquisition;
+- no public-geocoder one-request-per-second bottleneck;
+- explicit separation between linkage quality and the coordinate method published by ANNCSU.
+
+A run records the ANNCSU provider version and CSV hash, Istat crosswalk version and hash, provider endpoint and linkage configuration hash.
+
+## Conservative municipality resolution
+
+The municipality is resolved only when the canonical source string begins with an exact official Istat municipality name after token-level case, diacritic and punctuation folding.
+
+Allowed normalisation is deliberately narrow:
+
+- case folding;
+- diacritic folding;
+- punctuation/token boundary equivalence;
+- validation and removal of an explicit parenthetical province marker such as `(CS)`.
+
+There is no edit distance, fuzzy municipality matching or inferred abbreviation expansion. A conflicting province marker is rejected. The source address is never changed; the split is derived linkage input only.
+
+On the frozen Cosenza corpus this exact-Istat rule resolves the municipality prefix for 1,258 of 1,298 canonical addresses (96.92%).
+
+## Conservative ANNCSU street identity
+
+The production linker uses **ANNCSU `ODONIMO` only** as the provider street identity and display field. `DIZIONE_LINGUA1/2` are separate metadata fields and are never indexed or displayed as an odonym.
+
+Street matching is exact after a small deterministic normalisation of road-type spelling. Road type remains part of identity.
+
+Examples:
+
+```text
+C/da Padula       → contrada|padula
+CONTRADA PADULA   → contrada|padula
+S.S. 18           → ss|18
+STRADA STATALE 18 → ss|18
+Via Roma          → via|roma
+Piazza Roma       → piazza|roma
+```
+
+The last two keys remain different. A source `Via Petraro` cannot silently match ANNCSU `Contrada Petraro` merely because the name token is the same.
+
+A normalised `(Comune, typed-street-key)` must identify exactly one ANNCSU `PROGRESSIVO_NAZIONALE`. If multiple official street identities collapse to the same key, the result is ambiguous and no candidate is emitted.
+
+No fuzzy/edit-distance street matching is used in the exact production layer.
+
+## Civic linkage
+
+A civic number is extracted only when it is a confident terminal civic token. An optional exponent such as `33/A` is preserved; ranges such as `63/65` are not silently reduced to one civic.
+
+`SNC`/`SN` is represented as explicitly lacking a standard civic. Route numbers such as `S.S. 18` are not treated as house numbers.
+
+When a confident civic exists, ANNCSU linkage requires exact number and exponent. An access result is direct only when the surviving `PROGRESSIVO_ACCESSO` / coordinate / provider-method identity is unique.
+
+## Coordinate precision
+
+ANNCSU coordinates are never generically labelled `rooftop`.
+
+### `civic_access`
+
+A unique exact ANNCSU access with a coordinate pair is represented as:
+
+```text
+precision = civic_access
+coordinate_derivation = provider_civic_access
+```
+
+This means the coordinate belongs to the official civic-access/entrance record. ANNCSU `METODO` is retained in `provider_payload`; it is provider evidence, not a fabricated confidence score.
+
+### `street`
+
+When an exact unique street is established but the requested civic cannot provide a usable point, a street-level candidate may be produced if that exact ANNCSU street contains coordinate-bearing accesses. Its deterministic point is the median latitude/longitude of coordinate-bearing accesses for that exact official street:
+
+```text
+precision = street
+coordinate_derivation = median_of_anncsu_street_access_coordinates
+```
+
+The access count used for the derivation is stored in the payload. This result is explicitly street-level, never address/civic precision.
+
+An exact street can also be represented without coordinates when ANNCSU contains no usable coordinate pair for that street. Such a candidate cannot enter accepted geography.
+
+## Cosenza experiments
+
+### Nominatim baseline
+
+The full free-form Nominatim baseline attempted all 1,298 canonical Cosenza addresses without runtime errors but matched only 447 (34.44%). Of those matches, 435 were street-level and only six were address-level.
+
+A paired 200-address experiment then compared raw free-form, Nominatim structured search and comma-recomposed free-form search. None materially improved validated coverage after municipality/street consistency checks. Query-syntax tuning was therefore stopped rather than adding increasingly opaque heuristics.
+
+### Strict ANNCSU benchmark
+
+A strict exact-only benchmark established that official bulk linkage was viable without fuzzy matching. It also exposed two important safeguards that were subsequently enforced in production:
+
+- road type must remain part of street identity;
+- only ANNCSU `ODONIMO`, not `DIZIONE_LINGUA1/2`, may define or label the street.
+
+### Production smoke on frozen Cosenza inputs
+
+The final production pipeline was executed end-to-end against:
+
+- the frozen 1,298 Cosenza canonical addresses;
+- Istat municipality crosswalk version `2026-02-21`;
+- ANNCSU Calabria indirizzario version `2026-08-03`;
+- hash-verified copies of both reference inputs.
+
+Observed production results:
+
+- canonical addresses attempted: **1,298 / 1,298**;
+- ANNCSU candidates: **624 (48.07%)**;
+- terminal provider-specific `not_found`: **674 (51.93%)**;
+- runtime/provider errors: **0**;
+- unprocessed: **0**;
+- `civic_access` candidates: **309**;
+- `street` candidates: **260**;
+- exact normalised candidates without a coordinate precision: **55**;
+- candidates with latitude/longitude: **534 / 624 (85.58%)**;
+- candidates with a source-supported/exact house number retained: **364 / 624 (58.33%)**;
+- automatically accepted ANNCSU results: **0**.
+
+Among the 260 street-precision candidates, 225 carry the deterministic street median coordinate and 35 expose exact street normalisation without a coordinate. The 55 precision-null candidates correspond to an exact unique civic/access linkage for which ANNCSU does not provide a usable coordinate and the exact street has no usable coordinate fallback.
+
+These figures are measurements, not hard-coded quality thresholds. They establish the baseline to validate manually before any acceptance policy or recall-oriented second stage is introduced.
+
+## Candidate-by-default policy
+
+Neither ANNCSU nor Nominatim output is promoted automatically to geographic truth.
+
+Successful exact ANNCSU linkage is persisted as `candidate`. Every attempted non-candidate terminal outcome is persisted as provider-specific `not_found`, with the exact resolution reason in `provider_payload`.
+
+Here `not_found` means **no usable ANNCSU candidate under the exact linkage policy**, not that the real-world address does not exist.
+
+This gives complete accounting while preserving distinctions such as:
+
+- exact candidate;
+- ambiguous street or civic linkage;
+- no exact street;
+- municipality not exactly resolvable;
+- address outside the regional input;
+- other terminal reasons.
+
+Candidate coordinates never leak into `mart.address_geography`.
+
+## Standard fields and provenance
+
+The provider-neutral result can expose:
 
 ```text
 normalised address label
@@ -30,132 +202,46 @@ street name
 house number
 postal code
 locality
-admin unit level 2
-admin unit level 1
-country name
-country code
-latitude
-longitude
+administrative units
+country name / code
+latitude / longitude
 coordinate precision
 ```
 
 It also preserves:
 
 ```text
-provider name
-provider endpoint
-provider software version
-provider data-update timestamp
+provider name / endpoint / version / data date
 provider result identifier
-query text
+query/source text
 candidate rank
-attribution
-licence
-original provider candidate payload
+attribution / licence
+provider / derivation payload
 processing activity / configuration hash
 ```
 
-Provider-specific fields that are not part of the common address contract remain in `provider_payload` rather than leaking into the canonical schema.
+ANNCSU identifiers, `METODO`, matching policy, coordinate derivation and Istat/cadastral linkage stay in provider payload rather than leaking into the canonical address schema.
 
-## Baseline query rule
+## Licensing
 
-The production baseline sends the source-supported canonical address to the provider **once and unchanged**. It does not attempt municipality parsing, fuzzy rewriting, abbreviation expansion or cascading retry heuristics.
+ANNCSU public data are published under **CC-BY 4.0**. ANNCSU provider attribution and licence are stored with derived results and must be retained in downstream publication.
 
-A controlled pilot tested a lightweight syntactic retry on difficult Prefecture strings. It increased provider requests without recovering the failed examples, so it was deliberately excluded from production. Any future preprocessing must therefore demonstrate a measurable improvement on a representative validation sample before being introduced.
+Nominatim/OpenStreetMap-derived output continues to carry the applicable OpenStreetMap/ODbL attribution and licensing requirements when that provider is used.
 
-This keeps network cost predictable and makes geocoding quality attributable to the provider rather than to hidden address-rewriting logic.
+## Long-term feasibility
 
-## Nominatim-compatible first provider
+The official-first design removes the need for a national per-row public-geocoder batch.
 
-The first implementation uses the Nominatim Search API with `format=geocodejson` and `addressdetails=1`. GeocodeJSON is preferred because Nominatim documents it as the more stable address-category representation.
+For Italian addresses the scalable path is:
 
-The endpoint is runtime configuration. The database does not distinguish architecturally between:
+1. acquire each required ANNCSU regional bulk file once per provider version;
+2. acquire/version the Istat municipality crosswalk;
+3. link locally with deterministic exact rules;
+4. cache provider-version results in PostgreSQL;
+5. validate candidates before acceptance;
+6. send only unresolved/foreign cases to a configurable fallback when justified;
+7. benchmark any future normalising/fuzzy stage against a frozen manual validation set before adoption.
 
-- the OSM Foundation public Nominatim service;
-- a managed third-party Nominatim-compatible service;
-- a self-hosted Nominatim instance.
+National growth therefore scales primarily with bulk regional file acquisition and local processing, rather than the number of geocoder API calls.
 
-Changing provider infrastructure therefore does not require a database migration.
-
-## Public OSMF Nominatim is a pilot route, not production infrastructure
-
-As of 7 September 2026, the OSM Foundation public-service policy states that:
-
-- the absolute maximum is 1 request per second;
-- applications must send an identifying User-Agent or Referer;
-- results must be cached for bulk use;
-- periodic requests are considered bulk geocoding and are strongly discouraged;
-- scripts running longer than a day or at regular intervals are restricted to 4 requests per minute;
-- applications should be capable of switching provider without requiring a software update;
-- larger or regular requirements should use a third-party provider or a self-hosted Nominatim instance.
-
-Consequently the project enforces the following:
-
-1. `nominatim.openstreetmap.org` requires an explicit `--allow-public-nominatim` opt-in.
-2. The client enforces at least a 1-second interval on that endpoint.
-3. The public endpoint refuses batches above 2,000 unique queries.
-4. Existing `accepted`, `candidate` and `not_found` results are a persistent database cache and are skipped unless `--refresh` is requested.
-5. Identical query strings are deduplicated within a run.
-6. No scheduled/recurring project workflow may use the public OSMF endpoint.
-
-The public endpoint is therefore suitable for a deliberate small one-off pilot such as Cosenza, but it is not a dependency of the national architecture.
-
-## Long-term operating model
-
-For national recurring ingestion the preferred operational order is:
-
-```text
-1. managed Nominatim-compatible endpoint
-2. self-hosted Nominatim if volume, cost or control justify operating it
-```
-
-A managed endpoint is the default long-term assumption because it avoids running and updating a specialised PostgreSQL/PostGIS search stack. Self-hosting remains technically feasible: Nominatim explicitly supports regional/country OSM extracts and incremental updates. It is nevertheless a material infrastructure commitment. The official Nominatim documentation recommends roughly 128 GB RAM and at least 1 TB disk for a full-planet installation; country extracts substantially reduce the imported dataset, but their exact hardware requirement depends on scope and update strategy and should be benchmarked before committing to self-hosting.
-
-The choice is operational, not architectural. The command remains:
-
-```text
-white-list-normalise-addresses \
-  --dsn "$DATABASE_URL" \
-  --endpoint "$GEOCODER_ENDPOINT"
-```
-
-Only new/unseen canonical addresses require network calls. Existing addresses remain cached until an explicit refresh is justified, so recurring costs scale with address churn rather than total database size.
-
-## Pilot evidence
-
-A one-shot, policy-compliant integration test against the public OSMF endpoint used three real address strings extracted from the Cosenza White List source. The complete path `core.address -> provider -> persistence -> mart.address_normalisation` succeeded with no provider/runtime errors.
-
-The sample also showed why normalisation and acceptance must remain separate: one address produced street-level candidates, while two source strings produced no result, and **none** was accepted as an address-level coordinate. A tested lightweight retry increased the number of provider calls without improving those failed cases and was removed. The pipeline therefore proved technically viable without converting imperfect geocoder coverage into false precision or unnecessary traffic.
-
-## Acceptance policy
-
-Normalisation and geographic acceptance are deliberately separate.
-
-**By default every provider match remains `candidate`**, even if the provider returns only one address-level object. This means the normalised address and candidate coordinates are immediately usable through `mart.address_normalisation`, while `mart.address_geography` remains protected from unreviewed provider assertions.
-
-An explicit `--auto-accept-unique-address-level` option is available for controlled workflows. Even then, acceptance is limited to the narrow case where:
-
-- the provider returns exactly one candidate;
-- the candidate is address/building level;
-- a house number is present;
-- latitude and longitude are present.
-
-All other returned results remain `candidate`. `not_found` and `error` are explicitly represented. No artificial numerical confidence score is generated.
-
-## Coordinate precision
-
-Nominatim address/building results are labelled `address`, not `rooftop`. A Nominatim point can be an address point or the centroid of an OSM object, so claiming rooftop precision would be stronger than the source supports.
-
-## Official Italian enrichment remains available
-
-The ANNCSU and Istat acquisition work remains useful but becomes optional downstream validation/enrichment:
-
-- ANNCSU can corroborate Italian civic-access coordinates or provide an official alternative;
-- Istat can attach official municipality codes, administrative units and NUTS versions;
-- SITUAS can support historical territorial reconstruction when required.
-
-None of these sources blocks routine address normalisation.
-
-## Licensing and provenance
-
-Nominatim/OpenStreetMap output carries ODbL attribution/licensing requirements. The pipeline stores the provider attribution and licence alongside each result. Any public release or interface exposing derived OSM address data must preserve the applicable attribution and comply with the provider/data licence.
+The public OSMF Nominatim service remains appropriate only for controlled small experiments. If a recurring fallback geocoder becomes material, the same database contract can use a managed or self-hosted endpoint.
