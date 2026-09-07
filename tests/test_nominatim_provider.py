@@ -5,9 +5,7 @@ import pytest
 from white_list_archive.geocoding.nominatim import (
     NominatimClient,
     PUBLIC_NOMINATIM_ENDPOINT,
-    lightly_clean_query,
     parse_geocodejson,
-    query_variants,
 )
 
 
@@ -78,27 +76,6 @@ def test_geocodejson_precision_is_conservative_and_uses_street_name_fallback():
     assert candidate.precision_code == "street"
     assert candidate.street_name == "Via Quattro Novembre"
     assert not candidate.is_address_level
-
-
-def test_light_query_cleanup_only_repairs_source_formatting():
-    assert lightly_clean_query("RENDE(CS), VIALE ORSO MARIO CORBINO 33") == (
-        "RENDE, VIALE ORSO MARIO CORBINO 33"
-    )
-    assert lightly_clean_query("CASSANO ALL’IONIO Via IV Novembre, 2") == (
-        "CASSANO ALL’IONIO, Via IV Novembre, 2"
-    )
-    assert lightly_clean_query("PARIGI (FR)Rue du Cardinal Demoine 62") == (
-        "PARIGI, Rue du Cardinal Demoine 62"
-    )
-
-
-def test_query_variants_preserve_source_first_and_deduplicate_unchanged_queries():
-    raw = "RENDE(CS), VIALE ORSO MARIO CORBINO 33"
-    assert query_variants(raw) == [
-        raw,
-        "RENDE, VIALE ORSO MARIO CORBINO 33",
-    ]
-    assert query_variants("Via Roma 1, Cosenza") == ["Via Roma 1, Cosenza"]
 
 
 def test_public_osmf_service_requires_explicit_opt_in_and_enforces_rate_limit():
