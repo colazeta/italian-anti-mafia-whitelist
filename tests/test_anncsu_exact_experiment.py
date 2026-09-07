@@ -4,12 +4,18 @@ from white_list_archive.geocoding.anncsu_exact_experiment import (
 )
 
 
-def test_street_key_removes_only_leading_generic_road_type():
-    assert canonical_street_key("Via Nazionale") == "nazionale"
-    assert canonical_street_key("C/da Padula") == "padula"
-    assert canonical_street_key("CONTRADA SCANNELLE") == "scannelle"
-    assert canonical_street_key("S.S. 18") == "18"
-    assert canonical_street_key("Via IV Novembre") == "iv novembre"
+def test_street_key_normalises_but_preserves_road_type():
+    assert canonical_street_key("Via Nazionale") == "via|nazionale"
+    assert canonical_street_key("C/da Padula") == "contrada|padula"
+    assert canonical_street_key("CONTRADA SCANNELLE") == "contrada|scannelle"
+    assert canonical_street_key("S.S. 18") == "ss|18"
+    assert canonical_street_key("STRADA STATALE 18") == "ss|18"
+    assert canonical_street_key("Via IV Novembre") == "via|iv novembre"
+
+
+def test_distinct_road_types_with_same_name_do_not_collapse():
+    assert canonical_street_key("Via Roma") != canonical_street_key("Piazza Roma")
+    assert canonical_street_key("Via Petraro") != canonical_street_key("Contrada Petraro")
 
 
 def test_terminal_civic_and_exponent_are_parsed_conservatively():
