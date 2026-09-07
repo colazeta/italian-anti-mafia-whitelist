@@ -46,6 +46,7 @@ jobs:
                           'content_range': response.headers.get('Content-Range'),
                           'content_disposition': response.headers.get('Content-Disposition'),
                           'sample_bytes': len(body),
+                          'sample_hex': body[:32].hex(),
                           'sample_text': body[:2000].decode('utf-8', errors='replace'),
                       })
               except urllib.error.HTTPError as exc:
@@ -57,6 +58,7 @@ jobs:
                       'content_type': exc.headers.get('Content-Type'),
                       'content_length': exc.headers.get('Content-Length'),
                       'sample_bytes': len(body),
+                      'sample_hex': body[:32].hex(),
                       'sample_text': body[:2000].decode('utf-8', errors='replace'),
                   })
               except Exception as exc:
@@ -76,13 +78,15 @@ jobs:
           if probes['api_cosenza_odonimi'].get('ok'):
               try:
                   payload = json.loads(probes['api_cosenza_odonimi']['sample_text'])
-                  candidates = payload if isinstance(payload, list) else payload.get('data', payload.get('result', [])) if isinstance(payload, dict) else []
-                  if isinstance(candidates, list) and candidates:
-                      first = candidates[0]
-                      if isinstance(first, dict):
-                          progressivo = first.get('Progressivo_nazionale') or first.get('progressivo_nazionale')
-              except Exception:
-                  pass
+                  result = payload.get('result', {}) if isinstance(payload, dict) else {}
+                  candidates = result.get('records', []) if isinstance(result, dict) else []
+                  if candidates and isinstance(candidates[0], dict):
+                      progressivo = candidates[0].get('Progressivo_nazionale')
+              except Exception as exc:
+                  probes['api_cosenza_odonimi_parse_error'] = {
+                      'error_type': type(exc).__name__,
+                      'error': str(exc),
+                  }
 
           if progressivo:
               accessi_url = BASE + 'querydata.php?' + urllib.parse.urlencode({
@@ -92,9 +96,17 @@ jobs:
               })
               probes['api_cosenza_accessi'] = request(accessi_url)
           else:
-              probes['api_cosenza_accessi'] = {'skipped': True, 'reason': 'No progressivo odonimo extracted from probe response'}
+              probes['api_cosenza_accessi'] = {
+                  'skipped': True,
+                  'reason': 'No Progressivo_nazionale extracted from odonimi response',
+              }
 
-          probes['bulk_calabria'] = request(
+          probes['bulk_calabria_bare_key'] = request(
+              BASE + 'getds.php?INDIR_CALA',
+              headers={'Range': 'bytes=0-1023'},
+              read_bytes=1024,
+          )
+          probes['bulk_calabria_equals'] = request(
               BASE + 'getds.php?INDIR_CALA=',
               headers={'Range': 'bytes=0-1023'},
               read_bytes=1024,
@@ -110,6 +122,8 @@ jobs:
               raise SystemExit('Official ANNCSU open-data API help endpoint is not reachable from this GitHub runner')
           if not probes['api_cosenza_odonimi'].get('ok'):
               raise SystemExit('Official ANNCSU open-data odonimi query is not reachable from this GitHub runner')
+          if not probes['api_cosenza_accessi'].get('ok'):
+              raise SystemExit('Official ANNCSU open-data accessi query is not reachable from this GitHub runner')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
