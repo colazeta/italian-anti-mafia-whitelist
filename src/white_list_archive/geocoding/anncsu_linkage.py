@@ -59,7 +59,7 @@ ROUTE_TRAILING_PREFIXES = {
 }
 
 ANNCSU_ATTRIBUTION = "ANNCSU — Istat e Agenzia delle Entrate"
-ANNCSU_LICENCE = "CC BY 4.0"
+ANNCSU_LICENCE = "CC-BY 4.0"
 
 
 def _fold(value: str) -> str:
@@ -73,7 +73,6 @@ def _tokens(value: str) -> list[str]:
 
 
 def canonical_street_key(value: str) -> str:
-    """Normalise spelling while preserving the road type as part of identity."""
     tokens = _tokens(value)
     if not tokens:
         return ""
@@ -112,9 +111,7 @@ def parse_street_and_civic(value: str) -> CivicParse:
     exponent = (match.group("exponent") or "").upper() or None
     street_tokens = _tokens(street)
     for route_prefix in ROUTE_TRAILING_PREFIXES:
-        if len(street_tokens) >= len(route_prefix) and tuple(
-            street_tokens[-len(route_prefix) :]
-        ) == route_prefix:
+        if len(street_tokens) >= len(route_prefix) and tuple(street_tokens[-len(route_prefix) :]) == route_prefix:
             return CivicParse(text, "terminal_number_is_route_number")
     return CivicParse(street, "civic", number, exponent)
 
@@ -149,12 +146,8 @@ def _street_identity(row: dict[str, str]) -> str:
 
 
 def _official_street_name(rows: list[dict[str, str]]) -> str:
-    values = [
-        (row.get("DIZIONE_LINGUA1") or "").strip()
-        or (row.get("ODONIMO") or "").strip()
-        for row in rows
-    ]
-    values = [value for value in values if value]
+    values = {(row.get("ODONIMO") or "").strip() for row in rows}
+    values.discard("")
     return min(values, key=lambda value: (len(value), value)) if values else ""
 
 
@@ -195,13 +188,7 @@ def resolve_anncsu_addresses(
     anncsu_csv: Path,
     dataset_region_name: str = "Calabria",
 ) -> list[AnncsuResolution]:
-    """Resolve addresses against one ANNCSU regional indirizzario.
-
-    Only exact Istat municipality prefixes and exact road-type-preserving street
-    keys are eligible. A street key must identify exactly one official ANNCSU
-    odonym. Civic matching is exact on number and exponent. No fuzzy matching is
-    performed.
-    """
+    source_addresses = list(source_addresses)
     prepared: list[_PreparedAddress] = []
     terminal: dict[str, AnncsuResolution] = {}
     wanted: dict[str, set[str]] = defaultdict(set)
@@ -209,33 +196,17 @@ def resolve_anncsu_addresses(
     for source_address in source_addresses:
         result = municipality_matcher.split(source_address)
         if result.status != "exact" or result.split is None:
-            terminal[source_address] = AnncsuResolution(
-                source_address, result.status, None, None, None, {"split_detail": result.detail}
-            )
+            terminal[source_address] = AnncsuResolution(source_address, result.status, None, None, None, {"split_detail": result.detail})
             continue
         split = result.split
         municipality = split.municipality
         if _fold(municipality.region_name) != _fold(dataset_region_name):
-            terminal[source_address] = AnncsuResolution(
-                source_address,
-                "outside_dataset_region",
-                None,
-                municipality.municipality_code,
-                municipality.cadastral_code,
-                {"region_name": municipality.region_name},
-            )
+            terminal[source_address] = AnncsuResolution(source_address, "outside_dataset_region", None, municipality.municipality_code, municipality.cadastral_code, {"region_name": municipality.region_name})
             continue
         civic = parse_street_and_civic(split.remainder)
         street_key = canonical_street_key(civic.street_text)
         if not street_key:
-            terminal[source_address] = AnncsuResolution(
-                source_address,
-                "empty_street_key",
-                None,
-                municipality.municipality_code,
-                municipality.cadastral_code,
-                {"civic_parse_status": civic.status},
-            )
+            terminal[source_address] = AnncsuResolution(source_address, "empty_street_key", None, municipality.municipality_code, municipality.cadastral_code, {"civic_parse_status": civic.status})
             continue
         item = _PreparedAddress(
             source_address=source_address,
@@ -257,38 +228,20 @@ def resolve_anncsu_addresses(
         wanted_keys = wanted.get(cadastral_code)
         if not wanted_keys:
             continue
-        keys = {
-            canonical_street_key(row.get("DIZIONE_LINGUA1") or ""),
-            canonical_street_key(row.get("ODONIMO") or ""),
-        }
-        keys.discard("")
-        for key in keys & wanted_keys:
+        key = canonical_street_key(row.get("ODONIMO") or "")
+        if key and key in wanted_keys:
             anncsu_index[(cadastral_code, key)].append(row)
 
     resolved: dict[str, AnncsuResolution] = dict(terminal)
     for item in prepared:
         rows = anncsu_index.get((item.cadastral_code, item.street_key), [])
         if not rows:
-            resolved[item.source_address] = AnncsuResolution(
-                item.source_address,
-                "no_exact_street_match",
-                None,
-                item.municipality_code,
-                item.cadastral_code,
-                {"street_key": item.street_key, "civic_parse_status": item.civic.status},
-            )
+            resolved[item.source_address] = AnncsuResolution(item.source_address, "no_exact_street_match", None, item.municipality_code, item.cadastral_code, {"street_key": item.street_key, "civic_parse_status": item.civic.status})
             continue
 
         street_ids = {_street_identity(row) for row in rows if _street_identity(row)}
         if len(street_ids) != 1:
-            resolved[item.source_address] = AnncsuResolution(
-                item.source_address,
-                "exact_street_ambiguous",
-                None,
-                item.municipality_code,
-                item.cadastral_code,
-                {"street_key": item.street_key, "street_identity_count": len(street_ids)},
-            )
+            resolved[item.source_address] = AnncsuResolution(item.source_address, "exact_street_ambiguous", None, item.municipality_code, item.cadastral_code, {"street_key": item.street_key, "street_identity_count": len(street_ids)})
             continue
         street_id = next(iter(street_ids))
         official_street = _official_street_name(rows)
@@ -304,8 +257,7 @@ def resolve_anncsu_addresses(
         exact_access_rows: list[dict[str, str]] = []
         if source_civic:
             exact_access_rows = [
-                row
-                for row in rows
+                row for row in rows
                 if _normalise_number(row.get("CIVICO") or "") == source_civic
                 and _normalise_exponent(row.get("ESPONENTE") or "") == item.civic.exponent
             ]
@@ -347,20 +299,7 @@ def resolve_anncsu_addresses(
                 status = "exact_civic_without_coordinates"
                 coordinate_derivation = None
         elif len(access_identities) > 1:
-            resolved[item.source_address] = AnncsuResolution(
-                item.source_address,
-                "exact_civic_ambiguous",
-                None,
-                item.municipality_code,
-                item.cadastral_code,
-                {
-                    "street_id": street_id,
-                    "street_name": official_street,
-                    "access_identity_count": len(access_identities),
-                    "source_civic": source_civic,
-                    "source_exponent": item.civic.exponent,
-                },
-            )
+            resolved[item.source_address] = AnncsuResolution(item.source_address, "exact_civic_ambiguous", None, item.municipality_code, item.cadastral_code, {"street_id": street_id, "street_name": official_street, "access_identity_count": len(access_identities), "source_civic": source_civic, "source_exponent": item.civic.exponent})
             continue
         else:
             house_number = None
@@ -370,11 +309,7 @@ def resolve_anncsu_addresses(
             if street_coordinate:
                 latitude, longitude = street_coordinate
                 precision = "street"
-                status = (
-                    "exact_street_no_confident_civic"
-                    if not source_civic
-                    else "exact_street_civic_not_found"
-                )
+                status = "exact_street_no_confident_civic" if not source_civic else "exact_street_civic_not_found"
                 coordinate_derivation = "median_of_anncsu_street_access_coordinates"
             else:
                 latitude = longitude = None
@@ -384,7 +319,7 @@ def resolve_anncsu_addresses(
 
         payload: dict[str, Any] = {
             "resolution_status": status,
-            "matching_policy": "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available",
+            "matching_policy": "istat_exact_prefix+anncsu_odonimo_exact_typed_street+exact_civic_when_available",
             "municipality_code": item.municipality_code,
             "cadastral_code": item.cadastral_code,
             "province_plate": item.province_plate,
@@ -397,14 +332,12 @@ def resolve_anncsu_addresses(
             "coordinate_derivation": coordinate_derivation,
         }
         if direct_row:
-            payload.update(
-                {
-                    "access_id": (direct_row.get("PROGRESSIVO_ACCESSO") or "").strip(),
-                    "anncsu_metodo": (direct_row.get("METODO") or "").strip(),
-                    "anncsu_civico": (direct_row.get("CIVICO") or "").strip(),
-                    "anncsu_esponente": (direct_row.get("ESPONENTE") or "").strip(),
-                }
-            )
+            payload.update({
+                "access_id": (direct_row.get("PROGRESSIVO_ACCESSO") or "").strip(),
+                "anncsu_metodo": (direct_row.get("METODO") or "").strip(),
+                "anncsu_civico": (direct_row.get("CIVICO") or "").strip(),
+                "anncsu_esponente": (direct_row.get("ESPONENTE") or "").strip(),
+            })
 
         candidate = GeocodeCandidate(
             provider_result_id=provider_result_id,
@@ -425,13 +358,6 @@ def resolve_anncsu_addresses(
             licence=ANNCSU_LICENCE,
             payload=payload,
         )
-        resolved[item.source_address] = AnncsuResolution(
-            item.source_address,
-            status,
-            candidate,
-            item.municipality_code,
-            item.cadastral_code,
-            payload,
-        )
+        resolved[item.source_address] = AnncsuResolution(item.source_address, status, candidate, item.municipality_code, item.cadastral_code, payload)
 
     return [resolved[address] for address in source_addresses]
