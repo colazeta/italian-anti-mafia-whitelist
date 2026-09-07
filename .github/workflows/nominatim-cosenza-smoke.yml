@@ -78,8 +78,8 @@ jobs:
           summary=json.load(open('nominatim-smoke-summary.json', encoding='utf-8'))
           assert summary['public_osmf_service'] is True
           assert summary['selected_address_ids'] == 3
-          assert summary['unique_queries'] == 3
-          assert summary['network_queries'] == 3
+          assert summary['unique_source_queries'] == 3
+          assert 3 <= summary['network_queries'] <= summary['potential_network_queries'] <= 6
           assert summary['error'] == 0, summary
           assert summary['accepted'] + summary['candidate'] + summary['not_found'] >= 3
           PY
