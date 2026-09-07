@@ -2,34 +2,48 @@
 
 This design is introduced before national parser scale-out because both geography and population completeness affect the meaning of the final dataset.
 
-## 1. Geography is derived enrichment, not a rewrite of the source
+## 1. Address normalisation and geography are derived enrichment
 
-A Prefecture publishes an address string. The archive preserves that exact source-supported value in the source/semantic/canonical address chain.
+A Prefecture publishes an address string. The archive preserves that source-supported value in the source/semantic/canonical address chain.
 
-Geocoding and statistical territorial classification happen downstream:
+Routine address normalisation and stricter geographic enrichment are separate downstream layers:
 
 ```text
 source address
    ↓
 canonical address
    ↓
+configurable geocoder
+   ↓
 geo.address_geocode_result
-   ↓
-geo.address_geographic_unit
-   ↓
-mart.address_geography
+   ├─→ mart.address_normalisation
+   └─→ accepted coordinate only
+            ↓
+      geo.address_geographic_unit
+            ↓
+      mart.address_geography
 ```
 
-The source address remains immutable even when a later geocoder or official territorial crosswalk improves the location.
+The source address remains unchanged even when a geocoder returns a cleaner address or a later official territorial crosswalk improves the classification.
 
-## 2. Statistical geography fields
+The production normalisation design is documented in `docs/architecture/address-normalisation.md`.
 
-The wide `mart.address_geography` surface is designed to expose, where available:
+## 2. Standard normalised and statistical geography fields
 
-- latitude;
-- longitude;
-- coordinate precision;
-- geocoding provider/version/confidence;
+`mart.address_normalisation` is designed to expose the current provider-normalised form of an address, including where available:
+
+- normalised address label;
+- street name;
+- house/civic number;
+- postal code;
+- locality;
+- level-2 and level-1 administrative names;
+- country name/code;
+- candidate coordinates and precision;
+- provider endpoint/version/data timestamp and attribution/licence.
+
+`mart.address_geography` is deliberately stricter. It exposes coordinates only from an accepted result and can additionally expose:
+
 - ISTAT municipality code + name;
 - province / metropolitan-city / autonomous-province code + name + type;
 - ISTAT region code + name;
@@ -37,46 +51,44 @@ The wide `mart.address_geography` surface is designed to expose, where available
 - NUTS 2 code + name + version;
 - NUTS 3 code + name + version.
 
-This is deliberately richer than storing a generic `city` string because the intended uses include statistical aggregation, spatial joins and longitudinal research.
+This separation allows routine normalisation to stay simple without weakening the evidential standard of the statistical geography layer.
 
 ## 3. Versioning of territorial classifications
 
 Territorial classifications change and must be treated as versioned reference data.
 
-For Italian administrative units the authoritative reference is ISTAT/SITUAS. As of the current development date, ISTAT reports its administrative-unit codes updated to **21 February 2026** and explicitly notes the 2026 Sardinian territorial recoding. A municipality/province/region code must therefore carry the applicable scheme version/effective period rather than being treated as timeless.
+For Italian administrative units the authoritative reference is ISTAT/SITUAS. The current project crosswalk uses the Istat state effective **21 February 2026** and retains current/historical municipality-code variants, Belfiore/cadastral code and NUTS 2021/2024 fields. Historical reconstruction can use SITUAS where the geography effective at an earlier observation date is required.
 
-For European statistical geography the current reference is **NUTS 2024**, applied from the first reference quarter of 2024. The archive stores NUTS level and NUTS version separately from Italian administrative codes.
-
-Reference sources:
-
-- ISTAT, “Codici statistici delle unità amministrative territoriali: comuni, città metropolitane, province e regioni”.
-- Eurostat, “NUTS 2024”.
+For European statistical geography the current reference is **NUTS 2024**. The archive stores NUTS level and version separately from Italian administrative codes.
 
 ## 4. Geocoding result model
 
 `geo.address_geocode_result` is candidate-based rather than a single pair of columns on `core.address`.
 
-Each result records:
+Each result can record:
 
-- provider and provider version;
+- provider, endpoint and version;
+- provider data-update timestamp;
 - provider result id when available;
+- exact query text;
 - candidate rank;
 - accepted/candidate/rejected/not-found/error status;
 - latitude/longitude;
-- spatial precision (`rooftop`, `parcel`, `street`, `postal_code`, `locality`, `admin`, `centroid`, `unknown`);
-- confidence;
-- matched address;
+- spatial precision (`address`, `rooftop`, `parcel`, `street`, `postal_code`, `locality`, `admin`, `centroid`, `unknown`);
+- matched/normalised address fields;
+- provider attribution/licence;
+- original provider candidate payload;
 - processing activity and system time.
 
 Only one current `accepted` geocode may exist for an address. Candidate and rejected results remain auditable.
 
-The archive does **not** assume that every provider coordinate is rooftop-level. A municipality centroid can be useful statistically, but must be labelled as `centroid`/`locality`, never presented as an exact business location.
+The archive does **not** assume that every address-level result is rooftop-level. For example, a Nominatim house/building result can be an address point or an object centroid and is therefore conservatively labelled `address`.
 
 ## 5. Administrative/statistical assignments
 
 `geo.geographic_unit` stores versioned reference units using:
 
-- `scheme_code` (e.g. `ISTAT_ADMIN`, `NUTS`);
+- `scheme_code` (for example `ISTAT_ADMIN`, `NUTS`);
 - `scheme_version`;
 - level;
 - code;
@@ -94,13 +106,17 @@ The archive does **not** assume that every provider coordinate is rooftop-level.
 
 This supports both a spatial workflow and a deterministic official-code workflow.
 
-## 6. Geocoding provider strategy
+## 6. Geocoding provider strategy and long-term feasibility
 
-No provider is hard-coded into the ontology.
+No provider is hard-coded into the ontology or database schema.
 
-The production ingestion layer should expose a provider interface and cache every attempted result. Provider-specific licensing, rate limits and redistribution constraints belong to acquisition/configuration policy rather than to the canonical address model.
+The first implementation is Nominatim-compatible because it provides free/open address search and a structured GeocodeJSON output. The endpoint is runtime configuration and can be switched between a public, managed or self-hosted Nominatim implementation without changing downstream tables.
 
-A national run should prefer reproducible/bulk-suitable services or controlled infrastructure; it should not silently depend on a public endpoint intended only for light interactive use.
+The OSM Foundation public endpoint is **not** treated as recurring national infrastructure. It is allowed only through explicit opt-in for a deliberate small one-off pilot and the client enforces policy-aware throttling and persistent caching. Scheduled national operation must use a managed or self-hosted endpoint.
+
+This means recurring geocoding costs and traffic scale mainly with new/changed canonical addresses rather than with the full historical archive.
+
+ANNCSU and Istat remain optional downstream official validation/enrichment sources. Their availability does not block routine address normalisation.
 
 ## 7. Mandatory White List source populations
 
@@ -172,12 +188,12 @@ Bologna demonstrates why: the ordinary provincial White List and the post-earthq
 
 ## 12. Current baseline effect
 
-With the current 34 verified authority pages and 28 inventoried source series, the deterministic coverage generator creates **35 register/discovery scopes** (Bologna contributes a second special-regime scope).
+With the current 34 verified authority pages and 59 inventoried source series, the deterministic coverage generator creates **35 register/regime scopes**.
 
 At the current inventory stage:
 
-- 12 scopes already account for both populations;
-- 23 remain incomplete/unresolved and therefore cannot be counted as source-series complete.
+- **30 scopes** account for both `listed` and `applicant`;
+- **5 scopes** remain incomplete/unresolved: Bari, Crotone, Milano, Sassari and Udine.
 
 These numbers are a discovery-progress metric, not a statement that applicants are absent in the unresolved authorities.
 

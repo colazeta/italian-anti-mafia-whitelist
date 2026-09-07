@@ -13,6 +13,7 @@ BEGIN;
 \ir schema/055_semantic_projection.sql
 \ir schema/056_semantic_resolution_versioning.sql
 \ir schema/058_geography.sql
+\ir schema/059_address_normalisation.sql
 \ir schema/060_derived_governance.sql
 \ir schema/070_views.sql
 \ir schema/071_geo_views.sql
