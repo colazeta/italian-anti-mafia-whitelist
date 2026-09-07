@@ -78,7 +78,7 @@ BEGIN
     FROM mart.address_normalisation
     WHERE address_id=address_id_v;
 
-    IF got.match_status_code <> 'candidate' OR got.coordinate_precision <> 'civic_access' THEN
+    IF got.match_status_code <> 'candidate' OR got.precision_code <> 'civic_access' THEN
         RAISE EXCEPTION 'ANNCSU candidate/precision not exposed correctly';
     END IF;
     IF got.latitude IS NULL OR got.longitude IS NULL THEN
