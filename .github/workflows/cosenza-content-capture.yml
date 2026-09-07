@@ -7,6 +7,7 @@ on:
       - research/cosenza-content-capture
       - feature/cosenza-parser-v2
       - feature/automatic-semantic-projection
+      - feature/explorer-drilldown-source-evidence
     paths:
       - 'src/white_list_archive/acquisition/cosenza_capture.py'
       - 'src/white_list_archive/parsers/**'
@@ -158,6 +159,20 @@ jobs:
             --output artifacts/cosenza-v2/model_population.json
           cat artifacts/cosenza-v2/model_population.json
 
+      - name: Export browsable database tables for internal audit
+        run: |
+          white-list-table-bundle \
+            --dsn "$TEST_DSN" \
+            --output-dir artifacts/data-explorer-preview-v2 \
+            --preview-limit 50
+      - name: Package original PDFs and row-to-page evidence locators
+        run: |
+          white-list-source-evidence \
+            --before-pdf artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            --after-pdf artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --before-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --after-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --output-dir artifacts/data-explorer-preview-v2
       - name: Build private Dataset Explorer from populated database state
         run: |
           white-list-build-explorer-preview-v2 \
@@ -170,6 +185,37 @@ jobs:
             --mode internal \
             --acknowledge-internal-row-data \
             --output artifacts/data-explorer-preview-v2/index.html
+          white-list-explorer-audit-patch \
+            --index artifacts/data-explorer-preview-v2/index.html \
+            --table-catalog artifacts/data-explorer-preview-v2/table_catalog.json \
+            --source-evidence artifacts/data-explorer-preview-v2/source_evidence.json
+      - name: Validate Explorer audit package
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('artifacts/data-explorer-preview-v2')
+          table=json.loads((root/'table_catalog.json').read_text())
+          pop=json.loads(Path('artifacts/cosenza-v2/model_population.json').read_text())
+          if set(table['objects']) != {o['object_code'] for o in pop['objects']}:
+              raise SystemExit('Table catalog does not cover every model-population object')
+          for code,item in table['objects'].items():
+              if not (root/item['csv_path']).is_file():
+                  raise SystemExit(f'Missing CSV export for {code}')
+          evidence=json.loads((root/'source_evidence.json').read_text())
+          for date,item in evidence['editions'].items():
+              pdf=root/item['pdf_path']
+              observed=hashlib.sha256(pdf.read_bytes()).hexdigest()
+              if observed != item['sha256']:
+                  raise SystemExit(f'Evidence PDF hash mismatch for {date}')
+              if len(item['rows']) not in (1327,1334):
+                  raise SystemExit(f'Unexpected row locator count for {date}: {len(item["rows"])}')
+          html=(root/'index.html').read_text()
+          for needle in ('__AUDIT_DRILLDOWN_V1__','Apri CSV completo','Verifica indipendente:'):
+              if needle not in html:
+                  raise SystemExit(f'Missing Explorer audit feature: {needle}')
+          print('Explorer audit package validated.')
+          PY
       - name: Print v1-to-v2 and semantic QA summary
         run: |
           python - <<'PY'
@@ -195,6 +241,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: data-explorer-preview-v2
-          path: artifacts/data-explorer-preview-v2/index.html
+          path: artifacts/data-explorer-preview-v2/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 90

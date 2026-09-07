@@ -4,7 +4,7 @@ This page is the authoritative human-readable guide to the data currently availa
 
 ## Short answer
 
-Start with [`../data/catalog.csv`](../data/catalog.csv) for persistent repository artifacts and the private **Dataset Explorer** for the actual reconstructed database population.
+Start with [`../data/catalog.csv`](../data/catalog.csv) for persistent repository artifacts and the private **Dataset Explorer** for the actual reconstructed database population and its source evidence.
 
 The project now distinguishes seven access/data layers:
 
@@ -13,7 +13,7 @@ The project now distinguishes seven access/data layers:
 3. **PostgreSQL `source.*`** — capture, parse runs, parsed records and raw source values.
 4. **PostgreSQL `semantic.*`** — typed ontology-level observations, projection issues and resolution decisions.
 5. **PostgreSQL `core.*` / `whitelist.*`** — guarded canonical entities, relationships, procedures and temporal states.
-6. **Dataset Explorer checkpoint** — private self-contained browser generated from the reconstructed PostgreSQL population.
+6. **Dataset Explorer audit package** — private browser generated from the reconstructed PostgreSQL population, with per-table internal CSVs and preserved original source documents.
 7. [`../data/releases/`](../data/releases/) — deliberately reviewed public/reuse products. There is currently no row-level public White List release.
 
 ## What is directly visible in GitHub
@@ -98,11 +98,21 @@ Three source identifier values are ambiguous across distinct source names. They 
 
 `whitelist.relationship_sector` currently contains zero rows **by design**: the Cosenza combined source exposes activities requested in procedures, not independent evidence of sectors actually represented/listed on the White List relationship.
 
-## Dataset Explorer: how to read empty tables
+## Dataset Explorer: inspecting the actual tables
 
-The Dataset Explorer now receives a `model_population` manifest generated directly from PostgreSQL after the pipeline completes. It does not hard-code whether a table is populated.
+**Struttura dataset** is no longer only a population/status map. In the internal audit build, every object can be opened.
 
-Each object has a real count and a status such as:
+The generic table inspector shows:
+
+- qualified PostgreSQL table name;
+- actual row count;
+- column names and SQL types;
+- the first 50 rows from the reconstructed database in deterministic order;
+- a link to a **complete internal CSV export** for that database object.
+
+The workflow generates one CSV for every object represented in the model-population manifest. These CSVs live inside the private Explorer artifact and are not committed under `data/releases/`.
+
+The population/status semantics remain unchanged. Each object has a status such as:
 
 - `POPULATED`;
 - `POPULATED_WITH_UNRESOLVED_EDGE_CASES`;
@@ -113,10 +123,25 @@ Each object has a real count and a status such as:
 - `NOT_YET_PROCESSED`;
 - `NOT_YET_POPULATED`.
 
-Therefore a zero is interpretable. For example:
+Therefore both positive and negative states are auditable: a populated table can be opened, while a zero-row table must say why it is empty.
 
-- `relationship_sector = 0` → `NOT_APPLICABLE_FROM_CURRENT_SOURCE` for this Cosenza publication model;
-- `derived_event = 0` → `NOT_YET_PROCESSED`, because derived longitudinal events are intentionally run only after canonical history exists.
+## Original source documents and independent verification
+
+The current Cosenza audit package also contains the exact original PDFs that were parsed.
+
+Before packaging, the workflow verifies the live bytes against the frozen capture identity. The Explorer then exposes, for each edition:
+
+- preserved PDF copy;
+- SHA-256;
+- page count;
+- original official resource URL;
+- a parser row → PDF-page locator for every v2 observation.
+
+Opening a Cosenza row shows a **Verifica indipendente** link that takes the reviewer to the preserved PDF at the source page used by the coordinate parser. This allows parser output to be checked directly against the original administrative document even if the original URL later changes or disappears.
+
+See [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md) for the evidence-storage architecture and dissemination boundary.
+
+The current GitHub Actions package has bounded retention. It is an auditable pilot package, not yet permanent storage. A production evidence archive should persist the same SHA-addressed `ContentObject` bytes in dedicated immutable/content-addressed object storage.
 
 ## Useful database query surfaces
 
@@ -131,7 +156,7 @@ LIMIT 50;
 
 For the canonical current-state layer, use the canonical marts such as `mart.current_whitelist` once the relevant semantic/canonical population has been reconstructed.
 
-The Dataset Explorer is the preferred curator-facing surface because it shows the source rows together with the actual population/status of the full model.
+The Dataset Explorer is the preferred curator-facing surface because it now lets the reviewer move from model object → actual table rows and from parsed Cosenza row → exact original PDF evidence.
 
 ## Local reconstruction
 
@@ -161,17 +186,27 @@ white-list-model-population \
   --output model_population.json
 ```
 
-The live GitHub workflow performs both steps automatically, runs them a second time to prove idempotence, and only then builds the private Dataset Explorer.
+The internal table bundle can be produced with:
+
+```bash
+white-list-table-bundle \
+  --dsn "$DATABASE_URL" \
+  --output-dir explorer-audit \
+  --preview-limit 50
+```
+
+The live GitHub workflow performs the full sequence automatically, runs semantic/canonical ingestion a second time to prove idempotence, exports all model tables, packages verified source PDFs and only then produces the private audit Explorer.
 
 ## What does not exist yet
 
-There is still no durable hosted PostgreSQL instance or final public row-level White List browser. The current database is reproducibly reconstructed in the workflow and the Explorer artifact is private/ephemeral.
+There is still no durable hosted PostgreSQL instance, final public row-level White List browser or permanent source-document object store. The current database is reproducibly reconstructed in the workflow and the Explorer audit package is private and retention-bound.
 
 The intended stable model remains:
 
 1. **Data/source/parser catalog** — inventory, coverage, parser family and semantic-profile status.
-2. **Durable database/API** — complete provenance-aware source, semantic and canonical archive.
-3. **Reviewed browser/releases** — searchable UI plus versioned CSV/Parquet/JSON after quality and dissemination review.
+2. **Durable evidence storage** — immutable/content-addressed original source bytes linked to `ContentObject` identities.
+3. **Durable database/API** — complete provenance-aware source, semantic and canonical archive.
+4. **Reviewed browser/releases** — searchable UI plus versioned CSV/Parquet/JSON after quality and dissemination review.
 
 ## Interpretation warning
 
