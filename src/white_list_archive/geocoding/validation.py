@@ -38,6 +38,7 @@ FIELD_NAMES = (
 class ValidationRow:
     address_id: str
     source_address: str
+    source_country_code: str | None
     match_status: str
     candidate_count: int
     provider_name: str | None
@@ -99,9 +100,6 @@ def _allocate_stratified_sample(stratum_sizes: dict[str, int], sample_size: int)
     target = min(sample_size, total)
     nonempty = {key: value for key, value in stratum_sizes.items() if value > 0}
 
-    # Give every observed stratum a small floor, then allocate the remainder
-    # proportionally. This preserves failure/coarse strata without turning the
-    # sample into an unweighted convenience sample.
     allocation = {key: min(value, 5) for key, value in nonempty.items()}
     seeded = sum(allocation.values())
     if seeded > target:
@@ -171,7 +169,7 @@ def build_manual_sample(rows: list[ValidationRow], sample_size: int = 150) -> li
                 }
             )
             output.append(item)
-    return sorted(output, key=lambda item: (item["review_stratum"], _stable_key(ValidationRow(**{k: item[k] for k in ValidationRow.__dataclass_fields__}))))
+    return sorted(output, key=lambda item: (item["review_stratum"], item["address_id"]))
 
 
 def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
@@ -184,7 +182,13 @@ def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
         "multiple_candidates" if row.candidate_count > 1 else "single_candidate"
         for row in matched
     )
-    country_counts = Counter((row.country_code or "UNKNOWN") for row in matched)
+    provider_country_counts = Counter((row.country_code or "UNKNOWN") for row in matched)
+    source_country_counts = Counter((row.source_country_code or "UNKNOWN") for row in rows)
+    source_provider_country_conflicts = sum(
+        bool(row.source_country_code and row.country_code)
+        and row.source_country_code.upper() != row.country_code.upper()
+        for row in matched
+    )
     field_completeness: dict[str, dict[str, Any]] = {}
     for field in FIELD_NAMES:
         present = sum(getattr(row, field) not in (None, "") for row in matched)
@@ -212,7 +216,10 @@ def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
         "precision_counts": dict(sorted(precision_counts.items())),
         "candidate_multiplicity": dict(sorted(candidate_multiplicity.items())),
         "ambiguous_match_rate_pct": _pct(candidate_multiplicity.get("multiple_candidates", 0), matched_count),
-        "country_counts": dict(sorted(country_counts.items())),
+        "provider_country_counts": dict(sorted(provider_country_counts.items())),
+        "source_country_counts": dict(sorted(source_country_counts.items())),
+        "source_provider_country_conflicts": source_provider_country_conflicts,
+        "source_provider_country_conflict_rate_pct": _pct(source_provider_country_conflicts, matched_count),
         "field_completeness": field_completeness,
         "review_strata": dict(sorted(Counter(row.stratum for row in rows).items())),
     }
@@ -286,6 +293,7 @@ def _fetch_rows(
         SELECT
             a.address_id::text,
             a.full_address,
+            a.country_code,
             COALESCE(b.match_status_code, 'unprocessed') AS match_status,
             COALESCE(c.candidate_count, 0) AS candidate_count,
             b.provider_name,
@@ -348,6 +356,12 @@ def _write_report(path: Path, summary: dict[str, Any], sample_size: int) -> None
     for key, value in summary["candidate_multiplicity"].items():
         lines.append(f"- `{key}`: {value}")
     lines.append(f"- Ambiguous match rate among matched addresses: **{summary['ambiguous_match_rate_pct']}%**")
+    lines.extend(["", "## Source/provider country diagnostic", ""])
+    lines.append(f"- Source country codes: `{summary['source_country_counts']}`")
+    lines.append(f"- Provider country codes: `{summary['provider_country_counts']}`")
+    lines.append(
+        f"- Source/provider country conflicts among matched addresses: **{summary['source_provider_country_conflicts']} ({summary['source_provider_country_conflict_rate_pct']}%)**"
+    )
     lines.extend(["", "## Field completeness among matched addresses", ""])
     for key, value in summary["field_completeness"].items():
         lines.append(f"- `{key}`: {value['present']} / {value['matched_addresses']} ({value['rate_pct']}%)")
