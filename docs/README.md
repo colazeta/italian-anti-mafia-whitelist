@@ -9,6 +9,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 | Understand the project in five minutes | [`../README.md`](../README.md) |
 | Find the data that currently exist | [`data-access.md`](data-access.md) and [`../data/catalog.csv`](../data/catalog.csv) |
 | Review the current Dataset Explorer checkpoint | [`product/data-explorer-checkpoint.md`](product/data-explorer-checkpoint.md) |
+| Understand geography enrichment and the mandatory listed/applicant completeness rule | [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md) |
 | Understand original PDF retention and independent parser verification | [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md) |
 | Understand parser families and the automatic semantic/canonical pipeline | [`architecture/parser-families-and-semantic-pipeline.md`](architecture/parser-families-and-semantic-pipeline.md) |
 | See the current source → semantic → canonical ERD | [`architecture/erd-v0.3-dev.md`](architecture/erd-v0.3-dev.md) |
@@ -23,7 +24,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 
 ## Documentation structure
 
-- `architecture/` — durable design decisions, ERDs, temporal/provenance models, original-source evidence storage, parser-family routing, semantic projection, parser QA and architecture audits.
+- `architecture/` — durable design decisions, ERDs, temporal/provenance models, geography, source-population completeness, original-source evidence storage, parser-family routing, semantic projection, parser QA and architecture audits.
 - `data-dictionary/` — canonical concepts, fields, controlled vocabularies and mapping semantics.
 - `product/` — user-facing checkpoint/browser behaviour and product-level semantic guardrails.
 - `sources/` — source-discovery methodology, source-specific research and parser/capture notes.
@@ -33,4 +34,4 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 
 ## Documentation maintenance rule
 
-Documentation is part of the implementation contract. A change that alters a data layer, schema meaning, source-evidence storage, parser-family binding, record contract, semantic projector, persisted artifact, public interface or release state must update the corresponding documentation in the same pull request. The CI governance test checks that required entry-point documents exist and that persistent CSV/JSON artifacts under `data/` are represented in the data catalog.
+Documentation is part of the implementation contract. A change that alters a data layer, schema meaning, geography enrichment, source-population coverage, source-evidence storage, parser-family binding, record contract, semantic projector, persisted artifact, public interface or release state must update the corresponding documentation in the same pull request. The CI governance test checks that required entry-point documents exist and that persistent CSV/JSON artifacts under `data/` are represented in the data catalog.
