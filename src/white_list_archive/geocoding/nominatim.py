@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 import time
-import urllib.error
+import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -15,10 +16,44 @@ DEFAULT_USER_AGENT = (
     "italian-anti-mafia-whitelist/0.1 "
     "(+https://github.com/colazeta/italian-anti-mafia-whitelist)"
 )
+PROVINCE_OR_COUNTRY_MARKER_RE = re.compile(r"\s*\(\s*[A-Za-z]{2}\s*\)\s*,?\s*")
+ITALIAN_STREET_TOKEN_RE = re.compile(
+    r"\b(VIALE|VIA|CORSO|PIAZZA|PIAZZALE|LARGO|CONTRADA|C/DA|STRADA|LOCALIT[AÀ])\b",
+    re.IGNORECASE,
+)
 
 
 def _clean_endpoint(value: str) -> str:
     return value.strip().rstrip("/")
+
+
+def lightly_clean_query(value: str) -> str:
+    """Make source formatting geocoder-friendly without parsing the address.
+
+    This is deliberately syntactic only: normalise Unicode/whitespace, separate
+    glued two-letter markers, and add a comma before a common Italian street
+    designator when the source omitted one. The source-supported address is not
+    changed and no municipality/country meaning is inferred from the marker.
+    """
+    text = unicodedata.normalize("NFKC", value or "")
+    text = " ".join(text.split()).strip()
+    if not text:
+        return ""
+    text = PROVINCE_OR_COUNTRY_MARKER_RE.sub(", ", text)
+    text = re.sub(r"\s*,\s*,+\s*", ", ", text)
+    text = re.sub(r"\s*,\s*", ", ", text)
+    match = ITALIAN_STREET_TOKEN_RE.search(text)
+    if match and "," not in text[: match.start()]:
+        text = text[: match.start()].rstrip(" ,") + ", " + text[match.start() :].lstrip()
+    return text.strip(" ,")
+
+
+def query_variants(value: str) -> list[str]:
+    raw = " ".join(unicodedata.normalize("NFKC", value or "").split()).strip()
+    if not raw:
+        return []
+    cleaned = lightly_clean_query(raw)
+    return [raw] if not cleaned or cleaned == raw else [raw, cleaned]
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -93,9 +128,7 @@ def parse_geocodejson(payload: dict[str, Any]) -> list[GeocodeCandidate]:
 
         osm_type = _first_nonblank(geocoding, "osm_type") or _first_nonblank(properties, "osm_type")
         osm_id = _first_nonblank(geocoding, "osm_id") or _first_nonblank(properties, "osm_id")
-        provider_result_id = None
-        if osm_type and osm_id:
-            provider_result_id = f"osm:{osm_type}:{osm_id}"
+        provider_result_id = f"osm:{osm_type}:{osm_id}" if osm_type and osm_id else None
 
         country_code = _first_nonblank(
             geocoding,
@@ -106,45 +139,49 @@ def parse_geocodejson(payload: dict[str, Any]) -> list[GeocodeCandidate]:
         if country_code:
             country_code = country_code.upper()
 
-        candidate = GeocodeCandidate(
-            provider_result_id=provider_result_id,
-            candidate_rank=rank,
-            matched_address=_first_nonblank(geocoding, "label", "display_name"),
-            street_name=_first_nonblank(geocoding, "street", "road"),
-            house_number=_first_nonblank(geocoding, "housenumber", "house_number"),
-            postal_code=_first_nonblank(geocoding, "postcode", "postal_code"),
-            locality=_first_nonblank(
-                geocoding,
-                "city",
-                "town",
-                "village",
-                "locality",
-                "municipality",
-            ),
-            admin_unit_l2=_first_nonblank(geocoding, "county", "district"),
-            admin_unit_l1=_first_nonblank(geocoding, "state", "region"),
-            country_name=_first_nonblank(geocoding, "country"),
-            country_code=country_code,
-            latitude=latitude,
-            longitude=longitude,
-            precision_code=_precision_from_geocode_type(
-                _first_nonblank(geocoding, "type", "addresstype")
-            ),
-            attribution=attribution,
-            licence=licence,
-            payload=feature,
+        geocode_type = _first_nonblank(geocoding, "type", "addresstype")
+        precision_code = _precision_from_geocode_type(geocode_type)
+        name = _first_nonblank(geocoding, "name")
+        street_name = _first_nonblank(geocoding, "street", "road")
+        locality = _first_nonblank(
+            geocoding,
+            "city",
+            "town",
+            "village",
+            "locality",
+            "municipality",
         )
-        output.append(candidate)
+        if not street_name and precision_code == "street":
+            street_name = name
+        if not locality and precision_code == "locality":
+            locality = name
+
+        output.append(
+            GeocodeCandidate(
+                provider_result_id=provider_result_id,
+                candidate_rank=rank,
+                matched_address=_first_nonblank(geocoding, "label", "display_name"),
+                street_name=street_name,
+                house_number=_first_nonblank(geocoding, "housenumber", "house_number"),
+                postal_code=_first_nonblank(geocoding, "postcode", "postal_code"),
+                locality=locality,
+                admin_unit_l2=_first_nonblank(geocoding, "county", "district"),
+                admin_unit_l1=_first_nonblank(geocoding, "state", "region"),
+                country_name=_first_nonblank(geocoding, "country"),
+                country_code=country_code,
+                latitude=latitude,
+                longitude=longitude,
+                precision_code=precision_code,
+                attribution=attribution,
+                licence=licence,
+                payload=feature,
+            )
+        )
     return output
 
 
 class NominatimClient:
-    """Small Nominatim-compatible client with explicit public-service opt-in.
-
-    The public OSMF endpoint is intentionally not the architectural default. The
-    same client can point at a managed or self-hosted Nominatim-compatible
-    endpoint, which keeps the normalisation pipeline portable over time.
-    """
+    """Small Nominatim-compatible client with explicit public-service opt-in."""
 
     provider_name = "nominatim"
 
@@ -190,10 +227,7 @@ class NominatimClient:
             url += "?" + urllib.parse.urlencode(params)
         request = urllib.request.Request(
             url,
-            headers={
-                "User-Agent": self.user_agent,
-                "Accept": "application/json",
-            },
+            headers={"User-Agent": self.user_agent, "Accept": "application/json"},
             method="GET",
         )
         try:
@@ -203,7 +237,7 @@ class NominatimClient:
             self._last_request_monotonic = time.monotonic()
         try:
             payload = json.loads(raw.decode("utf-8"))
-        except Exception as exc:  # noqa: BLE001 - preserve upstream failure as a provider error
+        except Exception as exc:  # noqa: BLE001
             raise RuntimeError(f"Nominatim returned invalid JSON from {url}") from exc
         if not isinstance(payload, dict):
             raise RuntimeError(f"Nominatim returned a non-object JSON response from {url}")
@@ -245,5 +279,4 @@ class NominatimClient:
         }
         if countrycodes:
             params["countrycodes"] = countrycodes
-        payload = self._request_json("/search", params)
-        return parse_geocodejson(payload)
+        return parse_geocodejson(self._request_json("/search", params))
