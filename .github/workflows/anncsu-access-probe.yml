@@ -1,0 +1,119 @@
+name: ANNCSU access probe
+
+on:
+  push:
+    branches:
+      - research/anncsu-open-api-probe
+    paths:
+      - '.github/workflows/anncsu-access-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Probe official ANNCSU open-data endpoints
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          BASE = 'https://anncsu.open.agenziaentrate.gov.it/age-inspire/opendata/anncsu/'
+          UA = 'italian-anti-mafia-whitelist/anncsu-access-probe (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
+
+          def request(url, *, headers=None, read_bytes=65536):
+              req_headers = {'User-Agent': UA, 'Accept': '*/*'}
+              if headers:
+                  req_headers.update(headers)
+              req = urllib.request.Request(url, headers=req_headers, method='GET')
+              result = {'url': url, 'request_headers': req_headers}
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      body = response.read(read_bytes)
+                      result.update({
+                          'ok': True,
+                          'status': response.status,
+                          'final_url': response.geturl(),
+                          'content_type': response.headers.get('Content-Type'),
+                          'content_length': response.headers.get('Content-Length'),
+                          'content_range': response.headers.get('Content-Range'),
+                          'content_disposition': response.headers.get('Content-Disposition'),
+                          'sample_bytes': len(body),
+                          'sample_text': body[:2000].decode('utf-8', errors='replace'),
+                      })
+              except urllib.error.HTTPError as exc:
+                  body = exc.read(8192)
+                  result.update({
+                      'ok': False,
+                      'status': exc.code,
+                      'reason': str(exc.reason),
+                      'content_type': exc.headers.get('Content-Type'),
+                      'content_length': exc.headers.get('Content-Length'),
+                      'sample_bytes': len(body),
+                      'sample_text': body[:2000].decode('utf-8', errors='replace'),
+                  })
+              except Exception as exc:
+                  result.update({'ok': False, 'error_type': type(exc).__name__, 'error': str(exc)})
+              return result
+
+          probes = {}
+          probes['api_help'] = request(BASE + 'querydata.php?help_show=')
+          odonimi_url = BASE + 'querydata.php?' + urllib.parse.urlencode({
+              'resource': 'odonimi',
+              'codicecomune': 'D086',
+              'denominazione': 'ROMA',
+          })
+          probes['api_cosenza_odonimi'] = request(odonimi_url)
+
+          progressivo = None
+          if probes['api_cosenza_odonimi'].get('ok'):
+              try:
+                  payload = json.loads(probes['api_cosenza_odonimi']['sample_text'])
+                  candidates = payload if isinstance(payload, list) else payload.get('data', payload.get('result', [])) if isinstance(payload, dict) else []
+                  if isinstance(candidates, list) and candidates:
+                      first = candidates[0]
+                      if isinstance(first, dict):
+                          progressivo = first.get('Progressivo_nazionale') or first.get('progressivo_nazionale')
+              except Exception:
+                  pass
+
+          if progressivo:
+              accessi_url = BASE + 'querydata.php?' + urllib.parse.urlencode({
+                  'resource': 'accessi',
+                  'progressivoodonimo': str(progressivo),
+                  'accesso': '1',
+              })
+              probes['api_cosenza_accessi'] = request(accessi_url)
+          else:
+              probes['api_cosenza_accessi'] = {'skipped': True, 'reason': 'No progressivo odonimo extracted from probe response'}
+
+          probes['bulk_calabria'] = request(
+              BASE + 'getds.php?INDIR_CALA=',
+              headers={'Range': 'bytes=0-1023'},
+              read_bytes=1024,
+          )
+
+          Path('artifacts').mkdir(exist_ok=True)
+          Path('artifacts/anncsu-access-probe.json').write_text(
+              json.dumps(probes, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+          print(json.dumps(probes, indent=2, ensure_ascii=False))
+
+          if not probes['api_help'].get('ok'):
+              raise SystemExit('Official ANNCSU open-data API help endpoint is not reachable from this GitHub runner')
+          if not probes['api_cosenza_odonimi'].get('ok'):
+              raise SystemExit('Official ANNCSU open-data odonimi query is not reachable from this GitHub runner')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anncsu-access-probe
+          path: artifacts/anncsu-access-probe.json
+          if-no-files-found: error
