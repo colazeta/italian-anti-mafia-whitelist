@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 white-list-national-index = "white_list_archive.acquisition.national_index:main"
+white-list-source-population-coverage = "white_list_archive.acquisition.source_population_coverage:main"
 white-list-cosenza-snapshot = "white_list_archive.acquisition.cosenza_snapshot:main"
 white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:main"
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
