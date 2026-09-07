@@ -33,6 +33,7 @@ jobs:
         run: |
           test -f public-site/index.html
           test -f public-site/data/site.json
+          node --check public-site/app.js
           python - <<'PY'
           import json
           from pathlib import Path
