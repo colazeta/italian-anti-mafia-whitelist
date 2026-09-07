@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import json
-import re
 import time
-import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -16,44 +14,10 @@ DEFAULT_USER_AGENT = (
     "italian-anti-mafia-whitelist/0.1 "
     "(+https://github.com/colazeta/italian-anti-mafia-whitelist)"
 )
-PROVINCE_OR_COUNTRY_MARKER_RE = re.compile(r"\s*\(\s*[A-Za-z]{2}\s*\)\s*,?\s*")
-ITALIAN_STREET_TOKEN_RE = re.compile(
-    r"\b(VIALE|VIA|CORSO|PIAZZA|PIAZZALE|LARGO|CONTRADA|C/DA|STRADA|LOCALIT[AÀ])\b",
-    re.IGNORECASE,
-)
 
 
 def _clean_endpoint(value: str) -> str:
     return value.strip().rstrip("/")
-
-
-def lightly_clean_query(value: str) -> str:
-    """Make source formatting geocoder-friendly without parsing the address.
-
-    This is deliberately syntactic only: normalise Unicode/whitespace, separate
-    glued two-letter markers, and add a comma before a common Italian street
-    designator when the source omitted one. The source-supported address is not
-    changed and no municipality/country meaning is inferred from the marker.
-    """
-    text = unicodedata.normalize("NFKC", value or "")
-    text = " ".join(text.split()).strip()
-    if not text:
-        return ""
-    text = PROVINCE_OR_COUNTRY_MARKER_RE.sub(", ", text)
-    text = re.sub(r"\s*,\s*,+\s*", ", ", text)
-    text = re.sub(r"\s*,\s*", ", ", text)
-    match = ITALIAN_STREET_TOKEN_RE.search(text)
-    if match and "," not in text[: match.start()]:
-        text = text[: match.start()].rstrip(" ,") + ", " + text[match.start() :].lstrip()
-    return text.strip(" ,")
-
-
-def query_variants(value: str) -> list[str]:
-    raw = " ".join(unicodedata.normalize("NFKC", value or "").split()).strip()
-    if not raw:
-        return []
-    cleaned = lightly_clean_query(raw)
-    return [raw] if not cleaned or cleaned == raw else [raw, cleaned]
 
 
 def _parse_datetime(value: Any) -> datetime | None:
@@ -181,7 +145,12 @@ def parse_geocodejson(payload: dict[str, Any]) -> list[GeocodeCandidate]:
 
 
 class NominatimClient:
-    """Small Nominatim-compatible client with explicit public-service opt-in."""
+    """Small Nominatim-compatible client with explicit public-service opt-in.
+
+    The public OSMF endpoint is intentionally not the architectural default. The
+    same client can point at a managed or self-hosted Nominatim-compatible
+    endpoint, which keeps the normalisation pipeline portable over time.
+    """
 
     provider_name = "nominatim"
 
@@ -237,7 +206,7 @@ class NominatimClient:
             self._last_request_monotonic = time.monotonic()
         try:
             payload = json.loads(raw.decode("utf-8"))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - preserve upstream failure as a provider error
             raise RuntimeError(f"Nominatim returned invalid JSON from {url}") from exc
         if not isinstance(payload, dict):
             raise RuntimeError(f"Nominatim returned a non-object JSON response from {url}")
