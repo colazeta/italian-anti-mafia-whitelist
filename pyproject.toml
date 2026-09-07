@@ -16,6 +16,7 @@ white-list-source-population-coverage = "white_list_archive.acquisition.source_p
 white-list-anncsu-acquire = "white_list_archive.acquisition.anncsu:main"
 white-list-istat-municipalities-acquire = "white_list_archive.acquisition.istat_municipalities:main"
 white-list-normalise-addresses = "white_list_archive.geocoding.pipeline:main"
+white-list-geocode-validation = "white_list_archive.geocoding.validation:main"
 white-list-cosenza-snapshot = "white_list_archive.acquisition.cosenza_snapshot:main"
 white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:main"
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
