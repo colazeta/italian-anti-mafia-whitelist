@@ -1,5 +1,7 @@
 import csv
 
+import pytest
+
 from white_list_archive.geocoding.anncsu_linkage import (
     canonical_street_key,
     parse_street_and_civic,
@@ -101,8 +103,8 @@ def test_exact_civic_prefers_direct_anncsu_access_coordinate(tmp_path):
     assert result.status == "exact_civic_with_coordinates"
     assert result.candidate is not None
     assert result.candidate.precision_code == "civic_access"
-    assert result.candidate.latitude == 39.31
-    assert result.candidate.longitude == 16.26
+    assert result.candidate.latitude == pytest.approx(39.31)
+    assert result.candidate.longitude == pytest.approx(16.26)
     assert result.candidate.house_number == "1"
     assert result.candidate.payload["street_id"] == "S1"
     assert result.candidate.payload["access_id"] == "A1"
@@ -123,8 +125,8 @@ def test_exact_civic_without_coordinate_falls_back_to_street_median(tmp_path):
     assert result.status == "exact_civic_street_coordinate_fallback"
     assert result.candidate is not None
     assert result.candidate.precision_code == "street"
-    assert result.candidate.latitude == 39.30
-    assert result.candidate.longitude == 16.30
+    assert result.candidate.latitude == pytest.approx(39.30)
+    assert result.candidate.longitude == pytest.approx(16.30)
     assert result.candidate.payload["coordinate_derivation"] == "median_of_anncsu_street_access_coordinates"
 
 
@@ -143,8 +145,8 @@ def test_exact_street_without_civic_can_produce_honest_street_candidate(tmp_path
     assert result.candidate is not None
     assert result.candidate.precision_code == "street"
     assert result.candidate.house_number is None
-    assert result.candidate.latitude == 39.20
-    assert result.candidate.longitude == 16.20
+    assert result.candidate.latitude == pytest.approx(39.20)
+    assert result.candidate.longitude == pytest.approx(16.20)
 
 
 def test_same_normalised_street_key_with_multiple_official_street_ids_is_ambiguous(tmp_path):
