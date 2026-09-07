@@ -1,0 +1,62 @@
+{
+  "review_rows": 150,
+  "population": 1298,
+  "candidate_population": 624,
+  "candidate_sample_rows": 78,
+  "candidate_review_complete": true,
+  "candidate_weighted_precision_pct": 82.49,
+  "candidate_coverage_pct": 48.07,
+  "estimated_validated_yield_pct": 39.65,
+  "precision_excludes_not_found": true,
+  "not_found_population": 674,
+  "not_found_sample_rows": 72,
+  "not_found_explicit_incorrect_rows": 14,
+  "not_found_unmarked_rows": 58,
+  "not_found_effective_semantics": "coverage_failure",
+  "strata": {
+    "matched_civic_access": {
+      "population": 309,
+      "sample": 36,
+      "correct": 36,
+      "incorrect": 0,
+      "uncertain": 0,
+      "blank": 0,
+      "review_completion_pct": 100.0,
+      "determinate_precision_pct": 100.0,
+      "is_candidate_stratum": true
+    },
+    "matched_street": {
+      "population": 225,
+      "sample": 28,
+      "correct": 16,
+      "incorrect": 12,
+      "uncertain": 0,
+      "blank": 0,
+      "review_completion_pct": 100.0,
+      "determinate_precision_pct": 57.14,
+      "is_candidate_stratum": true
+    },
+    "matched_without_coordinates": {
+      "population": 90,
+      "sample": 14,
+      "correct": 12,
+      "incorrect": 2,
+      "uncertain": 0,
+      "blank": 0,
+      "review_completion_pct": 100.0,
+      "determinate_precision_pct": 85.71,
+      "is_candidate_stratum": true
+    },
+    "not_found": {
+      "population": 674,
+      "sample": 72,
+      "correct": 0,
+      "incorrect": 14,
+      "uncertain": 0,
+      "blank": 58,
+      "review_completion_pct": 19.44,
+      "determinate_precision_pct": 0.0,
+      "is_candidate_stratum": false
+    }
+  }
+}
