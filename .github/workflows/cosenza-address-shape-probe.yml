@@ -27,6 +27,7 @@ jobs:
             https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
           white-list-cosenza-v2 \
             artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
             --output-dir artifacts/cosenza-address-shape
       - name: Analyse source address shapes
         run: |
@@ -63,7 +64,6 @@ jobs:
               if province_paren.search(a): punctuation['province_suffix'] += 1
               if civic_re.search(a): punctuation['numeric_token'] += 1
 
-          # Deterministic representative sample: first address for each broad punctuation signature.
           samples = {}
           for a in addresses:
               sig = (
