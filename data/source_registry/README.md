@@ -30,7 +30,9 @@ A deliberately heterogeneous pilot sample used to design source-series and parse
 
 Evidence-backed inventory of distinct recurring White List publications discovered inside verified authorities. A source series is more granular than an authority landing page: listed companies, applicants, sector-specific lists and special registers can all be separate series.
 
-The initial inventory contains 28 series and already demonstrates why one-row-per-Prefecture modelling is insufficient. Examples include:
+Current inventory: 59 source series across 34 verified authorities. The mandatory listed/applicant completeness ledger currently contains 35 register/regime scopes, of which 30 account for both logical populations and 5 remain explicitly unresolved.
+
+The inventory demonstrates why one-row-per-Prefecture modelling is insufficient. Examples include:
 
 - separate listed/applicant series;
 - comprehensive plus per-sector series;
@@ -54,3 +56,4 @@ The national index is treated as a **discovery/provenance source**, not as a can
 5. A source series can change schema and publication format over time.
 6. Historical URLs and current URLs are both valuable but must be classified by source origin and capture time.
 7. A source-series row is added only when its population/regime/publication identity is supported by public evidence.
+8. A verified authority/register is not source-population complete until both `listed` and `applicant` populations are explicitly accounted for; failure to find one is not evidence that it is not published.
