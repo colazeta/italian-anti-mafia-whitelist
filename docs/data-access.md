@@ -4,38 +4,52 @@ This page is the authoritative human-readable guide to the data currently availa
 
 ## Short answer
 
-Start with [`../data/catalog.csv`](../data/catalog.csv) for persistent repository artifacts and the private **Dataset Explorer** for the actual reconstructed database population and its source evidence.
+Start with [`../data/catalog.csv`](../data/catalog.csv) for persistent repository artifacts and the private **Dataset Explorer** for the actual reconstructed database population, source evidence and source-coverage controls.
 
-The project now distinguishes seven access/data layers:
+The current layers are:
 
-1. [`../data/source_registry/`](../data/source_registry/) — national source discovery plus parser-family/binding/semantic-profile registries.
-2. [`../data/captures/`](../data/captures/) — immutable capture manifests, parser-validation profiles and safe aggregate diagnostics.
+1. [`../data/source_registry/`](../data/source_registry/) — national source discovery plus parser/binding/semantic-profile registries.
+2. [`../data/captures/`](../data/captures/) — immutable capture manifests and safe diagnostics.
 3. **PostgreSQL `source.*`** — capture, parse runs, parsed records and raw source values.
-4. **PostgreSQL `semantic.*`** — typed ontology-level observations, projection issues and resolution decisions.
-5. **PostgreSQL `core.*` / `whitelist.*`** — guarded canonical entities, relationships, procedures and temporal states.
-6. **Dataset Explorer audit package** — private browser generated from the reconstructed PostgreSQL population, with per-table internal CSVs and preserved original source documents.
-7. [`../data/releases/`](../data/releases/) — deliberately reviewed public/reuse products. There is currently no row-level public White List release.
+4. **PostgreSQL `semantic.*`** — typed ontology-level observations and review items.
+5. **PostgreSQL `core.*` / `whitelist.*`** — guarded canonical entities, relationships, procedures and states.
+6. **PostgreSQL `geo.*`** — derived geocoding candidates/results and versioned geographic-unit assignments.
+7. **PostgreSQL `mart.*`** — curator/statistical read surfaces, including `mart.address_geography`.
+8. **Dataset Explorer audit package** — private browser with per-table CSVs and preserved original source documents.
+9. [`../data/releases/`](../data/releases/) — deliberately reviewed public/reuse products. There is no row-level public White List release yet.
 
-## What is directly visible in GitHub
+## National source and parser registry
 
-### National source and parser registry
+`data/source_registry/` currently includes 106 territorial authorities, 34 independently verified primary White List pages, 28 qualified recurring source series, parser families, parser bindings, semantic profiles and 11 dated Cosenza editions identified for historical recovery.
 
-`data/source_registry/` currently includes:
+### Mandatory two-population coverage
 
-- `territorial_authorities.csv` — 106 territorial authorities;
-- `verified_primary_pages.csv` — 34 independently verified primary White List landing pages;
-- `source_series_inventory.csv` — 28 qualified recurring source series;
-- `pilot_source_profiles.csv` — observed source/schema heterogeneity;
-- `parser_families.csv` — validated reusable physical parser families;
-- `parser_bindings.csv` — source-series → parser-family assignments;
-- `semantic_profiles.csv` — record-contract → semantic-projector assignments;
-- `cosenza_historical_editions.csv` — 11 dated Cosenza editions identified for longitudinal recovery.
+Source discovery now has a separate completeness invariant. For every verified authority/register scope the project requires two logical populations:
 
-The parser registry implements a deliberate rule: **not one parser per URL and not one universal parser**. A parser family can serve multiple source series when the schema/layout is validated as compatible.
+```text
+listed
+applicant
+```
 
-### Cosenza capture and parser profiles
+They may be physically separate or represented by one combined `listed_and_applicant` source.
 
-Parser v1 remains a historical QA baseline. Parser v2 is current and structures all seven observable columns from the combined Cosenza source.
+The command:
+
+```bash
+white-list-source-population-coverage
+```
+
+builds a deterministic ledger with statuses such as:
+
+- `COVERED_SEPARATE_SERIES`;
+- `COVERED_COMBINED_SERIES`;
+- `UNRESOLVED_REQUIRES_REVIEW`.
+
+Missing discovery is never interpreted as “not published”. At the current 34 verified-page / 28 source-series baseline the ledger contains **35 register/discovery scopes**: **12 complete**, **23 unresolved/incomplete**. Bologna contributes a second scope because ordinary and post-sisma registers are treated separately.
+
+The **Copertura nazionale** tab of the internal Explorer shows this matrix directly.
+
+## Cosenza source/semantic/canonical population
 
 The current parser-v2 profile records:
 
@@ -46,106 +60,74 @@ The current parser-v2 profile records:
 - 913 observed listing dates;
 - 428 observed nominal expiry dates.
 
-These are still **source-layer results**. Parsing itself does not establish canonical facts.
-
-## What happens automatically after parsing
-
-The corrected workflow no longer stops at `ParsedRecord`.
-
-```text
-ContentObject
-  → ParseRun / ParsedRecord / SourceFieldValue
-  → parser-family record contract
-  → semantic projection
-  → entity/procedure resolution
-  → guarded canonicalisation
-  → population manifest / Dataset Explorer
-```
-
-On the currently validated Cosenza pair the semantic layer contains:
+Automatic downstream processing currently materialises:
 
 - 2,661 entity observations;
 - 3,258 identifier observations;
 - 2,663 establishment observations;
-- 2,661 White List relationship observations;
 - 3,226 procedure observations;
 - 8,710 requested procedure-sector observations;
-- 600 explicit projection QA/review issues.
-
-The 600 review items are data, not silent parser failures:
-
-- 569 parenthesized application-date observations;
-- 2 unexpected identifier shapes;
-- 29 cases where a published listing date predates a later/current application date and is therefore **not** promoted as that procedure's decision date.
-
-## Current canonical population
-
-The guarded resolver/canonicaliser currently materialises from those two Cosenza editions:
-
+- 600 explicit semantic QA/review issues;
 - 1,343 `core.legal_entity` rows;
-- 2,655 accepted entity-mention resolutions;
-- 6 entity observations deliberately left `requires_resolution`;
-- 3,248 canonical identifier observations;
 - 1,298 distinct source-supported address objects;
-- 2,657 establishment observations on resolved entities;
-- 1,343 `whitelist.white_list_relationship` rows;
-- 2,655 relationship-state versions;
-- 1,368 canonical procedure identities;
-- 2,651 procedure versions;
+- 1,343 White List relationships;
+- 1,368 canonical procedures;
 - 3,614 requested `procedure_sector` links.
 
-Three source identifier values are ambiguous across distinct source names. They remain available in `semantic.identifier_observation` but are quarantined from `core.entity_identifier`. A row can still be resolved through a second independent safe identifier without laundering the ambiguous value into the canonical layer.
+`whitelist.relationship_sector` is still zero by design because the current Cosenza combined source proves requested activities, not independently the sectors represented/listed on the relationship.
 
-`whitelist.relationship_sector` currently contains zero rows **by design**: the Cosenza combined source exposes activities requested in procedures, not independent evidence of sectors actually represented/listed on the White List relationship.
+## Geography: what is modeled and what is actually populated
 
-## Dataset Explorer: inspecting the actual tables
+Geography is deliberately downstream from source/canonical address evidence. The project does **not** overwrite the source address with geocoder output.
 
-**Struttura dataset** is no longer only a population/status map. In the internal audit build, every object can be opened.
+The implemented model includes:
 
-The generic table inspector shows:
+- `geo.geographic_unit` — versioned ISTAT administrative / NUTS reference units;
+- `geo.address_geocode_result` — provider-specific candidates/results with latitude, longitude, precision, confidence and processing provenance;
+- `geo.address_geographic_unit` — address assignments to municipality, province/metropolitan city/autonomous province, region and NUTS;
+- `mart.address_geography` — wide statistical surface exposing source address, coordinates, geocoding metadata and versioned territorial classifications.
+
+The intended fields include:
+
+`latitude · longitude · precision · municipality code/name · province-level code/name/type · region code/name · NUTS1/2/3 code/name/version`
+
+The preferred primary source for Italian civic coordinates is **ANNCSU**, with **ISTAT/SITUAS** for administrative units and versioned NUTS for European statistical geography. External geocoding is a labelled fallback.
+
+**Current status:** the schema and relational integrity tests are implemented, but the 1,298 Cosenza canonical addresses have **not yet been bulk-geocoded/enriched**. The public ANNCSU massive-download page is available, but its current download endpoint rejects the automated GitHub runner. This blocker is tracked explicitly; the Explorer therefore shows geography objects as `NOT_YET_POPULATED` / `NOT_YET_PROCESSED`, not as completed data.
+
+See [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md).
+
+## Dataset Explorer: inspecting actual tables
+
+Every object in **Struttura dataset** can be opened in the internal audit build. The generic inspector shows:
 
 - qualified PostgreSQL table name;
 - actual row count;
 - column names and SQL types;
-- the first 50 rows from the reconstructed database in deterministic order;
-- a link to a **complete internal CSV export** for that database object.
+- the first 50 deterministic rows;
+- a complete internal CSV export.
 
-The workflow generates one CSV for every object represented in the model-population manifest. These CSVs live inside the private Explorer artifact and are not committed under `data/releases/`.
-
-The population/status semantics remain unchanged. Each object has a status such as:
-
-- `POPULATED`;
-- `POPULATED_WITH_UNRESOLVED_EDGE_CASES`;
-- `POPULATED_WITH_REVIEW_ITEMS`;
-- `REQUIRES_RESOLUTION`;
-- `REQUIRES_REVIEW`;
-- `NOT_APPLICABLE_FROM_CURRENT_SOURCE`;
-- `NOT_YET_PROCESSED`;
-- `NOT_YET_POPULATED`.
-
-Therefore both positive and negative states are auditable: a populated table can be opened, while a zero-row table must say why it is empty.
+This applies to source, semantic, canonical and geography objects, including zero-row objects with explicit reasons.
 
 ## Original source documents and independent verification
 
-The current Cosenza audit package also contains the exact original PDFs that were parsed.
+The Cosenza audit package contains the exact original PDFs used by parser v2. Before packaging, live bytes are verified against frozen SHA-256 identities.
 
-Before packaging, the workflow verifies the live bytes against the frozen capture identity. The Explorer then exposes, for each edition:
+For each edition the Explorer exposes:
 
-- preserved PDF copy;
+- preserved PDF;
 - SHA-256;
 - page count;
-- original official resource URL;
-- a parser row → PDF-page locator for every v2 observation.
+- official resource URL;
+- parser row → PDF-page locator.
 
-Opening a Cosenza row shows a **Verifica indipendente** link that takes the reviewer to the preserved PDF at the source page used by the coordinate parser. This allows parser output to be checked directly against the original administrative document even if the original URL later changes or disappears.
+Opening a Cosenza row provides **Verifica indipendente**, allowing a reviewer to compare parser output with the exact original document page.
 
-See [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md) for the evidence-storage architecture and dissemination boundary.
+See [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md).
 
-The current GitHub Actions package has bounded retention. It is an auditable pilot package, not yet permanent storage. A production evidence archive should persist the same SHA-addressed `ContentObject` bytes in dedicated immutable/content-addressed object storage.
+## Useful database/query surfaces
 
-## Useful database query surfaces
-
-For the raw/source parser-v2 layer:
+Raw Cosenza parser-v2 observations:
 
 ```sql
 SELECT *
@@ -154,13 +136,17 @@ ORDER BY edition_code, record_locator
 LIMIT 50;
 ```
 
-For the canonical current-state layer, use the canonical marts such as `mart.current_whitelist` once the relevant semantic/canonical population has been reconstructed.
+Statistical geography surface:
 
-The Dataset Explorer is the preferred curator-facing surface because it now lets the reviewer move from model object → actual table rows and from parsed Cosenza row → exact original PDF evidence.
+```sql
+SELECT *
+FROM mart.address_geography
+LIMIT 50;
+```
+
+Current geography rows will be empty until the enrichment pipeline is run; that is an explicit state, not a hidden failure.
 
 ## Local reconstruction
-
-Start PostgreSQL 18 and install database dependencies:
 
 ```bash
 cp .env.example .env
@@ -170,7 +156,7 @@ make db-test
 python -m pip install -e '.[database]'
 ```
 
-After capture and parser-v2 persistence, the semantic/canonical stages are run with:
+Semantic/canonical ingestion:
 
 ```bash
 white-list-semantic-pipeline \
@@ -178,7 +164,15 @@ white-list-semantic-pipeline \
   --series-code cosenza-combined
 ```
 
-Actual model population can then be exported with:
+Source-population completeness:
+
+```bash
+white-list-source-population-coverage \
+  --output-json source_population_coverage.json \
+  --output-csv source_population_coverage.csv
+```
+
+Model population:
 
 ```bash
 white-list-model-population \
@@ -186,7 +180,7 @@ white-list-model-population \
   --output model_population.json
 ```
 
-The internal table bundle can be produced with:
+Internal table bundle:
 
 ```bash
 white-list-table-bundle \
@@ -195,19 +189,10 @@ white-list-table-bundle \
   --preview-limit 50
 ```
 
-The live GitHub workflow performs the full sequence automatically, runs semantic/canonical ingestion a second time to prove idempotence, exports all model tables, packages verified source PDFs and only then produces the private audit Explorer.
-
 ## What does not exist yet
 
-There is still no durable hosted PostgreSQL instance, final public row-level White List browser or permanent source-document object store. The current database is reproducibly reconstructed in the workflow and the Explorer audit package is private and retention-bound.
-
-The intended stable model remains:
-
-1. **Data/source/parser catalog** — inventory, coverage, parser family and semantic-profile status.
-2. **Durable evidence storage** — immutable/content-addressed original source bytes linked to `ContentObject` identities.
-3. **Durable database/API** — complete provenance-aware source, semantic and canonical archive.
-4. **Reviewed browser/releases** — searchable UI plus versioned CSV/Parquet/JSON after quality and dissemination review.
+There is still no durable hosted PostgreSQL instance, completed bulk geography enrichment, final public row-level browser or permanent source-document object store. The current database is reproducibly reconstructed in workflows and the audit Explorer remains private/retention-bound.
 
 ## Interpretation warning
 
-Do not infer administrative removal from disappearance between editions. Do not equate nominal expiry with loss of legal effect. Do not treat a source listing date as the decision date of a later application when chronology contradicts that interpretation. Requested sectors remain procedure semantics unless the source independently proves a relationship/listed-sector association.
+Do not infer administrative removal from disappearance between editions. Do not equate nominal expiry with loss of legal effect. Do not convert requested sectors into listed relationship sectors without independent source evidence. Do not treat an unresolved listed/applicant source target as evidence that the population is not published. Do not present a centroid/locality geocode as an exact civic coordinate.
