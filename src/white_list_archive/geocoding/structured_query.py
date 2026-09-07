@@ -28,6 +28,7 @@ class MunicipalityRecord:
     municipality_name_it: str
     province_plate: str
     region_name: str
+    cadastral_code: str = ""
 
     @property
     def query_name(self) -> str:
@@ -42,6 +43,7 @@ class StructuredAddressQuery:
     municipality_code: str
     province_plate: str
     region_name: str
+    cadastral_code: str = ""
 
 
 @dataclass(frozen=True)
@@ -52,12 +54,12 @@ class SplitResult:
 
 
 class MunicipalityPrefixMatcher:
-    """Exact municipality-prefix matcher for constructing geocoder queries only.
+    """Exact municipality-prefix matcher for constructing enrichment queries only.
 
     Matching is token-exact after case/diacritic/punctuation folding. It does not
     use edit distance, fuzzy aliases or inferred geography. The canonical source
     address remains unchanged; this object only decides whether an address can be
-    safely represented as Nominatim's structured ``city`` + ``street`` query.
+    safely split into an official municipality plus the untouched remaining text.
     """
 
     def __init__(self, records: Iterable[MunicipalityRecord]) -> None:
@@ -85,6 +87,7 @@ class MunicipalityPrefixMatcher:
                 "municipality_name_it",
                 "province_plate",
                 "region_name",
+                "cadastral_code",
             }
             fields = set(reader.fieldnames or ())
             missing = required - fields
@@ -98,6 +101,7 @@ class MunicipalityPrefixMatcher:
                         municipality_name_it=(row.get("municipality_name_it") or "").strip(),
                         province_plate=(row.get("province_plate") or "").strip().upper(),
                         region_name=(row.get("region_name") or "").strip(),
+                        cadastral_code=(row.get("cadastral_code") or "").strip().upper(),
                     )
                 )
         return cls(records)
@@ -154,5 +158,6 @@ class MunicipalityPrefixMatcher:
                 municipality_code=record.municipality_code,
                 province_plate=record.province_plate,
                 region_name=record.region_name,
+                cadastral_code=record.cadastral_code,
             ),
         )
