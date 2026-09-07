@@ -1,0 +1,224 @@
+name: Cosenza address validation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cosenza-address-validation
+  cancel-in-progress: false
+
+jobs:
+  review-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install project and utilities
+        run: |
+          python -m pip install -e .[dev,database]
+          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils postgresql-client
+
+      - name: Reconstruct frozen Cosenza database
+        run: |
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
+          white-list-cosenza-capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026 \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          live={x['reference_date']:x for x in json.loads(Path('artifacts/cosenza-capture/manifest.json').read_text())}
+          frozen={
+            '2026-06-28':json.loads(Path('data/captures/cosenza/combined_2026-06-28.json').read_text()),
+            '2026-08-03':json.loads(Path('data/captures/cosenza/combined_2026-08-03.json').read_text()),
+          }
+          keys=['resource_url','sha256','text_sha256','schema_fingerprint','page_count']
+          for date,expected in frozen.items():
+            observed=live.get(date)
+            if observed is None:
+              raise SystemExit(f'Missing frozen edition {date}')
+            mismatch={k:(expected.get(k),observed.get(k)) for k in keys if expected.get(k)!=observed.get(k)}
+            if mismatch:
+              raise SystemExit(f'Frozen source mismatch for {date}: {mismatch}')
+          print('Frozen Cosenza source identities verified.')
+          PY
+          white-list-persist-capture-manifests --dsn "$TEST_DSN" \
+            data/captures/cosenza/combined_2026-06-28.json \
+            data/captures/cosenza/combined_2026-08-03.json
+          white-list-cosenza-v2 \
+            artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --output-dir artifacts/cosenza-v2
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label before \
+            --records artifacts/cosenza-v2/before_records_v2.csv
+          white-list-persist-parsed-records-v2 --dsn "$TEST_DSN" \
+            --capture-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --parse-label after \
+            --records artifacts/cosenza-v2/after_records_v2.csv
+          white-list-semantic-pipeline \
+            --dsn "$TEST_DSN" \
+            --series-code cosenza-combined \
+            > artifacts/cosenza-v2/semantic_pipeline.json
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+          white-list-model-population \
+            --dsn "$TEST_DSN" \
+            --output artifacts/cosenza-v2/model_population.json
+
+      - name: Acquire frozen official address references and enrich
+        run: |
+          mkdir -p artifacts/address-validation-inputs/istat artifacts/address-validation-inputs/anncsu
+          white-list-istat-municipalities-acquire \
+            --output-dir artifacts/address-validation-inputs/istat \
+            --expected-sha256 83842076860450f7e482daecea6b7a769f5f93d0bf5b0d48802b44896d7a26d5 \
+            > artifacts/address-validation-inputs/istat/acquisition.json
+          white-list-anncsu-acquire \
+            --dataset INDIR_CALA \
+            --output-dir artifacts/address-validation-inputs/anncsu \
+            --expected-sha256 65136ad879e33bca5e776f526fe77d17bd3b141a434575591873c842e23ef0aa \
+            > artifacts/address-validation-inputs/anncsu/acquisition.json
+          ISTAT_CSV=$(find artifacts/address-validation-inputs/istat -maxdepth 1 -name 'istat-municipalities-*.csv' -print -quit)
+          ISTAT_MANIFEST=$(find artifacts/address-validation-inputs/istat -maxdepth 1 -name 'istat-municipalities-*.manifest.json' -print -quit)
+          ANNCSU_CSV=$(find artifacts/address-validation-inputs/anncsu -maxdepth 1 -name 'INDIR_CALA_*.csv' -print -quit)
+          ANNCSU_MANIFEST=$(find artifacts/address-validation-inputs/anncsu -maxdepth 1 -name 'anncsu-indir_cala-*.manifest.json' -print -quit)
+          test -n "$ISTAT_CSV" && test -n "$ISTAT_MANIFEST" && test -n "$ANNCSU_CSV" && test -n "$ANNCSU_MANIFEST"
+          mkdir -p artifacts/address-validation
+          white-list-anncsu-enrich \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --istat-manifest "$ISTAT_MANIFEST" \
+            --anncsu-csv "$ANNCSU_CSV" \
+            --anncsu-manifest "$ANNCSU_MANIFEST" \
+            --dataset-region Calabria \
+            > artifacts/address-validation/enrichment.json
+
+      - name: Build validation pack and precision-aware review sample
+        run: |
+          ENDPOINT=$(python - <<'PY'
+          import json
+          from pathlib import Path
+          print(json.loads(Path('artifacts/address-validation/enrichment.json').read_text())['provider_endpoint'])
+          PY
+          )
+          white-list-geocode-validation \
+            --dsn "$TEST_DSN" \
+            --provider-name anncsu \
+            --provider-endpoint "$ENDPOINT" \
+            --sample-size 150 \
+            --output-dir artifacts/address-validation/validation \
+            > artifacts/address-validation/validation_stdout.json
+          white-list-address-review-sample \
+            --address-results artifacts/address-validation/validation/address_results.csv \
+            --sample-size 150 \
+            --output artifacts/address-validation/review_sample.csv \
+            > artifacts/address-validation/review_sample_manifest.json
+          cat artifacts/address-validation/review_sample_manifest.json
+
+      - name: Build retro Explorer audit package
+        run: |
+          mkdir -p artifacts/data-explorer-preview-v2
+          white-list-source-population-coverage \
+            --output-json artifacts/data-explorer-preview-v2/source_population_coverage.json \
+            --output-csv artifacts/data-explorer-preview-v2/source_population_coverage.csv
+          white-list-table-bundle \
+            --dsn "$TEST_DSN" \
+            --output-dir artifacts/data-explorer-preview-v2 \
+            --preview-limit 50
+          white-list-source-evidence \
+            --before-pdf artifacts/cosenza-capture/2026-06-28/combined.pdf \
+            --after-pdf artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --before-manifest data/captures/cosenza/combined_2026-06-28.json \
+            --after-manifest data/captures/cosenza/combined_2026-08-03.json \
+            --output-dir artifacts/data-explorer-preview-v2
+          white-list-build-explorer-preview-v2 \
+            --before-records artifacts/cosenza-v2/before_records_v2.csv \
+            --after-records artifacts/cosenza-v2/after_records_v2.csv \
+            --diff artifacts/cosenza-v2/diff_summary_v2.json \
+            --parse-manifest artifacts/cosenza-v2/parse_manifest_v2.json \
+            --model-population artifacts/cosenza-v2/model_population.json \
+            --semantic-pipeline artifacts/cosenza-v2/semantic_pipeline.json \
+            --mode internal \
+            --acknowledge-internal-row-data \
+            --output artifacts/data-explorer-preview-v2/index.html
+          white-list-explorer-audit-patch \
+            --index artifacts/data-explorer-preview-v2/index.html \
+            --table-catalog artifacts/data-explorer-preview-v2/table_catalog.json \
+            --source-evidence artifacts/data-explorer-preview-v2/source_evidence.json \
+            --population-coverage artifacts/data-explorer-preview-v2/source_population_coverage.json
+          white-list-explorer-address-validation-patch \
+            --index artifacts/data-explorer-preview-v2/index.html \
+            --dsn "$TEST_DSN" \
+            --sample artifacts/address-validation/review_sample.csv \
+            --summary artifacts/address-validation/validation/summary.json \
+            --source-evidence artifacts/data-explorer-preview-v2/source_evidence.json \
+            > artifacts/data-explorer-preview-v2/address_validation_patch.json
+          mkdir -p artifacts/data-explorer-preview-v2/address-validation
+          cp artifacts/address-validation/review_sample.csv artifacts/data-explorer-preview-v2/address-validation/
+          cp artifacts/address-validation/review_sample_manifest.json artifacts/data-explorer-preview-v2/address-validation/
+          cp artifacts/address-validation/validation/summary.json artifacts/data-explorer-preview-v2/address-validation/
+
+      - name: Validate review-enabled Explorer
+        run: |
+          python - <<'PY'
+          import csv,json,os,psycopg
+          from pathlib import Path
+          root=Path('artifacts/data-explorer-preview-v2')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          for needle in ('data-view="address-validation"','VALIDAZIONE SOSTANZIALE INDIRIZZI','Esporta JSON','Importa JSON','localStorage','Apri su OpenStreetMap'):
+            if needle not in html:
+              raise SystemExit(f'Missing review UI feature: {needle}')
+          rows=list(csv.DictReader((root/'address-validation/review_sample.csv').open(encoding='utf-8')))
+          if len(rows)!=150:
+            raise SystemExit(f'Unexpected review sample size: {len(rows)}')
+          strata={row['review_stratum'] for row in rows}
+          required={'matched_civic_access','matched_street','matched_without_coordinates','not_found'}
+          if not required.issubset(strata):
+            raise SystemExit(f'Review sample missing required strata: {required-strata}')
+          patch=json.loads((root/'address_validation_patch.json').read_text())
+          if patch['sample_size']!=150:
+            raise SystemExit(f'Patch payload sample mismatch: {patch}')
+          if patch['rows_with_source_occurrences'] < 100:
+            raise SystemExit(f'Too few deterministic source-evidence links: {patch}')
+          with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM geo.address_geocode_result WHERE provider_name='anncsu' AND match_status_code='accepted' AND upper_inf(system_period)")
+            accepted=int(cur.fetchone()[0])
+          if accepted:
+            raise SystemExit(f'Address validation workflow must not auto-accept: {accepted}')
+          print('Review-enabled retro Explorer validated:', patch)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cosenza-address-validation-explorer
+          path: artifacts/data-explorer-preview-v2/
+          if-no-files-found: error
+          retention-days: 90

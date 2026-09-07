@@ -18,6 +18,7 @@ white-list-istat-municipalities-acquire = "white_list_archive.acquisition.istat_
 white-list-normalise-addresses = "white_list_archive.geocoding.pipeline:main"
 white-list-anncsu-enrich = "white_list_archive.geocoding.anncsu_pipeline:main"
 white-list-geocode-validation = "white_list_archive.geocoding.validation:main"
+white-list-address-review-sample = "white_list_archive.geocoding.review_sample:main"
 white-list-cosenza-snapshot = "white_list_archive.acquisition.cosenza_snapshot:main"
 white-list-cosenza-capture = "white_list_archive.acquisition.cosenza_capture:main"
 white-list-cosenza-mentions = "white_list_archive.parsers.cosenza_combined_mentions:main"
@@ -30,6 +31,7 @@ white-list-model-population = "white_list_archive.publishing.model_population:ma
 white-list-table-bundle = "white_list_archive.publishing.table_bundle:main"
 white-list-source-evidence = "white_list_archive.publishing.source_evidence:main"
 white-list-explorer-audit-patch = "white_list_archive.publishing.explorer_audit_patch:main"
+white-list-explorer-address-validation-patch = "white_list_archive.publishing.explorer_address_validation_bundle:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
