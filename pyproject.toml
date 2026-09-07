@@ -23,6 +23,7 @@ white-list-semantic-pipeline = "white_list_archive.semantic.pipeline_current:mai
 white-list-model-population = "white_list_archive.publishing.model_population:main"
 white-list-table-bundle = "white_list_archive.publishing.table_bundle:main"
 white-list-source-evidence = "white_list_archive.publishing.source_evidence:main"
+white-list-explorer-audit-patch = "white_list_archive.publishing.explorer_audit_patch:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
