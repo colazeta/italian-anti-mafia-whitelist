@@ -31,7 +31,7 @@ white-list-model-population = "white_list_archive.publishing.model_population:ma
 white-list-table-bundle = "white_list_archive.publishing.table_bundle:main"
 white-list-source-evidence = "white_list_archive.publishing.source_evidence:main"
 white-list-explorer-audit-patch = "white_list_archive.publishing.explorer_audit_patch:main"
-white-list-explorer-address-validation-patch = "white_list_archive.publishing.explorer_address_validation_patch:main"
+white-list-explorer-address-validation-patch = "white_list_archive.publishing.explorer_address_validation_bundle:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
