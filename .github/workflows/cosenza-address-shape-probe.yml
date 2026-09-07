@@ -1,0 +1,96 @@
+name: Cosenza address-shape probe
+
+on:
+  push:
+    branches:
+      - research/anncsu-open-api-probe
+    paths:
+      - '.github/workflows/cosenza-address-shape-probe.yml'
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser utilities
+        run: |
+          python -m pip install -e .
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Capture and parse latest Cosenza edition
+        run: |
+          white-list-cosenza-capture \
+            https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026
+          white-list-cosenza-v2 \
+            artifacts/cosenza-capture/2026-08-03/combined.pdf \
+            --output-dir artifacts/cosenza-address-shape
+      - name: Analyse source address shapes
+        run: |
+          python - <<'PY'
+          import csv, json, re
+          from collections import Counter
+          from pathlib import Path
+
+          path = Path('artifacts/cosenza-address-shape/before_records_v2.csv')
+          if not path.exists():
+              candidates = sorted(Path('artifacts/cosenza-address-shape').glob('*records_v2.csv'))
+              if not candidates:
+                  raise SystemExit('No parser-v2 CSV found')
+              path = candidates[0]
+
+          rows = list(csv.DictReader(path.open(encoding='utf-8')))
+          addresses = [r['registered_office_raw'].strip() for r in rows if r.get('registered_office_raw','').strip()]
+
+          province_paren = re.compile(r'\(([A-Z]{2})\)\s*$', re.I)
+          cap_re = re.compile(r'\b\d{5}\b')
+          civic_re = re.compile(r'\b(?:N\.?\s*|N°\s*|NUM\.?\s*)?\d+[A-Z]?(?:[/\-][A-Z0-9]+)?\b', re.I)
+          leading_tokens = Counter()
+          trailing_tokens = Counter()
+          punctuation = Counter()
+          for a in addresses:
+              tokens=a.split()
+              if tokens:
+                  leading_tokens[' '.join(tokens[:2]).upper()] += 1
+                  trailing_tokens[' '.join(tokens[-2:]).upper()] += 1
+              if ',' in a: punctuation['comma'] += 1
+              if ' - ' in a: punctuation['spaced_hyphen'] += 1
+              if '(' in a and ')' in a: punctuation['parentheses'] += 1
+              if cap_re.search(a): punctuation['cap'] += 1
+              if province_paren.search(a): punctuation['province_suffix'] += 1
+              if civic_re.search(a): punctuation['numeric_token'] += 1
+
+          # Deterministic representative sample: first address for each broad punctuation signature.
+          samples = {}
+          for a in addresses:
+              sig = (
+                  bool(',' in a), bool(' - ' in a), bool(cap_re.search(a)),
+                  bool(province_paren.search(a)), bool('(' in a and ')' in a)
+              )
+              samples.setdefault(str(sig), a)
+              if len(samples) >= 16:
+                  break
+
+          report = {
+              'records': len(rows),
+              'nonblank_registered_offices': len(addresses),
+              'unique_registered_offices': len(set(addresses)),
+              'shape_counts': punctuation,
+              'top_leading_bigrams': leading_tokens.most_common(40),
+              'top_trailing_bigrams': trailing_tokens.most_common(40),
+              'representative_source_addresses': list(samples.values()),
+          }
+          Path('artifacts/cosenza-address-shape/report.json').write_text(
+              json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cosenza-address-shape-probe
+          path: artifacts/cosenza-address-shape/report.json
+          if-no-files-found: error
