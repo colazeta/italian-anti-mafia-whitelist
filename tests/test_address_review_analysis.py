@@ -1,4 +1,9 @@
-from white_list_archive.geocoding.review_analysis import analyse_review_rows
+from pathlib import Path
+
+from white_list_archive.geocoding.review_analysis import (
+    analyse_review_rows,
+    read_review_csv,
+)
 
 
 def _row(stratum, population, sample, weight, verdict):
@@ -44,3 +49,23 @@ def test_candidate_verdicts_must_be_complete():
         assert "candidate review is incomplete" in str(exc)
     else:
         raise AssertionError("expected incomplete candidate review to fail")
+
+
+def test_frozen_cosenza_review_metrics_do_not_drift():
+    path = Path("data/validation/cosenza/address-review-2026-09-07.csv")
+    result = analyse_review_rows(
+        read_review_csv(path), treat_not_found_as_coverage_failure=True
+    )
+    assert result["population"] == 1298
+    assert result["candidate_population"] == 624
+    assert result["candidate_sample_rows"] == 78
+    assert result["candidate_review_complete"] is True
+    assert result["candidate_coverage_pct"] == 48.07
+    assert result["candidate_weighted_precision_pct"] == 82.49
+    assert result["estimated_validated_yield_pct"] == 39.65
+    assert result["strata"]["matched_civic_access"]["determinate_precision_pct"] == 100.0
+    assert result["strata"]["matched_street"]["determinate_precision_pct"] == 57.14
+    assert result["strata"]["matched_without_coordinates"]["determinate_precision_pct"] == 85.71
+    assert result["not_found_sample_rows"] == 72
+    assert result["not_found_explicit_incorrect_rows"] == 14
+    assert result["not_found_unmarked_rows"] == 58
