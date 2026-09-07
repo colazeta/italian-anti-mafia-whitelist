@@ -1,0 +1,61 @@
+name: Public retro portal
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public-site/**'
+      - '.github/workflows/public-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Validate public artifact boundary
+        run: |
+          test -f public-site/index.html
+          test -f public-site/data/site.json
+          node --check public-site/app.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('public-site')
+          data = json.loads((root/'data/site.json').read_text(encoding='utf-8'))
+          assert data['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
+          forbidden = [
+              'address-review-2026-09-07.csv',
+              'table_catalog.json',
+              'source_evidence.json',
+              'data-explorer-preview-v2',
+          ]
+          names = [str(p) for p in root.rglob('*') if p.is_file()]
+          for token in forbidden:
+              if any(token in name for name in names):
+                  raise SystemExit(f'Forbidden internal artifact in public site: {token}')
+          print('Public artifact boundary validated:', len(names), 'files')
+          PY
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public-site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
