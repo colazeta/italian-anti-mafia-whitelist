@@ -219,17 +219,59 @@ jobs:
               if len(item['rows']) not in (1327,1334):
                   raise SystemExit(f'Unexpected row locator count for {date}: {len(item["rows"])}')
           coverage=json.loads((root/'source_population_coverage.json').read_text())
-          expected={
-              'verified_authority_count':34,
-              'register_scope_count':35,
-              'complete_register_scope_count':12,
-              'incomplete_register_scope_count':23,
-          }
-          for key,value in expected.items():
-              if coverage.get(key) != value:
-                  raise SystemExit(f'Unexpected source-population coverage {key}: {coverage.get(key)} != {value}')
           if coverage.get('required_populations') != ['listed','applicant']:
               raise SystemExit('Coverage ledger must require listed + applicant')
+          count_keys = (
+              'verified_authority_count',
+              'register_scope_count',
+              'complete_register_scope_count',
+              'incomplete_register_scope_count',
+          )
+          for key in count_keys:
+              value = coverage.get(key)
+              if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                  raise SystemExit(f'Coverage ledger has invalid {key}: {value!r}')
+          scope_count = coverage['register_scope_count']
+          complete_count = coverage['complete_register_scope_count']
+          incomplete_count = coverage['incomplete_register_scope_count']
+          if complete_count + incomplete_count != scope_count:
+              raise SystemExit(
+                  'Coverage ledger scope totals are inconsistent: '
+                  f'{complete_count} complete + {incomplete_count} incomplete != {scope_count} scopes'
+              )
+          scopes = coverage.get('scopes')
+          if not isinstance(scopes, list) or len(scopes) != scope_count:
+              raise SystemExit(
+                  f'Coverage ledger scope rows do not match register_scope_count: '
+                  f'{len(scopes) if isinstance(scopes, list) else type(scopes).__name__} != {scope_count}'
+              )
+          authority_keys = {scope.get('authority_key') for scope in scopes}
+          if None in authority_keys or len(authority_keys) != coverage['verified_authority_count']:
+              raise SystemExit(
+                  'Coverage ledger authority cardinality does not match verified_authority_count'
+              )
+          scope_flags = [scope.get('source_population_complete') for scope in scopes]
+          if any(not isinstance(flag, bool) for flag in scope_flags):
+              raise SystemExit('Every coverage scope must expose a boolean source_population_complete')
+          if sum(scope_flags) != complete_count:
+              raise SystemExit(
+                  f'Coverage ledger complete-scope rows do not match summary: '
+                  f'{sum(scope_flags)} != {complete_count}'
+              )
+          rows = coverage.get('rows')
+          if not isinstance(rows, list) or len(rows) != scope_count * 2:
+              raise SystemExit(
+                  f'Coverage ledger must contain exactly two logical-population rows per scope: '
+                  f'{len(rows) if isinstance(rows, list) else type(rows).__name__} != {scope_count * 2}'
+              )
+          targets_by_scope = {}
+          for row in rows:
+              scope_key = (row.get('authority_key'), row.get('regime_code'))
+              targets_by_scope.setdefault(scope_key, set()).add(row.get('population_target'))
+          if len(targets_by_scope) != scope_count or any(
+              targets != {'listed', 'applicant'} for targets in targets_by_scope.values()
+          ):
+              raise SystemExit('Every coverage scope must account for listed + applicant exactly once logically')
           html=(root/'index.html').read_text()
           for needle in ('__AUDIT_DRILLDOWN_V1__','Apri CSV completo','Verifica indipendente:','COMPLETEZZA SORGENTI'):
               if needle not in html:
