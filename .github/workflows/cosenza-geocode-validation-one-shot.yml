@@ -8,7 +8,6 @@ on:
       - 'src/white_list_archive/geocoding/**'
       - 'tests/test_geocoding_validation.py'
       - 'pyproject.toml'
-      - '.github/workflows/cosenza-geocode-validation-one-shot.yml'
   workflow_dispatch:
 
 concurrency:
@@ -158,25 +157,39 @@ jobs:
 
       - name: Export all provider candidates for audit
         run: |
-          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 <<'SQL'
-          \copy (
-            SELECT a.full_address AS source_address,
-                   g.provider_name,g.provider_endpoint,g.provider_version,g.provider_data_updated,
-                   g.candidate_rank,g.match_status_code,g.precision_code,
-                   g.query_text,g.matched_address,
-                   g.normalised_street_name,g.normalised_house_number,g.normalised_postal_code,
-                   g.normalised_locality,g.normalised_admin_unit_l2,g.normalised_admin_unit_l1,
-                   g.normalised_country_name,g.normalised_country_code,
-                   g.latitude,g.longitude,g.provider_result_id,
-                   g.provider_attribution,g.provider_licence
-            FROM geo.address_geocode_result g
-            JOIN core.address a USING(address_id)
-            WHERE g.provider_name='nominatim'
-              AND g.provider_endpoint='https://nominatim.openstreetmap.org'
-              AND upper_inf(g.system_period)
-            ORDER BY a.full_address,g.candidate_rank
-          ) TO 'artifacts/cosenza-geocode-validation/all_provider_candidates.csv' WITH CSV HEADER
-          SQL
+          python - <<'PY'
+          import csv
+          import os
+          import psycopg
+          from pathlib import Path
+          out = Path('artifacts/cosenza-geocode-validation/all_provider_candidates.csv')
+          sql = """
+              SELECT a.full_address AS source_address,
+                     g.provider_name,g.provider_endpoint,g.provider_version,g.provider_data_updated,
+                     g.candidate_rank,g.match_status_code,g.precision_code,
+                     g.query_text,g.matched_address,
+                     g.normalised_street_name,g.normalised_house_number,g.normalised_postal_code,
+                     g.normalised_locality,g.normalised_admin_unit_l2,g.normalised_admin_unit_l1,
+                     g.normalised_country_name,g.normalised_country_code,
+                     g.latitude,g.longitude,g.provider_result_id,
+                     g.provider_attribution,g.provider_licence
+              FROM geo.address_geocode_result g
+              JOIN core.address a USING(address_id)
+              WHERE g.provider_name='nominatim'
+                AND g.provider_endpoint='https://nominatim.openstreetmap.org'
+                AND upper_inf(g.system_period)
+              ORDER BY a.full_address,g.candidate_rank
+          """
+          with psycopg.connect(os.environ['TEST_DSN']) as conn, conn.cursor() as cur:
+              cur.execute(sql)
+              names = [desc.name for desc in cur.description]
+              with out.open('w', encoding='utf-8', newline='') as handle:
+                  writer = csv.writer(handle)
+                  writer.writerow(names)
+                  while batch := cur.fetchmany(1000):
+                      writer.writerows(batch)
+          print(f'Exported provider candidates to {out}')
+          PY
 
       - name: Validate pilot completeness without judging geocoder quality
         run: |
