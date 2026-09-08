@@ -1,0 +1,46 @@
+name: Multi-prefecture source probe
+
+on:
+  push:
+    branches:
+      - feature/multi-prefecture-pilot
+    paths:
+      - 'src/white_list_archive/acquisition/multi_prefecture_probe.py'
+      - '.github/workflows/multi-prefecture-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install probe runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y poppler-utils
+          python -m pip install -e .
+      - name: Probe current official sources
+        run: python -m white_list_archive.acquisition.multi_prefecture_probe
+      - name: Compact probe summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=json.loads(Path('artifacts/multi-prefecture-probe/manifest.json').read_text())
+          for r in rows:
+              print('\n###', r['key'], 'last_update=', r['last_update_text'])
+              for x in r['selected']:
+                  print('-', x['label'], x['byte_size'], x['sha256'], x['final_url'])
+                  print(x.get('preview','')[:6000])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: multi-prefecture-source-probe
+          path: artifacts/multi-prefecture-probe
+          retention-days: 7
