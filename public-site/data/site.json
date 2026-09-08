@@ -3,32 +3,37 @@
     "title": "Open Italian Anti-Mafia White List Archive",
     "classification": "PUBLIC EXPERIMENTAL VIEW",
     "generated_from": "validated project state",
-    "data_as_of": "2026-08-03",
+    "data_as_of": "2026-09-05",
     "portal_build_date": "2026-09-08",
-    "public_contract_version": 2,
+    "public_contract_version": 3,
     "disclaimer": "Portale indipendente di ricerca e archiviazione. Non è un sito ufficiale del Ministero dell'Interno o delle Prefetture. Per gli effetti amministrativi fanno fede esclusivamente le fonti ufficiali."
   },
   "publication": {
     "principle": "public-first, audit-transparent",
     "registry_default_status": "listed",
+    "geography_policy": "La pubblicazione del dato core non attende la geolocalizzazione. La normalizzazione geografica resta un arricchimento opzionale, incrementale e sempre distinto dall'indirizzo pubblicato dalla fonte.",
     "registry_fields": [
       "name",
       "authority_name",
+      "register_name",
       "reference_date",
       "registered_office",
       "secondary_office",
       "identifiers",
       "requested_activities",
-      "application_dates",
       "source_status",
-      "outcome_raw",
+      "primary_date_label",
+      "primary_date",
+      "application_date",
       "observed_listing_date",
+      "decision_date",
+      "registration_date",
       "observed_expiry_date",
-      "source_row_ordinal",
+      "outcome_raw",
       "source_page_url",
       "resource_url"
     ],
-    "interpretation": "Il registro pubblico espone gli attributi osservati nelle fonti ufficiali e la relativa provenance. Gli identificativi tecnici interni, le note di review e gli oggetti di curation non sono necessari per usare il registro; l'audit metodologico e il codice restano comunque pubblicamente consultabili nel repository."
+    "interpretation": "Il registro pubblico espone attributi source-supported di interesse pubblico e relativa provenance. Quando una fonte ripete la stessa impresa per settore, il front-end può aggregare quelle righe per leggibilità senza affermare una deduplicazione canonica nazionale. Audit, codice e metodologia restano pubblicamente consultabili."
   },
   "national": {
     "verified_authorities": 34,
@@ -37,7 +42,7 @@
     "complete_scopes": 30,
     "incomplete_scopes": 5,
     "incomplete_scope_names": ["Bari", "Crotone", "Milano", "Sassari", "Udine"],
-    "published_entity_registers": ["Cosenza"]
+    "published_entity_registers": ["Cosenza", "Parma", "Pistoia", "Bologna"]
   },
   "cosenza": {
     "latest_reference_date": "2026-08-03",
@@ -83,29 +88,36 @@
     ]
   },
   "method": {
-    "flow": [
+    "core_flow": [
       "Official source page",
       "Immutable content capture + SHA-256",
-      "Versioned parser",
-      "Semantic projection",
-      "Guarded canonicalisation",
-      "Official-first ANNCSU linkage",
-      "Manual validation / gold standard",
+      "Versioned source-specific parser",
+      "Source-supported public/core record",
       "Public registry + audit trail"
     ],
-    "publication_rule": "Il registro pubblico pubblica gli attributi source-supported di interesse pubblico insieme alla provenance. I livelli di audit, metodologia, codice e validazione rimangono accessibili come secondo livello di approfondimento."
+    "geo_flow": [
+      "New/changed address only",
+      "High-confidence territorial derivation",
+      "Optional ANNCSU/geocoder candidate",
+      "Validation when justified"
+    ],
+    "publication_rule": "La pubblicazione attende il controllo della fonte e del parser, ma non la geolocalizzazione. L'indirizzo pubblicato dalla Prefettura resta evidenza primaria; qualsiasi geografia derivata è un arricchimento separato."
   },
   "audit": {
     "repository_url": "https://github.com/colazeta/italian-anti-mafia-whitelist",
     "explorer_source_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/explorer",
-    "parser_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/blob/main/src/white_list_archive/parsers/cosenza_combined_v2.py",
+    "parser_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/src/white_list_archive/parsers",
     "validation_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/blob/main/docs/validation/cosenza-address-review-results.md",
     "architecture_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/docs/architecture",
     "issues_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/issues"
   },
   "sources": [
-    {"name":"Prefettura di Cosenza — White List","role":"Primary source for the observed White List editions","url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list"},
-    {"name":"ANNCSU — Istat e Agenzia delle Entrate","role":"Official Italian address registry used for exact address linkage","url":"https://www.anncsu.gov.it/"},
-    {"name":"Istat","role":"Versioned municipality identifiers and territorial crosswalk","url":"https://www.istat.it/"}
+    {"name":"Ministero dell'Interno — indice White List nazionale","role":"Discovery source for the national Prefecture inventory","url":"https://prefettura.interno.gov.it/it/white-list-nazionale"},
+    {"name":"Prefettura di Cosenza — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list"},
+    {"name":"Prefettura di Parma — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/parma/evidenza/white-list"},
+    {"name":"Prefettura di Pistoia — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/pistoia/evidenza/white-list"},
+    {"name":"Prefettura di Bologna — White List","role":"Published pilot source, including ordinary and post-earthquake registers","url":"https://prefettura.interno.gov.it/it/prefetture/bologna/evidenza/white-list"},
+    {"name":"ANNCSU — Istat e Agenzia delle Entrate","role":"Optional official address enrichment; not a publication prerequisite","url":"https://www.anncsu.gov.it/"},
+    {"name":"Istat","role":"Territorial crosswalk used by optional geographic enrichment","url":"https://www.istat.it/"}
   ]
 }

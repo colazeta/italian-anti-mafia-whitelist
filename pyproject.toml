@@ -32,14 +32,17 @@ white-list-model-population = "white_list_archive.publishing.model_population:ma
 white-list-table-bundle = "white_list_archive.publishing.table_bundle:main"
 white-list-source-evidence = "white_list_archive.publishing.source_evidence:main"
 white-list-public-registry = "white_list_archive.publishing.public_registry:main"
+white-list-public-national-registry = "white_list_archive.publishing.public_national_registry:main"
+white-list-public-national-build = "white_list_archive.publishing.public_national_build:main"
 white-list-explorer-audit-patch = "white_list_archive.publishing.explorer_audit_patch:main"
 white-list-explorer-address-validation-patch = "white_list_archive.publishing.explorer_address_validation_bundle:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "pdfplumber>=0.11,<0.12"]
 database = ["psycopg[binary]>=3.2"]
+publication = ["pdfplumber>=0.11,<0.12"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

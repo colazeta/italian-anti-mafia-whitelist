@@ -6,7 +6,14 @@ on:
       - main
     paths:
       - 'public-site/**'
-      - 'src/white_list_archive/publishing/public_registry.py'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/source_registry/verified_primary_pages.csv'
+      - 'data/source_registry/source_series_inventory.csv'
+      - 'data/source_registry/national_index_authority_aliases.csv'
+      - 'src/white_list_archive/acquisition/national_index.py'
+      - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'src/white_list_archive/publishing/public_national_build.py'
+      - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
@@ -24,6 +31,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,38 +42,31 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install parser runtime
+      - name: Install publication runtime
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y poppler-utils
-          python -m pip install -e .
-      - name: Download approved Cosenza source
+          python -m pip install -e '.[publication]'
+      - name: Build approved multi-Prefecture registry
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from urllib.request import Request, urlopen
-          site = json.loads(Path('public-site/data/site.json').read_text(encoding='utf-8'))
-          url = site['cosenza']['latest_resource_url']
-          req = Request(url, headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+public archive)'})
-          with urlopen(req, timeout=60) as response:
-              body = response.read()
-          target = Path('/tmp/cosenza-approved.pdf')
-          target.write_bytes(body)
-          print('Downloaded', len(body), 'bytes from approved resource URL')
-          PY
-      - name: Build source-backed public registry
-        run: |
-          white-list-public-registry /tmp/cosenza-approved.pdf \
-            --site-config public-site/data/site.json \
-            --output-json public-site/data/registry.json \
-            --output-csv public-site/data/registry.csv
-      - name: Validate public artifact and registry
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+      - name: Validate public artifact and national registry
         run: |
           test -f public-site/index.html
           test -f public-site/data/site.json
           test -f public-site/data/registry.json
           test -f public-site/data/registry.csv
+          test -f public-site/data/prefectures.json
+          test -f public-site/data/prefectures.csv
           node --check public-site/app.js
           python - <<'PY'
           import json
@@ -73,30 +74,44 @@ jobs:
           root = Path('public-site')
           site = json.loads((root/'data/site.json').read_text(encoding='utf-8'))
           reg = json.loads((root/'data/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads((root/'data/prefectures.json').read_text(encoding='utf-8'))
+
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
-          assert site['meta']['public_contract_version'] == 2
-          assert reg['meta']['contract_version'] == 2
-          assert reg['meta']['record_count'] == site['cosenza']['source_rows'] == 1334
-          assert reg['meta']['status_counts'] == site['cosenza']['status_counts']
-          assert reg['meta']['status_counts']['listed'] == 461
-          assert reg['meta']['capture_sha256'] == site['cosenza']['capture_sha256']
-          assert any(r.get('identifier_field_raw') for r in reg['records'])
+          assert site['meta']['public_contract_version'] == 3
+          assert reg['meta']['contract_version'] == 3
+          assert reg['meta']['record_count'] == 5052
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna'}
+          assert set(reg['meta']['register_counts']) == {
+              'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
+              'bologna-provincial','bologna-post-sisma'
+          }
+          assert reg['meta']['authority_count'] == 4
+          assert reg['meta']['register_count'] == 5
+          assert reg['meta']['record_count'] == len(reg['records'])
+          assert pref['meta']['authority_count'] == 107
+          assert pref['meta']['published_count'] == 4
+          assert pref['meta']['mapped_count'] == 34
+          bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
+          assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['series_count'] > 0
           assert all(r.get('record_locator') for r in reg['records'])
+          assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
+          assert site['publication']['geography_policy']
+
+          for source in reg['meta']['sources']:
+              diagnostic = source['diagnostics']
+              assert diagnostic['public_records'] > 0, source['source_key']
+              assert diagnostic.get('dropped_date_rows', 0) == 0, source['source_key']
+
           forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
           reg_text = (root/'data/registry.json').read_text(encoding='utf-8').casefold()
           for token in forbidden_tokens:
               assert token not in reg_text, token
-          forbidden_files = [
-              'address-review-2026-09-07.csv',
-              'table_catalog.json',
-              'source_evidence.json',
-              'data-explorer-preview-v2',
-          ]
           names = [str(p) for p in root.rglob('*') if p.is_file()]
+          forbidden_files = ['address-review-2026-09-07.csv','table_catalog.json','source_evidence.json','data-explorer-preview-v2']
           for token in forbidden_files:
               if any(token in name for name in names):
                   raise SystemExit(f'Forbidden artifact in public site: {token}')
-          print('Public registry validated:', reg['meta']['record_count'], 'records; files:', len(names))
+          print('Public national registry validated:', reg['meta']['record_count'], 'records; Prefectures:', pref['meta'])
           PY
       - name: Configure Pages
         uses: actions/configure-pages@v5
