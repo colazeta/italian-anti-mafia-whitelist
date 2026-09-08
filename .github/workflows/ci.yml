@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install project and Python test dependencies
-        run: python -m pip install -e .[dev,database]
+        run: python -m pip install -e .[dev,database,storage]
       - name: Run repository tests
         run: pytest -q
       - name: Generate synthetic Cosenza parser outputs
@@ -88,3 +88,6 @@ jobs:
           done
       - name: Validate parsed-record persistence
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/003_cosenza_parsed_record_persistence.sql
+
+      - name: Test evidence storage promotion against PostgreSQL (mock object transport)
+        run: python tests/evidence_db_check.py

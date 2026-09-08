@@ -84,3 +84,17 @@
 - **Last successful source check:** unchanged for every Prefecture.
 - **Next action:** provision and validate the designated private evidence store using frozen Cosenza documents; the executable decision now reports this explicitly.
 - **Next Prefecture:** none until the global prerequisite is resolved; territorial ranking remains available separately.
+
+## 2026-09-08T20:21:47+00:00 — Evidence storage implementation
+
+- **Mode:** EXPANSION_MODE.
+- **Current Prefecture:** Cosenza as preservation benchmark; no new ingestion.
+- **Completed:** S3 conditional-write adapter, independent retrieval verification, existing ContentObject promotion, CLI recovery, private manual workflow for both frozen editions, operational setup/recovery instructions.
+- **Evidence:** storage/evidence.py; evidence-store-operations.md; immutable Cosenza manifests unchanged. Local environment has no configured EVIDENCE/AWS storage variables; available connectors do not provide the designated S3/R2 account provisioning route.
+- **Tests:** 151 local Python tests including synthetic storage failure/idempotence tests and Boto3 API stub; CI adds real PostgreSQL promotion with synthetic transport. Live store verification remains separate.
+- **Public impact:** none; no source bytes, credentials, receipt or internal storage location added to the public export.
+- **Open problems:** designated private backend and authenticated access absent; live upload/recovery and retention/backup verification not claimed. Issue #16 stays open.
+- **Coverage status:** unchanged; no promotion of national readiness or a Prefecture.
+- **Last successful source check:** unchanged; no new source investigation asserted.
+- **Next action:** configure evidence-archive environment as documented; run private live verification; preserve receipts and verify policy before readiness promotion.
+- **Next Prefecture:** none until global prerequisite is verified.
