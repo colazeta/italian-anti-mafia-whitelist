@@ -119,8 +119,11 @@ def record_check(ledger: dict, authority_key: str, *, at: str, evidence: str,
     else:
         changed = hashes != sorted(set(row["known_content_sha256"]))
         row["last_successful_source_check_at"] = at
-        pending = row["monitoring_status"] in {"SOURCE_CHANGED", "PROCESSING_UPDATE"}
+        pending = row.get("source_update_pending", False) or row["monitoring_status"] in {"SOURCE_CHANGED", "PROCESSING_UPDATE"}
         if changed:
+            row["monitoring_status"] = "SOURCE_CHANGED"
+            row["source_update_pending"] = True
+        elif pending and row["monitoring_status"] == "CHECK_FAILED":
             row["monitoring_status"] = "SOURCE_CHANGED"
         elif not pending:
             row["monitoring_status"] = "CURRENT"

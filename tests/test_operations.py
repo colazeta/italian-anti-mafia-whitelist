@@ -99,3 +99,13 @@ def test_unknown_stale_or_missing_monitoring_data_fails_closed(ledger):
     ledger["prefectures"].pop()
     with pytest.raises(ValueError, match="every canonical"):
         validate(ledger, keys)
+
+
+def test_failure_between_changed_and_unchanged_checks_cannot_hide_pending_update(ledger):
+    changed = record_check(ledger, "cosenza", at="2026-09-09T12:00:00Z", evidence="fixture", content_sha256=["c" * 64])
+    failed = record_check(changed, "cosenza", at="2026-09-10T12:00:00Z", evidence="fixture", error="timeout")
+    checked = record_check(failed, "cosenza", at="2026-09-11T12:00:00Z", evidence="fixture", content_sha256=["c" * 64])
+    row = next(r for r in checked["prefectures"] if r["authority_key"] == "cosenza")
+    assert row["source_update_pending"] is True
+    assert row["monitoring_status"] == "SOURCE_CHANGED"
+    assert row["last_content_change_at"] == "2026-09-09T12:00:00Z"

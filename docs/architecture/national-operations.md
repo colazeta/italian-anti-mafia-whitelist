@@ -68,7 +68,9 @@ A link availability check or retrieval of an already-known PDF alone is insuffic
 Partial/failed checks record an error and cannot replace previous content identities
 or advance successful recency. Successful unchanged checks advance recency without
 creating a capture or changing an edition date. Changed bytes mark a processing
-need; repeated unchanged checks do not hide a pending update. Source captures,
+need; repeated unchanged checks do not hide a pending update, even after an
+intervening failure. `source_update_pending` survives failed checks and may be
+cleared only after the separate update pipeline has validated integration. Source captures,
 parser validation, canonical integration and public export remain separate operations.
 
 Checks append evidence events; functions return a copy and never rewrite an earlier
