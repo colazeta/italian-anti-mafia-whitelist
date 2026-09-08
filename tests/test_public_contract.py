@@ -41,7 +41,7 @@ def test_summary_counts_observations_not_unique_names_and_separates_dates():
     data = {"records": [r, other], "meta": {"record_count": 9999, "sources": [{"document_checked_at": "2026-09-08T01:00:00Z"}, {"document_checked_at": "2026-09-08T01:01:00Z"}]}}
     script = "const {archiveSummary}=require('./public-site/summary.js');let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>console.log(JSON.stringify(archiveSummary(JSON.parse(s),{prefectures:[{}, {}, {}]}))));"
     result = json.loads(subprocess.check_output(["node", "-e", script], input=json.dumps(data), text=True, cwd=ROOT))
-    assert result == {"observations": 2, "authorities": 2, "registers": 1, "documents": 2, "earliest": "2026-08-03", "latest": "2026-09-05", "documentsCheckedAt": "2026-09-08T01:00:00Z", "directoryAuthorities": 3}
+    assert result == {"observations": 2, "authorities": 2, "registers": 1, "documents": 2, "earliest": "2026-08-03", "latest": "2026-09-05", "documentsCheckedAt": "2026-09-08T01:01:00Z", "directoryAuthorities": 3}
 
 
 def test_registry_aggregate_and_source_identity_reconcile():

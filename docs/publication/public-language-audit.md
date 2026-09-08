@@ -37,7 +37,7 @@ canonical identities, database, parsers and private Explorer are unchanged.
 ## Added information and reproducibility
 
 - Latest available edition is the maximum reference date among published observations.
-- “Ultima verifica completata dei documenti pubblicati” is the earliest successful
+- “Ultima verifica completata dei documenti pubblicati” is the latest successful
   document verification timestamp in a fully completed build. It is unknown if any
   source lacks such a timestamp. It is **not** a successful landing-page monitoring
   check or proof that no newer edition exists.
@@ -64,3 +64,8 @@ canonical identities, database, parsers and private Explorer are unchanged.
   are recorded as such, never converted into successful monitoring or source absence.
 - Phase 1 remains open until the required CI, rendered checks and link results have
   been reviewed. National expansion has not started.
+
+Operational checkpoints: [working record](working-record.md).
+
+The browser gate caught and corrected cursor placement after search-field redraw;
+continuous typing now preserves both focus and selection in both searches.

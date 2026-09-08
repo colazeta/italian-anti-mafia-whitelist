@@ -9,7 +9,7 @@ function archiveSummary(registry, prefectures) {
     registers:new Set(records.map(r=>r.register_key)).size,
     documents:new Set(records.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size,
     earliest:dates[0]||'',latest:dates.at(-1)||'',
-    documentsCheckedAt:checks.length===registry.meta.sources.length?checks[0]||'':'',
+    documentsCheckedAt:checks.length===registry.meta.sources.length?checks.at(-1)||'':'',
     directoryAuthorities:prefectures.prefectures.length
   };
 }

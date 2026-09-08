@@ -58,6 +58,7 @@ jobs:
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
       - name: Validate public artifact and national registry
+        id: validate_public
         run: |
           test -f public-site/index.html
           test -f public-site/data/site.json
@@ -131,14 +132,17 @@ jobs:
           path: test-results/
           retention-days: 14
       - name: Verify official-source links
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         run: python -m white_list_archive.publishing.public_links public-site /tmp/public-link-audit.json
       - name: Save link verification report
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: public-link-audit
           path: /tmp/public-link-audit.json
           retention-days: 14
       - name: Save reviewable public build
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: public-portal-review
