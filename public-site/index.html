@@ -3,48 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Registro pubblico sperimentale delle White List antimafia italiane, con imprese, Prefetture, registri, storico, provenienza e audit.">
-  <title>Open Italian Anti-Mafia White List Archive</title>
+  <meta name="description" content="Consulta gli elenchi White List delle Prefetture disponibili nell’archivio, cerca un’impresa e verifica le fonti ufficiali.">
+  <title>Archivio delle White List antimafia</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="desktop">
     <main class="window" aria-labelledby="app-title">
       <header class="titlebar">
-        <span id="app-title">Open Italian Anti-Mafia White List Archive</span>
-        <span class="titlebar-meta">PUBLIC REGISTER · AUDIT TRANSPARENT</span>
+        <span id="app-title">Archivio delle White List antimafia</span>
+        <span class="titlebar-meta">CONSULTAZIONE PUBBLICA</span>
       </header>
 
       <nav class="menubar" aria-label="Sezioni del portale">
         <button class="tab active" data-view="registry">Registro</button>
         <button class="tab" data-view="prefectures">Prefetture</button>
-        <button class="tab" data-view="overview">Panoramica</button>
         <button class="tab" data-view="history">Storico</button>
-        <button class="tab" data-view="coverage">Copertura</button>
-        <button class="tab" data-view="quality">Qualità</button>
-        <button class="tab" data-view="method">Metodo</button>
-        <button class="tab" data-view="audit">Audit</button>
-        <button class="tab" data-view="sources">Fonti</button>
+        <button class="tab" data-view="updates">Aggiornamenti</button>
+        <button class="tab" data-view="method">Metodo e fonti</button>
+        <button class="tab secondary" data-view="quality">Qualità dei dati</button>
       </nav>
 
       <div class="content">
         <noscript><div class="note bad">Questo portale richiede JavaScript per caricare il dataset pubblico.</div></noscript>
         <section class="view active" id="view-registry" aria-live="polite"></section>
         <section class="view" id="view-prefectures"></section>
-        <section class="view" id="view-overview"></section>
         <section class="view" id="view-history"></section>
-        <section class="view" id="view-coverage"></section>
+        <section class="view" id="view-updates"></section>
         <section class="view" id="view-quality"></section>
         <section class="view" id="view-method"></section>
-        <section class="view" id="view-audit"></section>
-        <section class="view" id="view-sources"></section>
       </div>
 
       <footer class="statusbar">
         <div class="statuscell" id="status">Caricamento registro pubblico…</div>
         <div class="statuscell" id="rowstatus"></div>
         <div class="statuscell" id="asof"></div>
-        <div class="statuscell">SOURCE → CORE → PUBLICATION · GEO OPTIONAL</div>
+        <div class="statuscell">Archivio indipendente · consulta sempre la fonte ufficiale</div>
       </footer>
     </main>
   </div>
@@ -54,6 +48,7 @@
     <div class="detail-body" id="detail-body"></div>
   </aside>
 
+  <script src="summary.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

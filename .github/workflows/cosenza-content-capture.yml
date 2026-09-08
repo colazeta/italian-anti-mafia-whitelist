@@ -28,6 +28,10 @@ on:
       - 'db/tests/006_cosenza_semantic_pipeline.sql'
       - 'pyproject.toml'
       - '.github/workflows/cosenza-content-capture.yml'
+  pull_request:
+    paths:
+      - 'src/white_list_archive/publishing/**'
+      - '.github/workflows/cosenza-content-capture.yml'
   workflow_dispatch:
 
 jobs:

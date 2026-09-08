@@ -18,6 +18,7 @@ from white_list_archive.parsers.cosenza_combined_v2 import PARSER_NAME as COSENZ
 from white_list_archive.parsers.cosenza_combined_v2 import PARSER_VERSION as COSENZA_PARSER_VERSION
 from white_list_archive.parsers.cosenza_combined_v2 import parse_pdf as parse_cosenza
 from white_list_archive.parsers.multi_prefecture_tables import PARSERS, ParsedBatch
+from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
 
@@ -153,7 +154,11 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
             )
         batch = _parse_source(local_path, cfg)
         _validate_batch(cfg, batch)
-        all_records.extend(batch.records)
+        all_records.extend(public_record(record) for record in batch.records)
+        # Build diagnostics remain review evidence, outside the Pages artifact.
+        (work_dir / f"{cfg['source_key']}.diagnostics.json").write_text(
+            json.dumps(batch.diagnostics, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         source_reports.append(
             {
                 "source_key": cfg["source_key"],
@@ -163,14 +168,14 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
                 "reference_date": cfg["reference_date"],
                 "sha256": actual_sha,
                 "parser": cfg["parser"],
-                "diagnostics": batch.diagnostics,
+                "document_checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
         )
 
     authority_counts = Counter(record["authority_key"] for record in all_records)
     register_counts = Counter(record["register_key"] for record in all_records)
     status_counts = Counter(record["source_status"] for record in all_records)
-    return {
+    registry = {
         "meta": {
             "contract_version": 3,
             "unit": "source-backed public observation grouped only where the source repeats one entity across sectors",
@@ -191,6 +196,8 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
         },
         "records": all_records,
     }
+    validate_registry(registry)
+    return registry
 
 
 def _display_list(value: Any) -> str:
@@ -299,7 +306,8 @@ def build_prefecture_index(
         series = series_by_authority.get(key, [])
         published = published_sources.get(key, [])
         verified_row = verified.get(key)
-        last_source_update = max((source.get("last_source_update", "") for source in published), default="")
+        # A page's modification date is not the reference date of its attachment.
+        last_source_update = max((source.get("reference_date", "") for source in published), default="")
         if published:
             status = "published"
         elif verified_row:
@@ -317,7 +325,7 @@ def build_prefecture_index(
                 "published_registers": sorted({source["register_name"] for source in published}),
                 "last_project_check": verified_row.get("verification_date", "") if verified_row else "",
                 "last_source_update": last_source_update,
-                "last_source_update_basis": "; ".join(sorted({source.get("last_source_update_basis", "") for source in published if source.get("last_source_update_basis")})),
+                "last_source_update_basis": "reference_date of approved published edition" if published else "",
                 "verified_primary_page": verified_row.get("landing_url", "") if verified_row else "",
             }
         )

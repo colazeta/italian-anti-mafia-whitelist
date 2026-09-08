@@ -13,10 +13,13 @@ on:
       - 'src/white_list_archive/acquisition/national_index.py'
       - 'src/white_list_archive/publishing/public_national_registry.py'
       - 'src/white_list_archive/publishing/public_national_build.py'
+      - 'src/white_list_archive/publishing/public_contract.py'
+      - 'src/white_list_archive/publishing/public_artifact.py'
       - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -25,7 +28,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages
+  group: public-portal-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -68,6 +71,8 @@ jobs:
           test -f public-site/data/prefectures.json
           test -f public-site/data/prefectures.csv
           node --check public-site/app.js
+          node --check public-site/summary.js
+          python -m white_list_archive.publishing.public_artifact public-site
           python - <<'PY'
           import json
           from pathlib import Path
@@ -98,9 +103,11 @@ jobs:
           assert site['publication']['geography_policy']
 
           for source in reg['meta']['sources']:
-              diagnostic = source['diagnostics']
-              assert diagnostic['public_records'] > 0, source['source_key']
-              assert diagnostic.get('dropped_date_rows', 0) == 0, source['source_key']
+              assert source['document_checked_at']
+              assert 'diagnostics' not in source
+              diagnostic = json.loads(Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json').read_text())
+              assert diagnostic['public_records'] > 0
+              assert diagnostic.get('dropped_date_rows', 0) == 0
 
           forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
           reg_text = (root/'data/registry.json').read_text(encoding='utf-8').casefold()
@@ -113,14 +120,46 @@ jobs:
                   raise SystemExit(f'Forbidden artifact in public site: {token}')
           print('Public national registry validated:', reg['meta']['record_count'], 'records; Prefectures:', pref['meta'])
           PY
+      - name: Install browser acceptance test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Test public registry at desktop and mobile widths
+        run: |
+          python -m http.server 8765 --directory public-site > /tmp/public-preview-server.log 2>&1 &
+          node tests/public_portal_browser.cjs
+      - name: Save rendered acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-rendered-evidence
+          path: test-results/
+          retention-days: 14
+      - name: Verify official-source links
+        run: python -m white_list_archive.publishing.public_links public-site /tmp/public-link-audit.json
+      - name: Save link verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-link-audit
+          path: /tmp/public-link-audit.json
+          retention-days: 14
+      - name: Save reviewable public build
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-portal-review
+          path: public-site/
+          retention-days: 14
       - name: Configure Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
         with:
           enablement: true
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: public-site
       - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
         id: deployment
         uses: actions/deploy-pages@v4

@@ -15,7 +15,7 @@ const STATUS={
   cancellation_related:'Cancellazione / cessazione',
   other_or_unknown:'Altro / non classificato'
 };
-const MAP_STATUS={published:'Dati pubblicati',source_mapped:'Fonte mappata',discovered:'Da mappare'};
+const MAP_STATUS={published:'Dati pubblicati',source_mapped:'Fonte individuata',discovered:'Dati non ancora disponibili'};
 const registryState={query:'',status:'listed',authority:'all',register:'all',page:1,size:50};
 const prefectureState={query:'',status:'all',page:1,size:50};
 let SITE=null;
@@ -82,7 +82,7 @@ function sourceDate(r){
 }
 function drawRegistry(){
   if(!REGISTRY){
-    $('#view-registry').innerHTML='<div class="note bad"><b>Registro non disponibile.</b> L’export source-backed non è stato prodotto dal deploy.</div>';
+    $('#view-registry').innerHTML='<div class="note bad"><b>Registro non disponibile.</b> I dati non sono disponibili. Riprova più tardi.</div>';
     return;
   }
   const authorities=uniqueOptions(REGISTRY.records,'authority_key','authority_name');
@@ -111,13 +111,14 @@ function drawRegistry(){
     <td class="nowrap">${esc(r.observed_expiry_date||'—')}</td>
   </tr>`).join('');
   const statusOptions=[
-    ['listed','Iscritte / listed'],['pending','In istruttoria'],
+    ['listed','Iscritte'],['pending','In istruttoria'],
     ['renewal_update_in_progress','Aggiornamento in corso'],['renewal_requested','Rinnovo richiesto'],
     ['expired_observed','Scadenza osservata'],['rejected_or_denied','Diniego / rigetto'],
     ['cancellation_related','Cancellazione / cessazione'],['other_or_unknown','Altro / non classificato']
   ].filter(([key])=>counts[key]).map(([key,label])=>option(key,`${label} (${fmt(counts[key])})`,registryState.status)).join('');
   $('#view-registry').innerHTML=
-    `<div class="public-banner">REGISTRO NAZIONALE PILOTA · ${fmt(REGISTRY.meta.authority_count)} Prefetture · ${fmt(REGISTRY.meta.register_count)} registri · ${fmt(REGISTRY.meta.record_count)} osservazioni pubblicate</div>`+
+    `<div class="public-banner">${fmt(archiveSummary(REGISTRY,PREFECTURES).authorities)} Prefetture con dati pubblicati · ${fmt(REGISTRY.records.length)} presenze negli elenchi · Edizione più recente disponibile: ${esc(archiveSummary(REGISTRY,PREFECTURES).latest)}</div>`+
+    `<p>Questo archivio raccoglie gli elenchi White List pubblicati dalle Prefetture. Cerca un’impresa e apri la sua scheda per consultare l’elenco ufficiale.</p><p><b>Territorio coperto:</b> ${authorities.map(([,name])=>esc(name)).join(' · ')}.</p>`+
     section('RICERCA NEL REGISTRO',`<div class="toolbar">
       <label for="reg-q">Cerca</label><input id="reg-q" type="search" value="${esc(registryState.query)}" placeholder="Ragione sociale, CF/P.IVA, sede, attività…">
       <label for="reg-authority">Prefettura</label><select id="reg-authority">${option('all','Tutte',registryState.authority)}${authorities.map(([k,v])=>option(k,v,registryState.authority)).join('')}</select>
@@ -125,9 +126,9 @@ function drawRegistry(){
       <label for="reg-status">Stato</label><select id="reg-status">${statusOptions}${option('all',`Tutti gli stati (${fmt(base.length)})`,registryState.status)}</select>
       <label for="reg-size">Righe</label><select id="reg-size">${[25,50,100].map(n=>option(String(n),String(n),String(registryState.size))).join('')}</select>
       <a class="btn linkbtn" href="data/registry.csv" download>CSV</a><a class="btn linkbtn" href="data/registry.json" download>JSON</a>
-    </div><div class="note"><b>Vista predefinita:</b> osservazioni che le fonti classificano come iscritte/listed. La stessa Prefettura può gestire più registri: Bologna, per esempio, espone il registro provinciale e quello post-sisma. La pubblicazione non attende la geolocalizzazione.</div>`)+
-    section(`REGISTRO — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap registry-grid"><table class="grid"><thead><tr><th>Ragione sociale</th><th>CF / P.IVA</th><th>Stato</th><th>Prefettura</th><th>Registro</th><th>Attività / settori</th><th>Sede pubblicata</th><th>Data fonte</th><th>Scadenza osservata</th></tr></thead><tbody>${rows||'<tr><td colspan="9">Nessun risultato.</td></tr>'}</tbody></table></div><div class="pager"><button class="btn" id="prev" ${registryState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${registryState.page} / ${pages}</span><button class="btn" id="next" ${registryState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
-  $('#reg-q').addEventListener('input',e=>{registryState.query=e.target.value;registryState.page=1;drawRegistry()});
+    </div><div class="note"><b>Vista predefinita:</b> presenze classificate come iscritte negli elenchi consultati. Usa il filtro Stato per vedere anche le domande e gli altri esiti. La stessa impresa può comparire in più registri: il totale non indica imprese distinte in Italia. Le date di riferimento sono nella scheda; il portale non certifica lo stato attuale dell’impresa.</div>`)+
+    section(`REGISTRO — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap registry-grid"><table class="grid"><thead><tr><th>Ragione sociale</th><th>CF / P.IVA</th><th>Stato</th><th>Prefettura</th><th>Registro</th><th>Attività / settori</th><th>Sede pubblicata</th><th>Data riportata per l’impresa</th><th>Scadenza osservata</th></tr></thead><tbody>${rows||'<tr><td colspan="9">Nessun risultato.</td></tr>'}</tbody></table></div><div class="pager"><button class="btn" id="prev" ${registryState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${registryState.page} / ${pages}</span><button class="btn" id="next" ${registryState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
+  $('#reg-q').addEventListener('input',e=>{registryState.query=e.target.value;registryState.page=1;drawRegistry();$('#reg-q').focus()});
   $('#reg-authority').addEventListener('change',e=>{registryState.authority=e.target.value;registryState.register='all';registryState.page=1;drawRegistry()});
   $('#reg-register').addEventListener('change',e=>{registryState.register=e.target.value;registryState.page=1;drawRegistry()});
   $('#reg-status').addEventListener('change',e=>{registryState.status=e.target.value;registryState.page=1;drawRegistry()});
@@ -147,11 +148,11 @@ function openDetail(locator){
   $('#detail-title').textContent=r.name||'Dettaglio osservazione';
   const id=listText(r.identifiers)||r.identifier_field_raw||'—';
   const acts=listText(r.requested_activities)||r.requested_activities_raw||'—';
-  $('#detail-body').innerHTML=`<div class="note"><b>Record source-backed.</b> Il locator identifica la specifica osservazione pubblicata; non implica da solo una identità canonica nazionale.</div>
-    <div class="kv"><div>Ragione sociale</div><div><b>${esc(r.name)}</b></div><div>Stato</div><div>${badge(r.source_status)}</div><div>Prefettura</div><div>${esc(r.authority_name)}</div><div>Registro</div><div>${esc(r.register_name)}</div><div>Edizione / riferimento</div><div>${esc(r.reference_date)}</div><div>Locator pubblico</div><div class="mono">${esc(r.record_locator)}</div><div>Riga sorgente</div><div class="mono">${esc(r.source_row_ordinal)}</div><div>Sede pubblicata</div><div>${esc(r.registered_office||'—')}</div><div>Sede secondaria</div><div>${esc(r.secondary_office||'—')}</div><div>CF / P.IVA</div><div class="mono">${esc(id)}</div><div>Attività / settori</div><div>${esc(acts)}</div>${dateDetail('Data presentazione istanza',r.application_date)}${dateDetail('Data inserimento osservata',r.observed_listing_date)}${dateDetail('Data provvedimento',r.decision_date)}${dateDetail('Data registrazione',r.registration_date)}${dateDetail('Scadenza osservata',r.observed_expiry_date)}</div>
+  $('#detail-body').innerHTML=`<div class="note">Questa scheda descrive la presenza dell’impresa in uno specifico elenco. La stessa impresa può avere altre presenze in registri o edizioni diversi.</div>
+    <div class="kv"><div>Ragione sociale</div><div><b>${esc(r.name)}</b></div><div>Stato</div><div>${badge(r.source_status)}</div><div>Prefettura</div><div>${esc(r.authority_name)}</div><div>Registro</div><div>${esc(r.register_name)}</div><div>Edizione / riferimento</div><div>${esc(r.reference_date)}</div><div>Riferimento della scheda</div><div class="mono">${esc(r.record_locator)}</div><div>Riga nell’elenco</div><div class="mono">${esc(r.source_row_ordinal)}</div><div>Sede pubblicata</div><div>${esc(r.registered_office||'—')}</div><div>Sede secondaria</div><div>${esc(r.secondary_office||'—')}</div><div>CF / P.IVA</div><div class="mono">${esc(id)}</div><div>Attività / settori</div><div>${esc(acts)}</div>${dateDetail('Data presentazione istanza',r.application_date)}${dateDetail('Data inserimento osservata',r.observed_listing_date)}${dateDetail('Data provvedimento',r.decision_date)}${dateDetail('Data registrazione',r.registration_date)}${dateDetail('Scadenza osservata',r.observed_expiry_date)}</div>
     ${section('ESITO / ANNOTAZIONE COME PUBBLICATA',`<div class="raw">${esc(r.outcome_raw||'—')}</div>`)}
     ${r.source_fields&&Object.keys(r.source_fields).length?section('CAMPI SPECIFICI DELLA FONTE',`<div class="raw">${esc(JSON.stringify(r.source_fields,null,2))}</div>`):''}
-    ${section('PROVENANCE',`<table class="summary"><tr><th>Pagina ufficiale</th><td><a href="${esc(r.source_page_url)}" target="_blank" rel="noopener">Apri pagina</a></td></tr><tr><th>Risorsa ufficiale</th><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Apri documento</a></td></tr><tr><th>Capture SHA-256</th><td class="mono">${esc(r.capture_sha256)}</td></tr><tr><th>Parser</th><td class="mono">${esc(r.parser_name)} ${esc(r.parser_version||'')}</td></tr><tr><th>Audit tecnico</th><td><a href="${esc(SITE.audit.repository_url)}" target="_blank" rel="noopener">Repository</a> · <a href="${esc(SITE.audit.parser_url)}" target="_blank" rel="noopener">Parser</a></td></tr></table>`)}`;
+    ${section('FONTE E RIFERIMENTI',`<table class="summary"><tr><th>Pagina ufficiale</th><td><a href="${esc(r.source_page_url)}" target="_blank" rel="noopener">Consulta la pagina ufficiale</a></td></tr><tr><th>Risorsa ufficiale</th><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr><tr><th>Impronta del documento (SHA-256)</th><td class="mono">${esc(r.capture_sha256)}</td></tr><tr><th>Parser</th><td class="mono">${esc(r.parser_name)} ${esc(r.parser_version||'')}</td></tr><tr><th>Audit tecnico</th><td><a href="${esc(SITE.audit.repository_url)}" target="_blank" rel="noopener">Repository</a> · <a href="${esc(SITE.audit.parser_url)}" target="_blank" rel="noopener">Parser</a></td></tr></table>`)}`;
   $('#detail').classList.add('open');
   $('#detail').setAttribute('aria-hidden','false');
 }
@@ -175,52 +176,46 @@ function drawPrefectures(){
   const pages=Math.max(1,Math.ceil(all.length/prefectureState.size));
   prefectureState.page=Math.min(prefectureState.page,pages);
   const shown=all.slice((prefectureState.page-1)*prefectureState.size,prefectureState.page*prefectureState.size);
-  $('#rowstatus').textContent=`${fmt(all.length)} Prefetture / autorità`;
+  $('#rowstatus').textContent=`${fmt(all.length)} autorità nell’indice`;
   const rows=shown.map(r=>{
     const url=r.verified_primary_page||(r.official_white_list_urls||[])[0]||'';
-    const mapped=r.mapped?'Sì':'No';
-    return `<tr><td><b>${esc(r.jurisdiction_name)}</b></td><td>${mapBadge(r.mapping_status)}</td><td>${mapped}</td><td class="num">${fmt(r.series_count)}</td><td>${esc((r.publication_models||[]).join(' · ')||'—')}</td><td>${esc((r.published_registers||[]).join(' · ')||'—')}</td><td class="nowrap">${esc(r.last_project_check||'—')}</td><td class="nowrap">${esc(r.last_source_update||'—')}</td><td>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">Fonte ufficiale</a>`:'—'}</td></tr>`;
+    return `<tr><td><b>${esc(r.jurisdiction_name)}</b></td><td>${mapBadge(r.mapping_status)}</td><td>${esc((r.published_registers||[]).join(' · ')||'—')}</td><td class="nowrap">${esc(r.last_source_update||'Non disponibile')}</td><td class="nowrap">${esc(r.last_project_check||'Non registrata')}</td><td>${url?`<a href="${esc(url)}" target="_blank" rel="noopener">Consulta la fonte ufficiale</a>`:'—'}</td></tr>`;
   }).join('');
-  const c=PREFECTURES.meta.status_counts||{};
-  $('#view-prefectures').innerHTML=`<div class="public-banner">INDICE NAZIONALE PREFETTURE · ${fmt(PREFECTURES.meta.authority_count)} autorità/jurisdizioni · ${fmt(PREFECTURES.meta.mapped_count)} fonti mappate · ${fmt(PREFECTURES.meta.published_count)} con dati pubblicati</div>`+
-    section('STATO DI MAPPATURA',`<div class="toolbar"><label for="pref-q">Cerca</label><input id="pref-q" type="search" value="${esc(prefectureState.query)}" placeholder="Prefettura / provincia…"><label for="pref-status">Stato</label><select id="pref-status">${option('all',`Tutte (${fmt(PREFECTURES.meta.authority_count)})`,prefectureState.status)}${option('published',`Dati pubblicati (${fmt(c.published)})`,prefectureState.status)}${option('source_mapped',`Fonte mappata (${fmt(c.source_mapped)})`,prefectureState.status)}${option('discovered',`Da mappare (${fmt(c.discovered)})`,prefectureState.status)}</select><a class="btn linkbtn" href="data/prefectures.csv" download>CSV</a><a class="btn linkbtn" href="data/prefectures.json" download>JSON</a></div><div class="note"><b>Ultimo controllo del progetto</b> indica quando abbiamo verificato/mappato la fonte. <b>Ultimo aggiornamento della fonte</b> indica la data dichiarata o dedotta con evidenza dalla pubblicazione ufficiale; se non è ancora stata registrata viene mostrato “—”.</div>`)+
-    section(`PREFETTURE — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap"><table class="grid prefecture-grid"><thead><tr><th>Prefettura / giurisdizione</th><th>Stato</th><th>Mappata</th><th>Serie</th><th>Modello pubblicazione</th><th>Registri pubblicati</th><th>Ultimo controllo progetto</th><th>Ultimo aggiornamento fonte</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div><div class="pager"><button class="btn" id="pref-prev" ${prefectureState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${prefectureState.page} / ${pages}</span><button class="btn" id="pref-next" ${prefectureState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
-  $('#pref-q').addEventListener('input',e=>{prefectureState.query=e.target.value;prefectureState.page=1;drawPrefectures()});
+  const counts=PREFECTURES.prefectures.reduce((a,r)=>(a[r.mapping_status]=(a[r.mapping_status]||0)+1,a),{});
+  $('#view-prefectures').innerHTML=`<div class="public-banner">${fmt(counts.published)} Prefetture con dati pubblicati · ${fmt(PREFECTURES.prefectures.length)} autorità nell’indice del Ministero</div>`+
+    section('CERCA UNA PREFETTURA',`<div class="toolbar"><label for="pref-q">Cerca</label><input id="pref-q" type="search" value="${esc(prefectureState.query)}" placeholder="Prefettura / provincia…"><label for="pref-status">Disponibilità</label><select id="pref-status">${option('all',`Tutte (${fmt(PREFECTURES.prefectures.length)})`,prefectureState.status)}${Object.entries(MAP_STATUS).map(([k,v])=>option(k,`${v} (${fmt(counts[k])})`,prefectureState.status)).join('')}</select><a class="btn linkbtn" href="data/prefectures.csv" download>CSV</a><a class="btn linkbtn" href="data/prefectures.json" download>JSON</a></div><div class="note">Una fonte individuata non significa che i dati siano già consultabili nell’archivio. L’edizione disponibile è datata dalla pubblicazione dell’elenco; la verifica della pagina indica quando il progetto ne ha controllato il percorso ufficiale. Nessuna delle due date certifica lo stato attuale di un’impresa.</div>`)+
+    section(`PREFETTURE — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap"><table class="grid prefecture-grid"><thead><tr><th>Prefettura / territorio</th><th>Disponibilità</th><th>Registri consultabili</th><th>Ultima edizione disponibile</th><th>Pagina verificata il</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div><div class="pager"><button class="btn" id="pref-prev" ${prefectureState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${prefectureState.page} / ${pages}</span><button class="btn" id="pref-next" ${prefectureState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
+  $('#pref-q').addEventListener('input',e=>{prefectureState.query=e.target.value;prefectureState.page=1;drawPrefectures();$('#pref-q').focus()});
   $('#pref-status').addEventListener('change',e=>{prefectureState.status=e.target.value;prefectureState.page=1;drawPrefectures()});
   $('#pref-prev')?.addEventListener('click',()=>{prefectureState.page--;drawPrefectures()});
   $('#pref-next')?.addEventListener('click',()=>{prefectureState.page++;drawPrefectures()});
 }
-
-function renderOverview(D){
-  $('#view-overview').innerHTML=`<div class="public-banner">${esc(D.meta.classification)} · build ${esc(D.meta.portal_build_date)}</div>`+
-  section('ARCHIVIO PUBBLICO',`<p><b>${esc(D.meta.title)}</b> rende interrogabili White List antimafia eterogenee attraverso un contratto pubblico comune, preservando sempre la fonte originale.</p><div class="note">${esc(D.meta.disclaimer)}</div>`)+
-  `<div class="split">${section('REGISTRO PUBBLICATO',metric('Prefetture pubblicate',fmt(REGISTRY?.meta.authority_count))+metric('Registri pubblicati',fmt(REGISTRY?.meta.register_count))+metric('Osservazioni pubbliche',fmt(REGISTRY?.meta.record_count))+metric('Fonti/versioni correnti',fmt(REGISTRY?.meta.source_count)))}${section('COPERTURA NAZIONALE',metric('Autorità nell’indice nazionale',fmt(PREFECTURES?.meta.authority_count))+metric('Fonti mappate',fmt(PREFECTURES?.meta.mapped_count))+metric('Con dati pubblicati',fmt(PREFECTURES?.meta.published_count))+metric('Serie di fonte censite',fmt(D.national.source_series)))}</div>`+
-  section('PRINCIPIO DI PUBBLICAZIONE',`<div class="flow">${esc(D.publication.principle.toUpperCase())}\n\n${esc(D.publication.interpretation)}\n\nGEO: ${esc(D.publication.geography_policy)}</div>`);
+function publishedEditions(){
+  const editions=new Map();
+  REGISTRY.records.forEach(r=>{const key=JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]);if(!editions.has(key))editions.set(key,r)});
+  return [...editions.values()].sort((a,b)=>b.reference_date.localeCompare(a.reference_date)||a.authority_name.localeCompare(b.authority_name,'it'));
+}
+function editionTable(){
+  return `<div class="gridwrap"><table class="grid"><thead><tr><th>Prefettura</th><th>Registro</th><th>Data dell’elenco</th><th>Contenuto</th><th>Fonte</th></tr></thead><tbody>${publishedEditions().map(r=>`<tr><td>${esc(r.authority_name)}</td><td>${esc(r.register_name)}</td><td>${esc(r.reference_date)}</td><td>${esc(({listed:'Imprese iscritte',applicant:'Domande di iscrizione',listed_and_applicant:'Iscrizioni e domande',operational_mixed:'Iscrizioni, domande e altri esiti'})[r.population_scope]||'Elenco')}</td><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr>`).join('')}</tbody></table></div>`;
 }
 function renderHistory(D){
-  const rows=[...D.history].reverse().map((r,i)=>`<tr><td class="mono">${String(D.history.length-i).padStart(2,'0')}</td><td>${esc(r.date)}</td><td><span class="badge ${r.origin==='official_historical'?'warn':'ok'}">${esc(r.origin)}</span></td><td><a href="${esc(r.page_url)}" target="_blank" rel="noopener">Fonte ufficiale</a></td></tr>`).join('');
-  $('#view-history').innerHTML=section('SERIE STORICA — PILOTA COSENZA',`<div class="note">Cosenza è il primo registro con recupero storico profondo. Parma, Pistoia e Bologna entrano inizialmente con la loro edizione corrente approvata; lo storico verrà esteso senza sovrascrivere le edizioni esistenti.</div><div class="gridwrap"><table class="grid"><thead><tr><th>#</th><th>Data di riferimento</th><th>Origine</th><th>Pagina</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  const rows=[...D.history].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr><td>${esc(r.date)}</td><td>Edizione individuata sul sito ufficiale</td><td><a href="${esc(r.page_url)}" target="_blank" rel="noopener">Consulta la pagina ufficiale</a></td></tr>`).join('');
+  $('#view-history').innerHTML=section('EDIZIONI CONSULTABILI NEL REGISTRO',editionTable())+
+    section('ALTRE EDIZIONI INDIVIDUATE — COSENZA',`<p>Le pagine qui indicate documentano la disponibilità di edizioni dal 2024. Questo elenco di collegamenti non garantisce una copia permanentemente conservata né la ricerca delle imprese in tutte le edizioni. La data non indica da quando un’impresa è iscritta.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Data dell’elenco</th><th>Disponibilità</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
-function renderCoverage(D){
-  const missing=D.national.incomplete_scope_names.map(x=>`<tr><td>${esc(x)}</td><td><span class="badge warn">scope ancora incompleto</span></td></tr>`).join('');
-  $('#view-coverage').innerHTML=section('COPERTURA NAZIONALE',`<div class="split"><div>${metric('Autorità indice nazionale',fmt(PREFECTURES?.meta.authority_count))+metric('Fonti primarie mappate',fmt(PREFECTURES?.meta.mapped_count))+metric('Prefetture pubblicate',fmt(PREFECTURES?.meta.published_count))}</div><div>${metric('Serie di fonte censite',fmt(D.national.source_series))+metric('Ambiti di registro censiti',fmt(D.national.register_scopes))+metric('Ambiti completi',fmt(D.national.complete_scopes))}</div></div>`)+section('AMBITI DELLA DUE DILIGENCE ANCORA INCOMPLETI',`<table class="summary"><thead><tr><th>Prefettura</th><th>Stato</th></tr></thead><tbody>${missing}</tbody></table><div class="footer-note">“Fonte mappata” nella pagina Prefetture e “scope completo” nella due diligence del registro sono misure diverse.</div>`);
+function renderUpdates(){
+  const s=archiveSummary(REGISTRY,PREFECTURES);
+  $('#view-updates').innerHTML=section('AGGIORNAMENTI DISPONIBILI',metric('Edizione più recente nel registro',s.latest||'Non disponibile')+metric('Ultima verifica completata dei documenti pubblicati',s.documentsCheckedAt||'Non registrata')+`<p>La verifica confronta i documenti pubblicati con le copie approvate. Non dimostra che siano le ultime edizioni presenti oggi sui siti delle Prefetture. Le date delle edizioni possono essere diverse da Prefettura a Prefettura.</p>`)+section('ELENCHI PUBBLICATI, DAL PIÙ RECENTE',editionTable());
 }
 function renderQuality(D){
-  const q=D.quality;
-  const classes=q.classes.map(r=>`<tr><td class="mono">${esc(r.class)}</td><td class="num">${fmt(r.sample)}</td><td class="num">${fmt(r.correct)}</td><td class="num">${pct(r.precision_pct)}</td><td>${esc(r.public_interpretation)}</td></tr>`).join('');
-  $('#view-quality').innerHTML=section('VALIDAZIONE GEOGRAFICA — COSENZA',`<div class="note"><b>Arricchimento opzionale.</b> Queste metriche descrivono il benchmark geografico di Cosenza e non bloccano la pubblicazione del registro. I <code>not_found</code> incidono su copertura/yield, non sulla precisione dei match restituiti.</div><div class="split"><div>${metric('Indirizzi canonici',fmt(q.address_population))+metric('Candidati ANNCSU',fmt(q.anncsu_candidates))+metric('Not found',fmt(q.not_found))+metric('Candidate coverage',pct(q.candidate_coverage_pct))}</div><div>${metric('Precisione pesata candidati',pct(q.candidate_weighted_precision_pct))+metric('Validated end-to-end yield',pct(q.estimated_validated_yield_pct))+metric('Auto-accepted',fmt(q.auto_accepted))}</div></div>`)+section('PRECISIONE PER CLASSE',`<div class="gridwrap"><table class="grid"><thead><tr><th>Classe</th><th>Campione</th><th>Corretti</th><th>Precisione</th><th>Interpretazione</th></tr></thead><tbody>${classes}</tbody></table></div>`);
+  $('#view-quality').innerHTML=section('CONTROLLI E LIMITI',`<p>I controlli verificano che i documenti corrispondano alle copie approvate, che le righe siano lette senza omissioni note e che i dati pubblici rispettino i campi autorizzati.</p><p>La stessa impresa può essere presente in più elenchi. Il numero delle presenze non misura il numero di imprese distinte. Una scadenza riportata o l’assenza da una successiva edizione non dimostrano da sole la perdita dell’iscrizione.</p><p>Le verifiche sulla posizione geografica degli indirizzi sono separate. I risultati del caso Cosenza non dimostrano la qualità dell’intero archivio.</p>`)+section('DOCUMENTAZIONE TECNICA',`<ul><li><a href="${esc(D.audit.validation_url)}" target="_blank" rel="noopener">Verifiche sugli indirizzi di Cosenza: campioni, risultati e limiti</a></li><li><a href="${esc(D.audit.architecture_url)}" target="_blank" rel="noopener">Modello dei dati e conservazione delle fonti</a></li><li><a href="${esc(D.audit.repository_url)}" target="_blank" rel="noopener">Codice e cronologia delle modifiche</a></li></ul>`);
 }
 function renderMethod(D){
-  const core=D.method.core_flow.map((x,i)=>`${String(i+1).padStart(2,'0')}  ${x}`).join('\n   ↓\n');
-  const geo=D.method.geo_flow.map((x,i)=>`${String(i+1).padStart(2,'0')}  ${x}`).join('\n   ↓\n');
-  $('#view-method').innerHTML=section('PIPELINE CORE — BLOCCA / ABILITA LA PUBBLICAZIONE',`<div class="flow">${esc(core)}</div>`)+section('RAMO GEO — OPZIONALE E INCREMENTALE',`<div class="flow">${esc(geo)}</div><div class="note">${esc(D.method.publication_rule)}</div>`)+section('UNITÀ E MODELLAZIONE',`<table class="summary"><tr><th>Authority</th><td>Prefettura/autorità che gestisce uno o più registri.</td></tr><tr><th>Register</th><td>Registro amministrativo specifico; Bologna dimostra che una Prefettura può averne più di uno.</td></tr><tr><th>Public observation</th><td>Osservazione source-backed dell'edizione corrente; le ripetizioni puramente per settore possono essere aggregate per leggibilità.</td></tr><tr><th>LegalEntity</th><td>Livello canonico nazionale distinto, che non viene affermato quando la sola fonte non basta.</td></tr></table>`);
-}
-function renderAudit(D){
-  $('#view-audit').innerHTML=section('AUDIT PUBBLICO',`<div class="note">Il registro è public-first, ma il percorso tecnico resta ispezionabile. Dai record si può risalire a fonte, SHA, parser e codice.</div><table class="summary"><tr><th>Repository e Git history</th><td><a href="${esc(D.audit.repository_url)}" target="_blank" rel="noopener">Apri repository</a></td></tr><tr><th>Dataset Explorer</th><td><a href="${esc(D.audit.explorer_source_url)}" target="_blank" rel="noopener">Codice Explorer</a></td></tr><tr><th>Parser source-specific</th><td><a href="${esc(D.audit.parser_url)}" target="_blank" rel="noopener">Apri parser</a></td></tr><tr><th>Architettura</th><td><a href="${esc(D.audit.architecture_url)}" target="_blank" rel="noopener">Documentazione</a></td></tr><tr><th>Gold standard geografia</th><td><a href="${esc(D.audit.validation_url)}" target="_blank" rel="noopener">Validazione Cosenza</a></td></tr><tr><th>Issue tracker</th><td><a href="${esc(D.audit.issues_url)}" target="_blank" rel="noopener">Issue aperte</a></td></tr></table>`);
-}
-function renderSources(D){
-  const rows=D.sources.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.role)}</td><td><a href="${esc(s.url)}" target="_blank" rel="noopener">Apri</a></td></tr>`).join('');
-  $('#view-sources').innerHTML=section('FONTI PRIMARIE E DI SUPPORTO',`<div class="gridwrap"><table class="grid"><thead><tr><th>Fonte</th><th>Ruolo</th><th>Link</th></tr></thead><tbody>${rows}</tbody></table></div>`)+section('NOTA',`<div class="note">Il portale non sostituisce le pubblicazioni ufficiali. URL, hash, date e parser servono a rendere verificabile la trasformazione della fonte in registro interrogabile.</div>`);
+  const sources=new Map();
+  REGISTRY.records.forEach(r=>sources.set(r.source_page_url,r.authority_name));
+  $('#view-method').innerHTML=section('COME LEGGERE IL REGISTRO',`<p>${esc(D.meta.disclaimer)}</p><p>Ogni riga descrive la presenza di un’impresa in uno specifico elenco. Aprendo la scheda puoi vedere i dati riportati dalla Prefettura, la data dell’edizione e i collegamenti ufficiali. Alcune fonti ripetono l’impresa per ciascuna attività: queste ripetizioni sono riunite solo quando gli altri dati coincidono secondo le regole di lettura della fonte.</p><p>“Iscritta” e “in istruttoria” sono stati diversi. Gli stati visualizzati descrivono gli elenchi alle rispettive date, non certificano la situazione attuale. Un campo vuoto significa che l’informazione non è disponibile nella scheda.</p>`)+
+    section('COME RACCOGLIAMO I DATI',`<ol><li>Individuiamo la pagina e gli elenchi pubblicati dall’autorità competente.</li><li>Identifichiamo il documento e la sua data di riferimento, conservando i riferimenti alla fonte.</li><li>Leggiamo le tabelle e controlliamo i risultati prima della pubblicazione.</li><li>Pubblichiamo i campi autorizzati. Le correzioni e le edizioni successive conservano la traccia delle fonti precedenti.</li></ol>`)+
+    section('FONTI UFFICIALI DEGLI ELENCHI PUBBLICATI',`<ul><li><a href="${esc(PREFECTURES.meta.national_index_url)}" target="_blank" rel="noopener">Ministero dell’Interno — indice nazionale White List</a></li>${[...sources].map(([url,name])=>`<li><a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)} — pagina degli elenchi</a></li>`).join('')}</ul><p>Per le altre autorità, consulta la sezione Prefetture.</p>`);
 }
 
 async function fetchJson(path){
@@ -233,8 +228,8 @@ async function main(){
     [SITE,REGISTRY,PREFECTURES]=await Promise.all([
       fetchJson('./data/site.json'),fetchJson('./data/registry.json'),fetchJson('./data/prefectures.json')
     ]);
-    drawRegistry();drawPrefectures();renderOverview(SITE);renderHistory(SITE);renderCoverage(SITE);renderQuality(SITE);renderMethod(SITE);renderAudit(SITE);renderSources(SITE);
-    $('#status').textContent=`Pronto · contratto pubblico v${REGISTRY.meta.contract_version}`;
+    drawPrefectures();drawRegistry();renderHistory(SITE);renderUpdates();renderQuality(SITE);renderMethod(SITE);
+    $('#status').textContent='Registro caricato';
     $('#asof').textContent=`${fmt(REGISTRY.meta.authority_count)} Prefetture · ${fmt(REGISTRY.meta.register_count)} registri`;
     $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
     $('#detail-close').addEventListener('click',closeDetail);
