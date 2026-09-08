@@ -3876,5 +3876,14 @@
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
       ]
     }
-  ]
+  ],
+  "operational_prerequisites": {
+    "durable_evidence_storage": {
+      "status": "NOT_PROVISIONED",
+      "issue": 16,
+      "verification_evidence": [],
+      "verified_at": null,
+      "required_action": "Designated private S3-compatible evidence store; verify idempotence, overwrite protection, independent retrieval, retention and recovery on existing Cosenza documents."
+    }
+  }
 }

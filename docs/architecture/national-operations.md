@@ -92,3 +92,54 @@ Changes use focused PRs and green CI. Revert a ledger/code commit to roll back a
 operational decision; do not delete frozen source evidence or canonical history.
 The ledger is reviewable infrastructure. Permanent evidence storage still requires
 the separately documented backend and retention/integrity guarantees in issue #16.
+
+## Operational preflight — lessons from Cosenza and Bari
+
+The CLI now reports a `decision` separately from the territorial priority queue.
+`first_ranked_prefecture` describes ranking only; `next_prefecture` is null when
+a global prerequisite requires work first. Consumers must use `decision.action`,
+not treat the head of `queue` as an unconditional instruction to ingest.
+
+The internal ledger records `operational_prerequisites.durable_evidence_storage`.
+Missing or unverified storage selects `RESOLVE_GLOBAL_PREREQUISITE` and issue #16.
+A configured endpoint alone is insufficient: VERIFIED requires a dated evidence
+record covering actual persistence, independent retrieval, overwrite protection,
+retention and recovery. The code checks that this attestation exists; it does not
+itself verify a remote store or provision one. Per-document durable validation
+and all existing publication gates remain mandatory afterwards.
+
+Once the prerequisite is verified, `CHECK_PREFECTURE` selects from the unchanged
+priority rules. A locally blocked authority is skipped, remains non-terminal and
+keeps its evidence; if all candidates are blocked the result is
+`RESOLVE_SOURCE_ACCESS`. A local access failure must not be confused with a global
+storage blocker. These decisions never authorise company publication themselves.
+
+A successful `record_check` now requires an explicit assessment with all three
+flags true: `official_publication_surface_verified`,
+`listed_and_applicant_accounted_for`, and `all_current_resources_verified`.
+The assessment is appended to the evidence event. This is an auditable assertion
+by the acquisition/review process, not an automatic proof of source completeness.
+An HTTP 200, a search hit or a hash of an already-known PDF cannot meet that rule
+alone. Failed checks retain previous successful recency and content identities.
+Historic events are preserved without retrospectively inventing assessments.
+
+Before retrying a failed source, review the recorded URL, error, environment and
+permitted tools. Investigate authoritative links or an officially linked platform
+when accessible. Do not infer universal unavailability from one environment's
+403, invent source URLs, bypass access controls or contradict tool restrictions.
+Only report a second access check when it actually occurred. A changed access
+route or resolved prerequisite justifies resumption; repeating an identical denied
+request solely to show activity does not.
+
+Cycle reports distinguish investigation, acquisition, parser validation, canonical
+integration and publication. A documentation-only PR is a recorded investigation,
+not expansion. CI proves the tested properties, not the truth of unexamined source
+content. A global prerequisite blocks production completion, while specifically
+requested, bounded source research may still proceed and must be labelled as such.
+This clarifies the earlier cycle pauses; it does not lower any completion gate.
+
+Immediate infrastructure sequence: designate the private store and authenticated
+access; implement the existing evidence contract; validate it against the two
+frozen Cosenza editions; then resume the recomputed territorial queue. Record the
+exact missing access/configuration if provisioning cannot be completed. Do not
+claim that this process improvement itself resolves issue #16.
