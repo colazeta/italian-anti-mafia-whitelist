@@ -28,3 +28,17 @@
   then verify the deployed site and update the final audit.
 - **Next Prefecture:** select from the current ledger and issue tracker only after
   Phase 1 passes; no preselected alphabetical queue.
+
+## 2026-09-08T16:53:34Z — Phase 1 complete; operations infrastructure checkpoint
+
+- **Mode:** EXPANSION_MODE.
+- **Current Prefecture:** none ingested in this cycle; Cosenza is next in the recomputed queue.
+- **Completed:** PR #38 merged as 00a9e82; deployment and live registry/directory inspected. National internal ledger and queue prepared using all 106 existing authority keys.
+- **Evidence:** final PR run 34252484175: all 5,052 rebuilt company dictionaries exactly equal the baseline; 106 directory authorities; all 128 official links HTTP 200. Fourteen rendered views inspected. Post-merge Pages run 34252881996 and Cosenza integration run 34252881934 succeeded.
+- **Tests:** 127 Phase 1 Python tests; all existing and seven new operational tests pass (134 total). Tests cover complete national membership, terminal gates, mode transition, recency rotation, no-change checks, failed checks, pending changed content and priority.
+- **Public impact:** clearer Italian interface live; company registry preserved. The new ledger remains internal and does not enable another Prefecture.
+- **Open problems:** production source evidence is still retention-bound (#16). Unknown monitoring timestamps remain null. No current-edition monitoring success is inferred from document/link checks.
+- **Coverage status:** four validated public pilots, 102 identified source destinations, no defensibly terminal production coverage yet.
+- **Last successful source check:** none newly asserted.
+- **Next action:** validate and merge the focused operations infrastructure PR, then investigate Cosenza's current official source and its remaining completion gates.
+- **Next Prefecture:** Cosenza, based on existing canonical integration and the oldest documented investigation among validated pilots. Issue tracker refreshed after Phase 1 merge.

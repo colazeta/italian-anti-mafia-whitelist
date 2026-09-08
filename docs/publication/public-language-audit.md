@@ -60,12 +60,13 @@ canonical identities, database, parsers and private Explorer are unchanged.
 - GitHub browser tests passed at 1440×900 and 390×900. All fourteen screenshots
   were manually inspected: registry, detail and five other sections at both widths.
   Search, filters, keyboard detail access and public-boundary assertions passed.
-  Live deployment inspection remains a post-merge check.
+  Live deployment was inspected after successful main-branch run 34252881996.
 - The bounded link audit returned HTTP 200 for all 128 territorial/source links.
   The sole HTTP 403 was the non-territorial sito-tipo template, now excluded.
   These results are availability checks, not current-edition monitoring claims.
-- Phase 1 remains open until the required CI, rendered checks and link results have
-  been reviewed. National expansion has not started.
+- Phase 1 completed: PR #38 merged as 00a9e82 after all exact-head checks passed.
+  Final artifacts reconfirmed 106 authorities, 5,052 identical observations and
+  128 HTTP 200 links. Main-branch CI, Cosenza integration and Pages deployment passed.
 
 Operational checkpoints: [working record](working-record.md).
 
