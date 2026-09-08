@@ -16,7 +16,8 @@ const STATUS={
   other_or_unknown:'Altro / non classificato'
 };
 const MAP_STATUS={published:'Dati pubblicati',source_mapped:'Fonte individuata',discovered:'Dati non ancora disponibili'};
-const registryState={query:'',status:'listed',authority:'all',register:'all',page:1,size:50};
+let statisticsAuthority='all';
+const registryState={query:'',status:'listed',authority:'all',register:'all',page:1,size:50,latestOnly:false};
 const prefectureState={query:'',status:'all',page:1,size:50};
 let SITE=null;
 let REGISTRY=null;
@@ -28,6 +29,7 @@ function activate(name){
   $('#rowstatus').textContent='';
   if(name==='registry')drawRegistry();
   if(name==='prefectures')drawPrefectures();
+  if(name==='statistics')renderStatistics();
 }
 function listText(values){
   if(!Array.isArray(values))return '';
@@ -61,7 +63,7 @@ function redrawSearch(selector,draw,input){
 
 function registryBaseRows(){
   if(!REGISTRY)return [];
-  return REGISTRY.records.filter(r=>{
+  return (registryState.latestOnly?latestPublishedRows(REGISTRY.records):REGISTRY.records).filter(r=>{
     if(registryState.authority!=='all'&&r.authority_key!==registryState.authority)return false;
     if(registryState.register!=='all'&&r.register_key!==registryState.register)return false;
     return true;
@@ -131,7 +133,7 @@ function drawRegistry(){
       <label for="reg-authority">Prefettura</label><select id="reg-authority">${option('all','Tutte',registryState.authority)}${authorities.map(([k,v])=>option(k,v,registryState.authority)).join('')}</select>
       <label for="reg-register">Registro</label><select id="reg-register">${option('all','Tutti',registryState.register)}${availableRegisters.map(([k,v])=>option(k,v,registryState.register)).join('')}</select>
       <label for="reg-status">Stato</label><select id="reg-status">${statusOptions}${option('all',`Tutti gli stati (${fmt(base.length)})`,registryState.status)}</select>
-      <label for="reg-size">Righe</label><select id="reg-size">${[25,50,100].map(n=>option(String(n),String(n),String(registryState.size))).join('')}</select>
+      <label for="reg-latest"><input id="reg-latest" type="checkbox" ${registryState.latestOnly?'checked':''}> Solo ultime edizioni disponibili</label><label for="reg-size">Righe</label><select id="reg-size">${[25,50,100].map(n=>option(String(n),String(n),String(registryState.size))).join('')}</select>
       <a class="btn linkbtn" href="data/registry.csv" download>CSV</a><a class="btn linkbtn" href="data/registry.json" download>JSON</a>
     </div><div class="note"><b>Vista predefinita:</b> presenze classificate come iscritte negli elenchi consultati. Usa il filtro Stato per vedere anche le domande e gli altri esiti. La stessa impresa può comparire in più registri: il totale non indica imprese distinte in Italia. Le date di riferimento sono nella scheda; il portale non certifica lo stato attuale dell’impresa.</div>`)+
     section(`REGISTRO — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap registry-grid"><table class="grid"><thead><tr><th>Ragione sociale</th><th>CF / P.IVA</th><th>Stato</th><th>Prefettura</th><th>Registro</th><th>Attività / settori</th><th>Sede pubblicata</th><th>Data riportata per l’impresa</th><th>Scadenza osservata</th></tr></thead><tbody>${rows||'<tr><td colspan="9">Nessun risultato.</td></tr>'}</tbody></table></div><div class="pager"><button class="btn" id="prev" ${registryState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${registryState.page} / ${pages}</span><button class="btn" id="next" ${registryState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
@@ -139,6 +141,7 @@ function drawRegistry(){
   $('#reg-authority').addEventListener('change',e=>{registryState.authority=e.target.value;registryState.register='all';registryState.page=1;drawRegistry()});
   $('#reg-register').addEventListener('change',e=>{registryState.register=e.target.value;registryState.page=1;drawRegistry()});
   $('#reg-status').addEventListener('change',e=>{registryState.status=e.target.value;registryState.page=1;drawRegistry()});
+  $('#reg-latest').addEventListener('change',e=>{registryState.latestOnly=e.target.checked;registryState.page=1;drawRegistry()});
   $('#reg-size').addEventListener('change',e=>{registryState.size=Number(e.target.value);registryState.page=1;drawRegistry()});
   $('#prev')?.addEventListener('click',()=>{registryState.page--;drawRegistry()});
   $('#next')?.addEventListener('click',()=>{registryState.page++;drawRegistry()});
@@ -235,7 +238,7 @@ async function main(){
     [SITE,REGISTRY,PREFECTURES]=await Promise.all([
       fetchJson('./data/site.json'),fetchJson('./data/registry.json'),fetchJson('./data/prefectures.json')
     ]);
-    drawPrefectures();drawRegistry();renderHistory(SITE);renderUpdates();renderQuality(SITE);renderMethod(SITE);
+    drawPrefectures();drawRegistry();renderStatistics();renderHistory(SITE);renderUpdates();renderQuality(SITE);renderMethod(SITE);
     $('#status').textContent='Registro caricato';
     $('#asof').textContent=`${fmt(REGISTRY.meta.authority_count)} Prefetture · ${fmt(REGISTRY.meta.register_count)} registri`;
     $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
@@ -247,3 +250,28 @@ async function main(){
   }
 }
 main();
+
+function renderStatistics(){
+  if(!REGISTRY)return;
+  const view=$('#view-statistics');
+  try {
+    const s=publicStatistics(REGISTRY.records,statisticsAuthority);
+    const authorityOptions=uniqueOptions(s.latest,'authority_key','authority_name');
+    const statuses=[...s.statuses].sort((a,b)=>Object.keys(STATUS).indexOf(a.status)-Object.keys(STATUS).indexOf(b.status));
+    const bar=(count,max,status,authority,label)=>`<button class="stat-bar" data-stat-status="${esc(status)}" data-stat-authority="${esc(authority)}" aria-label="${esc(label)}: ${fmt(count)} presenze. Consulta il registro"><span class="stat-fill ${status==='pending'?'stat-pending':''}" style="width:${max?100*count/max:0}%" aria-hidden="true"></span><span class="stat-number">${fmt(count)}</span></button>`;
+    const maximum=Math.max(0,...s.prefectures.flatMap(p=>[p.listed,p.pending]));
+    const editions=new Map();
+    for(const r of s.latest)editions.set(JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]),r);
+    const scopes={listed:'Imprese iscritte',applicant:'Domande di iscrizione',listed_and_applicant:'Iscrizioni e domande',operational_mixed:'Iscrizioni, domande e altri esiti'};
+    view.innerHTML=`<div class="note">Le statistiche contano le presenze nell’ultima edizione disponibile di ciascun elenco pubblicato nell’archivio. La stessa impresa può comparire più volte. Gli stati descrivono le fonti alle rispettive date: non sono nuove iscrizioni o domande presentate in un periodo, né certificano la situazione attuale.</div>`+
+      section('PRESENZE PER STATO RIPORTATO',`<div class="toolbar"><label for="stats-authority">Prefettura</label><select id="stats-authority">${option('all','Tutte',statisticsAuthority)}${authorityOptions.map(([k,n])=>option(k,n,statisticsAuthority)).join('')}</select></div><p>Percentuali su ${fmt(s.total)} presenze nella selezione. Seleziona una barra per consultare le righe corrispondenti.</p><table class="grid stat-table"><thead><tr><th>Stato riportato</th><th>Presenze</th><th>Percentuale</th></tr></thead><tbody>${statuses.map(x=>`<tr><th scope="row">${esc(STATUS[x.status]||x.status)}</th><td>${bar(x.count,Math.max(0,...statuses.map(x=>x.count)),x.status,statisticsAuthority,STATUS[x.status]||x.status)}</td><td>${pct(x.percentage)}</td></tr>`).join('')||'<tr><td colspan="3">Nessuna presenza disponibile.</td></tr>'}</tbody></table>`)+
+      section('PRESENZE PER PREFETTURA E STATO',`<p>Tutte le Prefetture con dati consultabili. La Prefettura è quella che pubblica l’elenco, non necessariamente quella della sede dell’impresa. Le due serie usano la stessa scala; gli altri stati sono rappresentati nel primo grafico.</p><table class="grid stat-table"><thead><tr><th>Prefettura</th><th>Iscritte</th><th>In istruttoria</th></tr></thead><tbody>${s.prefectures.map(p=>`<tr><th scope="row">${esc(p.name)}</th><td>${bar(p.listed,maximum,'listed',p.key,p.name+' — Iscritte')}</td><td>${bar(p.pending,maximum,'pending',p.key,p.name+' — In istruttoria')}</td></tr>`).join('')}</tbody></table>`)+
+      section('EDIZIONI UTILIZZATE',`<p>Le date possono differire tra elenchi e Prefetture. Questa tabella indica le fonti considerate nei grafici; il filtro del primo grafico seleziona soltanto la Prefettura indicata.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Prefettura</th><th>Registro</th><th>Contenuto</th><th>Data dell’elenco</th><th>Fonte</th></tr></thead><tbody>${[...editions.values()].sort((a,b)=>a.authority_name.localeCompare(b.authority_name,'it')||a.source_key.localeCompare(b.source_key)).map(r=>`<tr><td>${esc(r.authority_name)}</td><td>${esc(r.register_name)}</td><td>${esc(scopes[r.population_scope]||r.population_scope)}</td><td>${esc(displayDate(r.reference_date))}</td><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr>`).join('')}</tbody></table></div>`);
+    $('#stats-authority').addEventListener('change',e=>{statisticsAuthority=e.target.value;renderStatistics()});
+    view.querySelectorAll('[data-stat-status]').forEach(button=>button.addEventListener('click',()=>{
+      Object.assign(registryState,{authority:button.dataset.statAuthority,status:button.dataset.statStatus,register:'all',query:'',page:1,latestOnly:true});
+      activate('registry');
+      $('#reg-q').focus();
+    }));
+  } catch(error) {view.innerHTML=`<div class="note bad">Statistiche non disponibili: ${esc(error.message)}. Il registro resta consultabile.</div>`;}
+}

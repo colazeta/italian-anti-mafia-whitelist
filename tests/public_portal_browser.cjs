@@ -3,7 +3,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const registry=JSON.parse(fs.readFileSync('public-site/data/registry.json'));
-const {displayDate}=require('../public-site/summary.js');
+const {displayDate,publicStatistics}=require('../public-site/summary.js');
 const numeric=text=>Number(text.replace(/\D/g,''));
 
 (async()=>{
@@ -49,7 +49,7 @@ const numeric=text=>Number(text.replace(/\D/g,''));
       await page.screenshot({path:`test-results/detail-${width}.png`});
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#detail').getAttribute('aria-hidden'),'true');
-      for(const [name,id] of [['Prefetture','prefectures'],['Storico','history'],['Aggiornamenti','updates'],['Metodo e fonti','method'],['Qualità dei dati','quality']]){
+      for(const [name,id] of [['Statistiche','statistics'],['Prefetture','prefectures'],['Storico','history'],['Aggiornamenti','updates'],['Metodo e fonti','method'],['Qualità dei dati','quality']]){
         await page.getByRole('button',{name,exact:true}).click();
         await page.locator(`#view-${id}.active`).waitFor();
         const body=await page.locator(`#view-${id}`).innerText();
@@ -57,6 +57,36 @@ const numeric=text=>Number(text.replace(/\D/g,''));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
         await page.screenshot({path:`test-results/${id}-${width}.png`});
       }
+      await page.getByRole('button',{name:'Statistiche',exact:true}).click();
+      const stats=publicStatistics(registry.records);
+      // Frozen approved release: independently reconciled source-status totals.
+      assert.equal(stats.total,5052);
+      assert.deepEqual(Object.fromEntries(stats.statuses.map(x=>[x.status,x.count])),{
+        pending:1416,listed:2229,renewal_update_in_progress:1203,renewal_requested:14,
+        other_or_unknown:5,expired_observed:171,cancellation_related:2,rejected_or_denied:12
+      });
+      const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
+      assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
+      assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
+      await page.locator('#stats-authority').selectOption('cosenza');
+      const cosenza=publicStatistics(registry.records,'cosenza');
+      assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),cosenza.total);
+      const pendingBar=page.locator('#view-statistics .stat-table').first().locator('[data-stat-status="pending"]');
+      const pendingCount=numeric(await pendingBar.innerText());
+      await pendingBar.focus();
+      await pendingBar.press('Enter');
+      assert.equal(await page.locator('#reg-latest').isChecked(),true);
+      assert.equal(await page.locator('#reg-authority').inputValue(),'cosenza');
+      assert.equal(await page.locator('#reg-status').inputValue(),'pending');
+      assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),pendingCount);
+      await page.getByRole('button',{name:'Statistiche',exact:true}).click();
+      const bolognaBar=page.locator('#view-statistics .stat-table').nth(1).locator('[data-stat-authority="bologna"][data-stat-status="pending"]');
+      const bolognaCount=numeric(await bolognaBar.innerText());
+      assert.equal(bolognaCount,stats.latest.filter(r=>r.authority_key==='bologna'&&r.source_status==='pending').length);
+      await bolognaBar.click();
+      assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),bolognaCount);
+      await page.locator('#reg-latest').uncheck();
+      await page.locator('#reg-status').selectOption('listed');
       await page.getByRole('button',{name:'Registro',exact:true}).click();
       await page.locator('#reg-authority').selectOption('bologna');
       await page.locator('#reg-register').selectOption('bologna-post-sisma');
