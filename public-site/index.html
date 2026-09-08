@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Registro pubblico sperimentale delle White List antimafia italiane, con attributi di fonte, storico, provenienza e audit.">
+  <meta name="description" content="Registro pubblico sperimentale delle White List antimafia italiane, con imprese, Prefetture, registri, storico, provenienza e audit.">
   <title>Open Italian Anti-Mafia White List Archive</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -17,6 +17,7 @@
 
       <nav class="menubar" aria-label="Sezioni del portale">
         <button class="tab active" data-view="registry">Registro</button>
+        <button class="tab" data-view="prefectures">Prefetture</button>
         <button class="tab" data-view="overview">Panoramica</button>
         <button class="tab" data-view="history">Storico</button>
         <button class="tab" data-view="coverage">Copertura</button>
@@ -29,6 +30,7 @@
       <div class="content">
         <noscript><div class="note bad">Questo portale richiede JavaScript per caricare il dataset pubblico.</div></noscript>
         <section class="view active" id="view-registry" aria-live="polite"></section>
+        <section class="view" id="view-prefectures"></section>
         <section class="view" id="view-overview"></section>
         <section class="view" id="view-history"></section>
         <section class="view" id="view-coverage"></section>
@@ -42,7 +44,7 @@
         <div class="statuscell" id="status">Caricamento registro pubblico…</div>
         <div class="statuscell" id="rowstatus"></div>
         <div class="statuscell" id="asof"></div>
-        <div class="statuscell">SOURCE → REGISTER → AUDIT</div>
+        <div class="statuscell">SOURCE → CORE → PUBLICATION · GEO OPTIONAL</div>
       </footer>
     </main>
   </div>
