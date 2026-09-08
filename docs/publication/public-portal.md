@@ -2,55 +2,77 @@
 
 ## Purpose
 
-The public portal is a deliberately bounded publication product for the White List archive. It reuses the restrained late-1990s/early-2000s management-system visual language of the private Dataset Explorer while exposing only fields intentionally included in a public export contract.
+The public portal is the primary public-interest interface for the White List archive. It reuses the restrained late-1990s/early-2000s management-system visual language of the Dataset Explorer, but its main purpose is practical consultation: users should be able to search the published White List population and inspect the attributes and provenance behind each source observation.
 
-The public site is **not** a sanitized dump of the private Explorer and must never become one.
+The publication principle is **public-first, audit-transparent**. The register is the main interface; methodology, validation, source provenance and implementation audit remain accessible as a second level of depth.
 
-## Publication boundary
+## Public contract v2
 
-The deploy workflow uploads only `public-site/`.
+The public register now exposes source-backed attributes from the latest approved Cosenza edition:
 
-Nothing outside that directory is part of the Pages artifact. In particular, the public site must not ingest or copy by default:
+- operator / legal name as published;
+- publishing Prefecture;
+- edition reference date;
+- registered office;
+- secondary office when published;
+- CF / VAT / other identifier field as published and parsed;
+- requested White List activities;
+- application date field and parsed dates;
+- source status (`listed`, `pending`, renewal/update classes, etc.);
+- raw source outcome text;
+- observed listing date when parseable from the source wording;
+- observed nominal expiry date when parseable;
+- deterministic public source-row locator;
+- official source page and official resource URL.
 
-- private table bundles;
-- curation/reviewer decisions;
-- internal source-evidence join files;
-- database audit catalogs;
-- raw internal identifiers or UUIDs;
-- private Dataset Explorer artifacts.
+The default register view is `listed`, so ordinary visitors first see the observations the source represents as actually listed. Other procedural states remain available through filters because they are also part of the official publication.
 
-New fields become public only by an explicit change to the public data contract, code review and passing tests.
+## Source observation vs canonical legal entity
 
-## Public contract v1
+The current Cosenza register is source-backed. Its unit is the row/observation in the latest approved source edition, not an asserted nationally deduplicated `LegalEntity` object.
 
-The first release exposes:
+This distinction is intentionally visible. The public register must not silently convert source rows into canonical legal identities before the entity-resolution layer supports that assertion. When the canonical layer is mature, the public UI can add an entity-centric view while retaining the underlying source-observation trail.
 
-- project/publication status;
-- national source-discovery coverage aggregates;
-- Cosenza latest-edition source-row counts;
-- Cosenza historical-edition links;
-- capture identity/provenance for the latest frozen Cosenza edition;
-- reviewed address-normalisation quality aggregates;
-- methodology and source links.
+## Reproducible public build
 
-It does **not** yet expose company-level records.
+The entity register is not transcribed by hand.
+
+At deploy time `.github/workflows/public-pages.yml`:
+
+1. reads the approved source URL and expected capture SHA-256 from `public-site/data/site.json`;
+2. downloads the official PDF;
+3. verifies its SHA-256 before parsing;
+4. runs the versioned Cosenza v2 parser;
+5. requires the parsed row count and status distribution to reconcile with the frozen approved baseline;
+6. generates `public-site/data/registry.json` and `registry.csv`;
+7. runs public-contract and artifact checks;
+8. deploys only after all gates pass.
+
+If the Prefecture silently replaces the bytes at the same URL, publication fails rather than silently exposing unreviewed content.
+
+## Audit transparency
+
+The public interface provides links to:
+
+- the repository and Git history;
+- parser code;
+- architecture documentation;
+- validation and gold-standard documentation;
+- technical Explorer sources;
+- the issue tracker;
+- source-page/resource URLs and the exact capture SHA-256 used for the current register.
+
+Internal database UUIDs and curation-only fields are not needed for ordinary register use and are not copied into the public entity export, but the technical architecture and validation process themselves are public.
 
 ## Interpretation safeguards
 
 - Source-row counts are labelled as observations/rows, not unique-company counts.
-- `not_found` affects coverage/yield and is not presented as a returned false match.
-- Reviewed Cosenza precision estimates are explicitly local evidence, not national performance claims.
+- Official source status is preserved rather than reinterpreted as a new legal decision by this project.
+- `not_found` affects address-linkage coverage/yield and is not presented as a returned false match.
+- Reviewed Cosenza address precision estimates are explicitly local evidence, not national performance claims.
 - Candidate geography is never represented as accepted geography.
-- The portal clearly states that it is independent and that official sources control for administrative/legal effects.
+- The portal clearly states that official Prefecture publications control for administrative/legal effects.
 
-## Hosting
+## Hosting and future updates
 
-The site is static and deployed with GitHub Pages through `.github/workflows/public-pages.yml`.
-
-Deployment grants only `contents: read`, `pages: write`, and `id-token: write`. The workflow validates the public artifact boundary before upload.
-
-GitHub Pages must be configured with **Settings → Pages → Build and deployment → Source: GitHub Actions** for the repository before the first deployment can succeed.
-
-## Future integration
-
-The intended next step is to generate `public-site/data/site.json` from a deterministic publication builder rather than maintain it by hand. That builder should consume only explicit allow-listed, source-backed inputs and should run after successful ingest/validation. A weekly Cosenza watcher can then update the public portal only when a new historical edition is accepted into the archive.
+The site is static and deployed with GitHub Pages. The planned weekly Cosenza watcher will eventually update the approved source identity only when a new edition is detected, captured, parsed and accepted into the archive. Existing historical editions remain immutable and are never overwritten.
