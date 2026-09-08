@@ -13,6 +13,14 @@
       "error": "Official landing page returned HTTP 403 through retrieval and Access Denied in the browser; current edition not established.",
       "content_changed": null,
       "content_sha256": null
+    },
+    {
+      "authority_key": "bari",
+      "at": "2026-09-08T19:46:34Z",
+      "evidence": "docs/sources/bari-operational-check-2026-09-08.md",
+      "error": "Official registered landing page returned HTTP 403; current listed/applicant resources could not be established from this execution environment.",
+      "content_changed": null,
+      "content_sha256": null
     }
   ],
   "prefectures": [
@@ -326,21 +334,25 @@
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
+      "last_attempted_source_check_at": "2026-09-08T19:46:34Z",
       "last_content_change_at": null,
       "last_successful_investigation_on": "2026-09-06",
-      "monitoring_status": "NEVER_CHECKED",
+      "monitoring_status": "CHECK_FAILED",
       "unresolved_issue": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/20"
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/20",
+        16,
+        20
       ],
       "actionable_issue": true,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "BLOCKED",
       "terminal_reason": null,
       "completion_evidence": [],
       "known_content_sha256": [],
       "evidence": [
-        "data/source_registry/verified_primary_pages.csv"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "docs/sources/bari-operational-check-2026-09-08.md"
+      ],
+      "last_completed_coverage_status": "SOURCE_IDENTIFIED"
     },
     {
       "authority_key": "barletta-andria-trani",

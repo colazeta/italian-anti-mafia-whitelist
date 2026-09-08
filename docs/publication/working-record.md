@@ -56,3 +56,17 @@
 - **Last successful source check:** unknown, unchanged; the failed attempt is recorded separately.
 - **Next action:** resolve designated private evidence storage and source access, then resume Cosenza's current-edition investigation and preservation validation.
 - **Next Prefecture:** Cosenza resumes; no switch from this unfinished cycle. No maintenance mode or unattended worker is claimed.
+
+## 2026-09-08T19:46:34Z — Bari source-discovery checkpoint
+
+- **Mode:** EXPANSION_MODE.
+- **Current Prefecture:** Bari, first unpublished queue candidate; explicit user request for another territory.
+- **Completed:** refreshed main, issue tracker and 106-authority ledger; selected Bari; attempted registered official source; recorded failure precisely.
+- **Evidence:** docs/sources/bari-operational-check-2026-09-08.md; official landing-page HTTP 403; issue #20 unresolved populations; issue #16 durable storage still open.
+- **Tests:** complete Python suite and ledger validation executed for this change; CI must pass before merge.
+- **Public impact:** none; four existing Prefectures and 5,052 presences remain published. Statistics PR #41 is merged and deployed.
+- **Open problems:** source cannot be inspected through the available retrieval route; designated durable evidence backend/access remains unavailable.
+- **Coverage status:** BLOCKED; last completed stage SOURCE_IDENTIFIED. No parser/capture/validation promotion.
+- **Last successful source check:** unknown, unchanged; only last attempted check updated.
+- **Next action:** restore authorised official-source access and provision designated durable storage; resume Bari's listed/applicant investigation.
+- **Next Prefecture:** Bari resumes when unblocked; no subsequent unit started in this cycle.
