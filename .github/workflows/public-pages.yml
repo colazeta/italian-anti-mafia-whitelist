@@ -128,7 +128,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: public-rendered-evidence
+          name: public-rendered-evidence-attempt-${{ github.run_attempt }}
           path: test-results/
           retention-days: 14
       - name: Verify official-source links
@@ -138,14 +138,14 @@ jobs:
         if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
-          name: public-link-audit
+          name: public-link-audit-attempt-${{ github.run_attempt }}
           path: /tmp/public-link-audit.json
           retention-days: 14
       - name: Save reviewable public build
         if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
-          name: public-portal-review
+          name: public-portal-review-attempt-${{ github.run_attempt }}
           path: public-site/
           retention-days: 14
       - name: Upload Pages artifact
