@@ -70,3 +70,17 @@
 - **Last successful source check:** unknown, unchanged; only last attempted check updated.
 - **Next action:** restore authorised official-source access and provision designated durable storage; resume Bari's listed/applicant investigation.
 - **Next Prefecture:** Bari resumes when unblocked; no subsequent unit started in this cycle.
+
+## 2026-09-08T20:05:15+00:00 — Operational process correction
+
+- **Mode:** EXPANSION_MODE.
+- **Current Prefecture:** none; common infrastructure prerequisite first.
+- **Completed:** separated actionable preflight from territorial ranking; explicit storage prerequisite; successful-check completeness attestation; clarified local-blocker fallback and reporting.
+- **Evidence:** Cosenza/Bari failed-check records, open issue #16, existing immutable-source architecture. No new source access claimed.
+- **Tests:** complete Python suite plus new regressions for missing/unverified storage, local-blocker skipping and rejection of incomplete source checks; CI required before merge.
+- **Public impact:** none; company registry, historical captures and public export unchanged.
+- **Open problems:** designated durable store/access is still not provisioned; Bari/Cosenza source-access failures remain unresolved.
+- **Coverage status:** unchanged, national coverage incomplete.
+- **Last successful source check:** unchanged for every Prefecture.
+- **Next action:** provision and validate the designated private evidence store using frozen Cosenza documents; the executable decision now reports this explicitly.
+- **Next Prefecture:** none until the global prerequisite is resolved; territorial ranking remains available separately.

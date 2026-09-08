@@ -94,8 +94,36 @@ def priority_queue(ledger: dict) -> list[dict]:
         timestamp(r["last_successful_source_check_at"]), r["authority_key"]))
 
 
+def work_decision(ledger: dict) -> dict:
+    """Operational preflight, separate from territorial priority and coverage."""
+    prerequisites = ledger.get("operational_prerequisites", {})
+    storage = prerequisites.get("durable_evidence_storage", {})
+    ready = (storage.get("status") == "VERIFIED" and
+             bool(storage.get("verification_evidence")) and
+             bool(storage.get("verified_at")))
+    if ready:
+        timestamp(storage["verified_at"])
+    if not ready:
+        return {"mode": ledger["mode"], "action": "RESOLVE_GLOBAL_PREREQUISITE",
+                "current_prefecture": None, "publication_allowed": False,
+                "blocker": "DURABLE_EVIDENCE_STORAGE",
+                "issue": storage.get("issue", 16),
+                "next_action": "Provision designated private storage and verify writes, retrieval integrity and retention on existing Cosenza evidence."}
+    queue = priority_queue(ledger)
+    if not queue:
+        return {"mode": ledger["mode"], "action": "RESOLVE_SOURCE_ACCESS",
+                "current_prefecture": None, "publication_allowed": False,
+                "blocked_prefectures": [r["authority_key"] for r in ledger["prefectures"]
+                                        if r["coverage_status"] == "BLOCKED"]}
+    return {"mode": ledger["mode"], "action": "CHECK_PREFECTURE",
+            "current_prefecture": queue[0]["authority_key"],
+            "publication_allowed": False,
+            "next_action": "Investigate source; publication requires all separate per-Prefecture gates."}
+
+
 def record_check(ledger: dict, authority_key: str, *, at: str, evidence: str,
-                 content_sha256: list[str] | None = None, error: str | None = None) -> dict:
+                 content_sha256: list[str] | None = None, error: str | None = None,
+                 assessment: dict | None = None) -> dict:
     """Call only after a complete landing-page/resource investigation, never just HTTP 200.
 
     Missing or failed resources are a failed check. Successful no-change checks
@@ -105,6 +133,10 @@ def record_check(ledger: dict, authority_key: str, *, at: str, evidence: str,
         raise ValueError("Check needs evidence and either complete content identities or an error")
     if error is not None and content_sha256 is not None:
         raise ValueError("Partial/failed checks must not replace known content identities")
+    if error is None and not all((assessment or {}).get(key) is True for key in (
+            "official_publication_surface_verified", "listed_and_applicant_accounted_for",
+            "all_current_resources_verified")):
+        raise ValueError("Successful check requires explicit complete source assessment; HTTP availability is insufficient")
     hashes = sorted(set(content_sha256 or []))
     if any(not re.fullmatch(r"[0-9a-f]{64}", h) for h in hashes):
         raise ValueError("Invalid content identity")
@@ -132,7 +164,8 @@ def record_check(ledger: dict, authority_key: str, *, at: str, evidence: str,
             row["known_content_sha256"] = hashes
     result["checks"].append({"authority_key": authority_key, "at": at,
         "evidence": evidence, "error": error, "content_changed": changed,
-        "content_sha256": hashes if error is None else None})
+        "content_sha256": hashes if error is None else None,
+        "assessment": deepcopy(assessment)})
     return result
 
 
@@ -147,7 +180,9 @@ def main() -> None:
         keys = {row["authority_key"] for row in csv.DictReader(handle)}
     validate(ledger, keys)
     queue = priority_queue(ledger)
-    print(json.dumps({"mode": ledger["mode"], "next_prefecture": queue[0]["authority_key"] if queue else None,
+    print(json.dumps({"decision": work_decision(ledger), "mode": ledger["mode"],
+        "next_prefecture": work_decision(ledger)["current_prefecture"],
+        "first_ranked_prefecture": queue[0]["authority_key"] if queue else None,
         "queue": [r["authority_key"] for r in queue]}, indent=2))
 
 
