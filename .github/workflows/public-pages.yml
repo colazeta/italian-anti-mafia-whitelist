@@ -9,8 +9,10 @@ on:
       - 'data/publication/multi_prefecture_pilot.json'
       - 'data/source_registry/verified_primary_pages.csv'
       - 'data/source_registry/source_series_inventory.csv'
+      - 'data/source_registry/national_index_authority_aliases.csv'
       - 'src/white_list_archive/acquisition/national_index.py'
       - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'src/white_list_archive/publishing/public_national_build.py'
       - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'pyproject.toml'
@@ -47,10 +49,11 @@ jobs:
           python -m pip install -e '.[publication]'
       - name: Build approved multi-Prefecture registry
         run: |
-          white-list-public-national-registry \
+          white-list-public-national-build \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
             --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
             --work-dir /tmp/public-national-sources \
             --registry-json public-site/data/registry.json \
             --registry-csv public-site/data/registry.csv \
@@ -76,6 +79,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
+          assert reg['meta']['record_count'] == 5052
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -84,9 +88,11 @@ jobs:
           assert reg['meta']['authority_count'] == 4
           assert reg['meta']['register_count'] == 5
           assert reg['meta']['record_count'] == len(reg['records'])
-          assert pref['meta']['authority_count'] >= 90
+          assert pref['meta']['authority_count'] == 107
           assert pref['meta']['published_count'] == 4
-          assert pref['meta']['mapped_count'] >= 34
+          assert pref['meta']['mapped_count'] == 34
+          bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
+          assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['series_count'] > 0
           assert all(r.get('record_locator') for r in reg['records'])
           assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
           assert site['publication']['geography_policy']
