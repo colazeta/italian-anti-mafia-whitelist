@@ -5,15 +5,39 @@
     "generated_from": "validated project state",
     "data_as_of": "2026-08-03",
     "portal_build_date": "2026-09-08",
-    "public_contract_version": 1,
+    "public_contract_version": 2,
     "disclaimer": "Portale indipendente di ricerca e archiviazione. Non è un sito ufficiale del Ministero dell'Interno o delle Prefetture. Per gli effetti amministrativi fanno fede esclusivamente le fonti ufficiali."
+  },
+  "publication": {
+    "principle": "public-first, audit-transparent",
+    "registry_default_status": "listed",
+    "registry_fields": [
+      "name",
+      "authority_name",
+      "reference_date",
+      "registered_office",
+      "secondary_office",
+      "identifiers",
+      "requested_activities",
+      "application_dates",
+      "source_status",
+      "outcome_raw",
+      "observed_listing_date",
+      "observed_expiry_date",
+      "source_row_ordinal",
+      "source_page_url",
+      "resource_url"
+    ],
+    "interpretation": "Il registro pubblico espone gli attributi osservati nelle fonti ufficiali e la relativa provenance. Gli identificativi tecnici interni, le note di review e gli oggetti di curation non sono necessari per usare il registro; l'audit metodologico e il codice restano comunque pubblicamente consultabili nel repository."
   },
   "national": {
     "verified_authorities": 34,
     "source_series": 59,
     "register_scopes": 35,
     "complete_scopes": 30,
-    "incomplete_scopes": 5
+    "incomplete_scopes": 5,
+    "incomplete_scope_names": ["Bari", "Crotone", "Milano", "Sassari", "Udine"],
+    "published_entity_registers": ["Cosenza"]
   },
   "cosenza": {
     "latest_reference_date": "2026-08-03",
@@ -67,9 +91,17 @@
       "Guarded canonicalisation",
       "Official-first ANNCSU linkage",
       "Manual validation / gold standard",
-      "Explicit public export"
+      "Public registry + audit trail"
     ],
-    "publication_rule": "Only fields deliberately included in the public export contract can appear on this site. Internal audit tables, curation state and database-only fields are not published automatically."
+    "publication_rule": "Il registro pubblico pubblica gli attributi source-supported di interesse pubblico insieme alla provenance. I livelli di audit, metodologia, codice e validazione rimangono accessibili come secondo livello di approfondimento."
+  },
+  "audit": {
+    "repository_url": "https://github.com/colazeta/italian-anti-mafia-whitelist",
+    "explorer_source_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/explorer",
+    "parser_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/blob/main/src/white_list_archive/parsers/cosenza_combined_v2.py",
+    "validation_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/blob/main/docs/validation/cosenza-address-review-results.md",
+    "architecture_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/docs/architecture",
+    "issues_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/issues"
   },
   "sources": [
     {"name":"Prefettura di Cosenza — White List","role":"Primary source for the observed White List editions","url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list"},
