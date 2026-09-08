@@ -31,6 +31,7 @@
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-white-list-iscritte-5-settembre-2026-1.pdf",
       "sha256": "f433f212755b91762b0ca75f5e2677c36e0a3b316c507a834e642b51b4260bec",
       "expected_sector_rows": 1893,
+      "expected_source_rows": 1036,
       "last_source_update": "2026-09-07",
       "last_source_update_basis": "official page 'Ultimo aggiornamento'",
       "notes": "The official applicant PDF observed on 2026-09-08 has a different byte SHA but the same extracted-text SHA as this resource. The pilot therefore ingests one operational table and derives source status from the row outcome rather than duplicating the population."
@@ -48,6 +49,7 @@
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/58/2026-08/elenco_aziende-iscritte_white_list_21.08.pdf",
       "sha256": "f26819f1ebe6b3217a2055d793b5cfdc60380c8ed4d17fe8097fdab356de8c86",
       "expected_sector_rows": 514,
+      "expected_source_rows": 272,
       "last_source_update": "2026-08-24",
       "last_source_update_basis": "official page 'Ultimo aggiornamento'"
     },
@@ -63,6 +65,7 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pistoia/evidenza/white-list",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/58/2026-08/elenco_aziende_richiedenti_iscrizione_white_list_21.08.pdf",
       "sha256": "4045086a335fd80e4f493c9a0e6aca73fa58ca491e5c04a42f007879661bd965",
+      "expected_source_rows": 45,
       "last_source_update": "2026-08-24",
       "last_source_update_basis": "official page 'Ultimo aggiornamento'"
     },
@@ -78,6 +81,7 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-provinciali-elenco-imprese-iscritte",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscprov-2026-08-14.pdf",
       "sha256": "50dd5d2a02089c58a09a646e889fdc030b978ddc9a257238a86426fc2691f87c",
+      "expected_source_rows": 1260,
       "last_source_update": "2026-08-14",
       "last_source_update_basis": "dated official resource"
     },
@@ -93,6 +97,7 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-provinciali-elenco-imprese-iscritte",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/ricprov-2026-08-14.pdf",
       "sha256": "bfa91cd9b4d3f802b71ae569c3dc9d9169924b3793bfb79c87f2b7b6a946046c",
+      "expected_source_rows": 312,
       "last_source_update": "2026-08-14",
       "last_source_update_basis": "dated official resource"
     },
@@ -108,6 +113,7 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-post-sisma-elenco-imprese-iscritte",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscpost-2026-08-14.pdf",
       "sha256": "2a615ccb14807b295762fe63ed39f7cc3c9c00353fe8af044324e561f85fb40e",
+      "expected_source_rows": 626,
       "last_source_update": "2026-08-14",
       "last_source_update_basis": "official page/resource date"
     },
@@ -123,6 +129,7 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-post-sisma-elenco-imprese-iscritte",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/ricpost-2026-08-14.pdf",
       "sha256": "a4f13eed748040e4aa524b969ec27752065373544064bd5687c8389567509409",
+      "expected_source_rows": 167,
       "last_source_update": "2026-08-14",
       "last_source_update_basis": "official page/resource date"
     }
