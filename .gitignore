@@ -12,3 +12,10 @@ build/
 dist/
 /data/raw/
 /data/staging/
+
+node_modules/
+test-results/
+/public-site/data/registry.json
+/public-site/data/registry.csv
+/public-site/data/prefectures.json
+/public-site/data/prefectures.csv

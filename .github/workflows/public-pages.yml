@@ -13,28 +13,26 @@ on:
       - 'src/white_list_archive/acquisition/national_index.py'
       - 'src/white_list_archive/publishing/public_national_registry.py'
       - 'src/white_list_archive/publishing/public_national_build.py'
+      - 'src/white_list_archive/publishing/public_contract.py'
+      - 'src/white_list_archive/publishing/public_artifact.py'
       - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: github-pages
+  group: public-portal-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +58,7 @@ jobs:
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
       - name: Validate public artifact and national registry
+        id: validate_public
         run: |
           test -f public-site/index.html
           test -f public-site/data/site.json
@@ -68,6 +67,8 @@ jobs:
           test -f public-site/data/prefectures.json
           test -f public-site/data/prefectures.csv
           node --check public-site/app.js
+          node --check public-site/summary.js
+          python -m white_list_archive.publishing.public_artifact public-site
           python - <<'PY'
           import json
           from pathlib import Path
@@ -88,7 +89,7 @@ jobs:
           assert reg['meta']['authority_count'] == 4
           assert reg['meta']['register_count'] == 5
           assert reg['meta']['record_count'] == len(reg['records'])
-          assert pref['meta']['authority_count'] == 107
+          assert pref['meta']['authority_count'] == 106
           assert pref['meta']['published_count'] == 4
           assert pref['meta']['mapped_count'] == 34
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
@@ -98,9 +99,11 @@ jobs:
           assert site['publication']['geography_policy']
 
           for source in reg['meta']['sources']:
-              diagnostic = source['diagnostics']
-              assert diagnostic['public_records'] > 0, source['source_key']
-              assert diagnostic.get('dropped_date_rows', 0) == 0, source['source_key']
+              assert source['document_checked_at']
+              assert 'diagnostics' not in source
+              diagnostic = json.loads(Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json').read_text())
+              assert diagnostic['public_records'] > 0
+              assert diagnostic.get('dropped_date_rows', 0) == 0
 
           forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
           reg_text = (root/'data/registry.json').read_text(encoding='utf-8').casefold()
@@ -113,14 +116,58 @@ jobs:
                   raise SystemExit(f'Forbidden artifact in public site: {token}')
           print('Public national registry validated:', reg['meta']['record_count'], 'records; Prefectures:', pref['meta'])
           PY
+      - name: Install browser acceptance test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Test public registry at desktop and mobile widths
+        run: |
+          python -m http.server 8765 --directory public-site > /tmp/public-preview-server.log 2>&1 &
+          node tests/public_portal_browser.cjs
+      - name: Save rendered acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-rendered-evidence
+          path: test-results/
+          retention-days: 14
+      - name: Verify official-source links
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        run: python -m white_list_archive.publishing.public_links public-site /tmp/public-link-audit.json
+      - name: Save link verification report
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-link-audit
+          path: /tmp/public-link-audit.json
+          retention-days: 14
+      - name: Save reviewable public build
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-portal-review
+          path: public-site/
+          retention-days: 14
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public-site
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: public-site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

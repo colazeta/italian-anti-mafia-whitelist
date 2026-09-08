@@ -1,3 +1,9 @@
+> Public-language revision: see [the before/after audit](public-language-audit.md).
+> The registry contract and approved company attributes below are preserved.
+> Navigation now uses Registro / Prefetture / Storico / Aggiornamenti / Metodo e fonti,
+> with Qualità dei dati secondary. Page-update dates are distinct from edition dates;
+> source-discovery history does not assert permanent archival custody.
+
 # Public retro portal
 
 ## Purpose

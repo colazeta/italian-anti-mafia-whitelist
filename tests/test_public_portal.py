@@ -9,6 +9,10 @@ def _data():
     return json.loads((PUBLIC / "data" / "site.json").read_text(encoding="utf-8"))
 
 
+def _baseline():
+    return json.loads((ROOT / "docs/publication/public-portal-baseline-2026-09-08.json").read_text())
+
+
 def test_public_portal_has_explicit_public_contract_v3():
     data = _data()
     assert data["meta"]["classification"] == "PUBLIC EXPERIMENTAL VIEW"
@@ -18,12 +22,12 @@ def test_public_portal_has_explicit_public_contract_v3():
 
 
 def test_cosenza_source_statuses_still_reconcile_as_frozen_baseline():
-    data = _data()
+    data = _baseline()
     assert sum(data["cosenza"]["status_counts"].values()) == data["cosenza"]["source_rows"] == 1334
 
 
 def test_address_quality_totals_reconcile_but_geography_is_optional():
-    data = _data()
+    data = _baseline()
     q = data["quality"]
     assert q["anncsu_candidates"] + q["not_found"] == q["address_population"]
     assert q["auto_accepted"] == 0
@@ -85,10 +89,17 @@ def test_public_frontend_has_prefecture_directory_and_multi_registry_filters():
 
 
 def test_first_multi_prefecture_pilot_is_declared_in_public_config():
-    data = _data()
+    data = _baseline()
     assert data["national"]["published_entity_registers"] == [
         "Cosenza",
         "Parma",
         "Pistoia",
         "Bologna",
     ]
+
+
+def test_public_static_payload_excludes_internal_metrics():
+    assert set(_data()) == {"meta", "publication", "history", "audit"}
+    js = (PUBLIC / "app.js").read_text()
+    for token in ("D.quality", "D.national", "canonical population", "candidate precision", "schema_fingerprint", "renderCoverage", "renderOverview"):
+        assert token not in js

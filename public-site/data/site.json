@@ -1,17 +1,14 @@
 {
   "meta": {
-    "title": "Open Italian Anti-Mafia White List Archive",
+    "title": "Archivio delle White List antimafia",
     "classification": "PUBLIC EXPERIMENTAL VIEW",
-    "generated_from": "validated project state",
-    "data_as_of": "2026-09-05",
-    "portal_build_date": "2026-09-08",
     "public_contract_version": 3,
     "disclaimer": "Portale indipendente di ricerca e archiviazione. Non è un sito ufficiale del Ministero dell'Interno o delle Prefetture. Per gli effetti amministrativi fanno fede esclusivamente le fonti ufficiali."
   },
   "publication": {
     "principle": "public-first, audit-transparent",
     "registry_default_status": "listed",
-    "geography_policy": "La pubblicazione del dato core non attende la geolocalizzazione. La normalizzazione geografica resta un arricchimento opzionale, incrementale e sempre distinto dall'indirizzo pubblicato dalla fonte.",
+    "geography_policy": "La pubblicazione non attende la geolocalizzazione, un arricchimento opzionale e separato dall’indirizzo della fonte.",
     "registry_fields": [
       "name",
       "authority_name",
@@ -33,76 +30,65 @@
       "source_page_url",
       "resource_url"
     ],
-    "interpretation": "Il registro pubblico espone attributi source-supported di interesse pubblico e relativa provenance. Quando una fonte ripete la stessa impresa per settore, il front-end può aggregare quelle righe per leggibilità senza affermare una deduplicazione canonica nazionale. Audit, codice e metodologia restano pubblicamente consultabili."
-  },
-  "national": {
-    "verified_authorities": 34,
-    "source_series": 59,
-    "register_scopes": 35,
-    "complete_scopes": 30,
-    "incomplete_scopes": 5,
-    "incomplete_scope_names": ["Bari", "Crotone", "Milano", "Sassari", "Udine"],
-    "published_entity_registers": ["Cosenza", "Parma", "Pistoia", "Bologna"]
-  },
-  "cosenza": {
-    "latest_reference_date": "2026-08-03",
-    "source_rows": 1334,
-    "status_counts": {
-      "listed": 461,
-      "pending": 657,
-      "renewal_update_in_progress": 201,
-      "renewal_requested": 14,
-      "other_or_unknown": 1
-    },
-    "latest_source_page": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
-    "latest_resource_url": "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
-    "capture_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
-    "page_count": 69,
-    "schema_fingerprint": "fbb124c5a43d26bef93316844b3021096060f7ed9d2cc0f8f6081f6df935dc97"
+    "interpretation": "Ogni presenza descrive un’impresa in un determinato elenco. La stessa impresa può comparire in più registri o edizioni: il totale non è un conteggio di imprese distinte in Italia."
   },
   "history": [
-    {"date":"2024-06-24","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-24-giugno-2024","origin":"official_current"},
-    {"date":"2024-09-09","page_url":"https://www1.prefettura.it/cosenza/contenuti/156698.htm","origin":"official_historical"},
-    {"date":"2025-07-01","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-01-luglio-2025","origin":"official_current"},
-    {"date":"2025-09-01","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-01-settembre-2025","origin":"official_current"},
-    {"date":"2026-01-19","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-19-gennaio-2026","origin":"official_current"},
-    {"date":"2026-02-16","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-16-febbraio-2026","origin":"official_current"},
-    {"date":"2026-03-16","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-16-marzo-2026","origin":"official_current"},
-    {"date":"2026-04-20","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-20-aprile-2026","origin":"official_current"},
-    {"date":"2026-05-25","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-25-maggio-2026","origin":"official_current"},
-    {"date":"2026-06-28","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026","origin":"official_current"},
-    {"date":"2026-08-03","page_url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026","origin":"official_current"}
+    {
+      "date": "2024-06-24",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-24-giugno-2024",
+      "origin": "official_current"
+    },
+    {
+      "date": "2024-09-09",
+      "page_url": "https://www1.prefettura.it/cosenza/contenuti/156698.htm",
+      "origin": "official_historical"
+    },
+    {
+      "date": "2025-07-01",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-01-luglio-2025",
+      "origin": "official_current"
+    },
+    {
+      "date": "2025-09-01",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-01-settembre-2025",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-01-19",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-19-gennaio-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-02-16",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-16-febbraio-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-03-16",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-16-marzo-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-04-20",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-20-aprile-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-05-25",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-25-maggio-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-06-28",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026",
+      "origin": "official_current"
+    },
+    {
+      "date": "2026-08-03",
+      "page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
+      "origin": "official_current"
+    }
   ],
-  "quality": {
-    "address_population": 1298,
-    "anncsu_candidates": 624,
-    "not_found": 674,
-    "candidate_coverage_pct": 48.07,
-    "candidate_weighted_precision_pct": 82.49,
-    "estimated_validated_yield_pct": 39.65,
-    "auto_accepted": 0,
-    "classes": [
-      {"class":"civic_access","sample":36,"correct":36,"precision_pct":100.00,"public_interpretation":"Exact civic/access linkage in the reviewed Cosenza sample"},
-      {"class":"street","sample":28,"correct":16,"precision_pct":57.14,"public_interpretation":"Street-level candidate; never presented as civic precision"},
-      {"class":"matched_without_coordinates","sample":14,"correct":12,"precision_pct":85.71,"public_interpretation":"Normalisation candidate without a coordinate pair"}
-    ]
-  },
-  "method": {
-    "core_flow": [
-      "Official source page",
-      "Immutable content capture + SHA-256",
-      "Versioned source-specific parser",
-      "Source-supported public/core record",
-      "Public registry + audit trail"
-    ],
-    "geo_flow": [
-      "New/changed address only",
-      "High-confidence territorial derivation",
-      "Optional ANNCSU/geocoder candidate",
-      "Validation when justified"
-    ],
-    "publication_rule": "La pubblicazione attende il controllo della fonte e del parser, ma non la geolocalizzazione. L'indirizzo pubblicato dalla Prefettura resta evidenza primaria; qualsiasi geografia derivata è un arricchimento separato."
-  },
   "audit": {
     "repository_url": "https://github.com/colazeta/italian-anti-mafia-whitelist",
     "explorer_source_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/explorer",
@@ -110,14 +96,5 @@
     "validation_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/blob/main/docs/validation/cosenza-address-review-results.md",
     "architecture_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/tree/main/docs/architecture",
     "issues_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/issues"
-  },
-  "sources": [
-    {"name":"Ministero dell'Interno — indice White List nazionale","role":"Discovery source for the national Prefecture inventory","url":"https://prefettura.interno.gov.it/it/white-list-nazionale"},
-    {"name":"Prefettura di Cosenza — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list"},
-    {"name":"Prefettura di Parma — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/parma/evidenza/white-list"},
-    {"name":"Prefettura di Pistoia — White List","role":"Published pilot source","url":"https://prefettura.interno.gov.it/it/prefetture/pistoia/evidenza/white-list"},
-    {"name":"Prefettura di Bologna — White List","role":"Published pilot source, including ordinary and post-earthquake registers","url":"https://prefettura.interno.gov.it/it/prefetture/bologna/evidenza/white-list"},
-    {"name":"ANNCSU — Istat e Agenzia delle Entrate","role":"Optional official address enrichment; not a publication prerequisite","url":"https://www.anncsu.gov.it/"},
-    {"name":"Istat","role":"Territorial crosswalk used by optional geographic enrichment","url":"https://www.istat.it/"}
-  ]
+  }
 }
