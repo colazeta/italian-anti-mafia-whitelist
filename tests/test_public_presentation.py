@@ -38,3 +38,31 @@ assert.equal(JSON.stringify(rows),before);
 assert.throws(()=>registerOptions([...rows,{...rows[0],authority_name:'Altra Prefettura'}]));
 """
     subprocess.run(['node', '-e', script], cwd=ROOT, check=True)
+
+
+def test_statistics_count_latest_source_presences_with_explicit_denominators():
+    script = r"""
+const assert=require('node:assert/strict');
+const {publicStatistics,latestPublishedRows}=require('./public-site/summary.js');
+const row=(source,date,status,extra={})=>({authority_key:'a',authority_name:'A',register_key:'ordinary',source_key:source,reference_date:date,capture_sha256:source+date,source_status:status,name:'Same company',...extra});
+const rows=[row('listed','2025-01-01','listed'),row('listed','2026-01-01','listed'),row('listed','2026-01-01','expired_observed'),row('applicants','2025-12-01','pending'),row('listed','2026-01-01','listed',{authority_key:'b',authority_name:'B'})];
+const before=JSON.stringify(rows),s=publicStatistics(rows);
+assert.equal(s.total,4); // Same name does not mean one presence.
+assert.deepEqual(Object.fromEntries(s.statuses.map(x=>[x.status,[x.count,x.percentage]])),{listed:[2,50],expired_observed:[1,25],pending:[1,25]});
+assert.deepEqual(s.prefectures,[{key:'a',name:'A',listed:1,pending:1},{key:'b',name:'B',listed:1,pending:0}]);
+const filtered=publicStatistics(rows,'a');
+assert.equal(filtered.total,3);
+assert.ok(filtered.statuses.every(x=>x.count===1&&Math.abs(x.percentage-100/3)<1e-9));
+assert.deepEqual(filtered.prefectures,s.prefectures); // First filter does not alter national comparison.
+assert.equal(publicStatistics(rows,'missing').total,0);
+assert.deepEqual(publicStatistics([]).statuses,[]);
+assert.deepEqual(latestPublishedRows(rows.slice().reverse()).reverse(),s.latest);
+assert.equal(JSON.stringify(rows),before);
+assert.throws(()=>latestPublishedRows([row('x','2026-02-30','listed')]));
+assert.throws(()=>latestPublishedRows([row('x','01/02/2026','listed')]));
+assert.throws(()=>latestPublishedRows([row('x','2026-01-01','listed'),row('x','2026-01-01','listed',{capture_sha256:'different'})]));
+const superseded=[row('x','2025-01-01','listed'),row('x','2025-01-01','listed',{capture_sha256:'different'}),row('x','2026-01-01','pending')];
+assert.deepEqual(latestPublishedRows(superseded),[superseded[2]]);
+assert.deepEqual(latestPublishedRows(superseded.slice().reverse()),[superseded[2]]);
+"""
+    subprocess.run(['node', '-e', script], cwd=ROOT, check=True)
