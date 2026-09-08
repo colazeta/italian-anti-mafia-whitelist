@@ -21,6 +21,10 @@ from white_list_archive.parsers.multi_prefecture_tables import PARSERS, ParsedBa
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
+# The Ministry discovery index also lists its website template. This is not a
+# territorial authority. Exclude only the evidenced key from the public directory;
+# never delete or filter the underlying national-index discovery evidence.
+NON_TERRITORIAL_INDEX_KEYS = frozenset({"sito-tipo"})
 
 
 def _clean(value: Any) -> str:
@@ -289,6 +293,8 @@ def build_prefecture_index(
     grouped: dict[str, dict[str, Any]] = {}
     for entry in entries:
         key = _authority_key_from_url(entry.white_list_url, entry.jurisdiction_name)
+        if key in NON_TERRITORIAL_INDEX_KEYS:
+            continue
         item = grouped.setdefault(
             key,
             {

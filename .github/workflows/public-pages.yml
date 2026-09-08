@@ -89,7 +89,7 @@ jobs:
           assert reg['meta']['authority_count'] == 4
           assert reg['meta']['register_count'] == 5
           assert reg['meta']['record_count'] == len(reg['records'])
-          assert pref['meta']['authority_count'] == 107
+          assert pref['meta']['authority_count'] == 106
           assert pref['meta']['published_count'] == 4
           assert pref['meta']['mapped_count'] == 34
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
