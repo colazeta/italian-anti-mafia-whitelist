@@ -56,7 +56,7 @@ def test_no_change_rotates_stalest_first_without_altering_editions(ledger):
     assert updated["latest_source_reference_date"] == "2026-09-01"
     assert updated["last_content_change_at"] is None
     assert after["checks"][-1]["content_changed"] is False
-    assert done["checks"] == []
+    assert done["checks"] == ledger["checks"]
 
 
 def test_failed_check_keeps_last_success_and_known_bytes(ledger):
@@ -77,10 +77,13 @@ def test_new_content_does_not_publish_or_overwrite_the_previous_check(ledger):
     assert row["monitoring_status"] == "SOURCE_CHANGED"
     assert row["last_content_change_at"] == "2026-09-09T12:00:00Z"
     assert row["latest_source_reference_date"] == "2026-08-03"
-    assert len(again["checks"]) == 2
+    assert len(again["checks"]) == len(ledger["checks"]) + 2
 
 
 def test_expansion_prioritises_existing_validated_work_then_actionable_issues(ledger):
+    for row in ledger["prefectures"]:
+        if row["public_export_enabled"]:
+            row["coverage_status"] = "VALIDATED"
     assert priority_queue(ledger)[0]["authority_key"] == "cosenza"
     for row in ledger["prefectures"]:
         if row["public_export_enabled"]:

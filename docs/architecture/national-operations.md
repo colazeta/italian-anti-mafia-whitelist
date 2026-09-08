@@ -23,7 +23,9 @@ The four existing public pilots retain `public_export_enabled=true` and progress
 `VALIDATED`. This reflects their approved source-observation parsers, not completed
 production ingestion. Only Cosenza has the existing canonical integration benchmark.
 Its two frozen capture manifests explicitly identify ephemeral artifact storage.
-None is promoted to terminal `PUBLISHED`: durable evidence verification remains
+The first operational check subsequently marks Cosenza `BLOCKED`, retaining its
+last completed `VALIDATED` stage, after source access is denied. See the dated
+Cosenza check record. None is promoted to terminal `PUBLISHED`: durable evidence verification remains
 false, consistently with issue #16. No published company data is withdrawn.
 
 ## States and queue

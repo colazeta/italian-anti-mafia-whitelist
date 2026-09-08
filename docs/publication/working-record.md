@@ -42,3 +42,17 @@
 - **Last successful source check:** none newly asserted.
 - **Next action:** validate and merge the focused operations infrastructure PR, then investigate Cosenza's current official source and its remaining completion gates.
 - **Next Prefecture:** Cosenza, based on existing canonical integration and the oldest documented investigation among validated pilots. Issue tracker refreshed after Phase 1 merge.
+
+## 2026-09-08T16:57:43Z — Cosenza cycle checkpoint
+
+- **Mode:** EXPANSION_MODE.
+- **Current Prefecture:** Cosenza.
+- **Completed:** refreshed issues and initial queue; attempted current official landing-page investigation through retrieval and browser; recorded failed check without changing successful recency.
+- **Evidence:** docs/sources/cosenza-operational-check-2026-09-08.md; HTTP 403 and browser Access Denied; existing main-branch source/canonical run 34252881934 passed.
+- **Tests:** full 134-test Python suite and CI required for the updated operational record; source equality/desktop/mobile/public-boundary checks already passed in Phase 1.
+- **Public impact:** no new Prefecture or company observation published; existing registry remains available.
+- **Open problems:** current landing page denied in this environment; permanent source-evidence backend/access not provisioned (#16).
+- **Coverage status:** BLOCKED; last completed stage VALIDATED.
+- **Last successful source check:** unknown, unchanged; the failed attempt is recorded separately.
+- **Next action:** resolve designated private evidence storage and source access, then resume Cosenza's current-edition investigation and preservation validation.
+- **Next Prefecture:** Cosenza resumes; no switch from this unfinished cycle. No maintenance mode or unattended worker is claimed.

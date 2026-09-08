@@ -5,7 +5,16 @@
   "seed_commit": "00a9e82a26d07ae08bc86a8008467870630fc7f9",
   "seed_directory_run": 34252484175,
   "mode_transitions": [],
-  "checks": [],
+  "checks": [
+    {
+      "authority_key": "cosenza",
+      "at": "2026-09-08T16:57:43Z",
+      "evidence": "docs/sources/cosenza-operational-check-2026-09-08.md",
+      "error": "Official landing page returned HTTP 403 through retrieval and Access Denied in the browser; current edition not established.",
+      "content_changed": null,
+      "content_sha256": null
+    }
+  ],
   "prefectures": [
     {
       "authority_key": "agrigento",
@@ -974,23 +983,25 @@
       "latest_archived_edition": "2026-08-03",
       "archived_evidence_storage_status": "workflow_artifact_ephemeral",
       "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
+      "last_attempted_source_check_at": "2026-09-08T16:57:43Z",
       "last_content_change_at": null,
       "last_successful_investigation_on": "2026-09-06",
-      "monitoring_status": "NEVER_CHECKED",
+      "monitoring_status": "CHECK_FAILED",
       "unresolved_issue": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16"
       ],
       "actionable_issue": false,
-      "coverage_status": "VALIDATED",
+      "coverage_status": "BLOCKED",
       "terminal_reason": null,
       "completion_evidence": [],
       "known_content_sha256": [
         "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202"
       ],
       "evidence": [
-        "data/publication/multi_prefecture_pilot.json"
-      ]
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/cosenza-operational-check-2026-09-08.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "cremona",
