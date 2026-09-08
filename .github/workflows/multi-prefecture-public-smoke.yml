@@ -6,8 +6,10 @@ on:
       - feature/multi-prefecture-pilot
     paths:
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/source_registry/national_index_authority_aliases.csv'
       - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
       - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'src/white_list_archive/publishing/public_national_build.py'
       - '.github/workflows/multi-prefecture-public-smoke.yml'
   workflow_dispatch:
 
@@ -30,10 +32,11 @@ jobs:
           python -m pip install -e '.[publication]'
       - name: Build multi-Prefecture registry and Prefecture index
         run: |
-          white-list-public-national-registry \
+          white-list-public-national-build \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
             --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
             --work-dir artifacts/public-national/sources \
             --registry-json artifacts/public-national/registry.json \
             --registry-csv artifacts/public-national/registry.csv \
@@ -47,10 +50,14 @@ jobs:
           r=json.loads(Path('artifacts/public-national/registry.json').read_text())
           p=json.loads(Path('artifacts/public-national/prefectures.json').read_text())
           assert r['meta']['contract_version']==3
+          assert r['meta']['record_count']==5052
           assert set(r['meta']['authority_counts'])=={'cosenza','parma','pistoia','bologna'}
           assert set(r['meta']['register_counts'])=={'cosenza-ordinary','parma-ordinary','pistoia-ordinary','bologna-provincial','bologna-post-sisma'}
-          assert p['meta']['authority_count'] >= 90
-          assert p['meta']['published_count'] == 4
+          assert p['meta']['authority_count']==107
+          assert p['meta']['mapped_count']==34
+          assert p['meta']['published_count']==4
+          bolzano=[x for x in p['prefectures'] if x['jurisdiction_name']=='Bolzano']
+          assert len(bolzano)==1 and bolzano[0]['mapped'] and bolzano[0]['series_count']>0
           for source in r['meta']['sources']:
               d=source['diagnostics']
               assert d['public_records'] > 0, source['source_key']
