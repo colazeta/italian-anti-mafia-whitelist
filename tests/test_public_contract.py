@@ -58,3 +58,14 @@ def test_registry_aggregate_and_source_identity_reconcile():
     bad["meta"]["sources"][0]["sha256"] = "different"
     with pytest.raises(ValueError):
         validate_registry(bad)
+
+
+def test_unexpected_file_cannot_enter_the_public_artifact(tmp_path):
+    from white_list_archive.publishing.public_artifact import PUBLIC_FILES, validate_artifact
+    for name in PUBLIC_FILES:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("")
+    (tmp_path / "data/internal-diagnostics.json").write_text('{"private": true}')
+    with pytest.raises(ValueError, match="allow-list"):
+        validate_artifact(tmp_path)

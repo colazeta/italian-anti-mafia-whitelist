@@ -201,7 +201,7 @@ function editionTable(){
 function renderHistory(D){
   const rows=[...D.history].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr><td>${esc(r.date)}</td><td>Edizione individuata sul sito ufficiale</td><td><a href="${esc(r.page_url)}" target="_blank" rel="noopener">Consulta la pagina ufficiale</a></td></tr>`).join('');
   $('#view-history').innerHTML=section('EDIZIONI CONSULTABILI NEL REGISTRO',editionTable())+
-    section('ALTRE EDIZIONI INDIVIDUATE — COSENZA',`<p>Le pagine qui indicate documentano la disponibilità di edizioni dal 2024. Questo elenco di collegamenti non garantisce una copia permanentemente conservata né la ricerca delle imprese in tutte le edizioni. La data non indica da quando un’impresa è iscritta.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Data dell’elenco</th><th>Disponibilità</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+    section('PAGINE STORICHE INDIVIDUATE — COSENZA',`<p>Le pagine qui indicate documentano la disponibilità di edizioni dal 2024. Questo elenco di collegamenti non garantisce una copia permanentemente conservata né la ricerca delle imprese in tutte le edizioni. La data non indica da quando un’impresa è iscritta.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Data dell’elenco</th><th>Disponibilità</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div>`);
 }
 function renderUpdates(){
   const s=archiveSummary(REGISTRY,PREFECTURES);

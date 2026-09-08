@@ -3,7 +3,7 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const registry=JSON.parse(fs.readFileSync('public-site/data/registry.json'));
-const format=n=>new Intl.NumberFormat('it-IT').format(n);
+const numeric=text=>Number(text.replace(/\D/g,''));
 
 (async()=>{
   fs.mkdirSync('test-results',{recursive:true});
@@ -15,8 +15,8 @@ const format=n=>new Intl.NumberFormat('it-IT').format(n);
       await page.goto('http://127.0.0.1:8765/');
       await page.locator('#status').filter({hasText:'Registro caricato'}).waitFor();
       assert.equal(await page.locator('#reg-status').inputValue(),'listed');
-      assert.match(await page.locator('#view-registry .section-title').last().innerText(),new RegExp(format(registry.records.filter(r=>r.source_status==='listed').length)));
-      assert.ok((await page.locator('.public-banner').first().innerText()).includes(`${format(registry.records.length)} presenze`));
+      assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
+      assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
       await page.screenshot({path:`test-results/registry-${width}.png`});
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
       assert.equal(overflow,false,`Unexpected outer horizontal overflow at ${width}px`);
@@ -25,7 +25,7 @@ const format=n=>new Intl.NumberFormat('it-IT').format(n);
       await page.locator('#reg-authority').selectOption('cosenza');
       await page.locator('#reg-status').selectOption('pending');
       const pending=registry.records.filter(r=>r.authority_key==='cosenza'&&r.source_status==='pending');
-      assert.ok((await page.locator('#view-registry .section-title').last().innerText()).includes(format(pending.length)));
+      assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),pending.length);
       await page.locator('#reg-q').pressSequentially('zzzz_no_company');
       assert.equal(await page.locator('#reg-q').inputValue(),'zzzz_no_company');
       assert.equal(await page.locator('#view-registry tbody').innerText(),'Nessun risultato.');

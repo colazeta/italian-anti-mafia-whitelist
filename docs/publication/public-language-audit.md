@@ -51,7 +51,7 @@ canonical identities, database, parsers and private Explorer are unchanged.
 ## Validation record (in progress)
 
 - Baseline: all 117 existing Python tests passed locally.
-- Revised suite: all 125 Python tests passed locally before CI.
+- Revised suite: all 127 Python tests passed locally before CI.
 - All 5,052 previously published company observations survive the closed contract
   with exact dictionary equality; no source-record or canonical-identity edits.
 - JavaScript syntax checks and full artifact allow-list validation pass locally.
