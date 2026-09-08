@@ -119,3 +119,7 @@ A parser result is not fully audit-ready merely because its rows are reproducibl
 `validated source identity + preserved original bytes + parser version/configuration + physical locator + parsed raw value + downstream provenance`.
 
 If durable source bytes are temporarily unavailable, the archive must say so explicitly rather than implying that a URL alone is equivalent evidence.
+
+## Implementation
+
+The S3-compatible adapter, verified database promotion and private verification workflow are documented in [evidence-store operations](evidence-store-operations.md). Implementation tests do not establish that a production store has been provisioned.

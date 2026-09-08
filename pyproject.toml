@@ -11,6 +11,7 @@ authors = [{name = "Project contributors"}]
 dependencies = []
 
 [project.scripts]
+white-list-evidence-store = "white_list_archive.storage.evidence:main"
 white-list-national-index = "white_list_archive.acquisition.national_index:main"
 white-list-source-population-coverage = "white_list_archive.acquisition.source_population_coverage:main"
 white-list-anncsu-acquire = "white_list_archive.acquisition.anncsu:main"
@@ -41,6 +42,7 @@ white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_b
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pdfplumber>=0.11,<0.12"]
+storage = ["boto3>=1.40,<2"]
 database = ["psycopg[binary]>=3.2"]
 publication = ["pdfplumber>=0.11,<0.12"]
 

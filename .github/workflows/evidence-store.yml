@@ -1,0 +1,81 @@
+name: Private evidence store verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-evidence-store
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: evidence-archive
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install private evidence runtime
+        run: python -m pip install -e '.[storage,database]'
+      - name: Require designated store, policy and credentials
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.storage.evidence import StoreConfig
+          StoreConfig.from_env()
+          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
+          if any(not os.environ.get(k) for k in required):
+              raise SystemExit('Private evidence store credentials are not configured')
+          PY
+      - name: Verify both frozen Cosenza documents, repeated uploads and recovery
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          from urllib.request import urlopen
+          from white_list_archive.storage.evidence import StoreConfig, EvidenceStore, client_for
+          config = StoreConfig.from_env()
+          store = EvidenceStore(client_for(config), config)
+          root = Path('/tmp/private-evidence-check'); root.mkdir()
+          for manifest_path in sorted(Path('data/captures/cosenza').glob('combined_*.json')):
+              manifest = json.loads(manifest_path.read_text())
+              with urlopen(manifest['resource_url'], timeout=60) as response:
+                  data = response.read(manifest['byte_size'] + 1)
+              if len(data) != manifest['byte_size'] or hashlib.sha256(data).hexdigest() != manifest['sha256']:
+                  raise SystemExit('Official document no longer matches frozen edition; do not overwrite or relabel')
+              path = root / (manifest['sha256'] + '.pdf'); path.write_bytes(data)
+              receipts = [store.archive(path, manifest), store.archive(path, manifest)]
+              if receipts[1]['created']:
+                  raise SystemExit('Provider did not enforce conditional creation; storage not validated')
+              assert store.read_verified(manifest) == data
+              if os.environ.get('EVIDENCE_DATABASE_URL'):
+                  import psycopg
+                  with psycopg.connect(os.environ['EVIDENCE_DATABASE_URL']) as conn:
+                      store.promote(conn, manifest)
+                  receipts[-1]['database_promoted'] = True
+              with (root / (manifest['sha256'] + '.receipt.json')).open('x') as handle:
+                  json.dump(receipts, handle, indent=2)
+          PY
+      - name: Save private verification receipts (not a permanent source archive)
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-evidence-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/private-evidence-check/*.receipt.json
+          if-no-files-found: error
+          retention-days: 90
