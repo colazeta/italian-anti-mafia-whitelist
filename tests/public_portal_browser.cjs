@@ -55,7 +55,7 @@ const numeric=text=>Number(text.replace(/\D/g,''));
         const body=await page.locator(`#view-${id}`).innerText();
         for(const forbidden of ['canonical population','candidate precision','schema_fingerprint','scope ancora incompleto','review_notes','table_catalog'])assert.ok(!body.includes(forbidden));
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-        await page.screenshot({path:`test-results/${id}-${width}.png`});
+        await page.screenshot({path:`test-results/${id}-${width}.png`,fullPage:id==='statistics'});
       }
       await page.getByRole('button',{name:'Statistiche',exact:true}).click();
       const stats=publicStatistics(registry.records);
