@@ -33,7 +33,7 @@ jobs:
           white-list-public-national-registry \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
             --work-dir artifacts/public-national/sources \
             --registry-json artifacts/public-national/registry.json \
             --registry-csv artifacts/public-national/registry.csv \
