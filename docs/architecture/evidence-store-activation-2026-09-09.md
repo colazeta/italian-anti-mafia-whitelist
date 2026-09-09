@@ -55,7 +55,7 @@ The live gate verified both frozen Cosenza source documents:
 
 For each document the workflow verified the official source bytes against the frozen manifest, exercised the content-addressed R2 archive path, repeated the upload operation under Bucket Lock, retrieved the stored object, and recomputed byte size and SHA-256. The June object already existed because the first run had uploaded it before failing on the repeat-write probe; the second run independently verified that locked object. The August object was created during the successful run and its repeated write was safely handled through the locked-existing-object verification path.
 
-The workflow saved the private receipt artifact:
+The successful run produced the legacy Actions artifact:
 
 `private-evidence-receipts-34327668707-1`
 
@@ -63,7 +63,9 @@ with artifact digest:
 
 `sha256:8317c89bb193c814b06650ea20634da99dcc0ef06c1c8c80f2f57f168c8ddae3`
 
-The receipts record successful full-object verification and `database_promoted=false`, because no `EVIDENCE_DATABASE_URL` was configured for this gate.
+That historical artifact contains verification receipts only, not source PDFs or credentials, but the repository is public and the artifact must not be described as a private control surface. Its full runtime receipts include storage/provider coordinates that are unnecessary for public verification. The workflow contract has therefore been tightened: future runs upload only redacted verification records containing content identity, idempotence/full-object-integrity assertions, database-promotion status, verification time, the frozen manifest digest and a digest binding to the reviewed policy record. Provider endpoint, bucket/storage URI, policy locator, source URL and capture metadata are excluded from future uploaded artifacts. The full runtime receipt remains inside the trusted job only.
+
+The successful 2026-09-09 live result itself remains valid: the receipts record successful full-object verification and `database_promoted=false`, because no `EVIDENCE_DATABASE_URL` was configured for this gate. Redaction changes only the future workflow publication boundary; it does not alter the R2 evidence or reclassify the live provider test.
 
 ## GitHub environment contract
 

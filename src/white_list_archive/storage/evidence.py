@@ -47,6 +47,49 @@ def object_key(manifest):
     return f"sha256/{digest[:2]}/{digest}"
 
 
+def public_store_verification_receipt(receipts: list[dict]) -> dict:
+    """Redact archive receipts before they cross a public Actions-artifact boundary.
+
+    The full archive receipt is useful inside a trusted runtime because it contains the
+    storage URI, provider endpoint and policy locator. None of those coordinates are
+    required to prove that a content-addressed object was created/re-used and fully
+    verified. This helper therefore emits only the minimum verification record safe for
+    an artifact attached to a public repository.
+    """
+    if len(receipts) != 2:
+        raise ValueError("Store verification requires exactly two archive receipts")
+    first, second = receipts
+    required = (
+        "schema_version", "sha256", "byte_size", "content_type", "created",
+        "verified_at", "policy_evidence", "manifest_sha256", "database_promoted",
+    )
+    for index, receipt in enumerate(receipts, start=1):
+        missing = [name for name in required if name not in receipt]
+        if missing:
+            raise ValueError(f"Archive receipt {index} is incomplete: " + ", ".join(missing))
+    identity_fields = ("schema_version", "sha256", "byte_size", "content_type", "policy_evidence", "manifest_sha256")
+    if any(first[field] != second[field] for field in identity_fields):
+        raise ValueError("Repeated archive receipts do not describe the same frozen object")
+    if second["created"]:
+        raise ValueError("Repeated archive write was not idempotent")
+    policy = first["policy_evidence"]
+    if not isinstance(policy, str) or not policy.strip():
+        raise ValueError("Archive receipt lacks reviewed policy evidence")
+    return {
+        "schema_version": first["schema_version"],
+        "sha256": first["sha256"],
+        "byte_size": first["byte_size"],
+        "content_type": first["content_type"],
+        "object_created_on_first_probe": bool(first["created"]),
+        "repeat_write_verified_existing_object": True,
+        "full_object_integrity_verified": True,
+        "policy_record_sha256": hashlib.sha256(policy.encode("utf-8")).hexdigest(),
+        "manifest_sha256": first["manifest_sha256"],
+        "database_promoted": bool(second["database_promoted"]),
+        "verified_at": second["verified_at"],
+    }
+
+
 class EvidenceStore:
     def __init__(self, client, config: StoreConfig):
         self.client, self.config = client, config

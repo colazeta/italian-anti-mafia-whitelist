@@ -1,12 +1,18 @@
 from copy import deepcopy
 import hashlib
 import io
+import json
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
-from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, object_key
+from white_list_archive.storage.evidence import (
+    EvidenceStore,
+    StoreConfig,
+    object_key,
+    public_store_verification_receipt,
+)
 
 CONFIG = StoreConfig('private-evidence', 'https://storage.example.invalid', 'eu-west-1', 'reviewed-policy-fixture')
 DATA = b'%PDF-synthetic-evidence-test'
@@ -60,6 +66,51 @@ def test_idempotent_upload_retrieval_and_unchanged_manifest(source):
     assert first['storage_uri'].startswith(CONFIG.endpoint + '/' + CONFIG.bucket + '/sha256/')
     assert first['database_promoted'] is False
     assert manifest == MANIFEST
+
+
+def test_public_store_verification_receipt_redacts_public_artifact_metadata(source):
+    client = MemoryS3(); store = EvidenceStore(client, CONFIG)
+    receipts = [store.archive(source, MANIFEST), store.archive(source, MANIFEST)]
+    public = public_store_verification_receipt(receipts)
+    assert public == {
+        'schema_version': 1,
+        'sha256': MANIFEST['sha256'],
+        'byte_size': MANIFEST['byte_size'],
+        'content_type': MANIFEST['content_type'],
+        'object_created_on_first_probe': True,
+        'repeat_write_verified_existing_object': True,
+        'full_object_integrity_verified': True,
+        'policy_record_sha256': hashlib.sha256(b'reviewed-policy-fixture').hexdigest(),
+        'manifest_sha256': receipts[0]['manifest_sha256'],
+        'database_promoted': False,
+        'verified_at': receipts[1]['verified_at'],
+    }
+    encoded = json.dumps(public, sort_keys=True)
+    for forbidden in (
+        CONFIG.endpoint,
+        CONFIG.bucket,
+        CONFIG.policy_evidence,
+        MANIFEST['resource_url'],
+        'storage_uri',
+        'endpoint',
+        'policy_evidence',
+        'resource_url',
+        'captured_at',
+        'reference_date',
+    ):
+        assert forbidden not in encoded
+
+
+def test_public_store_verification_receipt_requires_idempotent_same_object(source):
+    client = MemoryS3(); store = EvidenceStore(client, CONFIG)
+    first, second = store.archive(source, MANIFEST), store.archive(source, MANIFEST)
+    wrong_identity = dict(second, sha256='0' * 64)
+    with pytest.raises(ValueError, match='same frozen object'):
+        public_store_verification_receipt([first, wrong_identity])
+    with pytest.raises(ValueError, match='exactly two'):
+        public_store_verification_receipt([first])
+    with pytest.raises(ValueError, match='not idempotent'):
+        public_store_verification_receipt([first, dict(second, created=True)])
 
 
 def test_r2_bucket_lock_existing_object_signal_requires_full_verification(source):
