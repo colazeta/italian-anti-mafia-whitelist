@@ -19,6 +19,10 @@ class Conflict(Exception):
     response = {'Error': {'Code': 'PreconditionFailed'}}
 
 
+class LockedConflict(Exception):
+    response = {'Error': {'Code': 'ObjectLockedByBucketPolicy'}}
+
+
 class MemoryS3:
     """Protocol double; never evidence of production storage readiness."""
     def __init__(self):
@@ -56,6 +60,19 @@ def test_idempotent_upload_retrieval_and_unchanged_manifest(source):
     assert first['storage_uri'].startswith(CONFIG.endpoint + '/' + CONFIG.bucket + '/sha256/')
     assert first['database_promoted'] is False
     assert manifest == MANIFEST
+
+
+def test_r2_bucket_lock_existing_object_signal_requires_full_verification(source):
+    client = MemoryS3(); store = EvidenceStore(client, CONFIG)
+    first = store.archive(source, MANIFEST)
+    assert first['created'] and client.writes == 1
+    client.put_object = Mock(side_effect=LockedConflict())
+    second = store.archive(source, MANIFEST)
+    assert not second['created']
+    key = object_key(MANIFEST)
+    client.objects[key] = b'wrong'
+    with pytest.raises(ValueError, match='Stored evidence'):
+        store.archive(source, MANIFEST)
 
 
 def test_changed_bytes_get_new_identity_without_replacing_history(source):
