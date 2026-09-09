@@ -4,8 +4,10 @@
 
 `storage/evidence.py` implements the existing source-evidence architecture using
 S3-compatible conditional writes. It does not create an account/bucket or claim
-that a provider is configured. Current national readiness remains NOT_PROVISIONED.
-No original capture manifest or canonical company identity changes.
+that a provider is configured. An R2 backend has now been provisioned; live provider
+verification and independent backup/restore evidence remain pending, so national
+durable-storage readiness is **not yet VERIFIED**. No original capture manifest or
+canonical company identity changes.
 
 Keys are `sha256/<first-two-hex>/<full-sha256>` without filename extensions, so
 byte identity does not vary with a renamed file or MIME label. This is the
@@ -34,6 +36,11 @@ operational configuration. Record a reviewed policy covering:
 - no expiration of evidence objects; appropriate retention/versioning or lock;
 - independent backup, recovery responsibility and a documented restore test;
 - permitted internal retention and separate public redistribution decisions.
+
+The current operator-confirmed R2 configuration and its still-open gates are recorded
+in [`evidence-store-activation-2026-09-09.md`](evidence-store-activation-2026-09-09.md).
+That record is a configuration/policy locator, not proof that all provider and recovery
+controls have passed live verification.
 
 The program requires a policy-evidence locator; this is an explicit operator
 attestation, not automated inspection of all backend controls. A successful PUT/GET
