@@ -2,11 +2,9 @@
 
 ## Status
 
-**LIVE PROVIDER VERIFICATION REQUIRES RETEST.**
+**LIVE PROVIDER VERIFICATION PASSED; OPERATIONAL READINESS REMAINS OPEN.**
 
-This record documents the operator-confirmed configuration of the designated private Cloudflare R2 backend for the White List source-evidence archive. It is an operational attestation and configuration locator; it does **not** by itself prove provider durability, backup adequacy or restore capability.
-
-The production-readiness gate remains open until the live verification workflow succeeds and the independent backup/restore requirement is documented and tested.
+This record documents the designated private Cloudflare R2 backend for the White List source-evidence archive and the live provider-verification evidence obtained on 2026-09-09. The R2 write/read/idempotence gate has passed. Independent backup/recovery and database promotion remain separate open controls, so issue #16 and the national durable-storage readiness gate remain open.
 
 ## Designated backend
 
@@ -28,7 +26,7 @@ Operator-confirmed on 2026-09-09:
 - no custom domain is attached to the bucket;
 - a Bucket Lock rule applies to prefix `sha256/` with indefinite retention;
 - the ingestion credential is an account API token restricted to this bucket with Object Read & Write permissions;
-- GitHub environment `evidence-archive` holds the runtime configuration and credentials separately from the repository.
+- GitHub environment `evidence-archive` holds runtime configuration and credentials separately from the repository.
 
 The application writes evidence only under content-addressed keys of the form:
 
@@ -36,15 +34,36 @@ The application writes evidence only under content-addressed keys of the form:
 sha256/<first-two-hex>/<full-sha256>
 ```
 
-The indefinite Bucket Lock is the effective provider-side control preventing deletion or overwrite of evidence objects in that namespace. Application-side conditional creation (`If-None-Match: *`) and post-write full-object SHA-256 verification remain mandatory independent controls.
+The indefinite Bucket Lock is the provider-side control preventing deletion or overwrite of evidence objects in that namespace. Application-side conditional creation (`If-None-Match: *`) and post-write full-object SHA-256 verification remain mandatory independent controls.
 
-## First live verification attempt
+## Live verification history
 
-The first `Private evidence store verification` run on 2026-09-09 passed environment/configuration and credential preflight, reached the designated R2 bucket and then failed during the repeated-upload idempotence probe. R2 returned `ObjectLockedByBucketPolicy` for the already protected content-addressed key instead of the `412 PreconditionFailed` response assumed by the generic S3 adapter.
+### Attempt 1 — compatibility failure, not storage-integrity failure
 
-This is a provider-response compatibility issue, not a reason to weaken immutability. The adapter is amended to treat `ObjectLockedByBucketPolicy` only as a **possible existing-object signal**. It must then retrieve the full object and independently verify byte size and SHA-256 before returning an idempotent success. A missing or mismatching object still fails; no unconditional overwrite, delete, lock bypass or metadata-only trust is introduced.
+The first `Private evidence store verification` run on 2026-09-09 passed environment/configuration and credential preflight, reached the designated R2 bucket, uploaded the first frozen Cosenza object, and then failed during the repeated-upload idempotence probe. R2 returned `ObjectLockedByBucketPolicy` for the already protected content-addressed key instead of the generic S3 `412 PreconditionFailed` response assumed by the adapter.
 
-The live gate therefore remains open until the corrected adapter is merged and the manual workflow is rerun successfully.
+The adapter was corrected without weakening immutability: `ObjectLockedByBucketPolicy` is treated only as a possible existing-object signal and must be followed by a full object retrieval with independent byte-size and SHA-256 verification. A missing or mismatching object still fails; no unconditional overwrite, delete, lock bypass or metadata-only trust was introduced.
+
+### Attempt 2 — passed
+
+Manual workflow run **34327668707** on `main` commit `d8ec8d15d54a19acf32dc9bc3b35db3b9d790326` completed successfully on 2026-09-09.
+
+The live gate verified both frozen Cosenza source documents:
+
+- reference date `2026-06-28`, SHA-256 `565a71d89c4d684b68303949974a6c63410b9432eefe9f3773ac540a4318a07d`, 1,072,912 bytes;
+- reference date `2026-08-03`, SHA-256 `0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202`, 1,077,994 bytes.
+
+For each document the workflow verified the official source bytes against the frozen manifest, exercised the content-addressed R2 archive path, repeated the upload operation under Bucket Lock, retrieved the stored object, and recomputed byte size and SHA-256. The June object already existed because the first run had uploaded it before failing on the repeat-write probe; the second run independently verified that locked object. The August object was created during the successful run and its repeated write was safely handled through the locked-existing-object verification path.
+
+The workflow saved the private receipt artifact:
+
+`private-evidence-receipts-34327668707-1`
+
+with artifact digest:
+
+`sha256:8317c89bb193c814b06650ea20634da99dcc0ef06c1c8c80f2f57f168c8ddae3`
+
+The receipts record successful full-object verification and `database_promoted=false`, because no `EVIDENCE_DATABASE_URL` was configured for this gate.
 
 ## GitHub environment contract
 
@@ -67,17 +86,16 @@ The intended value of `EVIDENCE_POLICY_EVIDENCE` is:
 docs/architecture/evidence-store-activation-2026-09-09.md
 ```
 
-## Controls not yet evidenced by this record
+## Controls still open
 
-The following remain explicit open gates and must not be represented as verified merely because R2 accepts writes:
+The live R2 provider gate is now verified. The following remain explicit open controls:
 
-1. successful live upload, repeated conditional upload, full-object retrieval and SHA-256 verification against the frozen Cosenza manifests;
-2. independent backup/recovery responsibility and a documented restore test;
-3. any provider-level retention/version-recovery settings outside the verified `sha256/` Bucket Lock;
-4. optional database promotion through `EVIDENCE_DATABASE_URL`;
-5. periodic re-verification of access and retention controls.
+1. independent backup/recovery responsibility and a documented restore test;
+2. promotion of verified durable locations/status into the existing archive database when a production `EVIDENCE_DATABASE_URL` is designated;
+3. any additional provider-level recovery/version controls outside the verified `sha256/` Bucket Lock;
+4. periodic re-verification of access, retention and retrieval controls.
 
-Until those gates are closed, issue #16 remains open and national readiness must not be advanced to a fully provisioned/durable state.
+Until the applicable remaining controls are closed, issue #16 remains open and national readiness must not be represented as fully verified.
 
 ## Change-control rule
 
