@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
@@ -12,6 +13,7 @@ _DMY_SLASH = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 _DMY_DOT = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
 _DMY_FLEX = re.compile(r"^\d{1,2}[./]\d{1,2}[./]\d{4}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_AL_YEAR = re.compile(r"20(?:\s?\d){2}")
 
 
 @dataclass(frozen=True)
@@ -285,8 +287,26 @@ def _status_alessandria_listed(outcome: str) -> str:
     return "other_or_unknown"
 
 
+def _alessandria_source_date(value: str) -> str:
+    """Normalise explicit Alessandria date typography without guessing a source value."""
+    raw = _clean(value)
+    candidate = re.sub(r"^(\d{1,2})[°º]([./])", r"\1\2", raw)
+    # One official cell is extracted as ``202 2``. Removing an embedded numeric
+    # layout space preserves the digits visibly present in the source.
+    candidate = re.sub(r"(?<=\d)\s+(?=\d)", "", candidate)
+    match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", candidate)
+    if not match:
+        return ""
+    day, month, year = map(int, match.groups())
+    try:
+        date(year, month, day)
+    except ValueError:
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
 def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    sector_rows: list[tuple[str, list[str]]] = []
+    sector_rows: list[tuple[str, list[str], str, str]] = []
     current_section = ""
     date_rows = 0
     dropped = 0
@@ -295,30 +315,90 @@ def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             if row and row[0].upper().startswith("SEZIONE") and not any(row[1:]):
                 current_section = row[0]
                 continue
-            if len(row) >= 5 and _DMY_FLEX.fullmatch(row[4] or ""):
-                date_rows += 1
-                if len(row) < 7 or not _DMY_FLEX.fullmatch(row[5] or "") or not row[0] or not row[3]:
-                    dropped += 1
-                    continue
-                sector_rows.append((current_section, row[:7]))
+            if len(row) < 6 or not (_AL_YEAR.search(row[4] or "") or _AL_YEAR.search(row[5] or "")):
+                continue
+            date_rows += 1
+            if len(row) < 7 or not row[0] or not row[3]:
+                dropped += 1
+                continue
+            listing_date = _alessandria_source_date(row[4])
+            expiry_date = _alessandria_source_date(row[5])
+            if not listing_date and not expiry_date:
+                dropped += 1
+                continue
+            sector_rows.append((current_section, row[:7], listing_date, expiry_date))
 
     grouped: dict[tuple[str, ...], dict[str, Any]] = {}
-    for section, row in sector_rows:
-        key = (row[0], row[3], row[4], row[5], row[6])
+    for section, row, listing_date, expiry_date in sector_rows:
+        # Alessandria repeats the same company across sector sections. Date text can
+        # vary typographically, and four source identities carry conflicting date
+        # values across those repetitions. Group only by source identity + outcome;
+        # preserve every variant and publish a date only when the repeated source
+        # has one unambiguous normalised value for that field.
+        key = (row[0], row[3], row[6])
         group = grouped.setdefault(
             key,
-            {"row": row, "sections": [], "offices": [], "secondary_offices": []},
+            {
+                "row": row,
+                "rows": 0,
+                "sections": [],
+                "offices": [],
+                "secondary_offices": [],
+                "listing_dates": set(),
+                "expiry_dates": set(),
+                "listing_raw": [],
+                "expiry_raw": [],
+                "malformed_date_pairs": [],
+            },
         )
+        group["rows"] += 1
         if section and section not in group["sections"]:
             group["sections"].append(section)
         if row[1] and row[1] not in group["offices"]:
             group["offices"].append(row[1])
         if row[2] and row[2] not in group["secondary_offices"]:
             group["secondary_offices"].append(row[2])
+        if row[4] not in group["listing_raw"]:
+            group["listing_raw"].append(row[4])
+        if row[5] not in group["expiry_raw"]:
+            group["expiry_raw"].append(row[5])
+        if listing_date:
+            group["listing_dates"].add(listing_date)
+        if expiry_date:
+            group["expiry_dates"].add(expiry_date)
+        if not listing_date or not expiry_date:
+            pair = f"{row[4]} | {row[5]}"
+            if pair not in group["malformed_date_pairs"]:
+                group["malformed_date_pairs"].append(pair)
 
     records: list[dict[str, Any]] = []
+    conflict_groups = 0
+    reconciled_malformed_rows = 0
     for group in grouped.values():
         row = group["row"]
+        if not group["listing_dates"] or not group["expiry_dates"]:
+            # Never infer an absent date from syntax or another company. Leave the
+            # whole group unmaterialised and let the existing fail-closed dropped-row
+            # gate block publication.
+            dropped += group["rows"]
+            continue
+        listing_variants = sorted(group["listing_dates"])
+        expiry_variants = sorted(group["expiry_dates"])
+        conflict_fields: list[str] = []
+        if len(listing_variants) > 1:
+            conflict_fields.append("observed_listing_date")
+        if len(expiry_variants) > 1:
+            conflict_fields.append("observed_expiry_date")
+        if conflict_fields:
+            conflict_groups += 1
+        reconciled_malformed_rows += sum(
+            1
+            for _section, candidate, candidate_listing, candidate_expiry in sector_rows
+            if candidate[0] == row[0]
+            and candidate[3] == row[3]
+            and candidate[6] == row[6]
+            and (not candidate_listing or not candidate_expiry)
+        )
         records.append(
             _record(
                 cfg,
@@ -330,13 +410,19 @@ def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 activities=[_section_activity(section) for section in group["sections"]],
                 status=_status_alessandria_listed(row[6]),
                 outcome_raw=row[6],
-                listing_date=row[4],
-                expiry_date=row[5],
+                listing_date=listing_variants[0] if len(listing_variants) == 1 else "",
+                expiry_date=expiry_variants[0] if len(expiry_variants) == 1 else "",
                 primary_date_label="Data iscrizione",
                 source_fields={
                     "sections": group["sections"],
                     "registered_office_variants": group["offices"],
                     "secondary_office_variants": group["secondary_offices"],
+                    "listing_date_raw_variants": group["listing_raw"],
+                    "expiry_date_raw_variants": group["expiry_raw"],
+                    "normalised_listing_date_variants": listing_variants,
+                    "normalised_expiry_date_variants": expiry_variants,
+                    "date_conflict_fields": conflict_fields,
+                    "malformed_date_pairs": group["malformed_date_pairs"],
                 },
             )
         )
@@ -349,6 +435,8 @@ def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "sector_rows": len(sector_rows),
             "public_records": len(records),
             "dropped_date_rows": dropped,
+            "date_conflict_groups": conflict_groups,
+            "reconciled_malformed_date_rows": reconciled_malformed_rows,
             "status_counts": dict(Counter(record["source_status"] for record in records)),
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
             "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
