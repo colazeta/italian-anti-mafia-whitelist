@@ -1,0 +1,91 @@
+name: Reconcile Alessandria branch once
+
+on:
+  push:
+    branches:
+      - expansion/alessandria-2026-09-09
+    paths:
+      - '.github/workflows/reconcile-alessandria-branch-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/alessandria-2026-09-09
+          fetch-depth: 0
+      - name: Reconcile only Alessandria operational state
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('data/monitoring/national_coverage.json')
+          state = json.loads(path.read_text(encoding='utf-8'))
+          rows = [row for row in state['prefectures'] if row['authority_key'] == 'alessandria']
+          assert len(rows) == 1
+          row = rows[0]
+          assert row['source_verified'] is True
+          assert row['population_scopes_complete'] is True
+          assert row['coverage_status'] == 'SOURCE_IDENTIFIED'
+          assert row['public_export_enabled'] is False
+
+          row.update({
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'latest_source_reference_date': '2026-09-04',
+              'latest_archived_edition': None,
+              'archived_evidence_storage_status': 'not_documented',
+              'last_successful_investigation_on': '2026-09-09',
+              'coverage_status': 'VALIDATED',
+              'known_content_sha256': [
+                  '34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0',
+                  '78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95',
+              ],
+          })
+          issue16 = 'https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16'
+          if issue16 not in row['unresolved_issue']:
+              row['unresolved_issue'].append(issue16)
+          row['actionable_issue'] = False
+          for evidence in (
+              'data/publication/multi_prefecture_pilot.json',
+              'docs/sources/alessandria-operational-check-2026-09-09.md',
+          ):
+              if evidence not in row['evidence']:
+                  row['evidence'].append(evidence)
+
+          path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          git diff --check
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          state = json.loads(Path('data/monitoring/national_coverage.json').read_text())
+          row = next(r for r in state['prefectures'] if r['authority_key'] == 'alessandria')
+          assert row['coverage_status'] == 'VALIDATED'
+          assert row['public_export_enabled'] is True
+          assert row['canonical_integration_validated'] is False
+          assert row['durable_evidence_verified'] is False
+          assert len(row['known_content_sha256']) == 2
+          PY
+      - name: Remove one-shot helper and commit reconciled state
+        run: |
+          git rm .github/workflows/reconcile-alessandria-branch-once.yml
+          test "$(git diff --name-only HEAD | sort)" = "data/monitoring/national_coverage.json"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/monitoring/national_coverage.json
+          git commit -m 'Reconcile Alessandria monitoring state'
+          git push origin HEAD:expansion/alessandria-2026-09-09
