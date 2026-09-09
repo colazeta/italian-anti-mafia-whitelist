@@ -37,6 +37,7 @@ white-list-public-national-registry = "white_list_archive.publishing.public_nati
 white-list-public-national-build = "white_list_archive.publishing.public_national_build:main"
 white-list-explorer-audit-patch = "white_list_archive.publishing.explorer_audit_patch:main"
 white-list-explorer-address-validation-patch = "white_list_archive.publishing.explorer_address_validation_bundle:main"
+white-list-explorer-address-quality-patch = "white_list_archive.publishing.explorer_address_quality_patch:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
 
