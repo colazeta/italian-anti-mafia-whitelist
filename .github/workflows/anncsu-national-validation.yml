@@ -16,6 +16,7 @@ on:
       - 'db/tests/010_anncsu_orchestration.sql'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'scripts/validate_national_anncsu.py'
+      - 'scripts/validate_national_anncsu_with_retries.py'
       - 'pyproject.toml'
       - '.github/workflows/anncsu-national-validation.yml'
   push:
@@ -34,6 +35,7 @@ on:
       - 'db/tests/010_anncsu_orchestration.sql'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'scripts/validate_national_anncsu.py'
+      - 'scripts/validate_national_anncsu_with_retries.py'
       - 'pyproject.toml'
       - '.github/workflows/anncsu-national-validation.yml'
   workflow_dispatch:
@@ -98,7 +100,7 @@ jobs:
 
       - name: Validate official catalogue and two-region incremental orchestration
         run: |
-          python scripts/validate_national_anncsu.py \
+          python scripts/validate_national_anncsu_with_retries.py \
             --dsn "$TEST_DSN" \
             --istat-csv "$ISTAT_CSV" \
             --istat-manifest "$ISTAT_MANIFEST" \
