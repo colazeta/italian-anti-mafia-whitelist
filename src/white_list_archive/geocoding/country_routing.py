@@ -32,14 +32,21 @@ SOURCE_MARKER_RE = re.compile(
     r"^\s*(?P<place>[^,(]{2,80}?)\s*\(\s*(?P<code>[A-Za-z]{2})\s*\)\s*,?\s*(?P<rest>.+)$"
 )
 FOREIGN_STREET_HINTS: dict[str, tuple[str, ...]] = {
-    "FR": ("rue", "avenue", "boulevard", "chemin", "impasse", "allee", "allée", "quai"),
+    "FR": (
+        "rue",
+        "avenue",
+        "boulevard",
+        "chemin",
+        "impasse",
+        "allee",
+        "allée",
+        "quai",
+    ),
 }
-ITALIAN_PREFIX_STATUSES = {
-    "exact",
-    "missing_street_after_municipality",
-    "province_marker_mismatch",
-    "ambiguous_municipality_prefix",
-}
+# Only an unambiguous exact Istat municipality prefix (with or without a following
+# street) is sufficient to derive Italy. A province-marker mismatch or ambiguous
+# municipality prefix is contradictory/insufficient evidence and remains unresolved.
+ITALIAN_PREFIX_STATUSES = {"exact", "missing_street_after_municipality"}
 
 
 @dataclass(frozen=True)
@@ -80,11 +87,11 @@ def assess_source_address(
 ) -> CountryAssessment:
     """Classify country/routing without rewriting the source address.
 
-    A dedicated source country field, when one exists, wins. Otherwise an exact
-    Istat municipality prefix can derive Italy for routing. Foreign text markers
-    are accepted only under an explicit conservative validation rule. Everything
-    else remains unresolved rather than inheriting Italy from the publishing
-    Prefecture.
+    A dedicated source country field, when one exists, wins. Otherwise an exact,
+    unambiguous Istat municipality prefix can derive Italy for routing. Foreign
+    text markers are accepted only under an explicit conservative validation rule.
+    Everything else remains unresolved rather than inheriting Italy from the
+    publishing Prefecture.
     """
     explicit = (explicit_source_country_code or "").strip().upper() or None
     if explicit:
@@ -145,13 +152,19 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_reference(istat_csv: Path, istat_manifest: Path) -> tuple[dict[str, Any], str]:
+def _load_reference(
+    istat_csv: Path, istat_manifest: Path
+) -> tuple[dict[str, Any], str]:
     manifest = json.loads(istat_manifest.read_text(encoding="utf-8"))
     expected = str(manifest.get("crosswalk_csv", {}).get("sha256") or "")
     observed = _sha256(istat_csv)
     if not expected or observed != expected:
         raise ValueError("Istat municipality CSV does not match its manifest SHA-256")
-    version = str(manifest.get("provider_version") or manifest.get("generated_at") or expected[:16])
+    version = str(
+        manifest.get("provider_version")
+        or manifest.get("generated_at")
+        or expected[:16]
+    )
     return manifest, version
 
 
@@ -205,7 +218,9 @@ def assess_address_countries(
             assessment = assess_source_address(
                 str(full_address),
                 municipality_matcher=matcher,
-                explicit_source_country_code=(str(source_country) if source_country else None),
+                explicit_source_country_code=(
+                    str(source_country) if source_country else None
+                ),
             )
             counts[assessment.route_code] += 1
             cur.execute(
