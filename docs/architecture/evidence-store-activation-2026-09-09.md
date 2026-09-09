@@ -2,7 +2,7 @@
 
 ## Status
 
-**LIVE PROVIDER VERIFICATION PENDING.**
+**LIVE PROVIDER VERIFICATION REQUIRES RETEST.**
 
 This record documents the operator-confirmed configuration of the designated private Cloudflare R2 backend for the White List source-evidence archive. It is an operational attestation and configuration locator; it does **not** by itself prove provider durability, backup adequacy or restore capability.
 
@@ -37,6 +37,14 @@ sha256/<first-two-hex>/<full-sha256>
 ```
 
 The indefinite Bucket Lock is the effective provider-side control preventing deletion or overwrite of evidence objects in that namespace. Application-side conditional creation (`If-None-Match: *`) and post-write full-object SHA-256 verification remain mandatory independent controls.
+
+## First live verification attempt
+
+The first `Private evidence store verification` run on 2026-09-09 passed environment/configuration and credential preflight, reached the designated R2 bucket and then failed during the repeated-upload idempotence probe. R2 returned `ObjectLockedByBucketPolicy` for the already protected content-addressed key instead of the `412 PreconditionFailed` response assumed by the generic S3 adapter.
+
+This is a provider-response compatibility issue, not a reason to weaken immutability. The adapter is amended to treat `ObjectLockedByBucketPolicy` only as a **possible existing-object signal**. It must then retrieve the full object and independently verify byte size and SHA-256 before returning an idempotent success. A missing or mismatching object still fails; no unconditional overwrite, delete, lock bypass or metadata-only trust is introduced.
+
+The live gate therefore remains open until the corrected adapter is merged and the manual workflow is rerun successfully.
 
 ## GitHub environment contract
 
