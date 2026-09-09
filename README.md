@@ -42,7 +42,7 @@ The project currently contains:
 - immutable source capture, SHA-256 content identity and parser provenance;
 - **106** territorial authorities in the national universe;
 - **34** independently verified primary White List pages;
-- **63** qualified recurring source series;
+- **65** qualified recurring source series;
 - reusable parser families with deterministic source-series/fingerprint routing;
 - stable parser record contracts and semantic profiles;
 - automatic semantic projection and guarded canonicalisation;
@@ -120,7 +120,7 @@ applicant
 
 A combined `listed_and_applicant` source satisfies both without creating fake duplicate source series. If only one population has been discovered, the other remains `UNRESOLVED_REQUIRES_REVIEW`; it is **never** interpreted as “not published”. Completeness is assessed per register/regime, so special registers such as Bologna post-sisma remain separate.
 
-At the current **34-page / 63-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **32** account for both populations and **3** remain unresolved/incomplete. These are progress metrics, not evidence that applicant lists are absent.
+At the current **34-page / 65-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **33** account for both populations and **2** remain unresolved/incomplete. These are progress metrics, not evidence that applicant lists are absent.
 
 ## Parser-family strategy
 
