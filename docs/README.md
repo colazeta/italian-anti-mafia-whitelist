@@ -11,6 +11,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 | Review the current Dataset Explorer checkpoint | [`product/data-explorer-checkpoint.md`](product/data-explorer-checkpoint.md) |
 | Understand geography enrichment and the mandatory listed/applicant completeness rule | [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md) |
 | Understand original PDF retention and independent parser verification | [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md) |
+| Understand the independent evidence backup/restore gate | [`architecture/evidence-recovery.md`](architecture/evidence-recovery.md) |
 | Understand parser families and the automatic semantic/canonical pipeline | [`architecture/parser-families-and-semantic-pipeline.md`](architecture/parser-families-and-semantic-pipeline.md) |
 | See the current source → semantic → canonical ERD | [`architecture/erd-v0.3-dev.md`](architecture/erd-v0.3-dev.md) |
 | Understand the current Cosenza parser and its v1→v2 QA correction | [`architecture/cosenza-parser-v2.md`](architecture/cosenza-parser-v2.md) |
@@ -24,7 +25,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 
 ## Documentation structure
 
-- `architecture/` — durable design decisions, ERDs, temporal/provenance models, geography, source-population completeness, original-source evidence storage, parser-family routing, semantic projection, parser QA and architecture audits.
+- `architecture/` — durable design decisions, ERDs, temporal/provenance models, geography, source-population completeness, original-source evidence storage and recovery, parser-family routing, semantic projection, parser QA and architecture audits.
 - `data-dictionary/` — canonical concepts, fields, controlled vocabularies and mapping semantics.
 - `product/` — user-facing checkpoint/browser behaviour and product-level semantic guardrails.
 - `sources/` — source-discovery methodology, source-specific research and parser/capture notes.
