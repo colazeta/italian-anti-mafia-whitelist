@@ -25,6 +25,7 @@ jobs:
           from pathlib import Path
           import csv, json
           root=Path('.')
+
           path=root/'src/white_list_archive/publishing/public_national_registry.py'
           text=path.read_text(encoding='utf-8')
           needle='from white_list_archive.parsers.multi_prefecture_tables import PARSERS, ParsedBatch\n'
@@ -34,9 +35,12 @@ jobs:
               text=text.replace(needle,addition,1)
           old='    batch = PARSERS[cfg["parser"]](path, cfg)\n    for record in batch.records:\n'
           new='    parser = PARSERS.get(cfg["parser"]) or AREZZO_PARSERS.get(cfg["parser"])\n    if parser is None:\n        raise KeyError(f"No approved public parser for {cfg[\'parser\']}")\n    batch = parser(path, cfg)\n    for record in batch.records:\n'
-          if old in text: text=text.replace(old,new,1)
-          elif new not in text: raise SystemExit('parser dispatch anchor changed')
+          if old in text:
+              text=text.replace(old,new,1)
+          elif new not in text:
+              raise SystemExit('parser dispatch anchor changed')
           path.write_text(text,encoding='utf-8')
+
           config_path=root/'data/publication/multi_prefecture_pilot.json'
           config=json.loads(config_path.read_text(encoding='utf-8'))
           config['sources']=[s for s in config['sources'] if s['source_key'] not in {'arezzo-listed','arezzo-applicants'}]
@@ -45,6 +49,7 @@ jobs:
               {'source_key':'arezzo-applicants','parser':'arezzo_applicants','authority_key':'arezzo','authority_name':'Prefettura di Arezzo','register_key':'arezzo-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-09-10','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list','resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_richiedenti_iscrizione_1.docx','sha256':'e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7','expected_source_rows':32,'last_source_update':'2026-09-10','last_source_update_basis':'current official attachment byte-verified on this date; the official page does not expose a reliable current edition date','notes':'The current official DOCX contains 32 applicant rows. Applicant membership is represented as pending without inferring a legal outcome. Repeated slash separators in otherwise explicit DD/MM/YYYY source dates are normalised without changing any digit and the raw source form remains in provenance. Raw non-canonical identifiers remain verbatim.'}
           ])
           config_path.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
           verified_path=root/'data/source_registry/verified_primary_pages.csv'
           rows=list(csv.DictReader(verified_path.open(encoding='utf-8',newline='')))
           for row in rows:
@@ -52,35 +57,37 @@ jobs:
                   row.update({'landing_url':'https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list','verification_date':'2026-09-10','verification_status':'verified'})
           with verified_path.open('w',encoding='utf-8',newline='') as handle:
               writer=csv.DictWriter(handle,fieldnames=rows[0].keys()); writer.writeheader(); writer.writerows(rows)
+
           series_path=root/'data/source_registry/source_series_inventory.csv'
           rows=list(csv.DictReader(series_path.open(encoding='utf-8',newline='')))
           for row in rows:
               if row['source_series_key']=='arezzo-listed':
-                  row['verified_date']='2026-09-10'; row['notes']='Direct official registration page verified 10 September 2026; current listed population is an XLSX with ten White List sections. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
+                  row['verified_date']='2026-09-10'
+                  row['notes']='Direct official registration page verified 10 September 2026; current listed population is an XLSX with ten White List sections. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
               elif row['source_series_key']=='arezzo-applicants':
-                  row['verified_date']='2026-09-10'; row['notes']='Direct official registration page verified 10 September 2026; current applicant population is a dedicated DOCX table. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
+                  row['verified_date']='2026-09-10'
+                  row['notes']='Direct official registration page verified 10 September 2026; current applicant population is a dedicated DOCX table. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
           with series_path.open('w',encoding='utf-8',newline='') as handle:
               writer=csv.DictWriter(handle,fieldnames=rows[0].keys()); writer.writeheader(); writer.writerows(rows)
+
           coverage_path=root/'data/monitoring/national_coverage.json'
           coverage=json.loads(coverage_path.read_text(encoding='utf-8'))
-          updates={'alessandria':('2026-09-04',['78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95','34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0'],'docs/sources/alessandria-operational-check-2026-09-09.md'),'aosta':('2026-09-10',['6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f','77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd'],'docs/sources/aosta-operational-check-2026-09-10.md'),'arezzo':('2026-09-10',['9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f','e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7'],'docs/sources/arezzo-operational-check-2026-09-10.md')}
+          updates={
+              'alessandria':('2026-09-04',['78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95','34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0'],'docs/sources/alessandria-operational-check-2026-09-09.md'),
+              'aosta':('2026-09-10',['6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f','77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd'],'docs/sources/aosta-operational-check-2026-09-10.md'),
+              'arezzo':('2026-09-10',['9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f','e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7'],'docs/sources/arezzo-operational-check-2026-09-10.md')
+          }
           for item in coverage['prefectures']:
-              if item['authority_key'] not in updates: continue
-              reference,hashes,doc=updates[item['authority_key']]
-              item.update({'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,'latest_source_reference_date':reference,'latest_archived_edition':None,'archived_evidence_storage_status':'not_documented','last_successful_investigation_on':'2026-09-10','monitoring_status':'VERIFIED_CURRENT','unresolved_issue':['https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16'],'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,'known_content_sha256':hashes,'evidence':['data/publication/multi_prefecture_pilot.json',doc],'last_completed_coverage_stage':'VALIDATED'})
+              key=item['authority_key']
+              if key not in updates: continue
+              reference,hashes,doc=updates[key]
+              item.update({'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,'latest_source_reference_date':reference,'latest_archived_edition':None,'archived_evidence_storage_status':'not_documented','last_successful_investigation_on':'2026-09-10','unresolved_issue':['https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16'],'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,'known_content_sha256':hashes,'evidence':['data/publication/multi_prefecture_pilot.json',doc],'last_completed_coverage_stage':'VALIDATED'})
+              if key=='arezzo':
+                  item['monitoring_status']='CURRENT'
+                  item['last_successful_source_check_at']='2026-09-09T23:36:43Z'
+                  item['last_attempted_source_check_at']='2026-09-09T23:36:43Z'
           coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          workflow_path=root/'.github/workflows/public-pages.yml'
-          text=workflow_path.read_text(encoding='utf-8')
-          replacements=[("assert reg['meta']['record_count'] == 5870","assert reg['meta']['record_count'] == 6234"),("{'cosenza','parma','pistoia','bologna','alessandria','aosta'}","{'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo'}"),("'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary'","'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary'"),("assert reg['meta']['authority_count'] == 6","assert reg['meta']['authority_count'] == 7"),("assert reg['meta']['register_count'] == 7","assert reg['meta']['register_count'] == 8"),("assert pref['meta']['published_count'] == 6","assert pref['meta']['published_count'] == 7")]
-          for old,new in replacements:
-              if old not in text: raise SystemExit('public-pages anchor missing: '+old)
-              text=text.replace(old,new,1)
-          anchor="          aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']\n          assert len(aosta) == 1 and aosta[0]['mapped'] and aosta[0]['published']\n"
-          extra=anchor+"          arezzo = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Arezzo']\n          assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']\n"
-          if "jurisdiction_name'] == 'Arezzo'" not in text:
-              if anchor not in text: raise SystemExit('Arezzo public gate anchor missing')
-              text=text.replace(anchor,extra,1)
-          workflow_path.write_text(text,encoding='utf-8')
+
           browser_path=root/'tests/public_portal_browser.cjs'
           text=browser_path.read_text(encoding='utf-8')
           label="      assert.ok(labels.includes(\"White List ordinaria · Regione autonoma Valle d'Aosta · funzioni prefettizie\"));\n"
@@ -129,13 +136,12 @@ jobs:
           print('Expanded registry verified:',reg['meta'])
           print('Arezzo statuses:',Counter(r['source_status'] for r in ar))
           PY
-      - name: Commit reviewed materialisation and remove one-shot workflow
+      - name: Commit reviewed non-workflow materialisation
         run: |
-          rm .github/workflows/arezzo-source-audit.yml
           git diff --check
           git status --short
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add src/white_list_archive/publishing/public_national_registry.py data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv data/source_registry/source_series_inventory.csv data/monitoring/national_coverage.json tests/public_portal_browser.cjs
           git commit -m 'Publish verified Arezzo White List sources'
           git push origin HEAD:expansion/arezzo-2026-09-10
