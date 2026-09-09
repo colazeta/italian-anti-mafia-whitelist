@@ -41,5 +41,6 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO registry.activity_type(code,label) VALUES
 ('geocode','Geocode'),
-('geographic_enrich','Geographic enrichment')
+('geographic_enrich','Geographic enrichment'),
+('anncsu_orchestrate','ANNCSU regional orchestration')
 ON CONFLICT DO NOTHING;

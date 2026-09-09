@@ -3,3 +3,4 @@
 \ir tests/007_geography.sql
 \ir tests/008_address_normalisation.sql
 \ir tests/009_anncsu_enrichment.sql
+\ir tests/010_anncsu_orchestration.sql
