@@ -1,4 +1,4 @@
-name: Audit current Arezzo White List attachments
+name: Materialise Arezzo expansion
 
 on:
   push:
@@ -8,97 +8,269 @@ on:
       - .github/workflows/arezzo-source-audit.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  materialise:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Diagnose source-backed parser boundary
-        shell: bash
+      - name: Wire audited Arezzo sources into the canonical public pipeline
         run: |
-          set -euo pipefail
-          python -m pip install -q requests beautifulsoup4 openpyxl python-docx
           python - <<'PY'
-          import collections, datetime, hashlib, io, re
-          from urllib.parse import urljoin
-          import requests, openpyxl
-          from bs4 import BeautifulSoup
-          from docx import Document
+          from pathlib import Path
+          import csv, json
 
-          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          def date_text(v):
-              if isinstance(v,(datetime.datetime,datetime.date)): return v.date().isoformat() if isinstance(v,datetime.datetime) else v.isoformat()
-              raw=clean(v)
-              m=re.fullmatch(r'(\d{1,2})/+([0-9]{1,2})/+(\d{4})',raw)
-              if m:
-                  d,mn,y=map(int,m.groups())
-                  try: return datetime.date(y,mn,d).isoformat()
-                  except ValueError: return ''
-              return ''
-          page='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
-          h={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
-          s=requests.Session(); r=s.get(page,headers=h,timeout=40); r.raise_for_status()
-          soup=BeautifulSoup(r.text,'html.parser')
-          urls={}
-          for a in soup.find_all('a',href=True):
-              t=' '.join(a.stripped_strings); f=t.casefold()
-              if 'elenco imprese iscritte' in f: urls['listed']=urljoin(page,a['href'])
-              if "elenco imprese richiedenti l'iscrizione" in f: urls['applicants']=urljoin(page,a['href'])
-          assert set(urls)=={'listed','applicants'},urls
-          bodies={}
-          for k,u in urls.items():
-              rr=s.get(u,headers=h,timeout=60); rr.raise_for_status(); bodies[k]=rr.content
-              print(k.upper(),'URL',u,'BYTES',len(rr.content),'SHA256',hashlib.sha256(rr.content).hexdigest())
+          root = Path('.')
 
-          wb=openpyxl.load_workbook(io.BytesIO(bodies['listed']),data_only=True,read_only=True)
-          sector_rows=[]; malformed=[]
-          for ws in wb.worksheets:
-              rows=list(ws.iter_rows(values_only=True)); section=clean(rows[3][0]) if len(rows)>3 else ws.title
-              for n,row in enumerate(rows[5:],6):
-                  vals=[clean(x) for x in row]
-                  if not any(vals): continue
-                  if len(vals)<7: vals += ['']*(7-len(vals))
-                  ld,ed=date_text(row[4]),date_text(row[5])
-                  if vals[0] and vals[3] and ld and ed:
-                      sector_rows.append((section,vals[:7],ld,ed))
-                  else:
-                      malformed.append((ws.title,n,vals[:7],ld,ed))
-          print('LISTED_SECTOR_ROWS',len(sector_rows),'MALFORMED_NONEMPTY_DATA_ROWS',len(malformed))
-          for item in malformed: print('LISTED_MALFORMED',repr(item))
-          grouped={}
-          for section,row,ld,ed in sector_rows:
-              key=(row[0],row[1],row[2],row[3],ld,ed,row[6])
-              grouped.setdefault(key,[]).append(section)
-          print('LISTED_GROUPED_RECORDS',len(grouped))
-          updates=sum(bool(k[6]) for k in grouped)
-          print('LISTED_GROUPED_UPDATES',updates,'LISTED_GROUPED_PLAIN',len(grouped)-updates)
-          identities=collections.defaultdict(set)
-          for key in grouped:
-              identities[(key[0],key[3])].add((key[4],key[5],key[6]))
-          conflicts={k:v for k,v in identities.items() if len(v)>1}
-          print('LISTED_IDENTITY_GROUPS',len(identities),'DATE_OUTCOME_CONFLICT_GROUPS',len(conflicts))
-          for k,v in sorted(conflicts.items()): print('LISTED_CONFLICT',repr(k),repr(sorted(v)))
-          missing_ids=sum(not bool(re.findall(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])',k[3].replace(' ',''))) for k in grouped)
-          print('LISTED_GROUPED_WITHOUT_CANONICAL_LENGTH_IDENTIFIER',missing_ids)
+          # Extend parser dispatch without changing the mature PDF parser family.
+          path = root/'src/white_list_archive/publishing/public_national_registry.py'
+          text = path.read_text(encoding='utf-8')
+          needle = 'from white_list_archive.parsers.multi_prefecture_tables import PARSERS, ParsedBatch\n'
+          replacement = needle + 'from white_list_archive.parsers.arezzo_openxml import PARSERS as AREZZO_PARSERS\n'
+          if 'AREZZO_PARSERS' not in text:
+              if needle not in text: raise SystemExit('parser import anchor changed')
+              text = text.replace(needle, replacement, 1)
+          old = '''    batch = PARSERS[cfg["parser"]](path, cfg)\n    for record in batch.records:\n'''
+          new = '''    parser = PARSERS.get(cfg["parser"]) or AREZZO_PARSERS.get(cfg["parser"])\n    if parser is None:\n        raise KeyError(f"No approved public parser for {cfg['parser']}")\n    batch = parser(path, cfg)\n    for record in batch.records:\n'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('parser dispatch anchor changed')
+          path.write_text(text, encoding='utf-8')
 
-          doc=Document(io.BytesIO(bodies['applicants']))
-          assert len(doc.tables)==1
-          rows=[]; malformed_app=[]; activities=collections.Counter()
-          for n,tr in enumerate(doc.tables[0].rows[1:],2):
-              vals=[clean(c.text) for c in tr.cells]
-              if len(vals)<6: vals+=['']*(6-len(vals))
-              dt=date_text(vals[5]); activities[vals[4]]+=1
-              if vals[0] and vals[3] and dt: rows.append((vals,dt))
-              else: malformed_app.append((n,vals,dt))
-          print('APPLICANT_RECORDS',len(rows),'MALFORMED_ROWS',len(malformed_app))
-          for item in malformed_app: print('APPLICANT_MALFORMED',repr(item))
-          print('APPLICANT_UNIQUE_ACTIVITY_STRINGS',len(activities))
-          for raw,count in activities.most_common(): print('APPLICANT_ACTIVITY',count,repr(raw))
-          print('APPLICANT_WITHOUT_CANONICAL_LENGTH_IDENTIFIER',sum(not bool(re.findall(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])',vals[3].replace(' ',''))) for vals,_ in rows))
+          # Add the two independently verified current Arezzo resources.
+          config_path = root/'data/publication/multi_prefecture_pilot.json'
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          config['sources'] = [s for s in config['sources'] if s['source_key'] not in {'arezzo-listed','arezzo-applicants'}]
+          config['sources'].extend([
+              {
+                  'source_key':'arezzo-listed','parser':'arezzo_listed','authority_key':'arezzo',
+                  'authority_name':'Prefettura di Arezzo','register_key':'arezzo-ordinary','register_name':'White List ordinaria',
+                  'population_scope':'listed','reference_date':'2026-09-10',
+                  'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list',
+                  'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_iscritte_1.xlsx',
+                  'sha256':'9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f',
+                  'expected_sector_rows':616,'expected_source_rows':332,
+                  'last_source_update':'2026-09-10',
+                  'last_source_update_basis':'current official attachment byte-verified on this date; the official page does not expose a reliable current edition date',
+                  'notes':'The current official XLSX contains ten source sections and 616 sector rows. Exact cross-sector repetitions are grouped into 332 source-backed observations; 20 identity groups carry distinct date/update variants and remain separate. One source listing date is malformed as 0702/2025: it is retained in provenance with a blank canonical listing date and is never repaired by inference. Raw identifiers that do not match canonical CF/PIVA lengths are preserved verbatim and are never padded or truncated.'
+              },
+              {
+                  'source_key':'arezzo-applicants','parser':'arezzo_applicants','authority_key':'arezzo',
+                  'authority_name':'Prefettura di Arezzo','register_key':'arezzo-ordinary','register_name':'White List ordinaria',
+                  'population_scope':'applicant','reference_date':'2026-09-10',
+                  'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list',
+                  'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_richiedenti_iscrizione_1.docx',
+                  'sha256':'e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7',
+                  'expected_source_rows':32,
+                  'last_source_update':'2026-09-10',
+                  'last_source_update_basis':'current official attachment byte-verified on this date; the official page does not expose a reliable current edition date',
+                  'notes':'The current official DOCX contains 32 applicant rows. Applicant membership is represented as pending without inferring a legal outcome. Repeated slash separators in otherwise explicit DD/MM/YYYY source dates are normalised without changing any digit and the raw source form remains in provenance. Raw non-canonical identifiers remain verbatim.'
+              }
+          ])
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+
+          # Point the verified-page registry at the direct page actually audited in this run.
+          verified_path = root/'data/source_registry/verified_primary_pages.csv'
+          rows = list(csv.DictReader(verified_path.open(encoding='utf-8', newline='')))
+          for row in rows:
+              if row['authority_key']=='arezzo':
+                  row['landing_url']='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
+                  row['verification_date']='2026-09-10'
+                  row['verification_status']='verified'
+          with verified_path.open('w', encoding='utf-8', newline='') as handle:
+              writer=csv.DictWriter(handle, fieldnames=rows[0].keys()); writer.writeheader(); writer.writerows(rows)
+
+          series_path = root/'data/source_registry/source_series_inventory.csv'
+          series = list(csv.DictReader(series_path.open(encoding='utf-8', newline='')))
+          for row in series:
+              if row['source_series_key']=='arezzo-listed':
+                  row['verified_date']='2026-09-10'
+                  row['notes']='Direct official registration page verified 10 September 2026; current listed population is an XLSX with ten White List sections. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
+              elif row['source_series_key']=='arezzo-applicants':
+                  row['verified_date']='2026-09-10'
+                  row['notes']='Direct official registration page verified 10 September 2026; current applicant population is a dedicated DOCX table. Exact byte identity and parser boundary are documented in docs/sources/arezzo-operational-check-2026-09-10.md.'
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer=csv.DictWriter(handle, fieldnames=series[0].keys()); writer.writeheader(); writer.writerows(series)
+
+          # Reconcile the monitoring ledger for the two preceding public expansions and Arezzo.
+          coverage_path = root/'data/monitoring/national_coverage.json'
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          updates = {
+              'alessandria': {
+                  'reference':'2026-09-04',
+                  'hashes':['78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95','34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0'],
+                  'doc':'docs/sources/alessandria-operational-check-2026-09-09.md'
+              },
+              'aosta': {
+                  'reference':'2026-09-10',
+                  'hashes':['6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f','77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd'],
+                  'doc':'docs/sources/aosta-operational-check-2026-09-10.md'
+              },
+              'arezzo': {
+                  'reference':'2026-09-10',
+                  'hashes':['9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f','e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7'],
+                  'doc':'docs/sources/arezzo-operational-check-2026-09-10.md'
+              },
+          }
+          for item in coverage['prefectures']:
+              key=item['authority_key']
+              if key not in updates: continue
+              u=updates[key]
+              item.update({
+                  'current_edition_identified': True,
+                  'capture_implemented': True,
+                  'parser_implemented': True,
+                  'parser_validated': True,
+                  'company_observations_loaded': True,
+                  'observation_layer': 'public_source_observations',
+                  'canonical_integration_validated': False,
+                  'public_export_enabled': True,
+                  'durable_evidence_verified': False,
+                  'latest_source_reference_date': u['reference'],
+                  'latest_archived_edition': None,
+                  'archived_evidence_storage_status': 'not_documented',
+                  'last_successful_investigation_on': '2026-09-10',
+                  'monitoring_status': 'VERIFIED_CURRENT',
+                  'unresolved_issue': ['https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16'],
+                  'actionable_issue': False,
+                  'coverage_status': 'VALIDATED',
+                  'terminal_reason': None,
+                  'known_content_sha256': u['hashes'],
+                  'evidence': ['data/publication/multi_prefecture_pilot.json',u['doc']],
+                  'last_completed_coverage_stage': 'VALIDATED',
+              })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+
+          # Update the hard public acceptance denominators.  These are deliberately exact.
+          workflow_path = root/'.github/workflows/public-pages.yml'
+          text = workflow_path.read_text(encoding='utf-8')
+          replacements = {
+              "assert reg['meta']['record_count'] == 5870":"assert reg['meta']['record_count'] == 6234",
+              "{'cosenza','parma','pistoia','bologna','alessandria','aosta'}":"{'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo'}",
+              "'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary'":"'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary'",
+              "assert reg['meta']['authority_count'] == 6":"assert reg['meta']['authority_count'] == 7",
+              "assert reg['meta']['register_count'] == 7":"assert reg['meta']['register_count'] == 8",
+              "assert pref['meta']['published_count'] == 6":"assert pref['meta']['published_count'] == 7",
+          }
+          for old,new in replacements.items():
+              if old not in text: raise SystemExit(f'public-pages anchor missing: {old}')
+              text=text.replace(old,new,1)
+          aosta_anchor="""          aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']\n          assert len(aosta) == 1 and aosta[0]['mapped'] and aosta[0]['published']\n"""
+          arezzo_block=aosta_anchor+"""          arezzo = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Arezzo']\n          assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']\n"""
+          if "jurisdiction_name'] == 'Arezzo'" not in text:
+              if aosta_anchor not in text: raise SystemExit('Arezzo public gate anchor missing')
+              text=text.replace(aosta_anchor,arezzo_block,1)
+          workflow_path.write_text(text,encoding='utf-8')
+
+          browser_path=root/'tests/public_portal_browser.cjs'
+          text=browser_path.read_text(encoding='utf-8')
+          label="      assert.ok(labels.includes(\"White List ordinaria · Regione autonoma Valle d'Aosta · funzioni prefettizie\"));\n"
+          if "White List ordinaria · Prefettura di Arezzo" not in text:
+              if label not in text: raise SystemExit('browser label anchor missing')
+              text=text.replace(label,label+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Arezzo'));\n",1)
+          if 'assert.equal(stats.total,5870);' not in text: raise SystemExit('browser total anchor missing')
+          text=text.replace('assert.equal(stats.total,5870);','assert.equal(stats.total,6234);',1)
+          old="const previous=registry.records.filter(r=>!['alessandria','aosta'].includes(r.authority_key));"
+          new="const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo'].includes(r.authority_key));"
+          if old not in text: raise SystemExit('browser baseline anchor missing')
+          text=text.replace(old,new,1)
+          aosta="""      assert.deepEqual(statusCounts(aosta),{listed:345,pending:22,renewal_update_in_progress:17});\n"""
+          arezzo=aosta+"""      const arezzo=registry.records.filter(r=>r.authority_key==='arezzo');\n      assert.equal(arezzo.length,364);\n      assert.equal(arezzo.filter(r=>r.source_key==='arezzo-listed').length,332);\n      assert.equal(arezzo.filter(r=>r.source_key==='arezzo-applicants').length,32);\n      assert.deepEqual(statusCounts(arezzo),{listed:288,pending:32,renewal_update_in_progress:44});\n"""
+          if "source_key==='arezzo-listed'" not in text:
+              if aosta not in text: raise SystemExit('browser Arezzo stats anchor missing')
+              text=text.replace(aosta,arezzo,1)
+          browser_path.write_text(text,encoding='utf-8')
+
+          docs=root/'docs/sources/arezzo-operational-check-2026-09-10.md'
+          docs.write_text('''# Arezzo current-source operational check — 10 September 2026
+
+## Official source identity
+
+The direct official Prefettura di Arezzo page verified in this run is:
+
+- `https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list`
+
+It exposes two distinct current populations:
+
+- **Elenco imprese iscritte** — `https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_iscritte_1.xlsx` — SHA-256 `9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f`, 72,001 bytes at verification.
+- **Elenco imprese richiedenti l'iscrizione** — `https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_richiedenti_iscrizione_1.docx` — SHA-256 `e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7`, 161,650 bytes at verification.
+
+The visible page metadata reports an older update date, while the live attachment paths are under `2026-09` and the applicant table contains applications through 8 September 2026. The archive therefore does **not** convert page metadata, Office document metadata or file path into a claimed statutory/publication date. `2026-09-10` is the verification/reference date for this byte-pinned current-source observation.
+
+## Listed-company parser boundary
+
+The current XLSX contains ten section sheets. Audit of the live bytes found **616 non-empty source sector rows** with explicit company identity and expiry date. Exact repetitions of the same company/office/identifier/date/update observation across sectors are grouped only for public readability, yielding **332 source-backed listed observations**.
+
+Twenty company identity groups contain materially different listing dates, expiry dates or update annotations across source sections. Those variants are retained as separate observations. The parser does not choose a preferred date or silently collapse them.
+
+One source row for `CO.I. INERTI S.R.L.` contains the listing-date string `0702/2025`. The missing separator is not inferred. The observation is retained because company identity and expiry date are explicit, but its canonical listing date is blank and the raw malformed pair is kept in source provenance. Raw identifiers that do not parse as an 11-digit numeric identifier or a 16-character alphanumeric identifier are likewise preserved without padding or truncation.
+
+The 332 listed observations comprise **288 `listed`** and **44 `renewal_update_in_progress`** source statuses.
+
+## Applicant parser boundary
+
+The current DOCX contains one table with **32 applicant rows** and no incomplete identity/date rows. Membership in this official applicant list is represented as `pending`; it is not treated as independent evidence of a final legal outcome.
+
+Word concatenates multiple requested activity labels into a single cell. The parser recognises only the audited White List activity vocabulary and fails closed on unrecognised residue. A small number of explicit dates use repeated slash typography (for example `03//06/2026`); only the separator duplication is normalised, no digit is changed, and the raw source form is retained in provenance.
+
+## Publication and evidence status
+
+The two byte identities are pinned in `data/publication/multi_prefecture_pilot.json`. The public pipeline must reproduce exactly 332 listed plus 32 applicant observations before Arezzo can be published. This is a verified public-source integration, **not** a claim that independent R2 durable evidence storage or canonical database integration has been completed for Arezzo. Those remain separately governed by issue #16.
+
+The source-discovery and parser-boundary evidence was produced by GitHub Actions run `34417675583` after two preceding structure checks on the same official resources.
+''',encoding='utf-8')
           PY
+      - name: Install project with publication dependencies
+        run: python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and validate the expanded public registry
+        run: |
+          rm -rf /tmp/public-national-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json /tmp/registry.json \
+            --registry-csv /tmp/registry.csv \
+            --prefectures-json /tmp/prefectures.json \
+            --prefectures-csv /tmp/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/registry.json').read_text())
+          pref=json.loads(Path('/tmp/prefectures.json').read_text())
+          ar=[r for r in reg['records'] if r['authority_key']=='arezzo']
+          assert reg['meta']['record_count']==6234, reg['meta']
+          assert reg['meta']['authority_count']==7, reg['meta']
+          assert reg['meta']['register_count']==8, reg['meta']
+          assert len(ar)==364
+          assert Counter(r['source_key'] for r in ar)=={'arezzo-listed':332,'arezzo-applicants':32}
+          assert Counter(r['source_status'] for r in ar)=={'listed':288,'renewal_update_in_progress':44,'pending':32}
+          malformed=[r for r in ar if '0702/2025' in str(r.get('source_fields',{}))]
+          assert len(malformed)==1 and malformed[0]['observed_listing_date']==''
+          assert pref['meta']['authority_count']==106
+          assert pref['meta']['mapped_count']==34
+          assert pref['meta']['published_count']==7
+          print('Expanded registry verified:',reg['meta'])
+          print('Arezzo statuses:',Counter(r['source_status'] for r in ar))
+          PY
+      - name: Remove one-shot audit workflow and commit reviewed materialisation
+        run: |
+          rm .github/workflows/arezzo-source-audit.yml
+          git status --short
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Publish verified Arezzo White List sources'
+          git push origin HEAD:expansion/arezzo-2026-09-10
