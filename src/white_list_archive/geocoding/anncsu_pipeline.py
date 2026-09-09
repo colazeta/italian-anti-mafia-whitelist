@@ -17,10 +17,11 @@ else:
     _IMPORT_ERROR = None
 
 from .anncsu_linkage import AnncsuResolution, resolve_anncsu_addresses
+from .country_routing import assess_address_countries
 from .italian_address import MunicipalityPrefixMatcher
 
 SOFTWARE_NAME = "white_list_archive.geocoding.anncsu_pipeline"
-SOFTWARE_VERSION = "1"
+SOFTWARE_VERSION = "2"
 PROVIDER_NAME = "anncsu"
 
 
@@ -73,9 +74,14 @@ def _select_addresses(
     refresh: bool,
     max_addresses: int | None,
 ):
+    """Select only addresses whose current country assessment routes to ANNCSU."""
     sql = """
         SELECT a.address_id, a.full_address
         FROM core.address a
+        JOIN geo.address_country_assessment ca
+          ON ca.address_id=a.address_id
+         AND upper_inf(ca.system_period)
+         AND ca.route_code='italian_anncsu'
         WHERE btrim(a.full_address) <> ''
     """
     params: list[Any] = []
@@ -100,6 +106,28 @@ def _select_addresses(
         params.append(max_addresses)
     cur.execute(sql, params)
     return [(row[0], str(row[1])) for row in cur.fetchall()]
+
+
+def _close_results_outside_current_route(cur, endpoint: str) -> int:
+    """Expire stale ANNCSU results when country routing no longer selects Italy."""
+    cur.execute(
+        """
+        UPDATE geo.address_geocode_result g
+        SET system_period=tstzrange(lower(g.system_period),CURRENT_TIMESTAMP,'[)')
+        WHERE g.provider_name=%s
+          AND g.provider_endpoint=%s
+          AND upper_inf(g.system_period)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM geo.address_country_assessment ca
+              WHERE ca.address_id=g.address_id
+                AND upper_inf(ca.system_period)
+                AND ca.route_code='italian_anncsu'
+          )
+        """,
+        (PROVIDER_NAME, endpoint),
+    )
+    return int(cur.rowcount)
 
 
 def _create_activity(cur, configuration_hash: str):
@@ -200,15 +228,15 @@ def _insert_terminal_result(
 ) -> None:
     """Persist every attempted non-candidate outcome as provider-specific not_found.
 
-    `not_found` here means ANNCSU produced no usable candidate under the exact
-    linkage policy. The specific reason (including ambiguity or out-of-region)
-    is retained in provider_payload so it is never confused with a claim that
-    the source address itself does not exist.
+    `not_found` means ANNCSU produced no usable candidate under the exact Italian
+    linkage policy. Foreign or unresolved-country addresses never reach this path;
+    they remain `unprocessed` for ANNCSU and retain their distinct routing state.
     """
     payload = dict(resolution.detail)
     payload["resolution_status"] = resolution.status
     payload["matching_policy"] = (
-        "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available"
+        "country_route=italian_anncsu+istat_exact_prefix+"
+        "anncsu_exact_typed_street+exact_civic_when_available"
     )
     cur.execute(
         """
@@ -264,17 +292,26 @@ def enrich_addresses_from_anncsu(
         "istat_crosswalk_version": istat.get("provider_version"),
         "istat_crosswalk_sha256": istat["crosswalk_csv"]["sha256"],
         "dataset_region_name": dataset_region_name,
+        "country_routing": "geo.address_country_assessment:italian_anncsu_only",
         "matching_policy": (
             "istat_exact_prefix+anncsu_exact_typed_street+exact_civic_when_available"
         ),
         "street_coordinate_fallback": "median_of_anncsu_street_access_coordinates",
         "candidate_by_default": True,
-        "terminal_accounting": "persist_provider_specific_not_found_with_reason",
+        "terminal_accounting": (
+            "provider_not_found_only_for_italian_route;foreign_or_unresolved=unprocessed"
+        ),
     }
     config_hash = _configuration_hash(configuration)
 
     with psycopg.connect(dsn) as conn:
+        country_assessment = assess_address_countries(
+            conn,
+            istat_csv=istat_csv,
+            istat_manifest=istat_manifest,
+        )
         with conn.cursor() as cur:
+            expired_outside_route = _close_results_outside_current_route(cur, endpoint)
             selected = _select_addresses(
                 cur,
                 provider_version=provider_version,
@@ -283,12 +320,16 @@ def enrich_addresses_from_anncsu(
                 max_addresses=max_addresses,
             )
         if not selected:
+            conn.commit()
             return {
                 "provider": PROVIDER_NAME,
                 "provider_version": provider_version,
+                "provider_endpoint": endpoint,
                 "selected_address_ids": 0,
                 "candidate": 0,
                 "not_found": 0,
+                "expired_outside_current_route": expired_outside_route,
+                "country_assessment": country_assessment,
                 "configuration_hash": config_hash,
             }
 
@@ -361,6 +402,8 @@ def enrich_addresses_from_anncsu(
         "not_found": terminal_count,
         "resolution_status_counts": dict(sorted(counts.items())),
         "precision_counts": dict(sorted(precision_counts.items())),
+        "expired_outside_current_route": expired_outside_route,
+        "country_assessment": country_assessment,
         "configuration_hash": config_hash,
         "candidate_by_default": True,
         "all_selected_addresses_accounted_for": True,
@@ -369,7 +412,7 @@ def enrich_addresses_from_anncsu(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Enrich canonical addresses from official ANNCSU exact street/civic matches."
+        description="Enrich defensibly Italian canonical addresses from official ANNCSU exact street/civic matches."
     )
     parser.add_argument("--dsn", required=True)
     parser.add_argument("--istat-csv", type=Path, required=True)

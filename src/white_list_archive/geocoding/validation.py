@@ -39,6 +39,10 @@ class ValidationRow:
     address_id: str
     source_address: str
     source_country_code: str | None
+    derived_country_code: str | None
+    country_classification_status: str | None
+    country_route_code: str | None
+    country_derivation_reason: str | None
     match_status: str
     candidate_count: int
     provider_name: str | None
@@ -66,6 +70,10 @@ class ValidationRow:
     @property
     def stratum(self) -> str:
         if self.match_status == "unprocessed":
+            if self.country_route_code == "foreign_fallback":
+                return "foreign_routed"
+            if self.country_route_code == "unresolved_fallback":
+                return "country_unresolved"
             return "unprocessed"
         if self.match_status == "error":
             return "error"
@@ -73,10 +81,14 @@ class ValidationRow:
             return "not_found"
         if self.country_code and self.country_code.upper() != "IT":
             return "foreign_matched"
+        if self.precision_code == "civic_access":
+            return "matched_civic_access"
         if self.precision_code == "address":
             return "matched_address"
         if self.precision_code == "street":
             return "matched_street"
+        if self.matched and (self.latitude is None or self.longitude is None):
+            return "matched_without_coordinates"
         return "matched_coarse"
 
 
@@ -91,7 +103,9 @@ def _stable_key(row: ValidationRow) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _allocate_stratified_sample(stratum_sizes: dict[str, int], sample_size: int) -> dict[str, int]:
+def _allocate_stratified_sample(
+    stratum_sizes: dict[str, int], sample_size: int
+) -> dict[str, int]:
     if sample_size < 1:
         raise ValueError("sample_size must be >= 1")
     total = sum(stratum_sizes.values())
@@ -116,7 +130,9 @@ def _allocate_stratified_sample(stratum_sizes: dict[str, int], sample_size: int)
             break
         weight_total = sum(nonempty[key] for key in available)
         ideal = {key: remaining * nonempty[key] / weight_total for key in available}
-        additions = {key: min(available[key], int(ideal[key])) for key in available}
+        additions = {
+            key: min(available[key], int(ideal[key])) for key in available
+        }
         added = sum(additions.values())
         for key, value in additions.items():
             allocation[key] += value
@@ -125,7 +141,11 @@ def _allocate_stratified_sample(stratum_sizes: dict[str, int], sample_size: int)
             break
         order = sorted(
             available,
-            key=lambda key: (-(ideal[key] - int(ideal[key])), -nonempty[key], key),
+            key=lambda key: (
+                -(ideal[key] - int(ideal[key])),
+                -nonempty[key],
+                key,
+            ),
         )
         progressed = False
         for key in order:
@@ -140,7 +160,9 @@ def _allocate_stratified_sample(stratum_sizes: dict[str, int], sample_size: int)
     return allocation
 
 
-def build_manual_sample(rows: list[ValidationRow], sample_size: int = 150) -> list[dict[str, Any]]:
+def build_manual_sample(
+    rows: list[ValidationRow], sample_size: int = 150
+) -> list[dict[str, Any]]:
     grouped: dict[str, list[ValidationRow]] = defaultdict(list)
     for row in rows:
         grouped[row.stratum].append(row)
@@ -169,7 +191,9 @@ def build_manual_sample(rows: list[ValidationRow], sample_size: int = 150) -> li
                 }
             )
             output.append(item)
-    return sorted(output, key=lambda item: (item["review_stratum"], item["address_id"]))
+    return sorted(
+        output, key=lambda item: (item["review_stratum"], item["address_id"])
+    )
 
 
 def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
@@ -184,6 +208,14 @@ def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
     )
     provider_country_counts = Counter((row.country_code or "UNKNOWN") for row in matched)
     source_country_counts = Counter((row.source_country_code or "UNKNOWN") for row in rows)
+    derived_country_counts = Counter((row.derived_country_code or "UNKNOWN") for row in rows)
+    country_classification_counts = Counter(
+        (row.country_classification_status or "UNASSESSED") for row in rows
+    )
+    country_route_counts = Counter((row.country_route_code or "UNASSESSED") for row in rows)
+    effective_country_counts = Counter(
+        (row.source_country_code or row.derived_country_code or "UNKNOWN") for row in rows
+    )
     source_provider_country_conflicts = sum(
         bool(row.source_country_code and row.country_code)
         and row.source_country_code.upper() != row.country_code.upper()
@@ -212,14 +244,25 @@ def summarize(rows: list[ValidationRow]) -> dict[str, Any]:
         "errors": status_counts.get("error", 0),
         "error_rate_pct": _pct(status_counts.get("error", 0), total),
         "unprocessed": status_counts.get("unprocessed", 0),
+        "unprocessed_rate_pct": _pct(status_counts.get("unprocessed", 0), total),
         "status_counts": dict(sorted(status_counts.items())),
         "precision_counts": dict(sorted(precision_counts.items())),
         "candidate_multiplicity": dict(sorted(candidate_multiplicity.items())),
-        "ambiguous_match_rate_pct": _pct(candidate_multiplicity.get("multiple_candidates", 0), matched_count),
+        "ambiguous_match_rate_pct": _pct(
+            candidate_multiplicity.get("multiple_candidates", 0), matched_count
+        ),
         "provider_country_counts": dict(sorted(provider_country_counts.items())),
         "source_country_counts": dict(sorted(source_country_counts.items())),
+        "derived_country_counts": dict(sorted(derived_country_counts.items())),
+        "effective_country_counts": dict(sorted(effective_country_counts.items())),
+        "country_classification_counts": dict(
+            sorted(country_classification_counts.items())
+        ),
+        "country_route_counts": dict(sorted(country_route_counts.items())),
         "source_provider_country_conflicts": source_provider_country_conflicts,
-        "source_provider_country_conflict_rate_pct": _pct(source_provider_country_conflicts, matched_count),
+        "source_provider_country_conflict_rate_pct": _pct(
+            source_provider_country_conflicts, matched_count
+        ),
         "field_completeness": field_completeness,
         "review_strata": dict(sorted(Counter(row.stratum for row in rows).items())),
     }
@@ -293,7 +336,11 @@ def _fetch_rows(
         SELECT
             a.address_id::text,
             a.full_address,
-            a.country_code,
+            COALESCE(ca.source_country_code,a.country_code) AS source_country_code,
+            ca.derived_country_code,
+            ca.classification_status_code,
+            ca.route_code,
+            ca.derivation_reason,
             COALESCE(b.match_status_code, 'unprocessed') AS match_status,
             COALESCE(c.candidate_count, 0) AS candidate_count,
             b.provider_name,
@@ -314,6 +361,9 @@ def _fetch_rows(
             b.longitude,
             b.precision_code
         FROM core.address a
+        LEFT JOIN geo.address_country_assessment ca
+          ON ca.address_id=a.address_id
+         AND upper_inf(ca.system_period)
         LEFT JOIN best b ON b.address_id = a.address_id
         LEFT JOIN counts c ON c.address_id = a.address_id
         ORDER BY a.full_address, a.address_id
@@ -323,7 +373,9 @@ def _fetch_rows(
         return [ValidationRow(*row) for row in cur.fetchall()]
 
 
-def _write_csv(path: Path, rows: Iterable[dict[str, Any]], fieldnames: list[str]) -> None:
+def _write_csv(
+    path: Path, rows: Iterable[dict[str, Any]], fieldnames: list[str]
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
@@ -343,9 +395,19 @@ def _write_report(path: Path, summary: dict[str, Any], sample_size: int) -> None
         f"- Canonical addresses: **{summary['total_canonical_addresses']}**",
         f"- Distinct source address strings: **{summary['distinct_source_address_strings']}**",
         f"- Provider match: **{summary['addresses_with_provider_match']} ({summary['match_rate_pct']}%)**",
-        f"- Not found: **{summary['not_found']} ({summary['not_found_rate_pct']}%)**",
+        f"- Not found by the selected provider after routing: **{summary['not_found']} ({summary['not_found_rate_pct']}%)**",
         f"- Provider/runtime errors: **{summary['errors']} ({summary['error_rate_pct']}%)**",
-        f"- Unprocessed: **{summary['unprocessed']}**",
+        f"- Unprocessed by the selected provider: **{summary['unprocessed']} ({summary['unprocessed_rate_pct']}%)**",
+        "",
+        "## Country semantics and routing",
+        "",
+        f"- Source-explicit country codes: `{summary['source_country_counts']}`",
+        f"- Derived country codes: `{summary['derived_country_counts']}`",
+        f"- Effective country classification: `{summary['effective_country_counts']}`",
+        f"- Classification statuses: `{summary['country_classification_counts']}`",
+        f"- Provider routes: `{summary['country_route_counts']}`",
+        "",
+        "`source_country_code` is reserved for source-supported evidence. Derived Italy from an exact Istat municipality prefix is kept in `derived_country_code`. Foreign/unresolved routes are not counted as ANNCSU `not_found`; they remain unprocessed by ANNCSU for a later fallback stage.",
         "",
         "## Precision of matched results",
         "",
@@ -355,23 +417,28 @@ def _write_report(path: Path, summary: dict[str, Any], sample_size: int) -> None
     lines.extend(["", "## Candidate multiplicity", ""])
     for key, value in summary["candidate_multiplicity"].items():
         lines.append(f"- `{key}`: {value}")
-    lines.append(f"- Ambiguous match rate among matched addresses: **{summary['ambiguous_match_rate_pct']}%**")
+    lines.append(
+        f"- Ambiguous match rate among matched addresses: **{summary['ambiguous_match_rate_pct']}%**"
+    )
     lines.extend(["", "## Source/provider country diagnostic", ""])
-    lines.append(f"- Source country codes: `{summary['source_country_counts']}`")
     lines.append(f"- Provider country codes: `{summary['provider_country_counts']}`")
     lines.append(
-        f"- Source/provider country conflicts among matched addresses: **{summary['source_provider_country_conflicts']} ({summary['source_provider_country_conflict_rate_pct']}%)**"
+        f"- Source/provider country conflicts among matched addresses with explicit source country: **{summary['source_provider_country_conflicts']} ({summary['source_provider_country_conflict_rate_pct']}%)**"
     )
     lines.extend(["", "## Field completeness among matched addresses", ""])
     for key, value in summary["field_completeness"].items():
-        lines.append(f"- `{key}`: {value['present']} / {value['matched_addresses']} ({value['rate_pct']}%)")
+        lines.append(
+            f"- `{key}`: {value['present']} / {value['matched_addresses']} ({value['rate_pct']}%)"
+        )
     lines.extend(["", "## Manual validation", ""])
     lines.append(
         f"`manual_review_sample.csv` contains a deterministic stratified sample of up to **{sample_size}** addresses. "
         "Each row includes its stratum population, stratum sample size and sampling weight so reviewed results can later be aggregated without treating the balanced sample as a simple random sample."
     )
     lines.append("")
-    lines.append("No geocoding result is promoted to geographic truth by this report; it is a measurement artifact.")
+    lines.append(
+        "No country derivation or geocoding result rewrites the source address, and no geocoding candidate is promoted to geographic truth by this report."
+    )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -384,7 +451,9 @@ def build_validation_pack(
     sample_size: int = 150,
 ) -> dict[str, Any]:
     if psycopg is None:
-        raise RuntimeError("psycopg is required; install the project with the database extra") from _IMPORT_ERROR
+        raise RuntimeError(
+            "psycopg is required; install the project with the database extra"
+        ) from _IMPORT_ERROR
     output_dir.mkdir(parents=True, exist_ok=True)
     with psycopg.connect(dsn) as conn:
         rows = _fetch_rows(
@@ -396,7 +465,9 @@ def build_validation_pack(
     summary.update(
         {
             "provider_filter": provider_name,
-            "provider_endpoint_filter": provider_endpoint.rstrip("/") if provider_endpoint else None,
+            "provider_endpoint_filter": (
+                provider_endpoint.rstrip("/") if provider_endpoint else None
+            ),
             "manual_sample_requested": sample_size,
         }
     )
@@ -428,7 +499,9 @@ def build_validation_pack(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a reproducible geocoding validation pack.")
+    parser = argparse.ArgumentParser(
+        description="Build a reproducible geocoding validation pack."
+    )
     parser.add_argument("--dsn", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--provider-name")

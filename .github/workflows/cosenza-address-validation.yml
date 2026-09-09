@@ -2,6 +2,17 @@ name: Cosenza address validation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/white_list_archive/geocoding/country_routing.py'
+      - 'src/white_list_archive/geocoding/anncsu_pipeline.py'
+      - 'src/white_list_archive/geocoding/validation.py'
+      - 'src/white_list_archive/semantic/pipeline_current.py'
+      - 'db/schema/059_address_normalisation.sql'
+      - 'db/tests/010_cosenza_address_country_routing.sql'
+      - 'tests/test_address_country_routing.py'
+      - '.github/workflows/cosenza-address-validation.yml'
 
 concurrency:
   group: cosenza-address-validation
@@ -39,7 +50,7 @@ jobs:
       - name: Install project and utilities
         run: |
           python -m pip install -e .[dev,database]
-          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_explorer_address_quality_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py
+          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_explorer_address_quality_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py tests/test_address_country_routing.py
           sudo apt-get update
           sudo apt-get install -y poppler-utils postgresql-client
 
@@ -90,6 +101,15 @@ jobs:
             --series-code cosenza-combined \
             > artifacts/cosenza-v2/semantic_pipeline.json
           psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/006_cosenza_semantic_pipeline.sql
+          python - <<'PY'
+          import os,psycopg
+          with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
+              cur.execute('SELECT count(*) FROM core.address WHERE country_code IS NOT NULL')
+              n=int(cur.fetchone()[0])
+          if n:
+              raise SystemExit(f'Canonical source-country truth still contains authority-derived defaults: {n}')
+          print('core.address.country_code is source-explicit-only: no inherited Cosenza/Italy defaults.')
+          PY
           white-list-model-population \
             --dsn "$TEST_DSN" \
             --output artifacts/cosenza-v2/model_population.json
@@ -120,6 +140,7 @@ jobs:
             --anncsu-manifest "$ANNCSU_MANIFEST" \
             --dataset-region Calabria \
             > artifacts/address-validation/enrichment.json
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/tests/010_cosenza_address_country_routing.sql
 
       - name: Build validation pack and precision-aware review sample
         run: |
@@ -194,6 +215,7 @@ jobs:
           cp artifacts/address-validation/review_sample_manifest.json artifacts/data-explorer-preview-v2/address-validation/
           cp artifacts/address-validation/validation/summary.json artifacts/data-explorer-preview-v2/address-validation/
           cp artifacts/address-validation/validation/address_results.csv artifacts/data-explorer-preview-v2/address-validation/
+          cp artifacts/address-validation/enrichment.json artifacts/data-explorer-preview-v2/address-validation/
 
       - name: Validate quality- and review-enabled Explorer
         run: |
@@ -234,18 +256,27 @@ jobs:
           frozen=quality['frozen_review']
           expected={
             'total_canonical_addresses':1298,
+            'attempted':1260,
             'accounted':1298,
             'candidate':624,
             'accepted':0,
-            'not_found':674,
+            'not_found':636,
             'errors':0,
-            'unprocessed':0,
+            'unprocessed':38,
             'coordinate_bearing':534,
             'normalisation_only':90,
           }
           mismatch={k:(expected[k],op.get(k)) for k in expected if op.get(k)!=expected[k]}
           if mismatch:
             raise SystemExit(f'Address quality operational reconciliation mismatch: {mismatch}')
+          summary=json.loads((root/'address-validation/summary.json').read_text())
+          expected_routes={'foreign_fallback':1,'italian_anncsu':1260,'unresolved_fallback':37}
+          if summary.get('country_route_counts')!=expected_routes:
+            raise SystemExit(f'Country route counts changed unexpectedly: {summary.get("country_route_counts")}')
+          if summary.get('source_country_counts')!={'FR':1,'UNKNOWN':1297}:
+            raise SystemExit(f'Source-country evidence changed unexpectedly: {summary.get("source_country_counts")}')
+          if summary.get('derived_country_counts')!={'IT':1260,'UNKNOWN':38}:
+            raise SystemExit(f'Derived-country counts changed unexpectedly: {summary.get("derived_country_counts")}')
           if frozen['candidate_weighted_precision_pct']!=82.49 or frozen['candidate_coverage_pct']!=48.07 or frozen['estimated_validated_yield_pct']!=39.65:
             raise SystemExit(f'Frozen review metrics changed unexpectedly: {frozen}')
           if not op['providers'] or not op['providers'][0].get('provider_version'):
@@ -253,12 +284,19 @@ jobs:
           full_rows=list(csv.DictReader((root/'address-validation/address_results.csv').open(encoding='utf-8')))
           if len(full_rows)!=op['total_canonical_addresses']:
             raise SystemExit('Full address-results drill-down does not reconcile with displayed population')
+          paris=[row for row in full_rows if row['source_address']=='PARIGI (FR)Rue du Cardinal Demoine 62']
+          if len(paris)!=1 or paris[0].get('source_country_code')!='FR' or paris[0].get('country_route_code')!='foreign_fallback' or paris[0].get('match_status')!='unprocessed':
+            raise SystemExit(f'Known foreign Cosenza row is not represented correctly: {paris}')
           with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM geo.address_geocode_result WHERE provider_name='anncsu' AND match_status_code='accepted' AND upper_inf(system_period)")
             accepted=int(cur.fetchone()[0])
+            cur.execute("SELECT count(*) FROM core.address WHERE country_code IS NOT NULL")
+            source_country_defaults=int(cur.fetchone()[0])
           if accepted:
             raise SystemExit(f'Address validation workflow must not auto-accept: {accepted}')
-          print('Quality- and review-enabled retro Explorer validated:', quality)
+          if source_country_defaults:
+            raise SystemExit(f'Authority-derived country defaults leaked into core.address: {source_country_defaults}')
+          print('Country-routed quality and review Explorer validated:', quality)
           PY
 
       - uses: actions/upload-artifact@v4
