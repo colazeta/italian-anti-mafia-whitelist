@@ -8,6 +8,7 @@ CREATE TABLE geo.fallback_geocode_run (
     configuration_hash char(64) NOT NULL,
     eligible_address_count integer NOT NULL DEFAULT 0,
     selected_address_count integer NOT NULL DEFAULT 0,
+    expired_ineligible_count integer NOT NULL DEFAULT 0,
     reused_current_count integer NOT NULL DEFAULT 0,
     network_query_count integer NOT NULL DEFAULT 0,
     candidate_address_count integer NOT NULL DEFAULT 0,
@@ -22,8 +23,9 @@ CREATE TABLE geo.fallback_geocode_run (
     CONSTRAINT fallback_run_provider_not_blank CHECK (btrim(provider_name) <> '' AND btrim(provider_endpoint) <> ''),
     CONSTRAINT fallback_run_hash_format CHECK (configuration_hash ~ '^[0-9a-f]{64}$'),
     CONSTRAINT fallback_run_counts_nonnegative CHECK (
-        eligible_address_count >= 0 AND selected_address_count >= 0 AND reused_current_count >= 0
-        AND network_query_count >= 0 AND candidate_address_count >= 0 AND candidate_row_count >= 0
+        eligible_address_count >= 0 AND selected_address_count >= 0 AND expired_ineligible_count >= 0
+        AND reused_current_count >= 0 AND network_query_count >= 0
+        AND candidate_address_count >= 0 AND candidate_row_count >= 0
         AND not_found_count >= 0 AND error_count >= 0
     ),
     CONSTRAINT fallback_run_status_allowed CHECK (status_code IN ('running','succeeded','failed'))
@@ -103,6 +105,8 @@ COMMENT ON TABLE geo.fallback_geocode_run IS
     'Operational provenance for managed/self-hosted fallback geocoding runs. Public OSMF Nominatim is not permitted by the fallback runner.';
 COMMENT ON TABLE geo.fallback_geocode_run_item IS
     'Per-address eligibility, upstream ANNCSU dependency, country filter and cache disposition for each fallback geocoding run.';
+COMMENT ON COLUMN geo.fallback_geocode_run.expired_ineligible_count IS
+    'Previously current fallback results closed at run start because the address no longer met the explicit fallback eligibility contract.';
 COMMENT ON COLUMN geo.address_geocode_result.routing_reason_code IS
     'Why the fallback provider was eligible: source-explicit foreign country, unresolved country routing, or an ANNCSU not_found outcome.';
 COMMENT ON COLUMN geo.address_geocode_result.upstream_geocode_result_id IS
