@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 try:
     import psycopg
@@ -20,7 +20,7 @@ else:
     _IMPORT_ERROR = None
 
 from white_list_archive.acquisition.anncsu import acquire_dataset, sha256_file
-from white_list_archive.geocoding.anncsu_pipeline import enrich_addresses_from_anncsu
+from white_list_archive.geocoding.anncsu_scoped import enrich_scoped_addresses_from_anncsu
 from white_list_archive.geocoding.country_routing import assess_address_countries
 from white_list_archive.geocoding.italian_address import MunicipalityPrefixMatcher
 
@@ -28,8 +28,8 @@ SOFTWARE_NAME = "white_list_archive.geocoding.national_anncsu"
 SOFTWARE_VERSION = "1"
 MAP_VERSION = "anncsu-regional-datasets-2026-09"
 
-# ANNCSU publishes regional/provincial bulk files. Bolzano and Trento are routed
-# separately even though the Istat municipality crosswalk reports the same region.
+# ANNCSU regional/provincial bulk files. Bolzano and Trento are distinct provider
+# datasets although the Istat municipality crosswalk reports one shared region.
 ANNCSU_REGION_DATASETS: tuple[dict[str, str | None], ...] = (
     {"region": "Abruzzo", "province": None, "dataset": "INDIR_ABRU"},
     {"region": "Basilicata", "province": None, "dataset": "INDIR_BASI"},
@@ -55,10 +55,10 @@ ANNCSU_REGION_DATASETS: tuple[dict[str, str | None], ...] = (
 )
 
 _REGION_ALIASES = {
-    "trentino alto adige sudtirol": "trentino alto adige sudtirol",
     "trentino alto adige": "trentino alto adige sudtirol",
-    "valle d aosta vallee d aoste": "valle d aosta vallee d aoste",
+    "trentino alto adige sudtirol": "trentino alto adige sudtirol",
     "valle d aosta": "valle d aosta vallee d aoste",
+    "valle d aosta vallee d aoste": "valle d aosta vallee d aoste",
 }
 
 
@@ -81,7 +81,7 @@ def _sha_json(value: Any) -> str:
 def dataset_code_for(region_name: str, province_plate: str | None = None) -> str:
     region_key = _fold(region_name)
     province = (province_plate or "").strip().upper() or None
-    matches = []
+    matches: list[str] = []
     for item in ANNCSU_REGION_DATASETS:
         if _fold(str(item["region"])) != region_key:
             continue
@@ -121,7 +121,7 @@ class NationalPlan:
     regions: tuple[RegionPlan, ...]
     plan_sha256: str
 
-    def public_payload(self) -> dict[str, Any]:
+    def payload(self) -> dict[str, Any]:
         return {
             "total_canonical_addresses": self.total_canonical_addresses,
             "italian_route_addresses": self.italian_route_addresses,
@@ -130,12 +130,12 @@ class NationalPlan:
             "unassigned_reason_counts": self.unassigned_reason_counts,
             "required_regions": [
                 {
-                    "region_name": item.region_name,
-                    "province_plate": item.province_plate,
-                    "dataset_code": item.dataset_code,
-                    "address_count": item.address_count,
+                    "region_name": region.region_name,
+                    "province_plate": region.province_plate,
+                    "dataset_code": region.dataset_code,
+                    "address_count": region.address_count,
                 }
-                for item in self.regions
+                for region in self.regions
             ],
             "plan_sha256": self.plan_sha256,
         }
@@ -201,11 +201,12 @@ def _build_plan_from_connection(conn, *, istat_csv: Path, istat_manifest: Path) 
             unassigned[f"istat_split:{split.status}"] += 1
             continue
         municipality = split.split.municipality
-        dataset_code = dataset_code_for(
-            municipality.region_name,
-            municipality.province_plate,
+        dataset_code = dataset_code_for(municipality.region_name, municipality.province_plate)
+        province_scope = (
+            municipality.province_plate
+            if dataset_code in {"INDIR_BOLZ", "INDIR_TREN"}
+            else None
         )
-        province_scope = municipality.province_plate if dataset_code in {"INDIR_BOLZ", "INDIR_TREN"} else None
         grouped[(municipality.region_name, province_scope, dataset_code)].append(
             (address_id, source_address)
         )
@@ -214,17 +215,16 @@ def _build_plan_from_connection(conn, *, istat_csv: Path, istat_manifest: Path) 
     for (region_name, province_plate, dataset_code), items in sorted(
         grouped.items(), key=lambda item: item[0][2]
     ):
-        ids = tuple(item[0] for item in items)
-        fingerprints = tuple(
-            hashlib.sha256(item[1].encode("utf-8")).hexdigest() for item in items
-        )
         regions.append(
             RegionPlan(
                 region_name=region_name,
                 province_plate=province_plate,
                 dataset_code=dataset_code,
-                address_ids=ids,
-                address_fingerprints=fingerprints,
+                address_ids=tuple(item[0] for item in items),
+                address_fingerprints=tuple(
+                    hashlib.sha256(item[1].encode("utf-8")).hexdigest()
+                    for item in items
+                ),
             )
         )
 
@@ -232,16 +232,16 @@ def _build_plan_from_connection(conn, *, istat_csv: Path, istat_manifest: Path) 
         "map_version": MAP_VERSION,
         "regions": [
             {
-                "region": item.region_name,
-                "province": item.province_plate,
-                "dataset": item.dataset_code,
-                "address_fingerprints": sorted(item.address_fingerprints),
+                "region": region.region_name,
+                "province": region.province_plate,
+                "dataset": region.dataset_code,
+                "address_fingerprints": sorted(region.address_fingerprints),
             }
-            for item in regions
+            for region in regions
         ],
         "unassigned_reason_counts": dict(sorted(unassigned.items())),
     }
-    assignable = sum(item.address_count for item in regions)
+    assignable = sum(region.address_count for region in regions)
     return NationalPlan(
         total_canonical_addresses=total,
         italian_route_addresses=len(rows),
@@ -257,12 +257,10 @@ def build_plan(*, dsn: str, istat_csv: Path, istat_manifest: Path) -> NationalPl
     if psycopg is None:
         raise RuntimeError("Install the project with the database extra") from _IMPORT_ERROR
     with psycopg.connect(dsn) as conn:
-        return _build_plan_from_connection(
-            conn, istat_csv=istat_csv, istat_manifest=istat_manifest
-        )
+        return _build_plan_from_connection(conn, istat_csv=istat_csv, istat_manifest=istat_manifest)
 
 
-def _manifest_to_cached(
+def _cached_from_manifest(
     manifest_path: Path,
     *,
     dataset_code: str,
@@ -271,7 +269,7 @@ def _manifest_to_cached(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if str(manifest.get("dataset_code") or "").upper() != dataset_code:
         raise ValueError(f"Cached ANNCSU manifest dataset mismatch: {manifest_path}")
-    provider_version = str(manifest.get("provider_version") or "")
+    version = str(manifest.get("provider_version") or "")
     source_url = str(manifest.get("source_url") or "")
     zip_info = manifest.get("zip") or {}
     csv_info = manifest.get("csv") or {}
@@ -279,7 +277,7 @@ def _manifest_to_cached(
     csv_path = manifest_path.parent / str(csv_info.get("path") or "")
     zip_sha = str(zip_info.get("sha256") or "")
     csv_sha = str(csv_info.get("sha256") or "")
-    if not provider_version or not source_url or not zip_sha or not csv_sha:
+    if not version or not source_url or not zip_sha or not csv_sha:
         raise ValueError(f"Incomplete cached ANNCSU manifest: {manifest_path}")
     if not zip_path.is_file() or sha256_file(zip_path) != zip_sha:
         raise ValueError(f"Cached ANNCSU ZIP identity mismatch: {zip_path}")
@@ -287,7 +285,7 @@ def _manifest_to_cached(
         raise ValueError(f"Cached ANNCSU CSV identity mismatch: {csv_path}")
     return CachedDataset(
         dataset_code=dataset_code,
-        provider_version=provider_version,
+        provider_version=version,
         source_url=source_url,
         zip_path=zip_path,
         csv_path=csv_path,
@@ -300,15 +298,11 @@ def _manifest_to_cached(
 
 def _latest_cached_dataset(cache_dir: Path, dataset_code: str) -> CachedDataset | None:
     dataset_dir = cache_dir / dataset_code
-    manifests = sorted(dataset_dir.glob(f"anncsu-{dataset_code.lower()}-*.manifest.json"))
-    valid: list[CachedDataset] = []
-    for path in manifests:
-        valid.append(
-            _manifest_to_cached(path, dataset_code=dataset_code, cache_status="reused")
-        )
-    if not valid:
-        return None
-    return max(valid, key=lambda item: (item.provider_version, item.csv_sha256))
+    cached = [
+        _cached_from_manifest(path, dataset_code=dataset_code, cache_status="reused")
+        for path in sorted(dataset_dir.glob(f"anncsu-{dataset_code.lower()}-*.manifest.json"))
+    ]
+    return max(cached, key=lambda item: (item.provider_version, item.csv_sha256)) if cached else None
 
 
 def acquire_or_reuse_dataset(
@@ -321,16 +315,13 @@ def acquire_or_reuse_dataset(
     cached = _latest_cached_dataset(cache_dir, dataset_code)
     if cached is not None and not refresh_provider_inputs:
         return cached
-
     dataset_dir = cache_dir / dataset_code
     dataset_dir.mkdir(parents=True, exist_ok=True)
     manifest = acquire_dataset(dataset_code, dataset_dir)
-    manifest_path = dataset_dir / str(manifest["manifest_path"])
-    status = "refreshed" if cached is not None else "acquired"
-    return _manifest_to_cached(
-        manifest_path,
+    return _cached_from_manifest(
+        dataset_dir / str(manifest["manifest_path"]),
         dataset_code=dataset_code,
-        cache_status=status,
+        cache_status="refreshed" if cached else "acquired",
     )
 
 
@@ -350,7 +341,6 @@ def _start_run(
         "istat_sha256": istat_manifest.get("crosswalk_csv", {}).get("sha256"),
         "refresh_provider_inputs": refresh_provider_inputs,
     }
-    configuration_hash = _sha_json(configuration)
     now = _utc_now()
     with conn.cursor() as cur:
         cur.execute(
@@ -361,17 +351,16 @@ def _start_run(
             ) VALUES ('anncsu_orchestrate',%s,%s,%s,%s)
             RETURNING processing_activity_id
             """,
-            (SOFTWARE_NAME, SOFTWARE_VERSION, configuration_hash, now),
+            (SOFTWARE_NAME, SOFTWARE_VERSION, _sha_json(configuration), now),
         )
         activity_id = cur.fetchone()[0]
         cur.execute(
             """
             INSERT INTO geo.anncsu_orchestration_run(
                 processing_activity_id,map_version,plan_sha256,
-                istat_reference_version,istat_sha256,
-                refresh_provider_inputs,total_canonical_addresses,
-                italian_route_addresses,assignable_addresses,
-                unassigned_addresses,status_code,started_at
+                istat_reference_version,istat_sha256,refresh_provider_inputs,
+                total_canonical_addresses,italian_route_addresses,
+                assignable_addresses,unassigned_addresses,status_code,started_at
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'running',%s)
             RETURNING anncsu_orchestration_run_id
             """,
@@ -394,7 +383,7 @@ def _start_run(
     return run_id, activity_id
 
 
-def _record_region_run(
+def _record_region(
     conn,
     *,
     run_id,
@@ -407,7 +396,6 @@ def _record_region_run(
     processed = int((result or {}).get("selected_address_ids") or 0)
     candidate = int((result or {}).get("candidate") or 0)
     not_found = int((result or {}).get("not_found") or 0)
-    skipped = region.address_count - processed
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -415,9 +403,8 @@ def _record_region_run(
                 anncsu_orchestration_run_id,region_name,province_plate,
                 dataset_code,provider_version,provider_endpoint,
                 zip_sha256,csv_sha256,cache_status,
-                planned_address_count,processed_address_count,
-                candidate_count,not_found_count,skipped_existing_count,
-                status_code,error_text
+                planned_address_count,processed_address_count,candidate_count,
+                not_found_count,skipped_existing_count,status_code,error_text
             ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
@@ -434,7 +421,7 @@ def _record_region_run(
                 processed,
                 candidate,
                 not_found,
-                skipped,
+                region.address_count - processed,
                 status_code,
                 error_text,
             ),
@@ -477,9 +464,7 @@ def orchestrate(
             conn, istat_csv=istat_csv, istat_manifest=istat_manifest
         )
         conn.commit()
-        plan = _build_plan_from_connection(
-            conn, istat_csv=istat_csv, istat_manifest=istat_manifest
-        )
+        plan = _build_plan_from_connection(conn, istat_csv=istat_csv, istat_manifest=istat_manifest)
         run_id, activity_id = _start_run(
             conn,
             plan=plan,
@@ -496,7 +481,7 @@ def orchestrate(
                 refresh_provider_inputs=refresh_provider_inputs,
             )
             try:
-                result = enrich_addresses_from_anncsu(
+                result = enrich_scoped_addresses_from_anncsu(
                     dsn=dsn,
                     istat_csv=istat_csv,
                     istat_manifest=istat_manifest,
@@ -504,11 +489,10 @@ def orchestrate(
                     anncsu_manifest=dataset.manifest_path,
                     dataset_region_name=region.region_name,
                     address_ids=region.address_ids,
-                    run_country_assessment=False,
                 )
             except Exception as exc:
                 with psycopg.connect(dsn) as conn:
-                    _record_region_run(
+                    _record_region(
                         conn,
                         run_id=run_id,
                         region=region,
@@ -521,11 +505,9 @@ def orchestrate(
 
             processed = int(result.get("selected_address_ids") or 0)
             if int(result.get("candidate") or 0) + int(result.get("not_found") or 0) != processed:
-                raise RuntimeError(
-                    f"Regional ANNCSU accounting does not reconcile for {region.dataset_code}"
-                )
+                raise RuntimeError(f"Regional ANNCSU accounting does not reconcile for {region.dataset_code}")
             with psycopg.connect(dsn) as conn:
-                _record_region_run(
+                _record_region(
                     conn,
                     run_id=run_id,
                     region=region,
@@ -559,15 +541,10 @@ def orchestrate(
         raise
 
     with psycopg.connect(dsn) as conn:
-        _finish_run(
-            conn,
-            run_id=run_id,
-            activity_id=activity_id,
-            status_code="succeeded",
-        )
+        _finish_run(conn, run_id=run_id, activity_id=activity_id, status_code="succeeded")
 
-    processed_total = sum(item["processed_address_count"] for item in region_outputs)
-    skipped_total = sum(item["skipped_existing_count"] for item in region_outputs)
+    processed_total = sum(region["processed_address_count"] for region in region_outputs)
+    skipped_total = sum(region["skipped_existing_count"] for region in region_outputs)
     return {
         "software": SOFTWARE_NAME,
         "software_version": SOFTWARE_VERSION,
@@ -575,23 +552,23 @@ def orchestrate(
         "orchestration_run_id": str(run_id),
         "generated_at": _utc_now().isoformat(),
         "country_assessment": country_assessment,
-        "plan": plan.public_payload(),
+        "plan": plan.payload(),
         "regions": region_outputs,
         "processed_address_count": processed_total,
         "skipped_existing_count": skipped_total,
-        "candidate": sum(item["candidate"] for item in region_outputs),
-        "not_found": sum(item["not_found"] for item in region_outputs),
+        "candidate": sum(region["candidate"] for region in region_outputs),
+        "not_found": sum(region["not_found"] for region in region_outputs),
         "all_processed_addresses_accounted_for": all(
-            item["candidate"] + item["not_found"] == item["processed_address_count"]
-            for item in region_outputs
+            region["candidate"] + region["not_found"] == region["processed_address_count"]
+            for region in region_outputs
         ),
         "public_nominatim_used": False,
     }
 
 
-def _write_output(path: Path | None, payload: dict[str, Any]) -> None:
+def _emit(path: Path | None, payload: dict[str, Any]) -> None:
     text = json.dumps(payload, indent=2, ensure_ascii=False, default=str)
-    if path is not None:
+    if path:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text + "\n", encoding="utf-8")
     print(text)
@@ -633,7 +610,7 @@ def main() -> None:
             "software": SOFTWARE_NAME,
             "software_version": SOFTWARE_VERSION,
             "map_version": MAP_VERSION,
-            "plan": plan.public_payload(),
+            "plan": plan.payload(),
             "public_nominatim_used": False,
         }
     else:
@@ -644,7 +621,7 @@ def main() -> None:
             cache_dir=args.cache_dir,
             refresh_provider_inputs=args.refresh_provider_inputs,
         )
-    _write_output(args.output, payload)
+    _emit(args.output, payload)
 
 
 if __name__ == "__main__":
