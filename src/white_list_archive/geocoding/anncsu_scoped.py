@@ -23,6 +23,7 @@ from .anncsu_pipeline import (
     _create_activity,
     _insert_candidate,
     _insert_terminal_result,
+    _utc_now,
     _validate_inputs,
 )
 from .italian_address import MunicipalityPrefixMatcher
@@ -183,8 +184,8 @@ def enrich_scoped_addresses_from_anncsu(
                         )
                         not_found_count += 1
             cur.execute(
-                "UPDATE provenance.processing_activity SET completed_at=CURRENT_TIMESTAMP WHERE processing_activity_id=%s",
-                (activity_id,),
+                "UPDATE provenance.processing_activity SET completed_at=%s WHERE processing_activity_id=%s",
+                (_utc_now(), activity_id),
             )
         conn.commit()
 
