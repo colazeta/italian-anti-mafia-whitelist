@@ -62,11 +62,16 @@ jobs:
             psql --version
             exit 0
           fi
-          # The hosted runner carries unrelated third-party APT sources (for example
-          # Google Chrome). A transient metadata/hash mismatch in those repositories
-          # must not make this repository's database CI flaky. Disable only that
-          # unrelated source, then retry Ubuntu package metadata cleanly.
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          # GitHub-hosted images can contain third-party APT source files in either
+          # .list or deb822 .sources form. This project does not depend on Chrome;
+          # remove only source files that actually reference its repository so a
+          # transient Google metadata mismatch cannot make database CI flaky.
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
           for attempt in 1 2 3; do
             sudo rm -rf /var/lib/apt/lists/*
             if sudo apt-get update -o Acquire::Retries=3 && \
