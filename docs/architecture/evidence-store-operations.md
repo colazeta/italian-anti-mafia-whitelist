@@ -13,17 +13,21 @@ Keys are `sha256/<first-two-hex>/<full-sha256>` without filename extensions, so
 byte identity does not vary with a renamed file or MIME label. This is the
 extensionless form of the architecture's recommended key, not a new identity model.
 Local bytes must match both frozen size and SHA-256 before any upload. A conditional
-PUT uses `IfNoneMatch="*"`. Only a precondition failure is treated as a possible
-existing object; permissions, conflicts (409), network errors and unsupported
-operations fail. After either PUT or precondition failure, an independent GET
-hashes the full object. HEAD, ETag and user metadata are insufficient evidence.
-A 409 is retried by rerunning the operation, never by an unconditional overwrite.
+PUT uses `IfNoneMatch="*"`. Standard S3 precondition failures (`PreconditionFailed` /
+`412`) are treated only as a possible existing-object signal. Cloudflare R2 with an
+active Bucket Lock can instead return `ObjectLockedByBucketPolicy` (error 10069) on
+a repeated PUT to an already protected key; that response is handled by the same
+conservative path. In every such case the code performs an independent full GET and
+recomputes byte size and SHA-256. A missing or mismatching object fails. Permissions,
+network errors, ordinary conflicts (409) and unsupported operations still fail.
+HEAD, ETag and user metadata are insufficient evidence, and there is no unconditional
+overwrite or lock-bypass fallback.
 
-Reference contracts: [Boto3 PutObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html)
-and [S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html).
-Provider compatibility, including enforcement of conditional creation, must be
-verified before a store is designated for production. Unsupported conditional
-writes are not silently replaced with an unsafe fallback.
+Reference contracts: [Boto3 PutObject](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html),
+[S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html),
+and [Cloudflare R2 bucket locks](https://developers.cloudflare.com/r2/buckets/bucket-locks/).
+Provider compatibility, including enforcement of immutable retention and safe
+existing-object handling, must be verified before a store is designated for production.
 
 ## Designate the private backend
 
@@ -120,5 +124,9 @@ behaviour, not provider durability. CI additionally exercises promotion and
 idempotence against real PostgreSQL constraints with synthetic object transport,
 rolling back its synthetic row. The manual workflow is the separate live gate:
 both frozen documents, repeated upload, verified recovery, optional real database
-promotion. Policy/access/retention/backup verification must also be recorded before
-marking the operational prerequisite VERIFIED or closing issue #16.
+promotion. The first live R2 attempt on 2026-09-09 exposed the provider-specific
+`ObjectLockedByBucketPolicy` response on the repeated-upload probe; the adapter now
+requires the same full-object verification for that response before treating the
+operation as idempotent. The live workflow must be rerun successfully after this
+compatibility fix. Policy/access/retention/backup verification must also be recorded
+before marking the operational prerequisite VERIFIED or closing issue #16.
