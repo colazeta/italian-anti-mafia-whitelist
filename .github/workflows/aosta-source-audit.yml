@@ -1,4 +1,4 @@
-name: Materialise audited Aosta expansion
+name: Diagnose Aosta applicant parser boundary
 
 on:
   push:
@@ -6,81 +6,69 @@ on:
       - expansion/aosta-source-audit-2026-09-10
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  materialise:
+  diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/aosta-source-audit-2026-09-10
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Patch audited expansion
-        run: python .tmp/aosta_materialise.py
-      - name: Install validation runtime
+      - name: Install parser runtime
+        run: python -m pip install 'pdfplumber>=0.11,<0.12'
+      - name: Diagnose current official applicant rows without row-level disclosure
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends poppler-utils
-          python -m pip install -e '.[dev,database,storage]'
-      - name: Run repository tests
-        run: pytest -q
-      - name: Build and inspect Aosta-expanded public registry
-        run: |
-          rm -rf /tmp/aosta-public-build
-          mkdir -p /tmp/aosta-public-build/site/data /tmp/aosta-public-build/work
-          cp -R public-site/* /tmp/aosta-public-build/site/
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/aosta-public-build/work \
-            --registry-json /tmp/aosta-public-build/site/data/registry.json \
-            --registry-csv /tmp/aosta-public-build/site/data/registry.csv \
-            --prefectures-json /tmp/aosta-public-build/site/data/prefectures.json \
-            --prefectures-csv /tmp/aosta-public-build/site/data/prefectures.csv
           python - <<'PY'
+          import hashlib
           import json
+          import re
+          import urllib.request
+          from collections import Counter
           from pathlib import Path
-          root=Path('/tmp/aosta-public-build')
-          reg=json.loads((root/'site/data/registry.json').read_text())
-          pref=json.loads((root/'site/data/prefectures.json').read_text())
-          aosta=[r for r in reg['records'] if r['authority_key']=='aosta']
-          assert reg['meta']['record_count']==5869, reg['meta']['record_count']
-          assert len(aosta)==383, len(aosta)
-          assert sum(r['source_key']=='aosta-listed' for r in aosta)==245
-          assert sum(r['source_key']=='aosta-applicants' for r in aosta)==138
-          counts={k:sum(r['source_status']==k for r in aosta) for k in sorted({r['source_status'] for r in aosta})}
-          assert counts=={'listed':344,'pending':22,'renewal_update_in_progress':17}, counts
-          for key, expected in [('aosta-listed',245),('aosta-applicants',138)]:
-              diag=json.loads((root/'work'/f'{key}.diagnostics.json').read_text())
-              assert diag['public_records']==expected, (key,diag)
-              assert diag.get('dropped_date_rows',0)==0, (key,diag)
-          item=[p for p in pref['prefectures'] if p['jurisdiction_name']=='Aosta']
-          assert len(item)==1 and item[0]['mapped'] and item[0]['published'], item
-          assert pref['meta']['mapped_count']==34, pref['meta']
-          assert pref['meta']['published_count']==6, pref['meta']
-          print(json.dumps({'aosta_records':len(aosta),'registry_records':reg['meta']['record_count'],'status_counts':counts,'prefectures_meta':pref['meta']},ensure_ascii=False))
+          import pdfplumber
+
+          url='https://www.regione.vda.it/allegato.aspx?pk=84309'
+          req=urllib.request.Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist-source-audit/1.0'})
+          with urllib.request.urlopen(req,timeout=60) as resp:
+              data=resp.read()
+          expected='77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd'
+          digest=hashlib.sha256(data).hexdigest()
+          assert digest==expected,(digest,expected)
+          path=Path('/tmp/aosta-applicants.pdf'); path.write_bytes(data)
+          dmy=re.compile(r'^\d{1,2}/\d{1,2}/\d{4}$')
+          canonical=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$',re.I)
+          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
+          candidates=[]
+          with pdfplumber.open(path) as pdf:
+              for page_no,page in enumerate(pdf.pages,1):
+                  for table_no,table in enumerate(page.extract_tables(),1):
+                      for row_no,raw in enumerate(table,1):
+                          row=[clean(x) for x in raw]
+                          if len(row)==13 and row[0] and row[5] and dmy.fullmatch(row[9] or ''):
+                              candidates.append((page_no,table_no,row_no,row))
+          shapes=Counter()
+          outcomes=Counter()
+          noncanonical=[]
+          for page_no,table_no,row_no,row in candidates:
+              ident=row[5].replace(' ','')
+              if ident.isdigit(): shape=f'digits:{len(ident)}'
+              elif ident.isalnum(): shape=f'alnum:{len(ident)}'
+              else: shape='other'
+              shapes[shape]+=1
+              low=row[12].casefold()
+              if 'istruttoria' in low: outcome='pending'
+              elif 'iscritt' in low: outcome='listed'
+              elif any(x in low for x in ('negat','dinieg','rigett')): outcome='negative'
+              elif any(x in low for x in ('rinunc','cancell','revoc')): outcome='cancellation'
+              elif row[12]: outcome='other_text'
+              else: outcome='blank'
+              outcomes[outcome]+=1
+              if not canonical.fullmatch(ident):
+                  noncanonical.append({'page':page_no,'table':table_no,'row':row_no,'identifier_shape':shape,'outcome_class':outcome,'application_date':row[9]})
+          print(json.dumps({'sha256':digest,'candidate_rows':len(candidates),'identifier_shapes':dict(shapes),'outcome_classes':dict(outcomes),'noncanonical_candidate_count':len(noncanonical),'noncanonical_candidate_coordinates':noncanonical},ensure_ascii=False))
           PY
-          python -m white_list_archive.publishing.public_artifact /tmp/aosta-public-build/site
-          python -m white_list_archive.publishing.public_links /tmp/aosta-public-build/site /tmp/aosta-public-build/link-audit.json
-          node --check tests/public_portal_browser.cjs
-      - name: Remove one-shot materialiser and commit expansion branch
-        run: |
-          git rm .github/workflows/aosta-source-audit.yml .tmp/aosta_materialise.py
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/multi_prefecture_tables.py \
-                  data/publication/multi_prefecture_pilot.json \
-                  tests/test_aosta_parser_semantics.py \
-                  tests/public_portal_browser.cjs \
-                  .github/workflows/public-pages.yml \
-                  docs/sources/aosta-operational-check-2026-09-10.md
-          git diff --cached --check
-          git commit -m 'Expand public White List coverage to Aosta'
-          git push origin HEAD:expansion/aosta-source-audit-2026-09-10
