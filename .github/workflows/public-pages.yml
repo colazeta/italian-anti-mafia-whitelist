@@ -40,10 +40,26 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Prepare runner package sources
+        run: |
+          # The hosted image includes third-party APT repositories that this project
+          # does not depend on. A transient Chrome-repository hash mismatch must not
+          # break publication or Playwright dependency installation.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
       - name: Install publication runtime
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y poppler-utils
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
           python -m pip install -e '.[publication]'
       - name: Build approved multi-Prefecture registry
         run: |
