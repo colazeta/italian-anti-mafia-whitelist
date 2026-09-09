@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - expansion/aosta-source-audit-2026-09-10
+    paths:
+      - .github/workflows/aosta-source-audit.yml
 
 permissions:
   contents: write
@@ -68,35 +70,28 @@ jobs:
           python - <<'PY'
           import csv
           from pathlib import Path
-
-          series_path = Path('data/source_registry/source_series_inventory.csv')
-          with series_path.open(newline='', encoding='utf-8') as fh:
-              rows = list(csv.DictReader(fh)); fieldnames = list(rows[0])
+          series_path=Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(newline='',encoding='utf-8') as fh:
+              rows=list(csv.DictReader(fh)); fieldnames=list(rows[0])
           found=set()
           for row in rows:
               if row['source_series_key']=='aosta-listed':
-                  row['publication_model']='periodic_attachment'
-                  row['resource_resolution_status']='direct_series_page_resolved'
-                  row['verified_date']='2026-09-10'
+                  row['publication_model']='periodic_attachment'; row['resource_resolution_status']='direct_series_page_resolved'; row['verified_date']='2026-09-10'
                   row['notes']="Official Valle d'Aosta Prefecture service publishes a dedicated registered-company page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
                   found.add('aosta-listed')
               elif row['source_series_key']=='aosta-applicants':
-                  row['publication_model']='periodic_attachment'
-                  row['resource_resolution_status']='direct_series_page_resolved'
-                  row['verified_date']='2026-09-10'
+                  row['publication_model']='periodic_attachment'; row['resource_resolution_status']='direct_series_page_resolved'; row['verified_date']='2026-09-10'
                   row['notes']="Official Valle d'Aosta Prefecture service publishes a dedicated applicant page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
                   found.add('aosta-applicants')
           assert found=={'aosta-listed','aosta-applicants'},found
           with series_path.open('w',newline='',encoding='utf-8') as fh:
               writer=csv.DictWriter(fh,fieldnames=fieldnames,lineterminator='\n'); writer.writeheader(); writer.writerows(rows)
-
           pages_path=Path('data/source_registry/verified_primary_pages.csv')
           with pages_path.open(newline='',encoding='utf-8') as fh:
               pages=list(csv.DictReader(fh)); pfields=list(pages[0])
           matched=0
           for row in pages:
-              if row['authority_key']=='aosta':
-                  row['verification_date']='2026-09-10'; row['verification_status']='verified'; matched+=1
+              if row['authority_key']=='aosta': row['verification_date']='2026-09-10'; row['verification_status']='verified'; matched+=1
           assert matched==1,matched
           with pages_path.open('w',newline='',encoding='utf-8') as fh:
               writer=csv.DictWriter(fh,fieldnames=pfields,lineterminator='\n'); writer.writeheader(); writer.writerows(pages)
@@ -106,42 +101,27 @@ jobs:
       - name: Build and verify Aosta public registry before commit
         run: |
           rm -rf /tmp/aosta-public /tmp/aosta-work && mkdir -p /tmp/aosta-public /tmp/aosta-work
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/aosta-work \
-            --registry-json /tmp/aosta-public/registry.json \
-            --registry-csv /tmp/aosta-public/registry.csv \
-            --prefectures-json /tmp/aosta-public/prefectures.json \
-            --prefectures-csv /tmp/aosta-public/prefectures.csv
+          white-list-public-national-build --source-config data/publication/multi_prefecture_pilot.json --verified-pages data/source_registry/verified_primary_pages.csv --source-series data/source_registry/source_series_inventory.csv --authority-aliases data/source_registry/national_index_authority_aliases.csv --work-dir /tmp/aosta-work --registry-json /tmp/aosta-public/registry.json --registry-csv /tmp/aosta-public/registry.csv --prefectures-json /tmp/aosta-public/prefectures.json --prefectures-csv /tmp/aosta-public/prefectures.csv
           python - <<'PY'
           import json
           from collections import Counter
           from pathlib import Path
-          reg=json.loads(Path('/tmp/aosta-public/registry.json').read_text(encoding='utf-8'))
-          pref=json.loads(Path('/tmp/aosta-public/prefectures.json').read_text(encoding='utf-8'))
+          reg=json.loads(Path('/tmp/aosta-public/registry.json').read_text(encoding='utf-8')); pref=json.loads(Path('/tmp/aosta-public/prefectures.json').read_text(encoding='utf-8'))
           aosta=[r for r in reg['records'] if r['authority_key']=='aosta']
-          assert reg['meta']['record_count']==5870,reg['meta']
-          assert reg['meta']['authority_count']==6,reg['meta']
-          assert reg['meta']['register_count']==7,reg['meta']
-          assert len(aosta)==384,len(aosta)
-          assert Counter(r['source_key'] for r in aosta)=={'aosta-listed':245,'aosta-applicants':139}
+          assert reg['meta']['record_count']==5870 and reg['meta']['authority_count']==6 and reg['meta']['register_count']==7,reg['meta']
+          assert len(aosta)==384 and Counter(r['source_key'] for r in aosta)=={'aosta-listed':245,'aosta-applicants':139}
           assert Counter(r['source_status'] for r in aosta)=={'listed':345,'pending':22,'renewal_update_in_progress':17}
           assert not [r['record_locator'] for r in aosta if not r.get('identifiers')]
-          aosta_pref=[p for p in pref['prefectures'] if p['jurisdiction_name']=='Aosta']
-          assert len(aosta_pref)==1 and aosta_pref[0]['mapped'] and aosta_pref[0]['published'],aosta_pref
-          assert pref['meta']['mapped_count']==34,pref['meta']
-          assert pref['meta']['published_count']==6,pref['meta']
-          print('Aosta registry verified:',len(aosta),'rows',Counter(r['source_status'] for r in aosta))
+          ap=[p for p in pref['prefectures'] if p['jurisdiction_name']=='Aosta']
+          assert len(ap)==1 and ap[0]['mapped'] and ap[0]['published'] and pref['meta']['mapped_count']==34 and pref['meta']['published_count']==6
           PY
-      - name: Remove temporary audit machinery and commit expansion
+      - name: Commit non-workflow Aosta expansion
         run: |
           git diff --check
-          rm -f .tmp/aosta_materialise.py .github/workflows/aosta-source-audit.yml
+          git restore .github/workflows/public-pages.yml
+          rm -f .tmp/aosta_materialise.py
           rmdir .tmp 2>/dev/null || true
-          git add -A
+          git add -A -- ':!.github/workflows/aosta-source-audit.yml'
           git diff --cached --check
           git status --short
           git config user.name 'github-actions[bot]'
