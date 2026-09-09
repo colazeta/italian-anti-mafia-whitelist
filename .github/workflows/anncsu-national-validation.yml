@@ -8,6 +8,7 @@ on:
       - 'src/white_list_archive/geocoding/anncsu_*.py'
       - 'src/white_list_archive/geocoding/country_routing.py'
       - 'src/white_list_archive/geocoding/italian_address.py'
+      - 'src/white_list_archive/publishing/actions_verification.py'
       - 'db/schema/059_address_normalisation.sql'
       - 'db/schema/061_anncsu_orchestration.sql'
       - 'db/seeds/015_geo_lookup_values.sql'
@@ -17,6 +18,7 @@ on:
       - 'data/publication/multi_prefecture_pilot.json'
       - 'scripts/validate_national_anncsu.py'
       - 'scripts/validate_national_anncsu_with_retries.py'
+      - 'scripts/install_ci_ubuntu_packages.sh'
       - 'pyproject.toml'
       - '.github/workflows/anncsu-national-validation.yml'
   push:
@@ -27,6 +29,7 @@ on:
       - 'src/white_list_archive/geocoding/anncsu_*.py'
       - 'src/white_list_archive/geocoding/country_routing.py'
       - 'src/white_list_archive/geocoding/italian_address.py'
+      - 'src/white_list_archive/publishing/actions_verification.py'
       - 'db/schema/059_address_normalisation.sql'
       - 'db/schema/061_anncsu_orchestration.sql'
       - 'db/seeds/015_geo_lookup_values.sql'
@@ -36,6 +39,7 @@ on:
       - 'data/publication/multi_prefecture_pilot.json'
       - 'scripts/validate_national_anncsu.py'
       - 'scripts/validate_national_anncsu_with_retries.py'
+      - 'scripts/install_ci_ubuntu_packages.sh'
       - 'pyproject.toml'
       - '.github/workflows/anncsu-national-validation.yml'
   workflow_dispatch:
@@ -76,9 +80,8 @@ jobs:
       - name: Install project and database utilities
         run: |
           python -m pip install -e '.[dev,database]'
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client poppler-utils
-          pytest -q tests/test_national_anncsu.py tests/test_anncsu_acquisition.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py
+          bash scripts/install_ci_ubuntu_packages.sh postgresql-client poppler-utils
+          pytest -q tests/test_national_anncsu.py tests/test_anncsu_acquisition.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py tests/test_actions_artifact_policy.py
 
       - name: Acquire frozen Istat municipality reference
         run: |
@@ -108,17 +111,22 @@ jobs:
             --artifact-dir artifacts/national-anncsu \
             --cache-dir /tmp/anncsu-national-cache
 
-      - name: Remove bulky reference input from review artifact
+      - name: Build redacted public ANNCSU verification
+        run: |
+          python -m white_list_archive.publishing.actions_verification anncsu \
+            --summary artifacts/national-anncsu/live-validation-summary.json \
+            --output artifacts/public-actions/national-anncsu/verification.json
+
+      - name: Remove bulky internal reference input
         if: always()
         run: |
           rm -rf artifacts/national-anncsu/istat
           rm -f artifacts/national-anncsu/istat-acquisition.json
 
-      - name: Upload national ANNCSU validation evidence
-        if: always()
+      - name: Upload redacted public ANNCSU verification
         uses: actions/upload-artifact@v4
         with:
-          name: national-anncsu-validation-attempt-${{ github.run_attempt }}
-          path: artifacts/national-anncsu/
-          if-no-files-found: warn
+          name: national-anncsu-verification-${{ github.run_attempt }}
+          path: artifacts/public-actions/national-anncsu/
+          if-no-files-found: error
           retention-days: 30
