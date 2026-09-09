@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/build_pistoia_address_review_pack.py'
       - 'scripts/stabilize_pistoia_review_pack.py'
+      - 'scripts/install_ci_ubuntu_packages.sh'
+      - 'src/white_list_archive/publishing/actions_verification.py'
       - '.github/workflows/pistoia-address-replication.yml'
       - 'src/white_list_archive/geocoding/**'
       - 'src/white_list_archive/acquisition/**'
@@ -17,6 +19,8 @@ on:
     paths:
       - 'scripts/build_pistoia_address_review_pack.py'
       - 'scripts/stabilize_pistoia_review_pack.py'
+      - 'scripts/install_ci_ubuntu_packages.sh'
+      - 'src/white_list_archive/publishing/actions_verification.py'
       - '.github/workflows/pistoia-address-replication.yml'
       - 'src/white_list_archive/geocoding/**'
       - 'src/white_list_archive/acquisition/**'
@@ -62,9 +66,8 @@ jobs:
       - name: Install project and utilities
         run: |
           python -m pip install -e '.[dev,database]'
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client poppler-utils
-          pytest -q tests/test_national_anncsu.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py tests/test_geocoding_validation.py tests/test_address_review_sample.py
+          bash scripts/install_ci_ubuntu_packages.sh postgresql-client poppler-utils
+          pytest -q tests/test_national_anncsu.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py tests/test_geocoding_validation.py tests/test_address_review_sample.py tests/test_actions_artifact_policy.py
 
       - name: Acquire frozen Istat municipality reference
         run: |
@@ -84,7 +87,7 @@ jobs:
           psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
           psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
 
-      - name: Build full Pistoia source-backed review pack
+      - name: Build full Pistoia source-backed review pack on ephemeral runner
         run: |
           python scripts/build_pistoia_address_review_pack.py \
             --dsn "$TEST_DSN" \
@@ -141,17 +144,23 @@ jobs:
           }, indent=2))
           PY
 
-      - name: Remove bulky reference input
+      - name: Build redacted public Pistoia verification
+        run: |
+          python -m white_list_archive.publishing.actions_verification pistoia \
+            --manifest artifacts/pistoia-replication/review-pack/pistoia-review-manifest.json \
+            --review-sample artifacts/pistoia-replication/review-pack/pistoia-review-sample.csv \
+            --output artifacts/public-actions/pistoia-address-replication/verification.json
+
+      - name: Remove bulky internal reference input
         if: always()
         run: |
           rm -rf artifacts/pistoia-replication/istat
           rm -f artifacts/pistoia-replication/istat-acquisition.json
 
-      - name: Upload Pistoia replication review evidence
-        if: always()
+      - name: Upload redacted public Pistoia verification
         uses: actions/upload-artifact@v4
         with:
-          name: pistoia-address-review-pack-attempt-${{ github.run_attempt }}
-          path: artifacts/pistoia-replication/
+          name: pistoia-address-replication-verification-${{ github.run_attempt }}
+          path: artifacts/public-actions/pistoia-address-replication/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 30

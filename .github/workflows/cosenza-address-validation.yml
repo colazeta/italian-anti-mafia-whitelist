@@ -8,10 +8,12 @@ on:
       - 'src/white_list_archive/geocoding/country_routing.py'
       - 'src/white_list_archive/geocoding/anncsu_pipeline.py'
       - 'src/white_list_archive/geocoding/validation.py'
+      - 'src/white_list_archive/publishing/actions_verification.py'
       - 'src/white_list_archive/semantic/pipeline_current.py'
       - 'db/schema/059_address_normalisation.sql'
       - 'db/tests/010_cosenza_address_country_routing.sql'
       - 'tests/test_address_country_routing.py'
+      - 'scripts/install_ci_ubuntu_packages.sh'
       - '.github/workflows/cosenza-address-validation.yml'
 
 concurrency:
@@ -50,9 +52,8 @@ jobs:
       - name: Install project and utilities
         run: |
           python -m pip install -e .[dev,database]
-          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_explorer_address_quality_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py tests/test_address_country_routing.py
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils postgresql-client
+          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_explorer_address_quality_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py tests/test_address_country_routing.py tests/test_actions_artifact_policy.py
+          bash scripts/install_ci_ubuntu_packages.sh poppler-utils postgresql-client
 
       - name: Reconstruct frozen Cosenza database
         run: |
@@ -164,7 +165,7 @@ jobs:
             > artifacts/address-validation/review_sample_manifest.json
           cat artifacts/address-validation/review_sample_manifest.json
 
-      - name: Build retro Explorer audit package
+      - name: Build internal retro Explorer audit package on ephemeral runner only
         run: |
           mkdir -p artifacts/data-explorer-preview-v2
           white-list-source-population-coverage \
@@ -299,9 +300,19 @@ jobs:
           print('Country-routed quality and review Explorer validated:', quality)
           PY
 
-      - uses: actions/upload-artifact@v4
+      - name: Build redacted public Cosenza address verification
+        run: |
+          python -m white_list_archive.publishing.actions_verification cosenza-address \
+            --summary artifacts/address-validation/validation/summary.json \
+            --review-sample artifacts/address-validation/review_sample.csv \
+            --address-results artifacts/address-validation/validation/address_results.csv \
+            --frozen-review-summary data/validation/cosenza/address-review-2026-09-07.summary.json \
+            --output artifacts/public-actions/cosenza-address-validation/verification.json
+
+      - name: Upload redacted public Cosenza address verification
+        uses: actions/upload-artifact@v4
         with:
-          name: cosenza-address-validation-explorer
-          path: artifacts/data-explorer-preview-v2/
+          name: cosenza-address-validation-verification-${{ github.run_attempt }}
+          path: artifacts/public-actions/cosenza-address-validation/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 30

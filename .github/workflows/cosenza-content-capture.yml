@@ -26,11 +26,13 @@ on:
       - 'db/tests/004_cosenza_live_parsed_counts.sql'
       - 'db/tests/005_cosenza_v2_live_counts.sql'
       - 'db/tests/006_cosenza_semantic_pipeline.sql'
+      - 'scripts/install_ci_ubuntu_packages.sh'
       - 'pyproject.toml'
       - '.github/workflows/cosenza-content-capture.yml'
   pull_request:
     paths:
       - 'src/white_list_archive/publishing/**'
+      - 'scripts/install_ci_ubuntu_packages.sh'
       - '.github/workflows/cosenza-content-capture.yml'
   workflow_dispatch:
 
@@ -64,8 +66,7 @@ jobs:
       - name: Install project and acquisition utilities
         run: |
           python -m pip install -e .[database]
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils postgresql-client
+          bash scripts/install_ci_ubuntu_packages.sh poppler-utils postgresql-client
       - name: Apply PostgreSQL schema
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
       - name: Capture two adjacent Cosenza editions
@@ -176,7 +177,7 @@ jobs:
             --dsn "$TEST_DSN" \
             --output-dir artifacts/data-explorer-preview-v2 \
             --preview-limit 50
-      - name: Package original PDFs and row-to-page evidence locators
+      - name: Package original PDFs and row-to-page evidence locators on ephemeral runner
         run: |
           white-list-source-evidence \
             --before-pdf artifacts/cosenza-capture/2026-06-28/combined.pdf \
@@ -184,7 +185,7 @@ jobs:
             --before-manifest data/captures/cosenza/combined_2026-06-28.json \
             --after-manifest data/captures/cosenza/combined_2026-08-03.json \
             --output-dir artifacts/data-explorer-preview-v2
-      - name: Build private Dataset Explorer from populated database state
+      - name: Build internal Dataset Explorer on ephemeral runner only
         run: |
           white-list-build-explorer-preview-v2 \
             --before-records artifacts/cosenza-v2/before_records_v2.csv \
@@ -298,17 +299,21 @@ jobs:
           print('canonicalisation:', json.dumps(semantic['canonicalisation'], indent=2))
           print('source population coverage:', json.dumps({k:v for k,v in coverage.items() if k.endswith('count')}, indent=2))
           PY
-      - uses: actions/upload-artifact@v4
+
+      - name: Build redacted public content-capture verification
+        run: |
+          python -m white_list_archive.publishing.actions_verification cosenza-content \
+            --capture-manifest artifacts/cosenza-capture/manifest.json \
+            --v2-summary artifacts/cosenza-v2/diff_summary_v2.json \
+            --semantic artifacts/cosenza-v2/semantic_pipeline.json \
+            --population artifacts/cosenza-v2/model_population.json \
+            --coverage artifacts/data-explorer-preview-v2/source_population_coverage.json \
+            --output artifacts/public-actions/cosenza-content-capture/verification.json
+
+      - name: Upload redacted public Cosenza content verification
+        uses: actions/upload-artifact@v4
         with:
-          name: cosenza-content-capture-v2
-          path: |
-            artifacts/cosenza-capture/
-            artifacts/cosenza-mentions-v1/
-            artifacts/cosenza-v2/
+          name: cosenza-content-verification-${{ github.run_attempt }}
+          path: artifacts/public-actions/cosenza-content-capture/
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: data-explorer-preview-v2
-          path: artifacts/data-explorer-preview-v2/
-          if-no-files-found: error
-          retention-days: 90
+          retention-days: 30
