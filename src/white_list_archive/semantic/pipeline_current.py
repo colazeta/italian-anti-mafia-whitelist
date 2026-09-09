@@ -24,6 +24,30 @@ from white_list_archive.semantic import pipeline as base
 from white_list_archive.semantic.canonicalise_v2 import canonicalise_series
 
 
+def _clear_legacy_address_country_assumption(conn) -> int:
+    """Remove the old `IT` default created solely by the canonicaliser.
+
+    `core.address.country_code` is source-supported truth. The historical
+    canonicaliser populated `IT` because the publishing Prefecture was Italian,
+    which is not evidence about the address itself. We remove only values created
+    by the known canonicaliser activities; genuinely source-populated country
+    fields produced by other activities are untouched. Derived country/routing
+    belongs in `geo.address_country_assessment`.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE core.address a
+            SET country_code=NULL
+            FROM provenance.processing_activity p
+            WHERE a.processing_activity_id=p.processing_activity_id
+              AND a.country_code='IT'
+              AND p.software_name IN ('stable-source-identifier-v1','stable-source-identifier-v2')
+            """
+        )
+        return int(cur.rowcount)
+
+
 def run_pipeline(
     conn,
     series_code: str,
@@ -56,6 +80,7 @@ def run_pipeline(
         )
     projection = project_series(conn, series_code)
     canonicalisation = canonicalise_series(conn, series_code)
+    cleared_country_defaults = _clear_legacy_address_country_assumption(conn)
 
     return {
         "series_code": series_code,
@@ -76,6 +101,11 @@ def run_pipeline(
         "field_mappings": mappings,
         "semantic_projection": projection,
         "canonicalisation": canonicalisation,
+        "address_country_semantics": {
+            "core_country_semantics": "source_explicit_only",
+            "cleared_legacy_it_defaults": cleared_country_defaults,
+            "derived_country_table": "geo.address_country_assessment",
+        },
     }
 
 
