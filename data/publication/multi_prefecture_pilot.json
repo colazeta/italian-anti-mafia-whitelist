@@ -145,11 +145,11 @@
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/white-list-4-settembre-2026.pdf",
       "sha256": "78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95",
-      "expected_sector_rows": 664,
-      "expected_source_rows": 365,
+      "expected_sector_rows": 670,
+      "expected_source_rows": 359,
       "last_source_update": "2026-09-04",
       "last_source_update_basis": "dated official resource",
-      "notes": "Source identifiers are preserved verbatim. Numeric values with source lengths other than 11 digits are not padded or silently normalised."
+      "notes": "The official source repeats companies across numbered sectors. The audited 670 sector rows group to 359 identity-and-outcome observations. Explicit ordinal/layout date typography is normalised without changing source digits. Conflicting date values across repeated rows are preserved as source variants and the conflicting normalised public date field is left blank rather than resolved by inference. A malformed 65.5.2026 variant is retained in provenance; the corresponding public expiry is populated only because the same source identity/outcome has a unique clean repeated value. Source identifiers are preserved verbatim and unusual numeric lengths are never padded or truncated."
     },
     {
       "source_key": "alessandria-applicants",
