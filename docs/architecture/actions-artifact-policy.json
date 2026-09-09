@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "repository_visibility": "public",
+  "rule": "Every GitHub Actions artifact is a publication surface. Only explicitly classified public outputs may be uploaded.",
+  "upload_artifacts": [
+    {
+      "workflow": ".github/workflows/anncsu-national-validation.yml",
+      "name": "national-anncsu-verification-${{ github.run_attempt }}",
+      "path": "artifacts/public-actions/national-anncsu/",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/cosenza-address-validation.yml",
+      "name": "cosenza-address-validation-verification-${{ github.run_attempt }}",
+      "path": "artifacts/public-actions/cosenza-address-validation/",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/cosenza-content-capture.yml",
+      "name": "cosenza-content-verification-${{ github.run_attempt }}",
+      "path": "artifacts/public-actions/cosenza-content-capture/",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/cosenza-snapshot-discovery.yml",
+      "name": "cosenza-snapshot-discovery",
+      "path": "cosenza-snapshot.csv",
+      "classification": "deliberately_public_discovery"
+    },
+    {
+      "workflow": ".github/workflows/discover-national-index.yml",
+      "name": "national-white-list-index",
+      "path": "national-white-list-index.csv",
+      "classification": "deliberately_public_discovery"
+    },
+    {
+      "workflow": ".github/workflows/evidence-recovery.yml",
+      "name": "evidence-recovery-verification-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/private-evidence-recovery/receipts/*.json",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/evidence-store.yml",
+      "name": "evidence-store-verification-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/private-evidence-check/*.verification.json",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/fallback-geocoding-validation.yml",
+      "name": "fallback-geocoding-verification-${{ github.run_attempt }}",
+      "path": "artifacts/public-actions/fallback-geocoding/",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/pistoia-address-replication.yml",
+      "name": "pistoia-address-replication-verification-${{ github.run_attempt }}",
+      "path": "artifacts/public-actions/pistoia-address-replication/",
+      "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "name": "public-rendered-evidence-attempt-${{ github.run_attempt }}",
+      "path": "test-results/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "name": "public-link-audit-attempt-${{ github.run_attempt }}",
+      "path": "/tmp/public-link-audit.json",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "name": "public-portal-review-attempt-${{ github.run_attempt }}",
+      "path": "public-site/",
+      "classification": "deliberately_public_publication"
+    }
+  ],
+  "pages_artifact": {
+    "workflow": ".github/workflows/public-pages.yml",
+    "path": "public-site/",
+    "classification": "deliberately_public_publication"
+  }
+}
