@@ -87,7 +87,11 @@ jobs:
           from botocore.config import Config
 
           from white_list_archive.storage.evidence import EvidenceStore, StoreConfig
-          from white_list_archive.storage.recovery import backup_and_restore_test, store_fingerprint
+          from white_list_archive.storage.recovery import (
+              backup_and_restore_test,
+              public_recovery_receipt,
+              store_fingerprint,
+          )
 
           def client(config, key_name, secret_name, token_name):
               kwargs = {
@@ -150,7 +154,7 @@ jobs:
               primary_bytes = primary_store.read_verified(manifest)
               source_path = source_dir / manifest['sha256']
               source_path.write_bytes(primary_bytes)
-              receipt = backup_and_restore_test(
+              full_receipt = backup_and_restore_test(
                   source_path=source_path,
                   manifest=manifest,
                   recovery_store=recovery_store,
@@ -160,16 +164,22 @@ jobs:
               )
               if (restore_dir / manifest['sha256']).read_bytes() != primary_bytes:
                   raise SystemExit('Clean restore differs from the independently verified primary bytes')
+
+              # This repository is public. GitHub Actions artifacts are therefore
+              # treated as public evidence: upload only the deliberately redacted
+              # receipt, never provider coordinates, policy locators or the reviewed
+              # independence statement itself.
+              receipt = public_recovery_receipt(full_receipt)
               receipt['manifest_path'] = str(manifest_path)
-              with (receipt_dir / f"{manifest['sha256']}.recovery-receipt.json").open('x') as handle:
+              with (receipt_dir / f"{manifest['sha256']}.recovery-verification.json").open('x') as handle:
                   json.dump(receipt, handle, indent=2)
                   handle.write('\n')
           PY
 
-      - name: Save private recovery receipts only
+      - name: Save redacted recovery verification receipts
         uses: actions/upload-artifact@v4
         with:
-          name: private-evidence-recovery-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          name: evidence-recovery-verification-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/private-evidence-recovery/receipts/*.json
           if-no-files-found: error
           retention-days: 90
