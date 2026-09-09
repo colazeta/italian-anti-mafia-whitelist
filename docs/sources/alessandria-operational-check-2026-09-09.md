@@ -20,20 +20,21 @@ A live retrieval from the repository CI environment on 2026-09-09 resolved two c
 - SHA-256: `78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95`
 - pages: `57`
 - extracted source sector rows: `670`
-- grouped public observations: `359`
+- grouped public observations: `363`
 - section headers observed: `SEZIONE I` through `SEZIONE X`
 - source outcomes across sector rows: `406` blank, `245` `In istruttoria per rinnovo`, `5` upper-case `IN ISTRUTTORIA PER RINNOVO`, `8` bare `In istruttoria`.
 
-The source repeats the same company across numbered sectors. The parser therefore groups rows on source company name, source identifier and source outcome while retaining all observed sector memberships, registered-office variants and source date variants. A bare `In istruttoria` note inside this registered-company document is kept as `other_or_unknown`; it is not silently reclassified as a renewal or an applicant record.
+The source repeats the same company across numbered sectors. Rows are grouped only when source company name, source identifier, source outcome **and normalised date pair** coincide. Sector memberships, registered-office variants and raw date variants are retained. A bare `In istruttoria` note inside this registered-company document is kept as `other_or_unknown`; it is not silently reclassified as a renewal or an applicant record.
 
-A second live-source audit was run after the first parser attempt exposed four dropped rows. It established that the complete listed document contains **670** company/sector rows and **359** distinct company-identifier-outcome groups. The difference from the first 664/365 characterisation arose because a small number of source date cells contain typography or inconsistent repeated values that a strict `d.m.yyyy` regex did not characterise safely.
+A second live-source audit was run after the first parser attempt exposed four dropped rows. It established that the complete listed document contains **670** company/sector rows and **359** distinct company-identifier-outcome groups. Four of those identity/outcome groups contain two different date pairs. Because the archive does not infer which source date is correct, those four groups remain split by their stated date pair, producing **363 source-backed public observations**. This preserves the association between each date pair and its sector rows rather than collapsing conflicting facts into a single synthetic record.
 
-The following source-date handling is now explicit and conservative:
+The following source-date handling is explicit and conservative:
 
 - ordinal typography after day `1` (for example `1°.5.2025`) is normalised as the visibly stated date; the raw source value is retained;
 - a single layout-extraction space inside a four-digit year (`1°.12.202 2`) is removed because all four source digits are present; the raw source value is retained;
-- the calendar-invalid source value `65.5.2026`, observed twice for `EDIL SINA S.R.L.` (`02614330062`), is never repaired. The same company/identifier/outcome is repeated elsewhere in the same official source with the unique clean expiry `5.5.2026`; the grouped observation may therefore expose that unique repeated normalised value while retaining the malformed source pair in provenance;
-- four company/identifier/outcome groups contain genuinely conflicting dates across sector repetitions. No value is selected by plausibility. The conflicting normalised public date field is left blank and all source variants are retained.
+- the calendar-invalid source value `65.5.2026`, observed twice for `EDIL SINA S.R.L.` (`02614330062`), is never repaired. The same company/identifier/outcome is repeated elsewhere in the same official source with exactly one complete clean date pair (`6.5.2025` / `5.5.2026`), so the malformed repetitions can be attached to that unique source-backed observation while their raw malformed value remains in provenance;
+- where the same company/identifier/outcome has more than one complete date pair, each complete pair is retained as a distinct observation. No value is selected by plausibility and no conflicting pair is discarded;
+- if an invalid row were ever associated with more than one possible complete pair for the same identity/outcome, the parser would leave that row unresolved and the existing `dropped_date_rows` gate would block publication.
 
 The four conflict groups observed on 2026-09-09 are:
 
@@ -42,7 +43,7 @@ The four conflict groups observed on 2026-09-09 are:
 3. `GESTIONE AMBIENTE S.P.A.` (`01492290067`): listing `15.04.2025`; expiry variants `13.04.2026` and `14.04.2026`;
 4. `T.S.L. TRASPORTI S.R.L.` (`01273050052`): listing `29.4.2025`; expiry variants `28.4.2026` and `29.4.2026`.
 
-This treatment does not infer which conflicting value is correct and does not discard the conflict. It preserves the source as published while still grouping sector repetition into one public observation where source identity and outcome coincide.
+This treatment is intentionally observation-level rather than entity-level: the public archive reports what the official source states and does not resolve source inconsistencies that would require an external evidentiary basis.
 
 ### Applicant companies
 
@@ -88,4 +89,4 @@ Exploratory live-source CI runs used to resolve and characterise the two current
 - https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34407888680
 - https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34408068745
 
-The exploratory characterisation runs were intentionally fail-signalled after emitting source diagnostics and are not acceptance gates. Their findings are pinned by deterministic parser tests. The permanent parser/configuration changes must still pass normal repository tests and the public portal regression before merge. At the audited counts, Alessandria contributes 359 listed observations plus 71 applicant observations; if accepted, the public national registry denominator becomes 5,482 observations across five Prefectures and six registers.
+The exploratory characterisation runs were intentionally fail-signalled after emitting source diagnostics and are not acceptance gates. Their findings are pinned by deterministic parser tests. The permanent parser/configuration changes must pass normal repository tests and the public portal regression before merge. At the audited counts, Alessandria contributes 363 listed observations plus 71 applicant observations; if accepted, the public national registry denominator becomes 5,486 observations across five Prefectures and six registers.
