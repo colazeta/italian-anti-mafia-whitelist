@@ -1,0 +1,151 @@
+name: Finalise Crotone resolution docs once
+
+on:
+  push:
+    branches:
+      - sources/resolve-crotone-2026-09-09
+    paths:
+      - '.github/workflows/finalise-crotone-docs-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sources/resolve-crotone-2026-09-09
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Refresh README and evidence log
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          replacements = {
+              '- **63** qualified recurring source series;': '- **65** qualified recurring source series;',
+              'At the current **34-page / 63-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **32** account for both populations and **3** remain unresolved/incomplete.': 'At the current **34-page / 65-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **33** account for both populations and **2** remain unresolved/incomplete.',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'Expected README marker missing: {old}')
+              text = text.replace(old, new, 1)
+          readme.write_text(text, encoding='utf-8')
+
+          Path('docs/sources/source-population-resolution-2026-09-09.md').write_text(r'''# Source-population resolution wave — 2026-09-09
+
+## Purpose
+
+This pass revisits the five register scopes that remained unresolved after the 7 September source-population wave. The same positive-evidence rule applies: a logical `listed` or `applicant` target is covered only when a current official authority surface directly exposes that population, explicitly links its recurring publication surface, or explicitly identifies an external application as the publication surface.
+
+Search failure, a submission portal, a generic White List information page or historical evidence is not treated as proof that a population is unpublished.
+
+## Result
+
+After the completed 9 September resolution work:
+
+- verified authorities: **34**;
+- register/regime scopes: **35**;
+- scopes with both `listed` and `applicant` populations accounted for: **33**;
+- unresolved scopes: **2**;
+- inventoried recurring source series: **65**.
+
+Three previously unresolved authorities are now positively resolved: **Bari**, **Udine** and **Crotone**.
+
+## Bari — resolved
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list
+
+The current Prefettura page explicitly exposes two separate attachments:
+
+- `Elenco società iscritte al 31/08/2026`;
+- `Elenco richieste di iscrizione al 31/08/2026`.
+
+The page therefore positively accounts for both mandatory logical populations. The registry contains `bari-listed` and `bari-applicants`, both bound to the current official landing page as recurring periodic attachments.
+
+This supersedes the access failure recorded in `bari-operational-check-2026-09-08.md`; that earlier record remains historically correct for the failed 8 September observation and is not rewritten.
+
+## Udine — resolved
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list
+
+The current Prefettura page explicitly exposes two separate attachments, both updated 18 August 2026:
+
+- `Elenco ditte iscritte nelle White List`;
+- `Elenco dei fornitori che hanno chiesto di essere iscritti nelle White List`.
+
+The registry contains `udine-listed` and `udine-applicants`, both bound to the current official landing page as recurring periodic attachments. No historical-site inference is required.
+
+## Crotone — resolved
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list
+
+The current Prefettura page, last updated **14 August 2026**, directly exposes two separate White List attachments:
+
+- `Ditte con richiesta iscrizione white list`;
+- `Ditte iscritte white list`.
+
+This is positive current evidence for both mandatory logical populations. The registry therefore contains `crotone-listed` and `crotone-applicants`, both bound to the official White List landing page as recurring periodic attachments.
+
+An earlier research note on 9 September had positively resolved only the listed-company surface through the general documents index and therefore retained the applicant target as unresolved. The current White List page itself now provides the stronger direct evidence needed to resolve both targets. The earlier uncertainty is superseded rather than reinterpreted as evidence of prior non-publication.
+
+## Still unresolved
+
+### Milano
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list
+
+The registered-company publication remains positively evidenced through the dedicated Prefettura application (`whitelist.prefmi.it`). The current Ministry page also exposes the new `portalewl.interno.gov.it` route for submitting applications from 21 July 2025. A submission route is not a public applicant-list publication. No separate current public applicant series was positively resolved in this pass, so `milano-applicant` remains `UNRESOLVED_REQUIRES_REVIEW`.
+
+### Sassari
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list
+
+The page currently exposes a single attachment labelled `WHITE LIST elenco provinciale delle imprese`. The page also contains procedural text concerning firms that have applied but are not yet registered. Neither the generic attachment label nor procedural text alone proves that the attachment physically contains both populations. Until the attachment schema or a distinct applicant publication is positively verified, the Sassari scope remains `UNRESOLVED_REQUIRES_REVIEW`.
+
+## Regression rule
+
+The deterministic coverage test now asserts the exact unresolved set:
+
+```text
+milano
+sassari
+```
+
+Bari, Udine and Crotone must regress to unresolved if their qualifying series are removed. The target state remains 35/35 complete only if the remaining two populations are positively evidenced under the same admission rule.
+''', encoding='utf-8')
+          PY
+      - name: Verify documentation and focused source-population state
+        run: |
+          python -m pip install -e . pytest
+          python -m pytest -q tests/test_source_population_coverage.py tests/test_monitoring_reconciliation.py tests/test_repository_governance.py
+          grep -F '**65** qualified recurring source series' README.md
+          grep -F '**33** account for both populations and **2** remain unresolved/incomplete' README.md
+          grep -F 'scopes with both `listed` and `applicant` populations accounted for: **33**' docs/sources/source-population-resolution-2026-09-09.md
+      - name: Remove one-off workflows and commit final Crotone resolution
+        run: |
+          git rm .github/workflows/resolve-crotone-once.yml .github/workflows/finalise-crotone-docs-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/sources/source-population-resolution-2026-09-09.md
+          git diff --cached --check
+          git commit -m 'Finalise Crotone source-population resolution evidence'
+          git push origin HEAD:sources/resolve-crotone-2026-09-09
