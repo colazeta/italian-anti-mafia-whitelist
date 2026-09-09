@@ -57,7 +57,29 @@ jobs:
           assert '[omitted in sanitized preview]' in html
           PY
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          if command -v psql >/dev/null 2>&1; then
+            psql --version
+            exit 0
+          fi
+          # The hosted runner carries unrelated third-party APT sources (for example
+          # Google Chrome). A transient metadata/hash mismatch in those repositories
+          # must not make this repository's database CI flaky. Disable only that
+          # unrelated source, then retry Ubuntu package metadata cleanly.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends postgresql-client; then
+              psql --version
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 3))
+            fi
+          done
+          echo "PostgreSQL client installation failed after bounded retries" >&2
+          exit 1
       - name: Apply schema and seeds
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
       - name: Run database integrity tests
