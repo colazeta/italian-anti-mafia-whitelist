@@ -1,0 +1,407 @@
+name: National ANNCSU orchestration validation
+
+on:
+  pull_request:
+    paths:
+      - 'src/white_list_archive/acquisition/anncsu.py'
+      - 'src/white_list_archive/acquisition/istat_municipalities.py'
+      - 'src/white_list_archive/geocoding/anncsu_*.py'
+      - 'src/white_list_archive/geocoding/country_routing.py'
+      - 'src/white_list_archive/geocoding/italian_address.py'
+      - 'db/schema/059_address_normalisation.sql'
+      - 'db/schema/061_anncsu_orchestration.sql'
+      - 'db/seeds/015_geo_lookup_values.sql'
+      - 'db/apply.sql'
+      - 'db/test.sql'
+      - 'db/tests/010_anncsu_orchestration.sql'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'pyproject.toml'
+      - '.github/workflows/anncsu-national-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/white_list_archive/acquisition/anncsu.py'
+      - 'src/white_list_archive/acquisition/istat_municipalities.py'
+      - 'src/white_list_archive/geocoding/anncsu_*.py'
+      - 'src/white_list_archive/geocoding/country_routing.py'
+      - 'src/white_list_archive/geocoding/italian_address.py'
+      - 'db/schema/059_address_normalisation.sql'
+      - 'db/schema/061_anncsu_orchestration.sql'
+      - 'db/seeds/015_geo_lookup_values.sql'
+      - 'db/apply.sql'
+      - 'db/test.sql'
+      - 'db/tests/010_anncsu_orchestration.sql'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'pyproject.toml'
+      - '.github/workflows/anncsu-national-validation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: anncsu-national-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  multi-region-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install project and database utilities
+        run: |
+          python -m pip install -e '.[dev,database]'
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client poppler-utils
+          pytest -q tests/test_national_anncsu.py tests/test_anncsu_acquisition.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py
+
+      - name: Verify ANNCSU regional dataset catalogue against official endpoint
+        run: |
+          mkdir -p artifacts/national-anncsu
+          python - <<'PY'
+          import concurrent.futures
+          import json
+          import urllib.request
+          from pathlib import Path
+          from white_list_archive.acquisition.anncsu import USER_AGENT, build_bulk_url
+          from white_list_archive.geocoding.national_anncsu import ANNCSU_REGION_DATASETS, MAP_VERSION
+
+          def probe(item):
+              code=str(item['dataset'])
+              url=build_bulk_url(code)
+              req=urllib.request.Request(
+                  url,
+                  headers={
+                      'User-Agent': USER_AGENT,
+                      'Accept': 'application/octet-stream,*/*',
+                      'Range': 'bytes=0-1',
+                  },
+                  method='GET',
+              )
+              with urllib.request.urlopen(req, timeout=45) as response:
+                  magic=response.read(2)
+                  result={
+                      'region':item['region'],
+                      'province':item['province'],
+                      'dataset_code':code,
+                      'url':url,
+                      'http_status':response.status,
+                      'content_type':response.headers.get('Content-Type'),
+                      'content_disposition':response.headers.get('Content-Disposition'),
+                      'magic_hex':magic.hex(),
+                  }
+              if magic != b'PK':
+                  raise RuntimeError(f'{code}: official endpoint did not return ZIP signature: {result}')
+              return result
+
+          with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+              futures={pool.submit(probe,item): item for item in ANNCSU_REGION_DATASETS}
+              results=[]
+              for future in concurrent.futures.as_completed(futures):
+                  results.append(future.result())
+          results.sort(key=lambda x:x['dataset_code'])
+          if len(results)!=21 or len({x['dataset_code'] for x in results})!=21:
+              raise SystemExit('Regional ANNCSU catalogue did not reconcile to 21 unique provider datasets')
+          payload={'map_version':MAP_VERSION,'verified_dataset_count':len(results),'datasets':results}
+          Path('artifacts/national-anncsu/provider-catalogue-probe.json').write_text(
+              json.dumps(payload,indent=2,ensure_ascii=False),encoding='utf-8'
+          )
+          print('Verified official ANNCSU dataset codes:', ', '.join(x['dataset_code'] for x in results))
+          PY
+
+      - name: Acquire frozen Istat municipality reference
+        run: |
+          mkdir -p artifacts/national-anncsu/istat
+          white-list-istat-municipalities-acquire \
+            --output-dir artifacts/national-anncsu/istat \
+            --expected-sha256 83842076860450f7e482daecea6b7a769f5f93d0bf5b0d48802b44896d7a26d5 \
+            > artifacts/national-anncsu/istat-acquisition.json
+          ISTAT_CSV=$(find artifacts/national-anncsu/istat -maxdepth 1 -name 'istat-municipalities-*.csv' -print -quit)
+          ISTAT_MANIFEST=$(find artifacts/national-anncsu/istat -maxdepth 1 -name 'istat-municipalities-*.manifest.json' -print -quit)
+          test -n "$ISTAT_CSV" && test -n "$ISTAT_MANIFEST"
+          echo "ISTAT_CSV=$ISTAT_CSV" >> "$GITHUB_ENV"
+          echo "ISTAT_MANIFEST=$ISTAT_MANIFEST" >> "$GITHUB_ENV"
+
+      - name: Apply database schema and integrity tests
+        run: |
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
+
+      - name: Build real two-Prefecture, two-region address fixture
+        run: |
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          from pathlib import Path
+          from urllib.parse import urlparse
+          import psycopg
+          from white_list_archive.geocoding.italian_address import MunicipalityPrefixMatcher
+          from white_list_archive.publishing.public_national_registry import _download,_parse_source,_validate_batch
+
+          config=json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
+          wanted={'cosenza-combined':('Calabria',20,0),'pistoia-listed':('Toscana',20,1)}
+          matcher=MunicipalityPrefixMatcher.from_istat_csv(Path(os.environ['ISTAT_CSV']))
+          source_dir=Path('/tmp/anncsu-national-whitelist-sources')
+          selected={}
+          reserve={}
+          source_evidence={}
+          for cfg in config['sources']:
+              if cfg['source_key'] not in wanted:
+                  continue
+              region,target,reserve_n=wanted[cfg['source_key']]
+              suffix=Path(urlparse(cfg['resource_url']).path).suffix or '.pdf'
+              path=source_dir/f"{cfg['source_key']}{suffix}"
+              observed_sha=_download(cfg['resource_url'],path)
+              if observed_sha!=cfg['sha256']:
+                  raise SystemExit(f"{cfg['source_key']}: SHA mismatch")
+              batch=_parse_source(path,cfg)
+              _validate_batch(cfg,batch)
+              addresses=[]
+              seen=set()
+              for record in batch.records:
+                  for key in ('registered_office','secondary_office'):
+                      address=' '.join(str(record.get(key) or '').split())
+                      if not address or address in seen:
+                          continue
+                      split=matcher.split(address)
+                      if split.status=='exact' and split.split and split.split.municipality.region_name==region:
+                          addresses.append(address); seen.add(address)
+              if len(addresses)<target+reserve_n:
+                  raise SystemExit(f"{cfg['source_key']}: only {len(addresses)} exact {region} addresses")
+              selected[cfg['source_key']]=addresses[:target]
+              reserve[cfg['source_key']]=addresses[target:target+reserve_n]
+              source_evidence[cfg['source_key']]={
+                  'authority_key':cfg['authority_key'],
+                  'region':region,
+                  'capture_sha256':observed_sha,
+                  'reference_date':cfg['reference_date'],
+                  'parsed_records':len(batch.records),
+                  'initial_addresses':target,
+                  'reserved_new_addresses':reserve_n,
+              }
+
+          if set(selected)!=set(wanted):
+              raise SystemExit(f'Missing multi-region source: {set(wanted)-set(selected)}')
+          initial=[address for values in selected.values() for address in values]
+          if len(initial)!=40 or len(set(initial))!=40:
+              raise SystemExit('Expected 40 unique initial addresses')
+
+          with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
+              now=datetime.now(timezone.utc).replace(microsecond=0)
+              cur.execute(
+                  """INSERT INTO provenance.processing_activity(
+                     activity_type_code,software_name,software_version,configuration_hash,started_at,completed_at
+                     ) VALUES ('normalise','anncsu-national-live-fixture','1',%s,%s,%s)
+                     RETURNING processing_activity_id""",
+                  ('f'*64,now,now),
+              )
+              activity=cur.fetchone()[0]
+              for address in initial:
+                  cur.execute(
+                      "INSERT INTO core.address(full_address,country_code,processing_activity_id) VALUES (%s,NULL,%s)",
+                      (address,activity),
+                  )
+              conn.commit()
+          Path('/tmp/anncsu-national-fixture.json').write_text(
+              json.dumps({'reserve':reserve},ensure_ascii=False),encoding='utf-8'
+          )
+          Path('artifacts/national-anncsu/fixture-evidence.json').write_text(
+              json.dumps({'sources':source_evidence,'initial_address_count':40},indent=2,ensure_ascii=False),encoding='utf-8'
+          )
+          print('Built source-backed multi-region fixture:', source_evidence)
+          PY
+
+      - name: First national run acquires only required regional inputs
+        run: |
+          rm -rf /tmp/anncsu-national-cache
+          white-list-anncsu-national \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --istat-manifest "$ISTAT_MANIFEST" \
+            --cache-dir /tmp/anncsu-national-cache \
+            --output artifacts/national-anncsu/run-1.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          run=json.loads(Path('artifacts/national-anncsu/run-1.json').read_text())
+          regions={x['dataset_code']:x for x in run['regions']}
+          if set(regions)!={'INDIR_CALA','INDIR_TOSC'}:
+              raise SystemExit(f"Unexpected required datasets: {set(regions)}")
+          if run['plan']['total_canonical_addresses']!=40 or run['plan']['italian_route_addresses']!=40:
+              raise SystemExit(f"Unexpected first-run population: {run['plan']}")
+          if run['plan']['unassigned_addresses']!=0:
+              raise SystemExit(f"Unexpected unassigned Italian addresses: {run['plan']}")
+          if run['processed_address_count']!=40 or run['skipped_existing_count']!=0:
+              raise SystemExit(f"First run did not process exactly 40 addresses: {run}")
+          if not run['all_processed_addresses_accounted_for'] or run['public_nominatim_used']:
+              raise SystemExit('Accounting/provider policy failure')
+          for item in regions.values():
+              if item['planned_address_count']!=20 or item['processed_address_count']!=20:
+                  raise SystemExit(f"Bad first regional accounting: {item}")
+              if item['cache_status']!='acquired' or not item['provider_version']:
+                  raise SystemExit(f"Provider cache/provenance missing: {item}")
+              if item['candidate']+item['not_found']!=20:
+                  raise SystemExit(f"Provider attempt accounting mismatch: {item}")
+          print('First multi-region run validated:', {k:(v['provider_version'],v['candidate'],v['not_found']) for k,v in regions.items()})
+          PY
+
+      - name: Second run reuses provider bytes and skips same-version addresses
+        run: |
+          white-list-anncsu-national \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --istat-manifest "$ISTAT_MANIFEST" \
+            --cache-dir /tmp/anncsu-national-cache \
+            --output artifacts/national-anncsu/run-2.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          one=json.loads(Path('artifacts/national-anncsu/run-1.json').read_text())
+          two=json.loads(Path('artifacts/national-anncsu/run-2.json').read_text())
+          a={x['dataset_code']:x for x in one['regions']}; b={x['dataset_code']:x for x in two['regions']}
+          if two['processed_address_count']!=0 or two['skipped_existing_count']!=40:
+              raise SystemExit(f"Second run was not incremental: {two}")
+          for code in a:
+              if b[code]['cache_status']!='reused':
+                  raise SystemExit(f"{code}: provider cache was not reused")
+              if (a[code]['provider_version'],a[code]['zip_sha256'],a[code]['csv_sha256']) != (b[code]['provider_version'],b[code]['zip_sha256'],b[code]['csv_sha256']):
+                  raise SystemExit(f"{code}: cached provider identity changed")
+              if b[code]['processed_address_count']!=0 or b[code]['skipped_existing_count']!=20:
+                  raise SystemExit(f"{code}: same-version rows were reprocessed")
+          print('Same-version incremental no-op validated.')
+          PY
+
+      - name: Add one new Toscana address and prove address-incremental cost
+        run: |
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          from pathlib import Path
+          import psycopg
+          fixture=json.loads(Path('/tmp/anncsu-national-fixture.json').read_text())
+          reserve=fixture['reserve']['pistoia-listed']
+          if len(reserve)!=1:
+              raise SystemExit(f'Expected one reserved Toscana address, got {reserve}')
+          with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
+              now=datetime.now(timezone.utc).replace(microsecond=0)
+              cur.execute(
+                  """INSERT INTO provenance.processing_activity(
+                     activity_type_code,software_name,software_version,configuration_hash,started_at,completed_at
+                     ) VALUES ('normalise','anncsu-national-new-address','1',%s,%s,%s)
+                     RETURNING processing_activity_id""",
+                  ('e'*64,now,now),
+              )
+              activity=cur.fetchone()[0]
+              cur.execute(
+                  "INSERT INTO core.address(full_address,country_code,processing_activity_id) VALUES (%s,NULL,%s)",
+                  (reserve[0],activity),
+              )
+              conn.commit()
+          PY
+          white-list-anncsu-national \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --istat-manifest "$ISTAT_MANIFEST" \
+            --cache-dir /tmp/anncsu-national-cache \
+            --output artifacts/national-anncsu/run-3.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          run=json.loads(Path('artifacts/national-anncsu/run-3.json').read_text())
+          regions={x['dataset_code']:x for x in run['regions']}
+          if run['plan']['total_canonical_addresses']!=41 or run['plan']['italian_route_addresses']!=41:
+              raise SystemExit(f"New address absent from plan: {run['plan']}")
+          if run['processed_address_count']!=1 or run['skipped_existing_count']!=40:
+              raise SystemExit(f"New-address incrementality failed: {run}")
+          if regions['INDIR_CALA']['planned_address_count']!=20 or regions['INDIR_CALA']['processed_address_count']!=0:
+              raise SystemExit(f"Calabria should be a complete no-op: {regions['INDIR_CALA']}")
+          if regions['INDIR_TOSC']['planned_address_count']!=21 or regions['INDIR_TOSC']['processed_address_count']!=1:
+              raise SystemExit(f"Toscana should process only the new row: {regions['INDIR_TOSC']}")
+          if any(item['cache_status']!='reused' for item in regions.values()):
+              raise SystemExit('Provider inputs should have been reused for the new-address run')
+          print('New-address incremental run validated.')
+          PY
+
+      - name: Validate persisted national provenance and provider policy
+        run: |
+          python - <<'PY'
+          import json,os,re
+          from pathlib import Path
+          import psycopg
+          runs=[json.loads(Path(f'artifacts/national-anncsu/run-{n}.json').read_text()) for n in (1,2,3)]
+          with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
+              cur.execute("SELECT count(*) FROM geo.anncsu_orchestration_run WHERE status_code='succeeded'")
+              if int(cur.fetchone()[0])!=3:
+                  raise SystemExit('Expected exactly three successful orchestration runs')
+              cur.execute("SELECT dataset_code,provider_version,zip_sha256,csv_sha256,cache_status,planned_address_count,processed_address_count,candidate_count,not_found_count,skipped_existing_count,status_code FROM geo.anncsu_region_run ORDER BY created_at,dataset_code")
+              rows=cur.fetchall()
+              if len(rows)!=6:
+                  raise SystemExit(f'Expected six persisted region-run rows, got {len(rows)}')
+              if {row[0] for row in rows}!={'INDIR_CALA','INDIR_TOSC'}:
+                  raise SystemExit('Unexpected provider dataset in persisted provenance')
+              for row in rows:
+                  code,version,zip_sha,csv_sha,cache_status,planned,processed,candidate,not_found,skipped,status=row
+                  if not version or not re.fullmatch(r'[0-9a-f]{64}',zip_sha) or not re.fullmatch(r'[0-9a-f]{64}',csv_sha):
+                      raise SystemExit(f'Incomplete provider identity: {row}')
+                  if candidate+not_found!=processed or processed+skipped!=planned or status!='succeeded':
+                      raise SystemExit(f'Persisted regional accounting mismatch: {row}')
+              cur.execute("SELECT count(*) FROM geo.address_geocode_result WHERE upper_inf(system_period) AND provider_name<>'anncsu'")
+              if int(cur.fetchone()[0]):
+                  raise SystemExit('Recurring national validation used a non-ANNCSU provider')
+              cur.execute("SELECT count(*) FROM geo.address_geocode_result g JOIN geo.address_country_assessment ca USING(address_id) WHERE upper_inf(g.system_period) AND upper_inf(ca.system_period) AND g.provider_name='anncsu' AND ca.route_code<>'italian_anncsu'")
+              if int(cur.fetchone()[0]):
+                  raise SystemExit('ANNCSU result exists outside defensibly Italian route')
+              cur.execute("SELECT count(*) FROM geo.address_geocode_result WHERE upper_inf(system_period) AND match_status_code='accepted'")
+              if int(cur.fetchone()[0]):
+                  raise SystemExit('National orchestration must not auto-accept geography')
+          summary={
+              'validated_prefectures':['cosenza','pistoia'],
+              'validated_regions':['Calabria','Toscana'],
+              'run_count':3,
+              'provider_datasets':['INDIR_CALA','INDIR_TOSC'],
+              'first_run_processed':runs[0]['processed_address_count'],
+              'same_version_second_run_processed':runs[1]['processed_address_count'],
+              'new_address_third_run_processed':runs[2]['processed_address_count'],
+              'public_nominatim_used':False,
+          }
+          Path('artifacts/national-anncsu/live-validation-summary.json').write_text(
+              json.dumps(summary,indent=2,ensure_ascii=False),encoding='utf-8'
+          )
+          print('Persisted national ANNCSU provenance validated:',summary)
+          PY
+
+      - name: Remove bulky/raw validation inputs from review artifact
+        if: always()
+        run: |
+          rm -rf artifacts/national-anncsu/istat
+          rm -f artifacts/national-anncsu/istat-acquisition.json
+
+      - name: Upload national ANNCSU validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: national-anncsu-validation-attempt-${{ github.run_attempt }}
+          path: artifacts/national-anncsu/
+          if-no-files-found: error
+          retention-days: 30
