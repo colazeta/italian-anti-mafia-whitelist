@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
-import os
 import re
 import shutil
 import urllib.request
@@ -78,6 +77,7 @@ def verify_catalogue(artifact_dir: Path) -> list[dict[str, object]]:
     failures.sort(key=lambda row: row["dataset_code"])
     payload = {
         "map_version": MAP_VERSION,
+        "expected_dataset_count": len(ANNCSU_REGION_DATASETS),
         "verified_dataset_count": len(results),
         "failure_count": len(failures),
         "datasets": results,
@@ -88,8 +88,11 @@ def verify_catalogue(artifact_dir: Path) -> list[dict[str, object]]:
     )
     if failures:
         raise RuntimeError(f"ANNCSU regional catalogue probe failed: {failures}")
-    if len(results) != 21 or len({row["dataset_code"] for row in results}) != 21:
-        raise RuntimeError("Regional ANNCSU catalogue did not reconcile to 21 unique provider datasets")
+    expected = len(ANNCSU_REGION_DATASETS)
+    if len(results) != expected or len({row["dataset_code"] for row in results}) != expected:
+        raise RuntimeError(
+            f"Regional ANNCSU catalogue did not reconcile to {expected} unique provider datasets"
+        )
     return results
 
 
