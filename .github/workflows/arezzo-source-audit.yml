@@ -23,13 +23,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python -m pip install -q requests beautifulsoup4 openpyxl python-docx
           python - <<'PY'
-          import hashlib, io, re
+          import hashlib, io
           from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
-          import pdfplumber
+          import openpyxl
+          from docx import Document
 
           page='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
           headers={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
@@ -47,19 +48,47 @@ jobs:
           print('TARGET_COUNT',len(targets))
           for label,url in targets:
               rr=s.get(url,headers=headers,timeout=60)
-              print('ATTACHMENT',label,'URL',url,'STATUS',rr.status_code,'BYTES',len(rr.content),'SHA256',hashlib.sha256(rr.content).hexdigest(),'CONTENT_TYPE',rr.headers.get('content-type'))
+              ctype=rr.headers.get('content-type','')
+              print('ATTACHMENT',label,'URL',url,'STATUS',rr.status_code,'BYTES',len(rr.content),'SHA256',hashlib.sha256(rr.content).hexdigest(),'CONTENT_TYPE',ctype)
               rr.raise_for_status()
-              if rr.content[:4] != b'%PDF':
-                  print('NOT_PDF_PREFIX',rr.content[:80]); continue
-              with pdfplumber.open(io.BytesIO(rr.content)) as pdf:
-                  print('PDF_PAGES',len(pdf.pages))
-                  for i,p in enumerate(pdf.pages[:3],1):
-                      tables=p.extract_tables() or []
-                      print('PAGE',i,'TABLES',len(tables))
-                      for ti,t in enumerate(tables[:2],1):
-                          print('TABLE',ti,'ROWS',len(t),'COLS_MAX',max((len(row or []) for row in t),default=0))
-                          for row in t[:8]:
-                              print('ROW',repr(row))
-                  text='\n'.join((p.extract_text() or '') for p in pdf.pages[:4])
-                  print('TEXT_HEAD',repr(text[:5000]))
+              if 'spreadsheetml' in ctype or url.lower().endswith('.xlsx'):
+                  wb=openpyxl.load_workbook(io.BytesIO(rr.content),data_only=True,read_only=True)
+                  print('WORKBOOK_SHEETS',wb.sheetnames)
+                  print('WORKBOOK_CREATED',wb.properties.created,'MODIFIED',wb.properties.modified)
+                  for ws in wb.worksheets:
+                      rows=list(ws.iter_rows(values_only=True))
+                      print('SHEET',ws.title,'ROWS',len(rows),'COLS',max((len(row) for row in rows),default=0))
+                      nonempty=[]
+                      for idx,row in enumerate(rows,1):
+                          vals=[None if v is None else str(v).strip() for v in row]
+                          if any(v not in (None,'') for v in vals):
+                              nonempty.append((idx,vals))
+                      print('NONEMPTY_ROWS',len(nonempty))
+                      for idx,vals in nonempty[:25]:
+                          print('XLSX_ROW',idx,repr(vals))
+                      print('XLSX_TAIL')
+                      for idx,vals in nonempty[-12:]:
+                          print('XLSX_ROW',idx,repr(vals))
+              elif 'wordprocessingml' in ctype or url.lower().endswith('.docx'):
+                  doc=Document(io.BytesIO(rr.content))
+                  print('DOCX_CREATED',doc.core_properties.created,'MODIFIED',doc.core_properties.modified)
+                  print('DOCX_PARAGRAPHS',len(doc.paragraphs),'TABLES',len(doc.tables))
+                  for i,p in enumerate(doc.paragraphs[:40],1):
+                      text=' '.join(p.text.split())
+                      if text:
+                          print('PARA',i,repr(text))
+                  for ti,table in enumerate(doc.tables,1):
+                      rows=[]
+                      for row in table.rows:
+                          vals=[' '.join(cell.text.split()) for cell in row.cells]
+                          rows.append(vals)
+                      print('DOCX_TABLE',ti,'ROWS',len(rows),'COLS_MAX',max((len(row) for row in rows),default=0))
+                      for ri,row in enumerate(rows[:25],1):
+                          print('DOCX_ROW',ti,ri,repr(row))
+                      if len(rows)>25:
+                          print('DOCX_TAIL',ti)
+                          for ri,row in enumerate(rows[-12:],len(rows)-11):
+                              print('DOCX_ROW',ti,ri,repr(row))
+              else:
+                  print('UNHANDLED_PREFIX',rr.content[:100])
           PY
