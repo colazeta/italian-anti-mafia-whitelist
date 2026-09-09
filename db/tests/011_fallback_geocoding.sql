@@ -87,8 +87,10 @@ BEGIN
         RAISE EXCEPTION 'Fallback run item did not persist eligibility/provider provenance';
     END IF;
 
-    DELETE FROM geo.address_geocode_result g WHERE g.address_id=test_address_id;
+    -- Respect both directions of the explicit provenance graph during cleanup:
+    -- run items point to the upstream ANNCSU row, while fallback result rows point to the run.
     DELETE FROM geo.fallback_geocode_run_item i WHERE i.fallback_geocode_run_id=run_id;
+    DELETE FROM geo.address_geocode_result g WHERE g.address_id=test_address_id;
     DELETE FROM geo.fallback_geocode_run r WHERE r.fallback_geocode_run_id=run_id;
     DELETE FROM geo.address_country_assessment ca WHERE ca.address_id=test_address_id;
     DELETE FROM core.address a WHERE a.address_id=test_address_id;
