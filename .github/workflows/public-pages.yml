@@ -40,10 +40,37 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Prepare runner package sources
+        run: |
+          # GitHub-hosted images can declare Chrome through either a classic .list
+          # file or a deb822 .sources file. The portal does not depend on that
+          # repository, so remove only files that actually reference it. Keep this
+          # cleanup before both our package install and Playwright's later apt work.
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          if grep -RqsE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+            echo "Chrome APT source remained after targeted cleanup" >&2
+            grep -RHnE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true
+            exit 1
+          fi
       - name: Install publication runtime
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y poppler-utils
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
           python -m pip install -e '.[publication]'
       - name: Build approved multi-Prefecture registry
         run: |

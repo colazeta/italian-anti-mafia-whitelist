@@ -57,7 +57,34 @@ jobs:
           assert '[omitted in sanitized preview]' in html
           PY
       - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+        run: |
+          if command -v psql >/dev/null 2>&1; then
+            psql --version
+            exit 0
+          fi
+          # GitHub-hosted images can contain third-party APT source files in either
+          # .list or deb822 .sources form. This project does not depend on Chrome;
+          # remove only source files that actually reference its repository so a
+          # transient Google metadata mismatch cannot make database CI flaky.
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends postgresql-client; then
+              psql --version
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 3))
+            fi
+          done
+          echo "PostgreSQL client installation failed after bounded retries" >&2
+          exit 1
       - name: Apply schema and seeds
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
       - name: Run database integrity tests
