@@ -14,6 +14,12 @@ ASSESSMENT = {"official_publication_surface_verified": True,
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def ledger_public_authorities() -> set[str]:
+    """The operational ledger must follow every public-source expansion."""
+    config = json.loads((ROOT / "data/publication/multi_prefecture_pilot.json").read_text())
+    return {source["authority_key"] for source in config["sources"]}
+
+
 @pytest.fixture
 def ledger():
     return json.loads((ROOT / "data/monitoring/national_coverage.json").read_text())
@@ -24,7 +30,7 @@ def test_national_ledger_matches_existing_authorities_and_preserves_public_bound
         keys = {r["authority_key"] for r in csv.DictReader(f)}
     validate(ledger, keys)
     assert len(keys) == 106
-    assert {r["authority_key"] for r in ledger["prefectures"] if r["public_export_enabled"]} == {"cosenza", "bologna", "parma", "pistoia"}
+    assert {r["authority_key"] for r in ledger["prefectures"] if r["public_export_enabled"]} == ledger_public_authorities()
     assert ledger["mode"] == "EXPANSION_MODE"
     assert not any(r["coverage_status"] == "PUBLISHED" for r in ledger["prefectures"])
 
