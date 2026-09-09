@@ -1,4 +1,4 @@
-name: Audit current Arezzo White List sources
+name: Inspect current Arezzo White List tables
 
 on:
   push:
@@ -19,17 +19,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install PDF inspection runtime
-        run: python -m pip install -e '.[publication]'
-      - name: Resolve and inspect official Arezzo source attachments
+      - name: Install inspection runtime
+        run: python -m pip install openpyxl python-docx
+      - name: Resolve and inspect official Arezzo source tables
         run: |
           python - <<'PY'
-          from collections import Counter
+          from collections import Counter, defaultdict
           from html.parser import HTMLParser
           from pathlib import Path
           from urllib.parse import urljoin
           import hashlib, re, time, urllib.request
-          import pdfplumber
+          import openpyxl
+          from docx import Document
 
           PAGE='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
           UA='italian-anti-mafia-whitelist/0.1 source-verification'
@@ -47,12 +48,7 @@ jobs:
               raise last
 
           final,headers,body=get(PAGE)
-          print('PAGE_FINAL',final)
-          print('PAGE_CONTENT_TYPE',headers.get('Content-Type'))
-          print('PAGE_BYTES',len(body))
           html=body.decode('utf-8','replace')
-          print('PAGE_HAS_LAST_UPDATE_2026_08_06', bool(re.search(r'6\s+Agosto\s+2026|06[./-]08[./-]2026',html,re.I)))
-
           class Links(HTMLParser):
               def __init__(self): super().__init__(); self.href=None; self.text=[]; self.links=[]
               def handle_starttag(self,tag,attrs):
@@ -65,35 +61,59 @@ jobs:
           p=Links(); p.feed(html)
           wanted=[]
           for text,href in p.links:
-              folded=text.casefold()
-              if 'elenco imprese iscritte' in folded or ('elenco imprese richiedenti' in folded and 'iscrizione' in folded):
+              f=text.casefold()
+              if 'elenco imprese iscritte' in f or ('elenco imprese richiedenti' in f and 'iscrizione' in f):
                   wanted.append((text,urljoin(final,href)))
-          print('MATCHED_LINKS',len(wanted))
-          for text,url in wanted: print('LINK',repr(text),url)
-          if len(wanted)!=2:
-              raise SystemExit(f'Expected exactly two current list attachment links, got {wanted!r}')
-
+          assert len(wanted)==2,wanted
+          blobs=[]
           for idx,(text,url) in enumerate(wanted,1):
-              final_u,h,b=get(url)
-              sha=hashlib.sha256(b).hexdigest()
-              path=Path(f'/tmp/arezzo-{idx}.bin'); path.write_bytes(b)
-              print('ATTACHMENT',idx,'TEXT',repr(text),'FINAL',final_u,'CONTENT_TYPE',h.get('Content-Type'),'BYTES',len(b),'SHA256',sha,'MAGIC',b[:8])
-              if not b.startswith(b'%PDF'):
-                  print('NON_PDF_PREFIX',b[:200])
-                  continue
-              with pdfplumber.open(path) as pdf:
-                  print('PDF_PAGES',idx,len(pdf.pages))
-                  table_shapes=Counter(); text_heads=[]
-                  total_tables=0
-                  for page in pdf.pages:
-                      txt=' '.join((page.extract_text() or '').split())
-                      if txt and len(text_heads)<4: text_heads.append((page.page_number,txt[:500]))
-                      tables=page.extract_tables() or []
-                      total_tables+=len(tables)
-                      for table in tables:
-                          for row in table or []:
-                              if row:
-                                  table_shapes[len(row)]+=1
-                  print('TABLE_COUNT',idx,total_tables,'ROW_SHAPES',dict(sorted(table_shapes.items())))
-                  for page_no,head in text_heads: print('TEXT_HEAD',idx,page_no,repr(head))
+              final_u,h,b=get(url); sha=hashlib.sha256(b).hexdigest(); suffix='.xlsx' if 'spreadsheet' in (h.get('Content-Type') or '') else '.docx'
+              path=Path(f'/tmp/arezzo-{idx}{suffix}'); path.write_bytes(b); blobs.append((text,final_u,h,b,sha,path))
+              print('ATTACHMENT',idx,'TEXT',repr(text),'FINAL',final_u,'CONTENT_TYPE',h.get('Content-Type'),'BYTES',len(b),'SHA256',sha)
+
+          # Listed XLSX
+          text,url,h,b,sha,path=blobs[0]
+          wb=openpyxl.load_workbook(path,data_only=True,read_only=True)
+          print('XLSX_SHEETS',wb.sheetnames)
+          for ws in wb.worksheets:
+              rows=[]
+              for raw in ws.iter_rows(values_only=True):
+                  vals=tuple(' '.join(str(v).split()) if v is not None else '' for v in raw)
+                  if any(vals): rows.append(vals)
+              print('XLSX_SHEET',ws.title,'ROWS',len(rows),'MAX_COLUMNS',max((len(r) for r in rows),default=0))
+              for i,r in enumerate(rows[:12],1): print('XLSX_ROW',i,repr(r))
+              for i,r in enumerate(rows[-5:],max(1,len(rows)-4)): print('XLSX_TAIL',i,repr(r))
+              print('XLSX_SHAPES',dict(Counter(len(r) for r in rows)))
+              # candidate rows heuristically containing a plausible Italian fiscal/VAT id anywhere
+              cands=[]
+              for i,r in enumerate(rows,1):
+                  ids=[cell for cell in r if re.fullmatch(r'[A-Z0-9]{11,16}',cell.replace(' ',''),re.I)]
+                  if ids: cands.append((i,r,ids))
+              print('XLSX_ID_CANDIDATES',len(cands))
+              for item in cands[:8]: print('XLSX_CAND',repr(item))
+              print('XLSX_ID_DUP_EXTRA',sum(n-1 for n in Counter(x for _,_,ids in cands for x in ids).values() if n>1))
+
+          # Applicant DOCX
+          text,url,h,b,sha,path=blobs[1]
+          doc=Document(path)
+          print('DOCX_TABLES',len(doc.tables),'PARAGRAPHS',len(doc.paragraphs))
+          para=[(' '.join(p.text.split())) for p in doc.paragraphs if p.text.strip()]
+          for i,t in enumerate(para[:10],1): print('DOCX_PARA',i,repr(t))
+          all_rows=[]
+          for ti,table in enumerate(doc.tables,1):
+              rows=[]
+              for row in table.rows:
+                  vals=tuple(' '.join(cell.text.split()) for cell in row.cells)
+                  if any(vals): rows.append(vals)
+              all_rows.extend((ti,ri,r) for ri,r in enumerate(rows,1))
+              print('DOCX_TABLE',ti,'ROWS',len(rows),'SHAPES',dict(Counter(len(r) for r in rows)))
+              for ri,r in enumerate(rows[:10],1): print('DOCX_ROW',ti,ri,repr(r))
+              for ri,r in enumerate(rows[-5:],max(1,len(rows)-4)): print('DOCX_TAIL',ti,ri,repr(r))
+          cands=[]
+          for ti,ri,r in all_rows:
+              ids=[cell for cell in r if re.fullmatch(r'[A-Z0-9]{11,16}',cell.replace(' ',''),re.I)]
+              if ids:cands.append((ti,ri,r,ids))
+          print('DOCX_ID_CANDIDATES',len(cands))
+          for item in cands[:10]: print('DOCX_CAND',repr(item))
+          print('DOCX_ID_DUP_EXTRA',sum(n-1 for n in Counter(x for *_,ids in cands for x in ids).values() if n>1))
           PY
