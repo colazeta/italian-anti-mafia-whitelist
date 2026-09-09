@@ -14,6 +14,8 @@ The next Explorer review exposed a second architectural problem: parsing populat
 
 A third review exposed two usability/audit gaps: **Struttura dataset** reported table counts without letting the curator inspect the underlying rows, and the original PDFs were not directly attached to the row-level verification experience.
 
+The address-normalisation validation work exposed a fourth product requirement: aggregate geocoding/normalisation metrics must be visible without conflating **operational state** with **empirical precision estimates**. The Explorer therefore now reconciles the full address population, provider/version provenance and candidate/accepted/not-found/error accounting against the underlying validation rows, while displaying the frozen reviewed gold standard as a separate evidence layer.
+
 The current checkpoint therefore validates the full path:
 
 ```text
@@ -38,7 +40,8 @@ The Explorer combines:
 - explicit unresolved/review items;
 - real PostgreSQL table counts and population statuses;
 - browsable previews and complete internal CSV exports for every object shown in **Struttura dataset**;
-- source/parser/semantic/resolver provenance.
+- source/parser/semantic/resolver provenance;
+- source-backed address-normalisation operational metrics, full-row drill-down and the frozen substantive-review quality evidence.
 
 ## Current validated database population
 
@@ -77,6 +80,15 @@ The end-to-end live workflow currently yields:
 
 The current source does not independently prove listed relationship sectors, so `whitelist.relationship_sector` correctly remains `0 / NOT_APPLICABLE_FROM_CURRENT_SOURCE` rather than being filled from requested activities.
 
+### Address-normalisation quality baseline
+
+The current Cosenza ANNCSU validation baseline is kept in two deliberately separate layers:
+
+1. **operational run accounting** — generated from the reconstructed database plus full `address_results.csv`, including canonical population, attempted/accounted addresses, candidate/accepted/not-found/error/unprocessed counts, coordinate-bearing versus normalisation-only results, precision-code counts and provider/version provenance;
+2. **frozen substantive-review evidence** — the versioned 7 September 2026 gold standard, reporting candidate coverage **48.07%**, population-weighted candidate precision **82.49%**, estimated validated end-to-end yield **39.65%**, `civic_access` **36/36 correct**, `street` **16/28 correct** and no-coordinate candidates **12/14 correct**.
+
+The UI never treats those empirical precision estimates as permission to promote candidates. Production acceptance remains a separately displayed database/provider state.
+
 ## User-facing sections
 
 The product uses the deliberately minimal, dense management-system visual language defined in `docs/product/ui-style.md`. The retro/1990s appearance remains intentional.
@@ -86,7 +98,9 @@ The product uses the deliberately minimal, dense management-system visual langua
 3. **Confronto snapshot** — observational comparison between editions with strict removal/registration guardrails.
 4. **Copertura nazionale** — authority and source-series discovery coverage.
 5. **Pipeline / provenance** — selected parser family, schema fingerprint, record contract, semantic projector, field mappings, canonicalisation result and an **Archivio evidenza — documenti originali** block for each captured edition.
-6. **Metodo** — source → semantic → canonical separation, parser-family strategy and evidence-chain rules.
+6. **Validazione indirizzi** — deterministic substantive-review queue with provider output, source/PDF evidence links, manual decisions, weighted precision and export/import of the review state.
+7. **Qualità indirizzi** — table-first operational quality view that reconciles the 1,298-address population against the full validation rows, exposes provider/version/run provenance, separates coordinate-bearing from normalisation-only candidates, shows production accepted state independently from the frozen empirical gold standard, and links to the complete address-results CSV plus the substantive-review queue.
+8. **Metodo** — source → semantic → canonical separation, parser-family strategy and evidence-chain rules.
 
 ## Why “empty” now has a meaning
 
@@ -139,7 +153,10 @@ The private workflow builds the `data-explorer-preview-v2` audit package only af
 8. database population export;
 9. complete internal table exports for all model objects;
 10. original-PDF packaging and row-to-page locator generation;
-11. hash/coverage validation of the evidence package.
+11. hash/coverage validation of the evidence package;
+12. address-normalisation validation against the full reconstructed `core.address` population;
+13. deterministic reconciliation of address quality metrics against `address_results.csv`;
+14. embedding of the frozen reviewed gold-standard estimates without changing production acceptance state.
 
 The resulting CSVs and PDFs are internal audit materials. They are not automatically public release products.
 
@@ -156,6 +173,8 @@ The curator should now assess:
 - whether the parser-family → record-contract → semantic-projector routing is visible enough for audit;
 - whether any Cosenza fact is still mapped to the wrong semantic object;
 - whether the automatic resolver is appropriately conservative;
+- whether operational address-quality metrics reconcile transparently enough with the underlying rows;
+- whether empirical precision evidence and production acceptance state remain unmistakably separate;
 - whether additional ontology concepts are needed before expanding to another source family.
 
 Large-scale parser rollout should follow this reviewed architecture rather than the earlier source-only ingestion path.
