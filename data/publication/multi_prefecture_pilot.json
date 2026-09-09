@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-09-08",
+  "verified_at": "2026-09-09",
   "sources": [
     {
       "source_key": "cosenza-combined",
@@ -132,6 +132,41 @@
       "expected_source_rows": 167,
       "last_source_update": "2026-08-14",
       "last_source_update_basis": "official page/resource date"
+    },
+    {
+      "source_key": "alessandria-listed",
+      "parser": "alessandria_listed",
+      "authority_key": "alessandria",
+      "authority_name": "Prefettura di Alessandria",
+      "register_key": "alessandria-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-04",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/white-list-4-settembre-2026.pdf",
+      "sha256": "78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95",
+      "expected_sector_rows": 664,
+      "expected_source_rows": 365,
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "dated official resource",
+      "notes": "Source identifiers are preserved verbatim. Numeric values with source lengths other than 11 digits are not padded or silently normalised."
+    },
+    {
+      "source_key": "alessandria-applicants",
+      "parser": "alessandria_applicants",
+      "authority_key": "alessandria",
+      "authority_name": "Prefettura di Alessandria",
+      "register_key": "alessandria-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-04",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/elenco-imprese-richiedenti-iscrizione-in-white-list-4-settembre-2026.pdf",
+      "sha256": "34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0",
+      "expected_source_rows": 71,
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "dated official resource",
+      "notes": "Numbered source sections are retained as source section labels; malformed-length numeric identifiers remain only in the raw identifier field."
     }
   ]
 }
