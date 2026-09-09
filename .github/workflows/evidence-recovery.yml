@@ -1,0 +1,175 @@
+name: Private evidence recovery verification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-evidence-recovery
+  cancel-in-progress: false
+
+jobs:
+  backup-and-restore:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: evidence-recovery
+    env:
+      PRIMARY_EVIDENCE_BUCKET: ${{ vars.PRIMARY_EVIDENCE_BUCKET }}
+      PRIMARY_EVIDENCE_ENDPOINT: ${{ vars.PRIMARY_EVIDENCE_ENDPOINT }}
+      PRIMARY_EVIDENCE_REGION: ${{ vars.PRIMARY_EVIDENCE_REGION }}
+      PRIMARY_EVIDENCE_POLICY_EVIDENCE: ${{ vars.PRIMARY_EVIDENCE_POLICY_EVIDENCE }}
+      RECOVERY_BUCKET: ${{ vars.RECOVERY_BUCKET }}
+      RECOVERY_ENDPOINT: ${{ vars.RECOVERY_ENDPOINT }}
+      RECOVERY_REGION: ${{ vars.RECOVERY_REGION }}
+      RECOVERY_POLICY_EVIDENCE: ${{ vars.RECOVERY_POLICY_EVIDENCE }}
+      RECOVERY_INDEPENDENCE_EVIDENCE: ${{ vars.RECOVERY_INDEPENDENCE_EVIDENCE }}
+      PRIMARY_EVIDENCE_READ_ACCESS_KEY_ID: ${{ secrets.PRIMARY_EVIDENCE_READ_ACCESS_KEY_ID }}
+      PRIMARY_EVIDENCE_READ_SECRET_ACCESS_KEY: ${{ secrets.PRIMARY_EVIDENCE_READ_SECRET_ACCESS_KEY }}
+      PRIMARY_EVIDENCE_READ_SESSION_TOKEN: ${{ secrets.PRIMARY_EVIDENCE_READ_SESSION_TOKEN }}
+      RECOVERY_ACCESS_KEY_ID: ${{ secrets.RECOVERY_ACCESS_KEY_ID }}
+      RECOVERY_SECRET_ACCESS_KEY: ${{ secrets.RECOVERY_SECRET_ACCESS_KEY }}
+      RECOVERY_SESSION_TOKEN: ${{ secrets.RECOVERY_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install private recovery runtime
+        run: python -m pip install -e '.[storage]'
+
+      - name: Require separate primary-read and recovery configuration
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.storage.evidence import StoreConfig
+          from white_list_archive.storage.recovery import store_fingerprint, validate_recovery_target
+
+          primary = StoreConfig(
+              os.environ['PRIMARY_EVIDENCE_BUCKET'],
+              os.environ['PRIMARY_EVIDENCE_ENDPOINT'],
+              os.environ['PRIMARY_EVIDENCE_REGION'],
+              os.environ['PRIMARY_EVIDENCE_POLICY_EVIDENCE'],
+          )
+          recovery = StoreConfig(
+              os.environ['RECOVERY_BUCKET'],
+              os.environ['RECOVERY_ENDPOINT'],
+              os.environ['RECOVERY_REGION'],
+              os.environ['RECOVERY_POLICY_EVIDENCE'],
+          )
+          required = (
+              'PRIMARY_EVIDENCE_READ_ACCESS_KEY_ID',
+              'PRIMARY_EVIDENCE_READ_SECRET_ACCESS_KEY',
+              'RECOVERY_ACCESS_KEY_ID',
+              'RECOVERY_SECRET_ACCESS_KEY',
+              'RECOVERY_INDEPENDENCE_EVIDENCE',
+          )
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit('Recovery environment is incomplete: ' + ', '.join(missing))
+          validate_recovery_target(
+              store_fingerprint(primary), recovery, os.environ['RECOVERY_INDEPENDENCE_EVIDENCE']
+          )
+          PY
+
+      - name: Copy frozen evidence to recovery store and execute clean restore
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          import boto3
+          from botocore.config import Config
+
+          from white_list_archive.storage.evidence import EvidenceStore, StoreConfig
+          from white_list_archive.storage.recovery import backup_and_restore_test, store_fingerprint
+
+          def client(config, key_name, secret_name, token_name):
+              kwargs = {
+                  'endpoint_url': config.endpoint,
+                  'region_name': config.region,
+                  'aws_access_key_id': os.environ[key_name],
+                  'aws_secret_access_key': os.environ[secret_name],
+                  'config': Config(
+                      signature_version='s3v4',
+                      connect_timeout=10,
+                      read_timeout=60,
+                      retries={'max_attempts': 3, 'mode': 'standard'},
+                  ),
+              }
+              token = os.environ.get(token_name)
+              if token:
+                  kwargs['aws_session_token'] = token
+              return boto3.client('s3', **kwargs)
+
+          primary_config = StoreConfig(
+              os.environ['PRIMARY_EVIDENCE_BUCKET'],
+              os.environ['PRIMARY_EVIDENCE_ENDPOINT'],
+              os.environ['PRIMARY_EVIDENCE_REGION'],
+              os.environ['PRIMARY_EVIDENCE_POLICY_EVIDENCE'],
+          )
+          recovery_config = StoreConfig(
+              os.environ['RECOVERY_BUCKET'],
+              os.environ['RECOVERY_ENDPOINT'],
+              os.environ['RECOVERY_REGION'],
+              os.environ['RECOVERY_POLICY_EVIDENCE'],
+          )
+          primary_store = EvidenceStore(
+              client(
+                  primary_config,
+                  'PRIMARY_EVIDENCE_READ_ACCESS_KEY_ID',
+                  'PRIMARY_EVIDENCE_READ_SECRET_ACCESS_KEY',
+                  'PRIMARY_EVIDENCE_READ_SESSION_TOKEN',
+              ),
+              primary_config,
+          )
+          recovery_store = EvidenceStore(
+              client(
+                  recovery_config,
+                  'RECOVERY_ACCESS_KEY_ID',
+                  'RECOVERY_SECRET_ACCESS_KEY',
+                  'RECOVERY_SESSION_TOKEN',
+              ),
+              recovery_config,
+          )
+          primary_fingerprint = store_fingerprint(primary_config)
+          root = Path('/tmp/private-evidence-recovery')
+          source_dir = root / 'primary-verified'
+          restore_dir = root / 'clean-restore'
+          receipt_dir = root / 'receipts'
+          for path in (source_dir, restore_dir, receipt_dir):
+              path.mkdir(parents=True, exist_ok=False)
+
+          for manifest_path in sorted(Path('data/captures/cosenza').glob('combined_*.json')):
+              manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+              primary_bytes = primary_store.read_verified(manifest)
+              source_path = source_dir / manifest['sha256']
+              source_path.write_bytes(primary_bytes)
+              receipt = backup_and_restore_test(
+                  source_path=source_path,
+                  manifest=manifest,
+                  recovery_store=recovery_store,
+                  restore_path=restore_dir / manifest['sha256'],
+                  primary_store_fingerprint=primary_fingerprint,
+                  independence_evidence=os.environ['RECOVERY_INDEPENDENCE_EVIDENCE'],
+              )
+              if (restore_dir / manifest['sha256']).read_bytes() != primary_bytes:
+                  raise SystemExit('Clean restore differs from the independently verified primary bytes')
+              receipt['manifest_path'] = str(manifest_path)
+              with (receipt_dir / f"{manifest['sha256']}.recovery-receipt.json").open('x') as handle:
+                  json.dump(receipt, handle, indent=2)
+                  handle.write('\n')
+          PY
+
+      - name: Save private recovery receipts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-evidence-recovery-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/private-evidence-recovery/receipts/*.json
+          if-no-files-found: error
+          retention-days: 90
