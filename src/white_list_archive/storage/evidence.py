@@ -77,10 +77,16 @@ class EvidenceStore:
                                    Metadata={"sha256": manifest["sha256"]})
         except Exception as exc:
             code = getattr(exc, "response", {}).get("Error", {}).get("Code")
-            if code not in ("PreconditionFailed", "412"):
+            code = str(code) if code is not None else None
+            # S3 normally returns 412 for an existing conditional target. Cloudflare R2
+            # can instead return ObjectLockedByBucketPolicy when Bucket Lock protects
+            # the already-created key. Either response is only evidence that an object
+            # may already exist; full GET + SHA-256 verification below remains mandatory.
+            if code not in ("PreconditionFailed", "412", "ObjectLockedByBucketPolicy", "10069"):
                 raise
             created = False
-        # A 412 can also mean a conflicting object: never trust HEAD/ETag/metadata.
+        # Existing-object responses can still hide a conflicting object. Never trust
+        # status code, HEAD, ETag or metadata as byte-identity evidence.
         self.read_verified(manifest)
         return {"schema_version": 1, "sha256": manifest["sha256"],
                 "byte_size": manifest["byte_size"], "content_type": manifest["content_type"],
