@@ -1,4 +1,4 @@
-name: Aosta source audit
+name: Materialise audited Aosta expansion
 
 on:
   push:
@@ -6,147 +6,275 @@ on:
       - expansion/aosta-source-audit-2026-09-10
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  inspect:
+  materialise:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: expansion/aosta-source-audit-2026-09-10
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - name: Install audit runtime
-        run: python -m pip install 'pdfplumber>=0.11,<0.12'
-      - name: Inspect official Aosta White List resources
+          python-version: '3.13'
+      - name: Patch audited parser, publication config, acceptance gates and evidence note
         shell: bash
         run: |
           python - <<'PY'
-          from __future__ import annotations
-          import hashlib
-          import json
-          import re
-          import time
-          import urllib.request
-          from collections import Counter
           from pathlib import Path
-          import pdfplumber
+          import json
 
-          sources = {
-              "listed": "https://www.regione.vda.it/allegato.aspx?pk=84307",
-              "applicants": "https://www.regione.vda.it/allegato.aspx?pk=84309",
-          }
-          dmy = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
-          ident = re.compile(r"(?:\b\d{11}\b|\b[A-Z0-9]{16}\b)", re.I)
+          parser_path = Path('src/white_list_archive/parsers/multi_prefecture_tables.py')
+          text = parser_path.read_text(encoding='utf-8')
+          marker = '\n\nPARSERS: dict[str, Callable[[Path, dict[str, Any]], ParsedBatch]] = {'
+          if 'def parse_aosta_listed' not in text:
+              block = r'''
 
-          def clean(value):
-              return " ".join(str(value or "").replace("\u00a0", " ").split())
 
-          for key, url in sources.items():
-              data = None
-              last = None
-              for attempt in range(1, 4):
-                  try:
-                      req = urllib.request.Request(url, headers={"User-Agent": "italian-anti-mafia-whitelist-source-audit/1.0"})
-                      with urllib.request.urlopen(req, timeout=45) as resp:
-                          data = resp.read()
-                          content_type = resp.headers.get("content-type", "")
-                      break
-                  except Exception as exc:
-                      last = exc
-                      if attempt < 3:
-                          time.sleep(attempt * 3)
-              if data is None:
-                  raise SystemExit(f"{key}: download failed after bounded retries: {last}")
-              path = Path(f"/tmp/aosta-{key}.pdf")
-              path.write_bytes(data)
-              digest = hashlib.sha256(data).hexdigest()
-              with pdfplumber.open(path) as pdf:
-                  row_lengths = Counter()
-                  nonempty_masks = Counter()
-                  date_positions = Counter()
-                  identifier_positions = Counter()
-                  table_count = 0
-                  candidate_headers = []
-                  nonempty_rows = 0
-                  data_rows = 0
-                  status_categories = Counter()
-                  listed_continuations = Counter()
-                  applicant_date_index = Counter()
-                  applicant_activity_index = Counter()
-                  applicant_secondary_index = Counter()
-                  for page in pdf.pages:
-                      for table in page.extract_tables():
-                          table_count += 1
-                          previous = None
-                          for raw in table:
-                              row = [clean(cell) for cell in raw]
-                              if not any(row):
-                                  continue
-                              nonempty_rows += 1
-                              row_lengths[len(row)] += 1
-                              mask = tuple(i for i, cell in enumerate(row) if cell)
-                              nonempty_masks[mask] += 1
-                              folded = " | ".join(row).casefold()
-                              if "ragione sociale" in folded and len(candidate_headers) < 6:
-                                  candidate_headers.append(row)
-                              dpos = tuple(i for i, cell in enumerate(row) if dmy.fullmatch(cell))
-                              ipos = tuple(i for i, cell in enumerate(row) if ident.search(cell))
-                              if dpos:
-                                  date_positions[dpos] += 1
-                              if ipos:
-                                  identifier_positions[ipos] += 1
-                              if dpos and ipos and row[0] and "ragione sociale" not in row[0].casefold():
-                                  data_rows += 1
-                                  low = folded
-                                  if "aggiornamento" in low or "rinnovo" in low:
-                                      status_categories["renewal/update"] += 1
-                                  elif "istruttoria" in low:
-                                      status_categories["pending/instruction"] += 1
-                                  elif any(token in low for token in ("negat", "dinieg", "rigett")):
-                                      status_categories["negative"] += 1
-                                  elif "iscritt" in low:
-                                      status_categories["listed-word"] += 1
-                                  else:
-                                      status_categories["blank-or-other"] += 1
-                              if key == "listed" and len(row) == 8 and dpos == (5, 6) and not ipos and not row[0]:
-                                  listed_continuations["total"] += 1
-                                  if previous and len(previous) == 8 and ident.search(previous[3] or ""):
-                                      listed_continuations["after_identity_row"] += 1
-                                      if previous[5] == row[5] and previous[6] == row[6]:
-                                          listed_continuations["same_dates_as_previous"] += 1
-                                      if row[2]:
-                                          listed_continuations["secondary_office_only"] += 1
-                                      if row[7]:
-                                          listed_continuations["status_text_present"] += 1
-                              if key == "applicants" and dpos and ipos and row[0]:
-                                  applicant_date_index[dpos[0]] += 1
-                                  iid = ipos[0]
-                                  between = [i for i in range(iid + 1, dpos[0]) if row[i]]
-                                  if between:
-                                      applicant_activity_index[between[-1]] += 1
-                                  if len(row) > 3 and row[3]:
-                                      applicant_secondary_index[3] += 1
-                              previous = row
-                  print(json.dumps({
-                      "source": key,
-                      "url": url,
-                      "sha256": digest,
-                      "bytes": len(data),
-                      "content_type": content_type,
-                      "pages": len(pdf.pages),
-                      "tables": table_count,
-                      "nonempty_rows": nonempty_rows,
-                      "row_lengths": dict(sorted(row_lengths.items())),
-                      "common_nonempty_masks": [[list(mask), count] for mask, count in nonempty_masks.most_common(12)],
-                      "date_positions": [[list(pos), count] for pos, count in date_positions.most_common(12)],
-                      "identifier_positions": [[list(pos), count] for pos, count in identifier_positions.most_common(12)],
-                      "candidate_headers": candidate_headers,
-                      "data_rows_with_date_and_identifier": data_rows,
-                      "status_categories": dict(status_categories),
-                      "listed_continuations": dict(listed_continuations),
-                      "applicant_date_index": dict(applicant_date_index),
-                      "applicant_activity_index": dict(applicant_activity_index),
-                      "applicant_secondary_index": dict(applicant_secondary_index),
-                  }, ensure_ascii=False))
+def _aosta_activities(text: str) -> list[str]:
+    """Split only explicit source separators while preserving labels such as I-quater."""
+    value = _clean(text)
+    if not value:
+        return []
+    parts = [_clean(item) for item in re.split(r"\s+[–—-]\s+", value) if _clean(item)]
+    return parts or [value]
+
+
+def _status_aosta_applicant(outcome: str) -> str:
+    folded = _clean(outcome).casefold()
+    if "istruttoria" in folded:
+        return "pending"
+    if "iscritt" in folded:
+        return "listed"
+    if "negat" in folded or "dinieg" in folded or "rigett" in folded:
+        return "rejected_or_denied"
+    if "rinunc" in folded or "cancell" in folded or "revoc" in folded:
+        return "cancellation_related"
+    return "other_or_unknown"
+
+
+def parse_aosta_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) != 8 or not (_DMY_FLEX.fullmatch(row[5] or "") and _DMY_FLEX.fullmatch(row[6] or "")):
+                continue
+            date_rows += 1
+            if not row[0] or not row[3]:
+                dropped += 1
+                continue
+            update = row[7]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    secondary=row[2],
+                    identifier_raw=row[3],
+                    activities=_aosta_activities(row[4]),
+                    status="renewal_update_in_progress" if update else "listed",
+                    outcome_raw=update,
+                    listing_date=row[5],
+                    expiry_date=row[6],
+                    primary_date_label="Data iscrizione",
+                )
+            )
+    diagnostics = {
+        "parser": "aosta_listed",
+        "date_rows": date_rows,
+        "public_records": len(records),
+        "dropped_date_rows": dropped,
+        "status_counts": dict(Counter(record["source_status"] for record in records)),
+        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+    }
+    return ParsedBatch(records, diagnostics)
+
+
+def parse_aosta_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) != 13 or not _DMY_FLEX.fullmatch(row[9] or ""):
+                continue
+            date_rows += 1
+            if not row[0] or not row[5]:
+                dropped += 1
+                continue
+            outcome = row[12]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    secondary=row[3],
+                    identifier_raw=row[5],
+                    activities=_aosta_activities(row[6]),
+                    status=_status_aosta_applicant(outcome),
+                    outcome_raw=outcome,
+                    application_date=row[9],
+                    primary_date_label="Data presentazione istanza",
+                )
+            )
+    diagnostics = {
+        "parser": "aosta_applicants",
+        "date_rows": date_rows,
+        "public_records": len(records),
+        "dropped_date_rows": dropped,
+        "status_counts": dict(Counter(record["source_status"] for record in records)),
+        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+    }
+    return ParsedBatch(records, diagnostics)
+'''
+              text = text.replace(marker, block + marker)
+          text = text.replace(
+              '    "alessandria_applicants": parse_alessandria_applicants,\n}',
+              '    "alessandria_applicants": parse_alessandria_applicants,\n    "aosta_listed": parse_aosta_listed,\n    "aosta_applicants": parse_aosta_applicants,\n}',
+          )
+          parser_path.write_text(text, encoding='utf-8')
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          config['verified_at'] = '2026-09-10'
+          existing = {source['source_key'] for source in config['sources']}
+          additions = [
+              {
+                  'source_key': 'aosta-listed',
+                  'parser': 'aosta_listed',
+                  'authority_key': 'aosta',
+                  'authority_name': "Regione autonoma Valle d'Aosta · funzioni prefettizie",
+                  'register_key': 'aosta-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'listed',
+                  'reference_date': '2026-09-10',
+                  'source_page_url': 'https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx',
+                  'resource_url': 'https://www.regione.vda.it/allegato.aspx?pk=84307',
+                  'sha256': '6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f',
+                  'expected_source_rows': 245,
+                  'last_source_update': '2026-09-10',
+                  'last_source_update_basis': 'current official attachment verified on this date; attachment itself is undated',
+                  'notes': 'The official listed-company page was independently identified and the mutable official attachment was byte-verified on 2026-09-10. The attachment exposes 245 complete source rows with name, identifier, activities, listing date and expiry date; 17 explicitly carry update/renewal text. Rows without a company identity are treated as layout material rather than silently attached to a neighbouring company.'
+              },
+              {
+                  'source_key': 'aosta-applicants',
+                  'parser': 'aosta_applicants',
+                  'authority_key': 'aosta',
+                  'authority_name': "Regione autonoma Valle d'Aosta · funzioni prefettizie",
+                  'register_key': 'aosta-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'applicant',
+                  'reference_date': '2026-09-10',
+                  'source_page_url': 'https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx',
+                  'resource_url': 'https://www.regione.vda.it/allegato.aspx?pk=84309',
+                  'sha256': '77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd',
+                  'expected_source_rows': 138,
+                  'last_source_update': '2026-09-10',
+                  'last_source_update_basis': 'current official attachment verified on this date; attachment itself is undated',
+                  'notes': 'The official applicant page and mutable attachment were verified on 2026-09-10. The current attachment contains 138 complete request observations: 116 have a source outcome indicating subsequent White List enrolment and 22 remain in istruttoria. Those outcomes are preserved as source observations; no cross-series entity deduplication is asserted.'
+              },
+          ]
+          for source in additions:
+              if source['source_key'] not in existing:
+                  config['sources'].append(source)
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          tests = Path('tests/test_aosta_parser_semantics.py')
+          tests.write_text('''from white_list_archive.parsers.multi_prefecture_tables import _aosta_activities, _status_aosta_applicant\n\n\ndef test_aosta_activity_split_preserves_i_quater():\n    assert _aosta_activities("C – D – E – I-quater") == ["C", "D", "E", "I-quater"]\n\n\ndef test_aosta_applicant_source_outcomes_are_not_inferred():\n    assert _status_aosta_applicant("ISCRITTA IN WHITE LIST") == "listed"\n    assert _status_aosta_applicant("IN ISTRUTTORIA") == "pending"\n    assert _status_aosta_applicant("esito non classificato") == "other_or_unknown"\n''', encoding='utf-8')
+
+          note = Path('docs/sources/aosta-operational-check-2026-09-10.md')
+          note.write_text('''# Aosta operational source check — 2026-09-10\n\n## Authority and official series\n\nIn Valle d’Aosta the President of the Region exercises prefectural functions. The Regione autonoma Valle d’Aosta institutional Prefecture service exposes two distinct White List series: an **Elenco imprese iscritte nella White list** page and an **Elenco imprese richiedenti l’iscrizione** page. Both were reachable during this check and each linked a current official PDF attachment.\n\n## Current official attachments\n\n- Listed: `https://www.regione.vda.it/allegato.aspx?pk=84307` — SHA-256 `6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f`; 49 pages in the 2026-09-10 acquisition; 245 complete source rows with exact listing/expiry dates and a company identifier; 17 rows explicitly carry update/renewal text.\n- Applicants: `https://www.regione.vda.it/allegato.aspx?pk=84309` — SHA-256 `77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd`; 21 pages; 138 complete request observations. The source outcome field contains 116 observations indicating subsequent White List enrolment and 22 marked in istruttoria.\n\nThe attachment URLs are stable identifiers and the PDFs themselves do not expose an edition date suitable for a stronger dating claim. Therefore `2026-09-10` is used as the **verified-current/capture reference date**, not as an asserted administrative publication or decision date. The byte hashes, source-row dates and source-page provenance remain the controlling evidence.\n\n## Parser boundary\n\nThe listed parser only accepts rows carrying name, raw identifier, source activities, exact source listing date and exact source expiry date. It maps an explicit update/renewal cell to `renewal_update_in_progress`; otherwise the row remains `listed`, without deriving expiry from the clock. Layout-only table material without company identity is not attached to a neighbouring company.\n\nThe applicant parser only accepts complete 13-column request rows with the source application date and raw identifier. `IN ISTRUTTORIA` maps to `pending`; an explicit source outcome indicating White List enrolment maps to `listed`; negative/cancellation outcomes are mapped only when the corresponding source text is present. The archive remains source-observation based and does not deduplicate applicant outcomes against the listed series as if a canonical LegalEntity had already been established.\n\nNo durable-evidence or canonical-database completion is asserted by this source check.\n''', encoding='utf-8')
+
+          workflow = Path('.github/workflows/public-pages.yml')
+          value = workflow.read_text(encoding='utf-8')
+          value = value.replace("assert reg['meta']['record_count'] == 5486", "assert reg['meta']['record_count'] == 5869")
+          value = value.replace("{'cosenza','parma','pistoia','bologna','alessandria'}", "{'cosenza','parma','pistoia','bologna','alessandria','aosta'}")
+          value = value.replace("'bologna-provincial','bologna-post-sisma','alessandria-ordinary'", "'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary'")
+          value = value.replace("assert reg['meta']['authority_count'] == 5", "assert reg['meta']['authority_count'] == 6")
+          value = value.replace("assert reg['meta']['register_count'] == 6", "assert reg['meta']['register_count'] == 7")
+          value = value.replace("assert pref['meta']['published_count'] == 5", "assert pref['meta']['published_count'] == 6")
+          anchor = "          assert len(alessandria) == 1 and alessandria[0]['mapped'] and alessandria[0]['published']\n"
+          if "jurisdiction_name'] == 'Aosta'" not in value:
+              value = value.replace(anchor, anchor + "          aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']\n          assert len(aosta) == 1 and aosta[0]['mapped'] and aosta[0]['published']\n")
+          workflow.write_text(value, encoding='utf-8')
+
+          browser = Path('tests/public_portal_browser.cjs')
+          value = browser.read_text(encoding='utf-8')
+          value = value.replace("      assert.ok(labels.includes('White List ordinaria · Prefettura di Alessandria'));", "      assert.ok(labels.includes('White List ordinaria · Prefettura di Alessandria'));\n      assert.ok(labels.includes(\"White List ordinaria · Regione autonoma Valle d'Aosta · funzioni prefettizie\"));")
+          value = value.replace('      assert.equal(stats.total,5486);', '      assert.equal(stats.total,5869);')
+          value = value.replace("      const previous=registry.records.filter(r=>r.authority_key!=='alessandria');", "      const previous=registry.records.filter(r=>!['alessandria','aosta'].includes(r.authority_key));")
+          a_anchor = "      assert.equal(alessandria.filter(r=>r.source_key==='alessandria-applicants').length,71);\n"
+          if "source_key==='aosta-listed'" not in value:
+              value = value.replace(a_anchor, a_anchor + "      const aosta=registry.records.filter(r=>r.authority_key==='aosta');\n      assert.equal(aosta.length,383);\n      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,245);\n      assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,138);\n      assert.deepEqual(statusCounts(aosta),{listed:344,pending:22,renewal_update_in_progress:17});\n")
+          browser.write_text(value, encoding='utf-8')
           PY
+      - name: Install validation runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install -e '.[publication]'
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and inspect Aosta-expanded public registry
+        shell: bash
+        run: |
+          rm -rf /tmp/aosta-public-build
+          mkdir -p /tmp/aosta-public-build/site/data /tmp/aosta-public-build/work
+          cp -R public-site/* /tmp/aosta-public-build/site/
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/aosta-public-build/work \
+            --registry-json /tmp/aosta-public-build/site/data/registry.json \
+            --registry-csv /tmp/aosta-public-build/site/data/registry.csv \
+            --prefectures-json /tmp/aosta-public-build/site/data/prefectures.json \
+            --prefectures-csv /tmp/aosta-public-build/site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/aosta-public-build')
+          reg=json.loads((root/'site/data/registry.json').read_text())
+          pref=json.loads((root/'site/data/prefectures.json').read_text())
+          aosta=[r for r in reg['records'] if r['authority_key']=='aosta']
+          assert reg['meta']['record_count']==5869, reg['meta']['record_count']
+          assert len(aosta)==383, len(aosta)
+          assert sum(r['source_key']=='aosta-listed' for r in aosta)==245
+          assert sum(r['source_key']=='aosta-applicants' for r in aosta)==138
+          assert reg['meta']['status_counts'].get('listed',0)>=344
+          for key, expected in [('aosta-listed',245),('aosta-applicants',138)]:
+              diag=json.loads((root/'work'/f'{key}.diagnostics.json').read_text())
+              assert diag['public_records']==expected, (key,diag)
+              assert diag.get('dropped_date_rows',0)==0, (key,diag)
+          item=[p for p in pref['prefectures'] if p['jurisdiction_name']=='Aosta']
+          assert len(item)==1 and item[0]['mapped'] and item[0]['published'], item
+          assert pref['meta']['mapped_count']==34, pref['meta']
+          assert pref['meta']['published_count']==6, pref['meta']
+          print(json.dumps({'aosta_records':len(aosta),'registry_records':reg['meta']['record_count'],'status_counts':{k:sum(r['source_status']==k for r in aosta) for k in sorted({r['source_status'] for r in aosta})},'prefectures_meta':pref['meta']},ensure_ascii=False))
+          PY
+          python -m white_list_archive.publishing.public_artifact /tmp/aosta-public-build/site
+          python -m white_list_archive.publishing.public_links /tmp/aosta-public-build/site /tmp/aosta-public-build/link-audit.json
+          node --check tests/public_portal_browser.cjs
+      - name: Remove one-shot materialiser and commit expansion branch
+        shell: bash
+        run: |
+          git rm .github/workflows/aosta-source-audit.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/multi_prefecture_tables.py \
+                  data/publication/multi_prefecture_pilot.json \
+                  tests/test_aosta_parser_semantics.py \
+                  tests/public_portal_browser.cjs \
+                  .github/workflows/public-pages.yml \
+                  docs/sources/aosta-operational-check-2026-09-10.md
+          git diff --cached --check
+          git commit -m 'Expand public White List coverage to Aosta'
+          git push origin HEAD:expansion/aosta-source-audit-2026-09-10
