@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-09-09",
+  "verified_at": "2026-09-10",
   "sources": [
     {
       "source_key": "cosenza-combined",
@@ -167,6 +167,40 @@
       "last_source_update": "2026-09-04",
       "last_source_update_basis": "dated official resource",
       "notes": "Numbered source sections are retained as source section labels; malformed-length numeric identifiers remain only in the raw identifier field."
+    },
+    {
+      "source_key": "aosta-listed",
+      "parser": "aosta_listed",
+      "authority_key": "aosta",
+      "authority_name": "Regione autonoma Valle d'Aosta · funzioni prefettizie",
+      "register_key": "aosta-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx",
+      "resource_url": "https://www.regione.vda.it/allegato.aspx?pk=84307",
+      "sha256": "6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f",
+      "expected_source_rows": 245,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official attachment verified on this date; attachment itself is undated",
+      "notes": "The official listed-company page was independently identified and the mutable official attachment was byte-verified on 2026-09-10. The attachment exposes 245 complete source rows with name, identifier, activities, listing date and expiry date; 17 explicitly carry update/renewal text. Rows without a company identity are treated as layout material rather than silently attached to a neighbouring company."
+    },
+    {
+      "source_key": "aosta-applicants",
+      "parser": "aosta_applicants",
+      "authority_key": "aosta",
+      "authority_name": "Regione autonoma Valle d'Aosta · funzioni prefettizie",
+      "register_key": "aosta-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx",
+      "resource_url": "https://www.regione.vda.it/allegato.aspx?pk=84309",
+      "sha256": "77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd",
+      "expected_source_rows": 139,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official attachment verified on this date; attachment itself is undated",
+      "notes": "The official applicant page and mutable attachment were verified on 2026-09-10. The current attachment contains 139 complete request observations: 117 have a source outcome indicating subsequent White List enrolment and 22 remain in istruttoria. Those outcomes are preserved as source observations; no cross-series entity deduplication is asserted."
     }
   ]
 }
