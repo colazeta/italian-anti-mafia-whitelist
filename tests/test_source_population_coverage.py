@@ -20,8 +20,8 @@ def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
     assert report["verified_authority_count"] == 34
     assert report["register_scope_count"] == 35
-    assert report["complete_register_scope_count"] == 32
-    assert report["incomplete_register_scope_count"] == 3
+    assert report["complete_register_scope_count"] == 33
+    assert report["incomplete_register_scope_count"] == 2
 
     by_scope = {}
     for row in report["rows"]:
@@ -77,12 +77,12 @@ def test_separate_series_and_unresolved_gaps_are_distinguished():
         for row in report["scopes"]
         if not row["source_population_complete"]
     }
-    assert unresolved == {"crotone", "milano", "sassari"}
+    assert unresolved == {"milano", "sassari"}
 
 
-def test_bari_and_udine_current_pages_cover_both_populations():
+def test_recently_resolved_current_pages_cover_both_populations():
     report = _report()
-    for authority in ("bari", "udine"):
+    for authority in ("bari", "udine", "crotone"):
         rows = {
             row["population_target"]: row
             for row in report["rows"]

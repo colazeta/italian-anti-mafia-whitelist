@@ -8,15 +8,15 @@ Search failure, a submission portal, a generic White List information page or hi
 
 ## Result
 
-After this pass:
+After the completed 9 September resolution work:
 
 - verified authorities: **34**;
 - register/regime scopes: **35**;
-- scopes with both `listed` and `applicant` populations accounted for: **32**;
-- unresolved scopes: **3**;
-- inventoried recurring source series: **63**.
+- scopes with both `listed` and `applicant` populations accounted for: **33**;
+- unresolved scopes: **2**;
+- inventoried recurring source series: **65**.
 
-Two previously unresolved authorities are now positively resolved: **Bari** and **Udine**.
+Three previously unresolved authorities are now positively resolved: **Bari**, **Udine** and **Crotone**.
 
 ## Bari — resolved
 
@@ -29,7 +29,7 @@ The current Prefettura page explicitly exposes two separate attachments:
 - `Elenco società iscritte al 31/08/2026`;
 - `Elenco richieste di iscrizione al 31/08/2026`.
 
-The page therefore positively accounts for both mandatory logical populations. The registry now contains `bari-listed` and `bari-applicants`, both bound to the current official landing page as recurring periodic attachments.
+The page therefore positively accounts for both mandatory logical populations. The registry contains `bari-listed` and `bari-applicants`, both bound to the current official landing page as recurring periodic attachments.
 
 This supersedes the access failure recorded in `bari-operational-check-2026-09-08.md`; that earlier record remains historically correct for the failed 8 September observation and is not rewritten.
 
@@ -44,18 +44,24 @@ The current Prefettura page explicitly exposes two separate attachments, both up
 - `Elenco ditte iscritte nelle White List`;
 - `Elenco dei fornitori che hanno chiesto di essere iscritti nelle White List`.
 
-The registry now contains `udine-listed` and `udine-applicants`, both bound to the current official landing page as recurring periodic attachments. No historical-site inference is required.
+The registry contains `udine-listed` and `udine-applicants`, both bound to the current official landing page as recurring periodic attachments. No historical-site inference is required.
+
+## Crotone — resolved
+
+Current official surface:
+
+https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list
+
+The current Prefettura page, last updated **14 August 2026**, directly exposes two separate White List attachments:
+
+- `Ditte con richiesta iscrizione white list`;
+- `Ditte iscritte white list`.
+
+This is positive current evidence for both mandatory logical populations. The registry therefore contains `crotone-listed` and `crotone-applicants`, both bound to the official White List landing page as recurring periodic attachments.
+
+An earlier research note on 9 September had positively resolved only the listed-company surface through the general documents index and therefore retained the applicant target as unresolved. The current White List page itself now provides the stronger direct evidence needed to resolve both targets. The earlier uncertainty is superseded rather than reinterpreted as evidence of prior non-publication.
 
 ## Still unresolved
-
-### Crotone
-
-Current official surfaces reviewed:
-
-- https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list
-- https://prefettura.interno.gov.it/it/prefetture/crotone/decreti-direttive-e-altri-documenti
-
-The current White List page establishes the active service and application process. The current documents index exposes a `WHITE LIST - ELENCO IMPRESE ISCRITTE` entry, but the present research route did not positively resolve a clean recurring applicant publication identity. The scope therefore remains `UNRESOLVED_REQUIRES_REVIEW`; no applicant non-publication is inferred.
 
 ### Milano
 
@@ -78,9 +84,8 @@ The page currently exposes a single attachment labelled `WHITE LIST elenco provi
 The deterministic coverage test now asserts the exact unresolved set:
 
 ```text
-crotone
 milano
 sassari
 ```
 
-Bari and Udine must regress to unresolved if their qualifying series are removed. The target state remains 35/35 complete only if the remaining three populations are positively evidenced under the same admission rule.
+Bari, Udine and Crotone must regress to unresolved if their qualifying series are removed. The target state remains 35/35 complete only if the remaining two populations are positively evidenced under the same admission rule.

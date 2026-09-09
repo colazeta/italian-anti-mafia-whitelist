@@ -1065,7 +1065,7 @@
       "canonical_integration_validated": false,
       "public_export_enabled": false,
       "durable_evidence_verified": false,
-      "population_scopes_complete": false,
+      "population_scopes_complete": true,
       "latest_source_reference_date": null,
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
@@ -1074,9 +1074,7 @@
       "last_content_change_at": null,
       "last_successful_investigation_on": "2026-09-06",
       "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/20"
-      ],
+      "unresolved_issue": [],
       "actionable_issue": true,
       "coverage_status": "SOURCE_IDENTIFIED",
       "terminal_reason": null,
