@@ -71,9 +71,14 @@ jobs:
                   nonempty_rows = 0
                   data_rows = 0
                   status_categories = Counter()
+                  listed_continuations = Counter()
+                  applicant_date_index = Counter()
+                  applicant_activity_index = Counter()
+                  applicant_secondary_index = Counter()
                   for page in pdf.pages:
                       for table in page.extract_tables():
                           table_count += 1
+                          previous = None
                           for raw in table:
                               row = [clean(cell) for cell in raw]
                               if not any(row):
@@ -104,6 +109,25 @@ jobs:
                                       status_categories["listed-word"] += 1
                                   else:
                                       status_categories["blank-or-other"] += 1
+                              if key == "listed" and len(row) == 8 and dpos == (5, 6) and not ipos and not row[0]:
+                                  listed_continuations["total"] += 1
+                                  if previous and len(previous) == 8 and ident.search(previous[3] or ""):
+                                      listed_continuations["after_identity_row"] += 1
+                                      if previous[5] == row[5] and previous[6] == row[6]:
+                                          listed_continuations["same_dates_as_previous"] += 1
+                                      if row[2]:
+                                          listed_continuations["secondary_office_only"] += 1
+                                      if row[7]:
+                                          listed_continuations["status_text_present"] += 1
+                              if key == "applicants" and dpos and ipos and row[0]:
+                                  applicant_date_index[dpos[0]] += 1
+                                  iid = ipos[0]
+                                  between = [i for i in range(iid + 1, dpos[0]) if row[i]]
+                                  if between:
+                                      applicant_activity_index[between[-1]] += 1
+                                  if len(row) > 3 and row[3]:
+                                      applicant_secondary_index[3] += 1
+                              previous = row
                   print(json.dumps({
                       "source": key,
                       "url": url,
@@ -120,5 +144,9 @@ jobs:
                       "candidate_headers": candidate_headers,
                       "data_rows_with_date_and_identifier": data_rows,
                       "status_categories": dict(status_categories),
+                      "listed_continuations": dict(listed_continuations),
+                      "applicant_date_index": dict(applicant_date_index),
+                      "applicant_activity_index": dict(applicant_activity_index),
+                      "applicant_secondary_index": dict(applicant_secondary_index),
                   }, ensure_ascii=False))
           PY
