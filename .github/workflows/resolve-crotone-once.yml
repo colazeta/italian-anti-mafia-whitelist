@@ -1,0 +1,126 @@
+name: Resolve Crotone source populations once
+
+on:
+  push:
+    branches:
+      - sources/resolve-crotone-2026-09-09
+    paths:
+      - '.github/workflows/resolve-crotone-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sources/resolve-crotone-2026-09-09
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install project and tests
+        run: python -m pip install -e . pytest
+      - name: Add evidence-backed Crotone series and update deterministic expectations
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle)
+              fields = reader.fieldnames
+              rows = list(reader)
+          additions = [
+              {
+                  'source_series_key': 'crotone-listed',
+                  'authority_key': 'crotone',
+                  'regime_code': 'WL-REGIME-L190-2012',
+                  'population_scope': 'listed',
+                  'sector_scope': 'all',
+                  'publication_model': 'periodic_attachment',
+                  'series_url': 'https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list',
+                  'resource_resolution_status': 'landing_page_resolved',
+                  'verified_date': '2026-09-09',
+                  'notes': 'Current official White List page exposes the Ditte iscritte white list attachment; page updated 14 August 2026.',
+              },
+              {
+                  'source_series_key': 'crotone-applicants',
+                  'authority_key': 'crotone',
+                  'regime_code': 'WL-REGIME-L190-2012',
+                  'population_scope': 'applicant',
+                  'sector_scope': 'all',
+                  'publication_model': 'periodic_attachment',
+                  'series_url': 'https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list',
+                  'resource_resolution_status': 'landing_page_resolved',
+                  'verified_date': '2026-09-09',
+                  'notes': 'Current official White List page exposes the Ditte con richiesta iscrizione white list attachment; page updated 14 August 2026.',
+              },
+          ]
+          existing = {row['source_series_key'] for row in rows}
+          rows.extend(row for row in additions if row['source_series_key'] not in existing)
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields, lineterminator='\n')
+              writer.writeheader(); writer.writerows(rows)
+
+          catalog_path = Path('data/catalog.csv')
+          with catalog_path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle)
+              cfields = reader.fieldnames
+              catalog = list(reader)
+          matched = False
+          for row in catalog:
+              if row['dataset_id'] == 'source-series-inventory':
+                  row['record_count'] = '65'; matched = True
+          if not matched:
+              raise SystemExit('source-series-inventory missing from data catalog')
+          with catalog_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=cfields, lineterminator='\n')
+              writer.writeheader(); writer.writerows(catalog)
+
+          test_path = Path('tests/test_source_population_coverage.py')
+          text = test_path.read_text(encoding='utf-8')
+          replacements = {
+              'assert report["complete_register_scope_count"] == 32': 'assert report["complete_register_scope_count"] == 33',
+              'assert report["incomplete_register_scope_count"] == 3': 'assert report["incomplete_register_scope_count"] == 2',
+              'assert unresolved == {"crotone", "milano", "sassari"}': 'assert unresolved == {"milano", "sassari"}',
+              'def test_bari_and_udine_current_pages_cover_both_populations():': 'def test_recently_resolved_current_pages_cover_both_populations():',
+              'for authority in ("bari", "udine"):': 'for authority in ("bari", "udine", "crotone"):',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'Expected test marker missing: {old}')
+              text = text.replace(old, new, 1)
+          test_path.write_text(text, encoding='utf-8')
+          PY
+      - name: Reconcile canonical monitoring ledger
+        run: |
+          python -m white_list_archive.acquisition.reconcile_monitoring \
+            --durable-storage-run-url https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34327668707 \
+            --durable-storage-verified-at 2026-09-09T08:10:49Z \
+            --activation-record docs/architecture/evidence-store-activation-2026-09-09.md
+          python -m json.tool data/monitoring/national_coverage.json >/dev/null
+      - name: Run focused regression tests
+        run: |
+          python -m pytest -q \
+            tests/test_source_population_coverage.py \
+            tests/test_monitoring_reconciliation.py \
+            tests/test_operations.py \
+            tests/test_repository_governance.py
+      - name: Commit resolved Crotone state to branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/source_registry/source_series_inventory.csv data/catalog.csv tests/test_source_population_coverage.py data/monitoring/national_coverage.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'Crotone state already resolved.'
+            exit 0
+          fi
+          git commit -m 'Resolve Crotone listed and applicant source populations'
+          git push origin HEAD:sources/resolve-crotone-2026-09-09
