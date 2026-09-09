@@ -1,0 +1,99 @@
+name: Audit current Arezzo White List sources
+
+on:
+  push:
+    branches:
+      - expansion/arezzo-source-audit-2026-09-10
+    paths:
+      - .github/workflows/arezzo-source-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PDF inspection runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Resolve and inspect official Arezzo source attachments
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import hashlib, re, time, urllib.request
+          import pdfplumber
+
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
+          UA='italian-anti-mafia-whitelist/0.1 source-verification'
+          def get(url, attempts=3):
+              last=None
+              for n in range(1,attempts+1):
+                  try:
+                      req=urllib.request.Request(url,headers={'User-Agent':UA})
+                      with urllib.request.urlopen(req,timeout=45) as r:
+                          return r.geturl(), dict(r.headers), r.read()
+                  except Exception as exc:
+                      last=exc
+                      if n==attempts: raise
+                      time.sleep(n*3)
+              raise last
+
+          final,headers,body=get(PAGE)
+          print('PAGE_FINAL',final)
+          print('PAGE_CONTENT_TYPE',headers.get('Content-Type'))
+          print('PAGE_BYTES',len(body))
+          html=body.decode('utf-8','replace')
+          print('PAGE_HAS_LAST_UPDATE_2026_08_06', bool(re.search(r'6\s+Agosto\s+2026|06[./-]08[./-]2026',html,re.I)))
+
+          class Links(HTMLParser):
+              def __init__(self): super().__init__(); self.href=None; self.text=[]; self.links=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a': self.href=dict(attrs).get('href'); self.text=[]
+              def handle_data(self,data):
+                  if self.href is not None: self.text.append(data)
+              def handle_endtag(self,tag):
+                  if tag=='a' and self.href is not None:
+                      self.links.append((' '.join(''.join(self.text).split()),self.href)); self.href=None; self.text=[]
+          p=Links(); p.feed(html)
+          wanted=[]
+          for text,href in p.links:
+              folded=text.casefold()
+              if 'elenco imprese iscritte' in folded or ('elenco imprese richiedenti' in folded and 'iscrizione' in folded):
+                  wanted.append((text,urljoin(final,href)))
+          print('MATCHED_LINKS',len(wanted))
+          for text,url in wanted: print('LINK',repr(text),url)
+          if len(wanted)!=2:
+              raise SystemExit(f'Expected exactly two current list attachment links, got {wanted!r}')
+
+          for idx,(text,url) in enumerate(wanted,1):
+              final_u,h,b=get(url)
+              sha=hashlib.sha256(b).hexdigest()
+              path=Path(f'/tmp/arezzo-{idx}.bin'); path.write_bytes(b)
+              print('ATTACHMENT',idx,'TEXT',repr(text),'FINAL',final_u,'CONTENT_TYPE',h.get('Content-Type'),'BYTES',len(b),'SHA256',sha,'MAGIC',b[:8])
+              if not b.startswith(b'%PDF'):
+                  print('NON_PDF_PREFIX',b[:200])
+                  continue
+              with pdfplumber.open(path) as pdf:
+                  print('PDF_PAGES',idx,len(pdf.pages))
+                  table_shapes=Counter(); text_heads=[]
+                  total_tables=0
+                  for page in pdf.pages:
+                      txt=' '.join((page.extract_text() or '').split())
+                      if txt and len(text_heads)<4: text_heads.append((page.page_number,txt[:500]))
+                      tables=page.extract_tables() or []
+                      total_tables+=len(tables)
+                      for table in tables:
+                          for row in table or []:
+                              if row:
+                                  table_shapes[len(row)]+=1
+                  print('TABLE_COUNT',idx,total_tables,'ROW_SHAPES',dict(sorted(table_shapes.items())))
+                  for page_no,head in text_heads: print('TEXT_HEAD',idx,page_no,repr(head))
+          PY
