@@ -116,6 +116,8 @@ def test_failure_between_changed_and_unchanged_checks_cannot_hide_pending_update
 
 
 def test_preflight_prioritises_global_storage_without_mutating_coverage(ledger):
+    storage = ledger["operational_prerequisites"]["durable_evidence_storage"]
+    storage.update(status="NOT_PROVISIONED", verified_at=None, verification_evidence=[])
     before = deepcopy(ledger)
     decision = work_decision(ledger)
     assert decision["action"] == "RESOLVE_GLOBAL_PREREQUISITE"
@@ -128,13 +130,23 @@ def test_preflight_prioritises_global_storage_without_mutating_coverage(ledger):
 
 def test_verified_storage_requires_evidence_and_does_not_authorise_publication(ledger):
     storage = ledger["operational_prerequisites"]["durable_evidence_storage"]
+    storage.update(status="NOT_PROVISIONED", verified_at=None, verification_evidence=[])
+    assert work_decision(ledger)["action"] == "RESOLVE_GLOBAL_PREREQUISITE"
+
     storage.update(status="VERIFIED", verified_at="2026-09-09T10:00:00Z", verification_evidence=[])
     assert work_decision(ledger)["current_prefecture"] is None
+
     storage["verification_evidence"] = ["fixture: retrieval, integrity and retention verification"]
     decision = work_decision(ledger)
     assert decision["action"] == "CHECK_PREFECTURE"
-    assert decision["current_prefecture"] not in {"bari", "cosenza"}
+    assert decision["current_prefecture"] is not None
     assert decision["publication_allowed"] is False
+
+    # Satisfying a global prerequisite changes only preflight eligibility. It never
+    # turns a territorial row into a public release or bypasses its own gates.
+    selected = next(r for r in ledger["prefectures"] if r["authority_key"] == decision["current_prefecture"])
+    assert selected["coverage_status"] != "PUBLISHED"
+
     for row in ledger["prefectures"]:
         row["coverage_status"] = "BLOCKED"
     assert work_decision(ledger)["action"] == "RESOLVE_SOURCE_ACCESS"
