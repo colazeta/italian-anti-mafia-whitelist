@@ -83,7 +83,7 @@ def test_alessandria_reconciles_invalid_date_only_from_same_repeated_source_iden
     assert record["source_fields"]["malformed_date_pairs"] == ["6.5.2025 | 65.5.2026"]
 
 
-def test_alessandria_does_not_choose_between_conflicting_source_dates(monkeypatch):
+def test_alessandria_keeps_conflicting_source_date_pairs_as_distinct_observations(monkeypatch):
     rows = [
         ["SEZIONE III", "", "", "", "", "", ""],
         ["GESTIONE AMBIENTE S.P.A.", "ALESSANDRIA", "", "01492290067", "15.04.2025", "13.04.2026", "In istruttoria per rinnovo"],
@@ -92,11 +92,27 @@ def test_alessandria_does_not_choose_between_conflicting_source_dates(monkeypatc
     ]
     batch = parse(monkeypatch, rows)
 
-    assert batch.diagnostics["public_records"] == 1
-    assert batch.diagnostics["date_conflict_groups"] == 1
+    assert batch.diagnostics["public_records"] == 2
+    assert batch.diagnostics["date_conflict_identity_groups"] == 1
     assert batch.diagnostics["dropped_date_rows"] == 0
-    record = batch.records[0]
-    assert record["observed_listing_date"] == "2025-04-15"
-    assert record["observed_expiry_date"] == ""
-    assert record["source_fields"]["normalised_expiry_date_variants"] == ["2026-04-13", "2026-04-14"]
-    assert record["source_fields"]["date_conflict_fields"] == ["observed_expiry_date"]
+    assert {record["observed_expiry_date"] for record in batch.records} == {"2026-04-13", "2026-04-14"}
+    assert all(record["observed_listing_date"] == "2025-04-15" for record in batch.records)
+    assert all(record["source_fields"]["date_conflict_fields"] == ["observed_expiry_date"] for record in batch.records)
+    assert {tuple(record["source_fields"]["sections"]) for record in batch.records} == {("SEZIONE III",), ("SEZIONE VI",)}
+
+
+def test_alessandria_fails_closed_when_invalid_row_has_multiple_possible_clean_pairs(monkeypatch):
+    rows = [
+        ["SEZIONE I", "", "", "", "", "", ""],
+        ["IMPRESA ZETA S.R.L.", "ALESSANDRIA", "", "12345678901", "1.1.2025", "31.12.2025", ""],
+        ["SEZIONE II", "", "", "", "", "", ""],
+        ["IMPRESA ZETA S.R.L.", "ALESSANDRIA", "", "12345678901", "1.2.2025", "31.1.2026", ""],
+        ["SEZIONE III", "", "", "", "", "", ""],
+        ["IMPRESA ZETA S.R.L.", "ALESSANDRIA", "", "12345678901", "1.1.2025", "99.1.2026", ""],
+    ]
+    batch = parse(monkeypatch, rows)
+
+    assert batch.diagnostics["public_records"] == 2
+    assert batch.diagnostics["date_conflict_identity_groups"] == 1
+    assert batch.diagnostics["dropped_date_rows"] == 1
+    assert batch.diagnostics["reconciled_malformed_date_rows"] == 0
