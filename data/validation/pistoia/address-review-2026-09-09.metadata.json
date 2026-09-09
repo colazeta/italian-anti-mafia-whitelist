@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-09-09",
+  "prefecture": "Pistoia",
+  "region": "Toscana",
+  "source_config": "data/publication/multi_prefecture_pilot.json",
+  "source_captures": {
+    "pistoia-listed": {
+      "reference_date": "2026-08-21",
+      "sha256": "f26819f1ebe6b3217a2055d793b5cfdc60380c8ed4d17fe8097fdab356de8c86",
+      "parsed_records": 272
+    },
+    "pistoia-applicants": {
+      "reference_date": "2026-08-21",
+      "sha256": "4045086a335fd80e4f493c9a0e6aca73fa58ca491e5c04a42f007879661bd965",
+      "parsed_records": 45
+    }
+  },
+  "anncsu": {
+    "dataset_code": "INDIR_TOSC",
+    "provider_version": "2026-08-03",
+    "zip_sha256": "b4f9e82af2a22a6ef4f44eef54e7ec25e56da309f7cd563c22308e03e1fce885",
+    "csv_sha256": "16038ca061262a897dad01552e7d1e55cd39ca2217bedd605a412c37f45aa61c"
+  },
+  "policy": "Frozen exact Istat municipality prefix plus ANNCSU typed-street/civic linkage, with no Pistoia-specific hand tuning.",
+  "canonical_source_backed_address_population": 287,
+  "candidate_population": 5,
+  "not_found_population": 282,
+  "candidate_coverage_pct": 1.74,
+  "review_sample": {
+    "rows": 150,
+    "sample_sha256": "df35ef283e07e2f166b969fbeb86618c04a63a8dbae97b661673431a1dfdde52",
+    "identity_basis": "sha256(source_address)+review_stratum+sampling_weight+source_capture_sha256",
+    "database_uuid_independent": true,
+    "strata": {
+      "matched_civic_access": {"population": 1, "sample": 1},
+      "matched_street": {"population": 4, "sample": 4},
+      "not_found": {"population": 282, "sample": 145}
+    }
+  },
+  "candidate_review": {
+    "reviewed": 5,
+    "correct": 5,
+    "incorrect": 0,
+    "candidate_precision_pct": 100.0,
+    "civic_access": {"reviewed": 1, "correct": 1, "precision_pct": 100.0},
+    "street": {"reviewed": 4, "correct": 4, "precision_pct": 100.0}
+  },
+  "estimated_validated_end_to_end_yield_pct": 1.74,
+  "denominator_rule": "All five returned ANNCSU candidates were substantively reviewed and form the precision denominator. not_found rows are coverage/recall failures, not false returned matches, and are excluded from match precision.",
+  "interpretation_limits": "The Pistoia candidate population is only five rows, including one civic_access result. The 100% observed candidate precision is therefore descriptive for this frozen corpus and cannot support a national automatic-acceptance rule by itself.",
+  "production_policy_decision": "Do not introduce national automatic acceptance. Keep all ANNCSU outputs candidate-by-default; retain civic_access as the strongest future acceptance candidate, but require broader multi-region evidence. Prioritise recall/fallback work because exact-linkage coverage in Pistoia is only 1.74%.",
+  "live_workflow_run": "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34376366469"
+}
