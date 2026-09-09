@@ -1,4 +1,4 @@
-name: Inspect current Arezzo White List tables
+name: Diagnose Arezzo source row semantics
 
 on:
   push:
@@ -21,10 +21,11 @@ jobs:
           python-version: '3.13'
       - name: Install inspection runtime
         run: python -m pip install openpyxl python-docx
-      - name: Resolve and inspect official Arezzo source tables
+      - name: Diagnose official Arezzo source row semantics
         run: |
           python - <<'PY'
           from collections import Counter, defaultdict
+          from datetime import date, datetime
           from html.parser import HTMLParser
           from pathlib import Path
           from urllib.parse import urljoin
@@ -34,86 +35,118 @@ jobs:
 
           PAGE='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
           UA='italian-anti-mafia-whitelist/0.1 source-verification'
-          def get(url, attempts=3):
-              last=None
-              for n in range(1,attempts+1):
+          def get(url):
+              for n in range(1,4):
                   try:
                       req=urllib.request.Request(url,headers={'User-Agent':UA})
-                      with urllib.request.urlopen(req,timeout=45) as r:
-                          return r.geturl(), dict(r.headers), r.read()
-                  except Exception as exc:
-                      last=exc
-                      if n==attempts: raise
+                      with urllib.request.urlopen(req,timeout=45) as r: return r.geturl(),dict(r.headers),r.read()
+                  except Exception:
+                      if n==3: raise
                       time.sleep(n*3)
-              raise last
-
-          final,headers,body=get(PAGE)
-          html=body.decode('utf-8','replace')
+          final,_,body=get(PAGE)
           class Links(HTMLParser):
               def __init__(self): super().__init__(); self.href=None; self.text=[]; self.links=[]
               def handle_starttag(self,tag,attrs):
                   if tag=='a': self.href=dict(attrs).get('href'); self.text=[]
               def handle_data(self,data):
-                  if self.href is not None: self.text.append(data)
+                  if self.href is not None:self.text.append(data)
               def handle_endtag(self,tag):
                   if tag=='a' and self.href is not None:
                       self.links.append((' '.join(''.join(self.text).split()),self.href)); self.href=None; self.text=[]
-          p=Links(); p.feed(html)
+          p=Links(); p.feed(body.decode('utf-8','replace'))
           wanted=[]
           for text,href in p.links:
               f=text.casefold()
-              if 'elenco imprese iscritte' in f or ('elenco imprese richiedenti' in f and 'iscrizione' in f):
-                  wanted.append((text,urljoin(final,href)))
+              if 'elenco imprese iscritte' in f or ('elenco imprese richiedenti' in f and 'iscrizione' in f): wanted.append((text,urljoin(final,href)))
           assert len(wanted)==2,wanted
-          blobs=[]
+          files=[]
           for idx,(text,url) in enumerate(wanted,1):
-              final_u,h,b=get(url); sha=hashlib.sha256(b).hexdigest(); suffix='.xlsx' if 'spreadsheet' in (h.get('Content-Type') or '') else '.docx'
-              path=Path(f'/tmp/arezzo-{idx}{suffix}'); path.write_bytes(b); blobs.append((text,final_u,h,b,sha,path))
-              print('ATTACHMENT',idx,'TEXT',repr(text),'FINAL',final_u,'CONTENT_TYPE',h.get('Content-Type'),'BYTES',len(b),'SHA256',sha)
+              final_u,h,b=get(url); suffix='.xlsx' if idx==1 else '.docx'; path=Path('/tmp')/f'arezzo-{idx}{suffix}'; path.write_bytes(b)
+              print('SOURCE',idx,repr(text),final_u,len(b),hashlib.sha256(b).hexdigest()); files.append(path)
 
-          # Listed XLSX
-          text,url,h,b,sha,path=blobs[0]
-          wb=openpyxl.load_workbook(path,data_only=True,read_only=True)
-          print('XLSX_SHEETS',wb.sheetnames)
+          def norm(v):
+              if isinstance(v,datetime): return v.date().isoformat()
+              if isinstance(v,date): return v.isoformat()
+              s=' '.join(str(v or '').split())
+              s=re.sub(r'/+','/',s)
+              m=re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{4})',s)
+              if m:
+                  try:return date(int(m[3]),int(m[2]),int(m[1])).isoformat()
+                  except ValueError:return ''
+              m=re.fullmatch(r'(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+00:00:00)?',s)
+              if m:
+                  try:return date(int(m[1]),int(m[2]),int(m[3])).isoformat()
+                  except ValueError:return ''
+              return ''
+
+          def identifier_display(cell):
+              v=cell.value
+              if v is None:return ''
+              if isinstance(v,(int,float)) and not isinstance(v,bool):
+                  if isinstance(v,float) and not v.is_integer(): return str(v)
+                  digits=str(int(v))
+                  fmt=str(cell.number_format or '')
+                  zeros=re.fullmatch(r'0+',fmt)
+                  if zeros:return digits.zfill(len(fmt))
+                  return digits
+              return ' '.join(str(v).split())
+
+          wb=openpyxl.load_workbook(files[0],data_only=True,read_only=False)
+          sector_rows=[]; numeric_ids=[]; malformed_dates=[]
           for ws in wb.worksheets:
-              rows=[]
-              for raw in ws.iter_rows(values_only=True):
-                  vals=tuple(' '.join(str(v).split()) if v is not None else '' for v in raw)
-                  if any(vals): rows.append(vals)
-              print('XLSX_SHEET',ws.title,'ROWS',len(rows),'MAX_COLUMNS',max((len(r) for r in rows),default=0))
-              for i,r in enumerate(rows[:12],1): print('XLSX_ROW',i,repr(r))
-              for i,r in enumerate(rows[-5:],max(1,len(rows)-4)): print('XLSX_TAIL',i,repr(r))
-              print('XLSX_SHAPES',dict(Counter(len(r) for r in rows)))
-              # candidate rows heuristically containing a plausible Italian fiscal/VAT id anywhere
-              cands=[]
-              for i,r in enumerate(rows,1):
-                  ids=[cell for cell in r if re.fullmatch(r'[A-Z0-9]{11,16}',cell.replace(' ',''),re.I)]
-                  if ids: cands.append((i,r,ids))
-              print('XLSX_ID_CANDIDATES',len(cands))
-              for item in cands[:8]: print('XLSX_CAND',repr(item))
-              print('XLSX_ID_DUP_EXTRA',sum(n-1 for n in Counter(x for _,_,ids in cands for x in ids).values() if n>1))
+              section=''
+              for row in ws.iter_rows():
+                  vals=[c.value for c in row]
+                  first=' '.join(str(vals[0] or '').split()) if vals else ''
+                  if first.upper().startswith('SEZIONE '): section=first
+                  if len(vals)<7: continue
+                  name=' '.join(str(vals[0] or '').split()); ident=identifier_display(row[3])
+                  if not name or not ident or name.casefold().startswith('denominazione'): continue
+                  if isinstance(row[3].value,(int,float)) and not isinstance(row[3].value,bool): numeric_ids.append((ws.title,row[3].coordinate,row[3].value,row[3].number_format,ident))
+                  listing=norm(vals[4]); expiry=norm(vals[5])
+                  if not listing or not expiry: malformed_dates.append((ws.title,row[4].coordinate,vals[4],row[5].coordinate,vals[5],listing,expiry,name,ident))
+                  sector_rows.append((section,name,' '.join(str(vals[1] or '').split()),' '.join(str(vals[2] or '').split()),ident,listing,expiry,' '.join(str(vals[6] or '').split()),str(vals[4] or ''),str(vals[5] or '')))
+          print('LISTED_RAW_SECTOR_ROWS',len(sector_rows),'NUMERIC_ID_CELLS',len(numeric_ids),'DATE_PROBLEMS',len(malformed_dates))
+          for item in numeric_ids[:20]:print('NUMERIC_ID',repr(item))
+          for item in malformed_dates:print('DATE_PROBLEM',repr(item))
 
-          # Applicant DOCX
-          text,url,h,b,sha,path=blobs[1]
-          doc=Document(path)
-          print('DOCX_TABLES',len(doc.tables),'PARAGRAPHS',len(doc.paragraphs))
-          para=[(' '.join(p.text.split())) for p in doc.paragraphs if p.text.strip()]
-          for i,t in enumerate(para[:10],1): print('DOCX_PARA',i,repr(t))
-          all_rows=[]
-          for ti,table in enumerate(doc.tables,1):
-              rows=[]
-              for row in table.rows:
-                  vals=tuple(' '.join(cell.text.split()) for cell in row.cells)
-                  if any(vals): rows.append(vals)
-              all_rows.extend((ti,ri,r) for ri,r in enumerate(rows,1))
-              print('DOCX_TABLE',ti,'ROWS',len(rows),'SHAPES',dict(Counter(len(r) for r in rows)))
-              for ri,r in enumerate(rows[:10],1): print('DOCX_ROW',ti,ri,repr(r))
-              for ri,r in enumerate(rows[-5:],max(1,len(rows)-4)): print('DOCX_TAIL',ti,ri,repr(r))
-          cands=[]
-          for ti,ri,r in all_rows:
-              ids=[cell for cell in r if re.fullmatch(r'[A-Z0-9]{11,16}',cell.replace(' ',''),re.I)]
-              if ids:cands.append((ti,ri,r,ids))
-          print('DOCX_ID_CANDIDATES',len(cands))
-          for item in cands[:10]: print('DOCX_CAND',repr(item))
-          print('DOCX_ID_DUP_EXTRA',sum(n-1 for n in Counter(x for *_,ids in cands for x in ids).values() if n>1))
+          grouped={}
+          for section,name,office,secondary,ident,listing,expiry,update,raw_l,raw_e in sector_rows:
+              key=(name,ident,listing,expiry,update)
+              g=grouped.setdefault(key,{'sections':[],'offices':[],'secondary':[],'raw_dates':[]})
+              if section not in g['sections']:g['sections'].append(section)
+              if office and office not in g['offices']:g['offices'].append(office)
+              if secondary and secondary not in g['secondary']:g['secondary'].append(secondary)
+              pair=(raw_l,raw_e)
+              if pair not in g['raw_dates']:g['raw_dates'].append(pair)
+          print('LISTED_GROUPED_RECORDS',len(grouped))
+          print('LISTED_STATUS_COUNTS',Counter('renewal_update_in_progress' if k[4] else 'listed' for k in grouped))
+          print('LISTED_GROUP_IDENTIFIER_COVERAGE',sum(bool(re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b',k[1].upper())) for k in grouped),'of',len(grouped))
+          by_identity=defaultdict(set)
+          for name,ident,listing,expiry,update in grouped:by_identity[(name,ident,update)].add((listing,expiry))
+          conflicts=[(k,v) for k,v in by_identity.items() if len(v)>1]
+          print('LISTED_DATE_VARIANT_IDENTITIES',len(conflicts))
+          for item in conflicts[:30]:print('DATE_VARIANT',repr(item))
+          print('LISTED_MULTI_SECTION_GROUPS',sum(len(v['sections'])>1 for v in grouped.values()),'MAX_SECTIONS',max((len(v['sections']) for v in grouped.values()),default=0))
+          print('LISTED_OFFICE_VARIANT_GROUPS',sum(len(v['offices'])>1 for v in grouped.values()))
+
+          doc=Document(files[1]); assert len(doc.tables)==1
+          rows=[]
+          for raw in doc.tables[0].rows[1:]:
+              vals=tuple(' '.join(c.text.split()) for c in raw.cells)
+              if any(vals):rows.append(vals)
+          print('APPLICANT_ROWS',len(rows),'SHAPES',Counter(len(r) for r in rows))
+          date_problems=[]; id_missing=[]
+          for i,row in enumerate(rows,1):
+              d=norm(row[5])
+              if not d:date_problems.append((i,row[0],row[5]))
+              ids=re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b',row[3].upper())
+              if not ids:id_missing.append((i,row[0],row[3]))
+          print('APPLICANT_DATE_PROBLEMS',date_problems)
+          print('APPLICANT_IDENTIFIER_MISSING',id_missing)
+          exact=Counter(rows); print('APPLICANT_EXACT_DUP_EXTRA',sum(n-1 for n in exact.values() if n>1))
+          identkeys=Counter((r[0],r[3],norm(r[5])) for r in rows); print('APPLICANT_IDENTITY_DUP_EXTRA',sum(n-1 for n in identkeys.values() if n>1))
+          activities=Counter(r[4] for r in rows)
+          print('APPLICANT_ACTIVITY_VALUES',len(activities))
+          for value,n in activities.items():print('ACTIVITY',n,repr(value))
           PY
