@@ -20,21 +20,33 @@ def _scalar(value: str) -> str:
     return value
 
 
+def _action_step_indent(line: str, action: str) -> int | None:
+    stripped = line.lstrip()
+    indent = len(line) - len(stripped)
+    if stripped == f"- uses: {action}":
+        return indent
+    if stripped == f"uses: {action}":
+        # Named steps are encoded as `- name:` at the step indent and `uses:`
+        # two spaces deeper. Stop scanning at the next sibling step.
+        return max(0, indent - 2)
+    return None
+
+
 def _artifact_uploads() -> list[dict[str, str]]:
     uploads: list[dict[str, str]] = []
+    action = "actions/upload-artifact@v4"
     for workflow in sorted(WORKFLOWS.glob("*.yml")):
         lines = workflow.read_text(encoding="utf-8").splitlines()
         for index, line in enumerate(lines):
-            stripped = line.lstrip()
-            if stripped != "- uses: actions/upload-artifact@v4":
+            step_indent = _action_step_indent(line, action)
+            if step_indent is None:
                 continue
-            base_indent = len(line) - len(stripped)
             name = None
             artifact_path = None
             for following in lines[index + 1 :]:
                 item = following.lstrip()
                 indent = len(following) - len(item)
-                if item.startswith("- ") and indent <= base_indent:
+                if item.startswith("- ") and indent <= step_indent:
                     break
                 if item.startswith("name:"):
                     name = _scalar(item.split(":", 1)[1])
@@ -56,18 +68,18 @@ def _artifact_uploads() -> list[dict[str, str]]:
 
 def _pages_upload_paths() -> list[tuple[str, str]]:
     found: list[tuple[str, str]] = []
+    action = "actions/upload-pages-artifact@v4"
     for workflow in sorted(WORKFLOWS.glob("*.yml")):
         lines = workflow.read_text(encoding="utf-8").splitlines()
         for index, line in enumerate(lines):
-            stripped = line.lstrip()
-            if stripped != "- uses: actions/upload-pages-artifact@v4":
+            step_indent = _action_step_indent(line, action)
+            if step_indent is None:
                 continue
-            base_indent = len(line) - len(stripped)
             artifact_path = None
             for following in lines[index + 1 :]:
                 item = following.lstrip()
                 indent = len(following) - len(item)
-                if item.startswith("- ") and indent <= base_indent:
+                if item.startswith("- ") and indent <= step_indent:
                     break
                 if item.startswith("path:"):
                     artifact_path = _scalar(item.split(":", 1)[1])
