@@ -134,7 +134,7 @@ def test_pages_artifact_is_only_the_deliberate_public_site():
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
     expected = policy["pages_artifact"]
     assert _pages_upload_paths() == [(expected["workflow"], expected["path"])]
-    assert expected["path"] == "public-site/"
+    assert expected["path"] == "public-site"
     assert expected["classification"] == "deliberately_public_publication"
 
 
