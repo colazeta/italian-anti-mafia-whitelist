@@ -28,12 +28,12 @@ SOFTWARE_NAME = "white_list_archive.geocoding.national_anncsu"
 SOFTWARE_VERSION = "1"
 MAP_VERSION = "anncsu-regional-datasets-2026-09"
 
-# ANNCSU regional/provincial bulk files. Bolzano and Trento are distinct provider
-# datasets although the Istat municipality crosswalk reports one shared region.
+# ANNCSU publishes one bulk indirizzario for each of the 20 Italian regions.
+# Trentino-Alto Adige/Südtirol is one regional dataset, including both autonomous
+# provinces; the official ANNCSU download page exposes no separate Bolzano file.
 ANNCSU_REGION_DATASETS: tuple[dict[str, str | None], ...] = (
     {"region": "Abruzzo", "province": None, "dataset": "INDIR_ABRU"},
     {"region": "Basilicata", "province": None, "dataset": "INDIR_BASI"},
-    {"region": "Trentino-Alto Adige/Südtirol", "province": "BZ", "dataset": "INDIR_BOLZ"},
     {"region": "Calabria", "province": None, "dataset": "INDIR_CALA"},
     {"region": "Campania", "province": None, "dataset": "INDIR_CAMP"},
     {"region": "Emilia-Romagna", "province": None, "dataset": "INDIR_EMIL"},
@@ -48,7 +48,7 @@ ANNCSU_REGION_DATASETS: tuple[dict[str, str | None], ...] = (
     {"region": "Sardegna", "province": None, "dataset": "INDIR_SARD"},
     {"region": "Sicilia", "province": None, "dataset": "INDIR_SICI"},
     {"region": "Toscana", "province": None, "dataset": "INDIR_TOSC"},
-    {"region": "Trentino-Alto Adige/Südtirol", "province": "TN", "dataset": "INDIR_TREN"},
+    {"region": "Trentino-Alto Adige/Südtirol", "province": None, "dataset": "INDIR_TREN"},
     {"region": "Umbria", "province": None, "dataset": "INDIR_UMBR"},
     {"region": "Valle d'Aosta/Vallée d'Aoste", "province": None, "dataset": "INDIR_VALL"},
     {"region": "Veneto", "province": None, "dataset": "INDIR_VENE"},
@@ -81,16 +81,11 @@ def _sha_json(value: Any) -> str:
 def dataset_code_for(region_name: str, province_plate: str | None = None) -> str:
     region_key = _fold(region_name)
     province = (province_plate or "").strip().upper() or None
-    matches: list[str] = []
-    for item in ANNCSU_REGION_DATASETS:
-        if _fold(str(item["region"])) != region_key:
-            continue
-        item_province = item["province"]
-        if item_province is not None and item_province != province:
-            continue
-        if item_province is None and region_key == _fold("Trentino-Alto Adige/Südtirol"):
-            continue
-        matches.append(str(item["dataset"]))
+    matches = [
+        str(item["dataset"])
+        for item in ANNCSU_REGION_DATASETS
+        if _fold(str(item["region"])) == region_key
+    ]
     if len(matches) != 1:
         raise LookupError(
             f"No unique ANNCSU dataset mapping for region={region_name!r}, province={province!r}: {matches}"
@@ -202,12 +197,7 @@ def _build_plan_from_connection(conn, *, istat_csv: Path, istat_manifest: Path) 
             continue
         municipality = split.split.municipality
         dataset_code = dataset_code_for(municipality.region_name, municipality.province_plate)
-        province_scope = (
-            municipality.province_plate
-            if dataset_code in {"INDIR_BOLZ", "INDIR_TREN"}
-            else None
-        )
-        grouped[(municipality.region_name, province_scope, dataset_code)].append(
+        grouped[(municipality.region_name, None, dataset_code)].append(
             (address_id, source_address)
         )
 
