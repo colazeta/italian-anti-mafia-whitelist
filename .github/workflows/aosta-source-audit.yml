@@ -1,4 +1,4 @@
-name: Diagnose Aosta applicant parser boundary
+name: Materialise validated Aosta expansion
 
 on:
   push:
@@ -6,69 +6,129 @@ on:
       - expansion/aosta-source-audit-2026-09-10
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  materialise:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/aosta-source-audit-2026-09-10
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install parser runtime
-        run: python -m pip install 'pdfplumber>=0.11,<0.12'
-      - name: Diagnose current official applicant rows without row-level disclosure
+      - name: Install project test and publication runtime
         run: |
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "poppler installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication]'
+      - name: Apply reviewed Aosta integration
+        run: |
+          python .tmp/aosta_materialise.py
           python - <<'PY'
-          import hashlib
+          import csv
+          from pathlib import Path
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(newline='', encoding='utf-8') as fh:
+              rows = list(csv.DictReader(fh))
+              fieldnames = list(rows[0])
+          found = set()
+          for row in rows:
+              if row['source_series_key'] == 'aosta-listed':
+                  row['publication_model'] = 'periodic_attachment'
+                  row['resource_resolution_status'] = 'direct_series_page_resolved'
+                  row['verified_date'] = '2026-09-10'
+                  row['notes'] = "Official Valle d'Aosta Prefecture service publishes a dedicated registered-company page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
+                  found.add('aosta-listed')
+              elif row['source_series_key'] == 'aosta-applicants':
+                  row['publication_model'] = 'periodic_attachment'
+                  row['resource_resolution_status'] = 'direct_series_page_resolved'
+                  row['verified_date'] = '2026-09-10'
+                  row['notes'] = "Official Valle d'Aosta Prefecture service publishes a dedicated applicant page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
+                  found.add('aosta-applicants')
+          assert found == {'aosta-listed', 'aosta-applicants'}, found
+          with series_path.open('w', newline='', encoding='utf-8') as fh:
+              writer = csv.DictWriter(fh, fieldnames=fieldnames, lineterminator='\n')
+              writer.writeheader(); writer.writerows(rows)
+
+          pages_path = Path('data/source_registry/verified_primary_pages.csv')
+          with pages_path.open(newline='', encoding='utf-8') as fh:
+              pages = list(csv.DictReader(fh)); pfields = list(pages[0])
+          matched = 0
+          for row in pages:
+              if row['authority_key'] == 'aosta':
+                  row['verification_date'] = '2026-09-10'
+                  row['verification_status'] = 'verified'
+                  matched += 1
+          assert matched == 1, matched
+          with pages_path.open('w', newline='', encoding='utf-8') as fh:
+              writer = csv.DictWriter(fh, fieldnames=pfields, lineterminator='\n')
+              writer.writeheader(); writer.writerows(pages)
+          PY
+      - name: Run full repository test suite
+        run: pytest -q
+      - name: Build and verify Aosta public registry before commit
+        run: |
+          rm -rf /tmp/aosta-public && mkdir -p /tmp/aosta-public /tmp/aosta-work
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/aosta-work \
+            --registry-json /tmp/aosta-public/registry.json \
+            --registry-csv /tmp/aosta-public/registry.csv \
+            --prefectures-json /tmp/aosta-public/prefectures.json \
+            --prefectures-csv /tmp/aosta-public/prefectures.csv
+          python - <<'PY'
           import json
-          import re
-          import urllib.request
           from collections import Counter
           from pathlib import Path
-          import pdfplumber
-
-          url='https://www.regione.vda.it/allegato.aspx?pk=84309'
-          req=urllib.request.Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist-source-audit/1.0'})
-          with urllib.request.urlopen(req,timeout=60) as resp:
-              data=resp.read()
-          expected='77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd'
-          digest=hashlib.sha256(data).hexdigest()
-          assert digest==expected,(digest,expected)
-          path=Path('/tmp/aosta-applicants.pdf'); path.write_bytes(data)
-          dmy=re.compile(r'^\d{1,2}/\d{1,2}/\d{4}$')
-          canonical=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$',re.I)
-          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          candidates=[]
-          with pdfplumber.open(path) as pdf:
-              for page_no,page in enumerate(pdf.pages,1):
-                  for table_no,table in enumerate(page.extract_tables(),1):
-                      for row_no,raw in enumerate(table,1):
-                          row=[clean(x) for x in raw]
-                          if len(row)==13 and row[0] and row[5] and dmy.fullmatch(row[9] or ''):
-                              candidates.append((page_no,table_no,row_no,row))
-          shapes=Counter()
-          outcomes=Counter()
-          noncanonical=[]
-          for page_no,table_no,row_no,row in candidates:
-              ident=row[5].replace(' ','')
-              if ident.isdigit(): shape=f'digits:{len(ident)}'
-              elif ident.isalnum(): shape=f'alnum:{len(ident)}'
-              else: shape='other'
-              shapes[shape]+=1
-              low=row[12].casefold()
-              if 'istruttoria' in low: outcome='pending'
-              elif 'iscritt' in low: outcome='listed'
-              elif any(x in low for x in ('negat','dinieg','rigett')): outcome='negative'
-              elif any(x in low for x in ('rinunc','cancell','revoc')): outcome='cancellation'
-              elif row[12]: outcome='other_text'
-              else: outcome='blank'
-              outcomes[outcome]+=1
-              if not canonical.fullmatch(ident):
-                  noncanonical.append({'page':page_no,'table':table_no,'row':row_no,'identifier_shape':shape,'outcome_class':outcome,'application_date':row[9]})
-          print(json.dumps({'sha256':digest,'candidate_rows':len(candidates),'identifier_shapes':dict(shapes),'outcome_classes':dict(outcomes),'noncanonical_candidate_count':len(noncanonical),'noncanonical_candidate_coordinates':noncanonical},ensure_ascii=False))
+          reg = json.loads(Path('/tmp/aosta-public/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/aosta-public/prefectures.json').read_text(encoding='utf-8'))
+          aosta = [r for r in reg['records'] if r['authority_key'] == 'aosta']
+          assert reg['meta']['record_count'] == 5869, reg['meta']
+          assert reg['meta']['authority_count'] == 6, reg['meta']
+          assert reg['meta']['register_count'] == 7, reg['meta']
+          assert len(aosta) == 383, len(aosta)
+          assert Counter(r['source_key'] for r in aosta) == {'aosta-listed': 245, 'aosta-applicants': 138}
+          assert Counter(r['source_status'] for r in aosta) == {'listed': 344, 'pending': 22, 'renewal_update_in_progress': 17}
+          missing_ids = [r['record_locator'] for r in aosta if not r.get('identifiers')]
+          assert not missing_ids, missing_ids[:10]
+          aosta_pref = [p for p in pref['prefectures'] if p['jurisdiction_name'] == 'Aosta']
+          assert len(aosta_pref) == 1 and aosta_pref[0]['mapped'] and aosta_pref[0]['published'], aosta_pref
+          assert pref['meta']['mapped_count'] == 34, pref['meta']
+          assert pref['meta']['published_count'] == 6, pref['meta']
+          print('Aosta pre-commit registry verified:', len(aosta), 'rows', Counter(r['source_status'] for r in aosta))
           PY
+      - name: Remove temporary audit machinery and commit expansion
+        run: |
+          git diff --check
+          rm -f .tmp/aosta_materialise.py .github/workflows/aosta-source-audit.yml
+          rmdir .tmp 2>/dev/null || true
+          git add -A
+          git diff --cached --check
+          git status --short
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Publish Aosta White List sources'
+          git push origin HEAD:expansion/aosta-source-audit-2026-09-10
