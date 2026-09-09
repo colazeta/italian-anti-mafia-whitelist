@@ -328,104 +328,105 @@ def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 continue
             sector_rows.append((current_section, row[:7], listing_date, expiry_date))
 
-    grouped: dict[tuple[str, ...], dict[str, Any]] = {}
-    for section, row, listing_date, expiry_date in sector_rows:
-        # Alessandria repeats the same company across sector sections. Date text can
-        # vary typographically, and four source identities carry conflicting date
-        # values across those repetitions. Group only by source identity + outcome;
-        # preserve every variant and publish a date only when the repeated source
-        # has one unambiguous normalised value for that field.
-        key = (row[0], row[3], row[6])
-        group = grouped.setdefault(
-            key,
-            {
-                "row": row,
-                "rows": 0,
-                "sections": [],
-                "offices": [],
-                "secondary_offices": [],
-                "listing_dates": set(),
-                "expiry_dates": set(),
-                "listing_raw": [],
-                "expiry_raw": [],
-                "malformed_date_pairs": [],
-            },
-        )
-        group["rows"] += 1
-        if section and section not in group["sections"]:
-            group["sections"].append(section)
-        if row[1] and row[1] not in group["offices"]:
-            group["offices"].append(row[1])
-        if row[2] and row[2] not in group["secondary_offices"]:
-            group["secondary_offices"].append(row[2])
-        if row[4] not in group["listing_raw"]:
-            group["listing_raw"].append(row[4])
-        if row[5] not in group["expiry_raw"]:
-            group["expiry_raw"].append(row[5])
-        if listing_date:
-            group["listing_dates"].add(listing_date)
-        if expiry_date:
-            group["expiry_dates"].add(expiry_date)
-        if not listing_date or not expiry_date:
-            pair = f"{row[4]} | {row[5]}"
-            if pair not in group["malformed_date_pairs"]:
-                group["malformed_date_pairs"].append(pair)
+    identities: dict[tuple[str, ...], list[tuple[str, list[str], str, str]]] = {}
+    for item in sector_rows:
+        _section, row, _listing, _expiry = item
+        identities.setdefault((row[0], row[3], row[6]), []).append(item)
 
     records: list[dict[str, Any]] = []
-    conflict_groups = 0
+    conflict_identity_groups = 0
     reconciled_malformed_rows = 0
-    for group in grouped.values():
-        row = group["row"]
-        if not group["listing_dates"] or not group["expiry_dates"]:
-            # Never infer an absent date from syntax or another company. Leave the
-            # whole group unmaterialised and let the existing fail-closed dropped-row
-            # gate block publication.
-            dropped += group["rows"]
-            continue
-        listing_variants = sorted(group["listing_dates"])
-        expiry_variants = sorted(group["expiry_dates"])
+    for identity_rows in identities.values():
+        valid_pairs = {(listing, expiry) for _section, _row, listing, expiry in identity_rows if listing and expiry}
+        incomplete = [item for item in identity_rows if not item[2] or not item[3]]
         conflict_fields: list[str] = []
-        if len(listing_variants) > 1:
+        if len({pair[0] for pair in valid_pairs}) > 1:
             conflict_fields.append("observed_listing_date")
-        if len(expiry_variants) > 1:
+        if len({pair[1] for pair in valid_pairs}) > 1:
             conflict_fields.append("observed_expiry_date")
-        if conflict_fields:
-            conflict_groups += 1
-        reconciled_malformed_rows += sum(
-            1
-            for _section, candidate, candidate_listing, candidate_expiry in sector_rows
-            if candidate[0] == row[0]
-            and candidate[3] == row[3]
-            and candidate[6] == row[6]
-            and (not candidate_listing or not candidate_expiry)
-        )
-        records.append(
-            _record(
-                cfg,
-                len(records) + 1,
-                name=row[0],
-                office=group["offices"][0] if group["offices"] else row[1],
-                secondary=group["secondary_offices"][0] if group["secondary_offices"] else row[2],
-                identifier_raw=row[3],
-                activities=[_section_activity(section) for section in group["sections"]],
-                status=_status_alessandria_listed(row[6]),
-                outcome_raw=row[6],
-                listing_date=listing_variants[0] if len(listing_variants) == 1 else "",
-                expiry_date=expiry_variants[0] if len(expiry_variants) == 1 else "",
-                primary_date_label="Data iscrizione",
-                source_fields={
-                    "sections": group["sections"],
-                    "registered_office_variants": group["offices"],
-                    "secondary_office_variants": group["secondary_offices"],
-                    "listing_date_raw_variants": group["listing_raw"],
-                    "expiry_date_raw_variants": group["expiry_raw"],
-                    "normalised_listing_date_variants": listing_variants,
-                    "normalised_expiry_date_variants": expiry_variants,
-                    "date_conflict_fields": conflict_fields,
-                    "malformed_date_pairs": group["malformed_date_pairs"],
+        if len(valid_pairs) > 1:
+            conflict_identity_groups += 1
+
+        if incomplete and len(valid_pairs) != 1:
+            # Without one unique complete pair on this exact identity/outcome, an
+            # invalid source date cannot be assigned safely. Keep the fail-closed
+            # dropped-row signal rather than repairing or choosing a neighbour.
+            dropped += len(incomplete)
+            incomplete = []
+
+        observations: dict[tuple[str, str], dict[str, Any]] = {}
+
+        def add_to_observation(item: tuple[str, list[str], str, str], pair: tuple[str, str]) -> None:
+            section, row, listing, expiry = item
+            group = observations.setdefault(
+                pair,
+                {
+                    "row": row,
+                    "sections": [],
+                    "offices": [],
+                    "secondary_offices": [],
+                    "listing_raw": [],
+                    "expiry_raw": [],
+                    "malformed_date_pairs": [],
                 },
             )
-        )
+            if section and section not in group["sections"]:
+                group["sections"].append(section)
+            if row[1] and row[1] not in group["offices"]:
+                group["offices"].append(row[1])
+            if row[2] and row[2] not in group["secondary_offices"]:
+                group["secondary_offices"].append(row[2])
+            if row[4] not in group["listing_raw"]:
+                group["listing_raw"].append(row[4])
+            if row[5] not in group["expiry_raw"]:
+                group["expiry_raw"].append(row[5])
+            if not listing or not expiry:
+                raw_pair = f"{row[4]} | {row[5]}"
+                if raw_pair not in group["malformed_date_pairs"]:
+                    group["malformed_date_pairs"].append(raw_pair)
+
+        for item in identity_rows:
+            if item in incomplete:
+                continue
+            listing, expiry = item[2], item[3]
+            if listing and expiry:
+                add_to_observation(item, (listing, expiry))
+
+        if incomplete and len(valid_pairs) == 1:
+            sole_pair = next(iter(valid_pairs))
+            for item in incomplete:
+                add_to_observation(item, sole_pair)
+                reconciled_malformed_rows += 1
+
+        for pair, group in observations.items():
+            row = group["row"]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=group["offices"][0] if group["offices"] else row[1],
+                    secondary=group["secondary_offices"][0] if group["secondary_offices"] else row[2],
+                    identifier_raw=row[3],
+                    activities=[_section_activity(section) for section in group["sections"]],
+                    status=_status_alessandria_listed(row[6]),
+                    outcome_raw=row[6],
+                    listing_date=pair[0],
+                    expiry_date=pair[1],
+                    primary_date_label="Data iscrizione",
+                    source_fields={
+                        "sections": group["sections"],
+                        "registered_office_variants": group["offices"],
+                        "secondary_office_variants": group["secondary_offices"],
+                        "listing_date_raw_variants": group["listing_raw"],
+                        "expiry_date_raw_variants": group["expiry_raw"],
+                        "normalised_listing_date_variants": [pair[0]],
+                        "normalised_expiry_date_variants": [pair[1]],
+                        "date_conflict_fields": conflict_fields,
+                        "malformed_date_pairs": group["malformed_date_pairs"],
+                    },
+                )
+            )
 
     return ParsedBatch(
         records,
@@ -435,7 +436,7 @@ def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "sector_rows": len(sector_rows),
             "public_records": len(records),
             "dropped_date_rows": dropped,
-            "date_conflict_groups": conflict_groups,
+            "date_conflict_identity_groups": conflict_identity_groups,
             "reconciled_malformed_date_rows": reconciled_malformed_rows,
             "status_counts": dict(Counter(record["source_status"] for record in records)),
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
