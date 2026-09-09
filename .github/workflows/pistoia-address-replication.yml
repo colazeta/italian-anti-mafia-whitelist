@@ -1,0 +1,157 @@
+name: Pistoia address-linkage replication
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/build_pistoia_address_review_pack.py'
+      - 'scripts/stabilize_pistoia_review_pack.py'
+      - '.github/workflows/pistoia-address-replication.yml'
+      - 'src/white_list_archive/geocoding/**'
+      - 'src/white_list_archive/acquisition/**'
+      - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
+      - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'db/**'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build_pistoia_address_review_pack.py'
+      - 'scripts/stabilize_pistoia_review_pack.py'
+      - '.github/workflows/pistoia-address-replication.yml'
+      - 'src/white_list_archive/geocoding/**'
+      - 'src/white_list_archive/acquisition/**'
+      - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
+      - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'db/**'
+  workflow_dispatch:
+
+concurrency:
+  group: pistoia-address-replication-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install project and utilities
+        run: |
+          python -m pip install -e '.[dev,database]'
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client poppler-utils
+          pytest -q tests/test_national_anncsu.py tests/test_anncsu_linkage.py tests/test_address_country_routing.py tests/test_geocoding_validation.py tests/test_address_review_sample.py
+
+      - name: Acquire frozen Istat municipality reference
+        run: |
+          mkdir -p artifacts/pistoia-replication/istat
+          white-list-istat-municipalities-acquire \
+            --output-dir artifacts/pistoia-replication/istat \
+            --expected-sha256 83842076860450f7e482daecea6b7a769f5f93d0bf5b0d48802b44896d7a26d5 \
+            > artifacts/pistoia-replication/istat-acquisition.json
+          ISTAT_CSV=$(find artifacts/pistoia-replication/istat -maxdepth 1 -name 'istat-municipalities-*.csv' -print -quit)
+          ISTAT_MANIFEST=$(find artifacts/pistoia-replication/istat -maxdepth 1 -name 'istat-municipalities-*.manifest.json' -print -quit)
+          test -n "$ISTAT_CSV" && test -n "$ISTAT_MANIFEST"
+          echo "ISTAT_CSV=$ISTAT_CSV" >> "$GITHUB_ENV"
+          echo "ISTAT_MANIFEST=$ISTAT_MANIFEST" >> "$GITHUB_ENV"
+
+      - name: Apply database schema and integrity tests
+        run: |
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+          psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
+
+      - name: Build full Pistoia source-backed review pack
+        run: |
+          python scripts/build_pistoia_address_review_pack.py \
+            --dsn "$TEST_DSN" \
+            --istat-csv "$ISTAT_CSV" \
+            --istat-manifest "$ISTAT_MANIFEST" \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --cache-dir /tmp/pistoia-anncsu-cache \
+            --output-dir artifacts/pistoia-replication/review-pack \
+            --sample-size 150 \
+            > artifacts/pistoia-replication/review-pack-stdout.json
+          python scripts/stabilize_pistoia_review_pack.py \
+            --pack-dir artifacts/pistoia-replication/review-pack \
+            --sample-size 150 \
+            > artifacts/pistoia-replication/stable-sample.json
+
+      - name: Validate review gate invariants
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root=Path('artifacts/pistoia-replication/review-pack')
+          manifest=json.loads((root/'pistoia-review-manifest.json').read_text())
+          if manifest['region']!='Toscana' or manifest['dataset_code']!='INDIR_TOSC':
+              raise SystemExit(f"Wrong replication region/provider: {manifest['region']} {manifest['dataset_code']}")
+          if manifest['unique_source_backed_addresses'] < 100:
+              raise SystemExit(f"Too few source-backed Pistoia addresses: {manifest['unique_source_backed_addresses']}")
+          orch=manifest['orchestration']
+          if orch['plan']['unassigned_addresses'] != 0:
+              raise SystemExit(f"Exact Pistoia population has unassigned rows: {orch['plan']}")
+          if orch['candidate'] + orch['not_found'] != manifest['unique_source_backed_addresses']:
+              raise SystemExit('Provider accounting mismatch')
+          if not orch['all_processed_addresses_accounted_for'] or orch['public_nominatim_used']:
+              raise SystemExit('Provider/accounting policy failure')
+          if len(orch['regions']) != 1 or orch['regions'][0]['dataset_code']!='INDIR_TOSC':
+              raise SystemExit(f"Unexpected ANNCSU regions: {orch['regions']}")
+          review=list(csv.DictReader((root/'pistoia-review-sample.csv').open(encoding='utf-8')))
+          if len(review) != min(150, manifest['unique_source_backed_addresses']):
+              raise SystemExit(f"Unexpected review sample size: {len(review)}")
+          if any(int(row['source_occurrence_count']) < 1 for row in review):
+              raise SystemExit('Review sample contains rows without source evidence')
+          if not manifest['review'].get('database_uuid_independent'):
+              raise SystemExit('Review sample identity still depends on transient database UUIDs')
+          if manifest['review_status']!='PACK_READY_REQUIRES_SUBSTANTIVE_REVIEW':
+              raise SystemExit('Review state was incorrectly promoted')
+          if manifest['automatic_acceptance_changed']:
+              raise SystemExit('Replication pack must not change acceptance policy')
+          print(json.dumps({
+              'addresses': manifest['unique_source_backed_addresses'],
+              'candidate': orch['candidate'],
+              'not_found': orch['not_found'],
+              'sample_rows': len(review),
+              'strata': manifest['validation']['review_strata'],
+              'sample_sha256': manifest['review']['sample_sha256'],
+          }, indent=2))
+          PY
+
+      - name: Remove bulky reference input
+        if: always()
+        run: |
+          rm -rf artifacts/pistoia-replication/istat
+          rm -f artifacts/pistoia-replication/istat-acquisition.json
+
+      - name: Upload Pistoia replication review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pistoia-address-review-pack-attempt-${{ github.run_attempt }}
+          path: artifacts/pistoia-replication/
+          if-no-files-found: error
+          retention-days: 90
