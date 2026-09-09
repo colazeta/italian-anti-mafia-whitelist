@@ -2,6 +2,7 @@ CREATE OR REPLACE VIEW mart.address_normalisation AS
 WITH current_result AS (
     SELECT DISTINCT ON (g.address_id)
         g.address_id,
+        g.address_geocode_result_id,
         g.match_status_code,
         g.candidate_rank,
         g.provider_name,
@@ -23,6 +24,10 @@ WITH current_result AS (
         g.precision_code,
         g.provider_attribution,
         g.provider_licence,
+        g.routing_stage_code,
+        g.routing_reason_code,
+        g.upstream_geocode_result_id,
+        g.fallback_geocode_run_id,
         g.created_at
     FROM geo.address_geocode_result g
     WHERE upper_inf(g.system_period)
@@ -35,6 +40,11 @@ WITH current_result AS (
             WHEN 'error' THEN 3
             ELSE 4
         END,
+        CASE
+            WHEN g.provider_name = 'anncsu' THEN 0
+            WHEN g.routing_stage_code = 'fallback' THEN 1
+            ELSE 2
+        END,
         g.candidate_rank,
         lower(g.system_period) DESC,
         g.address_geocode_result_id
@@ -42,6 +52,7 @@ WITH current_result AS (
 SELECT
     a.address_id,
     a.full_address AS source_address,
+    cr.address_geocode_result_id,
     cr.match_status_code,
     cr.candidate_rank,
     cr.provider_name,
@@ -63,12 +74,16 @@ SELECT
     cr.precision_code,
     cr.provider_attribution,
     cr.provider_licence,
+    cr.routing_stage_code,
+    cr.routing_reason_code,
+    cr.upstream_geocode_result_id,
+    cr.fallback_geocode_run_id,
     cr.created_at AS normalised_at
 FROM core.address a
 LEFT JOIN current_result cr ON cr.address_id = a.address_id;
 
 COMMENT ON VIEW mart.address_normalisation IS
-    'Provider-neutral current address-normalisation surface. Provider output remains derived enrichment and never overwrites the source-supported canonical address.';
+    'Provider-neutral current address-normalisation surface. Accepted results outrank candidates; within the same status ANNCSU outranks fallback, and fallback provenance is exposed explicitly. Provider output never overwrites the source-supported canonical address.';
 
 CREATE OR REPLACE VIEW mart.address_geography AS
 WITH current_geocode AS (

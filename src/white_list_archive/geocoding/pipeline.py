@@ -129,6 +129,10 @@ def _insert_candidate(
     provider_version: str | None,
     provider_data_updated: datetime | None,
     activity_id: Any,
+    routing_stage_code: str | None = None,
+    routing_reason_code: str | None = None,
+    upstream_geocode_result_id: Any | None = None,
+    fallback_geocode_run_id: Any | None = None,
 ) -> None:
     cur.execute(
         """
@@ -158,10 +162,14 @@ def _insert_candidate(
             provider_attribution,
             provider_licence,
             provider_payload,
+            routing_stage_code,
+            routing_reason_code,
+            upstream_geocode_result_id,
+            fallback_geocode_run_id,
             processing_activity_id
         ) VALUES (
             %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NULL,
-            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s
+            %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
         )
         """,
         (
@@ -189,6 +197,10 @@ def _insert_candidate(
             candidate.attribution,
             candidate.licence,
             json.dumps(candidate.payload, ensure_ascii=False),
+            routing_stage_code,
+            routing_reason_code,
+            upstream_geocode_result_id,
+            fallback_geocode_run_id,
             activity_id,
         ),
     )
@@ -206,6 +218,10 @@ def _insert_terminal_result(
     provider_data_updated: datetime | None,
     payload: dict[str, Any] | None,
     activity_id: Any,
+    routing_stage_code: str | None = None,
+    routing_reason_code: str | None = None,
+    upstream_geocode_result_id: Any | None = None,
+    fallback_geocode_run_id: Any | None = None,
 ) -> None:
     cur.execute(
         """
@@ -219,8 +235,12 @@ def _insert_terminal_result(
             match_status_code,
             query_text,
             provider_payload,
+            routing_stage_code,
+            routing_reason_code,
+            upstream_geocode_result_id,
+            fallback_geocode_run_id,
             processing_activity_id
-        ) VALUES (%s,%s,%s,%s,%s,1,%s,%s,%s::jsonb,%s)
+        ) VALUES (%s,%s,%s,%s,%s,1,%s,%s,%s::jsonb,%s,%s,%s,%s,%s)
         """,
         (
             address_id,
@@ -231,6 +251,10 @@ def _insert_terminal_result(
             match_status,
             query,
             json.dumps(payload or {}, ensure_ascii=False),
+            routing_stage_code,
+            routing_reason_code,
+            upstream_geocode_result_id,
+            fallback_geocode_run_id,
             activity_id,
         ),
     )

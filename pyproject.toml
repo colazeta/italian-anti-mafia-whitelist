@@ -17,6 +17,7 @@ white-list-source-population-coverage = "white_list_archive.acquisition.source_p
 white-list-anncsu-acquire = "white_list_archive.acquisition.anncsu:main"
 white-list-istat-municipalities-acquire = "white_list_archive.acquisition.istat_municipalities:main"
 white-list-normalise-addresses = "white_list_archive.geocoding.pipeline:main"
+white-list-fallback-geocode = "white_list_archive.geocoding.fallback:main"
 white-list-anncsu-enrich = "white_list_archive.geocoding.anncsu_pipeline:main"
 white-list-anncsu-national = "white_list_archive.geocoding.national_anncsu:main"
 white-list-geocode-validation = "white_list_archive.geocoding.validation:main"

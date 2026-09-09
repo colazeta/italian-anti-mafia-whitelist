@@ -16,6 +16,7 @@ BEGIN;
 \ir schema/059_address_normalisation.sql
 \ir schema/060_derived_governance.sql
 \ir schema/061_anncsu_orchestration.sql
+\ir schema/062_fallback_geocoding.sql
 \ir schema/070_views.sql
 \ir schema/071_geo_views.sql
 \ir seeds/010_lookup_values.sql
