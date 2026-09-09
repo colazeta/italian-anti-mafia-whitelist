@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 white-list-evidence-store = "white_list_archive.storage.evidence:main"
+white-list-evidence-recovery = "white_list_archive.storage.recovery:main"
 white-list-national-index = "white_list_archive.acquisition.national_index:main"
 white-list-source-population-coverage = "white_list_archive.acquisition.source_population_coverage:main"
 white-list-anncsu-acquire = "white_list_archive.acquisition.anncsu:main"
