@@ -39,7 +39,7 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[dev,publication]'
+          python -m pip install -e '.[dev,database,storage,publication]'
       - name: Apply reviewed Aosta integration
         run: |
           python .tmp/aosta_materialise.py
