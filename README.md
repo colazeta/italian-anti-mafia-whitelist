@@ -42,11 +42,12 @@ The project currently contains:
 - immutable source capture, SHA-256 content identity and parser provenance;
 - **106** territorial authorities in the national universe;
 - **34** independently verified primary White List pages;
-- **28** qualified recurring source series;
+- **63** qualified recurring source series;
 - reusable parser families with deterministic source-series/fingerprint routing;
 - stable parser record contracts and semantic profiles;
 - automatic semantic projection and guarded canonicalisation;
 - original-PDF evidence packaging with row→PDF-page locators in the current pilot;
+- a live-verified private Cloudflare R2 content-addressed evidence backend for the frozen Cosenza source documents;
 - a data-driven model-population manifest and dense table-first Dataset Explorer;
 - a provenance-aware geography model for coordinates, ISTAT administrative geography and versioned NUTS;
 - a mandatory source-population completeness ledger requiring **both `listed` and `applicant`** populations for every authority/register scope before it can be considered source-complete.
@@ -100,7 +101,7 @@ The statistical mart is designed to expose, where supported:
 
 The preferred Italian source strategy is **ANNCSU** for official address/civic matching and coordinates when available, **ISTAT/SITUAS** for versioned administrative units, and versioned **NUTS** for European statistical geography. External geocoding is a labelled fallback, not the default truth source.
 
-The geography schema and integrity tests are implemented. The existing 1,298 Cosenza addresses have **not yet been bulk-enriched**: the public ANNCSU massive-download endpoint currently rejects the automated GitHub runner. This is tracked explicitly rather than represented as completed geography.
+The Cosenza population has now been processed through the exact ISTAT + ANNCSU validation path. Against **1,298** canonical addresses, the frozen current baseline contains **624 candidates (48.07%)** and **674 `not_found` (51.93%)**. The reviewed candidate precision estimate is **82.49%** overall; `civic_access` was **36/36 correct** in the frozen review, but no ANNCSU class is automatically promoted to accepted geography from Cosenza evidence alone. National scale-out and multi-region replication remain explicit open work.
 
 ## Source completeness: never forget applicants
 
@@ -119,7 +120,7 @@ applicant
 
 A combined `listed_and_applicant` source satisfies both without creating fake duplicate source series. If only one population has been discovered, the other remains `UNRESOLVED_REQUIRES_REVIEW`; it is **never** interpreted as “not published”. Completeness is assessed per register/regime, so special registers such as Bologna post-sisma remain separate.
 
-At the current 34-page / 28-series discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **12** currently account for both populations and **23** remain unresolved/incomplete. These are progress metrics, not evidence that applicant lists are absent.
+At the current **34-page / 63-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **32** account for both populations and **3** remain unresolved/incomplete. These are progress metrics, not evidence that applicant lists are absent.
 
 ## Parser-family strategy
 
@@ -194,4 +195,4 @@ src/white_list_archive/
 .github/workflows/          CI and end-to-end live workflows
 ```
 
-The project does **not** yet contain a complete national scrape, a durable hosted database, completed bulk geography enrichment, or a public row-level company release.
+The project does **not** yet contain a complete national scrape, a durable hosted database, completed national geography enrichment, or a public row-level company release.
