@@ -25,6 +25,7 @@ jobs:
           from __future__ import annotations
           import hashlib
           import json
+          import re
           import time
           import urllib.request
           from collections import Counter
@@ -35,6 +36,8 @@ jobs:
               "listed": "https://www.regione.vda.it/allegato.aspx?pk=84307",
               "applicants": "https://www.regione.vda.it/allegato.aspx?pk=84309",
           }
+          dmy = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
+          ident = re.compile(r"(?:\b\d{11}\b|\b[A-Z0-9]{16}\b)", re.I)
 
           def clean(value):
               return " ".join(str(value or "").replace("\u00a0", " ").split())
@@ -60,10 +63,14 @@ jobs:
               digest = hashlib.sha256(data).hexdigest()
               with pdfplumber.open(path) as pdf:
                   row_lengths = Counter()
+                  nonempty_masks = Counter()
+                  date_positions = Counter()
+                  identifier_positions = Counter()
                   table_count = 0
                   candidate_headers = []
                   nonempty_rows = 0
-                  dateish_rows = 0
+                  data_rows = 0
+                  status_categories = Counter()
                   for page in pdf.pages:
                       for table in page.extract_tables():
                           table_count += 1
@@ -73,11 +80,30 @@ jobs:
                                   continue
                               nonempty_rows += 1
                               row_lengths[len(row)] += 1
+                              mask = tuple(i for i, cell in enumerate(row) if cell)
+                              nonempty_masks[mask] += 1
                               folded = " | ".join(row).casefold()
                               if "ragione sociale" in folded and len(candidate_headers) < 6:
                                   candidate_headers.append(row)
-                              if any("data" in cell.casefold() for cell in row) and any("20" in cell for cell in row):
-                                  dateish_rows += 1
+                              dpos = tuple(i for i, cell in enumerate(row) if dmy.fullmatch(cell))
+                              ipos = tuple(i for i, cell in enumerate(row) if ident.search(cell))
+                              if dpos:
+                                  date_positions[dpos] += 1
+                              if ipos:
+                                  identifier_positions[ipos] += 1
+                              if dpos and ipos and row[0] and "ragione sociale" not in row[0].casefold():
+                                  data_rows += 1
+                                  low = folded
+                                  if "aggiornamento" in low or "rinnovo" in low:
+                                      status_categories["renewal/update"] += 1
+                                  elif "istruttoria" in low:
+                                      status_categories["pending/instruction"] += 1
+                                  elif any(token in low for token in ("negat", "dinieg", "rigett")):
+                                      status_categories["negative"] += 1
+                                  elif "iscritt" in low:
+                                      status_categories["listed-word"] += 1
+                                  else:
+                                      status_categories["blank-or-other"] += 1
                   print(json.dumps({
                       "source": key,
                       "url": url,
@@ -88,7 +114,11 @@ jobs:
                       "tables": table_count,
                       "nonempty_rows": nonempty_rows,
                       "row_lengths": dict(sorted(row_lengths.items())),
+                      "common_nonempty_masks": [[list(mask), count] for mask, count in nonempty_masks.most_common(12)],
+                      "date_positions": [[list(pos), count] for pos, count in date_positions.most_common(12)],
+                      "identifier_positions": [[list(pos), count] for pos, count in identifier_positions.most_common(12)],
                       "candidate_headers": candidate_headers,
-                      "dateish_rows": dateish_rows,
+                      "data_rows_with_date_and_identifier": data_rows,
+                      "status_categories": dict(status_categories),
                   }, ensure_ascii=False))
           PY
