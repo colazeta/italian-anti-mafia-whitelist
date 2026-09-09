@@ -107,7 +107,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 5482
+          assert reg['meta']['record_count'] == 5486
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
