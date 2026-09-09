@@ -1,4 +1,4 @@
-name: Materialise validated Aosta expansion
+name: Diagnose Aosta applicant row count
 
 on:
   push:
@@ -6,129 +6,73 @@ on:
       - expansion/aosta-source-audit-2026-09-10
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  materialise:
+  diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/aosta-source-audit-2026-09-10
-          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install project test and publication runtime
-        run: |
-          while IFS= read -r source_file; do
-            [ -n "$source_file" ] && sudo rm -f "$source_file"
-          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
-          if [ -f /etc/apt/sources.list ]; then
-            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
-          fi
-          for attempt in 1 2 3; do
-            sudo rm -rf /var/lib/apt/lists/*
-            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "poppler installation failed after bounded retries" >&2
-              exit 1
-            fi
-            sleep $((attempt * 3))
-          done
-          python -m pip install -e '.[dev,database,storage,publication]'
-      - name: Apply reviewed Aosta integration
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Inspect current official applicant table boundary
         run: |
           python .tmp/aosta_materialise.py
           python - <<'PY'
-          import csv
+          from collections import Counter, defaultdict
           from pathlib import Path
+          import hashlib, time, urllib.request
+          import pdfplumber
+          from white_list_archive.parsers.multi_prefecture_tables import _DMY_FLEX, _identifiers, _table_rows
 
-          series_path = Path('data/source_registry/source_series_inventory.csv')
-          with series_path.open(newline='', encoding='utf-8') as fh:
-              rows = list(csv.DictReader(fh))
-              fieldnames = list(rows[0])
-          found = set()
-          for row in rows:
-              if row['source_series_key'] == 'aosta-listed':
-                  row['publication_model'] = 'periodic_attachment'
-                  row['resource_resolution_status'] = 'direct_series_page_resolved'
-                  row['verified_date'] = '2026-09-10'
-                  row['notes'] = "Official Valle d'Aosta Prefecture service publishes a dedicated registered-company page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
-                  found.add('aosta-listed')
-              elif row['source_series_key'] == 'aosta-applicants':
-                  row['publication_model'] = 'periodic_attachment'
-                  row['resource_resolution_status'] = 'direct_series_page_resolved'
-                  row['verified_date'] = '2026-09-10'
-                  row['notes'] = "Official Valle d'Aosta Prefecture service publishes a dedicated applicant page linking the current mutable PDF attachment; current bytes and parser boundary are documented in docs/sources/aosta-operational-check-2026-09-10.md."
-                  found.add('aosta-applicants')
-          assert found == {'aosta-listed', 'aosta-applicants'}, found
-          with series_path.open('w', newline='', encoding='utf-8') as fh:
-              writer = csv.DictWriter(fh, fieldnames=fieldnames, lineterminator='\n')
-              writer.writeheader(); writer.writerows(rows)
-
-          pages_path = Path('data/source_registry/verified_primary_pages.csv')
-          with pages_path.open(newline='', encoding='utf-8') as fh:
-              pages = list(csv.DictReader(fh)); pfields = list(pages[0])
-          matched = 0
-          for row in pages:
-              if row['authority_key'] == 'aosta':
-                  row['verification_date'] = '2026-09-10'
-                  row['verification_status'] = 'verified'
-                  matched += 1
-          assert matched == 1, matched
-          with pages_path.open('w', newline='', encoding='utf-8') as fh:
-              writer = csv.DictWriter(fh, fieldnames=pfields, lineterminator='\n')
-              writer.writeheader(); writer.writerows(pages)
+          url='https://www.regione.vda.it/allegato.aspx?pk=84309'
+          dest=Path('/tmp/aosta-applicants.pdf')
+          last=None
+          for attempt in range(1,4):
+              try:
+                  req=urllib.request.Request(url, headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 source-verification'})
+                  with urllib.request.urlopen(req, timeout=45) as r:
+                      dest.write_bytes(r.read())
+                  break
+              except Exception as exc:
+                  last=exc
+                  if attempt==3: raise
+                  time.sleep(attempt*2)
+          sha=hashlib.sha256(dest.read_bytes()).hexdigest()
+          print('sha256', sha)
+          assert sha == '77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd', sha
+          candidates=[]
+          with pdfplumber.open(dest) as pdf:
+              for page,row in _table_rows(pdf):
+                  if len(row)==13 and _DMY_FLEX.fullmatch(row[9] or ''):
+                      candidates.append((page.page_number, tuple(row)))
+          print('candidate_count', len(candidates))
+          counts=Counter(row for _,row in candidates)
+          exact_dupes=[(row,n) for row,n in counts.items() if n>1]
+          print('exact_duplicate_shapes', len(exact_dupes), 'duplicate_extra_rows', sum(n-1 for _,n in exact_dupes))
+          for row,n in exact_dupes:
+              pages=[p for p,r in candidates if r==row]
+              print('EXACT_DUP', 'n=',n,'pages=',pages,'name=',row[0],'id=',row[5],'date=',row[9],'outcome=',row[12])
+          id_missing=[]
+          for idx,(page,row) in enumerate(candidates,1):
+              if not _identifiers(row[5]):
+                  id_missing.append((idx,page,row[0],row[5],row[9],row[12]))
+          print('identifier_missing',len(id_missing))
+          for item in id_missing:
+              print('ID_MISSING',item)
+          by_identity=defaultdict(list)
+          for idx,(page,row) in enumerate(candidates,1):
+              key=(row[0],row[5],row[9],row[12])
+              by_identity[key].append((idx,page,row))
+          identity_dupes=[(k,v) for k,v in by_identity.items() if len(v)>1]
+          print('identity_duplicate_groups',len(identity_dupes),'identity_duplicate_extra_rows',sum(len(v)-1 for _,v in identity_dupes))
+          for key,vals in identity_dupes:
+              print('IDENTITY_DUP', 'key=',key, 'indexes_pages=',[(i,p) for i,p,_ in vals])
+          print('outcomes', Counter(row[12] for _,row in candidates))
           PY
-      - name: Run full repository test suite
-        run: pytest -q
-      - name: Build and verify Aosta public registry before commit
-        run: |
-          rm -rf /tmp/aosta-public && mkdir -p /tmp/aosta-public /tmp/aosta-work
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/aosta-work \
-            --registry-json /tmp/aosta-public/registry.json \
-            --registry-csv /tmp/aosta-public/registry.csv \
-            --prefectures-json /tmp/aosta-public/prefectures.json \
-            --prefectures-csv /tmp/aosta-public/prefectures.csv
-          python - <<'PY'
-          import json
-          from collections import Counter
-          from pathlib import Path
-          reg = json.loads(Path('/tmp/aosta-public/registry.json').read_text(encoding='utf-8'))
-          pref = json.loads(Path('/tmp/aosta-public/prefectures.json').read_text(encoding='utf-8'))
-          aosta = [r for r in reg['records'] if r['authority_key'] == 'aosta']
-          assert reg['meta']['record_count'] == 5869, reg['meta']
-          assert reg['meta']['authority_count'] == 6, reg['meta']
-          assert reg['meta']['register_count'] == 7, reg['meta']
-          assert len(aosta) == 383, len(aosta)
-          assert Counter(r['source_key'] for r in aosta) == {'aosta-listed': 245, 'aosta-applicants': 138}
-          assert Counter(r['source_status'] for r in aosta) == {'listed': 344, 'pending': 22, 'renewal_update_in_progress': 17}
-          missing_ids = [r['record_locator'] for r in aosta if not r.get('identifiers')]
-          assert not missing_ids, missing_ids[:10]
-          aosta_pref = [p for p in pref['prefectures'] if p['jurisdiction_name'] == 'Aosta']
-          assert len(aosta_pref) == 1 and aosta_pref[0]['mapped'] and aosta_pref[0]['published'], aosta_pref
-          assert pref['meta']['mapped_count'] == 34, pref['meta']
-          assert pref['meta']['published_count'] == 6, pref['meta']
-          print('Aosta pre-commit registry verified:', len(aosta), 'rows', Counter(r['source_status'] for r in aosta))
-          PY
-      - name: Remove temporary audit machinery and commit expansion
-        run: |
-          git diff --check
-          rm -f .tmp/aosta_materialise.py .github/workflows/aosta-source-audit.yml
-          rmdir .tmp 2>/dev/null || true
-          git add -A
-          git diff --cached --check
-          git status --short
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Publish Aosta White List sources'
-          git push origin HEAD:expansion/aosta-source-audit-2026-09-10
