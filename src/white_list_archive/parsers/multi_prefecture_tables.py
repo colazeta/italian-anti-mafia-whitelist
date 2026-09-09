@@ -660,6 +660,108 @@ def parse_bologna_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     return _relative_date_rows(path, cfg, listed=False)
 
 
+
+def _aosta_activities(text: str) -> list[str]:
+    """Split only explicit source separators while preserving labels such as I-quater."""
+    value = _clean(text)
+    if not value:
+        return []
+    parts = [_clean(item) for item in re.split(r"\s+[–—-]\s+", value) if _clean(item)]
+    return parts or [value]
+
+
+def _status_aosta_applicant(outcome: str) -> str:
+    folded = _clean(outcome).casefold()
+    if "istruttoria" in folded:
+        return "pending"
+    if "iscritt" in folded:
+        return "listed"
+    if "negat" in folded or "dinieg" in folded or "rigett" in folded:
+        return "rejected_or_denied"
+    if "rinunc" in folded or "cancell" in folded or "revoc" in folded:
+        return "cancellation_related"
+    return "other_or_unknown"
+
+
+def parse_aosta_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) != 8 or not (_DMY_FLEX.fullmatch(row[5] or "") and _DMY_FLEX.fullmatch(row[6] or "")):
+                continue
+            date_rows += 1
+            if not row[0] or not row[3]:
+                dropped += 1
+                continue
+            update = row[7]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    secondary=row[2],
+                    identifier_raw=row[3],
+                    activities=_aosta_activities(row[4]),
+                    status="renewal_update_in_progress" if update else "listed",
+                    outcome_raw=update,
+                    listing_date=row[5],
+                    expiry_date=row[6],
+                    primary_date_label="Data iscrizione",
+                )
+            )
+    diagnostics = {
+        "parser": "aosta_listed",
+        "date_rows": date_rows,
+        "public_records": len(records),
+        "dropped_date_rows": dropped,
+        "status_counts": dict(Counter(record["source_status"] for record in records)),
+        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+    }
+    return ParsedBatch(records, diagnostics)
+
+
+def parse_aosta_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) != 13 or not _DMY_FLEX.fullmatch(row[9] or ""):
+                continue
+            date_rows += 1
+            if not row[0] or not row[5]:
+                dropped += 1
+                continue
+            outcome = row[12]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    secondary=row[3],
+                    identifier_raw=row[5],
+                    activities=_aosta_activities(row[6]),
+                    status=_status_aosta_applicant(outcome),
+                    outcome_raw=outcome,
+                    application_date=row[9],
+                    primary_date_label="Data presentazione istanza",
+                )
+            )
+    diagnostics = {
+        "parser": "aosta_applicants",
+        "date_rows": date_rows,
+        "public_records": len(records),
+        "dropped_date_rows": dropped,
+        "status_counts": dict(Counter(record["source_status"] for record in records)),
+        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+    }
+    return ParsedBatch(records, diagnostics)
+
+
 PARSERS: dict[str, Callable[[Path, dict[str, Any]], ParsedBatch]] = {
     "parma_operational": parse_parma,
     "pistoia_listed": parse_pistoia_listed,
@@ -668,4 +770,6 @@ PARSERS: dict[str, Callable[[Path, dict[str, Any]], ParsedBatch]] = {
     "bologna_applicants": parse_bologna_applicants,
     "alessandria_listed": parse_alessandria_listed,
     "alessandria_applicants": parse_alessandria_applicants,
+    "aosta_listed": parse_aosta_listed,
+    "aosta_applicants": parse_aosta_applicants,
 }

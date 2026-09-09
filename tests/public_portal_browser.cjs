@@ -23,6 +23,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Parma'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Pistoia'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Alessandria'));
+      assert.ok(labels.includes("White List ordinaria · Regione autonoma Valle d'Aosta · funzioni prefettizie"));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -63,8 +64,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze both the previous four-Prefecture release and the new Alessandria
       // denominator. This ensures expansion cannot silently rewrite prior totals.
-      assert.equal(stats.total,5486);
-      const previous=registry.records.filter(r=>r.authority_key!=='alessandria');
+      assert.equal(stats.total,5870);
+      const previous=registry.records.filter(r=>!['alessandria','aosta'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -74,6 +75,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-applicants').length,71);
+      const aosta=registry.records.filter(r=>r.authority_key==='aosta');
+      assert.equal(aosta.length,384);
+      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,245);
+      assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,139);
+      assert.deepEqual(statusCounts(aosta),{listed:345,pending:22,renewal_update_in_progress:17});
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
