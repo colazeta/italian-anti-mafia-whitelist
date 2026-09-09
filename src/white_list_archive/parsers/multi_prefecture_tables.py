@@ -10,6 +10,7 @@ import pdfplumber
 
 _DMY_SLASH = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 _DMY_DOT = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
+_DMY_FLEX = re.compile(r"^\d{1,2}[./]\d{1,2}[./]\d{4}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -27,9 +28,13 @@ def _iso_date(value: str) -> str:
     value = _clean(value)
     if _ISO_DATE.fullmatch(value):
         return value
-    match = re.fullmatch(r"(\d{2})[./](\d{2})[./](\d{4})", value)
+    match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", value)
     if match:
-        return f"{match.group(3)}-{match.group(2)}-{match.group(1)}"
+        day = int(match.group(1))
+        month = int(match.group(2))
+        if 1 <= day <= 31 and 1 <= month <= 12:
+            return f"{match.group(3)}-{month:02d}-{day:02d}"
+        return ""
     match = re.fullmatch(r"(\d{4})-\s*(\d{2})-(\d{2})", value)
     if match:
         return f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
@@ -49,6 +54,17 @@ def _activities(text: str) -> list[str]:
     text = _clean(text).replace("•", " - ")
     parts = [_clean(item) for item in re.split(r"\s+-\s+", text) if _clean(item)]
     return parts or ([text] if text else [])
+
+
+def _alessandria_activities(text: str) -> list[str]:
+    """Preserve Alessandria's numbered source sections without inventing activity labels."""
+    text = _clean(text)
+    if not text:
+        return []
+    if "sezione" not in text.casefold():
+        return [text]
+    numbers = re.findall(r"\d{1,2}", text)
+    return [f"Sezione {number}" for number in numbers] or [text]
 
 
 def _section_activity(section: str) -> str:
@@ -257,6 +273,140 @@ def parse_pistoia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     return ParsedBatch(records, diagnostics)
 
 
+def _status_alessandria_listed(outcome: str) -> str:
+    folded = _clean(outcome).casefold()
+    if not folded:
+        return "listed"
+    if "rinnovo" in folded:
+        return "renewal_update_in_progress"
+    # The current source contains a small number of bare "In istruttoria" notes
+    # inside the listed-company document. Preserve that ambiguity rather than
+    # silently treating it as a renewal or an applicant record.
+    return "other_or_unknown"
+
+
+def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    sector_rows: list[tuple[str, list[str]]] = []
+    current_section = ""
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if row and row[0].upper().startswith("SEZIONE") and not any(row[1:]):
+                current_section = row[0]
+                continue
+            if len(row) >= 5 and _DMY_FLEX.fullmatch(row[4] or ""):
+                date_rows += 1
+                if len(row) < 7 or not _DMY_FLEX.fullmatch(row[5] or "") or not row[0] or not row[3]:
+                    dropped += 1
+                    continue
+                sector_rows.append((current_section, row[:7]))
+
+    grouped: dict[tuple[str, ...], dict[str, Any]] = {}
+    for section, row in sector_rows:
+        key = (row[0], row[3], row[4], row[5], row[6])
+        group = grouped.setdefault(
+            key,
+            {"row": row, "sections": [], "offices": [], "secondary_offices": []},
+        )
+        if section and section not in group["sections"]:
+            group["sections"].append(section)
+        if row[1] and row[1] not in group["offices"]:
+            group["offices"].append(row[1])
+        if row[2] and row[2] not in group["secondary_offices"]:
+            group["secondary_offices"].append(row[2])
+
+    records: list[dict[str, Any]] = []
+    for group in grouped.values():
+        row = group["row"]
+        records.append(
+            _record(
+                cfg,
+                len(records) + 1,
+                name=row[0],
+                office=group["offices"][0] if group["offices"] else row[1],
+                secondary=group["secondary_offices"][0] if group["secondary_offices"] else row[2],
+                identifier_raw=row[3],
+                activities=[_section_activity(section) for section in group["sections"]],
+                status=_status_alessandria_listed(row[6]),
+                outcome_raw=row[6],
+                listing_date=row[4],
+                expiry_date=row[5],
+                primary_date_label="Data iscrizione",
+                source_fields={
+                    "sections": group["sections"],
+                    "registered_office_variants": group["offices"],
+                    "secondary_office_variants": group["secondary_offices"],
+                },
+            )
+        )
+
+    return ParsedBatch(
+        records,
+        {
+            "parser": "alessandria_listed",
+            "date_rows": date_rows,
+            "sector_rows": len(sector_rows),
+            "public_records": len(records),
+            "dropped_date_rows": dropped,
+            "status_counts": dict(Counter(record["source_status"] for record in records)),
+            "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+            "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
+        },
+    )
+
+
+def parse_alessandria_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) < 5 or not _DMY_FLEX.fullmatch(row[4] or ""):
+                continue
+            date_rows += 1
+            if len(row) < 6 or not row[0] or not row[2]:
+                dropped += 1
+                continue
+            outcome = row[5]
+            folded = outcome.casefold()
+            status = (
+                "pending"
+                if "istruttoria" in folded
+                else "rejected_or_denied"
+                if "negat" in folded or "rigett" in folded or "dinieg" in folded
+                else "other_or_unknown"
+            )
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    identifier_raw=row[2],
+                    activities=_alessandria_activities(row[3]),
+                    status=status,
+                    outcome_raw=outcome,
+                    application_date=row[4],
+                    primary_date_label="Data presentazione istanza",
+                    source_fields={"requested_activities_source": row[3]},
+                )
+            )
+
+    return ParsedBatch(
+        records,
+        {
+            "parser": "alessandria_applicants",
+            "date_rows": date_rows,
+            "public_records": len(records),
+            "dropped_date_rows": dropped,
+            "status_counts": dict(Counter(record["source_status"] for record in records)),
+            "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+            "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
+        },
+    )
+
+
 def _fallback_name_at_date(page: Any, date_text: str, *, x1: float = 160.0) -> str:
     words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
     anchors = [word for word in words if _clean(word.get("text")) == date_text]
@@ -427,4 +577,6 @@ PARSERS: dict[str, Callable[[Path, dict[str, Any]], ParsedBatch]] = {
     "pistoia_applicants": parse_pistoia_applicants,
     "bologna_listed": parse_bologna_listed,
     "bologna_applicants": parse_bologna_applicants,
+    "alessandria_listed": parse_alessandria_listed,
+    "alessandria_applicants": parse_alessandria_applicants,
 }
