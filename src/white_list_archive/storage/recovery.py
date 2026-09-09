@@ -52,13 +52,16 @@ def backup_and_restore_test(
     store. `EvidenceStore.archive` re-verifies those local bytes against the frozen
     manifest before writing, then performs a full destination GET/SHA-256 check.
     The clean restore is read back and hashed again. Existing restore paths are never
-    overwritten.
+    overwritten, and are rejected before any destination write is attempted.
     """
     recovery_fingerprint = validate_recovery_target(
         primary_store_fingerprint,
         recovery_store.config,
         independence_evidence,
     )
+    if restore_path.exists():
+        raise FileExistsError(f"Clean restore path already exists: {restore_path}")
+
     backup_receipt = recovery_store.archive(source_path, manifest)
     recovered = recovery_store.read_verified(manifest)
 
