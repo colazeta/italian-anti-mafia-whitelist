@@ -39,7 +39,7 @@ jobs:
       - name: Install project and utilities
         run: |
           python -m pip install -e .[dev,database]
-          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py
+          pytest -q tests/test_address_review_sample.py tests/test_explorer_address_validation_patch.py tests/test_explorer_address_quality_patch.py tests/test_anncsu_linkage.py tests/test_italian_address.py
           sudo apt-get update
           sudo apt-get install -y poppler-utils postgresql-client
 
@@ -181,21 +181,42 @@ jobs:
             --summary artifacts/address-validation/validation/summary.json \
             --source-evidence artifacts/data-explorer-preview-v2/source_evidence.json \
             > artifacts/data-explorer-preview-v2/address_validation_patch.json
+          white-list-explorer-address-quality-patch \
+            --index artifacts/data-explorer-preview-v2/index.html \
+            --summary artifacts/address-validation/validation/summary.json \
+            --address-results artifacts/address-validation/validation/address_results.csv \
+            --frozen-review-summary data/validation/cosenza/address-review-2026-09-07.summary.json \
+            --frozen-review-metadata data/validation/cosenza/address-review-2026-09-07.metadata.json \
+            --address-results-href address-validation/address_results.csv \
+            > artifacts/data-explorer-preview-v2/address_quality_patch.json
           mkdir -p artifacts/data-explorer-preview-v2/address-validation
           cp artifacts/address-validation/review_sample.csv artifacts/data-explorer-preview-v2/address-validation/
           cp artifacts/address-validation/review_sample_manifest.json artifacts/data-explorer-preview-v2/address-validation/
           cp artifacts/address-validation/validation/summary.json artifacts/data-explorer-preview-v2/address-validation/
+          cp artifacts/address-validation/validation/address_results.csv artifacts/data-explorer-preview-v2/address-validation/
 
-      - name: Validate review-enabled Explorer
+      - name: Validate quality- and review-enabled Explorer
         run: |
           python - <<'PY'
           import csv,json,os,psycopg
           from pathlib import Path
           root=Path('artifacts/data-explorer-preview-v2')
           html=(root/'index.html').read_text(encoding='utf-8')
-          for needle in ('data-view="address-validation"','VALIDAZIONE SOSTANZIALE INDIRIZZI','Esporta JSON','Importa JSON','localStorage','Apri su OpenStreetMap'):
+          for needle in (
+            'data-view="address-validation"',
+            'VALIDAZIONE SOSTANZIALE INDIRIZZI',
+            'Esporta JSON',
+            'Importa JSON',
+            'localStorage',
+            'Apri su OpenStreetMap',
+            'data-view="address-quality"',
+            'QUALITÀ NORMALIZZAZIONE INDIRIZZI',
+            'Stato produzione',
+            'GOLD STANDARD CONGELATO',
+            'address-validation/address_results.csv',
+          ):
             if needle not in html:
-              raise SystemExit(f'Missing review UI feature: {needle}')
+              raise SystemExit(f'Missing Explorer address feature: {needle}')
           rows=list(csv.DictReader((root/'address-validation/review_sample.csv').open(encoding='utf-8')))
           if len(rows)!=150:
             raise SystemExit(f'Unexpected review sample size: {len(rows)}')
@@ -208,12 +229,36 @@ jobs:
             raise SystemExit(f'Patch payload sample mismatch: {patch}')
           if patch['rows_with_source_occurrences'] < 100:
             raise SystemExit(f'Too few deterministic source-evidence links: {patch}')
+          quality=json.loads((root/'address_quality_patch.json').read_text())
+          op=quality['operational']
+          frozen=quality['frozen_review']
+          expected={
+            'total_canonical_addresses':1298,
+            'accounted':1298,
+            'candidate':624,
+            'accepted':0,
+            'not_found':674,
+            'errors':0,
+            'unprocessed':0,
+            'coordinate_bearing':534,
+            'normalisation_only':90,
+          }
+          mismatch={k:(expected[k],op.get(k)) for k in expected if op.get(k)!=expected[k]}
+          if mismatch:
+            raise SystemExit(f'Address quality operational reconciliation mismatch: {mismatch}')
+          if frozen['candidate_weighted_precision_pct']!=82.49 or frozen['candidate_coverage_pct']!=48.07 or frozen['estimated_validated_yield_pct']!=39.65:
+            raise SystemExit(f'Frozen review metrics changed unexpectedly: {frozen}')
+          if not op['providers'] or not op['providers'][0].get('provider_version'):
+            raise SystemExit(f'Provider/version provenance missing: {op}')
+          full_rows=list(csv.DictReader((root/'address-validation/address_results.csv').open(encoding='utf-8')))
+          if len(full_rows)!=op['total_canonical_addresses']:
+            raise SystemExit('Full address-results drill-down does not reconcile with displayed population')
           with psycopg.connect(os.environ['TEST_DSN']) as conn,conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM geo.address_geocode_result WHERE provider_name='anncsu' AND match_status_code='accepted' AND upper_inf(system_period)")
             accepted=int(cur.fetchone()[0])
           if accepted:
             raise SystemExit(f'Address validation workflow must not auto-accept: {accepted}')
-          print('Review-enabled retro Explorer validated:', patch)
+          print('Quality- and review-enabled retro Explorer validated:', quality)
           PY
 
       - uses: actions/upload-artifact@v4
