@@ -32,8 +32,11 @@ jobs:
           body=workflow.split(start,1)[1].split(end,1)[0]
           exec(compile(textwrap.dedent(body), 'arezzo-materialisation', 'exec'))
           PY
-      - name: Install project with publication dependencies
-        run: python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Install system and publication dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          python -m pip install -e '.[dev,database,storage,publication]'
       - name: Run repository tests
         run: pytest -q
       - name: Build and validate expanded public registry
