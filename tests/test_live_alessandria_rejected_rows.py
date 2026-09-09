@@ -9,7 +9,7 @@ import pdfplumber
 
 URL = "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/white-list-4-settembre-2026.pdf"
 DATE = re.compile(r"^(\d{1,2})[./](\d{1,2})[./](\d{4})$")
-YEAR = re.compile(r"20\d{2}")
+YEAR = re.compile(r"20(?:\s?\d){2}")
 UA = "italian-anti-mafia-whitelist/0.1 (+source-resolution)"
 
 
@@ -17,16 +17,22 @@ def clean(value):
     return " ".join(str(value or "").replace("\u00a0", " ").split())
 
 
-def valid_date(value):
-    match = DATE.fullmatch(value or "")
+def source_date(value):
+    raw = clean(value)
+    # Alessandria's official PDF uses an ordinal marker after day 1 in a few
+    # cells and one extracted year contains an embedded layout space. Treat
+    # those as explicit source typography, not as a guessed missing digit.
+    candidate = re.sub(r"^(\d{1,2})[°º]([./])", r"\1\2", raw)
+    candidate = re.sub(r"(?<=\d)\s+(?=\d)", "", candidate)
+    match = DATE.fullmatch(candidate)
     if not match:
-        return False
+        return ""
     day, month, year = map(int, match.groups())
     try:
         date(year, month, day)
     except ValueError:
-        return False
-    return True
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 def test_characterise_all_alessandria_date_variants():
@@ -38,8 +44,8 @@ def test_characterise_all_alessandria_date_variants():
     with pdfplumber.open(io.BytesIO(body)) as pdf:
         for page_no, page in enumerate(pdf.pages, 1):
             for table_no, table in enumerate(page.extract_tables(), 1):
-                rows = [[clean(cell) for cell in raw] for raw in table]
-                for row_no, row in enumerate(rows):
+                for row_no, raw in enumerate(table):
+                    row = [clean(cell) for cell in raw]
                     if row and row[0].upper().startswith("SEZIONE") and not any(row[1:]):
                         current_section = row[0]
                         continue
@@ -54,57 +60,74 @@ def test_characterise_all_alessandria_date_variants():
                             "row": row_no,
                             "section": current_section,
                             "values": row[:7],
-                            "dates_valid": [valid_date(row[4]), valid_date(row[5])],
+                            "listing": source_date(row[4]),
+                            "expiry": source_date(row[5]),
                         }
                     )
 
-    valid_groups = defaultdict(set)
-    malformed = []
+    groups = defaultdict(lambda: {"rows": [], "sections": set(), "listing": set(), "expiry": set(), "raw_pairs": set()})
     for item in candidate_rows:
         row = item["values"]
         key = (row[0], row[3], row[6])
-        if all(item["dates_valid"]):
-            valid_groups[key].add((row[4], row[5]))
-        else:
-            malformed.append(item)
+        group = groups[key]
+        group["rows"].append(item)
+        if item["section"]:
+            group["sections"].add(item["section"])
+        if item["listing"]:
+            group["listing"].add(item["listing"])
+        if item["expiry"]:
+            group["expiry"].add(item["expiry"])
+        group["raw_pairs"].add((row[4], row[5]))
 
-    malformed_matches = []
-    for item in malformed:
-        row = item["values"]
-        key = (row[0], row[3], row[6])
-        matches = sorted(valid_groups.get(key, set()))
-        malformed_matches.append(
-            {
-                **item,
-                "matching_valid_date_pairs": matches,
-                "matching_valid_pair_count": len(matches),
-            }
-        )
-
-    ambiguous_valid_keys = [
-        {
-            "key": list(key),
-            "valid_date_pairs": sorted(pairs),
-        }
-        for key, pairs in valid_groups.items()
-        if len(pairs) > 1
-    ]
-    match_counts = {
-        "zero": sum(item["matching_valid_pair_count"] == 0 for item in malformed_matches),
-        "one": sum(item["matching_valid_pair_count"] == 1 for item in malformed_matches),
-        "multiple": sum(item["matching_valid_pair_count"] > 1 for item in malformed_matches),
-    }
+    conflicts = []
+    incomplete = []
+    malformed_groups = []
+    for key, group in groups.items():
+        if len(group["listing"]) > 1 or len(group["expiry"]) > 1:
+            conflicts.append(
+                {
+                    "key": list(key),
+                    "normalised_listing": sorted(group["listing"]),
+                    "normalised_expiry": sorted(group["expiry"]),
+                    "raw_pairs": sorted(group["raw_pairs"]),
+                    "sections": sorted(group["sections"]),
+                }
+            )
+        if not group["listing"] or not group["expiry"]:
+            incomplete.append(
+                {
+                    "key": list(key),
+                    "normalised_listing": sorted(group["listing"]),
+                    "normalised_expiry": sorted(group["expiry"]),
+                    "raw_pairs": sorted(group["raw_pairs"]),
+                    "sections": sorted(group["sections"]),
+                }
+            )
+        bad_rows = [item for item in group["rows"] if not item["listing"] or not item["expiry"]]
+        if bad_rows:
+            malformed_groups.append(
+                {
+                    "key": list(key),
+                    "normalised_listing": sorted(group["listing"]),
+                    "normalised_expiry": sorted(group["expiry"]),
+                    "raw_pairs": sorted(group["raw_pairs"]),
+                    "sections": sorted(group["sections"]),
+                    "malformed_rows": bad_rows,
+                }
+            )
 
     raise AssertionError(
-        "AL_DATE_LINKAGE_AUDIT="
+        "AL_GROUPING_AUDIT="
         + json.dumps(
             {
-                "candidate_rows": len(candidate_rows),
-                "valid_rows": len(candidate_rows) - len(malformed),
-                "malformed_rows": len(malformed),
-                "malformed_match_counts": match_counts,
-                "malformed": malformed_matches,
-                "ambiguous_valid_identity_outcome_keys": ambiguous_valid_keys,
+                "candidate_sector_rows": len(candidate_rows),
+                "identity_outcome_groups": len(groups),
+                "groups_with_date_conflicts": len(conflicts),
+                "groups_missing_any_normalised_date": len(incomplete),
+                "groups_with_malformed_raw_rows": len(malformed_groups),
+                "conflicts": conflicts,
+                "incomplete": incomplete,
+                "malformed_groups": malformed_groups,
             },
             ensure_ascii=False,
         )
