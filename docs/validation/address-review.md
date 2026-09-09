@@ -89,6 +89,14 @@ where the denominator includes only rows with a determinate overall verdict.
 
 The same calculation is shown separately by review stratum. During partial review these estimates are descriptive only; the frozen completed sample is the basis for any formal promotion-policy decision.
 
+## Execution and publication boundary
+
+The review-enabled Explorer, source-backed sample, full address-result table and preserved source PDFs are **internal review material**. This public GitHub repository does not use Actions artifact confidentiality as a control: current public workflow artifacts contain only redacted aggregate verification records and SHA-256 bindings to the internal files generated during the run.
+
+When substantive row-level review is required, regenerate the full bundle on a trusted workstation or access-controlled runner from the exact pinned commit and frozen source/provider identities. Follow [`internal-review-handoff.md`](internal-review-handoff.md). Do not upload the regenerated internal bundle through a public Actions artifact.
+
+This execution boundary does not weaken the method. Public CI still builds and validates the full internal package on its ephemeral runner; only the persisted/uploaded representation is narrowed.
+
 ## Persistence and gold-standard export
 
 Review choices are stored locally in the browser under a key containing the sample fingerprint. They are not silently written back to the database.
