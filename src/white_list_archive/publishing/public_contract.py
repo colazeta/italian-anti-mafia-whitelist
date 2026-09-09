@@ -8,7 +8,18 @@ from typing import Any
 TEXT_FIELDS = frozenset("record_locator source_key authority_key authority_name register_key register_name population_scope reference_date name registered_office secondary_office identifier_field_raw requested_activities_raw source_status outcome_raw application_date observed_listing_date decision_date registration_date observed_expiry_date primary_date primary_date_label source_page_url resource_url capture_sha256 parser_name parser_version".split())
 RECORD_FIELDS = TEXT_FIELDS | {"source_row_ordinal", "identifiers", "requested_activities", "application_dates", "source_fields"}
 IDENTIFIER_FIELDS = {"raw_value", "shape", "candidate_schemes", "scheme_assertion", "source_hint"}
-SOURCE_FIELDS = {"sections", "registered_office_variants", "secondary_office_variants", "provvedimento", "in_aggiornamento", "outcome"}
+SOURCE_LIST_FIELDS = {
+    "sections",
+    "registered_office_variants",
+    "secondary_office_variants",
+    "listing_date_raw_variants",
+    "expiry_date_raw_variants",
+    "normalised_listing_date_variants",
+    "normalised_expiry_date_variants",
+    "date_conflict_fields",
+    "malformed_date_pairs",
+}
+SOURCE_FIELDS = SOURCE_LIST_FIELDS | {"provvedimento", "in_aggiornamento", "outcome", "requested_activities_source"}
 OUTCOME_FIELDS = {"status", "observed_listing_date", "observed_expiry_date", "renewal_requested", "update_in_progress", "dates"}
 DATE_FIELDS = {"raw_value", "date", "parenthesized"}
 SOURCE_REPORT_FIELDS = {"source_key", "authority_key", "register_key", "population_scope", "reference_date", "sha256", "parser", "document_checked_at"}
@@ -51,7 +62,7 @@ def public_record(record: dict[str, Any]) -> dict[str, Any]:
     fields = record.get("source_fields", {})
     _keys(fields, SOURCE_FIELDS, "source fields")
     for key, value in fields.items():
-        if key in {"sections", "registered_office_variants", "secondary_office_variants"}:
+        if key in SOURCE_LIST_FIELDS:
             _strings(value)
         elif key == "outcome":
             _keys(value, OUTCOME_FIELDS, "source outcome")

@@ -93,6 +93,53 @@ def test_pistoia_applicant_recovers_page_boundary_name(monkeypatch):
     assert batch.records[0]["source_status"] == "pending"
 
 
+def test_alessandria_listed_groups_sections_and_normalises_variable_width_dates(monkeypatch):
+    rows = [
+        ["SEZIONE I", "", "", "", "", "", ""],
+        ["IMPRESA ALFA S.R.L.", "ALESSANDRIA", "", "01234567890", "9.6.2025", "8.6.2026", "In istruttoria per rinnovo"],
+        ["SEZIONE II", "", "", "", "", "", ""],
+        ["IMPRESA ALFA S.R.L.", "ALESSANDRIA", "", "01234567890", "9.6.2025", "8.6.2026", "In istruttoria per rinnovo"],
+    ]
+    monkeypatch.setattr(tables.pdfplumber, "open", lambda _path: FakePDF([FakePage(rows)]))
+    batch = tables.parse_alessandria_listed(Path("listed.pdf"), cfg("alessandria-listed"))
+    assert batch.diagnostics["date_rows"] == 2
+    assert batch.diagnostics["sector_rows"] == 2
+    assert batch.diagnostics["public_records"] == 1
+    assert batch.diagnostics["dropped_date_rows"] == 0
+    record = batch.records[0]
+    assert record["observed_listing_date"] == "2025-06-09"
+    assert record["observed_expiry_date"] == "2026-06-08"
+    assert record["source_status"] == "renewal_update_in_progress"
+    assert record["requested_activities"] == ["SEZIONE I", "SEZIONE II"]
+
+
+def test_alessandria_listed_preserves_ambiguous_bare_in_istruttoria(monkeypatch):
+    rows = [["IMPRESA BETA S.R.L.", "ALESSANDRIA", "", "12345678901", "2.7.2026", "1.7.2027", "In istruttoria"]]
+    monkeypatch.setattr(tables.pdfplumber, "open", lambda _path: FakePDF([FakePage(rows)]))
+    batch = tables.parse_alessandria_listed(Path("listed.pdf"), cfg("alessandria-listed"))
+    assert batch.records[0]["source_status"] == "other_or_unknown"
+    assert batch.records[0]["outcome_raw"] == "In istruttoria"
+
+
+def test_alessandria_applicants_preserve_raw_unusual_ids_and_numbered_sections(monkeypatch):
+    rows = [
+        ["IMPRESA GAMMA S.R.L.", "OVADA", "2742900067", "SEZIONE:1-5-6", "19.6.2026", "In istruttoria"],
+        ["IMPRESA DELTA S.R.L.", "TORTONA", "23456789012", "SEZIONE. 10", "21.07.2026", "In istruttoria"],
+    ]
+    monkeypatch.setattr(tables.pdfplumber, "open", lambda _path: FakePDF([FakePage(rows)]))
+    batch = tables.parse_alessandria_applicants(Path("applicants.pdf"), cfg("alessandria-applicants"))
+    assert batch.diagnostics["date_rows"] == 2
+    assert batch.diagnostics["public_records"] == 2
+    assert batch.diagnostics["dropped_date_rows"] == 0
+    assert batch.records[0]["identifier_field_raw"] == "2742900067"
+    assert batch.records[0]["identifiers"] == []
+    assert batch.records[0]["requested_activities"] == ["Sezione 1", "Sezione 5", "Sezione 6"]
+    assert batch.records[0]["application_date"] == "2026-06-19"
+    assert batch.records[0]["source_status"] == "pending"
+    assert batch.records[1]["identifiers"] == ["23456789012"]
+    assert batch.records[1]["requested_activities"] == ["Sezione 10"]
+
+
 def test_bologna_date_relative_parser_survives_leading_and_trailing_blank_columns(monkeypatch):
     listed = [["", "IMPRESA DELTA SRL", "34567890123", "BOLOGNA VIA TRE 3", "Prot. 1", "2026-08-14", "2027-08-13", "Sì", "I · II", ""]]
     monkeypatch.setattr(tables.pdfplumber, "open", lambda _path: FakePDF([FakePage(listed)]))

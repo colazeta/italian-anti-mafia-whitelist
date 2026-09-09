@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const registry=JSON.parse(fs.readFileSync('public-site/data/registry.json'));
 const {displayDate,publicStatistics}=require('../public-site/summary.js');
 const numeric=text=>Number(text.replace(/\D/g,''));
+const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r.source_status,(m.get(r.source_status)||0)+1),new Map())].sort());
 
 (async()=>{
   fs.mkdirSync('test-results',{recursive:true});
@@ -21,6 +22,7 @@ const numeric=text=>Number(text.replace(/\D/g,''));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Cosenza'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Parma'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Pistoia'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Alessandria'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -59,15 +61,32 @@ const numeric=text=>Number(text.replace(/\D/g,''));
       }
       await page.getByRole('button',{name:'Statistiche',exact:true}).click();
       const stats=publicStatistics(registry.records);
-      // Frozen approved release: independently reconciled source-status totals.
-      assert.equal(stats.total,5052);
-      assert.deepEqual(Object.fromEntries(stats.statuses.map(x=>[x.status,x.count])),{
-        pending:1416,listed:2229,renewal_update_in_progress:1203,renewal_requested:14,
-        other_or_unknown:5,expired_observed:171,cancellation_related:2,rejected_or_denied:12
+      // Freeze both the previous four-Prefecture release and the new Alessandria
+      // denominator. This ensures expansion cannot silently rewrite prior totals.
+      assert.equal(stats.total,5486);
+      const previous=registry.records.filter(r=>r.authority_key!=='alessandria');
+      assert.equal(previous.length,5052);
+      assert.deepEqual(statusCounts(previous),{
+        cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
+        pending:1416,rejected_or_denied:12,renewal_requested:14,renewal_update_in_progress:1203
       });
+      const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
+      assert.equal(alessandria.length,434);
+      assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
+      assert.equal(alessandria.filter(r=>r.source_key==='alessandria-applicants').length,71);
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
+      await page.locator('#stats-authority').selectOption('alessandria');
+      const alessandriaStats=publicStatistics(registry.records,'alessandria');
+      assert.equal(alessandriaStats.total,434);
+      assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),alessandriaStats.total);
+      await page.getByRole('button',{name:'Registro',exact:true}).click();
+      await page.locator('#reg-latest').uncheck();
+      await page.locator('#reg-authority').selectOption('alessandria');
+      await page.locator('#reg-status').selectOption('pending');
+      assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),alessandria.filter(r=>r.source_status==='pending').length);
+      await page.getByRole('button',{name:'Statistiche',exact:true}).click();
       await page.locator('#stats-authority').selectOption('cosenza');
       const cosenza=publicStatistics(registry.records,'cosenza');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),cosenza.total);

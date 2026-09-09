@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 
@@ -10,7 +11,9 @@ import pdfplumber
 
 _DMY_SLASH = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 _DMY_DOT = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
+_DMY_FLEX = re.compile(r"^\d{1,2}[./]\d{1,2}[./]\d{4}$")
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_AL_YEAR = re.compile(r"20(?:\s?\d){2}")
 
 
 @dataclass(frozen=True)
@@ -27,9 +30,13 @@ def _iso_date(value: str) -> str:
     value = _clean(value)
     if _ISO_DATE.fullmatch(value):
         return value
-    match = re.fullmatch(r"(\d{2})[./](\d{2})[./](\d{4})", value)
+    match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", value)
     if match:
-        return f"{match.group(3)}-{match.group(2)}-{match.group(1)}"
+        day = int(match.group(1))
+        month = int(match.group(2))
+        if 1 <= day <= 31 and 1 <= month <= 12:
+            return f"{match.group(3)}-{month:02d}-{day:02d}"
+        return ""
     match = re.fullmatch(r"(\d{4})-\s*(\d{2})-(\d{2})", value)
     if match:
         return f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
@@ -49,6 +56,17 @@ def _activities(text: str) -> list[str]:
     text = _clean(text).replace("•", " - ")
     parts = [_clean(item) for item in re.split(r"\s+-\s+", text) if _clean(item)]
     return parts or ([text] if text else [])
+
+
+def _alessandria_activities(text: str) -> list[str]:
+    """Preserve Alessandria's numbered source sections without inventing activity labels."""
+    text = _clean(text)
+    if not text:
+        return []
+    if "sezione" not in text.casefold():
+        return [text]
+    numbers = re.findall(r"\d{1,2}", text)
+    return [f"Sezione {number}" for number in numbers] or [text]
 
 
 def _section_activity(section: str) -> str:
@@ -257,6 +275,227 @@ def parse_pistoia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     return ParsedBatch(records, diagnostics)
 
 
+def _status_alessandria_listed(outcome: str) -> str:
+    folded = _clean(outcome).casefold()
+    if not folded:
+        return "listed"
+    if "rinnovo" in folded:
+        return "renewal_update_in_progress"
+    # The current source contains a small number of bare "In istruttoria" notes
+    # inside the listed-company document. Preserve that ambiguity rather than
+    # silently treating it as a renewal or an applicant record.
+    return "other_or_unknown"
+
+
+def _alessandria_source_date(value: str) -> str:
+    """Normalise explicit Alessandria date typography without guessing a source value."""
+    raw = _clean(value)
+    candidate = re.sub(r"^(\d{1,2})[°º]([./])", r"\1\2", raw)
+    # One official cell is extracted as ``202 2``. Removing an embedded numeric
+    # layout space preserves the digits visibly present in the source.
+    candidate = re.sub(r"(?<=\d)\s+(?=\d)", "", candidate)
+    match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", candidate)
+    if not match:
+        return ""
+    day, month, year = map(int, match.groups())
+    try:
+        date(year, month, day)
+    except ValueError:
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def parse_alessandria_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    sector_rows: list[tuple[str, list[str], str, str]] = []
+    current_section = ""
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if row and row[0].upper().startswith("SEZIONE") and not any(row[1:]):
+                current_section = row[0]
+                continue
+            if len(row) < 6 or not (_AL_YEAR.search(row[4] or "") or _AL_YEAR.search(row[5] or "")):
+                continue
+            date_rows += 1
+            if len(row) < 7 or not row[0] or not row[3]:
+                dropped += 1
+                continue
+            listing_date = _alessandria_source_date(row[4])
+            expiry_date = _alessandria_source_date(row[5])
+            if not listing_date and not expiry_date:
+                dropped += 1
+                continue
+            sector_rows.append((current_section, row[:7], listing_date, expiry_date))
+
+    identities: dict[tuple[str, ...], list[tuple[str, list[str], str, str]]] = {}
+    for item in sector_rows:
+        _section, row, _listing, _expiry = item
+        identities.setdefault((row[0], row[3], row[6]), []).append(item)
+
+    records: list[dict[str, Any]] = []
+    conflict_identity_groups = 0
+    reconciled_malformed_rows = 0
+    for identity_rows in identities.values():
+        valid_pairs = {(listing, expiry) for _section, _row, listing, expiry in identity_rows if listing and expiry}
+        incomplete = [item for item in identity_rows if not item[2] or not item[3]]
+        conflict_fields: list[str] = []
+        if len({pair[0] for pair in valid_pairs}) > 1:
+            conflict_fields.append("observed_listing_date")
+        if len({pair[1] for pair in valid_pairs}) > 1:
+            conflict_fields.append("observed_expiry_date")
+        if len(valid_pairs) > 1:
+            conflict_identity_groups += 1
+
+        if incomplete and len(valid_pairs) != 1:
+            # Without one unique complete pair on this exact identity/outcome, an
+            # invalid source date cannot be assigned safely. Keep the fail-closed
+            # dropped-row signal rather than repairing or choosing a neighbour.
+            dropped += len(incomplete)
+            incomplete = []
+
+        observations: dict[tuple[str, str], dict[str, Any]] = {}
+
+        def add_to_observation(item: tuple[str, list[str], str, str], pair: tuple[str, str]) -> None:
+            section, row, listing, expiry = item
+            group = observations.setdefault(
+                pair,
+                {
+                    "row": row,
+                    "sections": [],
+                    "offices": [],
+                    "secondary_offices": [],
+                    "listing_raw": [],
+                    "expiry_raw": [],
+                    "malformed_date_pairs": [],
+                },
+            )
+            if section and section not in group["sections"]:
+                group["sections"].append(section)
+            if row[1] and row[1] not in group["offices"]:
+                group["offices"].append(row[1])
+            if row[2] and row[2] not in group["secondary_offices"]:
+                group["secondary_offices"].append(row[2])
+            if row[4] not in group["listing_raw"]:
+                group["listing_raw"].append(row[4])
+            if row[5] not in group["expiry_raw"]:
+                group["expiry_raw"].append(row[5])
+            if not listing or not expiry:
+                raw_pair = f"{row[4]} | {row[5]}"
+                if raw_pair not in group["malformed_date_pairs"]:
+                    group["malformed_date_pairs"].append(raw_pair)
+
+        for item in identity_rows:
+            if item in incomplete:
+                continue
+            listing, expiry = item[2], item[3]
+            if listing and expiry:
+                add_to_observation(item, (listing, expiry))
+
+        if incomplete and len(valid_pairs) == 1:
+            sole_pair = next(iter(valid_pairs))
+            for item in incomplete:
+                add_to_observation(item, sole_pair)
+                reconciled_malformed_rows += 1
+
+        for pair, group in observations.items():
+            row = group["row"]
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=group["offices"][0] if group["offices"] else row[1],
+                    secondary=group["secondary_offices"][0] if group["secondary_offices"] else row[2],
+                    identifier_raw=row[3],
+                    activities=[_section_activity(section) for section in group["sections"]],
+                    status=_status_alessandria_listed(row[6]),
+                    outcome_raw=row[6],
+                    listing_date=pair[0],
+                    expiry_date=pair[1],
+                    primary_date_label="Data iscrizione",
+                    source_fields={
+                        "sections": group["sections"],
+                        "registered_office_variants": group["offices"],
+                        "secondary_office_variants": group["secondary_offices"],
+                        "listing_date_raw_variants": group["listing_raw"],
+                        "expiry_date_raw_variants": group["expiry_raw"],
+                        "normalised_listing_date_variants": [pair[0]],
+                        "normalised_expiry_date_variants": [pair[1]],
+                        "date_conflict_fields": conflict_fields,
+                        "malformed_date_pairs": group["malformed_date_pairs"],
+                    },
+                )
+            )
+
+    return ParsedBatch(
+        records,
+        {
+            "parser": "alessandria_listed",
+            "date_rows": date_rows,
+            "sector_rows": len(sector_rows),
+            "public_records": len(records),
+            "dropped_date_rows": dropped,
+            "date_conflict_identity_groups": conflict_identity_groups,
+            "reconciled_malformed_date_rows": reconciled_malformed_rows,
+            "status_counts": dict(Counter(record["source_status"] for record in records)),
+            "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+            "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
+        },
+    )
+
+
+def parse_alessandria_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    records: list[dict[str, Any]] = []
+    date_rows = 0
+    dropped = 0
+    with pdfplumber.open(path) as pdf:
+        for _page, row in _table_rows(pdf):
+            if len(row) < 5 or not _DMY_FLEX.fullmatch(row[4] or ""):
+                continue
+            date_rows += 1
+            if len(row) < 6 or not row[0] or not row[2]:
+                dropped += 1
+                continue
+            outcome = row[5]
+            folded = outcome.casefold()
+            status = (
+                "pending"
+                if "istruttoria" in folded
+                else "rejected_or_denied"
+                if "negat" in folded or "rigett" in folded or "dinieg" in folded
+                else "other_or_unknown"
+            )
+            records.append(
+                _record(
+                    cfg,
+                    len(records) + 1,
+                    name=row[0],
+                    office=row[1],
+                    identifier_raw=row[2],
+                    activities=_alessandria_activities(row[3]),
+                    status=status,
+                    outcome_raw=outcome,
+                    application_date=row[4],
+                    primary_date_label="Data presentazione istanza",
+                    source_fields={"requested_activities_source": row[3]},
+                )
+            )
+
+    return ParsedBatch(
+        records,
+        {
+            "parser": "alessandria_applicants",
+            "date_rows": date_rows,
+            "public_records": len(records),
+            "dropped_date_rows": dropped,
+            "status_counts": dict(Counter(record["source_status"] for record in records)),
+            "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+            "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
+        },
+    )
+
+
 def _fallback_name_at_date(page: Any, date_text: str, *, x1: float = 160.0) -> str:
     words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
     anchors = [word for word in words if _clean(word.get("text")) == date_text]
@@ -427,4 +666,6 @@ PARSERS: dict[str, Callable[[Path, dict[str, Any]], ParsedBatch]] = {
     "pistoia_applicants": parse_pistoia_applicants,
     "bologna_listed": parse_bologna_listed,
     "bologna_applicants": parse_bologna_applicants,
+    "alessandria_listed": parse_alessandria_listed,
+    "alessandria_applicants": parse_alessandria_applicants,
 }
