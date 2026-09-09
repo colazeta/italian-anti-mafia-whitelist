@@ -37,6 +37,46 @@ def validate_recovery_target(
     return recovery_fingerprint
 
 
+def public_recovery_receipt(receipt: dict) -> dict:
+    """Return the deliberately redacted receipt safe for a public repository artifact.
+
+    GitHub Actions artifacts attached to a public repository must be treated as public
+    evidence. Provider coordinates, namespace fingerprints, policy locators and the
+    reviewed independence statement therefore remain out of the uploaded receipt. A
+    digest binds the run to the reviewed independence record without publishing it.
+    """
+    required = (
+        "schema_version",
+        "sha256",
+        "byte_size",
+        "primary_store_fingerprint",
+        "recovery_store_fingerprint",
+        "independence_evidence",
+        "backup_created",
+        "restore_verified_at",
+    )
+    missing = [name for name in required if name not in receipt]
+    if missing:
+        raise ValueError("Incomplete recovery receipt: " + ", ".join(missing))
+    if receipt["primary_store_fingerprint"] == receipt["recovery_store_fingerprint"]:
+        raise ValueError("Cannot publish a receipt for a non-distinct recovery target")
+    independence_evidence = receipt["independence_evidence"]
+    if not isinstance(independence_evidence, str) or not independence_evidence.strip():
+        raise ValueError("Recovery receipt lacks reviewed independence evidence")
+    return {
+        "schema_version": receipt["schema_version"],
+        "sha256": receipt["sha256"],
+        "byte_size": receipt["byte_size"],
+        "backup_created": bool(receipt["backup_created"]),
+        "recovery_target_distinct_from_primary": True,
+        "independence_record_sha256": hashlib.sha256(
+            independence_evidence.encode("utf-8")
+        ).hexdigest(),
+        "clean_restore_verified": True,
+        "restore_verified_at": receipt["restore_verified_at"],
+    }
+
+
 def backup_and_restore_test(
     *,
     source_path: Path,

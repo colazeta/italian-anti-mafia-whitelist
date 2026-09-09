@@ -1,11 +1,13 @@
 import hashlib
 import io
+import json
 
 import pytest
 
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig
 from white_list_archive.storage.recovery import (
     backup_and_restore_test,
+    public_recovery_receipt,
     store_fingerprint,
     validate_recovery_target,
 )
@@ -107,6 +109,60 @@ def test_backup_is_idempotent_and_clean_restore_is_reverified(tmp_path):
     assert second["backup_created"] is False
     assert client.writes == 1
     assert second_restore.read_bytes() == DATA
+
+
+def test_public_recovery_receipt_is_redacted_for_public_artifacts(tmp_path):
+    client = MemoryS3()
+    store = EvidenceStore(client, RECOVERY)
+    full = backup_and_restore_test(
+        source_path=_source(tmp_path),
+        manifest=MANIFEST,
+        recovery_store=store,
+        restore_path=tmp_path / "restore" / "evidence.bin",
+        primary_store_fingerprint=store_fingerprint(PRIMARY),
+        independence_evidence="reviewed-independence-record",
+    )
+    public = public_recovery_receipt(full)
+    assert public == {
+        "schema_version": 1,
+        "sha256": MANIFEST["sha256"],
+        "byte_size": MANIFEST["byte_size"],
+        "backup_created": True,
+        "recovery_target_distinct_from_primary": True,
+        "independence_record_sha256": hashlib.sha256(
+            b"reviewed-independence-record"
+        ).hexdigest(),
+        "clean_restore_verified": True,
+        "restore_verified_at": full["restore_verified_at"],
+    }
+    encoded = json.dumps(public, sort_keys=True)
+    for forbidden in (
+        "primary.example.invalid",
+        "recovery.example.invalid",
+        "primary-evidence",
+        "recovery-evidence",
+        "reviewed-independence-record",
+        "backup_storage_uri",
+        "backup_policy_evidence",
+        "primary_store_fingerprint",
+        "recovery_store_fingerprint",
+    ):
+        assert forbidden not in encoded
+
+
+def test_public_recovery_receipt_rejects_same_namespace_claim():
+    receipt = {
+        "schema_version": 1,
+        "sha256": MANIFEST["sha256"],
+        "byte_size": MANIFEST["byte_size"],
+        "primary_store_fingerprint": "a" * 64,
+        "recovery_store_fingerprint": "a" * 64,
+        "independence_evidence": "reviewed-independence-record",
+        "backup_created": True,
+        "restore_verified_at": "2026-09-09T18:00:00+00:00",
+    }
+    with pytest.raises(ValueError, match="non-distinct"):
+        public_recovery_receipt(receipt)
 
 
 def test_corrupt_recovery_copy_fails_before_clean_restore(tmp_path):
