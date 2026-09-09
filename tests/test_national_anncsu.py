@@ -14,7 +14,7 @@ from white_list_archive.geocoding.national_anncsu import (
 
 def test_all_dataset_codes_are_unique_and_well_formed():
     codes = [str(item["dataset"]) for item in ANNCSU_REGION_DATASETS]
-    assert len(codes) == 21
+    assert len(codes) == 20
     assert len(codes) == len(set(codes))
     assert all(code.startswith("INDIR_") for code in codes)
     assert dataset_code_for("Calabria") == "INDIR_CALA"
@@ -22,11 +22,10 @@ def test_all_dataset_codes_are_unique_and_well_formed():
     assert dataset_code_for("Emilia-Romagna") == "INDIR_EMIL"
 
 
-def test_trentino_provinces_route_to_distinct_datasets():
-    assert dataset_code_for("Trentino-Alto Adige/Südtirol", "BZ") == "INDIR_BOLZ"
+def test_trentino_is_one_official_regional_dataset():
+    assert dataset_code_for("Trentino-Alto Adige/Südtirol", "BZ") == "INDIR_TREN"
     assert dataset_code_for("Trentino Alto Adige", "TN") == "INDIR_TREN"
-    with pytest.raises(LookupError):
-        dataset_code_for("Trentino-Alto Adige/Südtirol")
+    assert dataset_code_for("Trentino-Alto Adige/Südtirol") == "INDIR_TREN"
 
 
 def test_unknown_region_fails_closed():
