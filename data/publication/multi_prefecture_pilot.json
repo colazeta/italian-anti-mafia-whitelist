@@ -201,6 +201,41 @@
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "current official attachment verified on this date; attachment itself is undated",
       "notes": "The official applicant page and mutable attachment were verified on 2026-09-10. The current attachment contains 139 complete request observations: 117 have a source outcome indicating subsequent White List enrolment and 22 remain in istruttoria. Those outcomes are preserved as source observations; no cross-series entity deduplication is asserted."
+    },
+    {
+      "source_key": "arezzo-listed",
+      "parser": "arezzo_listed",
+      "authority_key": "arezzo",
+      "authority_name": "Prefettura di Arezzo",
+      "register_key": "arezzo-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_iscritte_1.xlsx",
+      "sha256": "9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f",
+      "expected_sector_rows": 616,
+      "expected_source_rows": 332,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official attachment byte-verified on this date; the official page does not expose a reliable current edition date",
+      "notes": "The current official XLSX contains ten source sections and 616 sector rows. Exact cross-sector repetitions are grouped into 332 source-backed observations; 20 identity groups carry distinct date/update variants and remain separate. One source listing date is malformed as 0702/2025: it is retained in provenance with a blank canonical listing date and is never repaired by inference. Raw identifiers that do not match canonical CF/PIVA lengths are preserved verbatim and are never padded or truncated."
+    },
+    {
+      "source_key": "arezzo-applicants",
+      "parser": "arezzo_applicants",
+      "authority_key": "arezzo",
+      "authority_name": "Prefettura di Arezzo",
+      "register_key": "arezzo-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_richiedenti_iscrizione_1.docx",
+      "sha256": "e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7",
+      "expected_source_rows": 32,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official attachment byte-verified on this date; the official page does not expose a reliable current edition date",
+      "notes": "The current official DOCX contains 32 applicant rows. Applicant membership is represented as pending without inferring a legal outcome. Repeated slash separators in otherwise explicit DD/MM/YYYY source dates are normalised without changing any digit and the raw source form remains in provenance. Raw non-canonical identifiers remain verbatim."
     }
   ]
 }
