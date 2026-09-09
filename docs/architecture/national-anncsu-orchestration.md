@@ -4,7 +4,7 @@ Status: implemented behind regression and multi-region live validation gates.
 
 ## Purpose
 
-The national White List archive must not treat address enrichment as one national geocoding request stream. ANNCSU publishes official bulk address datasets by region (with separate autonomous-province datasets for Bolzano and Trento). The archive therefore derives the smallest provider-input set required by the current, defensibly Italian canonical address population and processes those files locally.
+The national White List archive must not treat address enrichment as one national geocoding request stream. ANNCSU publishes official bulk address datasets by region. The official massive-download page exposes one indirizzario for each of the 20 Italian regions, including one `Trentino Alto Adige` regional dataset covering the region rather than separate Bolzano and Trento downloads. The archive therefore derives the smallest provider-input set required by the current, defensibly Italian canonical address population and processes those files locally.
 
 Public OSMF Nominatim is not part of recurring national bulk processing.
 
@@ -12,7 +12,7 @@ Public OSMF Nominatim is not part of recurring national bulk processing.
 
 `white-list-anncsu-national` starts from `core.address` and the current `geo.address_country_assessment` produced by the source-country routing layer.
 
-Only addresses whose current route is `italian_anncsu` are eligible. The versioned Istat municipality crosswalk is then used again to establish the exact municipality, region and, where necessary, autonomous-province scope. No fuzzy municipality inference is introduced by the orchestrator.
+Only addresses whose current route is `italian_anncsu` are eligible. The versioned Istat municipality crosswalk is then used again to establish the exact municipality and region. No fuzzy municipality inference is introduced by the orchestrator.
 
 For each exact municipality assignment the orchestrator chooses one ANNCSU bulk dataset. A plan contains:
 
@@ -53,7 +53,7 @@ The regional worker aborts if a planned address resolves outside the assigned re
 
 `geo.anncsu_region_run` records, per required provider dataset:
 
-- region and autonomous-province scope when applicable;
+- region;
 - ANNCSU dataset code, provider version and endpoint;
 - ZIP and CSV SHA-256;
 - whether provider bytes were acquired, reused or refreshed;
@@ -69,4 +69,4 @@ Unit and database tests cover the dataset map, fail-closed mapping, cache integr
 
 Production readiness additionally requires a live GitHub-hosted multi-region run using current SHA-pinned official White List sources. The gate must demonstrate at least two regions, reuse the same cached provider inputs on a second pass, add a new address without reprocessing the existing population, and verify the resulting provider-version/hash provenance in PostgreSQL.
 
-The regional dataset-code catalogue is also probed against the official ANNCSU endpoint in the live gate. A code is accepted only when the official endpoint returns a ZIP signature.
+The complete 20-region dataset-code catalogue is also probed against the official ANNCSU endpoint in the live gate. A code is accepted only when the official endpoint returns a ZIP signature.
