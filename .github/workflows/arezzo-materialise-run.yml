@@ -31,6 +31,11 @@ jobs:
               raise SystemExit('materialisation script start not found')
           body=workflow.split(start,1)[1].split(end,1)[0]
           exec(compile(textwrap.dedent(body), 'arezzo-materialisation', 'exec'))
+          for csv_path in [
+              Path('data/source_registry/verified_primary_pages.csv'),
+              Path('data/source_registry/source_series_inventory.csv'),
+          ]:
+              csv_path.write_bytes(csv_path.read_bytes().replace(b'\r\n', b'\n'))
           PY
       - name: Install system and publication dependencies
         run: |
