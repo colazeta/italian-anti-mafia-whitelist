@@ -128,7 +128,7 @@ def test_corrupt_recovery_copy_fails_before_clean_restore(tmp_path):
     assert not restore.exists()
 
 
-def test_existing_restore_path_is_never_overwritten(tmp_path):
+def test_existing_restore_path_fails_before_any_recovery_write(tmp_path):
     client = MemoryS3()
     store = EvidenceStore(client, RECOVERY)
     source = _source(tmp_path)
@@ -144,3 +144,4 @@ def test_existing_restore_path_is_never_overwritten(tmp_path):
             independence_evidence="reviewed-independence-record",
         )
     assert restore.read_bytes() == b"existing"
+    assert client.writes == 0
