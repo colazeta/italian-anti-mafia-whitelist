@@ -78,7 +78,7 @@
   ],
   "pages_artifact": {
     "workflow": ".github/workflows/public-pages.yml",
-    "path": "public-site/",
+    "path": "public-site",
     "classification": "deliberately_public_publication"
   }
 }
