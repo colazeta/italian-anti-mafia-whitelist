@@ -1,0 +1,72 @@
+name: Run corrected Arezzo materialisation
+
+on:
+  push:
+    branches:
+      - expansion/arezzo-2026-09-10
+    paths:
+      - .github/workflows/arezzo-materialise-run.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Execute audited materialisation script
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+          workflow=Path('.github/workflows/arezzo-source-audit.yml').read_text(encoding='utf-8')
+          start="          python - <<'PY'\n"
+          end='\n          PY\n'
+          if start not in workflow:
+              raise SystemExit('materialisation script start not found')
+          body=workflow.split(start,1)[1].split(end,1)[0]
+          exec(compile(textwrap.dedent(body), 'arezzo-materialisation', 'exec'))
+          PY
+      - name: Install project with publication dependencies
+        run: python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and validate expanded public registry
+        run: |
+          rm -rf /tmp/public-national-sources
+          white-list-public-national-build --source-config data/publication/multi_prefecture_pilot.json --verified-pages data/source_registry/verified_primary_pages.csv --source-series data/source_registry/source_series_inventory.csv --authority-aliases data/source_registry/national_index_authority_aliases.csv --work-dir /tmp/public-national-sources --registry-json /tmp/registry.json --registry-csv /tmp/registry.csv --prefectures-json /tmp/prefectures.json --prefectures-csv /tmp/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/registry.json').read_text())
+          pref=json.loads(Path('/tmp/prefectures.json').read_text())
+          ar=[r for r in reg['records'] if r['authority_key']=='arezzo']
+          assert reg['meta']['record_count']==6234,reg['meta']
+          assert reg['meta']['authority_count']==7,reg['meta']
+          assert reg['meta']['register_count']==8,reg['meta']
+          assert len(ar)==364
+          assert Counter(r['source_key'] for r in ar)=={'arezzo-listed':332,'arezzo-applicants':32}
+          assert Counter(r['source_status'] for r in ar)=={'listed':288,'renewal_update_in_progress':44,'pending':32}
+          malformed=[r for r in ar if '0702/2025' in str(r.get('source_fields',{}))]
+          assert len(malformed)==1 and malformed[0]['observed_listing_date']==''
+          assert pref['meta']['authority_count']==106
+          assert pref['meta']['mapped_count']==34
+          assert pref['meta']['published_count']==7
+          print('Expanded registry verified:',reg['meta'])
+          print('Arezzo statuses:',Counter(r['source_status'] for r in ar))
+          PY
+      - name: Commit verified non-workflow materialisation
+        run: |
+          git diff --check
+          git status --short
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/publishing/public_national_registry.py data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv data/source_registry/source_series_inventory.csv data/monitoring/national_coverage.json tests/public_portal_browser.cjs
+          git commit -m 'Publish verified Arezzo White List sources'
+          git push origin HEAD:expansion/arezzo-2026-09-10
