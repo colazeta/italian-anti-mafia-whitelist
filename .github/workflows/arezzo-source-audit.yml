@@ -1,0 +1,65 @@
+name: Audit current Arezzo White List attachments
+
+on:
+  push:
+    branches:
+      - expansion/arezzo-2026-09-10
+    paths:
+      - .github/workflows/arezzo-source-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Acquire official page and inspect current attachments
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib, io, re
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+          import pdfplumber
+
+          page='https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list'
+          headers={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          s=requests.Session()
+          r=s.get(page,headers=headers,timeout=40)
+          print('PAGE_STATUS',r.status_code,'BYTES',len(r.content))
+          r.raise_for_status()
+          soup=BeautifulSoup(r.text,'html.parser')
+          targets=[]
+          for a in soup.find_all('a',href=True):
+              text=' '.join(a.stripped_strings)
+              folded=text.casefold()
+              if 'elenco imprese iscritte' in folded or "elenco imprese richiedenti l'iscrizione" in folded:
+                  targets.append((text,urljoin(page,a['href'])))
+          print('TARGET_COUNT',len(targets))
+          for label,url in targets:
+              rr=s.get(url,headers=headers,timeout=60)
+              print('ATTACHMENT',label,'URL',url,'STATUS',rr.status_code,'BYTES',len(rr.content),'SHA256',hashlib.sha256(rr.content).hexdigest(),'CONTENT_TYPE',rr.headers.get('content-type'))
+              rr.raise_for_status()
+              if rr.content[:4] != b'%PDF':
+                  print('NOT_PDF_PREFIX',rr.content[:80]); continue
+              with pdfplumber.open(io.BytesIO(rr.content)) as pdf:
+                  print('PDF_PAGES',len(pdf.pages))
+                  for i,p in enumerate(pdf.pages[:3],1):
+                      tables=p.extract_tables() or []
+                      print('PAGE',i,'TABLES',len(tables))
+                      for ti,t in enumerate(tables[:2],1):
+                          print('TABLE',ti,'ROWS',len(t),'COLS_MAX',max((len(row or []) for row in t),default=0))
+                          for row in t[:8]:
+                              print('ROW',repr(row))
+                  text='\n'.join((p.extract_text() or '') for p in pdf.pages[:4])
+                  print('TEXT_HEAD',repr(text[:5000]))
+          PY
