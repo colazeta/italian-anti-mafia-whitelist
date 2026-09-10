@@ -1,0 +1,51 @@
+name: Diagnose Agrigento applicant gap neighbours
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-applicant-neighbour-diagnose.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Print page 5-6 office anchors
+        run: |
+          python - <<'PY'
+          import hashlib,tempfile
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          import pdfplumber
+          from white_list_archive.parsers.agrigento_positioned import _APPLICANT_BANDS,_main_table,_row_vertical_bounds,_values
+          url='https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf'
+          expected='cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9'
+          with urlopen(Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+Agrigento neighbours)'}),timeout=90) as r: body=r.read()
+          assert hashlib.sha256(body).hexdigest()==expected
+          with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/'a.pdf';p.write_bytes(body)
+            with pdfplumber.open(p) as pdf:
+              for pn in (5,6):
+                page=pdf.pages[pn-1]
+                words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=1,y_tolerance=2)
+                table=_main_table(page,page_number=pn,population='applicants')
+                print('PAGE',pn)
+                for ri,row in enumerate(table.rows):
+                  b=_row_vertical_bounds(row)
+                  if b is None: continue
+                  v=_values(words,_APPLICANT_BANDS,*b)
+                  if not v['name'] or 'ragione sociale' in v['name'].casefold() or not v['office']: continue
+                  print('ROW',ri,'B',tuple(round(x,2) for x in b),'NAME',repr(v['name']),'OFFICE',repr(v['office']),'ID',repr(v['identifier']),'ACT',repr(v['activity']),'DATE',repr(v['application']),'OUT',repr(v['outcome']))
+          PY
