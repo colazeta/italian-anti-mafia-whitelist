@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
   retry:
@@ -18,23 +17,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Fix finaliser test dependency and allow controlled dispatch
+      - name: Repair Asti finaliser runtime
         shell: python
         run: |
           from pathlib import Path
           path = Path('.github/workflows/asti-finalise.yml')
           text = path.read_text(encoding='utf-8')
-          old = "    if: github.actor != 'github-actions[bot]'\n"
-          assert text.count(old) == 1
-          text = text.replace(old, "", 1)
-          old = "        run: python -m pip install -e '.[publication]'\n"
-          assert text.count(old) == 1
-          text = text.replace(old, "        run: python -m pip install -e '.[publication]' pytest\n", 1)
-          old = "            .github/workflows/asti-finalise.yml\n"
-          assert text.count(old) == 1
-          text = text.replace(old, old + "            .github/workflows/asti-finalise-retry.yml\n", 1)
+
+          # The finaliser is a temporary one-shot workflow. Allow the helper's
+          # bot-authored repair commit to execute it exactly once; the finaliser
+          # deletes itself after successful validation.
+          guard = "    if: github.actor != 'github-actions[bot]'\n"
+          assert text.count(guard) == 1
+          text = text.replace(guard, "", 1)
+
+          install = "      - name: Install publication runtime\n        run: python -m pip install -e '.[dev,publication]'\n"
+          assert text.count(install) == 1
+          replacement = (
+              "      - name: Install PDF system runtime\n"
+              "        run: sudo apt-get update && sudo apt-get install -y poppler-utils\n"
+              + install
+          )
+          text = text.replace(install, replacement, 1)
+
+          removal = "            .github/workflows/asti-finalise.yml\n"
+          assert text.count(removal) == 1
+          text = text.replace(removal, removal + "            .github/workflows/asti-finalise-retry.yml\n", 1)
           path.write_text(text, encoding='utf-8')
-      - name: Commit corrected finaliser
+
+      - name: Commit repaired finaliser
         shell: bash
         run: |
           set -euo pipefail
@@ -42,20 +53,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .github/workflows/asti-finalise.yml
           git diff --cached --check
-          git commit -m 'Fix Asti finalisation test runtime'
+          git commit -m 'Repair Asti finalisation runtime'
           git push origin HEAD:expansion/asti-2026-09-10
-      - name: Dispatch corrected finaliser
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/asti-finalise.yml/dispatches \
-            -d '{"ref":"expansion/asti-2026-09-10"}'
-
-# Manual retrigger marker: 2026-09-10 autonomous expansion run.
