@@ -17,12 +17,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and inspect official Benevento White List resources
+      - name: Validate positioned row model against current official sources
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
           import hashlib,re,tempfile
-          from collections import Counter,defaultdict
+          from collections import Counter
           from pathlib import Path
           from urllib.parse import urljoin,urlparse
           import pdfplumber,requests
@@ -33,81 +33,72 @@ jobs:
             'listed':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte',
             'applicants':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti',
           }
+          def clean(s): return ' '.join(str(s or '').split())
+          def selected(words,x0,x1,y0,y1):
+              out=[]
+              for w in words:
+                  cx=(float(w['x0'])+float(w['x1']))/2; cy=(float(w['top'])+float(w['bottom']))/2
+                  if x0 <= cx < x1 and y0 <= cy < y1: out.append(w)
+              out.sort(key=lambda w:(round(float(w['top'])/2)*2,float(w['x0'])))
+              return clean(' '.join(str(w['text']) for w in out))
+          def bounds(anchors,height):
+              centres=[(float(a['top'])+float(a['bottom']))/2 for a in anchors]
+              result=[]
+              for i,c in enumerate(centres):
+                  top=(centres[i-1]+c)/2 if i else max(0,c-(centres[1]-c)/2 if len(centres)>1 else c-8)
+                  bot=(c+centres[i+1])/2 if i+1<len(centres) else min(height,c+(c-centres[i-1])/2 if i else c+8)
+                  result.append((top,bot))
+              return result
+
           s=requests.Session()
           for key,page_url in pages.items():
-              r=s.get(page_url,headers=H,timeout=45);r.raise_for_status()
-              soup=BeautifulSoup(r.text,'html.parser')
+              r=s.get(page_url,headers=H,timeout=45);r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser')
               links=[]
               for a in soup.find_all('a',href=True):
-                  label=' '.join(a.stripped_strings).strip()
-                  href=urljoin(page_url,a['href'])
-                  text=(label+' '+Path(urlparse(href).path).name).casefold()
+                  href=urljoin(page_url,a['href']); label=' '.join(a.stripped_strings).strip(); text=(label+' '+Path(urlparse(href).path).name).casefold()
                   if href.lower().endswith('.pdf') and ('elenco' in text or 'impre' in text): links.append((label,href))
-              print(f'{key.upper()}_CANDIDATES='+repr([(l,Path(urlparse(u).path).name) for l,u in links]))
-              if len(links)!=1: raise SystemExit(f'{key}: expected one official current PDF, got {links!r}')
-              label,url=links[0]
-              response=s.get(url,headers=H,timeout=90);response.raise_for_status();data=response.content
-              if not data.startswith(b'%PDF'): raise SystemExit(f'{key}: non-PDF resource')
-              print(f'{key.upper()}_LABEL={label}')
-              print(f'{key.upper()}_RESOURCE={url}')
-              print(f'{key.upper()}_SHA256={hashlib.sha256(data).hexdigest()}')
-              print(f'{key.upper()}_BYTES={len(data)}')
+              if len(links)!=1: raise SystemExit(f'{key}: expected one current PDF, got {links!r}')
+              label,url=links[0]; data=s.get(url,headers=H,timeout=90).content
+              print(f'{key.upper()}_LABEL={label}'); print(f'{key.upper()}_URL={url}'); print(f'{key.upper()}_SHA256={hashlib.sha256(data).hexdigest()}')
               with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
                   f.write(data);f.flush()
                   with pdfplumber.open(f.name) as pdf:
-                      print(f'{key.upper()}_PAGES={len(pdf.pages)}')
-                      widths=Counter(); sigs=Counter(); examples=defaultdict(list); text_lines=[]
-                      candidate_rows=[]; unmatched=[]; blank_anchor_rows=[]
-                      token_x=Counter(); date_x=Counter()
-                      for pno,p in enumerate(pdf.pages,1):
-                          txt=p.extract_text() or ''
-                          if pno<=2: text_lines.extend((pno,x) for x in txt.splitlines()[:20])
-                          words=p.extract_words(use_text_flow=False, keep_blank_chars=False)
-                          if pno == 1:
-                              head=[(w['text'],round(float(w['x0']),1),round(float(w['x1']),1),round(float(w['top']),1),round(float(w['bottom']),1)) for w in words if float(w['top']) < 125]
-                              print(f'{key.upper()}_POSITIONED_HEAD={head!r}')
-                          for w in words:
-                              text=re.sub(r'[^A-Za-z0-9]','',str(w['text']).upper())
-                              if re.fullmatch(r'[A-Z0-9]{9,16}',text) and any(c.isdigit() for c in text):
-                                  token_x[round(float(w['x0'])/5)*5]+=1
-                              if re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',str(w['text'])):
-                                  date_x[round(float(w['x0'])/5)*5]+=1
-                          if key=='applicants' and pno in {5,8,11,15,16}:
-                              anchors=[]
+                      rows=[]; per_page=[]; suspicious=[]
+                      for pno,page in enumerate(pdf.pages,1):
+                          words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=2,y_tolerance=3)
+                          anchors=[]
+                          if key=='listed':
                               for w in words:
-                                  raw=str(w['text'])
-                                  compact=re.sub(r'[^A-Za-z0-9]','',raw.upper())
-                                  if re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',raw) or (re.fullmatch(r'[A-Z0-9]{9,16}',compact) and any(c.isdigit() for c in compact)):
-                                      anchors.append((raw,round(float(w['x0']),1),round(float(w['x1']),1),round(float(w['top']),1),round(float(w['bottom']),1)))
-                              print(f'APPLICANTS_ANCHORS_PAGE_{pno}={anchors!r}')
-                          for tno,t in enumerate(p.extract_tables() or [],1):
-                              widths[max((len(row) for row in t if row),default=0)]+=1
-                              for raw in t:
-                                  row=[' '.join(str(c or '').split()) for c in raw]
-                                  if not any(row):continue
-                                  dates=tuple(i for i,v in enumerate(row) if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}',v or ''))
-                                  ids=tuple(i for i,v in enumerate(row) if re.fullmatch(r'(?:\d{11}|[A-Z0-9]{16})',re.sub(r'\s+','',(v or '').upper())))
-                                  sig=(len(row),dates,ids)
-                                  if dates or ids:
-                                      sigs[sig]+=1
-                                      if len(examples[sig])<2:examples[sig].append((pno,tno,row))
-                                      if not row[0]: blank_anchor_rows.append((pno,tno,row))
-                                  name=row[0] if row else ''
-                                  is_header=not name or 'ragione sociale' in name.casefold() or 'fornitori' in name.casefold()
-                                  if not is_header and len(row)>=(8 if key=='listed' else 6):
-                                      candidate_rows.append((pno,tno,row))
-                                      if not dates and not ids: unmatched.append((pno,tno,row))
-                      print(f'{key.upper()}_TOKEN_X={dict(sorted(token_x.items()))}')
-                      print(f'{key.upper()}_DATE_X={dict(sorted(date_x.items()))}')
-                      print(f'{key.upper()}_TABLE_WIDTHS={dict(sorted(widths.items()))}')
-                      print(f'{key.upper()}_ROW_SIGNATURES={dict(sigs)}')
-                      print(f'{key.upper()}_CANDIDATE_NAME_ROWS={len(candidate_rows)}')
-                      print(f'{key.upper()}_UNMATCHED_NAME_ROWS={len(unmatched)}')
-                      print(f'{key.upper()}_BLANK_ANCHOR_ROWS={len(blank_anchor_rows)}')
-                      for pno,tno,row in blank_anchor_rows[:20]:print(f'{key.upper()}_BLANK_ANCHOR page={pno} table={tno} cells={row!r}')
-                      for pno,tno,row in unmatched[:40]:print(f'{key.upper()}_UNMATCHED page={pno} table={tno} cells={row!r}')
-                      for sig,rows in sorted(examples.items(),key=lambda z:(-sigs[z[0]],z[0]))[:12]:
-                          print(f'{key.upper()}_SIGNATURE={sig} COUNT={sigs[sig]}')
-                          for pno,tno,row in rows:print(f'{key.upper()}_EXAMPLE page={pno} table={tno} cells={row!r}')
-                      print(f'{key.upper()}_TEXT_HEAD={text_lines!r}')
+                                  raw=str(w['text']); cx=float(w['x0'])
+                                  if 430 <= cx < 490 and re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',raw): anchors.append(w)
+                              cols={'name':(45,190),'office':(190,290),'secondary':(290,355),'identifier':(355,430),'first_date':(430,490),'expiry_raw':(490,545),'update':(545,665),'sections':(665,755)}
+                          else:
+                              for w in words:
+                                  raw=re.sub(r'[^A-Za-z0-9]','',str(w['text']).upper())
+                                  if 400 <= float(w['x0']) < 475 and re.fullmatch(r'[A-Z0-9]{9,16}',raw) and any(c.isdigit() for c in raw): anchors.append(w)
+                              cols={'name':(10,230),'office':(230,400),'identifier':(400,475),'activities':(475,725),'application_raw':(725,780),'outcome':(780,840)}
+                          anchors.sort(key=lambda w:float(w['top'])); per_page.append(len(anchors))
+                          for anchor,(y0,y1) in zip(anchors,bounds(anchors,float(page.height))):
+                              row={k:selected(words,*xr,y0,y1) for k,xr in cols.items()}; row['page']=pno; rows.append(row)
+                              required=['name','office','sections'] if key=='listed' else ['name','office','identifier','activities']
+                              if any(not row[x] for x in required): suspicious.append(row)
+                      print(f'{key.upper()}_PAGES={len(pdf.pages)}')
+                      print(f'{key.upper()}_POSITIONED_ROWS={len(rows)}')
+                      print(f'{key.upper()}_PER_PAGE={per_page!r}')
+                      if key=='listed':
+                          print('LISTED_MISSING='+repr({k:sum(not r[k] for r in rows) for k in ['name','office','secondary','identifier','expiry_raw','update','sections']}))
+                          bad_exp=[r for r in rows if not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',r['expiry_raw'])]
+                          print(f'LISTED_NONSTANDARD_EXPIRY={len(bad_exp)}')
+                          for r in bad_exp[:20]: print('LISTED_EXPIRY_RAW='+repr(r))
+                      else:
+                          print('APPLICANTS_MISSING='+repr({k:sum(not r[k] for r in rows) for k in ['name','office','identifier','activities','application_raw','outcome']}))
+                          bad_app=[r for r in rows if r['application_raw'] and not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',r['application_raw'])]
+                          print(f'APPLICANTS_NONSTANDARD_APPLICATION={len(bad_app)}')
+                          for r in bad_app[:20]: print('APPLICANTS_APPLICATION_RAW='+repr(r))
+                          outcomes=Counter(r['outcome'] for r in rows if r['outcome'])
+                          print('APPLICANTS_OUTCOMES='+repr(dict(outcomes)))
+                          for r in rows:
+                              if r['outcome']: print('APPLICANTS_OUTCOME_ROW='+repr(r))
+                      print(f'{key.upper()}_SUSPICIOUS_REQUIRED={len(suspicious)}')
+                      for r in suspicious[:30]: print(f'{key.upper()}_SUSPICIOUS='+repr(r))
           PY
