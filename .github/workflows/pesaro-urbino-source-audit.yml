@@ -17,11 +17,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and profile official current attachment
+      - name: Resolve and audit official current attachment
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
-          import hashlib, io, re
+          import collections, hashlib, io, re
           from urllib.parse import urljoin
           import requests, pdfplumber
           from bs4 import BeautifulSoup
@@ -29,34 +29,49 @@ jobs:
           page_url='https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte'
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
           s=requests.Session(); r=s.get(page_url,headers=H,timeout=45); r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser')
-          candidates=[]
+          exact=[]
           for a in soup.find_all('a',href=True):
               label=' '.join(a.stripped_strings).strip(); href=urljoin(page_url,a['href'])
-              if 'elenco imprese iscritte' in label.casefold() or '/sites/default/files/' in href:
-                  candidates.append((label,href))
-          exact=[x for x in candidates if 'aggiornamento 31.08.2026' in x[0].casefold()]
+              if 'aggiornamento 31.08.2026' in label.casefold(): exact.append((label,href))
           if len(exact)!=1: raise SystemExit(f'expected exactly one dated attachment, got {exact!r}')
           label,url=exact[0]; res=s.get(url,headers=H,timeout=90); res.raise_for_status(); data=res.content
           print('LABEL='+label); print('RESOURCE='+url); print('CONTENT_TYPE='+res.headers.get('content-type','')); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
           if not data.startswith(b'%PDF'): raise SystemExit('current attachment is not a PDF; fail closed')
+          rows=[]; page_counts=[]
           with pdfplumber.open(io.BytesIO(data)) as pdf:
-              print('PAGES='+str(len(pdf.pages)))
+              if len(pdf.pages)!=21: raise SystemExit(f'expected 21 pages, got {len(pdf.pages)}')
               for pno,page in enumerate(pdf.pages,1):
-                  if pno==1: print('PAGE_SIZE='+repr((page.width,page.height)))
                   tables=page.extract_tables()
-                  print(f'PAGE {pno} TABLES={len(tables)} ROWS='+repr([len(t or []) for t in tables]))
-                  if pno in (1,2,21):
-                      for ti,t in enumerate(tables):
-                          print(f'PAGE {pno} TABLE {ti} HEAD='+repr((t or [])[:6]))
-                  words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=2,y_tolerance=3)
-                  # identify x positions of known source headings and first data tokens.
-                  if pno<=2:
-                      lines={}
-                      for w in words:
-                          key=round(float(w['top'])/3)*3
-                          lines.setdefault(key,[]).append(w)
-                      for y,ws in sorted(lines.items()):
-                          text=' '.join(str(w['text']) for w in sorted(ws,key=lambda x:float(x['x0'])))
-                          if any(k in text for k in ['Ragione Sociale','24 S.R.L.','ALANUOVA','AG SCAVI','ALBA COSTRUZIONI']):
-                              print('LINE',pno,y,[(round(float(w['x0']),1),round(float(w['x1']),1),w['text']) for w in sorted(ws,key=lambda x:float(x['x0']))])
+                  matching=[t for t in tables if t and t[0] and (t[0][0] or '').replace('\n',' ')=='Ragione Sociale']
+                  if len(matching)!=1: raise SystemExit(f'page {pno}: expected one company table, got {len(matching)}')
+                  table=matching[0]
+                  data_rows=table[3:]
+                  page_counts.append(len(data_rows))
+                  for row in data_rows:
+                      if len(row)<9: raise SystemExit(f'page {pno}: short row {row!r}')
+                      rows.append((pno,row))
+          print('PAGE_COUNTS='+repr(page_counts)); print('TOTAL_ROWS='+str(len(rows)))
+          def clean(v): return ' '.join(str(v or '').split())
+          shape=collections.Counter(); id_shapes=collections.Counter(); missing=collections.Counter(); examples={}
+          date_re=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          for pno,row in rows:
+              name,office,ident,listed,expiry,_,_,sections,update=[clean(v) for v in row[:9]]
+              if not name: missing['name']+=1
+              if not office: missing['office']+=1
+              if not ident: missing['identifier']+=1
+              if not sections: missing['sections']+=1
+              compact=re.sub(r'\s+','',ident).upper()
+              id_shapes[f'{len(compact)}:'+('numeric' if compact.isdigit() else 'alnum')]+=1
+              key=('listed' if listed else '-')+(' expiry' if expiry else '')+(' X' if update.upper()=='X' else (' update' if update else ''))
+              shape[key]+=1; examples.setdefault(key,(pno,name,ident,listed,expiry,sections,update))
+              if listed and not date_re.fullmatch(listed): missing['invalid_listing_date']+=1
+              if expiry and not date_re.fullmatch(expiry): missing['invalid_expiry_date']+=1
+          print('ROW_SHAPES='+repr(shape)); print('ROW_SHAPE_EXAMPLES='+repr(examples)); print('ID_SHAPES='+repr(id_shapes)); print('MISSING='+repr(missing))
+          # Fail if any row has no explicit signal that can be represented without inventing a population state.
+          ambiguous=[]
+          for pno,row in rows:
+              name,office,ident,listed,expiry,_,_,sections,update=[clean(v) for v in row[:9]]
+              if not listed and not expiry and not update:
+                  ambiguous.append((pno,name,ident,sections))
+          print('NO_DATE_NO_UPDATE_COUNT='+str(len(ambiguous))); print('NO_DATE_NO_UPDATE_EXAMPLES='+repr(ambiguous[:20]))
           PY
