@@ -57,12 +57,12 @@ jobs:
               'sha256':expected,
           }
           batch=parse_belluno_combined(path,cfg)
-          assert len(batch.records)==402
-          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10})
-          assert batch.diagnostics['identifier_coverage']==388
-          assert batch.diagnostics['raw_identifier_only']==14
-          assert batch.diagnostics['malformed_application_dates']==1
-          assert batch.diagnostics['dropped_date_rows']==0
-          assert all(r['name'] for r in batch.records)
-          print(batch.diagnostics)
+          print(batch.diagnostics, flush=True)
+          assert len(batch.records)==402, batch.diagnostics
+          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10}), batch.diagnostics
+          assert batch.diagnostics['identifier_coverage']==388, batch.diagnostics
+          assert batch.diagnostics['raw_identifier_only']==14, batch.diagnostics
+          assert batch.diagnostics['malformed_application_dates']==1, batch.diagnostics
+          assert batch.diagnostics['dropped_date_rows']==0, batch.diagnostics
+          assert all(r['name'] for r in batch.records), batch.diagnostics
           PY
