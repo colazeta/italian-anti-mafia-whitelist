@@ -30,7 +30,7 @@ class _Layout:
 
 
 # Column boundaries are the stable ruling-line positions of the byte-pinned
-# 31 August 2026 Benevento PDFs.  The parser intentionally fails closed if a
+# 31 August 2026 Benevento PDFs. The parser intentionally fails closed if a
 # future edition changes page count or cannot produce the approved row count.
 _LISTED = _Layout(
     parser_name="benevento_listed",
@@ -226,7 +226,10 @@ def _positioned_rows(path: Path, layout: _Layout) -> tuple[list[dict[str, str]],
 
 
 def _validate_identity(rows: list[dict[str, str]], layout: _Layout) -> None:
-    essential = ("name", "office", "identifier")
+    # Source identifiers can legitimately be absent or malformed. The parser
+    # preserves the raw cell and never reconstructs an identifier. Name and
+    # registered office are the fail-closed row-identity requirements here.
+    essential = ("name", "office")
     missing = {field: sum(not _clean(row.get(field, "")) for row in rows) for field in essential}
     if any(missing.values()):
         raise RuntimeError(f"{layout.parser_name}: incomplete positioned source rows: {missing}")
@@ -258,7 +261,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 name=row["name"],
                 office=row["office"],
                 secondary=row.get("secondary", ""),
-                identifier_raw=row["identifier"],
+                identifier_raw=row.get("identifier", ""),
                 activities=_activities(row.get("activities", "")),
                 status="listed",
                 listing_date=row["listing_date"],
@@ -296,7 +299,7 @@ def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 ordinal,
                 name=row["name"],
                 office=row["office"],
-                identifier_raw=row["identifier"],
+                identifier_raw=row.get("identifier", ""),
                 activities=_activities(row.get("activities", "")),
                 status="pending",
                 application_date=row["application_date"],
