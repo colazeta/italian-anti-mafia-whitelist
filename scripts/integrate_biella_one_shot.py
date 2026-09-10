@@ -19,7 +19,7 @@ def read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
 
 def write_csv(path: Path, rows: list[dict[str, str]], fields: list[str]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
