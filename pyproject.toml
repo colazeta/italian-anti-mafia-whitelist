@@ -47,7 +47,7 @@ white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_b
 dev = ["pytest>=8", "pdfplumber>=0.11,<0.12", "openpyxl>=3.1,<4", "python-docx>=1.1,<2"]
 storage = ["boto3>=1.40,<2"]
 database = ["psycopg[binary]>=3.2"]
-publication = ["pytest>=8", "pdfplumber>=0.11,<0.12", "openpyxl>=3.1,<4", "python-docx>=1.1,<2", "boto3>=1.40,<2", "psycopg[binary]>=3.2"]
+publication = ["pdfplumber>=0.11,<0.12", "openpyxl>=3.1,<4", "python-docx>=1.1,<2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
