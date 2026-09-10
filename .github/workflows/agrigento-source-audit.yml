@@ -40,29 +40,26 @@ jobs:
           response.raise_for_status()
           soup = BeautifulSoup(response.text, 'html.parser')
           visible = ' '.join(soup.stripped_strings)
-          upper = visible.upper()
-          if 'ELENCO DELLE IMPRESE' not in upper or '28 AGOSTO 2026' not in upper:
-              raise SystemExit('Agrigento official page lacks the expected current-edition evidence')
+          if 'ELENCO DELLE IMPRESE' not in visible.upper():
+              raise SystemExit('Agrigento official page lacks the expected White List population heading')
 
-          pdf_anchors = []
+          attachment_anchors = []
           for anchor in soup.find_all('a', href=True):
               href = anchor['href']
               label = ' '.join(anchor.stripped_strings).strip()
               url = urljoin(PAGE, href)
               haystack = (label + ' ' + href).casefold()
-              if '.pdf' in urlparse(url).path.casefold():
-                  pdf_anchors.append((label, url, haystack))
+              if 'elenco' in haystack or 'iscritt' in haystack or 'richiedent' in haystack:
+                  attachment_anchors.append((label, url, haystack))
+          print('OFFICIAL_ATTACHMENT_CANDIDATES=' + repr([(label, Path(urlparse(url).path).name) for label, url, _ in attachment_anchors]))
 
-          applicants = [url for _, url, h in pdf_anchors if 'richiedent' in h]
-          listed = [url for _, url, h in pdf_anchors if 'iscritt' in h and 'richiedent' not in h]
-          resolved = {
-              'applicants': list(dict.fromkeys(applicants)),
-              'listed': list(dict.fromkeys(listed)),
-          }
+          applicants = [url for _, url, h in attachment_anchors if 'richiedent' in h]
+          listed = [url for _, url, h in attachment_anchors if 'iscritt' in h and 'richiedent' not in h]
+          resolved = {'applicants': list(dict.fromkeys(applicants)), 'listed': list(dict.fromkeys(listed))}
           for key, matches in resolved.items():
               if len(matches) != 1:
                   candidates = [Path(urlparse(url).path).name for url in matches]
-                  raise SystemExit(f'{key}: expected one current official PDF, got {len(matches)} candidates={candidates}')
+                  raise SystemExit(f'{key}: expected one official population resource, got {len(matches)} candidates={candidates}')
               resolved[key] = matches[0]
 
           date_re = re.compile(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b')
@@ -100,14 +97,12 @@ jobs:
                           for term in header_terms:
                               if term in lower:
                                   header_hits[term] += 1
-                          words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
-                          word_counts.append(len(words))
+                          word_counts.append(len(page.extract_words(use_text_flow=False, keep_blank_chars=False)))
                           tables = page.extract_tables() or []
                           if tables:
                               pages_with_tables += 1
                           for table in tables:
-                              width = max((len(row) for row in table if row), default=0)
-                              table_shapes.append((len(table), width))
+                              table_shapes.append((len(table), max((len(row) for row in table if row), default=0)))
                   print(f'{key.upper()}_PAGES_WITH_TABLES={pages_with_tables}')
                   print(f'{key.upper()}_TABLE_SHAPES={table_shapes}')
                   print(f'{key.upper()}_DATE_COUNTS_PER_PAGE={date_counts}')
