@@ -1,0 +1,114 @@
+name: Audit Agrigento White List sources
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-source-audit-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-source-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve and inspect official current publications
+        run: |
+          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib
+          import re
+          import tempfile
+          from collections import Counter
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list'
+          H = {'User-Agent': 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          session = requests.Session()
+          response = session.get(PAGE, headers=H, timeout=45)
+          response.raise_for_status()
+          soup = BeautifulSoup(response.text, 'html.parser')
+          visible = ' '.join(soup.stripped_strings)
+          if 'ELENCO DELLE IMPRESE' not in visible.upper():
+              raise SystemExit('Agrigento official page no longer exposes the expected White List heading')
+
+          selectors = {
+              'applicants': ('richiedent', '28-agosto-2026'),
+              'listed': ('iscritt', '28-agosto-2026'),
+          }
+          resolved = {}
+          for key, needles in selectors.items():
+              matches = []
+              for anchor in soup.find_all('a', href=True):
+                  label = ' '.join(anchor.stripped_strings).casefold()
+                  href = anchor['href']
+                  haystack = (label + ' ' + href.casefold())
+                  if href.casefold().endswith('.pdf') and all(needle in haystack for needle in needles):
+                      matches.append(urljoin(PAGE, href))
+              matches = list(dict.fromkeys(matches))
+              if len(matches) != 1:
+                  raise SystemExit(f'{key}: expected one dated current PDF, got {len(matches)}')
+              resolved[key] = matches[0]
+
+          date_re = re.compile(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b')
+          id11_re = re.compile(r'(?<!\d)\d{11}(?!\d)')
+          cf16_re = re.compile(r'\b[A-Z0-9]{16}\b')
+          header_terms = ('denominazione','ragione','codice fiscale','partita iva','sede','attivit','iscrizione','scadenza','richiesta','istanza','stato','sezione')
+
+          with tempfile.TemporaryDirectory() as td:
+              for key, url in resolved.items():
+                  r = session.get(url, headers=H, timeout=90)
+                  r.raise_for_status()
+                  body = r.content
+                  if not body.startswith(b'%PDF'):
+                      raise SystemExit(f'{key}: resolved resource is not a PDF')
+                  path = Path(td) / f'{key}.pdf'
+                  path.write_bytes(body)
+                  print(f'{key.upper()}_RESOURCE={url}')
+                  print(f'{key.upper()}_SHA256={hashlib.sha256(body).hexdigest()}')
+                  print(f'{key.upper()}_BYTES={len(body)}')
+                  table_shapes = []
+                  pages_with_tables = 0
+                  date_counts = []
+                  id11_counts = []
+                  cf16_counts = []
+                  header_hits = Counter()
+                  word_counts = []
+                  with pdfplumber.open(path) as pdf:
+                      print(f'{key.upper()}_PAGES={len(pdf.pages)}')
+                      for page in pdf.pages:
+                          text = page.extract_text() or ''
+                          lower = text.casefold()
+                          date_counts.append(len(date_re.findall(text)))
+                          id11_counts.append(len(id11_re.findall(text)))
+                          cf16_counts.append(len(cf16_re.findall(text.upper())))
+                          for term in header_terms:
+                              if term in lower:
+                                  header_hits[term] += 1
+                          words = page.extract_words(use_text_flow=False, keep_blank_chars=False)
+                          word_counts.append(len(words))
+                          tables = page.extract_tables() or []
+                          if tables:
+                              pages_with_tables += 1
+                          for table in tables:
+                              width = max((len(row) for row in table if row), default=0)
+                              table_shapes.append((len(table), width))
+                  print(f'{key.upper()}_PAGES_WITH_TABLES={pages_with_tables}')
+                  print(f'{key.upper()}_TABLE_SHAPES={table_shapes}')
+                  print(f'{key.upper()}_DATE_COUNTS_PER_PAGE={date_counts}')
+                  print(f'{key.upper()}_ID11_COUNTS_PER_PAGE={id11_counts}')
+                  print(f'{key.upper()}_CF16_COUNTS_PER_PAGE={cf16_counts}')
+                  print(f'{key.upper()}_WORD_COUNTS_PER_PAGE={word_counts}')
+                  print(f'{key.upper()}_HEADER_TERM_PAGE_COUNTS={dict(sorted(header_hits.items()))}')
+          PY
