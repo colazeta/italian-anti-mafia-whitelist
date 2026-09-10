@@ -37,6 +37,41 @@ jobs:
           done
           python -m pip install -e '.[publication]'
           python -m pip install pytest pyyaml
+      - name: Keep unreviewed raw notes outside the public contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          parser_path = Path('src/white_list_archive/parsers/avellino_positioned.py')
+          text = parser_path.read_text(encoding='utf-8')
+          listed_old = '''            source_fields={
+                "update_registration_raw": row["update"],
+                "notes_raw": row["notes"],
+                "source_page": int(row["source_page"]),
+            },
+'''
+          listed_new = '''            source_fields={},
+'''
+          applicant_old = '''                source_fields={"source_page": int(row["source_page"])},
+'''
+          applicant_new = '''                source_fields={},
+'''
+          if text.count(listed_old) != 1 or text.count(applicant_old) != 1:
+              raise SystemExit('Avellino source-field boundary changed unexpectedly')
+          text = text.replace(listed_old, listed_new, 1).replace(applicant_old, applicant_new, 1)
+          parser_path.write_text(text, encoding='utf-8')
+
+          test_path = Path('tests/test_avellino_parser_semantics.py')
+          tests = test_path.read_text(encoding='utf-8')
+          old = '    assert batch.records[0]["source_fields"]["update_registration_raw"] == "testo fonte non interpretato"\n'
+          new = (
+              '    assert batch.records[0]["outcome_raw"] == "testo fonte non interpretato"\n'
+              '    assert batch.records[0]["source_fields"] == {}\n'
+          )
+          if tests.count(old) != 1:
+              raise SystemExit('Avellino semantic-test boundary changed unexpectedly')
+          test_path.write_text(tests.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Reuse approved materialisation and validation scripts
         run: |
           python - <<'PY'
@@ -57,6 +92,18 @@ jobs:
               print(f'RUNNING_APPROVED_STEP {name}', flush=True)
               subprocess.run(['bash', '-c', 'set -euo pipefail\n' + scripts[name]], check=True)
           PY
+      - name: Reconcile public-boundary documentation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/sources/avellino-operational-check-2026-09-10.md')
+          text = path.read_text(encoding='utf-8')
+          old = 'All 383 rows retain name, raw identifier, registered office, activities, source expiry date, update field and source page. The page itself is explicitly the listed-company population; update/notes text is retained but is not used to infer a different legal status.'
+          new = 'All 383 rows retain the approved public fields: name, raw identifier, registered office, activities, source expiry date and the source update field as `outcome_raw`. Free-text notes and page-layout metadata remain outside the public contract. The page itself is explicitly the listed-company population; no free-text field is used to infer a different legal status.'
+          if text.count(old) != 1:
+              raise SystemExit('Avellino documentation boundary changed unexpectedly')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Commit only after complete validation
         run: |
           git rm .github/workflows/avellino-materialize.yml \
@@ -64,7 +111,9 @@ jobs:
                  .github/workflows/avellino-materialize-retry.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/publishing/public_national_registry.py \
+          git add src/white_list_archive/parsers/avellino_positioned.py \
+                  tests/test_avellino_parser_semantics.py \
+                  src/white_list_archive/publishing/public_national_registry.py \
                   data/publication/multi_prefecture_pilot.json \
                   data/source_registry/source_series_inventory.csv \
                   data/monitoring/national_coverage.json \
