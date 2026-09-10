@@ -41,6 +41,21 @@ def test_verified_primary_pages_reference_seeded_authorities():
     assert all(row["landing_url"].startswith("https://") for row in pages)
 
 
+def test_national_index_authority_aliases_reference_seeded_and_verified_catalog_keys():
+    authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
+    verified = {row["authority_key"] for row in _read_csv("verified_primary_pages.csv")}
+    aliases = _read_csv("national_index_authority_aliases.csv")
+
+    assert len({row["national_index_key"] for row in aliases}) == len(aliases)
+    assert all(row["national_index_key"] and row["catalog_authority_key"] and row["reason"] for row in aliases)
+    assert {row["catalog_authority_key"] for row in aliases} <= authorities
+    assert {row["catalog_authority_key"] for row in aliases} <= verified
+    assert any(
+        row["national_index_key"] == "pesaro-urbino" and row["catalog_authority_key"] == "pesaro-e-urbino"
+        for row in aliases
+    )
+
+
 def test_pilot_profiles_are_diverse_and_reference_verified_pages():
     verified = {row["authority_key"] for row in _read_csv("verified_primary_pages.csv")}
     profiles = _read_csv("pilot_source_profiles.csv")
