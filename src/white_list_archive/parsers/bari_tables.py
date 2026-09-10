@@ -10,7 +10,7 @@ import pdfplumber
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "2"
+PARSER_VERSION = "3"
 _REFERENCE_DATE = "2026-08-31"
 _LISTED_PAGE_COUNTS = [41, 36, 31, 35, 38, 32, 37, 36, 42, 38, 38, 38, 36, 39, 40, 34, 34, 36, 37, 41, 40, 41, 37, 41, 32, 39, 39, 38, 19]
 _APPLICANT_PAGE_COUNTS = [40, 44, 42, 46, 45, 44, 42, 46, 46, 46, 48, 49, 44, 23]
@@ -168,6 +168,31 @@ def _listed_status(row: list[str], *, page: int, row_number: int) -> str:
     raise RuntimeError(f"bari-listed: unreviewed source status at page {page} row {row_number}: {raw!r}")
 
 
+def _listed_source_fields(row: list[str], sections: list[str], listing: str, expiry: str) -> dict[str, Any]:
+    malformed: list[str] = []
+    if row[16] and not listing:
+        malformed.append(f"listing:{row[16]}")
+    if row[17] and not expiry:
+        malformed.append(f"expiry:{row[17]}")
+    return {
+        "sections": sections,
+        "listing_date_raw_variants": [row[16]] if row[16] else [],
+        "expiry_date_raw_variants": [row[17]] if row[17] else [],
+        "normalised_listing_date_variants": [listing] if listing else [],
+        "normalised_expiry_date_variants": [expiry] if expiry else [],
+        "date_conflict_fields": [],
+        "malformed_date_pairs": malformed,
+    }
+
+
+def _applicant_source_fields(row: list[str], sections: list[str], application: str) -> dict[str, Any]:
+    return {
+        "sections": sections,
+        "application_date_raw_variants": [row[16]] if row[16] else [],
+        "malformed_date_pairs": [f"application:{row[16]}"] if row[16] and not application else [],
+    }
+
+
 def parse_bari_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     rows = _company_rows(path, source_key=cfg["source_key"], page_counts=_LISTED_PAGE_COUNTS, width=20)
     records: list[dict[str, Any]] = []
@@ -176,7 +201,7 @@ def parse_bari_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         name = _clean(row[0])
         if not name:
             raise RuntimeError(f"{cfg['source_key']}: unresolved legal name at page {page} row {row_number}")
-        sections, sector_markers = _sections(row, source_key=cfg["source_key"], page=page, row_number=row_number)
+        sections, _sector_markers = _sections(row, source_key=cfg["source_key"], page=page, row_number=row_number)
         listing = _source_date(row[16], allowlist=_BAD_LISTED_DATES, source_key=cfg["source_key"], page=page, row=row_number)
         expiry = _source_date(row[17], allowlist=_BAD_LISTED_DATES, source_key=cfg["source_key"], page=page, row=row_number)
         status = _listed_status(row, page=page, row_number=row_number)
@@ -192,18 +217,7 @@ def parse_bari_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             listing_date=listing,
             expiry_date=expiry,
             primary_date_label="Data iscrizione",
-            source_fields={
-                "source_page": page,
-                "source_page_row": row_number,
-                "registered_office_municipality": row[1],
-                "stable_representation_in_italy_raw": row[3],
-                "sector_markers_raw": sector_markers,
-                "listing_date_raw": row[16],
-                "expiry_date_raw": row[17],
-                "permanence_raw": row[18],
-                "status_raw": row[19],
-                "row_repaired_from_pdf_geometry": row != raw_row,
-            },
+            source_fields=_listed_source_fields(row, sections, listing, expiry),
         )
         record["identifiers"] = _strict_identifiers(row[4])
         records.append(record)
@@ -232,7 +246,7 @@ def parse_bari_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise RuntimeError(f"{cfg['source_key']}: unresolved legal name at page {page} row {row_number}")
         if _clean(row[17]).casefold() != "in istruttoria":
             raise RuntimeError(f"{cfg['source_key']}: unreviewed applicant status at page {page} row {row_number}: {row[17]!r}")
-        sections, sector_markers = _sections(row, source_key=cfg["source_key"], page=page, row_number=row_number)
+        sections, _sector_markers = _sections(row, source_key=cfg["source_key"], page=page, row_number=row_number)
         application = _source_date(row[16], allowlist=_BAD_APPLICANT_DATES, source_key=cfg["source_key"], page=page, row=row_number)
         record = _record(
             cfg,
@@ -245,30 +259,23 @@ def parse_bari_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             outcome_raw=row[17],
             application_date=application,
             primary_date_label="Data presentazione istanza",
-            source_fields={
-                "source_page": page,
-                "source_page_row": row_number,
-                "registered_office_municipality": row[1],
-                "stable_representation_in_italy_raw": row[3],
-                "sector_markers_raw": sector_markers,
-                "application_date_raw": row[16],
-                "status_raw": row[17],
-                "row_repaired_from_pdf_geometry": row != raw_row,
-                "legal_name_unrecoverable_in_source_extraction": (page, row_number) == (1, 1),
-                "sector_unmarked_in_source": (cfg["source_key"], page, row_number) in _EMPTY_SECTOR_ROWS,
-            },
+            source_fields=_applicant_source_fields(row, sections, application),
         )
         record["identifiers"] = _strict_identifiers(row[4])
         records.append(record)
     statuses = Counter(record["source_status"] for record in records)
     if statuses != Counter({"pending": 605}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed applicant denominator drift: {dict(statuses)}")
+    blank_section_rows = sum(not record["requested_activities"] for record in records)
+    if blank_section_rows != 1:
+        raise RuntimeError(f"{cfg['source_key']}: reviewed sectorless-row denominator drift: {blank_section_rows}")
     return ParsedBatch(records, {
         "parser": "bari_applicants",
         "public_records": len(records),
         "status_counts": dict(statuses),
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "identifier_raw_coverage": sum(bool(record["identifier_field_raw"]) for record in records),
+        "blank_section_rows": blank_section_rows,
         "dropped_date_rows": 0,
     })
 
