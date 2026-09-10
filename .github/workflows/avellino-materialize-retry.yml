@@ -89,9 +89,9 @@ jobs:
           PY
       - name: Commit only after complete validation
         run: |
-          git rm .github/workflows/avellino-materialize.yml \
-                 .github/workflows/avellino-parser-validation.yml \
-                 .github/workflows/avellino-materialize-retry.yml
+          git rm -f .github/workflows/avellino-materialize.yml \
+                    .github/workflows/avellino-parser-validation.yml \
+                    .github/workflows/avellino-materialize-retry.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/white_list_archive/parsers/avellino_positioned.py \
