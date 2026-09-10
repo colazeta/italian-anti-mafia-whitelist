@@ -361,6 +361,41 @@
       "last_source_update": "2026-09-01",
       "last_source_update_basis": "official page update and dated attachment label",
       "notes": "The official source explicitly identifies companies requesting enrolment at 31 August 2026. Position-aware recovery yields 204 complete name/office/activity observations from primary application-date anchors inside the ruled table, preventing distinct visual rows from being collapsed by generic extraction. Applicant rows are published as pending only; no legal or procedural outcome is inferred from blank or free-text cells. One source row has an empty raw identifier and other non-canonical identifiers remain unmodified."
+    },
+    {
+      "authority_key": "asti",
+      "authority_name": "Prefettura di Asti",
+      "register_key": "asti-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-03",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali",
+      "last_source_update": "2026-08-03",
+      "last_source_update_basis": "explicit current-edition attachment labels and page update timestamp on the official Prefecture page",
+      "source_key": "asti-listed",
+      "parser": "asti_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf",
+      "sha256": "8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128",
+      "expected_sector_rows": 521,
+      "expected_source_rows": 284,
+      "notes": "Sections I-X parsed from ruled-table geometry and exact primary-date positions. Only rows sharing the same cleaned identity, dates, raw update text and source status are grouped. CEIT SRL with no listing date and explicit 'In istruttoria' remains pending; malformed expiry values remain raw."
+    },
+    {
+      "authority_key": "asti",
+      "authority_name": "Prefettura di Asti",
+      "register_key": "asti-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-03",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali",
+      "last_source_update": "2026-08-03",
+      "last_source_update_basis": "explicit current-edition attachment labels and page update timestamp on the official Prefecture page",
+      "source_key": "asti-applicants",
+      "parser": "asti_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf",
+      "sha256": "ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5",
+      "expected_source_rows": 17,
+      "notes": "17 official applicant observations. Two blank application dates remain blank; the ten-digit JOKKO identifier remains raw. 'Iscritta' maps only to observed listed, 'In istruttoria' to pending, and 'Non iscritta' to other/unknown without inferring rejection or cancellation."
     }
   ]
 }
