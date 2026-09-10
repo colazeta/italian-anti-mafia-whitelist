@@ -32,15 +32,19 @@ jobs:
           lines = text[start:end].splitlines()
           code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
           exec(compile(code, str(workflow), 'exec'), {})
-          # The extracted transformation removes the source-audit workflow. Remove this
-          # one-shot recovery workflow too so neither becomes permanent project surface.
-          Path('.github/workflows/pesaro-integration-recovery.yml').unlink()
           PY
           sed -i 's/\r$//' \
             data/source_registry/verified_primary_pages.csv \
             data/source_registry/source_series_inventory.csv \
             data/source_registry/parser_families.csv \
             data/source_registry/parser_bindings.csv
+          # The branch GITHUB_TOKEN cannot update workflow files. Keep all workflow
+          # edits outside this runner commit; they are reconciled separately through
+          # the authenticated repository connector after the data/code commit lands.
+          git checkout HEAD -- \
+            .github/workflows/public-pages.yml \
+            .github/workflows/pesaro-urbino-source-audit.yml \
+            .github/workflows/pesaro-integration-recovery.yml
       - name: Commit recovered integration
         run: |
           git config user.name 'colazeta'
