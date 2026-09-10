@@ -23,6 +23,7 @@ from white_list_archive.parsers.avellino_positioned import PARSERS as AVELLINO_P
 from white_list_archive.parsers.pesaro_urbino_combined import PARSERS as PESARO_PARSERS
 from white_list_archive.parsers.biella_html import PARSERS as BIELLA_PARSERS
 from white_list_archive.parsers.benevento_positioned import PARSERS as BENEVENTO_PARSERS
+from white_list_archive.parsers.asti_positioned import PARSERS as ASTI_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -150,6 +151,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or PESARO_PARSERS.get(cfg["parser"])
         or BIELLA_PARSERS.get(cfg["parser"])
         or BENEVENTO_PARSERS.get(cfg["parser"])
+        or ASTI_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
