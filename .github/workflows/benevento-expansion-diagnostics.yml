@@ -66,6 +66,12 @@ jobs:
                   raise SystemExit(f'{label}: expected exactly one current PDF')
               return candidates[0][0]
 
+          def date_tokens(text):
+              return re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b', text)
+
+          def id_tokens(text):
+              return re.findall(r'\b(?:\d{11}|[A-Z0-9]{16})\b', text.upper())
+
           for label,page_url in pages.items():
               resource=resolve(label,page_url)
               data=get(resource); path=Path(f'/tmp/benevento-{label}.pdf'); path.write_bytes(data)
@@ -74,42 +80,80 @@ jobs:
               with pdfplumber.open(path) as pdf:
                   print(label, 'pages', len(pdf.pages), 'page_sizes', Counter((round(p.width),round(p.height)) for p in pdf.pages))
                   table_counts=[]; row_shapes=Counter(); date_rows=0; multi_id_rows=0; no_date_rows=0
-                  word_x=[]
+                  multiline_signatures=Counter(); id_cell_signatures=Counter(); date_cell_signatures=Counter()
+                  word_date_x=[]; word_id_x=[]; small_number_x=[]
+                  page_table_rows=[]; page_date_anchor_counts=[]; page_id_anchor_counts=[]
                   for p in pdf.pages:
                       tables=p.extract_tables() or []; table_counts.append(len(tables))
+                      table_row_count=0
                       for table in tables:
                           for row in table:
-                              cells=[' '.join(str(c or '').split()) for c in row]
+                              table_row_count += 1
+                              raw=[str(c or '') for c in row]
+                              cells=[' '.join(c.split()) for c in raw]
                               row_shapes[len(cells)] += 1
                               joined=' | '.join(cells)
-                              dates=re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b', joined)
-                              ids=re.findall(r'\b(?:\d{11}|[A-Z0-9]{16})\b', joined.upper())
+                              dates=date_tokens(joined); ids=id_tokens(joined)
                               if dates: date_rows += 1
                               else: no_date_rows += 1
                               if len(ids)>1: multi_id_rows += 1
+                              multiline_signatures[tuple(c.count('\n') + 1 if c else 0 for c in raw)] += 1
+                              id_cell_signatures[tuple(len(id_tokens(c)) for c in raw)] += 1
+                              date_cell_signatures[tuple(len(date_tokens(c)) for c in raw)] += 1
+                      page_table_rows.append(table_row_count)
                       words=p.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                      date_anchors=0; id_anchors=0
                       for w in words:
-                          t=w['text']
-                          if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{4}',t): word_x.append(round(float(w['x0']),1))
+                          t=w['text']; x=float(w['x0'])
+                          if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{4}',t):
+                              word_date_x.append(round(x,1))
+                              if (label=='listed' and 420 <= x <= 570) or (label=='applicant' and 680 <= x <= 810): date_anchors += 1
+                          if re.fullmatch(r'(?:\d{11}|[A-Z0-9]{16})',t.upper()):
+                              word_id_x.append(round(x,1)); id_anchors += 1
+                          if re.fullmatch(r'\d{1,3}[.)]?', t): small_number_x.append(round(x,1))
+                      page_date_anchor_counts.append(date_anchors)
+                      page_id_anchor_counts.append(id_anchors)
                   print(label, 'tables_per_page', Counter(table_counts), 'row_shapes', dict(row_shapes))
+                  print(label, 'page_table_rows', page_table_rows)
                   print(label, 'table_date_rows', date_rows, 'table_no_date_rows', no_date_rows, 'table_multi_identifier_rows', multi_id_rows)
-                  bins=Counter(round(x/20)*20 for x in word_x)
-                  print(label, 'date_word_x_bins', bins.most_common(12))
-                  # Position diagnostics only: counts of visual lines and structural anomalies, never company row contents.
-                  visual_lines=0; lines_multi_date=0; lines_multi_id=0
+                  print(label, 'top_multiline_signatures', multiline_signatures.most_common(12))
+                  print(label, 'top_id_cell_signatures', id_cell_signatures.most_common(12))
+                  print(label, 'top_date_cell_signatures', date_cell_signatures.most_common(12))
+                  print(label, 'date_word_x_bins', Counter(round(x/10)*10 for x in word_date_x).most_common(20))
+                  print(label, 'id_word_x_bins', Counter(round(x/10)*10 for x in word_id_x).most_common(20))
+                  print(label, 'small_number_x_bins', Counter(round(x/10)*10 for x in small_number_x).most_common(20))
+                  print(label, 'page_date_anchor_counts', page_date_anchor_counts)
+                  print(label, 'page_id_anchor_counts', page_id_anchor_counts)
+                  # Structural line diagnostics only; no row-level source content is emitted.
+                  visual_lines=0; lines_multi_date=0; lines_multi_id=0; y_gap_bins=Counter()
                   for p in pdf.pages:
                       words=p.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
                       lines={}
                       for w in words:
                           y=round(float(w['top'])/2)*2
                           lines.setdefault(y,[]).append(w)
-                      for ws in lines.values():
+                      candidate_ys=[]
+                      for y,ws in lines.items():
                           txt=' '.join(w['text'] for w in sorted(ws,key=lambda z:float(z['x0'])))
-                          ids=re.findall(r'\b(?:\d{11}|[A-Z0-9]{16})\b',txt.upper())
-                          dates=re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b',txt)
+                          ids=id_tokens(txt); dates=date_tokens(txt)
                           if ids or dates:
-                              visual_lines += 1
+                              visual_lines += 1; candidate_ys.append(y)
                               lines_multi_id += len(ids)>1
                               lines_multi_date += len(dates)>2
+                      for a,b in zip(candidate_ys,candidate_ys[1:]): y_gap_bins[round(b-a)] += 1
                   print(label, 'structural_visual_lines', visual_lines, 'visual_lines_multi_id', lines_multi_id, 'visual_lines_gt2_dates', lines_multi_date)
+                  print(label, 'candidate_y_gap_bins', y_gap_bins.most_common(20))
+                  # Header semantics only, stripped of all digits, to guide a fail-closed column map.
+                  first_tables=pdf.pages[0].extract_tables() or []
+                  header_signatures=[]
+                  for table in first_tables:
+                      for row in table[:4]:
+                          sig=[]
+                          for cell in row:
+                              text=' '.join(str(cell or '').split())
+                              folded=text.casefold()
+                              terms=[term for term in ('ragione','denominazione','sede','codice','partita','sezione','settore','iscrizione','scadenza','istanza','data','stato','note') if term in folded]
+                              sig.append('+'.join(terms) if terms else ('TEXT' if text and not re.search(r'\d',text) else 'DATA'))
+                          header_signatures.append(tuple(sig))
+                  print(label, 'first_page_semantic_signatures', header_signatures)
           PY
