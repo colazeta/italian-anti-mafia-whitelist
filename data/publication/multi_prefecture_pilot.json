@@ -502,6 +502,40 @@
       "last_source_update": "2026-09-07",
       "last_source_update_basis": "official page 'Ultimo aggiornamento' and repeated in-document marker Agg. al 07/09/2026",
       "notes": "The official current page exposes one combined attachment explicitly covering both registered companies and companies requesting registration. The 23-page byte-pinned PDF contains 577 logical source rows. Status is derived only from source-positive fields: direct listing-date pairs, exact Richiesto rinnovo markers, or application-only dates in the explicitly combined population. Four malformed source date tokens are preserved verbatim but never repaired; one row without a status signal remains other_or_unknown."
+    },
+    {
+      "source_key": "bari-listed",
+      "parser": "bari_listed",
+      "authority_key": "bari",
+      "authority_name": "Prefettura di Bari",
+      "register_key": "bari-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-societa-iscritte_permanenza_31-08-2026.pdf",
+      "sha256": "a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9",
+      "expected_source_rows": 1065,
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "explicit current official attachment label",
+      "notes": "Current byte-pinned listed/permanence population; reviewed denominator 1,065. Source anomalies remain uncorrected and are documented in docs/sources/bari-operational-check-2026-09-10.md."
+    },
+    {
+      "source_key": "bari-applicants",
+      "parser": "bari_applicants",
+      "authority_key": "bari",
+      "authority_name": "Prefettura di Bari",
+      "register_key": "bari-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-richieste-iscrizione_31-08-2026.pdf",
+      "sha256": "9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d",
+      "expected_source_rows": 605,
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "explicit current official attachment label",
+      "notes": "Current byte-pinned applicant population; all 605 reviewed observations are explicitly in istruttoria. One reviewed source row has no sector marker and is preserved without sector inference."
     }
   ]
 }

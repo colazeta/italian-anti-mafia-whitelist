@@ -159,8 +159,11 @@ def test_verified_storage_requires_evidence_and_does_not_authorise_publication(l
 
 
 def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):
+    authority_key = "barletta-andria-trani"
+    row = next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)
+    assert row["last_successful_source_check_at"] is None
     for assessment in [None, {}, {**ASSESSMENT, "listed_and_applicant_accounted_for": False}]:
         with pytest.raises(ValueError, match="complete source assessment"):
-            record_check(ledger, "bari", at="2026-09-09T12:00:00Z", evidence="HTTP 200 only",
+            record_check(ledger, authority_key, at="2026-09-09T12:00:00Z", evidence="HTTP 200 only",
                          content_sha256=["d" * 64], assessment=assessment)
-    assert next(r for r in ledger["prefectures"] if r["authority_key"] == "bari")["last_successful_source_check_at"] is None
+    assert next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)["last_successful_source_check_at"] is None

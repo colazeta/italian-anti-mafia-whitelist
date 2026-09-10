@@ -411,37 +411,49 @@
       "national_index_key": "bari",
       "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list",
       "source_verified": true,
-      "current_edition_identified": null,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": null,
+      "latest_source_reference_date": "2026-08-31",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": "2026-09-08T19:46:34Z",
+      "last_successful_source_check_at": "2026-09-10T19:48:19Z",
+      "last_attempted_source_check_at": "2026-09-10T19:48:19Z",
       "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-06",
-      "monitoring_status": "CHECK_FAILED",
-      "unresolved_issue": [],
+      "last_successful_investigation_on": "2026-09-10",
+      "monitoring_status": "CURRENT",
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/bari-operational-check-2026-09-10.md",
+        "src/white_list_archive/parsers/bari_tables.py",
+        "tests/test_bari_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9",
+        "9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d"
+      ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
-        "docs/sources/bari-operational-check-2026-09-08.md",
-        "docs/sources/source-population-resolution-2026-09-09.md"
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/bari-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_status": "SOURCE_IDENTIFIED"
+      "last_completed_coverage_status": "SOURCE_IDENTIFIED",
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "barletta-andria-trani",
