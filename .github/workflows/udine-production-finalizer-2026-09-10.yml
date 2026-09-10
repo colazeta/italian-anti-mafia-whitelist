@@ -1,0 +1,223 @@
+name: Udine production finalizer 2026-09-10
+
+on:
+  push:
+    branches: [expansion/udine-2026-09-10]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Prepare Udine production integration'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/udine-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install complete validation runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install -e '.[dev,publication,database,storage]'
+          python -m pip install -q beautifulsoup4 requests
+      - name: Re-verify official sources and materialize Udine production metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, hashlib, json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list'
+          LISTED_URL='https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf'
+          APPLICANT_URL='https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf'
+          LISTED_SHA='0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba'
+          APPLICANT_SHA='4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971'
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; udine-source-verification)'}
+          session=requests.Session()
+          landing=session.get(PAGE,headers=H,timeout=45); landing.raise_for_status()
+          soup=BeautifulSoup(landing.text,'html.parser')
+          links={urljoin(PAGE,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
+          listed_label=links.get(LISTED_URL,''); applicant_label=links.get(APPLICANT_URL,'')
+          assert LISTED_URL in links and 'iscritte' in listed_label.casefold() and '09/09/2026' in listed_label, listed_label
+          assert APPLICANT_URL in links and ('chiesto' in applicant_label.casefold() or 'richied' in applicant_label.casefold()) and '09/09/2026' in applicant_label, applicant_label
+          for key,url,expected in [('listed',LISTED_URL,LISTED_SHA),('applicants',APPLICANT_URL,APPLICANT_SHA)]:
+              response=session.get(url,headers=H,timeout=90); response.raise_for_status(); body=response.content
+              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(key,observed)
+              Path('/tmp',f'udine-{key}.pdf').write_bytes(body)
+          print('Udine official sources verified:', listed_label, applicant_label)
+
+          registry_path=Path('src/white_list_archive/publishing/public_national_registry.py')
+          text=registry_path.read_text()
+          import_anchor='from white_list_archive.parsers.bari_tables import PARSERS as BARI_PARSERS\n'
+          dispatch_anchor='        or BARI_PARSERS.get(cfg["parser"])\n'
+          assert import_anchor in text and dispatch_anchor in text
+          if 'UDINE_PARSERS' not in text:
+              text=text.replace(import_anchor,import_anchor+'from white_list_archive.parsers.udine_positioned import PARSERS as UDINE_PARSERS\n')
+              text=text.replace(dispatch_anchor,dispatch_anchor+'        or UDINE_PARSERS.get(cfg["parser"])\n')
+          registry_path.write_text(text)
+
+          cfg_path=Path('data/publication/multi_prefecture_pilot.json')
+          cfg=json.loads(cfg_path.read_text())
+          assert not [x for x in cfg['sources'] if x['source_key'] in {'udine-listed','udine-applicants'}]
+          cfg['sources'].extend([
+            {
+              'source_key':'udine-listed','parser':'udine_positioned_listed','authority_key':'udine','authority_name':'Prefettura di Udine',
+              'register_key':'udine-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-09-09',
+              'source_page_url':PAGE,'resource_url':LISTED_URL,'sha256':LISTED_SHA,'expected_source_rows':1431,
+              'last_source_update':'2026-09-09','last_source_update_basis':'current official attachment label updated 09/09/2026',
+              'notes':'Current byte-pinned registered-company population. Borderless geometry is parsed with frozen page denominators and ten reviewed section transitions; exact anomalies and conservative treatment are documented in docs/sources/udine-operational-check-2026-09-10.md.'
+            },
+            {
+              'source_key':'udine-applicants','parser':'udine_positioned_applicants','authority_key':'udine','authority_name':'Prefettura di Udine',
+              'register_key':'udine-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-09-09',
+              'source_page_url':PAGE,'resource_url':APPLICANT_URL,'sha256':APPLICANT_SHA,'expected_source_rows':19,
+              'last_source_update':'2026-09-09','last_source_update_basis':'current official attachment label updated 09/09/2026',
+              'notes':'Current byte-pinned requesting-company population. The official document positively identifies the applicant population; all 19 observations map to pending. Exact page-boundary repair is documented in docs/sources/udine-operational-check-2026-09-10.md.'
+            }
+          ])
+          cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n')
+
+          series_path=Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(newline='',encoding='utf-8') as f:
+              reader=csv.DictReader(f); fields=reader.fieldnames; rows=list(reader)
+          assert fields
+          replacements={
+            'udine-listed': {'source_series_key':'udine-listed','authority_key':'udine','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':PAGE,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-10','notes':'Current official landing page re-verified 10 September 2026; registered-company PDF explicitly labelled updated 09/09/2026. Exact byte identity, 1,431-row denominator, section transitions and extraction exceptions are documented in docs/sources/udine-operational-check-2026-09-10.md.'},
+            'udine-applicants': {'source_series_key':'udine-applicants','authority_key':'udine','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':PAGE,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-10','notes':'Current official landing page re-verified 10 September 2026; requesting-company PDF explicitly labelled updated 09/09/2026 and positively defines the applicant population. Exact byte identity and 19-row parser boundary are documented in docs/sources/udine-operational-check-2026-09-10.md.'}
+          }
+          seen=set()
+          for i,row in enumerate(rows):
+              key=row['source_series_key']
+              if key in replacements:
+                  rows[i]={field:replacements[key].get(field,'') for field in fields}; seen.add(key)
+          assert seen==set(replacements),seen
+          with series_path.open('w',newline='',encoding='utf-8') as f:
+              writer=csv.DictWriter(f,fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+
+          pages_path=Path('data/source_registry/verified_primary_pages.csv')
+          with pages_path.open(newline='',encoding='utf-8') as f:
+              reader=csv.DictReader(f); page_fields=reader.fieldnames; pages=list(reader)
+          matched=False
+          for row in pages:
+              if row['authority_key']=='udine':
+                  row.update({'landing_url':PAGE,'verification_date':'2026-09-10','verification_status':'verified'}); matched=True
+          assert matched
+          with pages_path.open('w',newline='',encoding='utf-8') as f:
+              writer=csv.DictWriter(f,fieldnames=page_fields); writer.writeheader(); writer.writerows(pages)
+
+          coverage_path=Path('data/monitoring/national_coverage.json')
+          coverage=json.loads(coverage_path.read_text())
+          udine=next(x for x in coverage['prefectures'] if x['authority_key']=='udine')
+          now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
+          udine.update({
+              'official_landing_page':PAGE,'source_verified':True,'current_edition_identified':True,
+              'capture_implemented':True,'parser_implemented':True,'parser_validated':True,
+              'company_observations_loaded':True,'observation_layer':'public_source_observations',
+              'canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,
+              'population_scopes_complete':True,'latest_source_reference_date':'2026-09-09',
+              'last_successful_source_check_at':now,'last_attempted_source_check_at':now,
+              'last_successful_investigation_on':'2026-09-10','monitoring_status':'CURRENT',
+              'unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
+              'completion_evidence':['docs/sources/udine-operational-check-2026-09-10.md','src/white_list_archive/parsers/udine_positioned.py','tests/test_udine_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+              'known_content_sha256':[LISTED_SHA,APPLICANT_SHA],
+              'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/udine-operational-check-2026-09-10.md'],
+              'last_completed_coverage_stage':'VALIDATED'
+          })
+          coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n')
+
+          pages_workflow=Path('.github/workflows/public-pages.yml')
+          text=pages_workflow.read_text()
+          parser_path="      - 'src/white_list_archive/parsers/udine_positioned.py'\n"
+          if parser_path not in text:
+              text=text.replace("      - 'src/white_list_archive/parsers/bari_tables.py'\n", "      - 'src/white_list_archive/parsers/bari_tables.py'\n"+parser_path)
+          text=text.replace("assert reg['meta']['record_count'] == 13233", "assert reg['meta']['record_count'] == 14683")
+          text=text.replace("'ancona','bari'}", "'ancona','bari','udine'}")
+          text=text.replace("'ancona-ordinary','bari-ordinary'", "'ancona-ordinary','bari-ordinary','udine-ordinary'")
+          text=text.replace("assert reg['meta']['authority_count'] == 17", "assert reg['meta']['authority_count'] == 18")
+          text=text.replace("assert reg['meta']['register_count'] == 18", "assert reg['meta']['register_count'] == 19")
+          text=text.replace("assert pref['meta']['published_count'] == 17", "assert pref['meta']['published_count'] == 18")
+          bari_assert="          assert len(bari) == 1 and bari[0]['mapped'] and bari[0]['published']\n"
+          udine_assert="          udine = [x for x in pref['prefectures'] if x['authority_key'] == 'udine']\n          assert len(udine) == 1 and udine[0]['mapped'] and udine[0]['published']\n"
+          assert bari_assert in text
+          if udine_assert not in text: text=text.replace(bari_assert,bari_assert+udine_assert)
+          pages_workflow.write_text(text)
+
+          browser_path=Path('tests/public_portal_browser.cjs')
+          text=browser_path.read_text()
+          label="      assert.ok(labels.includes('White List ordinaria · Prefettura di Udine'));\n"
+          bari_label="      assert.ok(labels.includes('White List ordinaria · Prefettura di Bari'));\n"
+          assert bari_label in text
+          if label not in text: text=text.replace(bari_label,bari_label+label)
+          text=text.replace('assert.equal(stats.total,13233);','assert.equal(stats.total,14683);')
+          text=text.replace("'ancona','bari'].includes(r.authority_key)","'ancona','bari','udine'].includes(r.authority_key)")
+          bari_block="""      const innovatec=bari.filter(r=>r.name==='INNOVATEC SRL');\n      assert.equal(innovatec.length,1);\n      assert.deepEqual(innovatec[0].requested_activities,[]);\n"""
+          udine_block="""      const udine=registry.records.filter(r=>r.authority_key==='udine');\n      assert.equal(udine.length,1450);\n      assert.equal(udine.filter(r=>r.source_key==='udine-listed').length,1431);\n      assert.equal(udine.filter(r=>r.source_key==='udine-applicants').length,19);\n      assert.deepEqual(statusCounts(udine),{listed:1187,pending:19,renewal_update_in_progress:244});\n      const toson=udine.filter(r=>r.name==='TOSON & TOSON DI TOSON DANIELE & C. S.A.S.');\n      assert.equal(toson.length,1);\n      assert.equal(toson[0].identifier_field_raw,'000152050308');\n      assert.deepEqual(toson[0].identifiers,[]);\n      const palma=udine.filter(r=>r.name==='IMPERMEABILIZZAZIONI PALMA S.R.L.');\n      assert.equal(palma.length,1);\n      assert.equal(palma[0].source_fields.expiry_date_raw,'269/01/2027');\n      assert.equal(palma[0].observed_expiry_date,'');\n"""
+          assert bari_block in text
+          if udine_block not in text: text=text.replace(bari_block,bari_block+udine_block)
+          browser_path.write_text(text)
+          PY
+      - name: Validate parser, repository and complete national build
+        shell: bash
+        run: |
+          pytest -q tests/test_udine_parser_semantics.py
+          python - <<'PY'
+          from pathlib import Path
+          from white_list_archive.parsers.udine_positioned import parse_udine_listed, parse_udine_applicants
+          base={'authority_key':'udine','authority_name':'Prefettura di Udine','register_key':'udine-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-09','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list'}
+          lc=base|{'source_key':'udine-listed','population_scope':'listed','resource_url':'https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf','sha256':'0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba'}
+          ac=base|{'source_key':'udine-applicants','population_scope':'applicant','resource_url':'https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf','sha256':'4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971'}
+          lb=parse_udine_listed(Path('/tmp/udine-listed.pdf'),lc); ab=parse_udine_applicants(Path('/tmp/udine-applicants.pdf'),ac)
+          assert len(lb.records)==1431 and lb.diagnostics['status_counts']=={'listed':1187,'renewal_update_in_progress':244}
+          assert lb.diagnostics['section_counts']=={'Sezione 1':250,'Sezione 2':83,'Sezione 3':281,'Sezione 4':112,'Sezione 5':327,'Sezione 6':174,'Sezione 7':1,'Sezione 8':16,'Sezione 9':37,'Sezione 10':150}
+          assert len(ab.records)==19 and ab.diagnostics['status_counts']=={'pending':19}
+          PY
+          pytest -q
+          rm -rf /tmp/udine-national-build /tmp/udine-national-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/udine-national-sources \
+            --registry-json /tmp/udine-national-build/registry.json \
+            --registry-csv /tmp/udine-national-build/registry.csv \
+            --prefectures-json /tmp/udine-national-build/prefectures.json \
+            --prefectures-csv /tmp/udine-national-build/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/udine-national-build/registry.json').read_text())
+          pref=json.loads(Path('/tmp/udine-national-build/prefectures.json').read_text())
+          assert reg['meta']['record_count']==14683,reg['meta']
+          assert reg['meta']['authority_count']==18 and reg['meta']['register_count']==19
+          assert reg['meta']['authority_counts']['udine']==1450
+          assert reg['meta']['register_counts']['udine-ordinary']==1450
+          records=[r for r in reg['records'] if r['authority_key']=='udine']
+          assert len(records)==1450
+          from collections import Counter
+          assert Counter(r['source_status'] for r in records)==Counter({'listed':1187,'renewal_update_in_progress':244,'pending':19})
+          assert pref['meta']['authority_count']==106 and pref['meta']['published_count']==18 and pref['meta']['mapped_count']==35
+          udine=[x for x in pref['prefectures'] if x['authority_key']=='udine']; assert len(udine)==1 and udine[0]['published'] and udine[0]['mapped']
+          print('Udine national candidate validated:',reg['meta']['record_count'],pref['meta'])
+          PY
+      - name: Commit only validated production state
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/udine-production-finalizer-2026-09-10.yml .github/workflows/udine-parser-validation-2026-09-10.yml tmp/udine-audit.json tmp/udine-geometry-v2.json
+          git add src/white_list_archive/parsers/udine_positioned.py tests/test_udine_parser_semantics.py docs/sources/udine-operational-check-2026-09-10.md src/white_list_archive/publishing/public_national_registry.py data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv data/monitoring/national_coverage.json .github/workflows/public-pages.yml tests/public_portal_browser.cjs
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only | grep -E '^(tmp/|\.github/workflows/udine-(production-finalizer|parser-validation))' || true)" || { echo 'temporary Udine artifact remains staged as added/modified'; git diff --cached --name-status; exit 1; }
+          git commit -m 'Integrate Udine public archive'
+          git push origin HEAD:expansion/udine-2026-09-10
