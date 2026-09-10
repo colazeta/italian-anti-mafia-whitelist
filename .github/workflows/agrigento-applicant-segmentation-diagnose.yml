@@ -1,0 +1,74 @@
+name: Diagnose Agrigento applicant logical segmentation
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-applicant-segmentation-diagnose.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Reconstruct office-anchored logical row windows
+        run: |
+          python - <<'PY'
+          import hashlib,tempfile
+          from collections import Counter,defaultdict
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          import pdfplumber
+          from white_list_archive.parsers.agrigento_positioned import _APPLICANT_BANDS,_main_table,_row_vertical_bounds,_values
+
+          url='https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf'
+          expected='cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9'
+          req=Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+Agrigento segmentation diagnosis)'})
+          with urlopen(req,timeout=90) as response: body=response.read()
+          assert hashlib.sha256(body).hexdigest()==expected
+          records=[]
+          with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/'applicants.pdf';p.write_bytes(body)
+            with pdfplumber.open(p) as pdf:
+              for pn,page in enumerate(pdf.pages,1):
+                if pn==1: continue
+                words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=1,y_tolerance=2)
+                table=_main_table(page,page_number=pn,population='applicants')
+                anchors=[]
+                for ri,row in enumerate(table.rows):
+                  bounds=_row_vertical_bounds(row)
+                  if bounds is None: continue
+                  vals=_values(words,_APPLICANT_BANDS,*bounds)
+                  if not vals['name'] or 'ragione sociale' in vals['name'].casefold() or not vals['office']: continue
+                  anchors.append((ri,(bounds[0]+bounds[1])/2,bounds,vals))
+                for ai,(ri,centre,bounds,rawvals) in enumerate(anchors):
+                  prev_c=anchors[ai-1][1] if ai else float(table.bbox[1])
+                  next_c=anchors[ai+1][1] if ai+1<len(anchors) else float(table.bbox[3])
+                  y0=(prev_c+centre)/2 if ai else max(float(table.bbox[1]),centre-18)
+                  y1=(centre+next_c)/2 if ai+1<len(anchors) else min(float(table.bbox[3]),centre+18)
+                  vals=_values(words,_APPLICANT_BANDS,y0,y1)
+                  rec={'page':pn,'row':ri,'anchor_bounds':tuple(round(x,2) for x in bounds),'window':(round(y0,2),round(y1,2)),**vals}
+                  records.append(rec)
+                  if 'istruttoria' not in vals['outcome'].casefold() or 'istruttoria' not in rawvals['outcome'].casefold():
+                    print('RESEGMENT=',repr(rec),'RAW=',repr(rawvals))
+          print('SEGMENTED_TOTAL=',len(records))
+          print('OUTCOMES=',Counter(r['outcome'] for r in records))
+          print('BLANK_OUTCOME=',sum(not r['outcome'] for r in records))
+          ids=defaultdict(list)
+          for r in records:
+            if r['identifier']: ids[r['identifier']].append(r)
+          dup={k:v for k,v in ids.items() if len(v)>1}
+          print('DUPLICATE_IDENTIFIER_COUNT=',len(dup))
+          for k,v in dup.items(): print('DUPLICATE_ID=',k,repr(v))
+          PY
