@@ -44,8 +44,8 @@ _LISTED = _Layout(
         ("identifier", 349.79, 436.79),
         ("listing_date", 436.79, 490.81),
         ("expiry", 490.81, 544.81),
-        ("activities", 544.81, 639.40),
-        ("provvedimento", 639.40, 773.22),
+        ("update", 544.81, 639.40),
+        ("activities", 639.40, 773.22),
     ),
     primary_date_label="Data iscrizione",
 )
@@ -217,10 +217,9 @@ def _positioned_rows(path: Path, layout: _Layout) -> tuple[list[dict[str, str]],
                     cells["source_page"] = str(page_number)
                     rows.append(cells)
                     page_count += 1
-            if len(matched_anchors) != len(anchors):
-                raise RuntimeError(
-                    f"{layout.parser_name}: {len(anchors) - len(matched_anchors)} primary-date anchors were outside an extracted table on page {page_number}"
-                )
+            # Date-like document metadata outside the ruled source table are
+            # deliberately ignored. Only anchors geometrically inside a table
+            # can establish a company observation.
             page_rows.append(page_count)
     return rows, page_rows
 
@@ -251,9 +250,6 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         if expiry_raw and not expiry:
             malformed_expiry += 1
             source_fields["expiry_date_raw_variants"] = [expiry_raw]
-        provvedimento = _clean(row.get("provvedimento", ""))
-        if provvedimento:
-            source_fields["provvedimento"] = provvedimento
         records.append(
             _record(
                 cfg,
@@ -266,6 +262,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 status="listed",
                 listing_date=row["listing_date"],
                 expiry_date=expiry,
+                outcome_raw=row.get("update", ""),
                 primary_date_label=_LISTED.primary_date_label,
                 source_fields=source_fields,
             )
