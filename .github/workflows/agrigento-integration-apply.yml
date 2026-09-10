@@ -1,0 +1,199 @@
+name: Apply and validate Agrigento integration
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-integration-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Patch governed publication integration
+        run: |
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              text = Path(path).read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one replacement for {old!r}, got {count}')
+              Path(path).write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'src/white_list_archive/publishing/public_contract.py',
+              '    "listing_date_raw_variants",\n',
+              '    "listing_date_raw_variants",\n    "application_date_raw_variants",\n',
+          )
+
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'from white_list_archive.parsers.asti_positioned import PARSERS as ASTI_PARSERS\n',
+              'from white_list_archive.parsers.asti_positioned import PARSERS as ASTI_PARSERS\nfrom white_list_archive.parsers.agrigento_positioned import PARSERS as AGRIGENTO_PARSERS\n',
+          )
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              '        or ASTI_PARSERS.get(cfg["parser"])\n    )',
+              '        or ASTI_PARSERS.get(cfg["parser"])\n        or AGRIGENTO_PARSERS.get(cfg["parser"])\n    )',
+          )
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          existing = {item['source_key'] for item in config['sources']}
+          if existing & {'agrigento-listed', 'agrigento-applicants'}:
+              raise SystemExit('Agrigento publication sources already exist unexpectedly')
+          config['sources'].extend([
+              {
+                  'authority_key': 'agrigento',
+                  'authority_name': 'Prefettura di Agrigento',
+                  'register_key': 'agrigento-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'reference_date': '2026-09-04',
+                  'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list',
+                  'last_source_update': '2026-09-04',
+                  'last_source_update_basis': 'current official landing page directly resolved on 10 September 2026 to attachments explicitly dated 4 September 2026',
+                  'source_key': 'agrigento-listed',
+                  'parser': 'agrigento_listed',
+                  'population_scope': 'listed',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf',
+                  'sha256': '23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81',
+                  'expected_source_rows': 855,
+                  'notes': 'Position-aware extraction uses the stable ruled-table semantic bands and accepts only logical company rows carrying their own registered-office cell. Physical name continuations are reconstructed inside the logical row extent and never promoted separately. Malformed source dates remain raw rather than repaired; numeric activity codes are exposed only as neutral source section labels.'
+              },
+              {
+                  'authority_key': 'agrigento',
+                  'authority_name': 'Prefettura di Agrigento',
+                  'register_key': 'agrigento-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'reference_date': '2026-09-04',
+                  'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list',
+                  'last_source_update': '2026-09-04',
+                  'last_source_update_basis': 'current official landing page directly resolved on 10 September 2026 to attachments explicitly dated 4 September 2026',
+                  'source_key': 'agrigento-applicants',
+                  'parser': 'agrigento_applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf',
+                  'sha256': 'cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9',
+                  'expected_source_rows': 329,
+                  'notes': '329 logical applicant observations are recovered from ruled-table geometry. All current outcomes explicitly contain the istruttoria marker and are mapped to pending; the raw typo Istruttoria n corso is retained. Continuation fragments, malformed identifiers and malformed date typography are never repaired into additional facts.'
+              },
+          ])
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle)
+              fieldnames = reader.fieldnames
+              rows = list(reader)
+          updates = {
+              'agrigento-listed': 'Current official landing page directly re-verified 10 September 2026; it exposes the listed-company PDF explicitly dated 4 September 2026. Exact source identity and parser boundary are documented in docs/sources/agrigento-operational-check-2026-09-10.md.',
+              'agrigento-applicants': 'Current official landing page directly re-verified 10 September 2026; it exposes the applicant PDF explicitly dated 4 September 2026. Exact source identity and parser boundary are documented in docs/sources/agrigento-operational-check-2026-09-10.md.',
+          }
+          seen = set()
+          for row in rows:
+              key = row['source_series_key']
+              if key in updates:
+                  row['verified_date'] = '2026-09-10'
+                  row['notes'] = updates[key]
+                  seen.add(key)
+          if seen != set(updates):
+              raise SystemExit(f'Agrigento source-series rows missing: {set(updates) - seen}')
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fieldnames)
+              writer.writeheader()
+              writer.writerows(rows)
+
+          workflow = Path('.github/workflows/public-pages.yml')
+          text = workflow.read_text(encoding='utf-8')
+          replacements = [
+              ("      - 'src/white_list_archive/parsers/asti_positioned.py'\n", "      - 'src/white_list_archive/parsers/asti_positioned.py'\n      - 'src/white_list_archive/parsers/agrigento_positioned.py'\n"),
+              ("assert reg['meta']['record_count'] == 8823", "assert reg['meta']['record_count'] == 10007"),
+              ("'biella','benevento','asti'}", "'biella','benevento','asti','agrigento'}"),
+              ("'biella-ordinary','benevento-ordinary','asti-ordinary'", "'biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary'"),
+              ("assert reg['meta']['authority_count'] == 12", "assert reg['meta']['authority_count'] == 13"),
+              ("assert reg['meta']['register_count'] == 13", "assert reg['meta']['register_count'] == 14"),
+              ("assert pref['meta']['published_count'] == 12", "assert pref['meta']['published_count'] == 13"),
+              ("          asti = [x for x in pref['prefectures'] if x['authority_key'] == 'asti']\n          assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']\n", "          asti = [x for x in pref['prefectures'] if x['authority_key'] == 'asti']\n          assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']\n          agrigento = [x for x in pref['prefectures'] if x['authority_key'] == 'agrigento']\n          assert len(agrigento) == 1 and agrigento[0]['mapped'] and agrigento[0]['published']\n"),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'public-pages.yml: expected one replacement for {old!r}, got {count}')
+              text = text.replace(old, new, 1)
+          workflow.write_text(text, encoding='utf-8')
+          PY
+      - name: Install publication runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Validate exact Agrigento parser output
+        run: |
+          python - <<'PY'
+          import hashlib
+          import tempfile
+          from collections import Counter
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          from white_list_archive.parsers.agrigento_positioned import PARSERS
+          from white_list_archive.publishing.public_contract import public_record
+
+          H = {'User-Agent': 'italian-anti-mafia-whitelist/0.1 (+Agrigento validation)'}
+          sources = [
+              {
+                  'source_key':'agrigento-listed','parser':'agrigento_listed','authority_key':'agrigento','authority_name':'Prefettura di Agrigento','register_key':'agrigento-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-09-04','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list','resource_url':'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf','sha256':'23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81','expected':855
+              },
+              {
+                  'source_key':'agrigento-applicants','parser':'agrigento_applicants','authority_key':'agrigento','authority_name':'Prefettura di Agrigento','register_key':'agrigento-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-09-04','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list','resource_url':'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf','sha256':'cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9','expected':329
+              }
+          ]
+          with tempfile.TemporaryDirectory() as td:
+              for cfg in sources:
+                  req = Request(cfg['resource_url'], headers=H)
+                  with urlopen(req, timeout=90) as response:
+                      body = response.read()
+                  actual = hashlib.sha256(body).hexdigest()
+                  assert actual == cfg['sha256'], (cfg['source_key'], actual)
+                  path = Path(td) / (cfg['source_key'] + '.pdf')
+                  path.write_bytes(body)
+                  batch = PARSERS[cfg['parser']](path, cfg)
+                  assert len(batch.records) == cfg['expected'], (cfg['source_key'], len(batch.records))
+                  for record in batch.records:
+                      public_record(record)
+                  if cfg['population_scope'] == 'listed':
+                      assert Counter(r['source_status'] for r in batch.records) == {'listed': 855}
+                      assert batch.diagnostics['update_rows'] == 224
+                      assert Counter(batch.diagnostics['malformed_listing_dates']) == Counter({'25.05.206':1,'01..04.2026':1,'02.2022':1,'20,08,2026':1,'19,10,2024':1})
+                      assert Counter(batch.diagnostics['malformed_expiry_dates']) == Counter({'22,01,2027':1})
+                  else:
+                      assert Counter(r['source_status'] for r in batch.records) == {'pending': 329}
+                      assert batch.diagnostics['outcome_counts'] == {'Istruttoria in corso': 328, 'Istruttoria n corso': 1}
+                      assert batch.diagnostics['malformed_application_dates'] == ['26.062026']
+                  print(cfg['source_key'], batch.diagnostics)
+          PY
+      - name: Run repository tests
+        run: |
+          python -m compileall -q src
+          pytest -q
+      - name: Commit validated integration
+        run: |
+          git config user.name 'colazeta'
+          git config user.email '47261299+colazeta@users.noreply.github.com'
+          git add data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv src/white_list_archive/publishing/public_contract.py src/white_list_archive/publishing/public_national_registry.py .github/workflows/public-pages.yml
+          git diff --cached --check
+          git commit -m 'Integrate Agrigento public source series'
+          git push origin HEAD:expansion/agrigento-2026-09-10
