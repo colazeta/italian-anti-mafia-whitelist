@@ -48,3 +48,5 @@ jobs:
           assert all(r['name'] and r['identifier_field_raw'] for r in batch.records)
           PY
           pytest -q tests/test_ancona_parser_semantics.py
+
+# Refresh marker: status semantics corrected after reviewed punctuation audit.
