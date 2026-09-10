@@ -434,6 +434,23 @@
       "sha256": "cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9",
       "expected_source_rows": 306,
       "notes": "306 logical applicant observations remain after excluding strictly nested micro-grid rows; every logical outcome explicitly contains the istruttoria marker and maps to pending."
+    },
+    {
+      "source_key": "belluno-combined",
+      "parser": "belluno_combined",
+      "authority_key": "belluno",
+      "authority_name": "Prefettura di Belluno",
+      "register_key": "belluno-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-02",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf",
+      "sha256": "65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58",
+      "expected_source_rows": 402,
+      "last_source_update": "2026-09-02",
+      "last_source_update_basis": "document heading and current official landing-page attachment",
+      "notes": "The official landing page currently resolves to a single 44-page combined PDF explicitly dated 2 September 2026. It contains 402 source rows across 42 data pages: 392 listed-population rows and 10 rows explicitly in fase istruttoria. Legal-state mapping uses only explicit source text; malformed dates and identifiers are never repaired."
     }
   ]
 }
