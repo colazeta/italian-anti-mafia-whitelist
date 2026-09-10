@@ -1,4 +1,4 @@
-name: Retry validated Avellino materialisation
+name: Stage validated Avellino Pages gate
 
 on:
   push:
@@ -11,101 +11,41 @@ permissions:
   contents: write
 
 jobs:
-  materialize:
+  stage:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install complete publication runtime
-        run: |
-          for attempt in 1 2 3; do
-            sudo rm -rf /var/lib/apt/lists/*
-            if sudo apt-get update -qq -o Acquire::Retries=3 && \
-               sudo apt-get install -y --no-install-recommends poppler-utils; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "Poppler installation failed after bounded retries" >&2
-              exit 1
-            fi
-            sleep $((attempt * 3))
-          done
-          python -m pip install -e '.[publication]'
-          python -m pip install pytest pyyaml
-      - name: Keep unreviewed raw notes outside the public contract
+      - name: Generate exact validated Pages workflow as ordinary staging text
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          parser_path = Path('src/white_list_archive/parsers/avellino_positioned.py')
-          text = parser_path.read_text(encoding='utf-8')
-          listed_old = '            source_fields={\n                "update_registration_raw": row["update"],\n                "notes_raw": row["notes"],\n                "source_page": int(row["source_page"]),\n            },\n'
-          listed_new = '            source_fields={},\n'
-          applicant_old = '                source_fields={"source_page": int(row["source_page"])},\n'
-          applicant_new = '                source_fields={},\n'
-          if text.count(listed_old) != 1 or text.count(applicant_old) != 1:
-              raise SystemExit('Avellino source-field boundary changed unexpectedly')
-          parser_path.write_text(text.replace(listed_old, listed_new, 1).replace(applicant_old, applicant_new, 1), encoding='utf-8')
-
-          test_path = Path('tests/test_avellino_parser_semantics.py')
-          tests = test_path.read_text(encoding='utf-8')
-          test_old = '    assert batch.records[0]["source_fields"]["update_registration_raw"] == "testo fonte non interpretato"\n'
-          test_new = '    assert batch.records[0]["outcome_raw"] == "testo fonte non interpretato"\n    assert batch.records[0]["source_fields"] == {}\n'
-          if tests.count(test_old) != 1:
-              raise SystemExit('Avellino semantic-test boundary changed unexpectedly')
-          test_path.write_text(tests.replace(test_old, test_new, 1), encoding='utf-8')
-
-          workflow_path = Path('.github/workflows/avellino-materialize.yml')
-          workflow_text = workflow_path.read_text(encoding='utf-8')
-          config_old = "All 383 rows retain name, raw identifier, registered office, activities, source expiry date, update field and source page. The page itself is explicitly the listed-company population; update/notes text is retained but is not used to infer a different legal status."
-          config_new = "All 383 rows retain the approved public fields: name, raw identifier, registered office, activities, source expiry date and the source update field as outcome_raw. Free-text notes and page-layout metadata remain outside the public contract. The page itself explicitly defines the listed-company population; no free-text field is used to infer a different legal status."
-          doc_old = "with name, raw identifier, registered office, activities, source expiry date, update field and source page retained. The source page itself explicitly defines this as the registered-company population. Free-text update/notes fields are retained as provenance but are not interpreted to manufacture a different legal status."
-          doc_new = "with the approved public fields: name, raw identifier, registered office, activities, source expiry date and the source update field retained as `outcome_raw`. The source page itself explicitly defines this as the registered-company population. Free-text notes and page-layout metadata remain outside the public contract, and no free-text field is interpreted to manufacture a different legal status."
-          if workflow_text.count(config_old) != 1 or workflow_text.count(doc_old) != 1:
-              raise SystemExit('Avellino publication-note boundary changed unexpectedly')
-          workflow_text = workflow_text.replace(config_old, config_new, 1).replace(doc_old, doc_new, 1)
-          workflow_path.write_text(workflow_text, encoding='utf-8')
+          source = Path('.github/workflows/public-pages.yml').read_text(encoding='utf-8')
+          replacements = {
+              "      - 'src/white_list_archive/parsers/arezzo_openxml.py'\n": "      - 'src/white_list_archive/parsers/arezzo_openxml.py'\n      - 'src/white_list_archive/parsers/avellino_positioned.py'\n",
+              "          assert reg['meta']['record_count'] == 6234\n": "          assert reg['meta']['record_count'] == 6861\n",
+              "{'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo'}": "{'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino'}",
+              "'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary'\n": "'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary'\n",
+              "          assert reg['meta']['authority_count'] == 7\n": "          assert reg['meta']['authority_count'] == 8\n",
+              "          assert reg['meta']['register_count'] == 8\n": "          assert reg['meta']['register_count'] == 9\n",
+              "          assert pref['meta']['published_count'] == 7\n": "          assert pref['meta']['published_count'] == 8\n",
+          }
+          for old, new in replacements.items():
+              if source.count(old) != 1:
+                  raise SystemExit(f'Pages gate boundary changed: {old!r}')
+              source = source.replace(old, new, 1)
+          arezzo_gate = "          arezzo = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Arezzo']\n          assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']\n"
+          avellino_gate = arezzo_gate + "          avellino = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Avellino']\n          assert len(avellino) == 1 and avellino[0]['mapped'] and avellino[0]['published']\n"
+          if source.count(arezzo_gate) != 1:
+              raise SystemExit('Arezzo authority gate boundary changed')
+          source = source.replace(arezzo_gate, avellino_gate, 1)
+          Path('docs/.avellino-public-pages.generated.yml').write_text(source, encoding='utf-8')
           PY
-      - name: Reuse approved materialisation and validation scripts
-        run: |
-          python - <<'PY'
-          import subprocess
-          from pathlib import Path
-          import yaml
-          workflow = yaml.safe_load(Path('.github/workflows/avellino-materialize.yml').read_text(encoding='utf-8'))
-          steps = workflow['jobs']['materialize']['steps']
-          wanted = ['Materialize approved source configuration and governance state', 'Validate semantic tests and expanded public build']
-          scripts = {step.get('name'): step.get('run') for step in steps if step.get('name') in wanted}
-          if set(scripts) != set(wanted) or any(not scripts[name] for name in wanted):
-              raise SystemExit(f'approved Avellino scripts not found exactly: {sorted(scripts)}')
-          for name in wanted:
-              print(f'RUNNING_APPROVED_STEP {name}', flush=True)
-              subprocess.run(['bash', '-c', 'set -euo pipefail\n' + scripts[name]], check=True)
-          PY
-      - name: Commit validated non-workflow files
-        run: |
-          # The branch workflow has already validated the generated Pages gate, but the
-          # Actions GITHUB_TOKEN has no workflows scope. Keep every workflow path
-          # unchanged in the bot commit; the connector will materialise those reviewed
-          # workflow edits separately after this validated commit reaches the branch.
-          git restore .github/workflows/public-pages.yml \
-                      .github/workflows/avellino-materialize.yml \
-                      .github/workflows/avellino-parser-validation.yml \
-                      .github/workflows/avellino-materialize-retry.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/avellino_positioned.py \
-                  tests/test_avellino_parser_semantics.py \
-                  src/white_list_archive/publishing/public_national_registry.py \
-                  data/publication/multi_prefecture_pilot.json \
-                  data/source_registry/source_series_inventory.csv \
-                  data/monitoring/national_coverage.json \
-                  docs/sources/avellino-operational-check-2026-09-10.md
+          git add docs/.avellino-public-pages.generated.yml
           git diff --cached --check
-          git commit -m 'Publish validated Avellino White List sources'
+          git commit -m 'Stage validated Avellino Pages gate'
           git push origin HEAD:expansion/avellino-public-2026-09-10
