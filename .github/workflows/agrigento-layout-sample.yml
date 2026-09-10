@@ -1,0 +1,69 @@
+name: Inspect Agrigento table layout
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-source-audit-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-layout-sample.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Inspect byte-pinned public table layout
+        run: |
+          python -m pip install -q requests pdfplumber
+          python - <<'PY'
+          import hashlib
+          import tempfile
+          from pathlib import Path
+          import pdfplumber
+          import requests
+
+          sources = {
+              'applicants': (
+                  'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf',
+                  'cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9',
+                  7,
+              ),
+              'listed': (
+                  'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf',
+                  '23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81',
+                  10,
+              ),
+          }
+          headers = {'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0)'}
+          with tempfile.TemporaryDirectory() as td:
+              for key, (url, expected_sha, min_width) in sources.items():
+                  body = requests.get(url, headers=headers, timeout=90).content
+                  actual = hashlib.sha256(body).hexdigest()
+                  if actual != expected_sha:
+                      raise SystemExit(f'{key}: byte identity changed: {actual}')
+                  path = Path(td) / f'{key}.pdf'; path.write_bytes(body)
+                  printed = 0
+                  with pdfplumber.open(path) as pdf:
+                      for page_number, page in enumerate(pdf.pages, 1):
+                          for table_number, table in enumerate(page.extract_tables() or [], 1):
+                              width = max((len(row) for row in table if row), default=0)
+                              if width < min_width:
+                                  continue
+                              cleaned = [[" ".join(str(cell or '').split()) for cell in row] for row in table]
+                              print(f'{key.upper()}_TABLE page={page_number} table={table_number} width={width} rows={len(cleaned)}')
+                              for row in cleaned[:4]:
+                                  print(f'{key.upper()}_ROW={row!r}')
+                              printed += 1
+                              if printed >= 2:
+                                  break
+                          if printed >= 2:
+                              break
+                  if printed == 0:
+                      raise SystemExit(f'{key}: no substantive table found')
+          PY
