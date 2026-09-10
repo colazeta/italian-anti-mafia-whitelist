@@ -1,0 +1,64 @@
+name: Biella row audit
+
+on:
+  push:
+    branches:
+      - expansion/biella-source-audit-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Classify every current Biella table row
+        run: |
+          python -m pip install -q requests beautifulsoup4
+          python - <<'PY'
+          import collections, json, re
+          import requests
+          from bs4 import BeautifulSoup
+          URL='https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list'
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
+          def ident(v): return re.sub(r'[^A-Za-z0-9]','',clean(v)).upper()
+          def canonical(v):
+              x=ident(v); return (x.isdigit() and len(x)==11) or (len(x)==16 and x.isalnum())
+          r=requests.get(URL,headers=H,timeout=45); r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser')
+          for tno,table in enumerate(soup.find_all('table'),1):
+            rows=[]
+            for ridx,tr in enumerate(table.find_all('tr')):
+              cells=[clean(c.get_text(' ',strip=True)) for c in tr.find_all(['th','td'])]
+              if any(cells): rows.append((ridx,cells))
+            print(f'===TABLE {tno}===')
+            if tno==1:
+              expected=8; idcol=3
+            else:
+              expected=7; idcol=3
+            full=[(i,c) for i,c in rows if len(c)==expected]
+            headers=[(i,c) for i,c in full if 'ragione sociale' in c[0].casefold()]
+            candidates=[(i,c) for i,c in full if (c[0] or c[idcol]) and (i,c) not in headers]
+            canon=[(i,c) for i,c in candidates if canonical(c[idcol])]
+            noncanon=[(i,c) for i,c in candidates if c[idcol] and not canonical(c[idcol])]
+            blankid=[(i,c) for i,c in candidates if not c[idcol]]
+            print('ALL_ROWS',len(rows),'FULL_WIDTH',len(full),'HEADERS',len(headers),'CANDIDATES',len(candidates),'CANON_ID',len(canon),'NONCAN_ID',len(noncanon),'BLANK_ID',len(blankid))
+            for label,items in [('HEADER',headers),('NONCAN',noncanon),('BLANKID',blankid)]:
+              for i,c in items[:100]: print(label,i,json.dumps(c,ensure_ascii=False))
+            if tno==1:
+              print('STATUS_ALL',repr(dict(collections.Counter(c[6] for _,c in candidates))))
+              print('UNIQUE_IDENTITIES',len({(clean(c[0]).casefold(),ident(c[3])) for _,c in candidates if c[0] or c[3]}))
+            else:
+              names=collections.defaultdict(list)
+              for i,c in candidates:
+                names[(clean(c[0]).casefold(),ident(c[3]))].append((i,c))
+              repeated={k:v for k,v in names.items() if len(v)>1}
+              print('UNIQUE_IDENTITIES',len(names),'REPEATED_IDENTITIES',len(repeated),'EXTRA_OCCURRENCES',sum(len(v)-1 for v in repeated.values()))
+              for k,v in list(repeated.items())[:40]: print('REPEAT',repr(k),json.dumps(v,ensure_ascii=False))
+              for i,c in [(i,c) for i,c in rows if len(c)!=7][:80]: print('NON7',i,json.dumps(c,ensure_ascii=False))
+          PY
