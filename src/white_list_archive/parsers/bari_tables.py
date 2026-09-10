@@ -14,7 +14,7 @@ PARSER_VERSION = "1"
 _REFERENCE_DATE = "2026-08-31"
 _LISTED_PAGE_COUNTS = [41, 36, 31, 35, 38, 32, 37, 36, 42, 38, 38, 38, 36, 39, 40, 34, 34, 36, 37, 41, 40, 41, 37, 41, 32, 39, 39, 38, 19]
 _APPLICANT_PAGE_COUNTS = [40, 44, 42, 46, 45, 44, 42, 46, 46, 46, 48, 49, 44, 23]
-_BAD_LISTED_DATES = {"06/'3/2025", "02/07/024", "1607/2025", "19+/06/2027", "28/01/207"}
+_BAD_LISTED_DATES = {"06/'3/2025", "02/07/024", "1607/2025", "19+/06/2027", "28/01/207", "04/30/2025"}
 _BAD_APPLICANT_DATES = {"18/07/18 - 11/05/23"}
 _VALID_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _VALID_IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])")
@@ -52,6 +52,8 @@ def _source_date(raw: str, *, allowlist: set[str], source_key: str, page: int, r
         try:
             return date(year, month, day).isoformat()
         except ValueError as exc:
+            if value in allowlist:
+                return ""
             raise RuntimeError(f"{source_key}: invalid calendar date at page {page} row {row}: {raw!r}") from exc
     if value in allowlist:
         return ""
