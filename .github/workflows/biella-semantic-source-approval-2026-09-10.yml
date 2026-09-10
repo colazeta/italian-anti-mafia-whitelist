@@ -98,7 +98,7 @@ jobs:
           assert reg['meta']['authority_count'] == 11
           assert reg['meta']['register_count'] == 12
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['mapped_count'] == 34
+          assert pref['meta']['mapped_count'] == 35
           assert pref['meta']['published_count'] == 11
           for source in reg['meta']['sources']:
               assert 'approval_mode' not in source
@@ -108,7 +108,7 @@ jobs:
           assert sum(r['source_status'] == 'listed' for r in biella) == 130
           assert sum(r['source_status'] == 'pending' for r in biella) == 109
           assert all(r['capture_sha256'] for r in biella)
-          print({'records': 8522, 'published_prefectures': 11, 'mapped_prefectures': 34, 'biella_records': len(biella)})
+          print({'records': 8522, 'published_prefectures': 11, 'mapped_prefectures': 35, 'biella_records': len(biella)})
           PY
           python -m pytest -q
       - name: Commit isolated production fix
