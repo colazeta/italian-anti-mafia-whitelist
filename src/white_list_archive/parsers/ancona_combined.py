@@ -29,11 +29,21 @@ _HEADER = (
 )
 _DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _SECTION = re.compile(r"(?<![A-Z])(VIII|VII|III|VI|IV|IX|II|V|X|I)(?![A-Z])", re.I)
+_REVIEWED_MALFORMED_DATES = frozenset({
+    "05/08/207",
+    "0202/2026",
+    "08/04/02026",
+    "07/04/02027",
+})
 
 
 def _source_date(raw: str, *, field: str, ordinal: int) -> str:
     value = _clean(raw)
     if not value:
+        return ""
+    if value in _REVIEWED_MALFORMED_DATES:
+        # Preserve the source token verbatim in source_fields, but do not repair
+        # an omitted/extra digit or an ambiguous missing separator.
         return ""
     match = _DATE.fullmatch(value)
     if not match:
@@ -206,6 +216,14 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
         ordinal=ordinal,
     )
     activities = _sections(sections_raw)
+    malformed = []
+    for field, raw, normalised in (
+        ("listing", listing_raw, listing_date),
+        ("expiry", expiry_raw, expiry_date),
+        ("application", application_raw, application_date),
+    ):
+        if raw and not normalised:
+            malformed.append(f"{field}:{raw}")
     source_fields = {
         "sections": [item.removeprefix("Sezione ") for item in activities],
         "registered_office_variants": [office] if office else [],
@@ -216,12 +234,12 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
         "normalised_listing_date_variants": [listing_date] if listing_date else [],
         "normalised_expiry_date_variants": [expiry_date] if expiry_date else [],
         "date_conflict_fields": [],
-        "malformed_date_pairs": [],
+        "malformed_date_pairs": malformed,
     }
     if update_raw:
         source_fields["in_aggiornamento"] = update_raw
 
-    primary_label = "Data iscrizione" if listing_date else ("Data presentazione istanza" if application_date else "")
+    primary_label = "Data iscrizione" if listing_raw else ("Data presentazione istanza" if application_raw else "")
     record = _record(
         cfg,
         ordinal,
@@ -290,6 +308,7 @@ def parse_ancona_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "blank_section_rows": sum(not bool(record["requested_activities"]) for record in records),
         "application_date_rows": sum(bool(record["application_date"]) for record in records),
         "listing_date_rows": sum(bool(record["observed_listing_date"]) for record in records),
+        "malformed_date_rows": sum(bool(record["source_fields"]["malformed_date_pairs"]) for record in records),
         "dropped_date_rows": 0,
     }
     return ParsedBatch(records, diagnostics)
