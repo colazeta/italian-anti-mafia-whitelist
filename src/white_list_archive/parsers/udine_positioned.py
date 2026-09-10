@@ -214,19 +214,11 @@ def parse_udine_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 status = "renewal_update_in_progress" if updating else "listed"
                 section_number = _ROMAN_TO_NUMBER[current_section]
                 source_fields: dict[str, Any] = {
-                    "source_page": page_number,
-                    "source_page_row": row_number,
-                    "section_roman": current_section,
-                    "listing_date_raw": dates[0],
-                    "expiry_date_raw": dates[1],
-                    "update_raw": "In aggiornamento" if updating else "",
-                    "registered_office_source_band": office,
-                    "secondary_representation_source_band": secondary,
+                    "sections": [f"Sezione {section_number}"],
+                    "listing_date_raw_variants": [dates[0]],
+                    "expiry_date_raw_variants": [dates[1]],
+                    "in_aggiornamento": "In aggiornamento" if updating else "",
                 }
-                if not listing_date:
-                    source_fields["listing_date_unparsed_reviewed"] = True
-                if not expiry_date:
-                    source_fields["expiry_date_unparsed_reviewed"] = True
                 record = _record(
                     cfg,
                     len(records) + 1,
@@ -321,12 +313,8 @@ def parse_udine_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     application_date=application_date,
                     primary_date_label="Data presentazione istanza",
                     source_fields={
-                        "source_page": page_number,
-                        "source_page_row": row_number,
-                        "activity_codes_raw": activity_raw,
-                        "application_date_raw": dates[0],
-                        "population_evidence": "official current list of suppliers that requested White List registration",
-                        "cross_page_name_repair": (page_number, row_number) == (1, 17),
+                        "application_date_raw_variants": [dates[0]],
+                        "requested_activities_source": activity_raw,
                     },
                 )
                 records.append(record)
