@@ -220,11 +220,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             outcome_raw=row["update"],
             expiry_date=row["date"],
             primary_date_label="",
-            source_fields={
-                "update_registration_raw": row["update"],
-                "notes_raw": row["notes"],
-                "source_page": int(row["source_page"]),
-            },
+            source_fields={},
         )
         record["primary_date"] = record["observed_expiry_date"]
         record["primary_date_label"] = _LISTED.primary_date_label
@@ -262,7 +258,7 @@ def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 status="pending",
                 application_date=row["date"],
                 primary_date_label=_APPLICANTS.primary_date_label,
-                source_fields={"source_page": int(row["source_page"])},
+                source_fields={},
             )
         )
 

@@ -74,7 +74,8 @@ def test_listed_population_is_not_reinterpreted_from_free_text(monkeypatch):
     assert batch.records[0]["observed_expiry_date"] == "2027-09-01"
     assert batch.records[0]["primary_date"] == "2027-09-01"
     assert batch.records[0]["primary_date_label"] == "Data scadenza"
-    assert batch.records[0]["source_fields"]["update_registration_raw"] == "testo fonte non interpretato"
+    assert batch.records[0]["outcome_raw"] == "testo fonte non interpretato"
+    assert batch.records[0]["source_fields"] == {}
 
 
 def test_applicant_population_remains_pending(monkeypatch):
