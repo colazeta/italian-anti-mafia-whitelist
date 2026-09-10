@@ -41,10 +41,6 @@ jobs:
             exit "$merge_code"
           fi
 
-          # Publication configuration: current main is authoritative for all
-          # existing Prefectures (including the Aosta transition). Add only the
-          # two already validated Agrigento source-series objects from the
-          # pre-merge branch snapshot.
           if git diff --name-only --diff-filter=U | grep -qx 'data/publication/multi_prefecture_pilot.json'; then
             git checkout --theirs -- data/publication/multi_prefecture_pilot.json
           fi
@@ -62,8 +58,6 @@ jobs:
           PY
           git add data/publication/multi_prefecture_pilot.json
 
-          # Coverage ledger: preserve current-main state for every authority,
-          # replacing only Agrigento with the validated branch checkpoint.
           if git diff --name-only --diff-filter=U | grep -qx 'data/monitoring/national_coverage.json'; then
             git checkout --theirs -- data/monitoring/national_coverage.json
           fi
@@ -81,17 +75,12 @@ jobs:
           PY
           git add data/monitoring/national_coverage.json
 
-          # The Agrigento portal workflow is the branch's validated version;
-          # only the national total changes because Aosta now contributes one
-          # fewer observation on current main (8,822 + 1,161 = 9,983).
           if git diff --name-only --diff-filter=U | grep -qx '.github/workflows/public-pages.yml'; then
             git checkout --ours -- .github/workflows/public-pages.yml
           fi
           sed -i 's/9984/9983/g' .github/workflows/public-pages.yml
           git add .github/workflows/public-pages.yml
 
-          # Preserve current-main browser acceptance coverage and extend it for
-          # Agrigento without inventing source-status distributions.
           python - <<'PY'
           from pathlib import Path
           path = Path('tests/public_portal_browser.cjs')
@@ -114,8 +103,9 @@ jobs:
             exit 1
           fi
 
-          # The one-shot workflow must not survive into the reviewed PR tree.
           git rm -f .github/workflows/agrigento-reconcile.yml
           git status --short
           git commit -m "Merge current main into Agrigento expansion"
+          echo "MERGED_COMMIT=$(git rev-parse HEAD)"
+          echo "MERGED_TREE=$(git rev-parse 'HEAD^{tree}')"
           git push origin HEAD:expansion/agrigento-2026-09-10
