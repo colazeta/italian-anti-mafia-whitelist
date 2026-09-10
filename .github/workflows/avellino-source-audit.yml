@@ -1,0 +1,86 @@
+name: Audit Avellino White List sources
+
+on:
+  push:
+    branches:
+      - expansion/avellino-2026-09-10
+    paths:
+      - .github/workflows/avellino-source-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve and structurally inspect official sources
+        run: |
+          python -m pip install -q requests beautifulsoup4 pypdf
+          python - <<'PY'
+          import hashlib, io, re
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+          from pypdf import PdfReader
+
+          SOURCES = {
+              'listed': 'https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte',
+              'applicants': 'https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-richiedenti',
+          }
+          EXPECTED = {
+              'listed': 'elenco_imprese_iscritte_whitelist_al_01-09-2026',
+              'applicants': 'elenco_imprese_richiedenti_iscrizione_whitelist_al_01-09-2026',
+          }
+          headers = {'User-Agent': 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          session = requests.Session()
+
+          for key, page_url in SOURCES.items():
+              page = session.get(page_url, headers=headers, timeout=45)
+              page.raise_for_status()
+              soup = BeautifulSoup(page.text, 'html.parser')
+              matches = []
+              for anchor in soup.find_all('a', href=True):
+                  label = ' '.join(anchor.stripped_strings).strip()
+                  normalised = re.sub(r'\s+', '_', label.casefold())
+                  if EXPECTED[key] in normalised:
+                      matches.append((label, urljoin(page_url, anchor['href'])))
+              if len(matches) != 1:
+                  raise SystemExit(f'{key}: expected exactly one current official attachment, found {len(matches)}: {[m[0] for m in matches]}')
+              label, resource_url = matches[0]
+              response = session.get(resource_url, headers=headers, timeout=90)
+              response.raise_for_status()
+              body = response.content
+              sha = hashlib.sha256(body).hexdigest()
+              ctype = response.headers.get('content-type', '')
+              print(f'{key.upper()}_PAGE={page_url}')
+              print(f'{key.upper()}_RESOURCE={resource_url}')
+              print(f'{key.upper()}_LABEL={label}')
+              print(f'{key.upper()}_BYTES={len(body)}')
+              print(f'{key.upper()}_SHA256={sha}')
+              print(f'{key.upper()}_CONTENT_TYPE={ctype}')
+              print(f'{key.upper()}_MAGIC={body[:8].hex()}')
+
+              if body.startswith(b'%PDF'):
+                  reader = PdfReader(io.BytesIO(body))
+                  texts = [(p.extract_text() or '') for p in reader.pages]
+                  text = '\n'.join(texts)
+                  folded = ' '.join(text.casefold().split())
+                  print(f'{key.upper()}_FORMAT=pdf')
+                  print(f'{key.upper()}_PAGES={len(reader.pages)}')
+                  print(f'{key.upper()}_TEXT_CHARS={len(text)}')
+                  print(f'{key.upper()}_DATE_TOKENS={len(re.findall(r"\\b\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}\\b", text))}')
+                  print(f'{key.upper()}_NUMERIC_11_TOKENS={len(re.findall(r"(?<!\\d)\\d{11}(?!\\d)", text))}')
+                  for token in ('denominazione', 'ragione sociale', 'sede legale', 'codice fiscale', 'partita iva', 'data iscrizione', 'data scadenza', 'data presentazione', 'sezione'):
+                      print(f'{key.upper()}_HAS_{token.upper().replace(" ", "_")}={token in folded}')
+              elif body.startswith(b'PK'):
+                  print(f'{key.upper()}_FORMAT=openxml_or_zip')
+              else:
+                  print(f'{key.upper()}_FORMAT=unknown')
+                  raise SystemExit(f'{key}: unsupported current source format')
+          PY
