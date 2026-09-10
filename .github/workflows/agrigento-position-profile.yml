@@ -1,0 +1,63 @@
+name: Profile Agrigento positioned rows
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-source-audit-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-position-profile.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Profile positioned source geometry
+        run: |
+          python -m pip install -q requests pdfplumber
+          python - <<'PY'
+          import hashlib, re, tempfile
+          from pathlib import Path
+          import requests, pdfplumber
+
+          sources = {
+            'applicants': ('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf','cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9'),
+            'listed': ('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf','23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81'),
+          }
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0)'}
+          dateish=re.compile(r'\d{1,2}\s*[./,]\s*\d{1,2}\s*[./,]\s*\d{2,4}')
+          idish=re.compile(r'(?<!\w)(?:\d[\s.]*){9,13}(?!\w)|\b[A-Z0-9]{16}\b')
+          with tempfile.TemporaryDirectory() as td:
+            for key,(url,sha) in sources.items():
+              body=requests.get(url,headers=H,timeout=90).content
+              assert hashlib.sha256(body).hexdigest()==sha
+              p=Path(td)/f'{key}.pdf'; p.write_bytes(body)
+              with pdfplumber.open(p) as pdf:
+                print(f'{key.upper()} PAGE_SIZE={pdf.pages[0].width}x{pdf.pages[0].height} PAGES={len(pdf.pages)}')
+                pages = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] if key=='applicants' else [1,2,10,20,37,54,63]
+                for pn in pages:
+                  if pn>len(pdf.pages): continue
+                  page=pdf.pages[pn-1]
+                  tables=page.find_tables()
+                  print(f'{key.upper()} PAGE={pn} TABLES={len(tables)}')
+                  for ti,t in enumerate(tables,1):
+                    rows=t.extract()
+                    width=max((len(r) for r in rows if r),default=0)
+                    if width not in ({7,9,19,21} if key=='applicants' else {10,12}):
+                      continue
+                    print(f'{key.upper()} PAGE={pn} T={ti} BBOX={tuple(round(float(x),2) for x in t.bbox)} WIDTH={width} ROWS={len(rows)}')
+                    for ri,(geom,row) in enumerate(zip(t.rows,rows)):
+                      clean=[' '.join(str(c or '').split()) for c in row]
+                      joined=' | '.join(clean)
+                      if ri<3 or dateish.search(joined) or idish.search(joined):
+                        cells=[None if c is None else tuple(round(float(x),2) for x in c) for c in geom.cells]
+                        print(f'{key.upper()} P={pn} T={ti} R={ri} CELLS={clean!r}')
+                        print(f'{key.upper()} P={pn} T={ti} R={ri} GEOM={cells!r}')
+                        if ri>=8: break
+          PY
