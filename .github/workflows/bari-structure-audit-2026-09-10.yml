@@ -2,8 +2,7 @@ name: Bari structure audit 2026-09-10
 
 on:
   push:
-    branches:
-      - expansion/bari-source-audit-2026-09-10-v2
+    branches: [expansion/bari-source-audit-2026-09-10-v2]
   workflow_dispatch:
 
 permissions:
@@ -17,66 +16,54 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Inventory Bari parser denominators and unresolved rows
+      - name: Audit Bari date and status exceptions
         shell: bash
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
-          import hashlib, json, tempfile
-          from collections import Counter
+          import hashlib,json,re,tempfile
           from pathlib import Path
-          from urllib.parse import urljoin, urlparse
-          import pdfplumber, requests
+          from urllib.parse import urljoin,urlparse
+          import pdfplumber,requests
           from bs4 import BeautifulSoup
-
           PAGE='https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list'
-          EXPECTED={
-            'listed':'a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9',
-            'applicants':'9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d',
-          }
+          EXPECTED={'listed':'a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9','applicants':'9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d'}
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
-          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          s=requests.Session(); landing=s.get(PAGE,headers=H,timeout=45); landing.raise_for_status()
-          soup=BeautifulSoup(landing.text,'html.parser')
-          selected={'listed':[],'applicants':[]}
+          clean=lambda v:' '.join(str(v or '').replace('\u00a0',' ').split())
+          valid=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          s=requests.Session(); landing=s.get(PAGE,headers=H,timeout=45); landing.raise_for_status(); soup=BeautifulSoup(landing.text,'html.parser')
+          found={'listed':[],'applicants':[]}
           for a in soup.find_all('a',href=True):
-              href=urljoin(PAGE,a['href']); label=clean(' '.join(a.stripped_strings)); text=(label+' '+Path(urlparse(href).path).name).casefold()
-              if not href.lower().endswith('.pdf'): continue
-              if 'richiest' in text or 'richiedent' in text: selected['applicants'].append((label,href))
-              elif 'societ' in text and 'iscritt' in text: selected['listed'].append((label,href))
-          print('LANDING_STATUS='+str(landing.status_code))
+            u=urljoin(PAGE,a['href']); label=clean(' '.join(a.stripped_strings)); t=(label+' '+Path(urlparse(u).path).name).casefold()
+            if not u.lower().endswith('.pdf'): continue
+            if 'richiest' in t or 'richiedent' in t: found['applicants'].append((label,u))
+            elif 'societ' in t and 'iscritt' in t: found['listed'].append((label,u))
+          print('LANDING_STATUS',landing.status_code)
           for kind in ('listed','applicants'):
-              if len(selected[kind]) != 1: raise SystemExit(f'{kind}: source selection drift {selected[kind]!r}')
-              label,url=selected[kind][0]; data=s.get(url,headers=H,timeout=90).content
-              sha=hashlib.sha256(data).hexdigest(); print(f'{kind.upper()}_LABEL={label}'); print(f'{kind.upper()}_URL={url}'); print(f'{kind.upper()}_SHA256={sha}')
-              if sha != EXPECTED[kind]: raise SystemExit(f'{kind}: byte drift {sha}')
-              with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
-                  f.write(data); f.flush()
-                  with pdfplumber.open(f.name) as pdf:
-                      page_rows=[]; widths=Counter(); statuses=Counter(); blank_status=[]; blank_name=[]; blank_id=[]; headers=[]
-                      ordinal=0
-                      for pno,page in enumerate(pdf.pages,1):
-                          tables=page.find_tables()
-                          if len(tables)!=1: raise SystemExit(f'{kind} page {pno}: expected one table, got {len(tables)}')
-                          extracted=tables[0].extract()
-                          if not extracted: raise SystemExit(f'{kind} page {pno}: empty table')
-                          headers.append([clean(v) for v in extracted[0]])
-                          data_rows=[[clean(v) for v in row] for row in extracted[1:] if any(clean(v) for v in row)]
-                          page_rows.append(len(data_rows))
-                          for ridx,row in enumerate(data_rows,1):
-                              ordinal+=1; widths[len(row)]+=1
-                              status=clean(row[-1]) if row else ''
-                              statuses[status]+=1
-                              if not status: blank_status.append((pno,ridx,ordinal,row))
-                              if row and not clean(row[0]): blank_name.append((pno,ridx,ordinal,row))
-                              id_index=3 if kind=='applicants' else 4
-                              if len(row)>id_index and not clean(row[id_index]): blank_id.append((pno,ridx,ordinal,row))
-                      print(f'{kind.upper()}_PAGES={len(pdf.pages)}')
-                      print(f'{kind.upper()}_PAGE_ROWS='+json.dumps(page_rows))
-                      print(f'{kind.upper()}_WIDTHS='+json.dumps(dict(widths),sort_keys=True))
-                      print(f'{kind.upper()}_HEADERS='+json.dumps(headers,ensure_ascii=False))
-                      print(f'{kind.upper()}_RAW_STATUS_COUNTS='+json.dumps(dict(statuses),ensure_ascii=False,sort_keys=True))
-                      print(f'{kind.upper()}_BLANK_STATUS_ROWS='+json.dumps(blank_status,ensure_ascii=False))
-                      print(f'{kind.upper()}_BLANK_NAME_ROWS='+json.dumps(blank_name,ensure_ascii=False))
-                      print(f'{kind.upper()}_BLANK_ID_ROWS='+json.dumps(blank_id,ensure_ascii=False))
+            if len(found[kind])!=1: raise SystemExit(f'{kind} source drift: {found[kind]!r}')
+            label,u=found[kind][0]; data=s.get(u,headers=H,timeout=90).content; sha=hashlib.sha256(data).hexdigest()
+            print(kind.upper(),'LABEL',label); print(kind.upper(),'SHA256',sha)
+            if sha!=EXPECTED[kind]: raise SystemExit(f'{kind} byte drift')
+            bad=[]; blanks=[]; status_ex=[]; names=[]
+            with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+              f.write(data); f.flush()
+              with pdfplumber.open(f.name) as pdf:
+                for pno,page in enumerate(pdf.pages,1):
+                  tables=page.find_tables()
+                  if len(tables)!=1: raise SystemExit(f'{kind} p{pno} table drift')
+                  rows=[[clean(c) for c in r] for r in tables[0].extract()[1:] if any(clean(c) for c in r)]
+                  if len(rows)<2 or 'ELENCO IMPRESE' not in rows[0][2] or rows[1][-1]!='Stato istruttoria': raise SystemExit(f'{kind} p{pno} header drift')
+                  companies=rows[2:]
+                  for ridx,row in enumerate(companies,1):
+                    rawdates=[row[16]] if kind=='applicants' else [row[16],row[17]]
+                    for col,v in enumerate(rawdates,16):
+                      if v and not valid.fullmatch(v): bad.append([pno,ridx,col,v,row[0],row[4]])
+                      if not v: blanks.append([pno,ridx,col,row[0],row[4]])
+                    if not row[-1]: status_ex.append([pno,ridx,row])
+                    if not row[0]: names.append([pno,ridx,row])
+                print(kind.upper(),'COMPANY_COUNT',sum(len([[clean(c) for c in r] for r in p.find_tables()[0].extract()[1:] if any(clean(c) for c in r)])-2 for p in pdf.pages))
+            print(kind.upper(),'BAD_DATES',json.dumps(bad,ensure_ascii=False))
+            print(kind.upper(),'BLANK_DATES',json.dumps(blanks,ensure_ascii=False))
+            print(kind.upper(),'BLANK_STATUS_COMPANY_ROWS',json.dumps(status_ex,ensure_ascii=False))
+            print(kind.upper(),'BLANK_NAME_COMPANY_ROWS',json.dumps(names,ensure_ascii=False))
           PY
