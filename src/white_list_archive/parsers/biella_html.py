@@ -153,6 +153,11 @@ def _source_identity(name: str, identifier: str) -> tuple[str, str]:
     return (_clean(name).casefold(), identifier_key)
 
 
+def _year(value: str) -> int:
+    year = int(value)
+    return year + 2000 if year < 100 else year
+
+
 def _slash_date_prefix(raw: str) -> str:
     raw = _clean(raw)
     if not raw:
@@ -175,26 +180,24 @@ def _listed_date(raw: str, *, allow_blank: bool = False) -> str:
     if not raw:
         raise ValueError("Missing required Biella listed date")
 
-    slash = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+    slash = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})", raw)
     numeric_dash = re.fullmatch(r"(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})", raw)
     month_dash = re.fullmatch(r"(\d{1,2})-([A-Za-z]+)-(\d{2}|\d{4})", raw)
     if slash:
-        day, month, year = map(int, slash.groups())
+        day = int(slash.group(1))
+        month = int(slash.group(2))
+        year = _year(slash.group(3))
     elif numeric_dash:
         day = int(numeric_dash.group(1))
         month = int(numeric_dash.group(2))
-        year = int(numeric_dash.group(3))
-        if year < 100:
-            year += 2000
+        year = _year(numeric_dash.group(3))
     elif month_dash:
         day = int(month_dash.group(1))
         month_name = month_dash.group(2).casefold()
         if month_name not in _MONTHS:
             raise ValueError(f"Unsupported Biella month abbreviation: {raw!r}")
         month = _MONTHS[month_name]
-        year = int(month_dash.group(3))
-        if year < 100:
-            year += 2000
+        year = _year(month_dash.group(3))
     else:
         raise ValueError(f"Unsupported Biella listed date: {raw!r}")
 
@@ -239,7 +242,6 @@ def parse_biella_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         if not row[0] or not row[3]:
             raise ValueError(f"Incomplete Biella applicant identity row: {row!r}")
         rows.append(row)
-
     if not rows:
         raise ValueError("No Biella applicant observations found")
 
@@ -252,15 +254,9 @@ def parse_biella_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             _record(
                 cfg,
                 len(records) + 1,
-                name=row[0],
-                office=row[1],
-                secondary=row[2],
-                identifier_raw=row[3],
-                activities=[activity] if activity else [],
-                status=status,
-                outcome_raw=row[6],
-                application_date=application_date,
-                primary_date_label="Data presentazione istanza",
+                name=row[0], office=row[1], secondary=row[2], identifier_raw=row[3],
+                activities=[activity] if activity else [], status=status, outcome_raw=row[6],
+                application_date=application_date, primary_date_label="Data presentazione istanza",
                 source_fields={
                     "application_date_raw": _clean(row[5]),
                     "outcome_raw": _clean(row[6]),
@@ -268,12 +264,9 @@ def parse_biella_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 },
             )
         )
-
     diagnostics = {
-        "parser": "biella_html_applicants",
-        "parser_version": _PARSER_VERSION,
-        "sector_rows": len(rows),
-        "public_records": len(records),
+        "parser": "biella_html_applicants", "parser_version": _PARSER_VERSION,
+        "sector_rows": len(rows), "public_records": len(records),
         "status_counts": dict(Counter(record["source_status"] for record in records)),
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
@@ -290,7 +283,6 @@ def _listed_rows(table: list[list[str]]) -> list[tuple[str, str, list[str]]]:
     current_activity = ""
     awaiting_activity = False
     section_count = 0
-
     for row in table:
         first = _clean(row[0]) if row else ""
         rest = [_clean(value) for value in row[1:]]
@@ -317,7 +309,6 @@ def _listed_rows(table: list[list[str]]) -> list[tuple[str, str, list[str]]]:
         if not row[0] or not row[3]:
             raise ValueError(f"Incomplete Biella listed identity row: {row!r}")
         rows.append((current_section, current_activity, row))
-
     if section_count != 10:
         raise ValueError(f"Expected ten Biella White List sections, found {section_count}")
     return rows
@@ -334,30 +325,16 @@ def parse_biella_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         listing_date = _listed_date(row[4])
         expiry_date = _listed_date(row[5], allow_blank=True)
         status = _listed_status(row[6])
-        identity = _source_identity(row[0], row[3])
-        key = (*identity, listing_date, expiry_date, status)
-        group = grouped.setdefault(
-            key,
-            {
-                "row": row,
-                "listing_date": listing_date,
-                "expiry_date": expiry_date,
-                "status": status,
-                "sections": [],
-                "activities": [],
-                "offices": [],
-                "secondary_offices": [],
-                "identifier_raw_variants": [],
-                "source_row_count": 0,
-            },
-        )
+        key = (*_source_identity(row[0], row[3]), listing_date, expiry_date, status)
+        group = grouped.setdefault(key, {
+            "row": row, "listing_date": listing_date, "expiry_date": expiry_date, "status": status,
+            "sections": [], "activities": [], "offices": [], "secondary_offices": [],
+            "identifier_raw_variants": [], "source_row_count": 0,
+        })
         group["source_row_count"] += 1
         for field, value in (
-            ("sections", section),
-            ("activities", activity),
-            ("offices", row[1]),
-            ("secondary_offices", row[2]),
-            ("identifier_raw_variants", row[3]),
+            ("sections", section), ("activities", activity), ("offices", row[1]),
+            ("secondary_offices", row[2]), ("identifier_raw_variants", row[3]),
         ):
             value = _clean(value)
             if value and value not in group[field]:
@@ -368,43 +345,29 @@ def parse_biella_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         row = group["row"]
         records.append(
             _record(
-                cfg,
-                len(records) + 1,
-                name=row[0],
+                cfg, len(records) + 1, name=row[0],
                 office=group["offices"][0] if group["offices"] else row[1],
                 secondary=group["secondary_offices"][0] if group["secondary_offices"] else row[2],
-                identifier_raw=row[3],
-                activities=group["activities"],
-                status=group["status"],
-                outcome_raw=row[6],
-                listing_date=group["listing_date"],
-                expiry_date=group["expiry_date"],
-                primary_date_label="Data iscrizione",
+                identifier_raw=row[3], activities=group["activities"], status=group["status"], outcome_raw=row[6],
+                listing_date=group["listing_date"], expiry_date=group["expiry_date"], primary_date_label="Data iscrizione",
                 source_fields={
-                    "sections": group["sections"],
-                    "registered_office_variants": group["offices"],
+                    "sections": group["sections"], "registered_office_variants": group["offices"],
                     "secondary_office_variants": group["secondary_offices"],
                     "identifier_raw_variants": group["identifier_raw_variants"],
-                    "listing_date_raw": _clean(row[4]),
-                    "expiry_date_raw": _clean(row[5]),
-                    "update_marker_raw": _clean(row[6]),
-                    "source_sector_row_count": group["source_row_count"],
+                    "listing_date_raw": _clean(row[4]), "expiry_date_raw": _clean(row[5]),
+                    "update_marker_raw": _clean(row[6]), "source_sector_row_count": group["source_row_count"],
                     "source_table": "listed",
                 },
             )
         )
-
     diagnostics = {
-        "parser": "biella_html_listed",
-        "parser_version": _PARSER_VERSION,
-        "sector_rows": len(sector_rows),
-        "public_records": len(records),
+        "parser": "biella_html_listed", "parser_version": _PARSER_VERSION,
+        "sector_rows": len(sector_rows), "public_records": len(records),
         "status_counts": dict(Counter(record["source_status"] for record in records)),
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
         "missing_expiry_dates": sum(not record["observed_expiry_date"] for record in records),
-        "grouped_sector_repetitions": len(sector_rows) - len(records),
-        "dropped_date_rows": 0,
+        "grouped_sector_repetitions": len(sector_rows) - len(records), "dropped_date_rows": 0,
     }
     return ParsedBatch(records, diagnostics)
 
