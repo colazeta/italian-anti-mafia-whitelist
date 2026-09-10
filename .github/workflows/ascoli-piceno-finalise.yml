@@ -23,11 +23,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install publication and test runtime
+      - name: Install full repository test runtime
         run: |
           sudo apt-get update -qq -o Acquire::Retries=3
           sudo apt-get install -y --no-install-recommends poppler-utils
-          python -m pip install -e '.[publication]' pytest
+          python -m pip install -e '.[publication,storage,database]' pytest
       - name: Materialise Ascoli Piceno production integration
         run: |
           python - <<'PY'
@@ -41,7 +41,6 @@ jobs:
           listed_sha='5c1e7e6145929162207721d79302a5267524e5b35429234a961eee504b75c43b'
           applicants_sha='b278d9eeb3c387ea6b8eb67f5da74a1918eecdac720a400b34e29b626e962453'
 
-          # Parser registry.
           p=root/'src/white_list_archive/publishing/public_national_registry.py'
           text=p.read_text(encoding='utf-8')
           import_anchor='from white_list_archive.parsers.belluno_combined import PARSERS as BELLUNO_PARSERS\n'
@@ -52,7 +51,6 @@ jobs:
               raise SystemExit('Failed to bind Ascoli parser family')
           p.write_text(text,encoding='utf-8')
 
-          # Publication configuration.
           p=root/'data/publication/multi_prefecture_pilot.json'
           config=json.loads(p.read_text(encoding='utf-8'))
           config['sources']=[s for s in config['sources'] if s.get('authority_key')!='ascoli-piceno']
@@ -66,7 +64,6 @@ jobs:
           ])
           p.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
-          # Verified primary page.
           p=root/'data/source_registry/verified_primary_pages.csv'
           with p.open(encoding='utf-8',newline='') as h:
               rows=list(csv.DictReader(h)); fields=list(rows[0])
@@ -78,7 +75,6 @@ jobs:
           with p.open('w',encoding='utf-8',newline='') as h:
               w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
 
-          # Source-series inventory: preserve all three source manifestations but identify the comprehensive source as publication input.
           p=root/'data/source_registry/source_series_inventory.csv'
           with p.open(encoding='utf-8',newline='') as h:
               rows=list(csv.DictReader(h)); fields=list(rows[0])
@@ -96,7 +92,6 @@ jobs:
           with p.open('w',encoding='utf-8',newline='') as h:
               w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
 
-          # Coverage ledger.
           p=root/'data/monitoring/national_coverage.json'
           cov=json.loads(p.read_text(encoding='utf-8'))
           matches=[x for x in cov['prefectures'] if x['authority_key']=='ascoli-piceno']
