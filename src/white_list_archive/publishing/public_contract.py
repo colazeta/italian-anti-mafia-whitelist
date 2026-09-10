@@ -13,6 +13,7 @@ SOURCE_LIST_FIELDS = {
     "registered_office_variants",
     "secondary_office_variants",
     "listing_date_raw_variants",
+    "application_date_raw_variants",
     "expiry_date_raw_variants",
     "normalised_listing_date_variants",
     "normalised_expiry_date_variants",

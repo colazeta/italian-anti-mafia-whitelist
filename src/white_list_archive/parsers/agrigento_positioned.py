@@ -112,6 +112,35 @@ def _values(
     }
 
 
+def _maximal_rows(table: Any) -> tuple[list[tuple[Any, tuple[float, float]]], int]:
+    """Return only logical ruled rows, excluding strictly nested micro-grid rows."""
+    candidates: list[tuple[Any, tuple[float, float]]] = []
+    for row in table.rows:
+        bounds = _row_vertical_bounds(row)
+        if bounds is not None:
+            candidates.append((row, bounds))
+
+    maximal: list[tuple[Any, tuple[float, float]]] = []
+    nested = 0
+    for index, (row, bounds) in enumerate(candidates):
+        contained = False
+        for other_index, (_, outer) in enumerate(candidates):
+            if index == other_index:
+                continue
+            if (
+                outer[0] <= bounds[0] + 0.05
+                and outer[1] >= bounds[1] - 0.05
+                and (outer[0] < bounds[0] - 0.05 or outer[1] > bounds[1] + 0.05)
+            ):
+                contained = True
+                break
+        if contained:
+            nested += 1
+        else:
+            maximal.append((row, bounds))
+    return maximal, nested
+
+
 def parse_agrigento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     page_rows: list[int] = []
@@ -209,6 +238,7 @@ def parse_agrigento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     page_rows: list[int] = []
     continuation_rows = 0
+    nested_rows = 0
     malformed_application: list[str] = []
     outcome_variants: Counter[str] = Counter()
 
@@ -229,11 +259,10 @@ def parse_agrigento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 y_tolerance=2,
             )
             table = _main_table(page, page_number=page_number, population="applicants")
+            logical_rows, page_nested_rows = _maximal_rows(table)
+            nested_rows += page_nested_rows
             before = len(records)
-            for row in table.rows:
-                bounds = _row_vertical_bounds(row)
-                if bounds is None:
-                    continue
+            for row, bounds in logical_rows:
                 values = _values(words, _APPLICANT_BANDS, *bounds)
                 name = values["name"]
                 if not name or "ragione sociale" in name.casefold():
@@ -291,6 +320,7 @@ def parse_agrigento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "identifier_raw_coverage": sum(bool(record["identifier_field_raw"]) for record in records),
         "continuation_rows_skipped": continuation_rows,
+        "nested_rows_skipped": nested_rows,
         "malformed_application_dates": malformed_application,
         "dropped_date_rows": 0,
     }
