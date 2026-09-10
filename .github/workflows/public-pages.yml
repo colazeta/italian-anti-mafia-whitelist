@@ -132,7 +132,7 @@ jobs:
           assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']
           avellino = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Avellino']
           assert len(avellino) == 1 and avellino[0]['mapped'] and avellino[0]['published']
-          pesaro = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Pesaro e Urbino']
+          pesaro = [x for x in pref['prefectures'] if x['authority_key'] == 'pesaro-e-urbino']
           assert len(pesaro) == 1 and pesaro[0]['mapped'] and pesaro[0]['published']
           assert all(r.get('record_locator') for r in reg['records'])
           assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
