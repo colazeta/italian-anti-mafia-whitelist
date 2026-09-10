@@ -1,0 +1,774 @@
+name: Bootstrap audited Asti expansion
+
+on:
+  push:
+    branches:
+      - expansion/asti-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser runtime
+        run: python -m pip install 'pdfplumber>=0.11,<0.12'
+      - name: Materialise Asti parser and audited metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > src/white_list_archive/parsers/asti_positioned.py <<'PY'
+          from __future__ import annotations
+
+          import re
+          from collections import Counter
+          from pathlib import Path
+          from typing import Any
+
+          import pdfplumber
+
+          from white_list_archive.parsers.multi_prefecture_tables import (
+              ParsedBatch,
+              _clean,
+              _identifiers,
+              _iso_date,
+              _record,
+          )
+
+          _DATE = re.compile(r"^\d{1,2}[./-]\d{1,2}[./-]\d{4}$")
+          _SECTION = re.compile(r"\bSezione\s+([IVX]+)\b", re.I)
+          _LISTED_PAGES = 39
+          _APPLICANT_PAGES = 6
+          _LISTED_COLUMNS = (
+              ("name", 20.0, 145.0),
+              ("office", 145.0, 240.0),
+              ("secondary", 240.0, 380.0),
+              ("identifier", 380.0, 510.0),
+              ("listing_date", 510.0, 610.0),
+              ("expiry", 610.0, 685.0),
+              ("update", 685.0, 825.0),
+          )
+
+
+          def _compact(value: str) -> str:
+              return re.sub(r"\s+", "", _clean(value))
+
+
+          def _line_groups(words: list[dict[str, Any]], tolerance: float = 3.0) -> list[list[dict[str, Any]]]:
+              groups: dict[int, list[dict[str, Any]]] = {}
+              for word in words:
+                  groups.setdefault(round(float(word["top"]) / tolerance), []).append(word)
+              return [sorted(group, key=lambda item: float(item["x0"])) for _, group in sorted(groups.items())]
+
+
+          def _date_spans(words: list[dict[str, Any]]) -> list[dict[str, float | str]]:
+              candidates: list[dict[str, float | str]] = []
+              for line in _line_groups(words):
+                  for start in range(len(line)):
+                      joined = ""
+                      for end in range(start, min(len(line), start + 7)):
+                          joined += _compact(str(line[end]["text"]))
+                          if _DATE.fullmatch(joined):
+                              segment = line[start : end + 1]
+                              candidates.append(
+                                  {
+                                      "value": joined,
+                                      "x0": float(segment[0]["x0"]),
+                                      "x1": float(segment[-1]["x1"]),
+                                      "top": min(float(word["top"]) for word in segment),
+                                      "bottom": max(float(word["bottom"]) for word in segment),
+                                      "kind": "dated",
+                                  }
+                              )
+                              break
+                          if len(joined) > 12:
+                              break
+              chosen: list[dict[str, float | str]] = []
+              for item in sorted(candidates, key=lambda value: (float(value["top"]), float(value["x0"]))):
+                  if any(
+                      abs(float(item["top"]) - float(previous["top"])) < 2.0
+                      and float(item["x0"]) < float(previous["x1"])
+                      and float(item["x1"]) > float(previous["x0"])
+                      for previous in chosen[-3:]
+                  ):
+                      continue
+                  chosen.append(item)
+              return chosen
+
+
+          def _text_in_band(
+              words: list[dict[str, Any]],
+              x_min: float,
+              x_max: float,
+              y_min: float,
+              y_max: float,
+          ) -> str:
+              selected: list[dict[str, Any]] = []
+              for word in words:
+                  centre_x = (float(word["x0"]) + float(word["x1"])) / 2.0
+                  centre_y = (float(word["top"]) + float(word["bottom"])) / 2.0
+                  if x_min <= centre_x < x_max and y_min <= centre_y < y_max:
+                      selected.append(word)
+              selected.sort(key=lambda word: (round(float(word["top"]) / 2.0) * 2.0, float(word["x0"])))
+              return _clean(" ".join(_clean(word["text"]) for word in selected))
+
+
+          def _row_vertical_bounds(row: Any) -> tuple[float, float]:
+              cells = [cell for cell in row.cells if cell is not None]
+              if not cells:
+                  raise RuntimeError("Asti parser encountered a source table row without geometry")
+              return min(float(cell[1]) for cell in cells), max(float(cell[3]) for cell in cells)
+
+
+          def _section_info(table: Any) -> tuple[str, str] | None:
+              extracted = table.extract()
+              intro: list[str] = []
+              for row in extracted[:12]:
+                  folded = " ".join(_clean(cell).casefold() for cell in row if _clean(cell))
+                  if any(marker in folded for marker in ("sede secondaria", "codice fiscale", "ragione sociale")):
+                      break
+                  text = _clean(" ".join(_clean(cell) for cell in row if _clean(cell)))
+                  if text:
+                      intro.append(text)
+              combined = _clean(" ".join(intro))
+              match = _SECTION.search(combined)
+              if not match:
+                  return None
+              section = f"Sezione {match.group(1).upper()}"
+              activity = _clean(_SECTION.sub("", combined, count=1))
+              if not activity:
+                  raise RuntimeError(f"Asti parser found {section} without an activity description")
+              return section, activity
+
+
+          def _header_bottom(table: Any) -> float:
+              extracted = table.extract()
+              for index, (row, cells) in enumerate(zip(table.rows, extracted)):
+                  if index > 12:
+                      break
+                  folded_cells = [_clean(cell).casefold() for cell in cells]
+                  if "italia" in folded_cells:
+                      bounds = [cell for cell in row.cells if cell is not None]
+                      if bounds:
+                          return max(float(cell[3]) for cell in bounds)
+              raise RuntimeError("Asti parser could not establish the ruled table header boundary")
+
+
+          def _row_bounds(
+              anchors: list[dict[str, float | str]],
+              table_top: float,
+              table_bottom: float,
+          ) -> list[tuple[float, float]]:
+              centres = [(float(anchor["top"]) + float(anchor["bottom"])) / 2.0 for anchor in anchors]
+              bounds: list[tuple[float, float]] = []
+              for index, centre in enumerate(centres):
+                  top = table_top if index == 0 else (centres[index - 1] + centre) / 2.0
+                  bottom = table_bottom if index + 1 == len(centres) else (centre + centres[index + 1]) / 2.0
+                  if bottom <= top:
+                      raise RuntimeError("Asti parser encountered an invalid positioned-row boundary")
+                  bounds.append((top, bottom))
+              return bounds
+
+
+          def _pending_anchors(table: Any, words: list[dict[str, Any]]) -> list[dict[str, float | str]]:
+              candidates: list[dict[str, float | str]] = []
+              extracted = table.extract()
+              for row, cells in zip(table.rows, extracted):
+                  folded = _clean(" ".join(_clean(cell) for cell in cells)).casefold()
+                  if "in istruttoria" not in folded:
+                      continue
+                  y_min, y_max = _row_vertical_bounds(row)
+                  name = _text_in_band(words, 20.0, 145.0, y_min, y_max)
+                  office = _text_in_band(words, 145.0, 240.0, y_min, y_max)
+                  identifier = _text_in_band(words, 380.0, 510.0, y_min, y_max)
+                  outcome = _text_in_band(words, 685.0, 825.0, y_min, y_max)
+                  if not (name and office and identifier and "istruttoria" in outcome.casefold()):
+                      continue
+                  if any(
+                      510.0 <= float(span["x0"]) < 610.0
+                      and y_min <= (float(span["top"]) + float(span["bottom"])) / 2.0 <= y_max
+                      for span in _date_spans(words)
+                  ):
+                      continue
+                  candidates.append(
+                      {
+                          "value": "",
+                          "x0": 535.0,
+                          "x1": 535.0,
+                          "top": y_min,
+                          "bottom": y_max,
+                          "kind": "pending",
+                      }
+                  )
+              return candidates
+
+
+          def _listed_sector_rows(path: Path) -> tuple[list[dict[str, Any]], list[int], int]:
+              rows: list[dict[str, Any]] = []
+              page_rows: list[int] = []
+              pending_exception_count = 0
+              with pdfplumber.open(path) as pdf:
+                  if len(pdf.pages) != _LISTED_PAGES:
+                      raise RuntimeError(f"asti_listed: expected {_LISTED_PAGES} pages, got {len(pdf.pages)}")
+                  for page_number, page in enumerate(pdf.pages, start=1):
+                      words = page.extract_words(use_text_flow=False, keep_blank_chars=False, x_tolerance=1, y_tolerance=2)
+                      all_dates = _date_spans(words)
+                      page_count = 0
+                      matched_date_anchors: set[tuple[float, float]] = set()
+                      for table in page.find_tables():
+                          section_info = _section_info(table)
+                          if section_info is None:
+                              continue
+                          section, activity = section_info
+                          anchors = [
+                              span
+                              for span in all_dates
+                              if 510.0 <= float(span["x0"]) < 610.0
+                              and float(table.bbox[1]) <= (float(span["top"]) + float(span["bottom"])) / 2.0 <= float(table.bbox[3])
+                          ]
+                          for span in anchors:
+                              key = (float(span["top"]), float(span["x0"]))
+                              if key in matched_date_anchors:
+                                  raise RuntimeError(f"asti_listed: a primary-date anchor belongs to multiple tables on page {page_number}")
+                              matched_date_anchors.add(key)
+                          pending = _pending_anchors(table, words)
+                          pending_exception_count += len(pending)
+                          anchors.extend(pending)
+                          anchors.sort(key=lambda item: (float(item["top"]), float(item["x0"])))
+                          if not anchors:
+                              continue
+                          for first, second in zip(anchors, anchors[1:]):
+                              if float(second["top"]) - float(first["top"]) < 4.0:
+                                  raise RuntimeError(f"asti_listed: ambiguous logical-row anchors on page {page_number}")
+                          top = _header_bottom(table)
+                          for anchor, (y_min, y_max) in zip(anchors, _row_bounds(anchors, top, float(table.bbox[3]))):
+                              cells = {
+                                  name: _text_in_band(words, x_min, x_max, y_min, y_max)
+                                  for name, x_min, x_max in _LISTED_COLUMNS
+                              }
+                              cells["listing_date"] = str(anchor["value"]) if anchor["kind"] == "dated" else ""
+                              cells["source_status"] = "listed" if anchor["kind"] == "dated" else "pending"
+                              cells["section"] = section
+                              cells["activity"] = activity
+                              cells["source_page"] = str(page_number)
+                              rows.append(cells)
+                              page_count += 1
+                      page_rows.append(page_count)
+              if pending_exception_count != 1:
+                  raise RuntimeError(
+                      f"asti_listed: expected the single source-explicit no-date 'In istruttoria' exception, got {pending_exception_count}"
+                  )
+              return rows, page_rows, pending_exception_count
+
+
+          def _identity_key(row: dict[str, Any]) -> tuple[Any, ...]:
+              canonical_ids = tuple(_identifiers(row.get("identifier", "")))
+              return (
+                  _clean(row.get("name", "")).casefold(),
+                  _clean(row.get("office", "")).casefold(),
+                  _clean(row.get("secondary", "")).casefold(),
+                  canonical_ids or (_clean(row.get("identifier", "")).casefold(),),
+                  _iso_date(row.get("listing_date", "")),
+                  _clean(row.get("expiry", "")).casefold(),
+                  _clean(row.get("update", "")).casefold(),
+                  row.get("source_status", ""),
+              )
+
+
+          def _group_listed(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+              groups: dict[tuple[Any, ...], dict[str, Any]] = {}
+              order: list[tuple[Any, ...]] = []
+              for row in rows:
+                  key = _identity_key(row)
+                  if key not in groups:
+                      groups[key] = {**row, "sections": [], "activities": []}
+                      order.append(key)
+                  group = groups[key]
+                  if row["section"] not in group["sections"]:
+                      group["sections"].append(row["section"])
+                  if row["activity"] not in group["activities"]:
+                      group["activities"].append(row["activity"])
+              return [groups[key] for key in order]
+
+
+          def _validate_listed_sector_rows(rows: list[dict[str, Any]]) -> None:
+              missing = {
+                  field: sum(not _clean(row.get(field, "")) for row in rows)
+                  for field in ("name", "office", "identifier")
+              }
+              if any(missing.values()):
+                  raise RuntimeError(f"asti_listed: incomplete positioned source rows: {missing}")
+              invalid_primary = sum(
+                  row["source_status"] == "listed" and not _iso_date(row.get("listing_date", ""))
+                  for row in rows
+              )
+              if invalid_primary:
+                  raise RuntimeError(f"asti_listed: {invalid_primary} dated rows have an invalid source listing date")
+              pending = [row for row in rows if row["source_status"] == "pending"]
+              if len(pending) != 1 or "istruttoria" not in _clean(pending[0].get("update", "")).casefold():
+                  raise RuntimeError("asti_listed: source-explicit pending exception was not preserved exactly")
+
+
+          def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+              sector_rows, page_rows, pending_exception_count = _listed_sector_rows(path)
+              _validate_listed_sector_rows(sector_rows)
+              grouped = _group_listed(sector_rows)
+              records: list[dict[str, Any]] = []
+              malformed_expiry = 0
+              for ordinal, row in enumerate(grouped, start=1):
+                  expiry_raw = _clean(row.get("expiry", ""))
+                  expiry = _iso_date(expiry_raw)
+                  source_fields: dict[str, Any] = {"sections": row["sections"]}
+                  if expiry_raw and not expiry:
+                      malformed_expiry += 1
+                      source_fields["expiry_date_raw_variants"] = [expiry_raw]
+                  records.append(
+                      _record(
+                          cfg,
+                          ordinal,
+                          name=row["name"],
+                          office=row["office"],
+                          secondary=row.get("secondary", ""),
+                          identifier_raw=row.get("identifier", ""),
+                          activities=row["activities"],
+                          status=row["source_status"],
+                          listing_date=row.get("listing_date", ""),
+                          expiry_date=expiry,
+                          outcome_raw=row.get("update", ""),
+                          primary_date_label="Data iscrizione" if row["source_status"] == "listed" else "",
+                          source_fields=source_fields,
+                      )
+                  )
+              diagnostics = {
+                  "parser": "asti_listed",
+                  "page_rows": page_rows,
+                  "sector_rows": len(sector_rows),
+                  "positioned_rows": len(sector_rows),
+                  "public_records": len(records),
+                  "pending_source_exceptions": pending_exception_count,
+                  "status_counts": dict(Counter(record["source_status"] for record in records)),
+                  "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+                  "raw_identifier_coverage": sum(bool(record["identifier_field_raw"]) for record in records),
+                  "name_coverage": sum(bool(record["name"]) for record in records),
+                  "office_coverage": sum(bool(record["registered_office"]) for record in records),
+                  "activities_coverage": sum(bool(record["requested_activities"]) for record in records),
+                  "malformed_expiry_values": malformed_expiry,
+                  "dropped_date_rows": 0,
+              }
+              return ParsedBatch(records, diagnostics)
+
+
+          def _activity_parts(raw: str) -> tuple[list[str], list[str]]:
+              raw = _clean(raw)
+              matches = list(_SECTION.finditer(raw))
+              if not matches:
+                  return ([raw] if raw else []), []
+              activities: list[str] = []
+              sections: list[str] = []
+              for index, match in enumerate(matches):
+                  sections.append(f"Sezione {match.group(1).upper()}")
+                  start = match.end()
+                  end = matches[index + 1].start() if index + 1 < len(matches) else len(raw)
+                  description = _clean(raw[start:end])
+                  if not description:
+                      raise RuntimeError(f"Asti applicant activity is missing after {match.group(0)!r}")
+                  activities.append(description)
+              return activities, sections
+
+
+          def _status_applicant(outcome: str) -> str:
+              folded = _clean(outcome).casefold()
+              if folded.startswith("iscritta ") or folded.startswith("iscritto "):
+                  return "listed"
+              if folded == "in istruttoria":
+                  return "pending"
+              # "Non iscritta" does not, by itself, establish which legal or
+              # procedural route produced non-enrolment; preserve it without
+              # inferring rejection, cancellation or another legal status.
+              return "other_or_unknown"
+
+
+          def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+              rows: list[list[str]] = []
+              page_rows: list[int] = []
+              with pdfplumber.open(path) as pdf:
+                  if len(pdf.pages) != _APPLICANT_PAGES:
+                      raise RuntimeError(f"asti_applicants: expected {_APPLICANT_PAGES} pages, got {len(pdf.pages)}")
+                  for page_number, page in enumerate(pdf.pages, start=1):
+                      tables = page.extract_tables() or []
+                      if len(tables) != 1:
+                          raise RuntimeError(f"asti_applicants: expected one ruled table on page {page_number}, got {len(tables)}")
+                      table = tables[0]
+                      if any(len(row) != 7 for row in table):
+                          raise RuntimeError(f"asti_applicants: source table width changed on page {page_number}")
+                      page_count = 0
+                      for row in table[1:]:
+                          cleaned = [_clean(cell) for cell in row]
+                          if not any(cleaned):
+                              continue
+                          if not cleaned[0] or not cleaned[1]:
+                              raise RuntimeError(f"asti_applicants: incomplete source identity on page {page_number}: {cleaned!r}")
+                          rows.append(cleaned)
+                          page_count += 1
+                      page_rows.append(page_count)
+              records: list[dict[str, Any]] = []
+              for ordinal, row in enumerate(rows, start=1):
+                  name, office, secondary, identifier, activity_raw, application_raw, outcome = row
+                  application_date = _iso_date(application_raw)
+                  if application_raw and not application_date:
+                      raise RuntimeError(f"asti_applicants: invalid application date preserved by source: {application_raw!r}")
+                  activities, sections = _activity_parts(activity_raw)
+                  record = _record(
+                      cfg,
+                      ordinal,
+                      name=name,
+                      office=office,
+                      secondary=secondary,
+                      identifier_raw=identifier,
+                      activities=activities,
+                      status=_status_applicant(outcome),
+                      outcome_raw=outcome,
+                      application_date=application_date,
+                      primary_date_label="Data presentazione istanza" if application_date else "",
+                      source_fields={"sections": sections, "requested_activities_source": activity_raw},
+                  )
+                  records.append(record)
+              diagnostics = {
+                  "parser": "asti_applicants",
+                  "page_rows": page_rows,
+                  "public_records": len(records),
+                  "status_counts": dict(Counter(record["source_status"] for record in records)),
+                  "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
+                  "raw_identifier_coverage": sum(bool(record["identifier_field_raw"]) for record in records),
+                  "application_date_coverage": sum(bool(record["application_date"]) for record in records),
+                  "missing_application_dates": sum(not bool(record["application_date"]) for record in records),
+                  "dropped_date_rows": 0,
+              }
+              return ParsedBatch(records, diagnostics)
+
+
+          PARSERS = {
+              "asti_listed": parse_listed,
+              "asti_applicants": parse_applicants,
+          }
+          PY
+
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = path.read_text(encoding='utf-8')
+          import_anchor = 'from white_list_archive.parsers.benevento_positioned import PARSERS as BENEVENTO_PARSERS\n'
+          assert text.count(import_anchor) == 1
+          text = text.replace(import_anchor, import_anchor + 'from white_list_archive.parsers.asti_positioned import PARSERS as ASTI_PARSERS\n')
+          chain_anchor = '        or BENEVENTO_PARSERS.get(cfg["parser"])\n'
+          assert text.count(chain_anchor) == 1
+          text = text.replace(chain_anchor, chain_anchor + '        or ASTI_PARSERS.get(cfg["parser"])\n')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          PYTHONPATH=src python - <<'PY'
+          import hashlib
+          import json
+          import urllib.request
+          from pathlib import Path
+          from white_list_archive.parsers.asti_positioned import parse_applicants, parse_listed
+
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf'
+          applicants_url = 'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf'
+          listed_sha = '8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128'
+          applicants_sha = 'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5'
+          headers = {'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source audit)','Accept':'*/*'}
+          def fetch(url, sha, path):
+              body = urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=90).read()
+              actual = hashlib.sha256(body).hexdigest()
+              assert actual == sha, (url, actual)
+              Path(path).write_bytes(body)
+          fetch(listed_url, listed_sha, '/tmp/asti-listed.pdf')
+          fetch(applicants_url, applicants_sha, '/tmp/asti-applicants.pdf')
+          common = {
+              'authority_key':'asti','authority_name':'Prefettura di Asti',
+              'register_key':'asti-ordinary','register_name':'White List ordinaria',
+              'reference_date':'2026-09-03',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali',
+          }
+          listed_cfg = {**common,'source_key':'asti-listed','population_scope':'listed','resource_url':listed_url,'sha256':listed_sha}
+          applicants_cfg = {**common,'source_key':'asti-applicants','population_scope':'applicant','resource_url':applicants_url,'sha256':applicants_sha}
+          listed = parse_listed(Path('/tmp/asti-listed.pdf'), listed_cfg)
+          applicants = parse_applicants(Path('/tmp/asti-applicants.pdf'), applicants_cfg)
+          assert listed.diagnostics['sector_rows'] == 521, listed.diagnostics
+          assert listed.diagnostics['pending_source_exceptions'] == 1, listed.diagnostics
+          assert applicants.diagnostics['public_records'] == 17, applicants.diagnostics
+          assert applicants.diagnostics['missing_application_dates'] == 2, applicants.diagnostics
+          assert applicants.diagnostics['status_counts'] == {'other_or_unknown': 1, 'listed': 4, 'pending': 12}, applicants.diagnostics
+          counts = {'listed_public_records': listed.diagnostics['public_records'], 'applicant_public_records': 17}
+          Path('/tmp/asti-counts.json').write_text(json.dumps(counts), encoding='utf-8')
+          print(json.dumps({'listed': listed.diagnostics, 'applicants': applicants.diagnostics}, ensure_ascii=False, indent=2))
+          PY
+
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          counts = json.loads(Path('/tmp/asti-counts.json').read_text())
+          listed_count = int(counts['listed_public_records'])
+          applicant_count = int(counts['applicant_public_records'])
+          assert 0 < listed_count <= 521
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          assert not any(source['source_key'].startswith('asti-') for source in config['sources'])
+          common = {
+              'authority_key':'asti',
+              'authority_name':'Prefettura di Asti',
+              'register_key':'asti-ordinary',
+              'register_name':'White List ordinaria',
+              'reference_date':'2026-09-03',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali',
+              'last_source_update':'2026-09-03',
+              'last_source_update_basis':'explicit current-edition labels on the official Prefecture page',
+          }
+          config['sources'].append({
+              **common,
+              'source_key':'asti-listed','parser':'asti_listed','population_scope':'listed',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf',
+              'sha256':'8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128',
+              'expected_sector_rows':521,'expected_source_rows':listed_count,
+              'notes':"The source is organised by Sections I-X. The parser uses ruled-table geometry and exact primary-date positions, then conservatively groups only source rows sharing the same cleaned identity, dates, raw update text and source status. One row for CEIT SRL appears inside the official listed-company PDF without a listing date and explicitly says 'In istruttoria'; it is preserved as a pending source observation rather than assigned a listing date. Blank or malformed expiry values are not reconstructed.",
+          })
+          config['sources'].append({
+              **common,
+              'source_key':'asti-applicants','parser':'asti_applicants','population_scope':'applicant',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf',
+              'sha256':'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5',
+              'expected_source_rows':17,
+              'notes':"The current official applicant table exposes 17 source observations. Two application dates are blank and remain blank. The ten-digit JOKKO identifier remains raw and is not padded. Source-explicit 'Iscritta' outcomes are mapped only to observed listed status; 'In istruttoria' remains pending; 'Non iscritta' is retained as other/unknown because the text alone does not establish a rejection or cancellation route.",
+          })
+          config['verified_at'] = '2026-09-10'
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          verified_path = Path('data/source_registry/verified_primary_pages.csv')
+          with verified_path.open(encoding='utf-8', newline='') as handle:
+              verified = list(csv.DictReader(handle)); fields = list(verified[0])
+          match = [row for row in verified if row['authority_key'] == 'asti']
+          assert len(match) == 1
+          match[0]['verification_date'] = '2026-09-10'
+          match[0]['landing_url'] = 'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali'
+          with verified_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields); writer.writeheader(); writer.writerows(verified)
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(encoding='utf-8', newline='') as handle:
+              series = list(csv.DictReader(handle)); fields = list(series[0])
+          updates = {
+              'asti-listed': "Current official provincial page verified 10 September 2026 explicitly labels the registered-company PDF as updated 3 September 2026. Exact source identity, source exceptions and parser boundary are documented in docs/sources/asti-operational-check-2026-09-10.md.",
+              'asti-applicants': "Current official provincial page verified 10 September 2026 explicitly labels the applicant-company PDF as updated 3 September 2026. Exact source identity, raw anomalies and parser boundary are documented in docs/sources/asti-operational-check-2026-09-10.md.",
+          }
+          for key, note in updates.items():
+              matches = [row for row in series if row['source_series_key'] == key]
+              assert len(matches) == 1, key
+              matches[0]['verified_date'] = '2026-09-10'
+              matches[0]['resource_resolution_status'] = 'direct_series_page_resolved'
+              matches[0]['notes'] = note
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields); writer.writeheader(); writer.writerows(series)
+
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          matches = [row for row in coverage['prefectures'] if row['authority_key'] == 'asti']
+          assert len(matches) == 1
+          row = matches[0]
+          row.update({
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'latest_source_reference_date': '2026-09-03',
+              'last_successful_source_check_at': '2026-09-10T05:39:15Z',
+              'last_attempted_source_check_at': '2026-09-10T05:39:15Z',
+              'last_successful_investigation_on': '2026-09-10',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/asti-operational-check-2026-09-10.md',
+                  'src/white_list_archive/parsers/asti_positioned.py',
+                  'tests/test_asti_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [
+                  '8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128',
+                  'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5',
+              ],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/asti-operational-check-2026-09-10.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          final_records = 8522 + listed_count + applicant_count
+          pages = Path('.github/workflows/public-pages.yml')
+          text = pages.read_text(encoding='utf-8')
+          replacements = {
+              "assert reg['meta']['record_count'] == 8522": f"assert reg['meta']['record_count'] == {final_records}",
+              "assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento'}": "assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti'}",
+              "'biella-ordinary','benevento-ordinary'": "'biella-ordinary','benevento-ordinary','asti-ordinary'",
+              "assert reg['meta']['authority_count'] == 11": "assert reg['meta']['authority_count'] == 12",
+              "assert reg['meta']['register_count'] == 12": "assert reg['meta']['register_count'] == 13",
+              "assert pref['meta']['published_count'] == 11": "assert pref['meta']['published_count'] == 12",
+          }
+          for old, new in replacements.items():
+              assert text.count(old) == 1, old
+              text = text.replace(old, new)
+          anchor = "          benevento = [x for x in pref['prefectures'] if x['authority_key'] == 'benevento']\n          assert len(benevento) == 1 and benevento[0]['mapped'] and benevento[0]['published']\n"
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + "          asti = [x for x in pref['prefectures'] if x['authority_key'] == 'asti']\n          assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']\n")
+          pages.write_text(text, encoding='utf-8')
+
+          Path('/tmp/asti-final-count.txt').write_text(str(final_records), encoding='utf-8')
+          Path('/tmp/asti-listed-public-count.txt').write_text(str(listed_count), encoding='utf-8')
+          PY
+
+          cat > tests/test_asti_parser_semantics.py <<'PY'
+          from white_list_archive.parsers.asti_positioned import _activity_parts, _status_applicant
+
+
+          def test_asti_applicant_status_mapping_is_source_literal_and_conservative():
+              assert _status_applicant('In istruttoria') == 'pending'
+              assert _status_applicant('Iscritta il 24.08.2026') == 'listed'
+              assert _status_applicant('Non iscritta') == 'other_or_unknown'
+              assert _status_applicant('') == 'other_or_unknown'
+
+
+          def test_asti_multi_section_applicant_activity_is_split_without_relabelling():
+              activities, sections = _activity_parts(
+                  'SEZIONE IV Fornitura di ferro lavorato SEZIONE VI Autotrasporto conto terzi'
+              )
+              assert sections == ['Sezione IV', 'Sezione VI']
+              assert activities == ['Fornitura di ferro lavorato', 'Autotrasporto conto terzi']
+          PY
+
+          listed_count=$(cat /tmp/asti-listed-public-count.txt)
+          final_records=$(cat /tmp/asti-final-count.txt)
+          cat > docs/sources/asti-operational-check-2026-09-10.md <<EOF
+          # Asti White List operational check — 10 September 2026
+
+          ## Official current surface
+
+          The official Prefettura di Asti provincial White List page was verified directly on 10 September 2026:
+
+          - https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali
+          - the page explicitly labels **Elenco imprese iscritte — Aggiornato al 03/09/2026**;
+          - the same page explicitly labels **Elenco imprese richiedenti l'iscrizione — Aggiornato al 03/09/2026**.
+
+          This establishes positive current-edition evidence for both relevant ordinary White List populations. No publication state is inferred from failed search or from absence.
+
+          ## Byte-pinned resources
+
+          Registered-company resource:
+
+          - https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf
+          - SHA-256: `8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128`
+          - 39 pages.
+
+          Applicant resource:
+
+          - https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf
+          - SHA-256: `ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5`
+          - 6 pages.
+
+          ## Registered-company parser boundary
+
+          The registered-company source is organised by Sections I-X. Generic PDF table extraction is not a safe fixed-column interface: observed extracted table widths vary across pages. The parser therefore uses the stable ruled-table geometry and the position of the source's **Data di iscrizione o di rinnovo** column, while retaining the section-wide activity from each ruled table.
+
+          The audited source contains **521 sector observations**: 520 have a four-digit-year registration/renewal date in the approved primary-date band and one additional source row (CEIT SRL, Section IV) has no listing date and explicitly reports **In istruttoria**. That row remains a pending source observation. It is not assigned a listing date and is not silently swallowed into a neighbouring dated record.
+
+          The 521 sector observations are conservatively grouped only when cleaned identity, secondary office, canonical identifier set (or raw identifier fallback), source date pair, raw update text and source status all agree. The current byte-pinned edition yields **${listed_count} public source observations** after that grouping. Section/activity membership is accumulated only inside those exact groups.
+
+          Four sector observations do not expose a normal four-digit-year expiry anchor. Three are the repeated RONCO ANDREA SRL cancellation observations with a blank expiry field; one source cell is literally `18.04.24`. The parser does not expand the two-digit year or invent an expiry date: malformed non-blank expiry text remains in the approved raw-variant provenance field.
+
+          ## Applicant parser boundary
+
+          The applicant source has one stable seven-column ruled table on each of its six pages and yields **17 source observations**. Two application-date cells are blank and remain blank. One identifier (JOKKO SOCIETA' COOPERATIVA SOCIALE) is the ten-digit source value `0141215742` and remains raw; it is not padded or otherwise corrected.
+
+          Source-explicit outcomes are handled conservatively: four `Iscritta ...` rows are represented as observed listed outcomes, twelve `In istruttoria` rows remain pending, and the single `Non iscritta` value is retained as `other_or_unknown` because that wording alone does not prove a rejection, cancellation, or other legal route.
+
+          ## Validation and publication
+
+          The approved Asti parsers are `asti_listed` and `asti_applicants`. The publication config pins the exact official hashes, the 521 listed-sector denominator, the grouped listed public-observation denominator, and the 17-row applicant denominator. Future byte drift, page-count drift, changed applicant table width, loss of the single explicit pending exception, changed denominators or a new invalid non-blank applicant date fail closed.
+
+          With Asti added, the expected public registry total is **${final_records} records**, **12 published Prefectures** and **13 registers**. Canonical hosted-database integration and independent durable-evidence verification remain governed separately under issue #16 and are not claimed complete here.
+          EOF
+
+          rm -f .github/workflows/asti-parser-diagnostics.yml .github/workflows/asti-bootstrap.yml
+
+      - name: Validate Asti parser and complete public registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e '.[publication]'
+          python -m pytest -q tests/test_asti_parser_semantics.py
+          rm -rf /tmp/asti-public-build public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/asti-public-build \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text())
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text())
+          final=int(Path('/tmp/asti-final-count.txt').read_text())
+          assert reg['meta']['record_count'] == final
+          assert reg['meta']['authority_count'] == 12
+          assert reg['meta']['register_count'] == 13
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['mapped_count'] == 35
+          assert pref['meta']['published_count'] == 12
+          ast=[x for x in pref['prefectures'] if x['authority_key']=='asti']
+          assert len(ast)==1 and ast[0]['mapped'] and ast[0]['published']
+          listed=[r for r in reg['records'] if r['source_key']=='asti-listed']
+          applicants=[r for r in reg['records'] if r['source_key']=='asti-applicants']
+          assert len(applicants)==17
+          assert sum(r['source_status']=='pending' for r in listed)==1
+          assert any(r['name']=='CEIT SRL' and r['source_status']=='pending' and not r['observed_listing_date'] for r in listed)
+          assert any(r['identifier_field_raw']=='0141215742' and not r['identifiers'] for r in applicants)
+          print({'final_records':final,'asti_listed':len(listed),'asti_applicants':len(applicants)})
+          PY
+
+      - name: Commit validated Asti expansion
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git status --short
+          git diff --cached --check
+          git commit -m 'Expand public archive to Asti'
+          git push origin HEAD:expansion/asti-2026-09-10
