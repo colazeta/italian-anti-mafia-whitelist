@@ -27,6 +27,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Arezzo'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Avellino'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Pesaro e Urbino'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Biella'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -67,8 +68,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,7345);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino'].includes(r.authority_key));
+      assert.equal(stats.total,7584);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -97,6 +98,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(pesaro.length,484);
       assert.equal(pesaro.filter(r=>r.source_key==='pesaro-urbino-combined').length,484);
       assert.deepEqual(statusCounts(pesaro),{listed:406,renewal_update_in_progress:78});
+      const biella=registry.records.filter(r=>r.authority_key==='biella');
+      assert.equal(biella.length,239);
+      assert.equal(biella.filter(r=>r.source_key==='biella-listed').length,130);
+      assert.equal(biella.filter(r=>r.source_key==='biella-applicants').length,109);
+      assert.deepEqual(statusCounts(biella),{listed:213,pending:12,renewal_update_in_progress:14});
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
