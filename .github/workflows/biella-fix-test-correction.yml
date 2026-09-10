@@ -21,20 +21,19 @@ jobs:
           ref: fix/biella-semantic-source-approval-2026-09-10
           fetch-depth: 0
       - name: Replace invalid status assumptions with source-population assertions
-        shell: python
+        shell: bash
         run: |
+          set -euo pipefail
+          python - <<'PY'
           from pathlib import Path
           path = Path('.github/workflows/biella-semantic-source-approval-2026-09-10.yml')
           text = path.read_text(encoding='utf-8')
-          old = """          assert sum(r['source_status'] == 'listed' for r in biella) == 130
-          assert sum(r['source_status'] == 'pending' for r in biella) == 109
-"""
-          new = """          assert sum(r['source_key'] == 'biella-listed' for r in biella) == 130
-          assert sum(r['source_key'] == 'biella-applicants' for r in biella) == 109
-"""
+          old = "          assert sum(r['source_status'] == 'listed' for r in biella) == 130\n          assert sum(r['source_status'] == 'pending' for r in biella) == 109"
+          new = "          assert sum(r['source_key'] == 'biella-listed' for r in biella) == 130\n          assert sum(r['source_key'] == 'biella-applicants' for r in biella) == 109"
           if text.count(old) != 1:
               raise SystemExit('Expected exactly one outdated Biella status assertion block')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Commit correction
         shell: bash
         run: |
