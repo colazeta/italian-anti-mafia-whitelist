@@ -5,136 +5,133 @@ on:
     branches: [expansion/udine-2026-09-10]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
+    if: github.event.head_commit.message != 'Persist Udine source audit report'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/udine-2026-09-10
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Freeze Udine logical-row boundary and source anomalies
+      - name: Derive independent Udine row boundary and persist report
         shell: bash
         run: |
-          python -m pip install -q pdfplumber
+          python -m pip install -q pdfplumber beautifulsoup4
           python - <<'PY'
-          import hashlib, json, re, tempfile
+          import hashlib,json,re,tempfile
           from collections import Counter
           from datetime import date
-          from urllib.request import Request, urlopen
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          from urllib.parse import urljoin
+          from bs4 import BeautifulSoup
           import pdfplumber
 
-          LISTED=('https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf','0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba')
-          APPLICANTS=('https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf','4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971')
-          DATE_SHAPE=re.compile(r'^\d{1,3}/\d{2}/\d{4}$')
-          ID_SHAPE=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
-          ROMAN=re.compile(r'^(?:I|II|III|IV|V|VI|VII|VIII|IX|X)$')
-          def fetch(pair):
-              url,expected=pair; req=Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; row-boundary-audit)'})
-              with urlopen(req,timeout=90) as r:data=r.read()
-              sha=hashlib.sha256(data).hexdigest(); assert sha==expected,(url,sha); return data
-          def txt(words,x0,x1,top,bottom):
-              selected=[w for w in words if w['x0']>=x0 and w['x0']<x1 and w['top']>=top and w['top']<bottom]
-              selected.sort(key=lambda w:(round(w['top'],1),w['x0']))
-              lines=[]; current=[]; last=None
-              for w in selected:
-                  y=round(w['top'],1)
-                  if last is None or abs(y-last)<=2:
-                      current.append(w['text'])
-                  else:
-                      if current: lines.append(' '.join(current))
-                      current=[w['text']]
-                  last=y
-              if current:lines.append(' '.join(current))
-              return ' '.join(lines).strip()
-          def date_valid(v):
-              if not re.fullmatch(r'\d{2}/\d{2}/\d{4}',v): return False
-              d,m,y=map(int,v.split('/'))
-              try:date(y,m,d);return True
-              except ValueError:return False
-          def headings(words):
-              out=[]
-              for i,w in enumerate(words):
-                  if w['text'].casefold()=='sezione':
-                      near=[q for q in words if q['top']>=w['top']-2 and q['top']<=w['bottom']+4 and q['x0']>w['x1'] and q['x0']<w['x1']+100]
-                      near.sort(key=lambda q:q['x0'])
-                      for q in near:
-                          token=q['text'].upper().strip('.,:')
-                          if ROMAN.fullmatch(token):out.append((w['top'],token));break
-              return out
-
-          data=fetch(LISTED)
-          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list'
+          EXPECT={
+            'listed':('Elenco ditte iscritte nelle White List (aggiornato al 09/09/2026)','https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf','0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba'),
+            'applicants':('Elenco dei fornitori che hanno chiesto di essere iscritti nelle White List (aggiornato al 09/09/2026)','https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf','4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971')}
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-audit)'}
+          def get(u):
+            with urlopen(Request(u,headers=H),timeout=90) as r:return int(getattr(r,'status',200)),r.read()
+          def clean(v):return ' '.join(str(v or '').replace('\u00a0',' ').split())
+          def valid_date(v):
+            if not re.fullmatch(r'\d{2}/\d{2}/\d{4}',v):return False
+            d,m,y=map(int,v.split('/'))
+            try:date(y,m,d);return True
+            except ValueError:return False
+          def cluster(vals,tol=3.0):
+            vals=sorted(vals); out=[]
+            for v in vals:
+              if not out or v-out[-1][-1]>tol:out.append([v])
+              else:out[-1].append(v)
+            return [sum(g)/len(g) for g in out]
+          def near(y,ys,tol=3.0):return any(abs(y-z)<=tol for z in ys)
+          def band_text(words,x0,x1,top,bottom):
+            ws=[w for w in words if x0<=w['x0']<x1 and top<=w['top']<bottom]
+            ws.sort(key=lambda w:(round(w['top'],1),w['x0'])); return clean(' '.join(w['text'] for w in ws))
+          status,landing=get(PAGE); assert status==200
+          soup=BeautifulSoup(landing.decode('utf-8','replace'),'html.parser')
+          links={urljoin(PAGE,a['href']):clean(' '.join(a.stripped_strings)) for a in soup.find_all('a',href=True)}
+          report={'landing_status':status,'landing_sha256':hashlib.sha256(landing).hexdigest(),'reference_date':'2026-09-09','sources':{}}
+          for kind,(label,url,sha) in EXPECT.items():
+            assert links.get(url)==label,(kind,links.get(url))
+            status,data=get(url); assert status==200 and hashlib.sha256(data).hexdigest()==sha
+            src={'label':label,'url':url,'sha256':sha,'bytes':len(data)}; report['sources'][kind]=src
+            with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
               f.write(data);f.flush()
               with pdfplumber.open(f.name) as pdf:
-                  current_section=None; rows=[]; page_counts=[]; anomalies=[]; id_anomalies=[]; missing_left=[]; header_words=[]
+                src['pages']=len(pdf.pages); page_reports=[]; all_rows=[]
+                if kind=='listed':
+                  current_section=None; section_re=re.compile(r'^(I|II|III|IV|V|VI|VII|VIII|IX|X)$')
                   for pno,page in enumerate(pdf.pages,1):
-                      words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                      words.sort(key=lambda w:(w['top'],w['x0']))
-                      hs=headings(words)
-                      if pno==1:
-                          header_words=[{'t':w['text'],'x0':round(w['x0'],1),'x1':round(w['x1'],1),'top':round(w['top'],1)} for w in words if 130<=w['top']<=205]
-                      # Listing-date column is stable at x~=622. Capture every slash token in it, including malformed typography.
-                      anchors=[w for w in words if 600<=w['x0']<676 and '/' in w['text'] and any(c.isdigit() for c in w['text'])]
-                      anchors.sort(key=lambda w:w['top'])
-                      page_counts.append(len(anchors))
-                      for idx,a in enumerate(anchors):
-                          y=a['top']; next_y=anchors[idx+1]['top'] if idx+1<len(anchors) else page.height-10
-                          # A section heading below this row should cap the row band; a heading above sets its section.
-                          before=[h for h in hs if h[0]<y]
-                          if before: current_section=before[-1][1]
-                          # if a new heading lies between this row and next anchor, don't consume it as row text
-                          between=[h[0] for h in hs if y<h[0]<next_y]
-                          bottom=min([next_y]+between)-0.5
-                          top=max(0,y-2.5)
-                          listing=a['text'].strip()
-                          expiry_words=[w for w in words if 676<=w['x0']<736 and abs(w['top']-y)<=3 and '/' in w['text']]
-                          expiry=' '.join(w['text'] for w in sorted(expiry_words,key=lambda q:q['x0'])).strip()
-                          update_words=[w for w in words if 736<=w['x0']<835 and w['top']>=top and w['top']<bottom]
-                          update=' '.join(w['text'] for w in sorted(update_words,key=lambda q:(round(q['top'],1),q['x0']))).strip()
-                          idraw=txt(words,500,600,top,bottom)
-                          name=txt(words,40,330,top,bottom)
-                          office=txt(words,330,500,top,bottom)
-                          row={'page':pno,'page_row':idx+1,'section':current_section,'name':name,'office':office,'identifier_raw':idraw,'listing_raw':listing,'expiry_raw':expiry,'update_raw':update}
-                          rows.append(row)
-                          if not date_valid(listing) or not date_valid(expiry):anomalies.append(row)
-                          compact=''.join(idraw.split()).upper()
-                          if not ID_SHAPE.fullmatch(compact):id_anomalies.append(row)
-                          if not name or not office:missing_left.append(row)
-                  print('LISTED_HEADER_WORDS='+json.dumps(header_words,ensure_ascii=False))
-                  print('LISTED_PAGE_COUNTS='+json.dumps(page_counts))
-                  print('LISTED_ROW_COUNT='+str(len(rows)))
-                  print('LISTED_SECTION_COUNTS='+json.dumps(dict(Counter(r['section'] for r in rows)),sort_keys=True))
-                  print('LISTED_UPDATE_ROWS='+str(sum('aggiornamento' in r['update_raw'].casefold() for r in rows)))
-                  print('LISTED_DATE_ANOMALIES='+json.dumps(anomalies,ensure_ascii=False))
-                  print('LISTED_ID_ANOMALIES='+json.dumps(id_anomalies,ensure_ascii=False))
-                  print('LISTED_MISSING_LEFT='+json.dumps(missing_left,ensure_ascii=False))
-                  sample=[rows[i] for i in sorted(set([0,1,19,20,61,62,len(rows)-2,len(rows)-1])) if 0<=i<len(rows)]
-                  print('LISTED_ROW_SAMPLE='+json.dumps(sample,ensure_ascii=False))
-
-          data=fetch(APPLICANTS)
-          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
-              f.write(data);f.flush()
-              with pdfplumber.open(f.name) as pdf:
-                  rows=[]; page_counts=[]; anomalies=[]; header_words=[]
+                    words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                    # Independent signals: identifier-column and listing-date-column baselines.
+                    id_y=cluster([w['top'] for w in words if 495<=w['x0']<605 and re.fullmatch(r'[A-Za-z0-9./-]{8,}',w['text'])])
+                    date_y=cluster([w['top'] for w in words if 595<=w['x0']<680 and any(c.isdigit() for c in w['text']) and w['top']>100])
+                    row_y=cluster(id_y+date_y)
+                    # remove header/footer candidates by requiring source content in left columns
+                    usable=[]
+                    for y in row_y:
+                      left=band_text(words,35,500,y-3,y+7)
+                      if left and not any(h in left.casefold() for h in ['ragione sociale','sede legale','elenco ditte']):usable.append(y)
+                    row_y=usable
+                    id_only=[round(y,1) for y in id_y if not near(y,date_y)]
+                    date_only=[round(y,1) for y in date_y if not near(y,id_y)]
+                    # Section headings set the section for following rows.
+                    headings=[]
+                    for i,w in enumerate(words):
+                      if w['text'].casefold()=='sezione':
+                        peers=[q for q in words if w['x1']<q['x0']<w['x1']+100 and abs(q['top']-w['top'])<=3]
+                        for q in sorted(peers,key=lambda z:z['x0']):
+                          t=q['text'].upper().strip('.,:')
+                          if section_re.fullmatch(t):headings.append((w['top'],t));break
+                    for i,y in enumerate(row_y):
+                      prior=[h for h in headings if h[0]<y]
+                      if prior:current_section=prior[-1][1]
+                      nexty=row_y[i+1] if i+1<len(row_y) else page.height-20
+                      between=[h[0] for h in headings if y<h[0]<nexty]
+                      bottom=min([nexty]+between)-0.5
+                      row={'page':pno,'page_row':i+1,'section':current_section,
+                           'name':band_text(words,35,330,y-3,bottom),'office':band_text(words,330,495,y-3,bottom),
+                           'identifier_raw':band_text(words,495,605,y-3,bottom),'listing_raw':band_text(words,595,680,y-3,bottom),
+                           'expiry_raw':band_text(words,680,742,y-3,bottom),'update_raw':band_text(words,742,840,y-3,bottom)}
+                      all_rows.append(row)
+                    page_reports.append({'page':pno,'rows':len(row_y),'id_signals':len(id_y),'date_signals':len(date_y),'id_only':id_only,'date_only':date_only})
+                  src['page_counts']=[x['rows'] for x in page_reports];src['row_count']=len(all_rows)
+                  src['signal_mismatches']=[x for x in page_reports if x['id_only'] or x['date_only']]
+                  src['section_counts']=dict(Counter(r['section'] for r in all_rows))
+                  src['update_count']=sum('aggiornamento' in r['update_raw'].casefold() for r in all_rows)
+                  src['date_anomalies']=[r for r in all_rows if not valid_date(r['listing_raw']) or not valid_date(r['expiry_raw'])]
+                  src['identifier_anomalies']=[r for r in all_rows if not re.fullmatch(r'(?:\d{11}|[A-Za-z0-9]{16})',clean(r['identifier_raw']).replace(' ',''))]
+                  src['missing_left']=[r for r in all_rows if not r['name'] or not r['office']]
+                  src['sample']=all_rows[:3]+all_rows[-3:]
+                else:
                   for pno,page in enumerate(pdf.pages,1):
-                      words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                      words.sort(key=lambda w:(w['top'],w['x0']))
-                      if pno==1:header_words=[{'t':w['text'],'x0':round(w['x0'],1),'x1':round(w['x1'],1),'top':round(w['top'],1)} for w in words if 160<=w['top']<=225]
-                      anchors=[w for w in words if 480<=w['x0']<620 and ID_SHAPE.fullmatch(w['text'].upper()) and (w['text'].isdigit() and len(w['text'])==11 or len(w['text'])==16)]
-                      anchors.sort(key=lambda w:w['top']);page_counts.append(len(anchors))
-                      for idx,a in enumerate(anchors):
-                          y=a['top']; next_y=anchors[idx+1]['top'] if idx+1<len(anchors) else min(page.height-10,170 if pno==2 else page.height-10)
-                          top=max(0,y-2.5);bottom=next_y-0.5
-                          name=txt(words,35,355,top,bottom); office=txt(words,355,500,top,bottom); idraw=a['text']; activity=txt(words,600,700,top,bottom); appdate=txt(words,700,800,top,bottom)
-                          row={'page':pno,'page_row':idx+1,'name':name,'office':office,'identifier_raw':idraw,'activity_raw':activity,'application_raw':appdate}
-                          rows.append(row)
-                          if not name or not office or not date_valid(appdate):anomalies.append(row)
-                  print('APPLICANT_HEADER_WORDS='+json.dumps(header_words,ensure_ascii=False))
-                  print('APPLICANT_PAGE_COUNTS='+json.dumps(page_counts))
-                  print('APPLICANT_ROW_COUNT='+str(len(rows)))
-                  print('APPLICANT_ROWS='+json.dumps(rows,ensure_ascii=False))
-                  print('APPLICANT_ANOMALIES='+json.dumps(anomalies,ensure_ascii=False))
+                    words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                    id_y=cluster([w['top'] for w in words if 470<=w['x0']<620 and (re.fullmatch(r'\d{11}',w['text']) or re.fullmatch(r'[A-Z0-9]{16}',w['text'].upper()))])
+                    rows=[]
+                    for i,y in enumerate(id_y):
+                      bottom=(id_y[i+1]-0.5) if i+1<len(id_y) else page.height-20
+                      rows.append({'page':pno,'page_row':i+1,'name':band_text(words,30,355,y-3,bottom),'office':band_text(words,355,500,y-3,bottom),'identifier_raw':band_text(words,470,620,y-3,bottom),'activity_raw':band_text(words,600,700,y-3,bottom),'application_raw':band_text(words,700,810,y-3,bottom)})
+                    all_rows.extend(rows);page_reports.append({'page':pno,'rows':len(rows)})
+                  src['page_counts']=[x['rows'] for x in page_reports];src['row_count']=len(all_rows);src['rows']=all_rows
+                  src['anomalies']=[r for r in all_rows if not r['name'] or not r['office'] or not valid_date(r['application_raw'])]
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/udine-audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps({'listed':{k:report['sources']['listed'][k] for k in ['pages','page_counts','row_count','signal_mismatches','section_counts','update_count','date_anomalies','identifier_anomalies','missing_left']},'applicants':report['sources']['applicants']},ensure_ascii=False))
           PY
+      - name: Commit temporary audit report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/udine-audit.json
+          git diff --cached --check
+          git commit -m 'Persist Udine source audit report'
+          git push origin HEAD:expansion/udine-2026-09-10
