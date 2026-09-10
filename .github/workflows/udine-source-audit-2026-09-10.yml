@@ -1,0 +1,104 @@
+name: Udine source audit 2026-09-10
+
+on:
+  push:
+    branches: [expansion/udine-2026-09-10]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve and profile current official Udine publications
+        shell: bash
+        run: |
+          python -m pip install -q beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib, json, tempfile
+          from collections import Counter
+          from pathlib import Path
+          from urllib.parse import urljoin
+          from urllib.request import Request, urlopen
+          from bs4 import BeautifulSoup
+          import pdfplumber
+
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list'
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-audit)'}
+          def get(url, timeout=90):
+              req=Request(url, headers=H)
+              with urlopen(req, timeout=timeout) as response:
+                  return int(getattr(response,'status',200)), response.headers.get('Content-Type',''), response.read()
+          def clean(v):
+              return ' '.join(str(v or '').replace('\u00a0',' ').split())
+
+          status,ctype,body=get(PAGE,45)
+          print('LANDING_STATUS='+str(status))
+          print('LANDING_SHA256='+hashlib.sha256(body).hexdigest())
+          soup=BeautifulSoup(body.decode('utf-8','replace'),'html.parser')
+          candidates=[]
+          for a in soup.find_all('a',href=True):
+              label=clean(' '.join(a.stripped_strings))
+              url=urljoin(PAGE,a['href'])
+              folded=label.casefold()
+              if ('white list' in folded or 'iscritt' in folded) and ('fornitor' in folded or 'ditte' in folded or 'iscritt' in folded):
+                  candidates.append({'label':label,'url':url})
+          print('CANDIDATES='+json.dumps(candidates,ensure_ascii=False))
+
+          selected={}
+          for item in candidates:
+              f=item['label'].casefold()
+              if 'hanno chiesto' in f or ('fornitor' in f and 'iscritt' in f):
+                  selected.setdefault('applicants',item)
+              if 'ditte iscritte' in f:
+                  selected.setdefault('listed',item)
+          if set(selected) != {'listed','applicants'}:
+              raise SystemExit('Could not positively resolve exactly both Udine populations: '+repr(selected))
+
+          for key,item in selected.items():
+              status,ctype,data=get(item['url'])
+              print(f'{key.upper()}_LABEL='+item['label'])
+              print(f'{key.upper()}_URL='+item['url'])
+              print(f'{key.upper()}_STATUS='+str(status))
+              print(f'{key.upper()}_CONTENT_TYPE='+ctype)
+              print(f'{key.upper()}_SIZE='+str(len(data)))
+              print(f'{key.upper()}_SHA256='+hashlib.sha256(data).hexdigest())
+              if not data.startswith(b'%PDF'):
+                  print(f'{key.upper()}_NONPDF_PREFIX='+repr(data[:80]))
+                  continue
+              with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+                  f.write(data); f.flush()
+                  with pdfplumber.open(f.name) as pdf:
+                      print(f'{key.upper()}_PAGES='+str(len(pdf.pages)))
+                      page_profile=[]
+                      widths=Counter(); all_rows=[]
+                      for pno,page in enumerate(pdf.pages,1):
+                          tables=page.find_tables()
+                          trows=[]
+                          for table in tables:
+                              extracted=table.extract() or []
+                              rows=[[clean(c) for c in r] for r in extracted if any(clean(c) for c in r)]
+                              trows.extend(rows)
+                              for row in rows:
+                                  widths[len(row)]+=1
+                                  all_rows.append((pno,row))
+                          page_profile.append({'page':pno,'tables':len(tables),'rows':len(trows),'widths':sorted(set(map(len,trows)))})
+                      print(f'{key.upper()}_PAGE_PROFILE='+json.dumps(page_profile,ensure_ascii=False))
+                      print(f'{key.upper()}_WIDTH_COUNTS='+json.dumps(dict(widths),sort_keys=True))
+                      sample=all_rows[:8]+all_rows[-8:] if len(all_rows)>16 else all_rows
+                      print(f'{key.upper()}_ROW_SAMPLE='+json.dumps(sample,ensure_ascii=False))
+                      maxw=max(widths) if widths else 0
+                      cols=[]
+                      for col in range(maxw):
+                          vals=Counter(clean(r[col]) for _,r in all_rows if len(r)>col and clean(r[col]))
+                          cols.append({'col':col,'nonempty':sum(vals.values()),'common':vals.most_common(12)})
+                      print(f'{key.upper()}_COLUMN_PROFILE='+json.dumps(cols,ensure_ascii=False))
+                      for pno in sorted({1,len(pdf.pages)}):
+                          txt=clean(pdf.pages[pno-1].extract_text() or '')
+                          print(f'{key.upper()}_PAGE_{pno}_TEXT='+txt[:2500])
+          PY
