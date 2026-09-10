@@ -1,0 +1,80 @@
+name: Benevento source audit
+
+on:
+  push:
+    branches:
+      - expansion/benevento-source-audit-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve and inspect official Benevento White List resources
+        run: |
+          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib,re,tempfile
+          from collections import Counter,defaultdict
+          from pathlib import Path
+          from urllib.parse import urljoin,urlparse
+          import pdfplumber,requests
+          from bs4 import BeautifulSoup
+
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          pages={
+            'listed':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte',
+            'applicants':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti',
+          }
+          s=requests.Session()
+          for key,page_url in pages.items():
+              r=s.get(page_url,headers=H,timeout=45);r.raise_for_status()
+              soup=BeautifulSoup(r.text,'html.parser')
+              links=[]
+              for a in soup.find_all('a',href=True):
+                  label=' '.join(a.stripped_strings).strip()
+                  href=urljoin(page_url,a['href'])
+                  text=(label+' '+Path(urlparse(href).path).name).casefold()
+                  if href.lower().endswith('.pdf') and ('elenco' in text or 'impre' in text): links.append((label,href))
+              print(f'{key.upper()}_CANDIDATES='+repr([(l,Path(urlparse(u).path).name) for l,u in links]))
+              if len(links)!=1: raise SystemExit(f'{key}: expected one official current PDF, got {links!r}')
+              label,url=links[0]
+              body=s.get(url,headers=H,timeout=90);body.raise_for_status();data=body.content
+              if not data.startswith(b'%PDF'): raise SystemExit(f'{key}: non-PDF resource')
+              print(f'{key.upper()}_LABEL={label}')
+              print(f'{key.upper()}_RESOURCE={url}')
+              print(f'{key.upper()}_SHA256={hashlib.sha256(data).hexdigest()}')
+              print(f'{key.upper()}_BYTES={len(data)}')
+              with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+                  f.write(data);f.flush()
+                  with pdfplumber.open(f.name) as pdf:
+                      print(f'{key.upper()}_PAGES={len(pdf.pages)}')
+                      widths=Counter(); sigs=Counter(); examples=defaultdict(list); text_lines=[]
+                      for pno,p in enumerate(pdf.pages,1):
+                          txt=p.extract_text() or ''
+                          if pno<=2: text_lines.extend((pno,x) for x in txt.splitlines()[:20])
+                          for tno,t in enumerate(p.extract_tables() or [],1):
+                              widths[max((len(row) for row in t if row),default=0)]+=1
+                              for raw in t:
+                                  row=[' '.join(str(c or '').split()) for c in raw]
+                                  if not any(row):continue
+                                  dates=tuple(i for i,v in enumerate(row) if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}',v or ''))
+                                  ids=tuple(i for i,v in enumerate(row) if re.fullmatch(r'(?:\d{11}|[A-Z0-9]{16})',re.sub(r'\s+','',(v or '').upper())))
+                                  sig=(len(row),dates,ids)
+                                  if dates or ids:
+                                      sigs[sig]+=1
+                                      if len(examples[sig])<2:examples[sig].append((pno,tno,row))
+                      print(f'{key.upper()}_TABLE_WIDTHS={dict(sorted(widths.items()))}')
+                      print(f'{key.upper()}_ROW_SIGNATURES={dict(sigs)}')
+                      for sig,rows in sorted(examples.items(),key=lambda z:(-sigs[z[0]],z[0]))[:12]:
+                          print(f'{key.upper()}_SIGNATURE={sig} COUNT={sigs[sig]}')
+                          for pno,tno,row in rows:print(f'{key.upper()}_EXAMPLE page={pno} table={tno} cells={row!r}')
+                      print(f'{key.upper()}_TEXT_HEAD={text_lines!r}')
+          PY
