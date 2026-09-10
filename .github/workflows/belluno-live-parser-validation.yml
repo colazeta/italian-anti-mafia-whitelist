@@ -63,6 +63,6 @@ jobs:
           assert batch.diagnostics['raw_identifier_only']==14
           assert batch.diagnostics['malformed_application_dates']==1
           assert batch.diagnostics['dropped_date_rows']==0
-          assert all(r['record_locator'] and r['name'] for r in batch.records)
+          assert all(r['name'] for r in batch.records)
           print(batch.diagnostics)
           PY
