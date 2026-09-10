@@ -46,7 +46,7 @@ jobs:
               print(f'{key.upper()}_CANDIDATES='+repr([(l,Path(urlparse(u).path).name) for l,u in links]))
               if len(links)!=1: raise SystemExit(f'{key}: expected one official current PDF, got {links!r}')
               label,url=links[0]
-              body=s.get(url,headers=H,timeout=90);body.raise_for_status();data=body.content
+              response=s.get(url,headers=H,timeout=90);response.raise_for_status();data=response.content
               if not data.startswith(b'%PDF'): raise SystemExit(f'{key}: non-PDF resource')
               print(f'{key.upper()}_LABEL={label}')
               print(f'{key.upper()}_RESOURCE={url}')
@@ -57,6 +57,7 @@ jobs:
                   with pdfplumber.open(f.name) as pdf:
                       print(f'{key.upper()}_PAGES={len(pdf.pages)}')
                       widths=Counter(); sigs=Counter(); examples=defaultdict(list); text_lines=[]
+                      candidate_rows=[]; unmatched=[]
                       for pno,p in enumerate(pdf.pages,1):
                           txt=p.extract_text() or ''
                           if pno<=2: text_lines.extend((pno,x) for x in txt.splitlines()[:20])
@@ -71,8 +72,16 @@ jobs:
                                   if dates or ids:
                                       sigs[sig]+=1
                                       if len(examples[sig])<2:examples[sig].append((pno,tno,row))
+                                  name=row[0] if row else ''
+                                  is_header=not name or 'ragione sociale' in name.casefold() or 'fornitori' in name.casefold()
+                                  if not is_header and len(row)>=(8 if key=='listed' else 6):
+                                      candidate_rows.append((pno,tno,row))
+                                      if not dates and not ids: unmatched.append((pno,tno,row))
                       print(f'{key.upper()}_TABLE_WIDTHS={dict(sorted(widths.items()))}')
                       print(f'{key.upper()}_ROW_SIGNATURES={dict(sigs)}')
+                      print(f'{key.upper()}_CANDIDATE_NAME_ROWS={len(candidate_rows)}')
+                      print(f'{key.upper()}_UNMATCHED_NAME_ROWS={len(unmatched)}')
+                      for pno,tno,row in unmatched[:40]:print(f'{key.upper()}_UNMATCHED page={pno} table={tno} cells={row!r}')
                       for sig,rows in sorted(examples.items(),key=lambda z:(-sigs[z[0]],z[0]))[:12]:
                           print(f'{key.upper()}_SIGNATURE={sig} COUNT={sigs[sig]}')
                           for pno,tno,row in rows:print(f'{key.upper()}_EXAMPLE page={pno} table={tno} cells={row!r}')
