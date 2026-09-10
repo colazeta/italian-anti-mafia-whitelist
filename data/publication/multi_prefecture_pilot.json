@@ -451,6 +451,40 @@
       "last_source_update": "2026-09-02",
       "last_source_update_basis": "document heading and current official landing-page attachment",
       "notes": "The official landing page currently resolves to a single 44-page combined PDF explicitly dated 2 September 2026. It contains 402 source rows across 42 data pages: 392 listed-population rows and 10 rows explicitly in fase istruttoria. Legal-state mapping uses only explicit source text; malformed dates and identifiers are never repaired."
+    },
+    {
+      "source_key": "ascoli-piceno-listed",
+      "parser": "ascoli_piceno_listed",
+      "authority_key": "ascoli-piceno",
+      "authority_name": "Prefettura di Ascoli Piceno",
+      "register_key": "ascoli-piceno-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-08-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/elenco-iscritti-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/31/2026-08/elenco-degli-iscritti.pdf",
+      "sha256": "5c1e7e6145929162207721d79302a5267524e5b35429234a961eee504b75c43b",
+      "expected_source_rows": 544,
+      "last_source_update": "2026-08-11",
+      "last_source_update_basis": "explicit Aggiornato al 11/08/2026 marker in the current official comprehensive PDF",
+      "notes": "The official page exposes a comprehensive all-sections registered-company PDF alongside ten section-specific alternate manifestations. The comprehensive PDF is ingested once to avoid duplicate observations. The label-bounded parser requires 544 company starts and maps only the two source-explicit statuses: 448 Iscritto to listed and 96 In aggiornamento to renewal_update_in_progress. DATA PROVVEDIMENTO is preserved as decision_date and the second explicit date as observed expiry; identifiers and dates are never repaired."
+    },
+    {
+      "source_key": "ascoli-piceno-applicants",
+      "parser": "ascoli_piceno_applicants",
+      "authority_key": "ascoli-piceno",
+      "authority_name": "Prefettura di Ascoli Piceno",
+      "register_key": "ascoli-piceno-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-08-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/elenco-iscritti-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/31/2026-08/elenco-dei-richiedenti-l-iscrizione.pdf",
+      "sha256": "b278d9eeb3c387ea6b8eb67f5da74a1918eecdac720a400b34e29b626e962453",
+      "expected_source_rows": 57,
+      "last_source_update": "2026-08-11",
+      "last_source_update_basis": "explicit Aggiornato al 11/08/2026 marker in the current official applicant PDF",
+      "notes": "The official applicant PDF contains 57 label-bounded observations, each with an explicit application date and ESITO: istruttoria. All 57 therefore map to pending by positive row-level evidence; no missing status, completeness or legal outcome is inferred."
     }
   ]
 }
