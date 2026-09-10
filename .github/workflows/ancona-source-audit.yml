@@ -24,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update -qq -o Acquire::Retries=3
           sudo apt-get install -y --no-install-recommends poppler-utils
-          python -m pip install -q -e '.[dev,publication]'
+          python -m pip install -q -e '.[dev,publication,database,storage]'
       - name: Reverify current official Ancona source
         shell: bash
         run: |
@@ -63,50 +63,29 @@ jobs:
           resource_url='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf'
           sha='09d5ba7264ee6f0c6170273713881273c5d5a045cc9a4a49de3dd36c3860f88d'
 
-          # Publication configuration: add exactly one combined current source.
           p=root/'data/publication/multi_prefecture_pilot.json'
           cfg=json.loads(p.read_text(encoding='utf-8'))
           cfg['sources']=[s for s in cfg['sources'] if s.get('source_key')!='ancona-combined']
           cfg['sources'].append({
-            'source_key':'ancona-combined',
-            'parser':'ancona_combined',
-            'authority_key':'ancona',
-            'authority_name':'Prefettura di Ancona',
-            'register_key':'ancona-ordinary',
-            'register_name':'White List ordinaria',
-            'population_scope':'listed_and_applicant',
-            'reference_date':'2026-09-07',
-            'source_page_url':source_url,
-            'resource_url':resource_url,
-            'sha256':sha,
-            'expected_source_rows':577,
-            'last_source_update':'2026-09-07',
+            'source_key':'ancona-combined','parser':'ancona_combined','authority_key':'ancona','authority_name':'Prefettura di Ancona',
+            'register_key':'ancona-ordinary','register_name':'White List ordinaria','population_scope':'listed_and_applicant',
+            'reference_date':'2026-09-07','source_page_url':source_url,'resource_url':resource_url,'sha256':sha,
+            'expected_source_rows':577,'last_source_update':'2026-09-07',
             'last_source_update_basis':"official page 'Ultimo aggiornamento' and repeated in-document marker Agg. al 07/09/2026",
             'notes':'The official current page exposes one combined attachment explicitly covering both registered companies and companies requesting registration. The 23-page byte-pinned PDF contains 577 logical source rows. Status is derived only from source-positive fields: direct listing-date pairs, exact Richiesto rinnovo markers, or application-only dates in the explicitly combined population. Four malformed source date tokens are preserved verbatim but never repaired; one row without a status signal remains other_or_unknown.'
           })
           p.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
-          # National coverage ledger: represent only what has actually been validated.
           p=root/'data/monitoring/national_coverage.json'
           cov=json.loads(p.read_text(encoding='utf-8'))
           a=next(x for x in cov['prefectures'] if x['authority_key']=='ancona')
-          a.update({
-            'source_verified':True,'current_edition_identified':True,'capture_implemented':True,
-            'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,
-            'observation_layer':'public_source_observations','canonical_integration_validated':False,
-            'public_export_enabled':True,'durable_evidence_verified':False,'population_scopes_complete':True,
-            'latest_source_reference_date':'2026-09-07','last_successful_source_check_at':'2026-09-10T17:22:39Z',
-            'last_attempted_source_check_at':'2026-09-10T17:22:39Z','last_successful_investigation_on':'2026-09-10',
-            'monitoring_status':'CURRENT','actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
-            'last_completed_coverage_stage':'VALIDATED'
-          })
+          a.update({'source_verified':True,'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,'population_scopes_complete':True,'latest_source_reference_date':'2026-09-07','last_successful_source_check_at':'2026-09-10T17:22:39Z','last_attempted_source_check_at':'2026-09-10T17:22:39Z','last_successful_investigation_on':'2026-09-10','monitoring_status':'CURRENT','actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,'last_completed_coverage_stage':'VALIDATED'})
           a['unresolved_issue']=['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.']
           a['completion_evidence']=['docs/sources/ancona-operational-check-2026-09-10.md','src/white_list_archive/parsers/ancona_combined.py','tests/test_ancona_parser_semantics.py','data/publication/multi_prefecture_pilot.json']
           a['known_content_sha256']=[sha]
           a['evidence']=['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/ancona-operational-check-2026-09-10.md']
           p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
-          # Refresh source registry evidence without reformatting unrelated rows.
           p=root/'data/source_registry/verified_primary_pages.csv'
           t=p.read_text(encoding='utf-8')
           old='ancona,https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list,2026-09-06,verified'
@@ -119,12 +98,10 @@ jobs:
           replacement='ancona-combined,ancona,WL-REGIME-L190-2012,listed_and_applicant,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list,landing_page_resolved,2026-09-10,"Current official page re-verified 10 September 2026; it exposes a single attachment explicitly covering registered companies and companies requesting registration. The byte-pinned 23-page edition is marked Agg. al 07/09/2026 and yields 577 source-backed observations; exact parser boundaries and anomaly handling are documented in docs/sources/ancona-operational-check-2026-09-10.md."'
           found=False
           for i,line in enumerate(lines):
-            if line.startswith('ancona-combined,'):
-              lines[i]=replacement; found=True; break
+            if line.startswith('ancona-combined,'): lines[i]=replacement; found=True; break
           if not found: lines.append(replacement)
           p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
 
-          # Register the dedicated parser in production publication code.
           p=root/'src/white_list_archive/publishing/public_national_registry.py'
           t=p.read_text(encoding='utf-8')
           imp='from white_list_archive.parsers.ancona_combined import PARSERS as ANCONA_PARSERS\n'
@@ -139,7 +116,6 @@ jobs:
             t=t.replace(anchor2,anchor2+lookup)
           p.write_text(t,encoding='utf-8')
 
-          # Extend Pages workflow gate for the new production parser and totals.
           p=root/'.github/workflows/public-pages.yml'
           t=p.read_text(encoding='utf-8')
           parser_path="      - 'src/white_list_archive/parsers/ancona_combined.py'\n"
@@ -158,7 +134,6 @@ jobs:
             t=t.replace(ascoli_check,ascoli_check+ancona_check)
           p.write_text(t,encoding='utf-8')
 
-          # Extend actual browser acceptance contract, including exact Ancona denominators.
           p=root/'tests/public_portal_browser.cjs'
           t=p.read_text(encoding='utf-8')
           label="      assert.ok(labels.includes('White List ordinaria · Prefettura di Ancona'));\n"
@@ -173,7 +148,6 @@ jobs:
             t=t.replace(ascoli_assert,ascoli_assert+ancona_assert)
           p.write_text(t,encoding='utf-8')
 
-          # Operational evidence note.
           p=root/'docs/sources/ancona-operational-check-2026-09-10.md'
           p.write_text('''# Ancona operational source check — 10 September 2026\n\n## Official current publication\n\n- Authority: Prefettura di Ancona.\n- Official page: https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list\n- The page was independently re-verified on 10 September 2026 and exposes one attachment explicitly labelled as the list of both registered companies and companies requesting registration.\n- The official page reports “Ultimo aggiornamento” on 7 September 2026; every page of the attachment carries the marker `Agg. al 07/09/2026`.\n- Approved resource: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf\n- Approved byte SHA-256: `09d5ba7264ee6f0c6170273713881273c5d5a045cc9a4a49de3dd36c3860f88d`.\n\nThe resource filename is retained verbatim and is not interpreted as a date; the reference date is established from the official page and the repeated in-document marker.\n\n## Parser boundary and denominators\n\nThe fail-closed parser requires 23 pages, an exact nine-column company table on every page, the repeated reference-date marker on every page, and the reviewed per-page row denominators. It yields exactly **577 source-backed observations**:\n\n- 331 `listed`;\n- 100 `renewal_update_in_progress`, only where the source says `Richiesto rinnovo`;\n- 145 `pending`, only where the row has an application date and no listing-date pair within the official combined listed/applicant population;\n- 1 `other_or_unknown`, because no positive status signal is present.\n\nAll 577 rows retain a non-empty raw identifier field. Four malformed source date tokens are retained verbatim in provenance and deliberately not repaired. The parser also contains narrowly anchored repairs for reviewed PDF table-boundary extraction errors; each repair checks the exact byte-pinned neighbouring cells and fails closed if layout or content drifts. No status, date digit, legal identifier or missing source value is invented.\n\n## Publication decision\n\nThe combined current edition is sufficient for the published observation layer because the official attachment expressly covers both registered and applicant populations. The public export may therefore include these 577 observations after the repository-wide publication gates pass. Canonical hosted-database integration and independent durable-evidence verification remain separately governed under issue #16 and are not claimed complete here.\n''',encoding='utf-8')
           PY
@@ -218,8 +192,5 @@ jobs:
           git config user.email '47261299+colazeta@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          if git diff --cached --name-only | grep -E '^\.github/workflows/ancona-source-audit\.yml$'; then
-            : # deletion is intentional: no temporary workflow survives the checkpoint
-          fi
           git commit -m 'Integrate Ancona public White List observations'
           git push origin HEAD:expansion/ancona-2026-09-10
