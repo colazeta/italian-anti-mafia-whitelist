@@ -17,12 +17,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Inspect split-row geometry and current source identity
+      - name: Resolve remaining Bari split-row geometry
         shell: bash
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
-          import hashlib, json, re, tempfile
+          import hashlib, json, tempfile
           from pathlib import Path
           from urllib.parse import urljoin, urlparse
           import pdfplumber, requests
@@ -33,13 +33,8 @@ jobs:
             'listed':'a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9',
             'applicants':'9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d',
           }
-          TARGETS={
-            'listed': {7:[22],19:[14,15],23:[31],27:[9,35],28:[12,17,23]},
-            'applicants': {1:[4],13:[41],14:[8,9,10]},
-          }
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
           def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          def compact_row(row): return [clean(c) for c in row]
           s=requests.Session(); r=s.get(PAGE,headers=H,timeout=45); r.raise_for_status()
           soup=BeautifulSoup(r.text,'html.parser')
           selected={'listed':[],'applicants':[]}
@@ -52,38 +47,30 @@ jobs:
           for kind in ('listed','applicants'):
               if len(selected[kind]) != 1: raise SystemExit(f'{kind}: source selection drift {selected[kind]!r}')
               label,url=selected[kind][0]
-              data=s.get(url,headers=H,timeout=90).content
-              sha=hashlib.sha256(data).hexdigest()
-              print(f'{kind.upper()}_LABEL={label}')
-              print(f'{kind.upper()}_URL={url}')
-              print(f'{kind.upper()}_SHA256={sha}')
+              data=s.get(url,headers=H,timeout=90).content; sha=hashlib.sha256(data).hexdigest()
+              print(f'{kind.upper()}_LABEL={label}'); print(f'{kind.upper()}_SHA256={sha}')
               if sha != EXPECTED[kind]: raise SystemExit(f'{kind}: byte drift {sha}')
               with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
                   f.write(data); f.flush()
                   with pdfplumber.open(f.name) as pdf:
-                      print(f'{kind.upper()}_PAGES={len(pdf.pages)}')
-                      for pno, indexes in TARGETS[kind].items():
-                          page=pdf.pages[pno-1]
-                          tables=page.find_tables()
+                      targets={19:(225,280)} if kind=='listed' else {1:(90,165),14:(250,305)}
+                      for pno,(y0,y1) in targets.items():
+                          page=pdf.pages[pno-1]; tables=page.find_tables()
                           if len(tables)!=1: raise SystemExit(f'{kind} page {pno}: {len(tables)} tables')
-                          table=tables[0]
-                          extracted=table.extract()
-                          print(f'BEGIN_{kind.upper()}_PAGE_{pno}_CONTEXT')
-                          lo=max(0,min(indexes)-4); hi=min(len(extracted),max(indexes)+5)
-                          for ridx in range(lo,hi):
-                              vals=compact_row(extracted[ridx])
-                              marker='TARGET' if ridx in indexes else 'CTX'
-                              print(marker+f'_ROW_{ridx}='+json.dumps(vals,ensure_ascii=False))
-                          # Inspect text physically assigned to target table-row bands and the small band immediately above.
-                          words=page.extract_words(x_tolerance=1,y_tolerance=1,keep_blank_chars=False)
-                          for ridx in indexes:
-                              rowobj=table.rows[ridx]
+                          table=tables[0]; extracted=table.extract(); words=page.extract_words(x_tolerance=1,y_tolerance=1,keep_blank_chars=False)
+                          print(f'BEGIN_{kind.upper()}_PAGE_{pno}_DETAIL')
+                          for ridx,rowobj in enumerate(table.rows):
                               cells=[c for c in rowobj.cells if c]
                               if not cells: continue
                               top=min(c[1] for c in cells); bottom=max(c[3] for c in cells)
-                              def words_in(a,b):
-                                  selected_words=[w for w in words if a <= (float(w['top'])+float(w['bottom']))/2 < b]
-                                  return ' '.join(w['text'] for w in sorted(selected_words,key=lambda w:(round(float(w['top']),1),float(w['x0']))))
-                              print(f'ROW_BAND_{kind}_{pno}_{ridx}='+json.dumps({'top':top,'bottom':bottom,'text':words_in(top,bottom),'above_14pt':words_in(max(0,top-14),top)},ensure_ascii=False))
-                          print(f'END_{kind.upper()}_PAGE_{pno}_CONTEXT')
+                              if bottom < y0 or top > y1: continue
+                              print('ROW='+json.dumps({'index':ridx,'top':top,'bottom':bottom,'cells':[clean(v) for v in extracted[ridx]]},ensure_ascii=False))
+                              print('CELL_BOXES='+json.dumps([{'i':i,'bbox':c} for i,c in enumerate(rowobj.cells) if c],ensure_ascii=False))
+                          selected_words=[]
+                          for w in words:
+                              cy=(float(w['top'])+float(w['bottom']))/2
+                              if y0 <= cy <= y1:
+                                  selected_words.append({'t':w['text'],'x0':round(float(w['x0']),2),'x1':round(float(w['x1']),2),'top':round(float(w['top']),2),'bottom':round(float(w['bottom']),2)})
+                          print('WORDS='+json.dumps(sorted(selected_words,key=lambda w:(w['top'],w['x0'])),ensure_ascii=False))
+                          print(f'END_{kind.upper()}_PAGE_{pno}_DETAIL')
           PY
