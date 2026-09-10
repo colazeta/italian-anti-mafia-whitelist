@@ -57,3 +57,5 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/asti-finalise.yml/dispatches \
             -d '{"ref":"expansion/asti-2026-09-10"}'
+
+# Manual retrigger marker: 2026-09-10 autonomous expansion run.
