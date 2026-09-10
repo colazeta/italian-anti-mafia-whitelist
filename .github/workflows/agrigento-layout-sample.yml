@@ -18,13 +18,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Inspect byte-pinned public data-row layout
+      - name: Inspect byte-pinned public row variants
         run: |
           python -m pip install -q requests pdfplumber
           python - <<'PY'
           import hashlib
           import re
           import tempfile
+          from collections import Counter, defaultdict
           from pathlib import Path
           import pdfplumber
           import requests
@@ -33,20 +34,17 @@ jobs:
               'applicants': (
                   'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf',
                   'cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9',
-                  7,
-                  5,
               ),
               'listed': (
                   'https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf',
                   '23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81',
-                  10,
-                  7,
               ),
           }
           date_re = re.compile(r'^\d{1,2}[./]\d{1,2}[./]\d{4}$')
+          id_re = re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
           headers = {'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0)'}
           with tempfile.TemporaryDirectory() as td:
-              for key, (url, expected_sha, min_width, date_index) in sources.items():
+              for key, (url, expected_sha) in sources.items():
                   response = requests.get(url, headers=headers, timeout=90)
                   response.raise_for_status()
                   body = response.content
@@ -54,23 +52,27 @@ jobs:
                   if actual != expected_sha:
                       raise SystemExit(f'{key}: byte identity changed: {actual}')
                   path = Path(td) / f'{key}.pdf'; path.write_bytes(body)
-                  data_rows = []
-                  widths = {}
+                  signatures = Counter()
+                  examples = defaultdict(list)
+                  table_widths = Counter()
                   with pdfplumber.open(path) as pdf:
                       for page_number, page in enumerate(pdf.pages, 1):
                           for table_number, table in enumerate(page.extract_tables() or [], 1):
                               width = max((len(row) for row in table if row), default=0)
-                              if width < min_width:
-                                  continue
-                              widths[width] = widths.get(width, 0) + 1
+                              table_widths[width] += 1
                               for raw_row in table:
                                   row = [' '.join(str(cell or '').split()) for cell in raw_row]
-                                  if len(row) > date_index and date_re.fullmatch(row[date_index] or ''):
-                                      data_rows.append((page_number, table_number, row))
-                  print(f'{key.upper()}_SUBSTANTIVE_WIDTH_COUNTS={dict(sorted(widths.items()))}')
-                  print(f'{key.upper()}_DATE_ANCHORED_ROWS={len(data_rows)}')
-                  for page_number, table_number, row in data_rows[:6]:
-                      print(f'{key.upper()}_DATA_ROW page={page_number} table={table_number} cells={row!r}')
-                  if not data_rows:
-                      raise SystemExit(f'{key}: no date-anchored data rows found')
+                                  date_indexes = tuple(i for i, value in enumerate(row) if date_re.fullmatch(value or ''))
+                                  id_indexes = tuple(i for i, value in enumerate(row) if id_re.fullmatch(re.sub(r'\s+', '', (value or '').upper())))
+                                  if date_indexes or id_indexes:
+                                      signature = (len(row), date_indexes, id_indexes)
+                                      signatures[signature] += 1
+                                      if len(examples[signature]) < 2:
+                                          examples[signature].append((page_number, table_number, row))
+                  print(f'{key.upper()}_TABLE_WIDTH_COUNTS={dict(sorted(table_widths.items()))}')
+                  print(f'{key.upper()}_ROW_SIGNATURES={dict(signatures)}')
+                  for signature, rows in sorted(examples.items(), key=lambda item: (-signatures[item[0]], item[0])):
+                      print(f'{key.upper()}_SIGNATURE={signature} COUNT={signatures[signature]}')
+                      for page_number, table_number, row in rows:
+                          print(f'{key.upper()}_EXAMPLE page={page_number} table={table_number} cells={row!r}')
           PY
