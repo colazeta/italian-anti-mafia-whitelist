@@ -41,7 +41,7 @@ if len(vr) != 1:
 vr[0]["verification_date"] = "2026-09-10"
 vr[0]["verification_status"] = "verified"
 with pages_registry.open("w", encoding="utf-8", newline="") as h:
-    w = csv.DictWriter(h, fieldnames=verified[0].keys())
+    w = csv.DictWriter(h, fieldnames=verified[0].keys(), lineterminator="\n")
     w.writeheader()
     w.writerows(verified)
 
@@ -59,7 +59,7 @@ r["notes"] = (
     "Exact parser boundaries and conservative anomaly handling are documented in docs/sources/belluno-operational-check-2026-09-10.md."
 )
 with series_path.open("w", encoding="utf-8", newline="") as h:
-    w = csv.DictWriter(h, fieldnames=rows[0].keys())
+    w = csv.DictWriter(h, fieldnames=rows[0].keys(), lineterminator="\n")
     w.writeheader()
     w.writerows(rows)
 
@@ -70,7 +70,7 @@ if len(m) != 1 or m[0]["record_count"] != "19":
     raise SystemExit(f"Unexpected publication config baseline: {m}")
 m[0]["record_count"] = "20"
 with catalog_path.open("w", encoding="utf-8", newline="") as h:
-    w = csv.DictWriter(h, fieldnames=cat[0].keys())
+    w = csv.DictWriter(h, fieldnames=cat[0].keys(), lineterminator="\n")
     w.writeheader()
     w.writerows(cat)
 
