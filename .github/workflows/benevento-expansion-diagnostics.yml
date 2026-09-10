@@ -18,17 +18,17 @@ jobs:
           python-version: '3.12'
       - name: Install parser dependencies
         run: python -m pip install -e '.[publication]'
-      - name: Inspect current Benevento table geometry
+      - name: Validate current Benevento sources and parser
         shell: bash
         run: |
           python - <<'PY'
-          import hashlib, html.parser, re, urllib.parse, urllib.request
+          import hashlib, html.parser, json, urllib.parse, urllib.request
           from pathlib import Path
-          import pdfplumber
+          from white_list_archive.parsers.benevento_positioned import parse_applicants, parse_listed
 
-          pages={
-            'listed':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte',
-            'applicant':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti',
+          sources={
+            'listed':('https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte','a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01',734,parse_listed),
+            'applicant':('https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti','7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac',202,parse_applicants),
           }
           class L(html.parser.HTMLParser):
             def __init__(self): super().__init__(); self.links=[]; self.h=None; self.t=[]
@@ -41,31 +41,22 @@ jobs:
                 self.links.append((self.h,' '.join(''.join(self.t).split()))); self.h=None; self.t=[]
           def get(u):
             with urllib.request.urlopen(urllib.request.Request(u,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1','Accept':'*/*'}),timeout=45) as r:return r.read()
-          def resolve(u):
-            p=L(); p.feed(get(u).decode('utf-8','replace')); c=[]
+          def resolve(page):
+            p=L(); p.feed(get(page).decode('utf-8','replace')); c=[]
             for h,t in p.links:
-              a=urllib.parse.urljoin(u,h); f=(t+' '+h).casefold()
+              a=urllib.parse.urljoin(page,h); f=(t+' '+h).casefold()
               if ('31 agosto 2026' in f or '31.08.2026' in f or '31082026' in f) and '.pdf' in f:c.append(a)
-            if len(c)!=1: raise SystemExit(f'expected one current resource, got {len(c)}')
+            if len(c)!=1: raise RuntimeError(f'expected exactly one current official resource, got {len(c)}')
             return c[0]
-          for label,page in pages.items():
-            url=resolve(page); body=get(url); path=Path('/tmp/'+label+'.pdf'); path.write_bytes(body)
-            print(label,'sha256',hashlib.sha256(body).hexdigest(),'resource',url)
-            with pdfplumber.open(path) as pdf:
-              p=pdf.pages[0]; tables=p.find_tables()
-              print(label,'table_count',len(tables))
-              for ti,table in enumerate(tables):
-                extracted=table.extract()
-                print(label,'table',ti,'bbox',tuple(round(x,2) for x in table.bbox),'rows',len(table.rows))
-                for ri,(row,cells_text) in enumerate(zip(table.rows,extracted)):
-                  folded=' '.join(str(x or '') for x in cells_text).casefold()
-                  if ri<3 or 'ragione' in folded:
-                    print(label,'row',ri,'cell_bboxes',[None if c is None else tuple(round(x,2) for x in c) for c in row.cells])
-                    print(label,'row',ri,'semantic',[sorted({k for k in ('ragione','sede','codice','partita','iscrizione','scadenza','istanza','data','note') if k in str(v or '').casefold()}) for v in cells_text])
-              # Aggregate primary-date centres and exact x extents, no row text.
-              words=p.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
-              dates=[w for w in words if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{4}',w['text'])]
-              ids=[w for w in words if re.fullmatch(r'(?:\d{11}|[A-Z0-9]{16})',w['text'].upper())]
-              print(label,'first_page_date_boxes',[(round(w['x0'],1),round(w['x1'],1),round(w['top'],1)) for w in dates])
-              print(label,'first_page_id_boxes',[(round(w['x0'],1),round(w['x1'],1),round(w['top'],1)) for w in ids])
+          for population,(page,expected_sha,expected_rows,parser) in sources.items():
+            resource=resolve(page); body=get(resource); actual=hashlib.sha256(body).hexdigest()
+            if actual!=expected_sha: raise RuntimeError(f'{population}: source hash changed: {actual}')
+            path=Path('/tmp')/f'benevento-{population}.pdf'; path.write_bytes(body)
+            cfg={'source_key':f'benevento-{population}','authority_key':'benevento','authority_name':'Prefettura di Benevento','register_key':'benevento-ordinary','register_name':'White List ordinaria','population_scope':population,'reference_date':'2026-08-31','source_page_url':page,'resource_url':resource,'sha256':actual}
+            batch=parser(path,cfg)
+            if len(batch.records)!=expected_rows: raise RuntimeError(f'{population}: expected {expected_rows} rows, got {len(batch.records)}')
+            if len({r['record_locator'] for r in batch.records})!=expected_rows: raise RuntimeError(f'{population}: duplicate record locator')
+            summary={k:v for k,v in batch.diagnostics.items() if k not in {'page_rows'}}
+            summary['page_rows']=batch.diagnostics['page_rows']
+            print(population,json.dumps(summary,ensure_ascii=False,sort_keys=True))
           PY
