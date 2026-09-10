@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.head_commit.message == 'Run Bari transactional finalizer'
+    if: github.event.head_commit.message == 'Normalize Bari integration CSV serialization'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -34,7 +34,6 @@ jobs:
           from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
-
           PAGE='https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list'
           SOURCES=[
             ('listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-societa-iscritte_permanenza_31-08-2026.pdf','a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9','Elenco società iscritte al 31/08/2026'),
@@ -42,8 +41,7 @@ jobs:
           ]
           h={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-verification)'}
           s=requests.Session(); landing=s.get(PAGE,headers=h,timeout=45); landing.raise_for_status()
-          soup=BeautifulSoup(landing.text,'html.parser')
-          links={urljoin(PAGE,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
+          soup=BeautifulSoup(landing.text,'html.parser'); links={urljoin(PAGE,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
           for key,url,expected_sha,expected_label in SOURCES:
               assert links.get(url)==expected_label,(key,links.get(url))
               response=s.get(url,headers=h,timeout=90); response.raise_for_status(); body=response.content
@@ -68,8 +66,7 @@ jobs:
           assert len([r for r in ab.records if not r['name']])==1
           roadtek=[r for r in lb.records if r['name']=='ROADTEK SRLS']; assert len(roadtek)==1 and roadtek[0]['identifiers']==[]
           innovatec=[r for r in ab.records if r['name']=='INNOVATEC SRL']; assert len(innovatec)==1 and innovatec[0]['requested_activities']==[]
-          for record in lb.records+ab.records:
-              public_record(record)
+          for record in lb.records+ab.records: public_record(record)
           print('Bari parser/public-contract pre-integration validation passed')
           PY
           pytest -q
@@ -80,64 +77,51 @@ jobs:
           import csv, json
           from datetime import datetime, timezone
           from pathlib import Path
-
           PAGE='https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list'
           LU='https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-societa-iscritte_permanenza_31-08-2026.pdf'
           AU='https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-richieste-iscrizione_31-08-2026.pdf'
-          LS='a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9'
-          AS='9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d'
+          LS='a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9'; AS='9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d'
 
-          registry_path=Path('src/white_list_archive/publishing/public_national_registry.py')
-          text=registry_path.read_text()
-          import_anchor='from white_list_archive.parsers.ancona_combined import PARSERS as ANCONA_PARSERS\n'
-          dispatch_anchor='        or ANCONA_PARSERS.get(cfg["parser"])\n'
-          assert import_anchor in text and dispatch_anchor in text
+          registry=Path('src/white_list_archive/publishing/public_national_registry.py'); text=registry.read_text()
+          ia='from white_list_archive.parsers.ancona_combined import PARSERS as ANCONA_PARSERS\n'; da='        or ANCONA_PARSERS.get(cfg["parser"])\n'
+          assert ia in text and da in text
           if 'BARI_PARSERS' not in text:
-              text=text.replace(import_anchor,import_anchor+'from white_list_archive.parsers.bari_tables import PARSERS as BARI_PARSERS\n')
-              text=text.replace(dispatch_anchor,dispatch_anchor+'        or BARI_PARSERS.get(cfg["parser"])\n')
-          registry_path.write_text(text)
+              text=text.replace(ia,ia+'from white_list_archive.parsers.bari_tables import PARSERS as BARI_PARSERS\n')
+              text=text.replace(da,da+'        or BARI_PARSERS.get(cfg["parser"])\n')
+          registry.write_text(text)
 
-          cfgp=Path('data/publication/multi_prefecture_pilot.json')
-          cfg=json.loads(cfgp.read_text())
+          cfgp=Path('data/publication/multi_prefecture_pilot.json'); cfg=json.loads(cfgp.read_text())
           assert not any(x['source_key'] in {'bari-listed','bari-applicants'} for x in cfg['sources'])
           cfg['sources'] += [
             {'source_key':'bari-listed','parser':'bari_listed','authority_key':'bari','authority_name':'Prefettura di Bari','register_key':'bari-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-08-31','source_page_url':PAGE,'resource_url':LU,'sha256':LS,'expected_source_rows':1065,'last_source_update':'2026-08-31','last_source_update_basis':'explicit current official attachment label','notes':'Current byte-pinned listed/permanence population; reviewed denominator 1,065. Source anomalies remain uncorrected and are documented in docs/sources/bari-operational-check-2026-09-10.md.'},
             {'source_key':'bari-applicants','parser':'bari_applicants','authority_key':'bari','authority_name':'Prefettura di Bari','register_key':'bari-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-08-31','source_page_url':PAGE,'resource_url':AU,'sha256':AS,'expected_source_rows':605,'last_source_update':'2026-08-31','last_source_update_basis':'explicit current official attachment label','notes':'Current byte-pinned applicant population; all 605 reviewed observations are explicitly in istruttoria. One reviewed source row has no sector marker and is preserved without sector inference.'}
-          ]
-          cfgp.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n')
+          ]; cfgp.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n')
 
           sp=Path('data/source_registry/source_series_inventory.csv')
-          with sp.open(newline='',encoding='utf-8') as f:
-              reader=csv.DictReader(f); fields=reader.fieldnames; rows=list(reader)
+          with sp.open(newline='',encoding='utf-8') as f: reader=csv.DictReader(f); fields=reader.fieldnames; rows=list(reader)
           assert fields
-          values={
+          vals={
             'bari-listed':{'source_series_key':'bari-listed','authority_key':'bari','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':PAGE,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-10','notes':'Current listed/permanence attachment explicitly labelled 31 August 2026; exact byte identity, denominator and extraction exceptions documented in Bari operational check.'},
-            'bari-applicants':{'source_series_key':'bari-applicants','authority_key':'bari','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':PAGE,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-10','notes':'Current applicant attachment explicitly labelled 31 August 2026; 605 source-backed pending observations; one sectorless row preserved without inference.'}
-          }
+            'bari-applicants':{'source_series_key':'bari-applicants','authority_key':'bari','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':PAGE,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-10','notes':'Current applicant attachment explicitly labelled 31 August 2026; 605 source-backed pending observations; one sectorless row preserved without inference.'}}
           by={r['source_series_key']:i for i,r in enumerate(rows)}
-          for key,value in values.items():
-              item={field:value.get(field,'') for field in fields}
+          for key,val in vals.items():
+              item={field:val.get(field,'') for field in fields}
               if key in by: rows[by[key]]=item
               else: rows.append(item)
           with sp.open('w',newline='',encoding='utf-8') as f:
-              writer=csv.DictWriter(f,fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+              writer=csv.DictWriter(f,fieldnames=fields,lineterminator='\n'); writer.writeheader(); writer.writerows(rows)
 
           vp=Path('data/source_registry/verified_primary_pages.csv')
-          with vp.open(newline='',encoding='utf-8') as f:
-              reader=csv.DictReader(f); fields=reader.fieldnames; rows=list(reader)
-          assert fields
-          found=False
+          with vp.open(newline='',encoding='utf-8') as f: reader=csv.DictReader(f); fields=reader.fieldnames; rows=list(reader)
+          assert fields; found=False
           for row in rows:
-              if row['authority_key']=='bari':
-                  row.update({'landing_url':PAGE,'verification_date':'2026-09-10','verification_status':'verified'}); found=True
+              if row['authority_key']=='bari': row.update({'landing_url':PAGE,'verification_date':'2026-09-10','verification_status':'verified'}); found=True
           if not found:
-              raw={'authority_key':'bari','landing_url':PAGE,'verification_date':'2026-09-10','verification_status':'verified'}
-              rows.append({field:raw.get(field,'') for field in fields})
+              raw={'authority_key':'bari','landing_url':PAGE,'verification_date':'2026-09-10','verification_status':'verified'}; rows.append({field:raw.get(field,'') for field in fields})
           with vp.open('w',newline='',encoding='utf-8') as f:
-              writer=csv.DictWriter(f,fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+              writer=csv.DictWriter(f,fieldnames=fields,lineterminator='\n'); writer.writeheader(); writer.writerows(rows)
 
-          cp=Path('data/monitoring/national_coverage.json')
-          coverage=json.loads(cp.read_text()); bari=next(x for x in coverage['prefectures'] if x['authority_key']=='bari')
+          cp=Path('data/monitoring/national_coverage.json'); coverage=json.loads(cp.read_text()); bari=next(x for x in coverage['prefectures'] if x['authority_key']=='bari')
           now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
           bari.update({'official_landing_page':PAGE,'source_verified':True,'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,'population_scopes_complete':True,'latest_source_reference_date':'2026-08-31','last_successful_source_check_at':now,'last_attempted_source_check_at':now,'last_successful_investigation_on':'2026-09-10','monitoring_status':'CURRENT','unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,'completion_evidence':['docs/sources/bari-operational-check-2026-09-10.md','src/white_list_archive/parsers/bari_tables.py','tests/test_bari_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],'known_content_sha256':[LS,AS],'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/bari-operational-check-2026-09-10.md'],'last_completed_coverage_stage':'VALIDATED'})
           cp.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n')
@@ -146,22 +130,12 @@ jobs:
         shell: bash
         run: |
           rm -rf /tmp/bari-national-build /tmp/bari-national-sources
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/bari-national-sources \
-            --registry-json /tmp/bari-national-build/registry.json \
-            --registry-csv /tmp/bari-national-build/registry.csv \
-            --prefectures-json /tmp/bari-national-build/prefectures.json \
-            --prefectures-csv /tmp/bari-national-build/prefectures.csv
+          white-list-public-national-build --source-config data/publication/multi_prefecture_pilot.json --verified-pages data/source_registry/verified_primary_pages.csv --source-series data/source_registry/source_series_inventory.csv --authority-aliases data/source_registry/national_index_authority_aliases.csv --work-dir /tmp/bari-national-sources --registry-json /tmp/bari-national-build/registry.json --registry-csv /tmp/bari-national-build/registry.csv --prefectures-json /tmp/bari-national-build/prefectures.json --prefectures-csv /tmp/bari-national-build/prefectures.csv
           python - <<'PY'
           import json
           from pathlib import Path
           reg=json.loads(Path('/tmp/bari-national-build/registry.json').read_text()); pref=json.loads(Path('/tmp/bari-national-build/prefectures.json').read_text())
-          assert reg['meta']['record_count']==13233,reg['meta']
-          assert reg['meta']['authority_count']==17 and reg['meta']['register_count']==18
+          assert reg['meta']['record_count']==13233,reg['meta']; assert reg['meta']['authority_count']==17 and reg['meta']['register_count']==18
           assert reg['meta']['authority_counts']['bari']==1670 and reg['meta']['register_counts']['bari-ordinary']==1670
           assert pref['meta']['authority_count']==106 and pref['meta']['published_count']==17 and pref['meta']['mapped_count']==35
           bari=next(x for x in pref['prefectures'] if x['authority_key']=='bari'); assert bari['published'] and bari['mapped']
