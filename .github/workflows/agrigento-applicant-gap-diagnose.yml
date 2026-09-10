@@ -1,0 +1,90 @@
+name: Diagnose Agrigento applicant outcome gap
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-applicant-gap-diagnose.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Inspect office-anchored applicant rows without explicit istruttoria outcome
+        run: |
+          python - <<'PY'
+          import hashlib
+          import tempfile
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          import pdfplumber
+
+          from white_list_archive.parsers.agrigento_positioned import (
+              _APPLICANT_BANDS,
+              _main_table,
+              _row_vertical_bounds,
+              _values,
+          )
+
+          url='https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf'
+          expected='cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9'
+          req=Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+Agrigento diagnosis)'})
+          with urlopen(req,timeout=90) as response:
+              body=response.read()
+          actual=hashlib.sha256(body).hexdigest()
+          print('sha256=',actual)
+          assert actual==expected
+
+          total=0
+          explicit=0
+          gaps=[]
+          with tempfile.TemporaryDirectory() as td:
+              path=Path(td)/'applicants.pdf'; path.write_bytes(body)
+              with pdfplumber.open(path) as pdf:
+                  assert len(pdf.pages)==16
+                  for page_number,page in enumerate(pdf.pages,1):
+                      if page_number==1:
+                          continue
+                      words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=1,y_tolerance=2)
+                      table=_main_table(page,page_number=page_number,population='applicants')
+                      extracted=table.extract()
+                      for row_index,row in enumerate(table.rows):
+                          bounds=_row_vertical_bounds(row)
+                          if bounds is None:
+                              continue
+                          y0,y1=bounds
+                          values=_values(words,_APPLICANT_BANDS,y0,y1)
+                          name=values['name']
+                          if not name or 'ragione sociale' in name.casefold() or not values['office']:
+                              continue
+                          total += 1
+                          if 'istruttoria' in values['outcome'].casefold():
+                              explicit += 1
+                              continue
+                          physical = [' '.join(str(c or '').split()) for c in (extracted[row_index] if row_index < len(extracted) else [])]
+                          nearby=[]
+                          for word in words:
+                              cx=(float(word['x0'])+float(word['x1']))/2
+                              cy=(float(word['top'])+float(word['bottom']))/2
+                              if 698.2 <= cx < 806.0 and y0-35 <= cy < y1+35:
+                                  nearby.append((round(float(word['top']),1),round(float(word['x0']),1),word['text']))
+                          nearby.sort()
+                          gap={'page':page_number,'row':row_index,'bounds':(round(y0,2),round(y1,2)),'values':values,'physical':physical,'nearby_outcome_words':nearby}
+                          gaps.append(gap)
+                          print('GAP=',repr(gap))
+          print('OFFICE_ANCHORED_TOTAL=',total)
+          print('EXPLICIT_ISTRUTTORIA=',explicit)
+          print('GAP_COUNT=',len(gaps))
+          PY
