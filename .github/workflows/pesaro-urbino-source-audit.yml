@@ -17,15 +17,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and inspect official current attachment
+      - name: Resolve and profile official current attachment
         run: |
-          python -m pip install -q requests beautifulsoup4 pymupdf
+          python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
           import hashlib, io, re
           from urllib.parse import urljoin
-          import requests
+          import requests, pdfplumber
           from bs4 import BeautifulSoup
-          import fitz
 
           page_url='https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte'
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
@@ -35,30 +34,29 @@ jobs:
               label=' '.join(a.stripped_strings).strip(); href=urljoin(page_url,a['href'])
               if 'elenco imprese iscritte' in label.casefold() or '/sites/default/files/' in href:
                   candidates.append((label,href))
-          print('CANDIDATES='+repr(candidates))
           exact=[x for x in candidates if 'aggiornamento 31.08.2026' in x[0].casefold()]
           if len(exact)!=1: raise SystemExit(f'expected exactly one dated attachment, got {exact!r}')
           label,url=exact[0]; res=s.get(url,headers=H,timeout=90); res.raise_for_status(); data=res.content
-          ctype=res.headers.get('content-type',''); print('LABEL='+label); print('RESOURCE='+url); print('CONTENT_TYPE='+ctype); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
-          if not data.startswith(b'%PDF'):
-              raise SystemExit('current attachment is not a PDF; fail closed')
-          doc=fitz.open(stream=data,filetype='pdf')
-          print('FORMAT=pdf'); print('PAGES='+str(doc.page_count))
-          all_text=[]
-          for pno,page in enumerate(doc,1):
-              text='\n'.join(' '.join(line.split()) for line in page.get_text('text').splitlines() if line.strip())
-              all_text.append(text)
-              if pno <= 3 or pno > doc.page_count-3:
-                  print(f'PAGE {pno} TEXT_HEAD={text[:1800]!r}')
-          joined='\n'.join(all_text)
-          markers=[]
-          for pat in [r'richiedent\w*',r'richiesta\w*',r'iscritt\w*',r'white\s*list']:
-              hits=[(m.start(), joined[max(0,m.start()-250):m.start()+500]) for m in re.finditer(pat,joined,re.I)]
-              print(f'MARKER {pat!r} COUNT={len(hits)}')
-              for pos,snip in hits[:20]: print(f'HIT {pos}: {snip!r}')
-          # Print compact page-level structural stats to locate population transitions.
-          for pno,text in enumerate(all_text,1):
-              lc=text.casefold()
-              if 'richied' in lc or 'istanza' in lc or 'iscritt' in lc:
-                  print(f'PAGE_MARKER {pno}: '+repr(text[:700]))
+          print('LABEL='+label); print('RESOURCE='+url); print('CONTENT_TYPE='+res.headers.get('content-type','')); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
+          if not data.startswith(b'%PDF'): raise SystemExit('current attachment is not a PDF; fail closed')
+          with pdfplumber.open(io.BytesIO(data)) as pdf:
+              print('PAGES='+str(len(pdf.pages)))
+              for pno,page in enumerate(pdf.pages,1):
+                  if pno==1: print('PAGE_SIZE='+repr((page.width,page.height)))
+                  tables=page.extract_tables()
+                  print(f'PAGE {pno} TABLES={len(tables)} ROWS='+repr([len(t or []) for t in tables]))
+                  if pno in (1,2,21):
+                      for ti,t in enumerate(tables):
+                          print(f'PAGE {pno} TABLE {ti} HEAD='+repr((t or [])[:6]))
+                  words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=2,y_tolerance=3)
+                  # identify x positions of known source headings and first data tokens.
+                  if pno<=2:
+                      lines={}
+                      for w in words:
+                          key=round(float(w['top'])/3)*3
+                          lines.setdefault(key,[]).append(w)
+                      for y,ws in sorted(lines.items()):
+                          text=' '.join(str(w['text']) for w in sorted(ws,key=lambda x:float(x['x0'])))
+                          if any(k in text for k in ['Ragione Sociale','24 S.R.L.','ALANUOVA','AG SCAVI','ALBA COSTRUZIONI']):
+                              print('LINE',pno,y,[(round(float(w['x0']),1),round(float(w['x1']),1),w['text']) for w in sorted(ws,key=lambda x:float(x['x0']))])
           PY
