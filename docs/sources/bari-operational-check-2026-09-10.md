@@ -28,7 +28,7 @@ A small set of rows is visually complete but split by PDF table geometry. Repair
 
 One applicant observation on page 1 (CF/P.IVA `07906600726`, Bari, Corso Vittorio Emanuele II n. 48) has no recoverable legal-name text in the source extraction; the legal name is deliberately left blank rather than inferred. `ROADTEK SRLS` has no recoverable identifier and likewise retains an empty raw identifier. The `UNIEXPRESS SRL - 08439559727` legal-name field and its separate identifier-column value `08439550727` are preserved exactly as published rather than reconciled.
 
-Five malformed listed date strings are retained verbatim in provenance and not repaired: `06/'3/2025`, `02/07/024`, `1607/2025`, `19+/06/2027`, and `28/01/207`. The applicant string `18/07/18 - 11/05/23` is handled identically. Blank source dates remain blank. Any other non-empty malformed date fails closed.
+Six malformed listed date strings are retained verbatim in provenance and not repaired: `06/'3/2025`, `02/07/024`, `1607/2025`, `19+/06/2027`, `28/01/207`, and the calendar-invalid source string `04/30/2025`. The applicant string `18/07/18 - 11/05/23` is handled identically. Blank source dates remain blank. Any other non-empty malformed or calendar-invalid date fails closed.
 
 Identifier normalisation accepts only already-valid contiguous 11-digit numeric or 16-character alphanumeric identifiers found in the raw identifier field. It never pads, truncates or reconstructs an identifier. The complete raw field is always retained.
 
