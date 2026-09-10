@@ -1,0 +1,128 @@
+name: Apply isolated Biella mutable-source approval fix
+
+on:
+  push:
+    branches:
+      - fix/biella-semantic-source-approval-2026-09-10
+    paths:
+      - '.github/workflows/biella-semantic-source-approval-2026-09-10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/biella-semantic-source-approval-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install -e '.[dev,publication]'
+      - name: Implement fail-closed semantic approval for Biella only
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = path.read_text(encoding='utf-8')
+
+          download = '''def _download(url: str, path: Path) -> str:\n    request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})\n    with urlopen(request, timeout=90) as response:  # noqa: S310 - URLs are versioned official-source config\n        body = response.read()\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_bytes(body)\n    return hashlib.sha256(body).hexdigest()\n\n\n'''
+          assert text.count(download) == 1
+          helper = '''def _semantic_digest(records: list[dict[str, Any]]) -> str:\n    """Hash parsed source semantics while excluding capture/runtime provenance.\n\n    This approval mode is reserved for explicitly configured mutable structured\n    sources whose raw wrapper bytes can change independently of the published\n    table semantics. Raw capture SHA-256 remains attached to every observation.\n    """\n    ignored = {"capture_sha256", "parser_name", "parser_version"}\n    projected = [\n        {key: value for key, value in record.items() if key not in ignored}\n        for record in records\n    ]\n    payload = json.dumps(\n        projected, ensure_ascii=False, sort_keys=True, separators=(",", ":")\n    ).encode("utf-8")\n    return hashlib.sha256(payload).hexdigest()\n\n\n'''
+          text = text.replace(download, download + helper, 1)
+
+          old = '''        actual_sha = _download(cfg["resource_url"], local_path)\n        if actual_sha != cfg["sha256"]:\n            raise RuntimeError(\n                f"{cfg['source_key']}: approved source SHA mismatch; expected {cfg['sha256']}, got {actual_sha}"\n            )\n        batch = _parse_source(local_path, cfg)\n        _validate_batch(cfg, batch)\n'''
+          assert text.count(old) == 1
+          new = '''        actual_sha = _download(cfg["resource_url"], local_path)\n        approval_mode = str(cfg.get("approval_mode") or "raw_sha256")\n        if approval_mode not in {"raw_sha256", "semantic_sha256"}:\n            raise RuntimeError(f"{cfg['source_key']}: unsupported approval mode {approval_mode!r}")\n        if approval_mode == "raw_sha256" and actual_sha != cfg["sha256"]:\n            raise RuntimeError(\n                f"{cfg['source_key']}: approved source SHA mismatch; expected {cfg['sha256']}, got {actual_sha}"\n            )\n\n        # Parsers record the bytes actually inspected. For immutable resources\n        # this remains identical to the approved raw hash.\n        parse_cfg = dict(cfg)\n        parse_cfg["sha256"] = actual_sha\n        batch = _parse_source(local_path, parse_cfg)\n        _validate_batch(cfg, batch)\n        if approval_mode == "semantic_sha256":\n            expected_semantic_sha = str(cfg.get("semantic_sha256") or "")\n            if not expected_semantic_sha:\n                raise RuntimeError(f"{cfg['source_key']}: semantic approval requires semantic_sha256")\n            actual_semantic_sha = _semantic_digest(batch.records)\n            if actual_semantic_sha != expected_semantic_sha:\n                raise RuntimeError(\n                    f"{cfg['source_key']}: approved semantic SHA mismatch; "\n                    f"expected {expected_semantic_sha}, got {actual_semantic_sha}"\n                )\n'''
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+          cfg_path = Path('data/publication/multi_prefecture_pilot.json')
+          cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
+          semantic = {
+              'biella-listed': '8c2cf30eed0ed39673be5a52af1e11763f28ebd000607e1c0e995935b55cf1bd',
+              'biella-applicants': '4419690a935c921f52b5ffbbf03fefa0253a04d79289baa7b7dce179f0cd8f6d',
+          }
+          found = set()
+          for source in cfg['sources']:
+              key = source['source_key']
+              if key in semantic:
+                  found.add(key)
+                  source['approval_mode'] = 'semantic_sha256'
+                  source['semantic_sha256'] = semantic[key]
+                  source['notes'] += (
+                      ' The official resource is a mutable structured HTML wrapper. '
+                      'Raw capture SHA-256 remains observation provenance, while publication '
+                      'fails closed unless parsed source semantics match the separately approved digest.'
+                  )
+          assert found == set(semantic)
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          Path('tests/test_source_semantic_approval.py').write_text('''from white_list_archive.publishing.public_national_registry import _semantic_digest\n\n\ndef _record(**changes):\n    record = {\n        "name": "Example S.r.l.",\n        "source_status": "listed",\n        "capture_sha256": "raw-a",\n        "parser_name": "parser-a",\n        "parser_version": "1",\n    }\n    record.update(changes)\n    return record\n\n\ndef test_semantic_digest_ignores_only_capture_and_runtime_parser_provenance():\n    baseline = _semantic_digest([_record()])\n    assert baseline == _semantic_digest([_record(capture_sha256="raw-b", parser_name="parser-b", parser_version="2")])\n    assert baseline != _semantic_digest([_record(name="Different S.r.l.")])\n    assert baseline != _semantic_digest([_record(source_status="pending")])\n\n\ndef test_semantic_digest_is_order_sensitive_for_source_rows():\n    assert _semantic_digest([_record(name="A"), _record(name="B")]) != _semantic_digest([_record(name="B"), _record(name="A")])\n''', encoding='utf-8')
+
+          Path('docs/sources/biella-byte-drift-check-2026-09-10.md').write_text('''# Biella mutable HTML approval check — 10 September 2026\n\nThe official Biella White List resource is the Prefecture HTML page itself rather than a versioned attachment. The public build had pinned raw SHA-256 `636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53`. On 10 September 2026 the same official URL returned different raw byte representations while the parsed tables remained stable.\n\nThis drift was not treated as permission to refresh a raw hash blindly. A dedicated audit parsed repeated current downloads with the already approved Biella parsers and compared all parsed source-semantic fields against the published Biella observations, excluding only raw capture SHA-256 and runtime parser name/version. The downloads produced exactly 130 listed observations and 109 applicant observations. Their approved semantic digests are `8c2cf30eed0ed39673be5a52af1e11763f28ebd000607e1c0e995935b55cf1bd` for listed observations and `4419690a935c921f52b5ffbbf03fefa0253a04d79289baa7b7dce179f0cd8f6d` for applicants.\n\nFor this explicitly identified mutable structured source, raw-byte identity is not a stable edition boundary. The builder therefore uses a source-specific `semantic_sha256` approval mode. It still hashes and retains the exact downloaded bytes as observation provenance, still applies the approved parser and row-count invariants, and additionally fails closed unless the parsed semantic digest matches the approved value exactly. The approval-mode fields remain internal configuration and are not added to the public source-report contract. All other sources continue to use strict raw-SHA approval unless explicitly configured otherwise.\n''', encoding='utf-8')
+      - name: Validate unchanged public output and full test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_source_semantic_approval.py
+          rm -rf /tmp/biella-semantic-build /tmp/biella-semantic-registry.json /tmp/biella-semantic-registry.csv /tmp/biella-semantic-prefectures.json /tmp/biella-semantic-prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/biella-semantic-build \
+            --registry-json /tmp/biella-semantic-registry.json \
+            --registry-csv /tmp/biella-semantic-registry.csv \
+            --prefectures-json /tmp/biella-semantic-prefectures.json \
+            --prefectures-csv /tmp/biella-semantic-prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/biella-semantic-registry.json').read_text())
+          pref = json.loads(Path('/tmp/biella-semantic-prefectures.json').read_text())
+          assert reg['meta']['record_count'] == 8522
+          assert reg['meta']['authority_count'] == 11
+          assert reg['meta']['register_count'] == 12
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['mapped_count'] == 34
+          assert pref['meta']['published_count'] == 11
+          for source in reg['meta']['sources']:
+              assert 'approval_mode' not in source
+              assert 'semantic_sha256' not in source
+          biella = [r for r in reg['records'] if r['authority_key'] == 'biella']
+          assert len(biella) == 239
+          assert sum(r['source_status'] == 'listed' for r in biella) == 130
+          assert sum(r['source_status'] == 'pending' for r in biella) == 109
+          assert all(r['capture_sha256'] for r in biella)
+          print({'records': 8522, 'published_prefectures': 11, 'mapped_prefectures': 34, 'biella_records': len(biella)})
+          PY
+          python -m pytest -q
+      - name: Commit isolated production fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            src/white_list_archive/publishing/public_national_registry.py \
+            data/publication/multi_prefecture_pilot.json \
+            tests/test_source_semantic_approval.py \
+            docs/sources/biella-byte-drift-check-2026-09-10.md
+          git diff --cached --check
+          git diff --cached --name-only
+          git commit -m 'Handle Biella mutable source drift fail-closed'
+          git push origin HEAD:fix/biella-semantic-source-approval-2026-09-10
