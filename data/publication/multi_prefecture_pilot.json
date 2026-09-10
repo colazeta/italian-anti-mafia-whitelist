@@ -179,11 +179,13 @@
       "reference_date": "2026-09-10",
       "source_page_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx",
       "resource_url": "https://www.regione.vda.it/allegato.aspx?pk=84307",
-      "sha256": "6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f",
-      "expected_source_rows": 245,
+      "sha256": "de10b4fe05ff6e77c1698d3b0d98c1a5603578417166440439e28107db4d354e",
+      "expected_source_rows": 244,
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "current official attachment verified on this date; attachment itself is undated",
-      "notes": "The official listed-company page was independently identified and the mutable official attachment was byte-verified on 2026-09-10. The attachment exposes 245 complete source rows with name, identifier, activities, listing date and expiry date; 17 explicitly carry update/renewal text. Rows without a company identity are treated as layout material rather than silently attached to a neighbouring company."
+      "notes": "The official listed-company attachment is a mutable current resource. On 10 September 2026 repeated independent captures stably exposed 244 complete source rows: 227 listed and 17 with explicit update/renewal text. Compared with the last live-verified capture, IMPRESA COSTRUZIONI SAN GIORGIO Srl (00562570077) is no longer present in the listed series. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest.",
+      "approval_mode": "semantic_sha256",
+      "semantic_sha256": "b82caff9c3c491dc8d44b407801b6d1f9e6a1c7620f3ce2270b10bb332b7e047"
     },
     {
       "source_key": "aosta-applicants",
@@ -196,11 +198,13 @@
       "reference_date": "2026-09-10",
       "source_page_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx",
       "resource_url": "https://www.regione.vda.it/allegato.aspx?pk=84309",
-      "sha256": "77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd",
+      "sha256": "6c2aaca63aa7bad2b7a95eed43ed31401b497f27167718275fd10ba736236d01",
       "expected_source_rows": 139,
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "current official attachment verified on this date; attachment itself is undated",
-      "notes": "The official applicant page and mutable attachment were verified on 2026-09-10. The current attachment contains 139 complete request observations: 117 have a source outcome indicating subsequent White List enrolment and 22 remain in istruttoria. Those outcomes are preserved as source observations; no cross-series entity deduplication is asserted."
+      "notes": "The official applicant attachment is a mutable current resource. On 10 September 2026 repeated independent captures stably exposed 139 request observations: 116 with source-explicit subsequent enrolment and 23 in istruttoria. Compared with the last live-verified capture, IMPRESA COSTRUZIONI SAN GIORGIO Srl (00562570077) now has a 3 September 2026 application for activity C with source outcome Istruttoria in corso. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest.",
+      "approval_mode": "semantic_sha256",
+      "semantic_sha256": "06cc1155e2abc3e38c3d552d2009fa9e06a1d958aefaf13f080d6c7475b12b00"
     },
     {
       "source_key": "arezzo-listed",
