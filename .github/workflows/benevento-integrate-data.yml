@@ -1,0 +1,81 @@
+name: Benevento non-workflow integration
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/benevento-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Integrate data, parser registry, evidence and browser gates
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('.')
+
+          config_path=root/'data/publication/multi_prefecture_pilot.json'
+          config=json.loads(config_path.read_text(encoding='utf-8'))
+          additions=[
+            {'source_key':'benevento-listed','parser':'benevento_listed','authority_key':'benevento','authority_name':'Prefettura di Benevento','register_key':'benevento-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-08-31','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte','resource_url':'https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-iscritte-31-08-2026.pdf','sha256':'a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01','expected_source_rows':734,'last_source_update':'2026-09-01','last_source_update_basis':'official page update and dated attachment label','notes':'The official source explicitly identifies the listed-company population at 31 August 2026. The PDF table can merge visually distinct company observations under generic extraction; the approved parser uses ruled-table geometry and the source listing-date column as row anchors. Names, offices, activities and identifiers are read only from their source column bands. Two listed rows have an empty raw identifier cell and other non-canonical identifiers remain raw; one malformed expiry value is retained as a raw source variant and is not repaired. Free-text update material is preserved without changing source-population status.'},
+            {'source_key':'benevento-applicants','parser':'benevento_applicants','authority_key':'benevento','authority_name':'Prefettura di Benevento','register_key':'benevento-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-08-31','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti','resource_url':'https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-richiedenti-31-08-2026.pdf','sha256':'7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac','expected_source_rows':204,'last_source_update':'2026-09-01','last_source_update_basis':'official page update and dated attachment label','notes':'The official source explicitly identifies companies requesting enrolment at 31 August 2026. Position-aware recovery yields 204 complete name/office/activity observations from primary application-date anchors inside the ruled table, preventing distinct visual rows from being collapsed by generic extraction. Applicant rows are published as pending only; no legal or procedural outcome is inferred from blank or free-text cells. One source row has an empty raw identifier and other non-canonical identifiers remain unmodified.'}
+          ]
+          keys={s['source_key'] for s in config['sources']}
+          for item in additions:
+            if item['source_key'] not in keys: config['sources'].append(item)
+          config_path.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          registry_path=root/'src/white_list_archive/publishing/public_national_registry.py'
+          text=registry_path.read_text(encoding='utf-8')
+          if 'BENEVENTO_PARSERS' not in text:
+            a='from white_list_archive.parsers.biella_html import PARSERS as BIELLA_PARSERS\n'; assert text.count(a)==1
+            text=text.replace(a,a+'from white_list_archive.parsers.benevento_positioned import PARSERS as BENEVENTO_PARSERS\n')
+            a='        or BIELLA_PARSERS.get(cfg["parser"])\n'; assert text.count(a)==1
+            text=text.replace(a,a+'        or BENEVENTO_PARSERS.get(cfg["parser"])\n')
+          registry_path.write_text(text,encoding='utf-8')
+
+          inv_path=root/'data/source_registry/source_series_inventory.csv'; inv=inv_path.read_text(encoding='utf-8')
+          if 'benevento-listed,' not in inv:
+            inv += ('' if inv.endswith('\n') else '\n')
+            inv += 'benevento-listed,benevento,WL-REGIME-L190-2012,listed,all,periodic_pdf,https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte,direct_series_page_resolved,2026-09-10,"Current official listed-company series verified 10 September 2026; approved edition dated 31 August 2026. Byte identity and position-aware parser boundary documented in docs/sources/benevento-operational-check-2026-09-10.md."\n'
+            inv += 'benevento-applicants,benevento,WL-REGIME-L190-2012,applicant,requested_sectors,periodic_pdf,https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti,direct_series_page_resolved,2026-09-10,"Current official applicant series verified 10 September 2026; approved edition dated 31 August 2026. Position-aware recovery is required because generic extraction merges distinct visual observations; details in docs/sources/benevento-operational-check-2026-09-10.md."\n'
+          inv_path.write_text(inv,encoding='utf-8')
+
+          cov_path=root/'data/monitoring/national_coverage.json'; cov=json.loads(cov_path.read_text(encoding='utf-8'))
+          row=next(x for x in cov['prefectures'] if x['authority_key']=='benevento')
+          row.update({'source_verified':True,'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,'population_scopes_complete':True,'latest_source_reference_date':'2026-08-31','latest_archived_edition':None,'archived_evidence_storage_status':'not_documented','last_successful_source_check_at':'2026-09-10T04:44:16Z','last_attempted_source_check_at':'2026-09-10T04:44:16Z','last_successful_investigation_on':'2026-09-10','monitoring_status':'CURRENT','unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,'completion_evidence':['docs/sources/benevento-operational-check-2026-09-10.md','src/white_list_archive/parsers/benevento_positioned.py','tests/test_benevento_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],'known_content_sha256':['a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01','7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac'],'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','docs/sources/benevento-operational-check-2026-09-10.md','src/white_list_archive/parsers/benevento_positioned.py','tests/test_benevento_parser_semantics.py','data/publication/multi_prefecture_pilot.json']})
+          cov_path.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          doc=root/'docs/sources/benevento-operational-check-2026-09-10.md'
+          doc.write_text('''# Benevento — operational source check — 10 September 2026\n\n## Current official populations\n\nThe Prefettura di Benevento publishes two explicit current White List populations. The listed-company page links **Elenco delle imprese iscritte al giorno 31 agosto 2026**; the applicant page links **Elenco imprese richiedenti iscrizione al giorno 31 agosto 2026**. Both landing pages were checked on 10 September 2026 and were updated by the Prefecture on 1 September 2026.\n\nApproved byte identities are `a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01` for the 64-page listed PDF and `7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac` for the 16-page applicant PDF. Official URLs are pinned in `data/publication/multi_prefecture_pilot.json`.\n\n## Parser boundary\n\nGeneric PDF table extraction is not a safe row boundary for these editions: the applicant PDF contains visually distinct observations that are collapsed into single extracted rows. The approved parser uses ruled-table geometry and the source primary-date column as row anchors, then reads fields only inside their fixed source column bands. Date-like metadata outside the table cannot establish a company observation. It fails closed on an unexpected page count, ambiguous row anchors, missing name/office, invalid primary dates or an unexpected final observation count.\n\nValidation of the byte-pinned editions yields **734 listed observations** and **204 applicant observations**. All 938 have non-empty source names, registered offices and activity cells. The listed source has 732 non-empty raw identifier cells and 718 conservatively normalised identifiers; the applicant source has 203 and 194 respectively. Empty or non-canonical identifiers are not reconstructed. One listed expiry value is malformed in the source representation; normalised expiry remains blank and the raw variant is retained.\n\n## Status semantics\n\nPopulation membership is positive source evidence. Listed-source rows are `listed`; applicant-source rows are `pending`. Free text is not used to invent a legal outcome. The listed source's explicit update column is retained as source text and is kept distinct from the activity/section column.\n\n## Remaining infrastructure boundary\n\nThis expansion validates public source observations and public export only. Hosted canonical-database integration and independent durable-evidence recovery remain governed under issue #16.\n''',encoding='utf-8')
+
+          browser=root/'tests/public_portal_browser.cjs'; b=browser.read_text(encoding='utf-8')
+          lab="      assert.ok(labels.includes('White List ordinaria · Prefettura di Biella'));\n"
+          if 'Prefettura di Benevento' not in b: assert lab in b; b=b.replace(lab,lab+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Benevento'));\n")
+          if 'assert.equal(stats.total,7584);' in b: b=b.replace('assert.equal(stats.total,7584);','assert.equal(stats.total,8522);',1)
+          old="!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella'].includes(r.authority_key)"
+          if old in b: b=b.replace(old,"!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento'].includes(r.authority_key)",1)
+          block="      assert.deepEqual(statusCounts(biella),{listed:213,pending:12,renewal_update_in_progress:14});\n"
+          if "authority_key==='benevento'" not in b:
+            assert block in b
+            b=b.replace(block,block+"      const benevento=registry.records.filter(r=>r.authority_key==='benevento');\n      assert.equal(benevento.length,938);\n      assert.equal(benevento.filter(r=>r.source_key==='benevento-listed').length,734);\n      assert.equal(benevento.filter(r=>r.source_key==='benevento-applicants').length,204);\n      assert.deepEqual(statusCounts(benevento),{listed:734,pending:204});\n")
+          browser.write_text(b,encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv docs/sources/benevento-operational-check-2026-09-10.md src/white_list_archive/publishing/public_national_registry.py tests/public_portal_browser.cjs
+          git commit -m 'Integrate validated Benevento source observations'
+          git push origin HEAD:expansion/benevento-2026-09-10
