@@ -1,0 +1,62 @@
+name: Finalise Agrigento with clean CSV
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-finalise-clean.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply validated Agrigento production patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/agrigento-integration-apply.yml')
+          lines = workflow.read_text(encoding='utf-8').splitlines()
+          step = next(i for i, line in enumerate(lines) if line.strip() == '- name: Patch governed Agrigento parser and publication integration')
+          start = next(i for i in range(step, len(lines)) if lines[i] == '          import csv')
+          end = next(i for i in range(start, len(lines)) if lines[i] == '          PY')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end]) + '\n'
+          exec(compile(script, 'agrigento-integration-patch', 'exec'), {'__name__': '__main__'})
+
+          csv_path = Path('data/source_registry/source_series_inventory.csv')
+          csv_path.write_bytes(csv_path.read_bytes().replace(b'\r\n', b'\n'))
+          PY
+      - name: Install validation runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Validate repository
+        run: |
+          python -m compileall -q src
+          pytest -q
+      - name: Commit validated production integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/white_list_archive/parsers/agrigento_positioned.py \
+            docs/sources/agrigento-operational-check-2026-09-10.md \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            src/white_list_archive/publishing/public_contract.py \
+            src/white_list_archive/publishing/public_national_registry.py \
+            .github/workflows/public-pages.yml
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m 'Integrate Agrigento public source series'
+          git push origin HEAD:expansion/agrigento-2026-09-10
