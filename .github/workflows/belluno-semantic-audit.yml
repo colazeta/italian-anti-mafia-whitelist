@@ -1,0 +1,68 @@
+name: Belluno semantic audit
+
+on:
+  push:
+    branches:
+      - expansion/belluno-source-audit-2026-09-10
+    paths:
+      - .github/workflows/belluno-semantic-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install pdfplumber
+      - name: Audit status strings and date-cell shapes
+        env:
+          PDF_URL: https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf
+          EXPECTED_SHA256: 65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58
+        run: |
+          python - <<'PY'
+          import hashlib, io, os, re, urllib.request
+          from collections import Counter
+          import pdfplumber
+          req=urllib.request.Request(os.environ['PDF_URL'],headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+public source audit)'})
+          with urllib.request.urlopen(req,timeout=60) as r: body=r.read()
+          if hashlib.sha256(body).hexdigest()!=os.environ['EXPECTED_SHA256']: raise SystemExit('SHA mismatch')
+          clean=lambda v: re.sub(r'\s+',' ',v or '').strip()
+          dpat=re.compile(r'(?<!\d)(\d{1,2})/(\d{1,2})/(\d{4})(?!\d)')
+          notes=Counter(); listed_tokens=Counter(); expiry_tokens=Counter(); app_tokens=Counter(); ids=Counter(); rows=[]
+          with pdfplumber.open(io.BytesIO(body)) as pdf:
+            for page in pdf.pages[1:43]:
+              tables=page.extract_tables()
+              if len(tables)!=1: raise SystemExit(f'unexpected tables page {page.page_number}: {len(tables)}')
+              for row in tables[0]:
+                row=[clean(x) for x in row]
+                if len(row)!=8: raise SystemExit(f'unexpected width {len(row)}')
+                if row[0].casefold()=='ragione sociale' or not row[0]: continue
+                rows.append(row)
+                notes[row[6]]+=1
+                listed_tokens[len(dpat.findall(row[3]))]+=1
+                expiry_tokens[len(dpat.findall(row[4]))]+=1
+                app_tokens[len(dpat.findall(row[7]))]+=1
+                tokens=[]
+                for t in re.split(r'[\s·;,]+',row[2]):
+                  t=re.sub(r'[^A-Za-z0-9]','',t).upper()
+                  if t: tokens.append(t)
+                valid=[]
+                for t in tokens:
+                  if ((t.isdigit() and len(t)==11) or (len(t)==16 and t.isalnum())) and t not in valid: valid.append(t)
+                ids['canonical_present' if valid else 'raw_only']+=1
+          print('rows=',len(rows))
+          print('notes=')
+          for note,n in notes.most_common(): print(n,repr(note))
+          print('listing_date_token_counts=',dict(listed_tokens))
+          print('expiry_date_token_counts=',dict(expiry_tokens))
+          print('application_date_token_counts=',dict(app_tokens))
+          print('identifier_coverage=',dict(ids))
+          for row in rows:
+            if len(dpat.findall(row[3])) not in (0,1) or len(dpat.findall(row[4])) not in (0,1) or len(dpat.findall(row[7])) not in (0,1): print('date_anomaly=',row)
+          PY
