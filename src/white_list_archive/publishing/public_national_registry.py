@@ -56,6 +56,24 @@ def _download(url: str, path: Path) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
+def _semantic_digest(records: list[dict[str, Any]]) -> str:
+    """Hash parsed source semantics while excluding capture/runtime provenance.
+
+    This approval mode is reserved for explicitly configured mutable structured
+    sources whose raw wrapper bytes can change independently of the published
+    table semantics. Raw capture SHA-256 remains attached to every observation.
+    """
+    ignored = {"capture_sha256", "parser_name", "parser_version"}
+    projected = [
+        {key: value for key, value in record.items() if key not in ignored}
+        for record in records
+    ]
+    payload = json.dumps(
+        projected, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _adapt_cosenza(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     source_records = parse_cosenza(path)
     records: list[dict[str, Any]] = []
@@ -167,12 +185,30 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
         suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"
         local_path = work_dir / f"{cfg['source_key']}{suffix}"
         actual_sha = _download(cfg["resource_url"], local_path)
-        if actual_sha != cfg["sha256"]:
+        approval_mode = str(cfg.get("approval_mode") or "raw_sha256")
+        if approval_mode not in {"raw_sha256", "semantic_sha256"}:
+            raise RuntimeError(f"{cfg['source_key']}: unsupported approval mode {approval_mode!r}")
+        if approval_mode == "raw_sha256" and actual_sha != cfg["sha256"]:
             raise RuntimeError(
                 f"{cfg['source_key']}: approved source SHA mismatch; expected {cfg['sha256']}, got {actual_sha}"
             )
-        batch = _parse_source(local_path, cfg)
+
+        # Parsers record the bytes actually inspected. For immutable resources
+        # this remains identical to the approved raw hash.
+        parse_cfg = dict(cfg)
+        parse_cfg["sha256"] = actual_sha
+        batch = _parse_source(local_path, parse_cfg)
         _validate_batch(cfg, batch)
+        if approval_mode == "semantic_sha256":
+            expected_semantic_sha = str(cfg.get("semantic_sha256") or "")
+            if not expected_semantic_sha:
+                raise RuntimeError(f"{cfg['source_key']}: semantic approval requires semantic_sha256")
+            actual_semantic_sha = _semantic_digest(batch.records)
+            if actual_semantic_sha != expected_semantic_sha:
+                raise RuntimeError(
+                    f"{cfg['source_key']}: approved semantic SHA mismatch; "
+                    f"expected {expected_semantic_sha}, got {actual_semantic_sha}"
+                )
         all_records.extend(public_record(record) for record in batch.records)
         # Build diagnostics remain review evidence, outside the Pages artifact.
         (work_dir / f"{cfg['source_key']}.diagnostics.json").write_text(
