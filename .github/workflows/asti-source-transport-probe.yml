@@ -1,0 +1,72 @@
+name: Asti source transport probe
+
+on:
+  push:
+    branches:
+      - fix/asti-source-transport-2026-09-10
+    paths:
+      - '.github/workflows/asti-source-transport-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe approved Asti attachments without persisting content
+        shell: python
+        run: |
+          import hashlib
+          from urllib.error import HTTPError, URLError
+          from urllib.request import Request, urlopen
+
+          page = "https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali"
+          sources = {
+              "asti-listed": (
+                  "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf",
+                  "8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128",
+              ),
+              "asti-applicants": (
+                  "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf",
+                  "ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5",
+              ),
+          }
+          strategies = {
+              "archive-agent": {
+                  "User-Agent": "italian-anti-mafia-whitelist/0.1 (+public national archive)",
+                  "Accept": "*/*",
+              },
+              "browser-navigation": {
+                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36",
+                  "Accept": "application/pdf,application/octet-stream;q=0.9,*/*;q=0.8",
+                  "Referer": page,
+                  "Accept-Language": "it-IT,it;q=0.9,en;q=0.7",
+              },
+          }
+
+          successes = 0
+          for source_key, (url, expected_sha) in sources.items():
+              for strategy, headers in strategies.items():
+                  request = Request(url, headers=headers)
+                  try:
+                      with urlopen(request, timeout=45) as response:
+                          body = response.read()
+                          actual_sha = hashlib.sha256(body).hexdigest()
+                          print(
+                              f"{source_key} {strategy}: status={response.status} bytes={len(body)} "
+                              f"sha256={actual_sha} approved={actual_sha == expected_sha}"
+                          )
+                          if actual_sha == expected_sha:
+                              successes += 1
+                  except HTTPError as exc:
+                      print(f"{source_key} {strategy}: HTTP {exc.code} {exc.reason}")
+                  except URLError as exc:
+                      print(f"{source_key} {strategy}: URL error {exc.reason}")
+                  except TimeoutError:
+                      print(f"{source_key} {strategy}: timeout")
+
+          if successes == 0:
+              raise SystemExit("No approved Asti source bytes were retrievable by either safe transport strategy")
