@@ -34,6 +34,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Belluno'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Ascoli Piceno'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Ancona'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Bari'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -74,8 +75,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,11563);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona'].includes(r.authority_key));
+      assert.equal(stats.total,13233);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -136,6 +137,14 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(ancona.length,577);
       assert.equal(ancona.filter(r=>r.source_key==='ancona-combined').length,577);
       assert.deepEqual(statusCounts(ancona),{listed:331,other_or_unknown:1,pending:145,renewal_update_in_progress:100});
+      const bari=registry.records.filter(r=>r.authority_key==='bari');
+      assert.equal(bari.length,1670);
+      assert.equal(bari.filter(r=>r.source_key==='bari-listed').length,1065);
+      assert.equal(bari.filter(r=>r.source_key==='bari-applicants').length,605);
+      assert.deepEqual(statusCounts(bari),{listed:754,pending:605,renewal_update_in_progress:311});
+      const innovatec=bari.filter(r=>r.name==='INNOVATEC SRL');
+      assert.equal(innovatec.length,1);
+      assert.deepEqual(innovatec[0].requested_activities,[]);
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
