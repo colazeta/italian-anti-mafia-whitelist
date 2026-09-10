@@ -41,33 +41,19 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           parser_path = Path('src/white_list_archive/parsers/avellino_positioned.py')
           text = parser_path.read_text(encoding='utf-8')
-          listed_old = '''            source_fields={
-                "update_registration_raw": row["update"],
-                "notes_raw": row["notes"],
-                "source_page": int(row["source_page"]),
-            },
-'''
-          listed_new = '''            source_fields={},
-'''
-          applicant_old = '''                source_fields={"source_page": int(row["source_page"])},
-'''
-          applicant_new = '''                source_fields={},
-'''
+          listed_old = '            source_fields={\n                "update_registration_raw": row["update"],\n                "notes_raw": row["notes"],\n                "source_page": int(row["source_page"]),\n            },\n'
+          listed_new = '            source_fields={},\n'
+          applicant_old = '                source_fields={"source_page": int(row["source_page"])},\n'
+          applicant_new = '                source_fields={},\n'
           if text.count(listed_old) != 1 or text.count(applicant_old) != 1:
               raise SystemExit('Avellino source-field boundary changed unexpectedly')
-          text = text.replace(listed_old, listed_new, 1).replace(applicant_old, applicant_new, 1)
-          parser_path.write_text(text, encoding='utf-8')
-
+          parser_path.write_text(text.replace(listed_old, listed_new, 1).replace(applicant_old, applicant_new, 1), encoding='utf-8')
           test_path = Path('tests/test_avellino_parser_semantics.py')
           tests = test_path.read_text(encoding='utf-8')
           old = '    assert batch.records[0]["source_fields"]["update_registration_raw"] == "testo fonte non interpretato"\n'
-          new = (
-              '    assert batch.records[0]["outcome_raw"] == "testo fonte non interpretato"\n'
-              '    assert batch.records[0]["source_fields"] == {}\n'
-          )
+          new = '    assert batch.records[0]["outcome_raw"] == "testo fonte non interpretato"\n    assert batch.records[0]["source_fields"] == {}\n'
           if tests.count(old) != 1:
               raise SystemExit('Avellino semantic-test boundary changed unexpectedly')
           test_path.write_text(tests.replace(old, new, 1), encoding='utf-8')
@@ -78,13 +64,9 @@ jobs:
           import subprocess
           from pathlib import Path
           import yaml
-
           workflow = yaml.safe_load(Path('.github/workflows/avellino-materialize.yml').read_text(encoding='utf-8'))
           steps = workflow['jobs']['materialize']['steps']
-          wanted = [
-              'Materialize approved source configuration and governance state',
-              'Validate semantic tests and expanded public build',
-          ]
+          wanted = ['Materialize approved source configuration and governance state', 'Validate semantic tests and expanded public build']
           scripts = {step.get('name'): step.get('run') for step in steps if step.get('name') in wanted}
           if set(scripts) != set(wanted) or any(not scripts[name] for name in wanted):
               raise SystemExit(f'approved Avellino scripts not found exactly: {sorted(scripts)}')
