@@ -1,0 +1,115 @@
+name: Benevento expansion diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser dependencies
+        run: python -m pip install -e '.[publication]'
+      - name: Resolve and inspect current official sources
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, html.parser, re, urllib.parse, urllib.request
+          from collections import Counter
+          from pathlib import Path
+          import pdfplumber
+
+          UA = 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/0.1; evidence audit)'
+          pages = {
+              'listed': 'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte',
+              'applicant': 'https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti',
+          }
+
+          class Links(html.parser.HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.links=[]; self._href=None; self._text=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag == 'a':
+                      self._href = dict(attrs).get('href'); self._text=[]
+              def handle_data(self, data):
+                  if self._href is not None: self._text.append(data)
+              def handle_endtag(self, tag):
+                  if tag == 'a' and self._href is not None:
+                      self.links.append((self._href, ' '.join(''.join(self._text).split())))
+                      self._href=None; self._text=[]
+
+          def get(url: str) -> bytes:
+              req=urllib.request.Request(url, headers={'User-Agent':UA, 'Accept':'text/html,application/pdf,*/*'})
+              with urllib.request.urlopen(req, timeout=45) as r:
+                  return r.read()
+
+          def resolve(label, page_url):
+              body=get(page_url); parser=Links(); parser.feed(body.decode('utf-8','replace'))
+              candidates=[]
+              for href,text in parser.links:
+                  absolute=urllib.parse.urljoin(page_url, href)
+                  folded=(text+' '+href).casefold()
+                  if ('31 agosto 2026' in folded or '31.08.2026' in folded or '31082026' in folded) and ('.pdf' in folded or '/sites/default/files/' in folded):
+                      candidates.append((absolute,text))
+              if len(candidates) != 1:
+                  print(label, 'candidate_count', len(candidates))
+                  for url,text in candidates: print(' candidate', url, repr(text[:120]))
+                  raise SystemExit(f'{label}: expected exactly one current PDF')
+              return candidates[0][0]
+
+          for label,page_url in pages.items():
+              resource=resolve(label,page_url)
+              data=get(resource); path=Path(f'/tmp/benevento-{label}.pdf'); path.write_bytes(data)
+              print(label, 'resource_url', resource)
+              print(label, 'sha256', hashlib.sha256(data).hexdigest(), 'bytes', len(data))
+              with pdfplumber.open(path) as pdf:
+                  print(label, 'pages', len(pdf.pages), 'page_sizes', Counter((round(p.width),round(p.height)) for p in pdf.pages))
+                  table_counts=[]; row_shapes=Counter(); date_rows=0; multi_id_rows=0; no_date_rows=0
+                  word_x=[]
+                  for p in pdf.pages:
+                      tables=p.extract_tables() or []; table_counts.append(len(tables))
+                      for table in tables:
+                          for row in table:
+                              cells=[' '.join(str(c or '').split()) for c in row]
+                              row_shapes[len(cells)] += 1
+                              joined=' | '.join(cells)
+                              dates=re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b', joined)
+                              ids=re.findall(r'\b(?:\d{11}|[A-Z0-9]{16})\b', joined.upper())
+                              if dates: date_rows += 1
+                              else: no_date_rows += 1
+                              if len(ids)>1: multi_id_rows += 1
+                      words=p.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                      for w in words:
+                          t=w['text']
+                          if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{4}',t): word_x.append(round(float(w['x0']),1))
+                  print(label, 'tables_per_page', Counter(table_counts), 'row_shapes', dict(row_shapes))
+                  print(label, 'table_date_rows', date_rows, 'table_no_date_rows', no_date_rows, 'table_multi_identifier_rows', multi_id_rows)
+                  bins=Counter(round(x/20)*20 for x in word_x)
+                  print(label, 'date_word_x_bins', bins.most_common(12))
+                  # Position diagnostics only: counts of visual lines and structural anomalies, never company row contents.
+                  visual_lines=0; lines_multi_date=0; lines_multi_id=0
+                  for p in pdf.pages:
+                      words=p.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                      lines={}
+                      for w in words:
+                          y=round(float(w['top'])/2)*2
+                          lines.setdefault(y,[]).append(w)
+                      for ws in lines.values():
+                          txt=' '.join(w['text'] for w in sorted(ws,key=lambda z:float(z['x0'])))
+                          ids=re.findall(r'\b(?:\d{11}|[A-Z0-9]{16})\b',txt.upper())
+                          dates=re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b',txt)
+                          if ids or dates:
+                              visual_lines += 1
+                              lines_multi_id += len(ids)>1
+                              lines_multi_date += len(dates)>2
+                  print(label, 'structural_visual_lines', visual_lines, 'visual_lines_multi_id', lines_multi_id, 'visual_lines_gt2_dates', lines_multi_date)
+          PY
