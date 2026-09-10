@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib, json, re, urllib.request
+          import hashlib, json, re, time, urllib.request
           from pathlib import Path
           from white_list_archive.parsers.biella_html import parse_biella_listed, parse_biella_applicants
 
@@ -43,59 +43,68 @@ jobs:
                   data=r.read()
                   return data, dict(r.headers)
 
-          raw, source_headers=get(source_url)
-          current_sha=hashlib.sha256(raw).hexdigest()
-          Path('/tmp/biella.html').write_bytes(raw)
+          raw1, source_headers1=get(source_url)
+          time.sleep(1)
+          raw2, source_headers2=get(source_url)
+          sha1=hashlib.sha256(raw1).hexdigest()
+          sha2=hashlib.sha256(raw2).hexdigest()
+          Path('/tmp/biella-1.html').write_bytes(raw1)
+          Path('/tmp/biella-2.html').write_bytes(raw2)
           live_raw, _=get(live_url)
           live=json.loads(live_raw)
 
           cfg=json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
           biella={s['source_key']:dict(s) for s in cfg['sources'] if s['authority_key']=='biella'}
           assert set(biella)=={'biella-listed','biella-applicants'}
-          for c in biella.values():
-              c['sha256']=current_sha
+          configured_sha=biella['biella-listed']['sha256']
 
-          current={
-              'biella-listed': parse_biella_listed(Path('/tmp/biella.html'),biella['biella-listed']).records,
-              'biella-applicants': parse_biella_applicants(Path('/tmp/biella.html'),biella['biella-applicants']).records,
-          }
-          published={key:[r for r in live['records'] if r['source_key']==key] for key in current}
+          def parse(path, sha):
+              local={k:dict(v,sha256=sha) for k,v in biella.items()}
+              return {
+                  'biella-listed': parse_biella_listed(path,local['biella-listed']).records,
+                  'biella-applicants': parse_biella_applicants(path,local['biella-applicants']).records,
+              }
 
-          ignored={'capture_sha256'}
+          current1=parse(Path('/tmp/biella-1.html'),sha1)
+          current2=parse(Path('/tmp/biella-2.html'),sha2)
+          published={key:[r for r in live['records'] if r['source_key']==key] for key in current1}
+
+          # parser_name/parser_version are added by the publication adapter, not by
+          # the source parser; capture_sha256 is expected to change when the mutable
+          # HTML wrapper changes. Neither is a source-semantic field.
+          ignored={'capture_sha256','parser_name','parser_version'}
           def projection(records):
               return [{k:v for k,v in r.items() if k not in ignored} for r in records]
           def digest(records):
               payload=json.dumps(projection(records),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
               return hashlib.sha256(payload).hexdigest()
 
-          text=raw.decode('utf-8','strict')
+          text=raw1.decode('utf-8','strict')
           dates=sorted(set(re.findall(r'(?:Ultimo aggiornamento|Aggiornato[^<]{0,30})[^0-9]{0,20}(\d{1,2}[./-]\d{1,2}[./-]\d{4})',text,re.I)))
           result={
-              'current_sha256':current_sha,
-              'configured_sha256':biella['biella-listed'].get('sha256'),
-              'http_last_modified':source_headers.get('Last-Modified'),
+              'configured_sha256':configured_sha,
+              'current_sha256_first':sha1,
+              'current_sha256_second':sha2,
+              'raw_bytes_stable_across_two_requests':sha1==sha2,
+              'http_last_modified_first':source_headers1.get('Last-Modified'),
+              'http_last_modified_second':source_headers2.get('Last-Modified'),
               'visible_update_dates':dates,
-              'listed_current':len(current['biella-listed']),
+              'listed_current':len(current1['biella-listed']),
               'listed_published':len(published['biella-listed']),
-              'applicants_current':len(current['biella-applicants']),
+              'applicants_current':len(current1['biella-applicants']),
               'applicants_published':len(published['biella-applicants']),
-              'listed_current_digest':digest(current['biella-listed']),
-              'listed_published_digest':digest(published['biella-listed']),
-              'applicants_current_digest':digest(current['biella-applicants']),
-              'applicants_published_digest':digest(published['biella-applicants']),
+              'listed_semantic_digest_first':digest(current1['biella-listed']),
+              'listed_semantic_digest_second':digest(current2['biella-listed']),
+              'listed_published_semantic_digest':digest(published['biella-listed']),
+              'applicants_semantic_digest_first':digest(current1['biella-applicants']),
+              'applicants_semantic_digest_second':digest(current2['biella-applicants']),
+              'applicants_published_semantic_digest':digest(published['biella-applicants']),
           }
           print(json.dumps(result,indent=2,ensure_ascii=False))
-          if projection(current['biella-listed']) != projection(published['biella-listed']):
-              for i,(a,b) in enumerate(zip(projection(current['biella-listed']),projection(published['biella-listed']))):
-                  if a!=b:
-                      print('FIRST_LISTED_DIFF',i,json.dumps(a,ensure_ascii=False,sort_keys=True),json.dumps(b,ensure_ascii=False,sort_keys=True))
-                      break
-              raise SystemExit('Current Biella listed semantics differ from the currently published Biella records')
-          if projection(current['biella-applicants']) != projection(published['biella-applicants']):
-              for i,(a,b) in enumerate(zip(projection(current['biella-applicants']),projection(published['biella-applicants']))):
-                  if a!=b:
-                      print('FIRST_APPLICANT_DIFF',i,json.dumps(a,ensure_ascii=False,sort_keys=True),json.dumps(b,ensure_ascii=False,sort_keys=True))
-                      break
-              raise SystemExit('Current Biella applicant semantics differ from the currently published Biella records')
+
+          assert projection(current1['biella-listed']) == projection(current2['biella-listed']), 'Biella listed semantics changed across two immediate official-page requests'
+          assert projection(current1['biella-applicants']) == projection(current2['biella-applicants']), 'Biella applicant semantics changed across two immediate official-page requests'
+          assert projection(current1['biella-listed']) == projection(published['biella-listed']), 'Current Biella listed semantics differ from currently published records'
+          assert projection(current1['biella-applicants']) == projection(published['biella-applicants']), 'Current Biella applicant semantics differ from currently published records'
           print('BIELLA_SEMANTIC_EQUIVALENCE_CONFIRMED')
           PY
