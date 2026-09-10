@@ -83,6 +83,86 @@ def _company_table(page: pdfplumber.page.Page, page_number: int) -> list[list[An
     return matches[0]
 
 
+def _expect(row: list[str], *, page: int, row_number: int, cells: dict[int, str]) -> None:
+    for index, expected in cells.items():
+        if row[index] != expected:
+            raise RuntimeError(
+                f"Ancona reviewed extraction repair no longer matches page {page} row {row_number} "
+                f"cell {index}: expected {expected!r}, got {row[index]!r}"
+            )
+
+
+def _repair_reviewed_extraction(page_number: int, rows: list[list[str]]) -> list[list[str]]:
+    """Repair a small set of byte-pinned PDF table-boundary extraction errors.
+
+    The official PDF has 577 logical source rows. pdfplumber preserves that row
+    denominator, but at a few vertical boundaries it assigns name/office/identifier
+    text to a neighbouring cell while page text still exposes the complete rows.
+    Each repair is anchored to exact observed cells and therefore fails closed if
+    the source layout changes. No source status, section or date is invented.
+    """
+    out = [list(row) for row in rows]
+
+    if page_number == 2:
+        r21, r22, r23 = out[20], out[21], out[22]
+        _expect(
+            r21,
+            page=2,
+            row_number=21,
+            cells={
+                0: "ARTITALY SRLS ASSCOOP - SOCIETA' COOPERATIVA SOCIALE IMPRESA SOCIALE AT APPLICAZIONI SRLS",
+                1: "via Podesti n. 71 - SENIGALLIA",
+                3: "02780960429",
+                8: "12/06/2026",
+            },
+        )
+        _expect(r22, page=2, row_number=22, cells={0: "", 1: "Via 1 Maggio 150/A - ANCONA", 3: "00733460422", 8: "11/05/2026"})
+        _expect(r23, page=2, row_number=23, cells={0: "", 1: "Via Mario Saveri 18 - JESI", 3: "02809800424", 8: "24/02/2026"})
+        r21[0] = "ARTITALY SRLS"
+        r22[0] = "ASSCOOP - SOCIETA' COOPERATIVA SOCIALE IMPRESA SOCIALE"
+        r23[0] = "AT APPLICAZIONI SRLS"
+
+    if page_number == 3:
+        row = out[24]
+        _expect(row, page=3, row_number=25, cells={0: "", 1: "", 3: "01479620427", 4: "21/02/2025", 8: "16/02/2026"})
+        row[0] = "BARBINI EMILIA SNC DI FABBRETTI ROBERTO E C"
+        row[1] = "Via 2 Giugno, 15 - CASTELPLANIO"
+
+    if page_number == 8:
+        row = out[22]
+        _expect(row, page=8, row_number=23, cells={0: "", 1: "", 3: "07898760637", 4: "17/10/2025", 5: "16/10/2026"})
+        row[0] = "EDIL QUARANTA SRL"
+        row[1] = "Via Montebello n. 71 - ANCONA"
+
+    if page_number == 13:
+        row = out[24]
+        _expect(row, page=13, row_number=25, cells={0: "", 1: "", 3: "02272920428", 4: "08/07/2026", 5: "07/07/2027"})
+        row[0] = "IDROGAS SRL"
+        row[1] = "Via Valdicerro Sotto, 2 - LORETO"
+
+    if page_number == 21:
+        r8, r9, r10, r26 = out[7], out[8], out[9], out[25]
+        _expect(
+            r8,
+            page=21,
+            row_number=8,
+            cells={0: "SIRIO COSTRUZIONI SRL", 1: "", 3: "00715570420 03033810429 02566930422", 4: "28/03/2025", 7: "Richiesto rinnovo"},
+        )
+        _expect(r9, page=21, row_number=9, cells={0: "SM SRL", 1: "", 3: "", 6: "VI", 8: "20/05/2026"})
+        _expect(r10, page=21, row_number=10, cells={0: "", 1: "", 3: "", 4: "27/08/2026", 5: "25/08/2027", 6: "II"})
+        _expect(r26, page=21, row_number=26, cells={0: "", 1: "Via Veneto 8/10/12 - FABRIANO", 3: "02557530421", 8: "11/08/2025"})
+        r8[1] = "Via Molini I, 18 - SIROLO"
+        r8[3] = "00715570420"
+        r9[1] = "via Manzoni n. 65 -OSIMO"
+        r9[3] = "03033810429"
+        r10[0] = "SMART BUILDING DESIGN SRL"
+        r10[1] = "Via Giancarlo Mascino n.3/F - ANCONA"
+        r10[3] = "02566930422"
+        r26[0] = "TAVERNA DA IVO SRL"
+
+    return out
+
+
 def _status(*, listing_raw: str, expiry_raw: str, update_raw: str, application_raw: str, ordinal: int) -> str:
     if bool(listing_raw) != bool(expiry_raw):
         raise RuntimeError(f"Ancona row {ordinal}: listing/expiry source-date pair is structurally incomplete")
@@ -110,6 +190,10 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
     if len(row) != 9:
         raise RuntimeError(f"Ancona row {ordinal}: expected exactly 9 cells, got {len(row)}")
     name, office, secondary, identifier_raw, listing_raw, expiry_raw, sections_raw, update_raw, application_raw = map(_clean, row)
+    if not name:
+        raise RuntimeError(f"Ancona row {ordinal}: company name is blank after reviewed extraction repair")
+    if not identifier_raw:
+        raise RuntimeError(f"Ancona row {ordinal}: source identifier field is blank after reviewed extraction repair")
 
     listing_date = _source_date(listing_raw, field="listing", ordinal=ordinal)
     expiry_date = _source_date(expiry_raw, field="expiry", ordinal=ordinal)
@@ -159,7 +243,7 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
 
 
 def parse_ancona_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    rows: list[list[Any]] = []
+    rows: list[list[str]] = []
     page_rows: list[int] = []
     reference_markers = 0
     with pdfplumber.open(path) as pdf:
@@ -169,9 +253,9 @@ def parse_ancona_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             text = page.extract_text(x_tolerance=2, y_tolerance=3) or ""
             reference_markers += text.count(_REFERENCE_MARKER)
             table = _company_table(page, page_number)
-            data_rows = [row for row in table[1:] if any(_clean(cell) for cell in row)]
+            data_rows = [list(map(_clean, row)) for row in table[1:] if any(_clean(cell) for cell in row)]
             page_rows.append(len(data_rows))
-            rows.extend(data_rows)
+            rows.extend(_repair_reviewed_extraction(page_number, data_rows))
 
     if page_rows != _EXPECTED_PAGE_ROWS:
         raise RuntimeError(f"Ancona page-row denominators changed: expected {_EXPECTED_PAGE_ROWS}, got {page_rows}")
