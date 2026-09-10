@@ -1,0 +1,79 @@
+name: Align Agrigento national coverage ledger
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-ledger-align.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+          fetch-depth: 0
+      - name: Align Agrigento coverage state
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('data/monitoring/national_coverage.json')
+          ledger = json.loads(path.read_text(encoding='utf-8'))
+          row = next(r for r in ledger['prefectures'] if r['authority_key'] == 'agrigento')
+          row.update({
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-04',
+              'last_successful_investigation_on': '2026-09-10',
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'known_content_sha256': [
+                  '23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81',
+                  'cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9',
+              ],
+              'unresolved_issue': [
+                  'Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'
+              ],
+              'completion_evidence': [
+                  'docs/sources/agrigento-operational-check-2026-09-10.md',
+                  'src/white_list_archive/parsers/agrigento_positioned.py',
+                  'tests/test_agrigento_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/agrigento-operational-check-2026-09-10.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- data/monitoring/national_coverage.json
+      - name: Commit aligned ledger
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/monitoring/national_coverage.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Align Agrigento national coverage ledger'
+          git push origin HEAD:expansion/agrigento-2026-09-10
