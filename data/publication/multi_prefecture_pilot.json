@@ -485,6 +485,23 @@
       "last_source_update": "2026-08-11",
       "last_source_update_basis": "explicit Aggiornato al 11/08/2026 marker in the current official applicant PDF",
       "notes": "The official applicant PDF contains 57 label-bounded observations, each with an explicit application date and ESITO: istruttoria. All 57 therefore map to pending by positive row-level evidence; no missing status, completeness or legal outcome is inferred."
+    },
+    {
+      "source_key": "ancona-combined",
+      "parser": "ancona_combined",
+      "authority_key": "ancona",
+      "authority_name": "Prefettura di Ancona",
+      "register_key": "ancona-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-07",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf",
+      "sha256": "09d5ba7264ee6f0c6170273713881273c5d5a045cc9a4a49de3dd36c3860f88d",
+      "expected_source_rows": 577,
+      "last_source_update": "2026-09-07",
+      "last_source_update_basis": "official page 'Ultimo aggiornamento' and repeated in-document marker Agg. al 07/09/2026",
+      "notes": "The official current page exposes one combined attachment explicitly covering both registered companies and companies requesting registration. The 23-page byte-pinned PDF contains 577 logical source rows. Status is derived only from source-positive fields: direct listing-date pairs, exact Richiesto rinnovo markers, or application-only dates in the explicitly combined population. Four malformed source date tokens are preserved verbatim but never repaired; one row without a status signal remains other_or_unknown."
     }
   ]
 }
