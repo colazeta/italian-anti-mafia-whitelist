@@ -1,0 +1,101 @@
+name: Audit current Biella source drift
+
+on:
+  push:
+    branches:
+      - expansion/asti-2026-09-10
+    paths:
+      - '.github/workflows/biella-drift-audit-2026-09-10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/asti-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Compare current official Biella tables with currently published records
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, re, urllib.request
+          from pathlib import Path
+          from white_list_archive.parsers.biella_html import parse_biella_listed, parse_biella_applicants
+
+          source_url='https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list'
+          live_url='https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json'
+          headers={'User-Agent':'Mozilla/5.0 italian-anti-mafia-whitelist source audit/1.0'}
+
+          def get(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=60) as r:
+                  data=r.read()
+                  return data, dict(r.headers)
+
+          raw, source_headers=get(source_url)
+          current_sha=hashlib.sha256(raw).hexdigest()
+          Path('/tmp/biella.html').write_bytes(raw)
+          live_raw, _=get(live_url)
+          live=json.loads(live_raw)
+
+          cfg=json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
+          biella={s['source_key']:dict(s) for s in cfg['sources'] if s['authority_key']=='biella'}
+          assert set(biella)=={'biella-listed','biella-applicants'}
+          for c in biella.values():
+              c['sha256']=current_sha
+
+          current={
+              'biella-listed': parse_biella_listed(Path('/tmp/biella.html'),biella['biella-listed']).records,
+              'biella-applicants': parse_biella_applicants(Path('/tmp/biella.html'),biella['biella-applicants']).records,
+          }
+          published={key:[r for r in live['records'] if r['source_key']==key] for key in current}
+
+          ignored={'capture_sha256'}
+          def projection(records):
+              return [{k:v for k,v in r.items() if k not in ignored} for r in records]
+          def digest(records):
+              payload=json.dumps(projection(records),ensure_ascii=False,sort_keys=True,separators=(',',':')).encode()
+              return hashlib.sha256(payload).hexdigest()
+
+          text=raw.decode('utf-8','strict')
+          dates=sorted(set(re.findall(r'(?:Ultimo aggiornamento|Aggiornato[^<]{0,30})[^0-9]{0,20}(\d{1,2}[./-]\d{1,2}[./-]\d{4})',text,re.I)))
+          result={
+              'current_sha256':current_sha,
+              'configured_sha256':biella['biella-listed'].get('sha256'),
+              'http_last_modified':source_headers.get('Last-Modified'),
+              'visible_update_dates':dates,
+              'listed_current':len(current['biella-listed']),
+              'listed_published':len(published['biella-listed']),
+              'applicants_current':len(current['biella-applicants']),
+              'applicants_published':len(published['biella-applicants']),
+              'listed_current_digest':digest(current['biella-listed']),
+              'listed_published_digest':digest(published['biella-listed']),
+              'applicants_current_digest':digest(current['biella-applicants']),
+              'applicants_published_digest':digest(published['biella-applicants']),
+          }
+          print(json.dumps(result,indent=2,ensure_ascii=False))
+          if projection(current['biella-listed']) != projection(published['biella-listed']):
+              for i,(a,b) in enumerate(zip(projection(current['biella-listed']),projection(published['biella-listed']))):
+                  if a!=b:
+                      print('FIRST_LISTED_DIFF',i,json.dumps(a,ensure_ascii=False,sort_keys=True),json.dumps(b,ensure_ascii=False,sort_keys=True))
+                      break
+              raise SystemExit('Current Biella listed semantics differ from the currently published Biella records')
+          if projection(current['biella-applicants']) != projection(published['biella-applicants']):
+              for i,(a,b) in enumerate(zip(projection(current['biella-applicants']),projection(published['biella-applicants']))):
+                  if a!=b:
+                      print('FIRST_APPLICANT_DIFF',i,json.dumps(a,ensure_ascii=False,sort_keys=True),json.dumps(b,ensure_ascii=False,sort_keys=True))
+                      break
+              raise SystemExit('Current Biella applicant semantics differ from the currently published Biella records')
+          print('BIELLA_SEMANTIC_EQUIVALENCE_CONFIRMED')
+          PY
