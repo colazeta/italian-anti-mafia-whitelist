@@ -290,20 +290,24 @@ def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_identity(rows, _APPLICANTS)
     records: list[dict[str, Any]] = []
     for ordinal, row in enumerate(rows, start=1):
-        records.append(
-            _record(
-                cfg,
-                ordinal,
-                name=row["name"],
-                office=row["office"],
-                identifier_raw=row.get("identifier", ""),
-                activities=_activities(row.get("activities", "")),
-                status="pending",
-                application_date=row["application_date"],
-                primary_date_label=_APPLICANTS.primary_date_label,
-                source_fields={},
-            )
+        record = _record(
+            cfg,
+            ordinal,
+            name=row["name"],
+            office=row["office"],
+            identifier_raw=row.get("identifier", ""),
+            activities=_activities(row.get("activities", "")),
+            status="pending",
+            application_date=row["application_date"],
+            primary_date_label=_APPLICANTS.primary_date_label,
+            source_fields={},
         )
+        # ``Data istanza`` is the exact Benevento source label. The shared
+        # record helper only derives ``primary_date`` for its canonical label
+        # vocabulary, so preserve the source wording while deriving the date
+        # from the already-normalised application-date field.
+        record["primary_date"] = record["application_date"]
+        records.append(record)
 
     diagnostics = {
         "parser": _APPLICANTS.parser_name,
