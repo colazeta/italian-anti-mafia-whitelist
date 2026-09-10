@@ -95,6 +95,33 @@ def _alias_publication_config(config: dict, aliases: Path) -> dict:
     return {**config, "sources": sources}
 
 
+def _canonicalise_prefecture_authority_keys(prefectures: dict, aliases: Path) -> dict:
+    """Return the public directory with project-canonical authority identities.
+
+    Ministry URL slugs are discovery identities, not canonical project keys.
+    Once the alias has been explicitly evidenced, the directory must expose the
+    same authority key as the public registry so aggregate and row identities
+    cannot silently diverge.  Jurisdiction labels and official URLs are kept
+    unchanged.
+    """
+    alias_map = {
+        row["national_index_key"]: row["catalog_authority_key"]
+        for row in _read_rows(aliases)
+    }
+    rows = []
+    seen: set[str] = set()
+    for source_row in prefectures["prefectures"]:
+        row = dict(source_row)
+        row["authority_key"] = alias_map.get(row["authority_key"], row["authority_key"])
+        if row["authority_key"] in seen:
+            raise RuntimeError(
+                f"Authority alias collision in public Prefecture directory: {row['authority_key']}"
+            )
+        seen.add(row["authority_key"])
+        rows.append(row)
+    return {**prefectures, "prefectures": rows}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build public national registry and Prefecture index with explicit source/canonical authority aliases"
@@ -123,6 +150,10 @@ def main(argv: list[str] | None = None) -> int:
             _alias_publication_config(config, args.authority_aliases),
             verified,
             series,
+        )
+        prefectures = _canonicalise_prefecture_authority_keys(
+            prefectures,
+            args.authority_aliases,
         )
 
     args.registry_json.parent.mkdir(parents=True, exist_ok=True)
