@@ -98,7 +98,10 @@ jobs:
           replacement='ancona-combined,ancona,WL-REGIME-L190-2012,listed_and_applicant,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list,landing_page_resolved,2026-09-10,"Current official page re-verified 10 September 2026; it exposes a single attachment explicitly covering registered companies and companies requesting registration. The byte-pinned 23-page edition is marked Agg. al 07/09/2026 and yields 577 source-backed observations; exact parser boundaries and anomaly handling are documented in docs/sources/ancona-operational-check-2026-09-10.md."'
           found=False
           for i,line in enumerate(lines):
-            if line.startswith('ancona-combined,'): lines[i]=replacement; found=True; break
+            if line.startswith('ancona-combined,'):
+              lines[i]=replacement
+              found=True
+              break
           if not found: lines.append(replacement)
           p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
 
@@ -114,24 +117,6 @@ jobs:
           if lookup not in t:
             if anchor2 not in t: raise SystemExit('publisher parser anchor missing')
             t=t.replace(anchor2,anchor2+lookup)
-          p.write_text(t,encoding='utf-8')
-
-          p=root/'.github/workflows/public-pages.yml'
-          t=p.read_text(encoding='utf-8')
-          parser_path="      - 'src/white_list_archive/parsers/ancona_combined.py'\n"
-          parser_anchor="      - 'src/white_list_archive/parsers/ascoli_piceno_labels.py'\n"
-          if parser_path not in t: t=t.replace(parser_anchor,parser_anchor+parser_path)
-          t=t.replace("assert reg['meta']['record_count'] == 10986","assert reg['meta']['record_count'] == 11563")
-          t=t.replace("'belluno','ascoli-piceno'}","'belluno','ascoli-piceno','ancona'}")
-          t=t.replace("'belluno-ordinary','ascoli-piceno-ordinary'","'belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary'")
-          t=t.replace("assert reg['meta']['authority_count'] == 15","assert reg['meta']['authority_count'] == 16")
-          t=t.replace("assert reg['meta']['register_count'] == 16","assert reg['meta']['register_count'] == 17")
-          t=t.replace("assert pref['meta']['published_count'] == 15","assert pref['meta']['published_count'] == 16")
-          ancona_check="          ancona = [x for x in pref['prefectures'] if x['authority_key'] == 'ancona']\n          assert len(ancona) == 1 and ancona[0]['mapped'] and ancona[0]['published']\n"
-          ascoli_check="          ascoli = [x for x in pref['prefectures'] if x['authority_key'] == 'ascoli-piceno']\n          assert len(ascoli) == 1 and ascoli[0]['mapped'] and ascoli[0]['published']\n"
-          if ancona_check not in t:
-            if ascoli_check not in t: raise SystemExit('Pages authority-check anchor missing')
-            t=t.replace(ascoli_check,ascoli_check+ancona_check)
           p.write_text(t,encoding='utf-8')
 
           p=root/'tests/public_portal_browser.cjs'
@@ -183,14 +168,20 @@ jobs:
           assert pref['meta']['published_count']==16
           print('Validated national expansion:',reg['meta']['record_count'],pref['meta'])
           PY
-      - name: Commit clean Ancona production checkpoint
+      - name: Commit non-workflow Ancona production checkpoint
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/ancona-source-audit.yml
           git config user.name 'colazeta'
           git config user.email '47261299+colazeta@users.noreply.github.com'
-          git add -A
+          git add \
+            data/publication/multi_prefecture_pilot.json \
+            data/monitoring/national_coverage.json \
+            data/source_registry/verified_primary_pages.csv \
+            data/source_registry/source_series_inventory.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            docs/sources/ancona-operational-check-2026-09-10.md
           git diff --cached --check
           git commit -m 'Integrate Ancona public White List observations'
           git push origin HEAD:expansion/ancona-2026-09-10
