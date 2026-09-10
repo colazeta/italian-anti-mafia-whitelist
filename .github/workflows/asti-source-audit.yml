@@ -1,0 +1,87 @@
+name: Asti source audit
+
+on:
+  push:
+    branches:
+      - expansion/asti-source-audit-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Resolve and inspect official Asti White List resources
+        run: |
+          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib
+          import re
+          import tempfile
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          from urllib.parse import urljoin, urlparse
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali'
+          H = {'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          s = requests.Session()
+          r = s.get(PAGE, headers=H, timeout=45)
+          r.raise_for_status()
+          soup = BeautifulSoup(r.text, 'html.parser')
+          visible = ' '.join(soup.stripped_strings)
+          if 'Elenco imprese iscritte' not in visible or "Elenco imprese richiedenti l'iscrizione" not in visible:
+              raise SystemExit('Official Asti page does not expose both expected population labels')
+
+          candidates=[]
+          for a in soup.find_all('a', href=True):
+              label=' '.join(a.stripped_strings).strip()
+              href=urljoin(PAGE,a['href'])
+              h=(label+' '+href).casefold()
+              if 'elenco imprese' in h and ('iscritt' in h or 'richiedent' in h):
+                  candidates.append((label,href))
+          print('ATTACHMENTS='+repr([(label,Path(urlparse(url).path).name) for label,url in candidates]))
+
+          applicants=[(label,url) for label,url in candidates if 'richiedent' in (label+' '+url).casefold()]
+          listed=[(label,url) for label,url in candidates if 'iscritt' in (label+' '+url).casefold() and 'richiedent' not in (label+' '+url).casefold()]
+          for key,matches in [('listed',listed),('applicants',applicants)]:
+              if len(matches)!=1:
+                  raise SystemExit(f'{key}: expected exactly one current official resource, got {matches!r}')
+              label,url=matches[0]
+              response=s.get(url,headers=H,timeout=90); response.raise_for_status()
+              body=response.content
+              if not body.startswith(b'%PDF'):
+                  raise SystemExit(f'{key}: official resource is not PDF')
+              print(f'{key.upper()}_LABEL={label}')
+              print(f'{key.upper()}_RESOURCE={url}')
+              print(f'{key.upper()}_SHA256={hashlib.sha256(body).hexdigest()}')
+              print(f'{key.upper()}_BYTES={len(body)}')
+              with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+                  f.write(body); f.flush()
+                  with pdfplumber.open(f.name) as pdf:
+                      print(f'{key.upper()}_PAGES={len(pdf.pages)}')
+                      widths=Counter(); signatures=Counter(); examples=defaultdict(list)
+                      for pno,page in enumerate(pdf.pages,1):
+                          for tno,table in enumerate(page.extract_tables() or [],1):
+                              width=max((len(row) for row in table if row),default=0); widths[width]+=1
+                              for raw in table:
+                                  row=[' '.join(str(c or '').split()) for c in raw]
+                                  if not any(row): continue
+                                  sig=(len(row),tuple(i for i,v in enumerate(row) if re.fullmatch(r'\d{1,2}[./-]\d{1,2}[./-]\d{4}',v or '')),tuple(i for i,v in enumerate(row) if re.fullmatch(r'(?:\d{11}|[A-Z0-9]{16})',re.sub(r'\s+','',(v or '').upper()))))
+                                  if sig[1] or sig[2]:
+                                      signatures[sig]+=1
+                                      if len(examples[sig])<2: examples[sig].append((pno,tno,row))
+                      print(f'{key.upper()}_TABLE_WIDTHS={dict(sorted(widths.items()))}')
+                      print(f'{key.upper()}_ROW_SIGNATURES={dict(signatures)}')
+                      for sig,rows in sorted(examples.items(), key=lambda item:(-signatures[item[0]],item[0]))[:12]:
+                          print(f'{key.upper()}_SIGNATURE={sig} COUNT={signatures[sig]}')
+                          for pno,tno,row in rows: print(f'{key.upper()}_EXAMPLE page={pno} table={tno} cells={row!r}')
+          PY
