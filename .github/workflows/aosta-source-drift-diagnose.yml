@@ -36,7 +36,6 @@ jobs:
       - name: Compare current Aosta source semantics with live baseline
         run: |
           python - <<'PY'
-          import hashlib
           import json
           from collections import Counter
           from pathlib import Path
@@ -47,6 +46,16 @@ jobs:
           config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
           baseline = json.loads(Path('/tmp/aosta-baseline/site/data/registry.json').read_text(encoding='utf-8'))
           baseline_records = baseline['records']
+
+          def identity(record):
+              return (record.get('name', ''), record.get('identifier_field_raw', ''))
+
+          semantic_fields = (
+              'name', 'registered_office', 'identifier_field_raw', 'identifiers',
+              'requested_activities', 'source_status', 'outcome_raw',
+              'application_date', 'observed_listing_date', 'observed_expiry_date',
+              'primary_date', 'primary_date_label',
+          )
 
           for key in ('aosta-listed', 'aosta-applicants'):
               cfg = next(item for item in config['sources'] if item['source_key'] == key)
@@ -59,6 +68,21 @@ jobs:
               old = [record for record in baseline_records if record['source_key'] == key]
               old_semantic = _semantic_digest(old)
               current_semantic = _semantic_digest(current_public)
+              old_by_identity = {identity(record): record for record in old}
+              current_by_identity = {identity(record): record for record in current_public}
+              removed = sorted(set(old_by_identity) - set(current_by_identity))
+              added = sorted(set(current_by_identity) - set(old_by_identity))
+              changed = []
+              for row_identity in sorted(set(old_by_identity) & set(current_by_identity)):
+                  before = old_by_identity[row_identity]
+                  after = current_by_identity[row_identity]
+                  delta = {
+                      field: {'before': before.get(field), 'after': after.get(field)}
+                      for field in semantic_fields
+                      if before.get(field) != after.get(field)
+                  }
+                  if delta:
+                      changed.append({'identity': row_identity, 'delta': delta})
               print(json.dumps({
                   'source_key': key,
                   'approved_raw_sha256': cfg['sha256'],
@@ -71,5 +95,8 @@ jobs:
                   'diagnostics': batch.diagnostics,
                   'old_status_counts': dict(Counter(r['source_status'] for r in old)),
                   'current_status_counts': dict(Counter(r['source_status'] for r in current_public)),
+                  'removed_identities': removed,
+                  'added_identities': added,
+                  'changed_common_identities': changed,
               }, ensure_ascii=False, sort_keys=True))
           PY
