@@ -1,0 +1,276 @@
+name: Asti clean integration gate
+
+on:
+  push:
+    branches:
+      - expansion/asti-2026-09-10-clean
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication]'
+      - name: Apply evidence-backed Asti integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv
+          import json
+          from pathlib import Path
+
+          source_page = 'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali'
+          reference_date = '2026-08-03'
+          verified_on = '2026-09-10'
+
+          # Bind the independently validated positioned parser.
+          path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = path.read_text(encoding='utf-8')
+          import_anchor = 'from white_list_archive.parsers.benevento_positioned import PARSERS as BENEVENTO_PARSERS\n'
+          chain_anchor = '        or BENEVENTO_PARSERS.get(cfg["parser"])\n'
+          assert 'ASTI_PARSERS' not in text
+          assert text.count(import_anchor) == 1
+          assert text.count(chain_anchor) == 1
+          text = text.replace(import_anchor, import_anchor + 'from white_list_archive.parsers.asti_positioned import PARSERS as ASTI_PARSERS\n')
+          text = text.replace(chain_anchor, chain_anchor + '        or ASTI_PARSERS.get(cfg["parser"])\n')
+          path.write_text(text, encoding='utf-8')
+
+          # Register the two current official Asti populations. The Prefecture page
+          # explicitly labels both attachments as updated 03/08/2026.
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          assert not any(source['source_key'].startswith('asti-') for source in config['sources'])
+          common = {
+              'authority_key': 'asti',
+              'authority_name': 'Prefettura di Asti',
+              'register_key': 'asti-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': reference_date,
+              'source_page_url': source_page,
+              'last_source_update': reference_date,
+              'last_source_update_basis': 'explicit current-edition attachment labels and page update timestamp on the official Prefecture page',
+          }
+          config['sources'].extend([
+              {
+                  **common,
+                  'source_key': 'asti-listed',
+                  'parser': 'asti_listed',
+                  'population_scope': 'listed',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf',
+                  'sha256': '8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128',
+                  'expected_sector_rows': 521,
+                  'expected_source_rows': 284,
+                  'notes': "The source is organised by Sections I-X. The parser uses ruled-table geometry and exact primary-date positions, then conservatively groups only source rows sharing the same cleaned identity, dates, raw update text and source status. One CEIT SRL row in the official listed-company PDF has no listing date and explicitly says 'In istruttoria'; it is preserved as a pending source observation. Blank or malformed expiry values are not reconstructed.",
+              },
+              {
+                  **common,
+                  'source_key': 'asti-applicants',
+                  'parser': 'asti_applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf',
+                  'sha256': 'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5',
+                  'expected_source_rows': 17,
+                  'notes': "The current official applicant table exposes 17 source observations. Two application dates are blank and remain blank. The ten-digit JOKKO identifier remains raw and is not padded. Source-explicit 'Iscritta' outcomes are mapped only to observed listed status; 'In istruttoria' remains pending; 'Non iscritta' is retained as other/unknown because the text alone does not establish a rejection or cancellation route.",
+              },
+          ])
+          config['verified_at'] = verified_on
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          verified_path = Path('data/source_registry/verified_primary_pages.csv')
+          with verified_path.open(encoding='utf-8', newline='') as handle:
+              rows = list(csv.DictReader(handle))
+              fields = list(rows[0])
+          matches = [r for r in rows if r['authority_key'] == 'asti']
+          assert len(matches) == 1
+          matches[0]['landing_url'] = source_page
+          matches[0]['verification_date'] = verified_on
+          matches[0]['verification_status'] = 'verified'
+          with verified_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields)
+              writer.writeheader(); writer.writerows(rows)
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          with series_path.open(encoding='utf-8', newline='') as handle:
+              rows = list(csv.DictReader(handle))
+              fields = list(rows[0])
+          notes = {
+              'asti-listed': 'Current official provincial page verified 10 September 2026 explicitly labels the registered-company PDF as updated 3 August 2026. Exact source identity, exceptions and parser boundary are documented in docs/sources/asti-operational-check-2026-09-10.md.',
+              'asti-applicants': 'Current official provincial page verified 10 September 2026 explicitly labels the applicant-company PDF as updated 3 August 2026. Exact source identity, raw anomalies and parser boundary are documented in docs/sources/asti-operational-check-2026-09-10.md.',
+          }
+          for key, note in notes.items():
+              matches = [r for r in rows if r['source_series_key'] == key]
+              assert len(matches) == 1, key
+              matches[0]['verified_date'] = verified_on
+              matches[0]['resource_resolution_status'] = 'direct_series_page_resolved'
+              matches[0]['notes'] = note
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields)
+              writer.writeheader(); writer.writerows(rows)
+
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          matches = [r for r in coverage['prefectures'] if r['authority_key'] == 'asti']
+          assert len(matches) == 1
+          row = matches[0]
+          row.update({
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'latest_source_reference_date': reference_date,
+              'last_successful_source_check_at': '2026-09-10T06:24:01Z',
+              'last_attempted_source_check_at': '2026-09-10T06:24:01Z',
+              'last_successful_investigation_on': verified_on,
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/asti-operational-check-2026-09-10.md',
+                  'src/white_list_archive/parsers/asti_positioned.py',
+                  'tests/test_asti_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [
+                  '8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128',
+                  'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5',
+              ],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/asti-operational-check-2026-09-10.md',
+              ],
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          pages = Path('.github/workflows/public-pages.yml')
+          text = pages.read_text(encoding='utf-8')
+          parser_path_anchor = "      - 'src/white_list_archive/parsers/benevento_positioned.py'\n"
+          assert text.count(parser_path_anchor) == 1
+          text = text.replace(parser_path_anchor, parser_path_anchor + "      - 'src/white_list_archive/parsers/asti_positioned.py'\n")
+          replacements = {
+              "assert reg['meta']['record_count'] == 8522": "assert reg['meta']['record_count'] == 8823",
+              "assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento'}": "assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti'}",
+              "'biella-ordinary','benevento-ordinary'": "'biella-ordinary','benevento-ordinary','asti-ordinary'",
+              "assert reg['meta']['authority_count'] == 11": "assert reg['meta']['authority_count'] == 12",
+              "assert reg['meta']['register_count'] == 12": "assert reg['meta']['register_count'] == 13",
+              "assert pref['meta']['published_count'] == 11": "assert pref['meta']['published_count'] == 12",
+          }
+          for old, new in replacements.items():
+              assert text.count(old) == 1, old
+              text = text.replace(old, new)
+          anchor = "          benevento = [x for x in pref['prefectures'] if x['authority_key'] == 'benevento']\n          assert len(benevento) == 1 and benevento[0]['mapped'] and benevento[0]['published']\n"
+          assert text.count(anchor) == 1
+          text = text.replace(anchor, anchor + "          asti = [x for x in pref['prefectures'] if x['authority_key'] == 'asti']\n          assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']\n")
+          pages.write_text(text, encoding='utf-8')
+
+          browser = Path('tests/public_portal_browser.cjs')
+          text = browser.read_text(encoding='utf-8')
+          label_anchor = "      assert.ok(labels.includes('White List ordinaria · Prefettura di Benevento'));\n"
+          assert text.count(label_anchor) == 1
+          text = text.replace(label_anchor, label_anchor + "      assert.ok(labels.includes('White List ordinaria · Prefettura di Asti'));\n")
+          assert text.count('assert.equal(stats.total,8522);') == 1
+          text = text.replace('assert.equal(stats.total,8522);', 'assert.equal(stats.total,8823);')
+          old_exclusion = "['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento']"
+          assert text.count(old_exclusion) == 1
+          text = text.replace(old_exclusion, "['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti']")
+          benevento_anchor = "      assert.deepEqual(statusCounts(benevento),{listed:734,pending:204});\n"
+          assert text.count(benevento_anchor) == 1
+          text = text.replace(benevento_anchor, benevento_anchor + "      const asti=registry.records.filter(r=>r.authority_key==='asti');\n      assert.equal(asti.length,301);\n      assert.equal(asti.filter(r=>r.source_key==='asti-listed').length,284);\n      assert.equal(asti.filter(r=>r.source_key==='asti-applicants').length,17);\n      assert.deepEqual(statusCounts(asti),{listed:287,other_or_unknown:1,pending:13});\n")
+          browser.write_text(text, encoding='utf-8')
+
+          Path('tests/test_asti_parser_semantics.py').write_text("""from white_list_archive.parsers.asti_positioned import _activity_parts, _status_applicant\n\n\ndef test_asti_applicant_status_mapping_is_source_literal_and_conservative():\n    assert _status_applicant('In istruttoria') == 'pending'\n    assert _status_applicant('Iscritta il 24.08.2026') == 'listed'\n    assert _status_applicant('Non iscritta') == 'other_or_unknown'\n    assert _status_applicant('') == 'other_or_unknown'\n\n\ndef test_asti_multi_section_applicant_activity_is_split_without_relabelling():\n    activities, sections = _activity_parts('SEZIONE IV Fornitura di ferro lavorato SEZIONE VI Autotrasporto conto terzi')\n    assert sections == ['Sezione IV', 'Sezione VI']\n    assert activities == ['Fornitura di ferro lavorato', 'Autotrasporto conto terzi']\n""", encoding='utf-8')
+
+          Path('docs/sources/asti-operational-check-2026-09-10.md').write_text("""# Asti White List operational check — 10 September 2026\n\n## Official current surface\n\nThe official Prefettura di Asti White List page was verified on 10 September 2026:\n\n- https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali\n- `Elenco imprese iscritte - Aggiornato al 03/08/2026`;\n- `Elenco imprese richiedenti l'iscrizione - Aggiornato al 03/08/2026`;\n- the page itself reports its latest update as 3 August 2026.\n\nThis is positive current-edition evidence for both ordinary White List populations. The September directory component in the attachment URLs is not treated as publication-date evidence.\n\n## Byte-pinned resources\n\nRegistered-company resource: `https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf`, SHA-256 `8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128`, 39 pages.\n\nApplicant resource: `https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf`, SHA-256 `ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5`, 6 pages.\n\n## Parser boundary and validated output\n\nThe registered-company PDF is organised by Sections I-X. Generic table extraction is not a stable fixed-column interface, so `asti_listed` uses ruled-table geometry and the position of the primary registration/renewal date. The audited edition contains 521 sector observations, grouped conservatively into 284 public source observations only when identity, office, identifier/raw identifier, source dates, raw update text and source status agree. One CEIT SRL row has no listing date and explicitly reports `In istruttoria`; it remains pending. Seven malformed expiry values remain raw and are not reconstructed.\n\nThe applicant PDF yields 17 source observations. Two application dates are blank and remain blank. The ten-digit JOKKO identifier `0141215742` remains raw and is not padded. Source-explicit outcomes are mapped conservatively: four `Iscritta` observations to listed, twelve `In istruttoria` observations to pending, and one `Non iscritta` observation to `other_or_unknown`.\n\nThe combined Asti public contribution is therefore 301 observations: 287 listed, 13 pending and 1 other/unknown.\n\n## Publication gate\n\nPublication pins the exact two resource SHA-256 values and the 521/284/17 denominators. Byte drift, page/layout drift, changed denominators, loss of the explicit pending exception or new invalid non-blank applicant dates fail closed. Canonical hosted-database integration and independent durable-evidence verification remain separate under issue #16 and are not claimed complete here.\n""", encoding='utf-8')
+          PY
+      - name: Validate Asti parser and national public build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q tests/test_asti_parser_semantics.py
+          mkdir -p /tmp/asti-public
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/asti-public/sources \
+            --registry-json /tmp/asti-public/registry.json \
+            --registry-csv /tmp/asti-public/registry.csv \
+            --prefectures-json /tmp/asti-public/prefectures.json \
+            --prefectures-csv /tmp/asti-public/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/asti-public/registry.json').read_text())
+          pref=json.loads(Path('/tmp/asti-public/prefectures.json').read_text())
+          assert reg['meta']['record_count']==8823, reg['meta']
+          assert reg['meta']['authority_count']==12, reg['meta']
+          assert reg['meta']['register_count']==13, reg['meta']
+          assert pref['meta']['authority_count']==106, pref['meta']
+          assert pref['meta']['mapped_count']==35, pref['meta']
+          assert pref['meta']['published_count']==12, pref['meta']
+          asti=[r for r in reg['records'] if r['authority_key']=='asti']
+          assert len(asti)==301
+          assert Counter(r['source_status'] for r in asti)==Counter({'listed':287,'pending':13,'other_or_unknown':1})
+          assert Counter(r['source_key'] for r in asti)==Counter({'asti-listed':284,'asti-applicants':17})
+          assert {r['reference_date'] for r in asti}=={'2026-08-03'}
+          print('Asti clean integration validated:', len(asti), 'records; national total', reg['meta']['record_count'])
+          PY
+      - name: Commit validated integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/white_list_archive/publishing/public_national_registry.py \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/verified_primary_pages.csv \
+            data/source_registry/source_series_inventory.csv \
+            data/monitoring/national_coverage.json \
+            .github/workflows/public-pages.yml \
+            tests/public_portal_browser.cjs \
+            tests/test_asti_parser_semantics.py \
+            docs/sources/asti-operational-check-2026-09-10.md
+          git diff --cached --check
+          git commit -m 'Integrate validated Asti public observations'
+          git push origin HEAD:expansion/asti-2026-09-10-clean
