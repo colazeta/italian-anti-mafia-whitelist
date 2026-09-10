@@ -44,7 +44,7 @@ jobs:
         run: |
           python -m compileall -q src
           pytest -q
-      - name: Commit validated production integration
+      - name: Commit validated non-workflow integration
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -54,8 +54,7 @@ jobs:
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
             src/white_list_archive/publishing/public_contract.py \
-            src/white_list_archive/publishing/public_national_registry.py \
-            .github/workflows/public-pages.yml
+            src/white_list_archive/publishing/public_national_registry.py
           git diff --cached --check
           git diff --cached --quiet && exit 0
           git commit -m 'Integrate Agrigento public source series'
