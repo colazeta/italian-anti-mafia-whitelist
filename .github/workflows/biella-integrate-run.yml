@@ -31,7 +31,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git status --short
-          git add data src tests docs .github/workflows/public-pages.yml
+          # The GitHub App token cannot update workflow files. Commit the validated
+          # data/code/test/doc changes here; the public-pages workflow invariant is
+          # applied separately through the repository connector before PR review.
+          git add data src tests docs
           git diff --cached --check
           git commit -m '[biella integrated] Publish current Biella source observations'
           git push origin HEAD:expansion/biella-2026-09-10
