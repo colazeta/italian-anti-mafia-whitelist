@@ -57,10 +57,29 @@ jobs:
                   with pdfplumber.open(f.name) as pdf:
                       print(f'{key.upper()}_PAGES={len(pdf.pages)}')
                       widths=Counter(); sigs=Counter(); examples=defaultdict(list); text_lines=[]
-                      candidate_rows=[]; unmatched=[]
+                      candidate_rows=[]; unmatched=[]; blank_anchor_rows=[]
+                      token_x=Counter(); date_x=Counter()
                       for pno,p in enumerate(pdf.pages,1):
                           txt=p.extract_text() or ''
                           if pno<=2: text_lines.extend((pno,x) for x in txt.splitlines()[:20])
+                          words=p.extract_words(use_text_flow=False, keep_blank_chars=False)
+                          if pno == 1:
+                              head=[(w['text'],round(float(w['x0']),1),round(float(w['x1']),1),round(float(w['top']),1),round(float(w['bottom']),1)) for w in words if float(w['top']) < 125]
+                              print(f'{key.upper()}_POSITIONED_HEAD={head!r}')
+                          for w in words:
+                              text=re.sub(r'[^A-Za-z0-9]','',str(w['text']).upper())
+                              if re.fullmatch(r'[A-Z0-9]{9,16}',text) and any(c.isdigit() for c in text):
+                                  token_x[round(float(w['x0'])/5)*5]+=1
+                              if re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',str(w['text'])):
+                                  date_x[round(float(w['x0'])/5)*5]+=1
+                          if key=='applicants' and pno in {5,8,11,15,16}:
+                              anchors=[]
+                              for w in words:
+                                  raw=str(w['text'])
+                                  compact=re.sub(r'[^A-Za-z0-9]','',raw.upper())
+                                  if re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',raw) or (re.fullmatch(r'[A-Z0-9]{9,16}',compact) and any(c.isdigit() for c in compact)):
+                                      anchors.append((raw,round(float(w['x0']),1),round(float(w['x1']),1),round(float(w['top']),1),round(float(w['bottom']),1)))
+                              print(f'APPLICANTS_ANCHORS_PAGE_{pno}={anchors!r}')
                           for tno,t in enumerate(p.extract_tables() or [],1):
                               widths[max((len(row) for row in t if row),default=0)]+=1
                               for raw in t:
@@ -72,15 +91,20 @@ jobs:
                                   if dates or ids:
                                       sigs[sig]+=1
                                       if len(examples[sig])<2:examples[sig].append((pno,tno,row))
+                                      if not row[0]: blank_anchor_rows.append((pno,tno,row))
                                   name=row[0] if row else ''
                                   is_header=not name or 'ragione sociale' in name.casefold() or 'fornitori' in name.casefold()
                                   if not is_header and len(row)>=(8 if key=='listed' else 6):
                                       candidate_rows.append((pno,tno,row))
                                       if not dates and not ids: unmatched.append((pno,tno,row))
+                      print(f'{key.upper()}_TOKEN_X={dict(sorted(token_x.items()))}')
+                      print(f'{key.upper()}_DATE_X={dict(sorted(date_x.items()))}')
                       print(f'{key.upper()}_TABLE_WIDTHS={dict(sorted(widths.items()))}')
                       print(f'{key.upper()}_ROW_SIGNATURES={dict(sigs)}')
                       print(f'{key.upper()}_CANDIDATE_NAME_ROWS={len(candidate_rows)}')
                       print(f'{key.upper()}_UNMATCHED_NAME_ROWS={len(unmatched)}')
+                      print(f'{key.upper()}_BLANK_ANCHOR_ROWS={len(blank_anchor_rows)}')
+                      for pno,tno,row in blank_anchor_rows[:20]:print(f'{key.upper()}_BLANK_ANCHOR page={pno} table={tno} cells={row!r}')
                       for pno,tno,row in unmatched[:40]:print(f'{key.upper()}_UNMATCHED page={pno} table={tno} cells={row!r}')
                       for sig,rows in sorted(examples.items(),key=lambda z:(-sigs[z[0]],z[0]))[:12]:
                           print(f'{key.upper()}_SIGNATURE={sig} COUNT={sigs[sig]}')
