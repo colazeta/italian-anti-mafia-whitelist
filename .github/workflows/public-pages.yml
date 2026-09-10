@@ -24,6 +24,7 @@ on:
       - 'src/white_list_archive/parsers/benevento_positioned.py'
       - 'src/white_list_archive/parsers/asti_positioned.py'
       - 'src/white_list_archive/parsers/agrigento_positioned.py'
+      - 'src/white_list_archive/parsers/belluno_combined.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -114,17 +115,17 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 9983
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento'}
+          assert reg['meta']['record_count'] == 10385
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary'
           }
-          assert reg['meta']['authority_count'] == 13
-          assert reg['meta']['register_count'] == 14
+          assert reg['meta']['authority_count'] == 14
+          assert reg['meta']['register_count'] == 15
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 13
+          assert pref['meta']['published_count'] == 14
           assert pref['meta']['mapped_count'] == 35
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['series_count'] > 0
@@ -146,6 +147,8 @@ jobs:
           assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']
           agrigento = [x for x in pref['prefectures'] if x['authority_key'] == 'agrigento']
           assert len(agrigento) == 1 and agrigento[0]['mapped'] and agrigento[0]['published']
+          belluno = [x for x in pref['prefectures'] if x['authority_key'] == 'belluno']
+          assert len(belluno) == 1 and belluno[0]['mapped'] and belluno[0]['published']
           assert all(r.get('record_locator') for r in reg['records'])
           assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
           assert site['publication']['geography_policy']
