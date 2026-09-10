@@ -21,50 +21,45 @@ jobs:
         run: |
           python -m pip install -q requests beautifulsoup4 openpyxl xlrd
           python - <<'PY'
-          import hashlib, io, re
-          from pathlib import Path
-          from urllib.parse import urljoin, urlparse
+          import hashlib, io
+          from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
 
           page_url='https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte'
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
-          s=requests.Session(); r=s.get(page_url,headers=H,timeout=45); r.raise_for_status()
-          soup=BeautifulSoup(r.text,'html.parser')
-          links=[]
+          s=requests.Session(); r=s.get(page_url,headers=H,timeout=45); r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser')
+          candidates=[]
           for a in soup.find_all('a',href=True):
-              href=urljoin(page_url,a['href']); label=' '.join(a.stripped_strings).strip()
-              suffix=Path(urlparse(href).path).suffix.lower()
-              if suffix in {'.xlsx','.xls','.xlsm'}:
-                  links.append((label,href))
-          print('CANDIDATES='+repr([(l,Path(urlparse(u).path).name) for l,u in links]))
-          if len(links)!=1: raise SystemExit(f'expected exactly one current workbook, got {links!r}')
-          label,url=links[0]; res=s.get(url,headers=H,timeout=90); res.raise_for_status(); data=res.content
-          print('LABEL='+label); print('RESOURCE='+url); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
-          suffix=Path(urlparse(url).path).suffix.lower()
-          if suffix=='.xlsx':
+              label=' '.join(a.stripped_strings).strip(); href=urljoin(page_url,a['href'])
+              if 'elenco imprese iscritte' in label.casefold() or '/sites/default/files/' in href:
+                  candidates.append((label,href))
+          print('CANDIDATES='+repr(candidates))
+          exact=[x for x in candidates if 'aggiornamento 31.08.2026' in x[0].casefold()]
+          if len(exact)!=1: raise SystemExit(f'expected exactly one dated attachment, got {exact!r}')
+          label,url=exact[0]; res=s.get(url,headers=H,timeout=90); res.raise_for_status(); data=res.content
+          ctype=res.headers.get('content-type',''); print('LABEL='+label); print('RESOURCE='+url); print('CONTENT_TYPE='+ctype); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
+          if data.startswith(b'PK'):
               import openpyxl
               wb=openpyxl.load_workbook(io.BytesIO(data),data_only=True,read_only=False)
-              print('SHEETS='+repr(wb.sheetnames))
+              print('FORMAT=xlsx'); print('SHEETS='+repr(wb.sheetnames))
               for ws in wb.worksheets:
-                  print(f'SHEET {ws.title!r} DIM={ws.max_row}x{ws.max_column}')
                   nonempty=[]
                   for rno,row in enumerate(ws.iter_rows(values_only=True),1):
                       vals=[' '.join(str(v or '').split()) for v in row]
                       if any(vals): nonempty.append((rno,vals))
-                  print(f'SHEET {ws.title!r} NONEMPTY_ROWS={len(nonempty)}')
-                  for item in nonempty[:25]: print(f'HEAD {ws.title!r} {item!r}')
+                  print(f'SHEET {ws.title!r} DIM={ws.max_row}x{ws.max_column} NONEMPTY_ROWS={len(nonempty)}')
+                  for item in nonempty[:30]: print(f'HEAD {ws.title!r} {item!r}')
                   print(f'MERGED {ws.title!r}='+repr([str(x) for x in ws.merged_cells.ranges][:50]))
           else:
               import xlrd
               wb=xlrd.open_workbook(file_contents=data)
-              print('SHEETS='+repr(wb.sheet_names()))
+              print('FORMAT=xls'); print('SHEETS='+repr(wb.sheet_names()))
               for ws in wb.sheets():
-                  print(f'SHEET {ws.name!r} DIM={ws.nrows}x{ws.ncols}')
                   nonempty=[]
                   for rno in range(ws.nrows):
                       vals=[' '.join(str(ws.cell_value(rno,c) or '').split()) for c in range(ws.ncols)]
                       if any(vals): nonempty.append((rno+1,vals))
-                  print(f'SHEET {ws.name!r} NONEMPTY_ROWS={len(nonempty)}')
-                  for item in nonempty[:25]: print(f'HEAD {ws.name!r} {item!r}')
+                  print(f'SHEET {ws.name!r} DIM={ws.nrows}x{ws.ncols} NONEMPTY_ROWS={len(nonempty)}')
+                  for item in nonempty[:30]: print(f'HEAD {ws.name!r} {item!r}')
           PY
