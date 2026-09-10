@@ -28,7 +28,7 @@ jobs:
           import tempfile
           from collections import Counter
           from pathlib import Path
-          from urllib.parse import urljoin
+          from urllib.parse import urljoin, urlparse
           import pdfplumber
           import requests
           from bs4 import BeautifulSoup
@@ -40,25 +40,29 @@ jobs:
           response.raise_for_status()
           soup = BeautifulSoup(response.text, 'html.parser')
           visible = ' '.join(soup.stripped_strings)
-          if 'ELENCO DELLE IMPRESE' not in visible.upper():
-              raise SystemExit('Agrigento official page no longer exposes the expected White List heading')
+          upper = visible.upper()
+          if 'ELENCO DELLE IMPRESE' not in upper or '28 AGOSTO 2026' not in upper:
+              raise SystemExit('Agrigento official page lacks the expected current-edition evidence')
 
-          selectors = {
-              'applicants': ('richiedent', '28-agosto-2026'),
-              'listed': ('iscritt', '28-agosto-2026'),
+          pdf_anchors = []
+          for anchor in soup.find_all('a', href=True):
+              href = anchor['href']
+              label = ' '.join(anchor.stripped_strings).strip()
+              url = urljoin(PAGE, href)
+              haystack = (label + ' ' + href).casefold()
+              if '.pdf' in urlparse(url).path.casefold():
+                  pdf_anchors.append((label, url, haystack))
+
+          applicants = [url for _, url, h in pdf_anchors if 'richiedent' in h]
+          listed = [url for _, url, h in pdf_anchors if 'iscritt' in h and 'richiedent' not in h]
+          resolved = {
+              'applicants': list(dict.fromkeys(applicants)),
+              'listed': list(dict.fromkeys(listed)),
           }
-          resolved = {}
-          for key, needles in selectors.items():
-              matches = []
-              for anchor in soup.find_all('a', href=True):
-                  label = ' '.join(anchor.stripped_strings).casefold()
-                  href = anchor['href']
-                  haystack = (label + ' ' + href.casefold())
-                  if href.casefold().endswith('.pdf') and all(needle in haystack for needle in needles):
-                      matches.append(urljoin(PAGE, href))
-              matches = list(dict.fromkeys(matches))
+          for key, matches in resolved.items():
               if len(matches) != 1:
-                  raise SystemExit(f'{key}: expected one dated current PDF, got {len(matches)}')
+                  candidates = [Path(urlparse(url).path).name for url in matches]
+                  raise SystemExit(f'{key}: expected one current official PDF, got {len(matches)} candidates={candidates}')
               resolved[key] = matches[0]
 
           date_re = re.compile(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b')
