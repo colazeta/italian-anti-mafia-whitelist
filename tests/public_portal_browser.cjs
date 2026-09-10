@@ -32,6 +32,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Asti'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Agrigento'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Belluno'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Ascoli Piceno'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -72,8 +73,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,10385);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno'].includes(r.authority_key));
+      assert.equal(stats.total,10986);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -125,6 +126,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(belluno.length,402);
       assert.equal(belluno.filter(r=>r.source_key==='belluno-combined').length,402);
       assert.deepEqual(statusCounts(belluno),{expired_observed:49,listed:281,pending:10,renewal_update_in_progress:62});
+      const ascoli=registry.records.filter(r=>r.authority_key==='ascoli-piceno');
+      assert.equal(ascoli.length,601);
+      assert.equal(ascoli.filter(r=>r.source_key==='ascoli-piceno-listed').length,544);
+      assert.equal(ascoli.filter(r=>r.source_key==='ascoli-piceno-applicants').length,57);
+      assert.deepEqual(statusCounts(ascoli),{listed:448,pending:57,renewal_update_in_progress:96});
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
