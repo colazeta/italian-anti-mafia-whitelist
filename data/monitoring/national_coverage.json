@@ -160,11 +160,11 @@
       "latest_source_reference_date": "2026-09-10",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
+      "last_successful_source_check_at": "2026-09-10T11:34:23Z",
+      "last_attempted_source_check_at": "2026-09-10T11:34:23Z",
       "last_content_change_at": null,
       "last_successful_investigation_on": "2026-09-10",
-      "monitoring_status": "NEVER_CHECKED",
+      "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16"
       ],
@@ -174,7 +174,9 @@
       "completion_evidence": [],
       "known_content_sha256": [
         "6733bf1e0783f02bb86edfa09155d0625946bd5a1da565704111e98979cccc2f",
-        "77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd"
+        "77d4abb04467d58af4a702e6fec291f19022adff96cfe87b3f88eb929a7f82cd",
+        "de10b4fe05ff6e77c1698d3b0d98c1a5603578417166440439e28107db4d354e",
+        "6c2aaca63aa7bad2b7a95eed43ed31401b497f27167718275fd10ba736236d01"
       ],
       "evidence": [
         "data/publication/multi_prefecture_pilot.json",
