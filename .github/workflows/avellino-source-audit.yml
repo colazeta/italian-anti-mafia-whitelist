@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Map positioned text without exposing entity data
+      - name: Validate row bands without exposing entity data
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
           import hashlib, re, tempfile
-          from collections import Counter, defaultdict
+          from collections import Counter
           from pathlib import Path
           from urllib.parse import urljoin
           import requests
@@ -32,94 +32,102 @@ jobs:
           import pdfplumber
 
           SOURCES = {
-              'listed': ('https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte', 'elenco_imprese_iscritte_whitelist_al_01-09-2026'),
-              'applicants': ('https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-richiedenti', 'elenco_imprese_richiedenti_iscrizione_whitelist_al_01-09-2026'),
+            'listed': {
+              'page':'https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte',
+              'label':'elenco_imprese_iscritte_whitelist_al_01-09-2026',
+              'anchor':(600,675),
+              'cols':[('ordinal',0,100),('name',100,260),('identifier',260,320),('office',320,435),('activities',435,555),('update',555,610),('date',610,680),('notes',680,850)],
+            },
+            'applicants': {
+              'page':'https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-richiedenti',
+              'label':'elenco_imprese_richiedenti_iscrizione_whitelist_al_01-09-2026',
+              'anchor':(680,780),
+              'cols':[('ordinal',0,100),('name',100,278),('identifier',278,348),('office',348,484),('activities',484,687),('date',687,850)],
+            },
           }
-          headers = {'User-Agent': 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
-          session = requests.Session()
-          date_re = re.compile(r'^\d{1,2}[./-]\d{1,2}[./-]\d{4}$')
-          id_re = re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
-          safe_header_words = {
-              'ragione','sociale','sede','legale','codice','fiscale','partita','iva','data','scadenza','iscrizione',
-              'presentazione','istanza','sezione','aggiornamento','settori','attività','attivita','richiesta','note'
-          }
-
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          S=requests.Session()
+          DATE=re.compile(r'^\d{1,2}[./-]\d{1,2}[./-]\d{4}$')
+          VALID_ID=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
           def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          def compact(v): return re.sub(r'\s+', '', clean(v))
-          def cluster_lines(words, tol=2.5):
-              lines=[]
-              for w in sorted(words, key=lambda z:(float(z['top']), float(z['x0']))):
-                  cy=(float(w['top'])+float(w['bottom']))/2
-                  target=None
-                  for line in reversed(lines[-4:]):
-                      if abs(line['y']-cy)<=tol:
-                          target=line; break
-                  if target is None:
-                      target={'y':cy,'words':[]}; lines.append(target)
-                  target['words'].append(w)
-                  target['y']=sum((float(x['top'])+float(x['bottom']))/2 for x in target['words'])/len(target['words'])
-              for line in lines: line['words'].sort(key=lambda z:float(z['x0']))
-              return lines
-          def spans(line, pattern):
-              ws=line['words']; out=[]
-              for i in range(len(ws)):
-                  joined=''
-                  for j in range(i,min(len(ws),i+7)):
-                      joined += compact(ws[j]['text'])
-                      if pattern.fullmatch(joined.upper()):
-                          out.append((float(ws[i]['x0']),float(ws[j]['x1']),i,j))
-                          break
-                      if len(joined)>20: break
-              # collapse overlapping detections
-              chosen=[]
-              for item in out:
-                  if chosen and item[2] <= chosen[-1][3]:
-                      if (item[3]-item[2]) > (chosen[-1][3]-chosen[-1][2]): chosen[-1]=item
-                  else: chosen.append(item)
-              return chosen
-
-          for key,(page_url,expected) in SOURCES.items():
-              page=session.get(page_url,headers=headers,timeout=45); page.raise_for_status()
-              soup=BeautifulSoup(page.text,'html.parser')
-              matches=[]
-              for a in soup.find_all('a',href=True):
-                  label=' '.join(a.stripped_strings).strip()
-                  if expected in re.sub(r'\s+','_',label.casefold()): matches.append((label,urljoin(page_url,a['href'])))
-              if len(matches)!=1: raise SystemExit(f'{key}: expected one current source, got {len(matches)}')
-              label,url=matches[0]
-              r=session.get(url,headers=headers,timeout=90); r.raise_for_status(); body=r.content
-              print(f'{key.upper()}_RESOURCE={url}')
-              print(f'{key.upper()}_SHA256={hashlib.sha256(body).hexdigest()}')
-              if not body.startswith(b'%PDF'): raise SystemExit(f'{key}: non-PDF')
-              with tempfile.TemporaryDirectory() as td:
-                  p=Path(td)/f'{key}.pdf'; p.write_bytes(body)
-                  all_date_x=[]; all_id_x=[]; line_class_counts=Counter(); safe_headers=defaultdict(list)
-                  per_page=[]
-                  with pdfplumber.open(p) as pdf:
-                      for page_no,page_obj in enumerate(pdf.pages,1):
-                          words=page_obj.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=2,y_tolerance=3)
-                          lines=cluster_lines(words)
-                          page_dates=[]; page_ids=[]; page_classes=Counter()
-                          for line in lines:
-                              d=spans(line,date_re); ids=spans(line,id_re)
-                              for x0,x1,_,_ in d: page_dates.append(round(x0,1)); all_date_x.append(round(x0,1))
-                              for x0,x1,_,_ in ids: page_ids.append(round(x0,1)); all_id_x.append(round(x0,1))
-                              cls=('D' if d else '-')+('I' if ids else '-')
-                              page_classes[cls]+=1; line_class_counts[cls]+=1
-                              for w in line['words']:
-                                  t=clean(w['text']).casefold().strip(':').strip()
-                                  if t in safe_header_words:
-                                      safe_headers[t].append((page_no,round(float(w['x0']),1),round(float(w['top']),1)))
-                          per_page.append({'page':page_no,'words':len(words),'lines':len(lines),'date_spans':len(page_dates),'id_spans':len(page_ids),'classes':dict(page_classes)})
-                  def bins(values, step=25): return dict(sorted(Counter(int(v//step)*step for v in values).items()))
-                  print(f'{key.upper()}_PAGES={len(per_page)}')
-                  print(f'{key.upper()}_PER_PAGE={per_page}')
-                  print(f'{key.upper()}_LINE_CLASSES={dict(line_class_counts)}')
-                  print(f'{key.upper()}_DATE_X_BINS={bins(all_date_x)}')
-                  print(f'{key.upper()}_ID_X_BINS={bins(all_id_x)}')
-                  print(f'{key.upper()}_DATE_X_RANGE={(min(all_date_x),max(all_date_x)) if all_date_x else None}')
-                  print(f'{key.upper()}_ID_X_RANGE={(min(all_id_x),max(all_id_x)) if all_id_x else None}')
-                  for token in sorted(safe_headers):
-                      # header labels only; retain first six positions to detect repeated page headers
-                      print(f'{key.upper()}_HEADER_{token.upper()}={safe_headers[token][:6]}')
+          def compact(v): return re.sub(r'\s+','',clean(v))
+          def detect_date_spans(words):
+            out=[]
+            ws=sorted(words,key=lambda z:float(z['x0']))
+            for i in range(len(ws)):
+              joined=''
+              for j in range(i,min(len(ws),i+7)):
+                joined += compact(ws[j]['text'])
+                if DATE.fullmatch(joined):
+                  out.append({'x0':float(ws[i]['x0']),'x1':float(ws[j]['x1']),'top':min(float(x['top']) for x in ws[i:j+1]),'bottom':max(float(x['bottom']) for x in ws[i:j+1])})
+                  break
+                if len(joined)>12: break
+            chosen=[]
+            for x in out:
+              if chosen and x['x0'] < chosen[-1]['x1'] and abs(x['top']-chosen[-1]['top'])<3: continue
+              chosen.append(x)
+            return chosen
+          def text_in_band(words,lo,hi,top,bottom):
+            chosen=[]
+            for w in words:
+              cx=(float(w['x0'])+float(w['x1']))/2
+              cy=(float(w['top'])+float(w['bottom']))/2
+              if lo <= cx < hi and top <= cy < bottom:
+                chosen.append(w)
+            chosen.sort(key=lambda z:(round(float(z['top'])/2)*2,float(z['x0'])))
+            return clean(' '.join(clean(w['text']) for w in chosen))
+          for key,cfg in SOURCES.items():
+            page=S.get(cfg['page'],headers=H,timeout=45); page.raise_for_status(); soup=BeautifulSoup(page.text,'html.parser')
+            matches=[urljoin(cfg['page'],a['href']) for a in soup.find_all('a',href=True) if cfg['label'] in re.sub(r'\s+','_',' '.join(a.stripped_strings).strip().casefold())]
+            if len(matches)!=1: raise SystemExit(f'{key}: source ambiguity {len(matches)}')
+            r=S.get(matches[0],headers=H,timeout=90); r.raise_for_status(); body=r.content
+            if not body.startswith(b'%PDF'): raise SystemExit(f'{key}: non-PDF')
+            print(f'{key.upper()}_RESOURCE={matches[0]}')
+            print(f'{key.upper()}_SHA256={hashlib.sha256(body).hexdigest()}')
+            occupancy=Counter(); id_valid=0; id_nonempty=0; ordinal_integer=0; extra_date_rows=0; row_count=0; page_rows=[]
+            word_count_bins={name:Counter() for name,_,_ in cfg['cols']}
+            with tempfile.TemporaryDirectory() as td:
+              p=Path(td)/f'{key}.pdf'; p.write_bytes(body)
+              with pdfplumber.open(p) as pdf:
+                for page_no,pgo in enumerate(pdf.pages,1):
+                  words=pgo.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=2,y_tolerance=3)
+                  anchors=[]
+                  # date spans are found within near-horizontal word lines; using a 4pt top cluster avoids cross-row concatenation.
+                  by_line={}
+                  for w in words:
+                    k=round(float(w['top'])/4)*4
+                    by_line.setdefault(k,[]).append(w)
+                  for line_words in by_line.values():
+                    for d in detect_date_spans(line_words):
+                      if cfg['anchor'][0] <= d['x0'] < cfg['anchor'][1]: anchors.append(d)
+                  anchors.sort(key=lambda d:d['top'])
+                  # Fail closed on implausibly close anchors: each current row has one primary date.
+                  for a,b in zip(anchors,anchors[1:]):
+                    if b['top']-a['top'] < 4: raise SystemExit(f'{key}: ambiguous date anchors on page {page_no}')
+                  page_rows.append(len(anchors)); row_count += len(anchors)
+                  for i,a in enumerate(anchors):
+                    top = max(0, (anchors[i-1]['bottom']+a['top'])/2) if i else max(0,a['top']-8)
+                    bottom = min(float(pgo.height), (a['bottom']+anchors[i+1]['top'])/2) if i+1<len(anchors) else min(float(pgo.height),a['bottom']+8)
+                    cells={}
+                    for name,lo,hi in cfg['cols']:
+                      txt=text_in_band(words,lo,hi,top,bottom); cells[name]=txt
+                      occupancy[(name,bool(txt))]+=1
+                      word_count_bins[name][len(txt.split()) if txt else 0]+=1
+                    raw_id=re.sub(r'[^A-Za-z0-9]','',cells.get('identifier','')).upper()
+                    id_nonempty += bool(cells.get('identifier'))
+                    id_valid += bool(VALID_ID.fullmatch(raw_id))
+                    ordinal_integer += bool(re.fullmatch(r'\d+[.)]?',compact(cells.get('ordinal',''))))
+                    # detect other date-like material in the same row outside the primary date column
+                    joined=' '.join(cells.values())
+                    dates=re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b',joined)
+                    if len(dates)>1: extra_date_rows += 1
+            print(f'{key.upper()}_ROW_COUNT={row_count}')
+            print(f'{key.upper()}_PAGE_ROWS={page_rows}')
+            print(f'{key.upper()}_ID_NONEMPTY={id_nonempty}')
+            print(f'{key.upper()}_ID_VALID_EXACT={id_valid}')
+            print(f'{key.upper()}_ORDINAL_INTEGER={ordinal_integer}')
+            print(f'{key.upper()}_ROWS_WITH_EXTRA_DATE={extra_date_rows}')
+            for name,_,_ in cfg['cols']:
+              print(f'{key.upper()}_{name.upper()}_NONEMPTY={occupancy[(name,True)]}')
+              print(f'{key.upper()}_{name.upper()}_WORD_COUNTS={dict(sorted(word_count_bins[name].items()))}')
           PY
