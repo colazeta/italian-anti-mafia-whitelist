@@ -400,6 +400,40 @@
       "sha256": "ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5",
       "expected_source_rows": 17,
       "notes": "17 official applicant observations. Two blank application dates remain blank; the ten-digit JOKKO identifier remains raw. 'Iscritta' maps only to observed listed, 'In istruttoria' to pending, and 'Non iscritta' to other/unknown without inferring rejection or cancellation."
+    },
+    {
+      "authority_key": "agrigento",
+      "authority_name": "Prefettura di Agrigento",
+      "register_key": "agrigento-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-04",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list",
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "current official landing page directly resolved on 10 September 2026 to attachments explicitly dated 4 September 2026",
+      "source_key": "agrigento-listed",
+      "parser": "agrigento_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf",
+      "sha256": "23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81",
+      "expected_source_rows": 855,
+      "notes": "Position-aware extraction uses stable ruled-table semantic bands; source anomalies remain raw rather than being repaired."
+    },
+    {
+      "authority_key": "agrigento",
+      "authority_name": "Prefettura di Agrigento",
+      "register_key": "agrigento-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-04",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list",
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "current official landing page directly resolved on 10 September 2026 to attachments explicitly dated 4 September 2026",
+      "source_key": "agrigento-applicants",
+      "parser": "agrigento_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf",
+      "sha256": "cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9",
+      "expected_source_rows": 306,
+      "notes": "306 logical applicant observations remain after excluding strictly nested micro-grid rows; every logical outcome explicitly contains the istruttoria marker and maps to pending."
     }
   ]
 }
