@@ -1,0 +1,81 @@
+name: Biella parser validation
+
+on:
+  push:
+    branches:
+      - expansion/biella-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Install package
+        run: python -m pip install -e '.[publication]'
+      - name: Validate current official Biella HTML
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          from white_list_archive.parsers.biella_html import parse_biella_applicants, parse_biella_listed
+
+          url = 'https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list'
+          expected_sha = '636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53'
+          request = Request(url, headers={'User-Agent': 'italian-anti-mafia-whitelist/0.1 (+public national archive)'})
+          with urlopen(request, timeout=90) as response:
+              body = response.read()
+          actual_sha = hashlib.sha256(body).hexdigest()
+          print('SHA256', actual_sha)
+          if actual_sha != expected_sha:
+              raise SystemExit(f'official Biella HTML changed: expected {expected_sha}, got {actual_sha}')
+          path = Path('/tmp/biella.html')
+          path.write_bytes(body)
+
+          base = {
+              'authority_key': 'biella',
+              'authority_name': 'Prefettura - Ufficio Territoriale del Governo di Biella',
+              'reference_date': '2026-08-26',
+              'source_page_url': url,
+              'resource_url': url,
+              'sha256': actual_sha,
+          }
+          listed_cfg = {
+              **base,
+              'source_key': 'biella-listed',
+              'register_key': 'biella-white-list',
+              'register_name': 'White List - Prefettura di Biella',
+              'population_scope': 'listed',
+          }
+          applicants_cfg = {
+              **base,
+              'source_key': 'biella-applicants',
+              'register_key': 'biella-white-list-applicants',
+              'register_name': 'White List - imprese richiedenti iscrizione - Prefettura di Biella',
+              'population_scope': 'applicant',
+          }
+          listed = parse_biella_listed(path, listed_cfg)
+          applicants = parse_biella_applicants(path, applicants_cfg)
+          print('LISTED', json.dumps(listed.diagnostics, ensure_ascii=False, sort_keys=True))
+          print('APPLICANTS', json.dumps(applicants.diagnostics, ensure_ascii=False, sort_keys=True))
+          if listed.diagnostics['sector_rows'] != 234:
+              raise SystemExit(f"expected 234 listed sector rows, got {listed.diagnostics['sector_rows']}")
+          if applicants.diagnostics['public_records'] != 109:
+              raise SystemExit(f"expected 109 applicant rows, got {applicants.diagnostics['public_records']}")
+          if applicants.diagnostics['raw_identifier_only'] != 2:
+              raise SystemExit('Biella applicant raw identifier boundary changed')
+          if applicants.diagnostics['missing_application_dates'] != 1:
+              raise SystemExit('Biella applicant missing-date boundary changed')
+          if listed.diagnostics['missing_expiry_dates'] != 1:
+              raise SystemExit('Biella listed missing-expiry boundary changed')
+          PY
