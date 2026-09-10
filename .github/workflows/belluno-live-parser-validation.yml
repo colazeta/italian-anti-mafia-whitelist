@@ -57,12 +57,16 @@ jobs:
               'sha256':expected,
           }
           batch=parse_belluno_combined(path,cfg)
-          print(batch.diagnostics, flush=True)
-          assert len(batch.records)==402, batch.diagnostics
-          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10}), batch.diagnostics
-          assert batch.diagnostics['identifier_coverage']==388, batch.diagnostics
-          assert batch.diagnostics['raw_identifier_only']==14, batch.diagnostics
-          assert batch.diagnostics['malformed_application_dates']==1, batch.diagnostics
-          assert batch.diagnostics['dropped_date_rows']==0, batch.diagnostics
-          assert all(r['name'] for r in batch.records), batch.diagnostics
+          diagnostics=batch.diagnostics
+          blank_identifier_rows=sum(not r['identifier_field_raw'] for r in batch.records)
+          print(diagnostics | {'blank_identifier_rows': blank_identifier_rows}, flush=True)
+          assert len(batch.records)==402, diagnostics
+          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10}), diagnostics
+          assert diagnostics['identifier_coverage']==388, diagnostics
+          assert diagnostics['raw_identifier_only']==13, diagnostics
+          assert blank_identifier_rows==1, diagnostics
+          assert diagnostics['identifier_coverage'] + diagnostics['raw_identifier_only'] + blank_identifier_rows == len(batch.records), diagnostics
+          assert diagnostics['malformed_application_dates']==1, diagnostics
+          assert diagnostics['dropped_date_rows']==0, diagnostics
+          assert all(r['name'] for r in batch.records), diagnostics
           PY
