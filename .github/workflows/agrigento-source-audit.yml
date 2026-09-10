@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
 
+# Re-run marker: verify current official publication state after Asti integration.
 jobs:
   audit:
     runs-on: ubuntu-latest
