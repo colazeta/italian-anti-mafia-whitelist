@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from white_list_archive.parsers.biella_html import parse_biella_applicants, parse_biella_listed
+from white_list_archive.publishing.public_contract import public_record
 
 
 BASE = {
@@ -73,7 +74,7 @@ def test_biella_applicant_semantics(tmp_path: Path) -> None:
         "listed", "pending", "renewal_update_in_progress"
     ]
     assert batch.records[0]["application_date"] == "2017-12-12"
-    assert batch.records[0]["source_fields"]["application_date_raw"].endswith("permanere)")
+    assert batch.records[0]["outcome_raw"] == "Iscritto"
     assert batch.records[1]["identifier_field_raw"] == "1234567890"
     assert batch.records[1]["identifiers"] == []
     assert batch.records[1]["application_date"] == ""
@@ -89,11 +90,26 @@ def test_biella_listed_groups_only_semantic_sector_repetition(tmp_path: Path) ->
     assert len(same) == 2
     grouped = next(record for record in same if record["observed_listing_date"] == "2020-11-23")
     assert grouped["requested_activities"] == ["Attività I", "Attività II"]
-    assert grouped["source_fields"]["identifier_raw_variants"] == ["'02611910031", "02611910031"]
+    assert grouped["source_fields"]["listing_date_raw_variants"] == ["23-nov-20", "23/11/2020"]
+    assert grouped["source_fields"]["expiry_date_raw_variants"] == ["04-ago-27"]
     assert grouped["identifiers"] == ["02611910031"]
     assert next(record for record in batch.records if record["name"] == "E SRL")["observed_expiry_date"] == ""
     assert next(record for record in batch.records if record["name"] == "F SRL")["observed_listing_date"] == "2024-09-16"
     assert next(record for record in batch.records if record["name"] == "D SRL")["source_status"] == "renewal_update_in_progress"
+
+
+def test_biella_records_conform_to_closed_public_contract(tmp_path: Path) -> None:
+    path = tmp_path / "biella.html"
+    path.write_text(_source_html(), encoding="utf-8")
+    batches = [
+        parse_biella_applicants(path, _cfg("applicant")),
+        parse_biella_listed(path, _cfg("listed")),
+    ]
+    for batch in batches:
+        for record in batch.records:
+            record["parser_name"] = batch.diagnostics["parser"]
+            record["parser_version"] = batch.diagnostics["parser_version"]
+            assert public_record(record) == record
 
 
 def test_biella_rejects_unrecognised_date(tmp_path: Path) -> None:
