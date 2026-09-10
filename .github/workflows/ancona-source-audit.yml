@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Audit source row boundaries
+      - name: Inspect blank-name source evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -25,21 +25,15 @@ jobs:
           python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
           import pdfplumber
-          rows=[]
+          targets={2:['00733460422','02809800424'],3:['01479620427'],8:['07898760637'],13:['02272920428'],21:['27/08/2026','02557530421']}
           with pdfplumber.open('/tmp/ancona.pdf') as pdf:
-              for pno,page in enumerate(pdf.pages,1):
-                  cand=[]
-                  for table in page.extract_tables():
-                      if table and table[0] and 'Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in table[0]): cand.append(table)
-                  assert len(cand)==1,(pno,len(cand))
-                  for rno,row in enumerate(cand[0][1:],1):
-                      v=[' '.join(str(x or '').split()) for x in row]
-                      if any(v): rows.append((pno,rno,v))
-          blanks=[x for x in rows if not x[2][0]]
-          print('BLANK_NAMES',len(blanks))
-          for x in blanks: print('BLANK',x)
-          for pno,rno,v in rows:
-              if pno==3 and 20 <= rno <= 26: print('P3_CONTEXT',pno,rno,v)
-              if pno==15 and 20 <= rno <= 25: print('P15_CONTEXT',pno,rno,v)
-          print('BLANK_OFFICE',sum(not x[2][1] for x in rows),'BLANK_ID',sum(not x[2][3] for x in rows),'BLANK_SECTIONS',sum(not x[2][6] for x in rows))
+              for pno,needles in targets.items():
+                  text=pdf.pages[pno-1].extract_text(x_tolerance=2,y_tolerance=3) or ''
+                  lines=text.splitlines()
+                  print('=== PAGE',pno,'===')
+                  for i,line in enumerate(lines):
+                      if any(n in line.replace(' ','') or n in line for n in needles):
+                          for j in range(max(0,i-2),min(len(lines),i+3)):
+                              print(f'{j:03d}',lines[j])
+                          print('---')
           PY
