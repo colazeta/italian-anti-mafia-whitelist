@@ -21,13 +21,16 @@ jobs:
           python-version: '3.13'
       - name: Resolve and structurally inspect official sources
         run: |
-          python -m pip install -q requests beautifulsoup4 pypdf
+          python -m pip install -q requests beautifulsoup4 pypdf pdfplumber
           python - <<'PY'
-          import hashlib, io, re
+          import hashlib, io, re, tempfile
+          from collections import Counter
+          from pathlib import Path
           from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
           from pypdf import PdfReader
+          import pdfplumber
 
           SOURCES = {
               'listed': 'https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte',
@@ -39,6 +42,15 @@ jobs:
           }
           headers = {'User-Agent': 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
           session = requests.Session()
+          date_re = re.compile(r'^\d{1,2}[./-]\d{1,2}[./-]\d{4}$')
+          identifier_re = re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
+          known_headers = ('ragione sociale','sede legale','codice fiscale','data scadenza','data presentazione','sezione','settore','aggiornamento')
+
+          def clean(value):
+              return ' '.join(str(value or '').replace('\u00a0', ' ').split())
+
+          def compact(value):
+              return re.sub(r'\s+', '', clean(value))
 
           for key, page_url in SOURCES.items():
               page = session.get(page_url, headers=headers, timeout=45)
@@ -51,7 +63,7 @@ jobs:
                   if EXPECTED[key] in normalised:
                       matches.append((label, urljoin(page_url, anchor['href'])))
               if len(matches) != 1:
-                  raise SystemExit(f'{key}: expected exactly one current official attachment, found {len(matches)}: {[m[0] for m in matches]}')
+                  raise SystemExit(f'{key}: expected exactly one current official attachment, found {len(matches)}')
               label, resource_url = matches[0]
               response = session.get(resource_url, headers=headers, timeout=90)
               response.raise_for_status()
@@ -66,21 +78,73 @@ jobs:
               print(f'{key.upper()}_CONTENT_TYPE={ctype}')
               print(f'{key.upper()}_MAGIC={body[:8].hex()}')
 
-              if body.startswith(b'%PDF'):
-                  reader = PdfReader(io.BytesIO(body))
-                  texts = [(p.extract_text() or '') for p in reader.pages]
-                  text = '\n'.join(texts)
-                  folded = ' '.join(text.casefold().split())
-                  print(f'{key.upper()}_FORMAT=pdf')
-                  print(f'{key.upper()}_PAGES={len(reader.pages)}')
-                  print(f'{key.upper()}_TEXT_CHARS={len(text)}')
-                  print(f'{key.upper()}_DATE_TOKENS={len(re.findall(r"\\b\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{2,4}\\b", text))}')
-                  print(f'{key.upper()}_NUMERIC_11_TOKENS={len(re.findall(r"(?<!\\d)\\d{11}(?!\\d)", text))}')
-                  for token in ('denominazione', 'ragione sociale', 'sede legale', 'codice fiscale', 'partita iva', 'data iscrizione', 'data scadenza', 'data presentazione', 'sezione'):
-                      print(f'{key.upper()}_HAS_{token.upper().replace(" ", "_")}={token in folded}')
-              elif body.startswith(b'PK'):
-                  print(f'{key.upper()}_FORMAT=openxml_or_zip')
-              else:
-                  print(f'{key.upper()}_FORMAT=unknown')
-                  raise SystemExit(f'{key}: unsupported current source format')
+              if not body.startswith(b'%PDF'):
+                  raise SystemExit(f'{key}: expected PDF current source')
+
+              reader = PdfReader(io.BytesIO(body))
+              text = '\n'.join((p.extract_text() or '') for p in reader.pages)
+              folded = ' '.join(text.casefold().split())
+              print(f'{key.upper()}_FORMAT=pdf')
+              print(f'{key.upper()}_PAGES={len(reader.pages)}')
+              print(f'{key.upper()}_TEXT_CHARS={len(text)}')
+              for token in known_headers:
+                  print(f'{key.upper()}_HAS_{token.upper().replace(" ", "_")}={token in folded}')
+
+              with tempfile.TemporaryDirectory() as td:
+                  path = Path(td) / f'{key}.pdf'
+                  path.write_bytes(body)
+                  table_count = 0
+                  table_rows = 0
+                  widths = Counter()
+                  nonempty_counts = Counter()
+                  date_cell_count = 0
+                  identifier_cell_count = 0
+                  rows_with_date = 0
+                  rows_with_identifier = 0
+                  rows_with_date_and_identifier = 0
+                  section_only_rows = 0
+                  recognised_header_rows = 0
+                  status_marker_counts = Counter()
+                  per_page_tables = []
+                  with pdfplumber.open(path) as pdf:
+                      for page_obj in pdf.pages:
+                          tables = page_obj.extract_tables()
+                          per_page_tables.append(len(tables))
+                          table_count += len(tables)
+                          for table in tables:
+                              for raw_row in table:
+                                  row = [clean(c) for c in raw_row]
+                                  table_rows += 1
+                                  widths[len(row)] += 1
+                                  nonempty_counts[sum(bool(c) for c in row)] += 1
+                                  compact_cells = [compact(c) for c in row]
+                                  dates = sum(bool(date_re.fullmatch(c)) for c in compact_cells)
+                                  ids = sum(bool(identifier_re.fullmatch(c.upper())) for c in compact_cells)
+                                  date_cell_count += dates
+                                  identifier_cell_count += ids
+                                  rows_with_date += bool(dates)
+                                  rows_with_identifier += bool(ids)
+                                  rows_with_date_and_identifier += bool(dates and ids)
+                                  if row and row[0].casefold().startswith('sezione') and not any(row[1:]):
+                                      section_only_rows += 1
+                                  row_folded = ' | '.join(row).casefold()
+                                  header_hits = sum(token in row_folded for token in known_headers)
+                                  if header_hits >= 3:
+                                      recognised_header_rows += 1
+                                  for marker in ('aggiornamento in corso','in istruttoria','iscritta','scaduta','rinnovo'):
+                                      if marker in row_folded:
+                                          status_marker_counts[marker] += 1
+                  print(f'{key.upper()}_TABLES={table_count}')
+                  print(f'{key.upper()}_TABLES_PER_PAGE={per_page_tables}')
+                  print(f'{key.upper()}_TABLE_ROWS={table_rows}')
+                  print(f'{key.upper()}_ROW_WIDTHS={dict(sorted(widths.items()))}')
+                  print(f'{key.upper()}_NONEMPTY_CELL_COUNTS={dict(sorted(nonempty_counts.items()))}')
+                  print(f'{key.upper()}_DATE_CELLS={date_cell_count}')
+                  print(f'{key.upper()}_IDENTIFIER_CELLS={identifier_cell_count}')
+                  print(f'{key.upper()}_ROWS_WITH_DATE={rows_with_date}')
+                  print(f'{key.upper()}_ROWS_WITH_IDENTIFIER={rows_with_identifier}')
+                  print(f'{key.upper()}_ROWS_WITH_DATE_AND_IDENTIFIER={rows_with_date_and_identifier}')
+                  print(f'{key.upper()}_SECTION_ONLY_ROWS={section_only_rows}')
+                  print(f'{key.upper()}_RECOGNISED_HEADER_ROWS={recognised_header_rows}')
+                  print(f'{key.upper()}_STATUS_MARKER_COUNTS={dict(status_marker_counts)}')
           PY
