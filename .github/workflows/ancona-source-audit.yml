@@ -16,54 +16,87 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve official Ancona publication
+      - name: Resolve and inspect official Ancona publication
         shell: bash
         run: |
           set -euo pipefail
           PAGE='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
           UA='italian-anti-mafia-whitelist/0.1 (+source verification)'
           curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.html "$PAGE"
-          echo '=== PAGE SHA256 ==='
+          echo '=== LANDING PAGE ==='
           sha256sum /tmp/ancona.html
-          echo '=== PAGE TITLE / DATE / WHITE LIST CONTEXT ==='
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-          import re
-          html=Path('/tmp/ancona.html').read_text(errors='replace')
-          text=re.sub(r'<script\b[^>]*>.*?</script>', ' ', html, flags=re.I|re.S)
-          text=re.sub(r'<style\b[^>]*>.*?</style>', ' ', text, flags=re.I|re.S)
-          text=re.sub(r'<[^>]+>', '\n', text)
-          text=re.sub(r'[ \t\r\f\v]+',' ',text)
-          text=re.sub(r'\n+','\n',text)
-          for line in text.splitlines():
-              if re.search(r'white\s*list|iscritt|richied|aggiornat|ultimo aggiornamento', line, re.I):
-                  print(line.strip())
-          print('=== OFFICIAL LINKS ===')
-          for m in re.finditer(r'href=["\']([^"\']+)["\']', html, re.I):
-              href=m.group(1)
-              if re.search(r'white|iscritt|richied|\.pdf|\.xlsx?|\.docx?', href, re.I):
-                  print(href)
-          PY
           python - <<'PY'
           from pathlib import Path
           from urllib.parse import urljoin
-          import re, subprocess, hashlib
-          html=Path('/tmp/ancona.html').read_text(errors='replace')
+          import html as htmllib, re
+          raw=Path('/tmp/ancona.html').read_text(errors='replace')
           base='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
-          links=[]
-          for m in re.finditer(r'href=["\']([^"\']+)["\']', html, re.I):
-              href=urljoin(base,m.group(1))
-              if href.startswith('https://prefettura.interno.gov.it/') and re.search(r'\.pdf(?:$|\?)|\.xlsx?(?:$|\?)|\.docx?(?:$|\?)', href, re.I):
-                  if href not in links: links.append(href)
-          print('=== ATTACHMENT PROBES ===')
-          for i,url in enumerate(links,1):
-              p=f'/tmp/ancona-{i}'
-              cp=subprocess.run(['curl','--fail','--location','--retry','2','--retry-delay','2','--user-agent','italian-anti-mafia-whitelist/0.1 (+source verification)','--output',p,url],capture_output=True,text=True)
-              if cp.returncode:
-                  print('FAILED',url,cp.stderr[-500:])
-                  continue
-              data=Path(p).read_bytes()
-              print('URL',url)
-              print('BYTES',len(data),'SHA256',hashlib.sha256(data).hexdigest(),'MAGIC',data[:12])
+          plain=re.sub(r'<script\b[^>]*>.*?</script>', ' ', raw, flags=re.I|re.S)
+          plain=re.sub(r'<style\b[^>]*>.*?</style>', ' ', plain, flags=re.I|re.S)
+          plain=htmllib.unescape(re.sub(r'<[^>]+>', '\n', plain))
+          plain=re.sub(r'[ \t\r\f\v]+',' ',plain)
+          plain=re.sub(r'\n+','\n',plain)
+          lines=[x.strip() for x in plain.splitlines() if x.strip()]
+          for i,line in enumerate(lines):
+              if re.search(r'WL Elenco|Ultimo aggiornamento',line,re.I):
+                  print('CONTEXT', ' | '.join(lines[max(0,i-3):min(len(lines),i+5)]))
+          print('TIME_TAGS')
+          for m in re.finditer(r'<time\b[^>]*>.*?</time>',raw,re.I|re.S):
+              print(re.sub(r'<[^>]+>',' ',m.group(0)).strip(), m.group(0)[:500])
+          print('CANDIDATE_ANCHORS')
+          for m in re.finditer(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',raw,re.I|re.S):
+              href=urljoin(base,htmllib.unescape(m.group(1)))
+              label=htmllib.unescape(re.sub(r'<[^>]+>',' ',m.group(2)))
+              label=' '.join(label.split())
+              if re.search(r'white|iscritt|richied|\.pdf',href+' '+label,re.I):
+                  print('ANCHOR',label,'=>',href)
+          PY
+          RESOURCE=$(python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import re
+          raw=Path('/tmp/ancona.html').read_text(errors='replace')
+          base='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
+          urls=[]
+          for m in re.finditer(r'href=["\']([^"\']+\.pdf(?:\?[^"\']*)?)["\']',raw,re.I):
+              u=urljoin(base,m.group(1))
+              if 'elenco_imprese' in u.lower(): urls.append(u)
+          if len(set(urls)) != 1:
+              raise SystemExit(f'expected exactly one current company-list PDF, got {list(dict.fromkeys(urls))}')
+          print(urls[0])
+          PY
+          )
+          echo "RESOURCE=$RESOURCE"
+          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.pdf "$RESOURCE"
+          echo '=== RESOURCE IDENTITY ==='
+          stat -c 'BYTES=%s' /tmp/ancona.pdf
+          sha256sum /tmp/ancona.pdf
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils >/dev/null
+          pdfinfo /tmp/ancona.pdf | grep -E '^(Pages|Page size|PDF version|Tagged|Encrypted):'
+          pdftotext -layout /tmp/ancona.pdf /tmp/ancona.txt
+          echo '=== DOCUMENT HEAD ==='
+          sed -n '1,180p' /tmp/ancona.txt
+          echo '=== DOCUMENT SIGNAL COUNTS ==='
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('/tmp/ancona.txt').read_text(errors='replace')
+          patterns={
+            'aggiornato':r'(?i)aggiornat[oa]',
+            'richied':r'(?i)richied',
+            'iscritt':r'(?i)iscritt',
+            'istruttoria':r'(?i)istruttoria',
+            'scadenza':r'(?i)scadenza',
+            'rinnovo':r'(?i)rinnovo',
+            'in aggiornamento':r'(?i)in\s+aggiornamento',
+          }
+          for k,p in patterns.items(): print(k,len(re.findall(p,text)))
+          print('DATE_TOKENS')
+          from collections import Counter
+          print(Counter(re.findall(r'(?<!\d)\d{1,2}[./-]\d{1,2}[./-]\d{2,4}(?!\d)',text)).most_common(40))
+          print('RELEVANT_LINES')
+          for line in text.splitlines():
+              if re.search(r'(?i)aggiornat|richied|istruttoria|stato|data iscrizione|data scadenza|scadenza iscrizione|rinnovo',line):
+                  print(line[:500])
           PY
