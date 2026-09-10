@@ -16,87 +16,88 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve and inspect official Ancona publication
+      - name: Profile current official Ancona publication
         shell: bash
         run: |
           set -euo pipefail
           PAGE='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
+          RESOURCE='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf'
           UA='italian-anti-mafia-whitelist/0.1 (+source verification)'
           curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.html "$PAGE"
-          echo '=== LANDING PAGE ==='
-          sha256sum /tmp/ancona.html
+          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.pdf "$RESOURCE"
+          echo '=== IDENTITIES ==='
+          sha256sum /tmp/ancona.html /tmp/ancona.pdf
+          stat -c 'PDF_BYTES=%s' /tmp/ancona.pdf
           python - <<'PY'
           from pathlib import Path
-          from urllib.parse import urljoin
-          import html as htmllib, re
+          import html as h, re
           raw=Path('/tmp/ancona.html').read_text(errors='replace')
-          base='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
-          plain=re.sub(r'<script\b[^>]*>.*?</script>', ' ', raw, flags=re.I|re.S)
-          plain=re.sub(r'<style\b[^>]*>.*?</style>', ' ', plain, flags=re.I|re.S)
-          plain=htmllib.unescape(re.sub(r'<[^>]+>', '\n', plain))
-          plain=re.sub(r'[ \t\r\f\v]+',' ',plain)
-          plain=re.sub(r'\n+','\n',plain)
-          lines=[x.strip() for x in plain.splitlines() if x.strip()]
+          plain=h.unescape(re.sub(r'<[^>]+>','\n',raw))
+          lines=[' '.join(x.split()) for x in plain.splitlines() if x.strip()]
           for i,line in enumerate(lines):
               if re.search(r'WL Elenco|Ultimo aggiornamento',line,re.I):
-                  print('CONTEXT', ' | '.join(lines[max(0,i-3):min(len(lines),i+5)]))
-          print('TIME_TAGS')
-          for m in re.finditer(r'<time\b[^>]*>.*?</time>',raw,re.I|re.S):
-              print(re.sub(r'<[^>]+>',' ',m.group(0)).strip(), m.group(0)[:500])
-          print('CANDIDATE_ANCHORS')
-          for m in re.finditer(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',raw,re.I|re.S):
-              href=urljoin(base,htmllib.unescape(m.group(1)))
-              label=htmllib.unescape(re.sub(r'<[^>]+>',' ',m.group(2)))
-              label=' '.join(label.split())
-              if re.search(r'white|iscritt|richied|\.pdf',href+' '+label,re.I):
-                  print('ANCHOR',label,'=>',href)
+                  print('PAGE_CONTEXT', ' | '.join(lines[max(0,i-2):min(len(lines),i+5)]))
           PY
-          RESOURCE=$(python - <<'PY'
-          from pathlib import Path
-          from urllib.parse import urljoin
-          import re
-          raw=Path('/tmp/ancona.html').read_text(errors='replace')
-          base='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
-          urls=[]
-          for m in re.finditer(r'href=["\']([^"\']+\.pdf(?:\?[^"\']*)?)["\']',raw,re.I):
-              u=urljoin(base,m.group(1))
-              if 'elenco_imprese' in u.lower(): urls.append(u)
-          if len(set(urls)) != 1:
-              raise SystemExit(f'expected exactly one current company-list PDF, got {list(dict.fromkeys(urls))}')
-          print(urls[0])
-          PY
-          )
-          echo "RESOURCE=$RESOURCE"
-          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.pdf "$RESOURCE"
-          echo '=== RESOURCE IDENTITY ==='
-          stat -c 'BYTES=%s' /tmp/ancona.pdf
-          sha256sum /tmp/ancona.pdf
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils >/dev/null
-          pdfinfo /tmp/ancona.pdf | grep -E '^(Pages|Page size|PDF version|Tagged|Encrypted):'
-          pdftotext -layout /tmp/ancona.pdf /tmp/ancona.txt
-          echo '=== DOCUMENT HEAD ==='
-          sed -n '1,180p' /tmp/ancona.txt
-          echo '=== DOCUMENT SIGNAL COUNTS ==='
+          python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
           from pathlib import Path
-          import re
-          text=Path('/tmp/ancona.txt').read_text(errors='replace')
-          patterns={
-            'aggiornato':r'(?i)aggiornat[oa]',
-            'richied':r'(?i)richied',
-            'iscritt':r'(?i)iscritt',
-            'istruttoria':r'(?i)istruttoria',
-            'scadenza':r'(?i)scadenza',
-            'rinnovo':r'(?i)rinnovo',
-            'in aggiornamento':r'(?i)in\s+aggiornamento',
-          }
-          for k,p in patterns.items(): print(k,len(re.findall(p,text)))
-          print('DATE_TOKENS')
           from collections import Counter
-          print(Counter(re.findall(r'(?<!\d)\d{1,2}[./-]\d{1,2}[./-]\d{2,4}(?!\d)',text)).most_common(40))
-          print('RELEVANT_LINES')
-          for line in text.splitlines():
-              if re.search(r'(?i)aggiornat|richied|istruttoria|stato|data iscrizione|data scadenza|scadenza iscrizione|rinnovo',line):
-                  print(line[:500])
+          import pdfplumber, re
+          p=Path('/tmp/ancona.pdf')
+          with pdfplumber.open(p) as pdf:
+              print('PAGES',len(pdf.pages))
+              all_rows=[]
+              page_counts=[]
+              table_counts=[]
+              widths=Counter()
+              headers=[]
+              for n,page in enumerate(pdf.pages,1):
+                  tables=page.extract_tables()
+                  table_counts.append(len(tables))
+                  candidates=[]
+                  for table in tables:
+                      if not table: continue
+                      for row in table[:4]:
+                          joined=' | '.join(' '.join(str(x or '').split()) for x in row)
+                          if 'Ragione Sociale' in joined and 'Data iscrizione' in joined:
+                              candidates.append(table); break
+                  if len(candidates)!=1:
+                      print('PAGE_TABLE_ANOMALY',n,'tables',len(tables),'candidates',len(candidates))
+                      continue
+                  table=candidates[0]
+                  # Detect first row whose first cell is a company rather than header text.
+                  start=0
+                  for i,row in enumerate(table):
+                      joined=' '.join(' '.join(str(x or '').split()) for x in row)
+                      if i<5 and ('Ragione Sociale' in joined or 'Sede legale' in joined or 'Codice Fiscale' in joined):
+                          start=i+1
+                  rows=table[start:]
+                  rows=[r for r in rows if any(' '.join(str(x or '').split()) for x in r)]
+                  page_counts.append(len(rows)); all_rows.extend(rows)
+                  for r in rows: widths[len(r)]+=1
+                  if n<=2:
+                      print('PAGE',n,'START',start,'ROWS',len(rows),'HEADER_ROWS',[[' '.join(str(x or '').split()) for x in r] for r in table[:start]])
+                      for r in rows[:5]: print('SAMPLE',n,[' '.join(str(x or '').split()) for x in r])
+              print('TABLE_COUNTS',table_counts)
+              print('PAGE_ROW_COUNTS',page_counts)
+              print('TOTAL_ROWS',len(all_rows),'WIDTHS',dict(widths))
+              if not all_rows: raise SystemExit('no rows extracted')
+              # The current table has 9 semantic columns. Profile signals without assigning a legal state yet.
+              sig=Counter()
+              update_values=Counter(); app_values=[]; bad=[]
+              for i,r in enumerate(all_rows,1):
+                  vals=[' '.join(str(x or '').split()) for x in r]
+                  if len(vals)!=9:
+                      bad.append((i,len(vals),vals)); continue
+                  name,office,secondary,ident,listed,expiry,sections,update,application=vals
+                  key=(bool(listed),bool(expiry),bool(update),bool(application))
+                  sig[key]+=1
+                  if update: update_values[update]+=1
+                  if application: app_values.append(application)
+              print('SIGNAL_SHAPES',dict(sig))
+              print('UPDATE_VALUES',dict(update_values))
+              print('APPLICATION_COUNT',len(app_values),'UNIQUE_APPLICATION_FORMATS',Counter(app_values).most_common(20))
+              print('BAD_WIDTH_COUNT',len(bad)); print('BAD_WIDTH_SAMPLES',bad[:10])
+              text='\n'.join((page.extract_text() or '') for page in pdf.pages)
+              print('FOOTER_07_09_COUNT',text.count('Agg. al 07/09/2026'))
           PY
