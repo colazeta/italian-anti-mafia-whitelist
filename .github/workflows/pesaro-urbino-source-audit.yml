@@ -17,14 +17,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and inspect official current workbook
+      - name: Resolve and inspect official current attachment
         run: |
-          python -m pip install -q requests beautifulsoup4 openpyxl xlrd
+          python -m pip install -q requests beautifulsoup4 pymupdf
           python - <<'PY'
-          import hashlib, io
+          import hashlib, io, re
           from urllib.parse import urljoin
           import requests
           from bs4 import BeautifulSoup
+          import fitz
 
           page_url='https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte'
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
@@ -39,27 +40,25 @@ jobs:
           if len(exact)!=1: raise SystemExit(f'expected exactly one dated attachment, got {exact!r}')
           label,url=exact[0]; res=s.get(url,headers=H,timeout=90); res.raise_for_status(); data=res.content
           ctype=res.headers.get('content-type',''); print('LABEL='+label); print('RESOURCE='+url); print('CONTENT_TYPE='+ctype); print('SHA256='+hashlib.sha256(data).hexdigest()); print('BYTES='+str(len(data)))
-          if data.startswith(b'PK'):
-              import openpyxl
-              wb=openpyxl.load_workbook(io.BytesIO(data),data_only=True,read_only=False)
-              print('FORMAT=xlsx'); print('SHEETS='+repr(wb.sheetnames))
-              for ws in wb.worksheets:
-                  nonempty=[]
-                  for rno,row in enumerate(ws.iter_rows(values_only=True),1):
-                      vals=[' '.join(str(v or '').split()) for v in row]
-                      if any(vals): nonempty.append((rno,vals))
-                  print(f'SHEET {ws.title!r} DIM={ws.max_row}x{ws.max_column} NONEMPTY_ROWS={len(nonempty)}')
-                  for item in nonempty[:30]: print(f'HEAD {ws.title!r} {item!r}')
-                  print(f'MERGED {ws.title!r}='+repr([str(x) for x in ws.merged_cells.ranges][:50]))
-          else:
-              import xlrd
-              wb=xlrd.open_workbook(file_contents=data)
-              print('FORMAT=xls'); print('SHEETS='+repr(wb.sheet_names()))
-              for ws in wb.sheets():
-                  nonempty=[]
-                  for rno in range(ws.nrows):
-                      vals=[' '.join(str(ws.cell_value(rno,c) or '').split()) for c in range(ws.ncols)]
-                      if any(vals): nonempty.append((rno+1,vals))
-                  print(f'SHEET {ws.name!r} DIM={ws.nrows}x{ws.ncols} NONEMPTY_ROWS={len(nonempty)}')
-                  for item in nonempty[:30]: print(f'HEAD {ws.name!r} {item!r}')
+          if not data.startswith(b'%PDF'):
+              raise SystemExit('current attachment is not a PDF; fail closed')
+          doc=fitz.open(stream=data,filetype='pdf')
+          print('FORMAT=pdf'); print('PAGES='+str(doc.page_count))
+          all_text=[]
+          for pno,page in enumerate(doc,1):
+              text='\n'.join(' '.join(line.split()) for line in page.get_text('text').splitlines() if line.strip())
+              all_text.append(text)
+              if pno <= 3 or pno > doc.page_count-3:
+                  print(f'PAGE {pno} TEXT_HEAD={text[:1800]!r}')
+          joined='\n'.join(all_text)
+          markers=[]
+          for pat in [r'richiedent\w*',r'richiesta\w*',r'iscritt\w*',r'white\s*list']:
+              hits=[(m.start(), joined[max(0,m.start()-250):m.start()+500]) for m in re.finditer(pat,joined,re.I)]
+              print(f'MARKER {pat!r} COUNT={len(hits)}')
+              for pos,snip in hits[:20]: print(f'HIT {pos}: {snip!r}')
+          # Print compact page-level structural stats to locate population transitions.
+          for pno,text in enumerate(all_text,1):
+              lc=text.casefold()
+              if 'richied' in lc or 'istanza' in lc or 'iscritt' in lc:
+                  print(f'PAGE_MARKER {pno}: '+repr(text[:700]))
           PY
