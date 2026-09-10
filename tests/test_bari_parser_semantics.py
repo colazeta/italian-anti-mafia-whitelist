@@ -31,9 +31,13 @@ def test_identifier_extraction_is_conservative_and_preserves_multiple_exact_toke
 def test_only_reviewed_malformed_dates_are_tolerated() -> None:
     assert _source_date("31/08/2026", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=1, row=1) == "2026-08-31"
     assert _source_date("19+/06/2027", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=11, row=37) == ""
+    assert _source_date("04/30/2025", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=14, row=15) == ""
+    assert _source_date("37/04/2027", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=16, row=8) == ""
     assert _source_date("18/07/18 - 11/05/23", allowlist=_BAD_APPLICANT_DATES, source_key="bari-applicants", page=2, row=31) == ""
     with pytest.raises(RuntimeError, match="unreviewed date typography"):
         _source_date("31.08.2026", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=1, row=1)
+    with pytest.raises(RuntimeError, match="invalid calendar date"):
+        _source_date("32/01/2026", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=1, row=1)
 
 
 def test_split_rows_are_reconstructed_only_at_reviewed_coordinates() -> None:
