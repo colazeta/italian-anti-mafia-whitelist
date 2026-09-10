@@ -152,7 +152,7 @@ jobs:
           assert [r for r in ab.records if r['source_page_url']==ac['source_page_url'] and not r['name']]
           roadtek=[r for r in lb.records if r['name']=='ROADTEK SRLS']; assert len(roadtek)==1 and roadtek[0]['identifiers']==[]
           innovatec=[r for r in ab.records if r['name']=='INNOVATEC SRL']; assert len(innovatec)==1
-          assert innovatec[0]['activities']==[] and innovatec[0]['source_fields']['sector_unmarked_in_source'] is True
+          assert innovatec[0]['requested_activities']==[] and innovatec[0]['source_fields']['sector_unmarked_in_source'] is True
           print('Bari parser validation:',lb.diagnostics,ab.diagnostics)
           PY
           pytest -q
