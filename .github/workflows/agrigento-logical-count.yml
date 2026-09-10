@@ -1,0 +1,85 @@
+name: Count Agrigento logical observations
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-source-audit-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-logical-count.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Count position-backed logical observations
+        run: |
+          python -m pip install -q requests pdfplumber
+          python - <<'PY'
+          import hashlib,re,tempfile
+          from pathlib import Path
+          from collections import Counter
+          import requests,pdfplumber
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0)'}
+          sources={
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf','cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9'),
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf','23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81')}
+          bands={
+            'applicants':{'name':(56,169.7),'office':(169.7,290.1),'secondary':(290.1,387.4),'identifier':(387.4,507.2),'activity':(507.2,613.3),'date':(613.3,698.2),'outcome':(698.2,806)},
+            'listed':{'name':(57,188.5),'office':(188.5,276.5),'secondary':(276.5,319.1),'activity':(319.1,418.2),'identifier':(418.2,538.6),'date':(538.6,616.5),'expiry':(616.5,694.4),'update':(694.4,809)}}
+          def clean(x): return ' '.join(str(x or '').split())
+          def text(words,x0,x1,y0,y1):
+            chosen=[]
+            for w in words:
+              cx=(float(w['x0'])+float(w['x1']))/2; cy=(float(w['top'])+float(w['bottom']))/2
+              if x0<=cx<x1 and y0<=cy<y1: chosen.append(w)
+            chosen.sort(key=lambda w:(round(float(w['top'])/2)*2,float(w['x0'])))
+            return clean(' '.join(w['text'] for w in chosen))
+          with tempfile.TemporaryDirectory() as td:
+            for key,(url,sha) in sources.items():
+              body=requests.get(url,headers=H,timeout=90).content; assert hashlib.sha256(body).hexdigest()==sha
+              p=Path(td)/f'{key}.pdf';p.write_bytes(body)
+              records=[]; perpage=[]; anomalies=[]
+              with pdfplumber.open(p) as pdf:
+                for pn,page in enumerate(pdf.pages,1):
+                  words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=1,y_tolerance=2)
+                  page_count=0
+                  mains=[t for t in page.find_tables() if float(t.bbox[0])<60 and float(t.bbox[2])>800]
+                  for t in mains:
+                    for ri,row in enumerate(t.rows):
+                      cells=[c for c in row.cells if c is not None]
+                      if not cells: continue
+                      y0=min(float(c[1]) for c in cells); y1=max(float(c[3]) for c in cells)
+                      vals={f:text(words,*band,y0,y1) for f,band in bands[key].items()}
+                      if key=='applicants':
+                        if 'istruttoria' not in vals['outcome'].casefold(): continue
+                        if not vals['name'] or not vals['office']:
+                          anomalies.append((pn,ri,'identity',vals)); continue
+                        records.append(vals);page_count+=1
+                      else:
+                        folded=vals['name'].casefold()
+                        if 'ragione sociale' in folded or not vals['name']: continue
+                        signal=sum(bool(vals.get(f)) for f in ('office','activity','identifier','date','expiry'))
+                        if signal<3: continue
+                        if not vals['office'] or not vals['activity']:
+                          anomalies.append((pn,ri,'identity/activity',vals)); continue
+                        records.append(vals);page_count+=1
+                  perpage.append(page_count)
+              print(f'{key.upper()}_COUNT={len(records)} PER_PAGE={perpage}')
+              if key=='applicants':
+                print('APPLICANTS_MISSING_DATE=',sum(not r['date'] for r in records))
+                print('APPLICANTS_OUTCOMES=',Counter(r['outcome'] for r in records))
+              else:
+                print('LISTED_MISSING_ID=',sum(not r['identifier'] for r in records),'MISSING_DATE=',sum(not r['date'] for r in records),'MISSING_EXPIRY=',sum(not r['expiry'] for r in records),'UPDATE=',sum(bool(r['update']) for r in records))
+              print(f'{key.upper()}_ANOMALIES={anomalies[:20]!r} TOTAL={len(anomalies)}')
+              # Preserve exact malformed date-like raw values for parser design, never repair digits here.
+              print(f'{key.upper()}_DATE_VARIANTS={Counter(r["date"] for r in records if r["date"] and not re.fullmatch(r"\d{1,2}[.]\d{1,2}[.]\d{4}",r["date"]))}')
+              if key=='listed':
+                print(f'LISTED_EXPIRY_VARIANTS={Counter(r["expiry"] for r in records if r["expiry"] and not re.fullmatch(r"\d{1,2}[.]\d{1,2}[.]\d{4}",r["expiry"]))}')
+          PY
