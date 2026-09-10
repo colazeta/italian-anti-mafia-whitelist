@@ -304,7 +304,9 @@
       "expected_source_rows": 130,
       "last_source_update": "2026-08-26",
       "last_source_update_basis": "official page Ultimo aggiornamento timestamp and byte-pinned HTML",
-      "notes": "The current official landing HTML contains the listed-company table organised across ten White List sections. The parser groups only repeated source rows sharing conservatively normalised identity, listing date, expiry date and mapped source status; conflicting date tuples remain separate. Italian textual/numeric source dates are parsed without changing digits, non-canonical identifiers remain raw, and the single blank expiry is preserved."
+      "notes": "The current official landing HTML contains the listed-company table organised across ten White List sections. The parser groups only repeated source rows sharing conservatively normalised identity, listing date, expiry date and mapped source status; conflicting date tuples remain separate. Italian textual/numeric source dates are parsed without changing digits, non-canonical identifiers remain raw, and the single blank expiry is preserved. The official resource is a mutable structured HTML wrapper. Raw capture SHA-256 remains observation provenance, while publication fails closed unless parsed source semantics match the separately approved digest.",
+      "approval_mode": "semantic_sha256",
+      "semantic_sha256": "8c2cf30eed0ed39673be5a52af1e11763f28ebd000607e1c0e995935b55cf1bd"
     },
     {
       "source_key": "biella-applicants",
@@ -322,7 +324,9 @@
       "expected_source_rows": 109,
       "last_source_update": "2026-08-26",
       "last_source_update_basis": "official page Ultimo aggiornamento timestamp and byte-pinned HTML",
-      "notes": "The current official landing HTML explicitly labels the applicant population and exposes requested activity, application date and outcome. Only source-explicit outcomes are mapped: iscritto/iscritta to listed, update markers to renewal_update_in_progress, and blank/in lavorazione to pending. Two non-canonical identifiers and one blank application date remain raw/blank rather than reconstructed."
+      "notes": "The current official landing HTML explicitly labels the applicant population and exposes requested activity, application date and outcome. Only source-explicit outcomes are mapped: iscritto/iscritta to listed, update markers to renewal_update_in_progress, and blank/in lavorazione to pending. Two non-canonical identifiers and one blank application date remain raw/blank rather than reconstructed. The official resource is a mutable structured HTML wrapper. Raw capture SHA-256 remains observation provenance, while publication fails closed unless parsed source semantics match the separately approved digest.",
+      "approval_mode": "semantic_sha256",
+      "semantic_sha256": "4419690a935c921f52b5ffbbf03fefa0253a04d79289baa7b7dce179f0cd8f6d"
     },
     {
       "source_key": "benevento-listed",
