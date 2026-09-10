@@ -17,6 +17,7 @@ The attachment itself is titled **“Elenco delle imprese iscritte e di quelle r
 - SHA-256: `7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a`;
 - size observed: 685,269 bytes;
 - pages: 21.
+- structural schema fingerprint: `f27ac7bbcc066f214909c7761485850e7e3ee963ed62f388230d000897b7a5d4` (SHA-256 of the canonical extractor/format/page-count/row-count/header specification used by the parser registry).
 
 The resource is therefore treated as a byte-pinned edition. A changed byte identity must fail the public build until the new edition is re-audited.
 

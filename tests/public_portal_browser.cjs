@@ -68,7 +68,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
       assert.equal(stats.total,7345);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-urbino'].includes(r.authority_key));
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -93,7 +93,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(avellino.filter(r=>r.source_key==='avellino-listed').length,383);
       assert.equal(avellino.filter(r=>r.source_key==='avellino-applicants').length,244);
       assert.deepEqual(statusCounts(avellino),{listed:383,pending:244});
-      const pesaro=registry.records.filter(r=>r.authority_key==='pesaro-urbino');
+      const pesaro=registry.records.filter(r=>r.authority_key==='pesaro-e-urbino');
       assert.equal(pesaro.length,484);
       assert.equal(pesaro.filter(r=>r.source_key==='pesaro-urbino-combined').length,484);
       assert.deepEqual(statusCounts(pesaro),{listed:406,renewal_update_in_progress:78});

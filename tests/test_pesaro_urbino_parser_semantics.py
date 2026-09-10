@@ -8,7 +8,7 @@ from white_list_archive.parsers import pesaro_urbino_combined as parser
 def _cfg() -> dict[str, str]:
     return {
         "source_key": "pesaro-urbino-combined",
-        "authority_key": "pesaro-urbino",
+        "authority_key": "pesaro-e-urbino",
         "authority_name": "Prefettura di Pesaro e Urbino",
         "register_key": "pesaro-urbino-ordinary",
         "register_name": "White List ordinaria",
