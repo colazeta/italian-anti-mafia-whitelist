@@ -1,0 +1,68 @@
+name: Belluno live parser validation
+
+on:
+  push:
+    branches:
+      - expansion/belluno-2026-09-10
+    paths:
+      - '.github/workflows/belluno-live-parser-validation.yml'
+      - 'src/white_list_archive/parsers/belluno_combined.py'
+      - 'tests/test_belluno_parser_semantics.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/belluno-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test and publication runtime
+        run: python -m pip install -e '.[dev,publication]'
+      - name: Run repository tests
+        run: python -m pytest -q
+      - name: Validate pinned Belluno source
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from hashlib import sha256
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.belluno_combined import parse_belluno_combined
+
+          url='https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf'
+          expected='65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58'
+          req=Request(url, headers={'User-Agent':'Mozilla/5.0 whitelist-research/1.0'})
+          data=urlopen(req, timeout=60).read()
+          actual=sha256(data).hexdigest()
+          assert actual == expected, (actual, expected)
+          path=Path('/tmp/belluno.pdf'); path.write_bytes(data)
+          cfg={
+              'source_key':'belluno-combined',
+              'authority_key':'belluno',
+              'authority_name':'Prefettura di Belluno',
+              'register_key':'belluno-ordinary',
+              'register_name':'White List ordinaria',
+              'population_scope':'listed_and_applicant',
+              'reference_date':'2026-09-02',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list',
+              'resource_url':url,
+              'sha256':expected,
+          }
+          batch=parse_belluno_combined(path,cfg)
+          assert len(batch.records)==402
+          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10})
+          assert batch.diagnostics['identifier_coverage']==388
+          assert batch.diagnostics['raw_identifier_only']==14
+          assert batch.diagnostics['malformed_application_dates']==1
+          assert batch.diagnostics['dropped_date_rows']==0
+          assert all(r['record_locator'] and r['name'] for r in batch.records)
+          print(batch.diagnostics)
+          PY
