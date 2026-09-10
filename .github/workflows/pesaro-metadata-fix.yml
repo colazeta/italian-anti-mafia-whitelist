@@ -1,0 +1,145 @@
+name: Pesaro-Urbino metadata repair
+
+on:
+  push:
+    branches:
+      - expansion/pesaro-urbino-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/pesaro-urbino-2026-09-10
+          fetch-depth: 1
+      - name: Repair canonical keys and governance metadata
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          python - <<'PY'
+          import csv, hashlib, io, json, subprocess
+          from pathlib import Path
+
+          CANON='pesaro-e-urbino'
+          OLD='pesaro-urbino'
+          source_page='https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte'
+          source_key='pesaro-urbino-combined'
+          source_sha='7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a'
+          schema_spec={
+              'format':'pdf','extractor':'pdfplumber.extract_tables','page_count':21,'row_count':484,
+              'header':['Ragione Sociale','Sede legale','Codice Fiscale / Partita IVA','Data iscrizione','Data scadenza iscrizione','Sezioni','Aggiornamento in corso'],
+          }
+          schema_fp=hashlib.sha256(json.dumps(schema_spec,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+          assert schema_fp == 'f27ac7bbcc066f214909c7761485850e7e3ee963ed62f388230d000897b7a5d4'
+
+          def read_csv_text(text):
+              return list(csv.DictReader(io.StringIO(text)))
+          def write_csv(path, fields, rows):
+              with Path(path).open('w',encoding='utf-8',newline='') as fh:
+                  w=csv.DictWriter(fh,fieldnames=fields,lineterminator='\n'); w.writeheader(); w.writerows(rows)
+
+          # Restore the pre-expansion ordering and append only the new canonical series.
+          main_series=subprocess.check_output(['git','show','origin/main:data/source_registry/source_series_inventory.csv'],text=True)
+          reader=csv.DictReader(io.StringIO(main_series)); fields=reader.fieldnames; rows=list(reader)
+          rows=[r for r in rows if r['source_series_key'] != source_key]
+          rows.append({
+              'source_series_key':source_key,'authority_key':CANON,'regime_code':'WL-REGIME-L190-2012',
+              'population_scope':'listed_and_applicant','sector_scope':'all','publication_model':'periodic_attachment',
+              'series_url':source_page,'resource_resolution_status':'direct_series_page_resolved','verified_date':'2026-09-10',
+              'notes':'Official page and current PDF verified 10 September 2026; the PDF explicitly covers enrolled and requesting companies and is dated 31 August 2026. Row-level semantics and byte identity are documented in docs/sources/pesaro-urbino-operational-check-2026-09-10.md.'
+          })
+          write_csv('data/source_registry/source_series_inventory.csv',fields,rows)
+
+          # Rebase the operational ledger from main and update the already-seeded canonical authority.
+          main_mon=subprocess.check_output(['git','show','origin/main:data/monitoring/national_coverage.json'],text=True)
+          mon=json.loads(main_mon)
+          matches=[p for p in mon['prefectures'] if p.get('authority_key')==CANON]
+          assert len(matches)==1, f'expected seeded {CANON}, got {len(matches)}'
+          p=matches[0]
+          p.update({
+              'official_landing_page':source_page,'source_verified':True,'current_edition_identified':True,
+              'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,
+              'observation_layer':'public_source_observations','canonical_integration_validated':False,
+              'public_export_enabled':True,'durable_evidence_verified':False,'population_scopes_complete':True,
+              'latest_source_reference_date':'2026-08-31','last_successful_source_check_at':'2026-09-10T02:22:50Z',
+              'last_attempted_source_check_at':'2026-09-10T02:22:50Z','last_successful_investigation_on':'2026-09-10',
+              'monitoring_status':'CURRENT','actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
+              'completion_evidence':['docs/sources/pesaro-urbino-operational-check-2026-09-10.md','src/white_list_archive/parsers/pesaro_urbino_combined.py','tests/test_pesaro_urbino_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+              'known_content_sha256':[source_sha],
+              'unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+          })
+          evidence=p.setdefault('evidence',[])
+          for value in ['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','docs/sources/pesaro-urbino-operational-check-2026-09-10.md','src/white_list_archive/parsers/pesaro_urbino_combined.py','tests/test_pesaro_urbino_parser_semantics.py','data/publication/multi_prefecture_pilot.json']:
+              if value not in evidence: evidence.append(value)
+          Path('data/monitoring/national_coverage.json').write_text(json.dumps(mon,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Canonical authority identity in the public source config.
+          cfg_path=Path('data/publication/multi_prefecture_pilot.json')
+          cfg=json.loads(cfg_path.read_text(encoding='utf-8'))
+          pes=[s for s in cfg['sources'] if s.get('source_key')==source_key]
+          assert len(pes)==1
+          pes[0]['authority_key']=CANON
+          cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Parser registry must carry a non-empty, reproducible structural fingerprint.
+          pf=Path('data/source_registry/parser_families.csv')
+          with pf.open(encoding='utf-8',newline='') as fh:
+              reader=csv.DictReader(fh); fields=reader.fieldnames; rows=list(reader)
+          target=[r for r in rows if r['parser_family_code']=='pesaro-urbino-combined-pdf-table-v1']
+          assert len(target)==1
+          target[0]['supported_schema_fingerprints']=schema_fp
+          write_csv(pf,fields,rows)
+
+          # Catalog denominators move with the registry expansion.
+          cat=Path('data/catalog.csv')
+          with cat.open(encoding='utf-8',newline='') as fh:
+              reader=csv.DictReader(fh); fields=reader.fieldnames; rows=list(reader)
+          counts={'verified-primary-pages':'35','source-series-inventory':'66','parser-families':'2','parser-bindings':'2'}
+          for row in rows:
+              if row['dataset_id'] in counts: row['record_count']=counts[row['dataset_id']]
+              if row['dataset_id']=='multi-prefecture-publication-pilot': row['record_count']=str(len(cfg['sources']))
+          write_csv(cat,fields,rows)
+
+          # Tests should encode the new evidence-backed national denominator, not the old snapshot.
+          pop=Path('tests/test_source_population_coverage.py')
+          text=pop.read_text(encoding='utf-8')
+          text=text.replace('report["verified_authority_count"] == 34','report["verified_authority_count"] == 35')
+          text=text.replace('report["register_scope_count"] == 35','report["register_scope_count"] == 36')
+          text=text.replace('report["complete_register_scope_count"] == 33','report["complete_register_scope_count"] == 34')
+          pop.write_text(text,encoding='utf-8')
+
+          sr=Path('tests/test_source_registry.py')
+          text=sr.read_text(encoding='utf-8').replace('assert len(pages) == 34','assert len(pages) == 35')
+          sr.write_text(text,encoding='utf-8')
+
+          pt=Path('tests/test_pesaro_urbino_parser_semantics.py')
+          text=pt.read_text(encoding='utf-8').replace('"authority_key": "pesaro-urbino"','"authority_key": "pesaro-e-urbino"')
+          pt.write_text(text,encoding='utf-8')
+
+          browser=Path('tests/public_portal_browser.cjs')
+          text=browser.read_text(encoding='utf-8').replace("authority_key==='pesaro-urbino'","authority_key==='pesaro-e-urbino'")
+          text=text.replace("'pesaro-urbino'].includes(r.authority_key)","'pesaro-e-urbino'].includes(r.authority_key)")
+          browser.write_text(text,encoding='utf-8')
+
+          doc=Path('docs/sources/pesaro-urbino-operational-check-2026-09-10.md')
+          text=doc.read_text(encoding='utf-8')
+          marker='- pages: 21.\n'
+          insertion=marker+'- structural schema fingerprint: `'+schema_fp+'` (SHA-256 of the canonical extractor/format/page-count/row-count/header specification used by the parser registry).\n'
+          if 'structural schema fingerprint:' not in text:
+              text=text.replace(marker,insertion)
+          doc.write_text(text,encoding='utf-8')
+          PY
+          git diff --check
+      - name: Commit metadata repair
+        run: |
+          git config user.name 'colazeta'
+          git config user.email '47261299+colazeta@users.noreply.github.com'
+          git add data src tests docs
+          git diff --cached --check
+          git commit -m 'Reconcile Pesaro-Urbino canonical expansion metadata'
+          git push origin HEAD:expansion/pesaro-urbino-2026-09-10
