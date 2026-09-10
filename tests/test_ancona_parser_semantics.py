@@ -55,10 +55,16 @@ def test_exact_renewal_marker_uses_existing_renewal_status():
     assert record["source_fields"]["in_aggiornamento"] == "Richiesto rinnovo"
 
 
-def test_nonsemantic_punctuation_update_is_preserved_but_not_promoted():
+def test_reviewed_nonsemantic_punctuation_does_not_override_direct_listing_evidence():
     record = _contract_record(_row(update=",,,,,,,,,"))
-    assert record["source_status"] == "other_or_unknown"
+    assert record["source_status"] == "listed"
     assert record["outcome_raw"] == ",,,,,,,,,"
+    assert record["source_fields"]["in_aggiornamento"] == ",,,,,,,,,"
+
+
+def test_unreviewed_update_marker_fails_closed():
+    with pytest.raises(RuntimeError, match="unsupported update marker"):
+        _record_from_cells(_row(update="nuovo esito"), CFG, 1)
 
 
 def test_no_status_signal_remains_unknown():
