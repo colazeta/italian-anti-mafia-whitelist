@@ -1,0 +1,51 @@
+name: Pesaro-Urbino integration recovery
+
+on:
+  push:
+    branches:
+      - expansion/pesaro-urbino-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/pesaro-urbino-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Re-run the audited integration transformation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/pesaro-urbino-source-audit.yml')
+          text = workflow.read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = text.index(marker) + len(marker)
+          end = text.index("\n          PY\n", start)
+          lines = text[start:end].splitlines()
+          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          exec(compile(code, str(workflow), 'exec'), {})
+          # The extracted transformation removes the source-audit workflow. Remove this
+          # one-shot recovery workflow too so neither becomes permanent project surface.
+          Path('.github/workflows/pesaro-integration-recovery.yml').unlink()
+          PY
+          sed -i 's/\r$//' \
+            data/source_registry/verified_primary_pages.csv \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/parser_families.csv \
+            data/source_registry/parser_bindings.csv
+      - name: Commit recovered integration
+        run: |
+          git config user.name 'colazeta'
+          git config user.email '47261299+colazeta@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Publish Pesaro-Urbino White List source'
+          git push origin HEAD:expansion/pesaro-urbino-2026-09-10
