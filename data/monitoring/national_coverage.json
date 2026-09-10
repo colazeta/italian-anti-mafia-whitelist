@@ -1589,11 +1589,11 @@
       ]
     },
     {
-      "authority_key": "laquila",
-      "prefecture": "L'Aquila",
-      "region": "Abruzzo",
-      "national_index_key": "laquila",
-      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/laquila/evidenza/white-list",
+      "authority_key": "la-spezia",
+      "prefecture": "La Spezia",
+      "region": "Liguria",
+      "national_index_key": "spezia",
+      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/spezia/evidenza/white-list",
       "source_verified": false,
       "current_edition_identified": null,
       "historical_editions_identified": null,
@@ -1625,11 +1625,11 @@
       ]
     },
     {
-      "authority_key": "la-spezia",
-      "prefecture": "La Spezia",
-      "region": "Liguria",
-      "national_index_key": "spezia",
-      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/spezia/evidenza/white-list",
+      "authority_key": "laquila",
+      "prefecture": "L'Aquila",
+      "region": "Abruzzo",
+      "national_index_key": "laquila",
+      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/laquila/evidenza/white-list",
       "source_verified": false,
       "current_edition_identified": null,
       "historical_editions_identified": null,
@@ -2528,6 +2528,56 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
+      ]
+    },
+    {
+      "authority_key": "pesaro-urbino",
+      "prefecture": "Pesaro e Urbino",
+      "region": "Marche",
+      "national_index_key": "pesaro-urbino",
+      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte",
+      "source_verified": true,
+      "current_edition_identified": true,
+      "historical_editions_identified": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
+      "canonical_integration_validated": false,
+      "public_export_enabled": true,
+      "durable_evidence_verified": false,
+      "population_scopes_complete": true,
+      "latest_source_reference_date": "2026-08-31",
+      "latest_archived_edition": null,
+      "archived_evidence_storage_status": "not_documented",
+      "last_successful_source_check_at": "2026-09-10T02:22:50Z",
+      "last_attempted_source_check_at": "2026-09-10T02:22:50Z",
+      "last_content_change_at": null,
+      "last_successful_investigation_on": "2026-09-10",
+      "monitoring_status": "CURRENT",
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+      ],
+      "actionable_issue": false,
+      "coverage_status": "VALIDATED",
+      "terminal_reason": null,
+      "completion_evidence": [
+        "docs/sources/pesaro-urbino-operational-check-2026-09-10.md",
+        "src/white_list_archive/parsers/pesaro_urbino_combined.py",
+        "tests/test_pesaro_urbino_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a"
+      ],
+      "evidence": [
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "docs/sources/pesaro-urbino-operational-check-2026-09-10.md",
+        "src/white_list_archive/parsers/pesaro_urbino_combined.py",
+        "tests/test_pesaro_urbino_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
       ]
     },
     {
