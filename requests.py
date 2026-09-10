@@ -2,7 +2,8 @@
 
 This file is intentionally removed before the production pull request. It exists
 only because the temporary finalizer uses the requests Session interface while
-requests is not a project dependency.
+requests is not a project dependency. The shim is deliberately limited to the
+GET behaviour required for source verification.
 """
 from urllib.request import Request, urlopen
 
