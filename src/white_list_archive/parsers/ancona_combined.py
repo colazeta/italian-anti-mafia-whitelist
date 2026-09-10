@@ -35,6 +35,7 @@ _REVIEWED_MALFORMED_DATES = frozenset({
     "08/04/02026",
     "07/04/02027",
 })
+_REVIEWED_NONSEMANTIC_UPDATE = ",,,,,,,,,"
 
 
 def _source_date(raw: str, *, field: str, ordinal: int) -> str:
@@ -176,22 +177,18 @@ def _repair_reviewed_extraction(page_number: int, rows: list[list[str]]) -> list
 def _status(*, listing_raw: str, expiry_raw: str, update_raw: str, application_raw: str, ordinal: int) -> str:
     if bool(listing_raw) != bool(expiry_raw):
         raise RuntimeError(f"Ancona row {ordinal}: listing/expiry source-date pair is structurally incomplete")
-    if update_raw:
-        if update_raw == "Richiesto rinnovo":
-            return "renewal_update_in_progress"
-        # One current source row contains punctuation in this field. Preserve it,
-        # but never promote punctuation to an update/renewal claim.
-        return "other_or_unknown"
+    if update_raw == "Richiesto rinnovo":
+        return "renewal_update_in_progress"
+    if update_raw and update_raw != _REVIEWED_NONSEMANTIC_UPDATE:
+        raise RuntimeError(f"Ancona row {ordinal}: unsupported update marker {update_raw!r}")
     if listing_raw:
-        # A source listing-date pair is direct positive evidence of enrolment.
-        # Some rows also retain an application date; that date is preserved but
-        # does not by itself negate the listing evidence or imply a pending case.
+        # Direct source listing dates remain positive evidence even where the
+        # update cell contains the reviewed punctuation artefact.
         return "listed"
     if application_raw:
-        # The official publication is explicitly the combined list of enrolled
-        # companies and companies requesting enrolment. In a row without any
-        # listing-date pair, the dedicated application-date field is the positive
-        # structural signal for the applicant population.
+        # The official publication explicitly combines enrolled companies and
+        # companies requesting enrolment. In a row without any listing-date pair,
+        # the dedicated application-date field is the positive applicant signal.
         return "pending"
     return "other_or_unknown"
 
