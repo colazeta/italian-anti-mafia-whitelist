@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install parser dependencies
-        run: python -m pip install -e .
+        run: python -m pip install -e . pdfplumber openpyxl python-docx
       - name: Resolve and inspect official Belluno source
         env:
           LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list
