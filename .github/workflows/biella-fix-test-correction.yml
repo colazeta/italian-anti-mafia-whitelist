@@ -1,0 +1,47 @@
+name: Correct isolated Biella validation
+
+on:
+  push:
+    branches:
+      - fix/biella-semantic-source-approval-2026-09-10
+    paths:
+      - '.github/workflows/biella-fix-test-correction.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/biella-semantic-source-approval-2026-09-10
+          fetch-depth: 0
+      - name: Replace invalid status assumptions with source-population assertions
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('.github/workflows/biella-semantic-source-approval-2026-09-10.yml')
+          text = path.read_text(encoding='utf-8')
+          old = """          assert sum(r['source_status'] == 'listed' for r in biella) == 130
+          assert sum(r['source_status'] == 'pending' for r in biella) == 109
+"""
+          new = """          assert sum(r['source_key'] == 'biella-listed' for r in biella) == 130
+          assert sum(r['source_key'] == 'biella-applicants' for r in biella) == 109
+"""
+          if text.count(old) != 1:
+              raise SystemExit('Expected exactly one outdated Biella status assertion block')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+      - name: Commit correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/biella-semantic-source-approval-2026-09-10.yml
+          git diff --cached --check
+          git commit -m 'Validate Biella source populations without status inference'
+          git push origin HEAD:fix/biella-semantic-source-approval-2026-09-10
