@@ -1,0 +1,75 @@
+name: Retry validated Avellino materialisation
+
+on:
+  push:
+    branches:
+      - expansion/avellino-public-2026-09-10
+    paths:
+      - '.github/workflows/avellino-materialize-retry.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install complete publication runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Poppler installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+          python -m pip install pytest pyyaml
+      - name: Reuse approved materialisation and validation scripts
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          import yaml
+
+          workflow = yaml.safe_load(Path('.github/workflows/avellino-materialize.yml').read_text(encoding='utf-8'))
+          steps = workflow['jobs']['materialize']['steps']
+          wanted = [
+              'Materialize approved source configuration and governance state',
+              'Validate semantic tests and expanded public build',
+          ]
+          scripts = {step.get('name'): step.get('run') for step in steps if step.get('name') in wanted}
+          if set(scripts) != set(wanted) or any(not scripts[name] for name in wanted):
+              raise SystemExit(f'approved Avellino scripts not found exactly: {sorted(scripts)}')
+          for name in wanted:
+              print(f'RUNNING_APPROVED_STEP {name}', flush=True)
+              subprocess.run(['bash', '-c', 'set -euo pipefail\n' + scripts[name]], check=True)
+          PY
+      - name: Commit only after complete validation
+        run: |
+          git rm .github/workflows/avellino-materialize.yml \
+                 .github/workflows/avellino-parser-validation.yml \
+                 .github/workflows/avellino-materialize-retry.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/publishing/public_national_registry.py \
+                  data/publication/multi_prefecture_pilot.json \
+                  data/source_registry/source_series_inventory.csv \
+                  data/monitoring/national_coverage.json \
+                  .github/workflows/public-pages.yml \
+                  docs/sources/avellino-operational-check-2026-09-10.md
+          git diff --cached --check
+          git commit -m 'Publish validated Avellino White List sources'
+          git push origin HEAD:expansion/avellino-public-2026-09-10
