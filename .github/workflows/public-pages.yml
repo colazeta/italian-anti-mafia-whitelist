@@ -19,6 +19,7 @@ on:
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'src/white_list_archive/parsers/arezzo_openxml.py'
       - 'src/white_list_archive/parsers/avellino_positioned.py'
+      - 'src/white_list_archive/parsers/pesaro_urbino_combined.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -109,18 +110,18 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 6861
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino'}
+          assert reg['meta']['record_count'] == 7345
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-urbino'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary'
           }
-          assert reg['meta']['authority_count'] == 8
-          assert reg['meta']['register_count'] == 9
+          assert reg['meta']['authority_count'] == 9
+          assert reg['meta']['register_count'] == 10
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 8
-          assert pref['meta']['mapped_count'] == 34
+          assert pref['meta']['published_count'] == 9
+          assert pref['meta']['mapped_count'] == 35
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['series_count'] > 0
           alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']
@@ -131,6 +132,8 @@ jobs:
           assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']
           avellino = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Avellino']
           assert len(avellino) == 1 and avellino[0]['mapped'] and avellino[0]['published']
+          pesaro = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Pesaro e Urbino']
+          assert len(pesaro) == 1 and pesaro[0]['mapped'] and pesaro[0]['published']
           assert all(r.get('record_locator') for r in reg['records'])
           assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
           assert site['publication']['geography_policy']
