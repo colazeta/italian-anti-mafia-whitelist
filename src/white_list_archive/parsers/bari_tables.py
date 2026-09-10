@@ -10,7 +10,7 @@ import pdfplumber
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 _REFERENCE_DATE = "2026-08-31"
 _LISTED_PAGE_COUNTS = [41, 36, 31, 35, 38, 32, 37, 36, 42, 38, 38, 38, 36, 39, 40, 34, 34, 36, 37, 41, 40, 41, 37, 41, 32, 39, 39, 38, 19]
 _APPLICANT_PAGE_COUNTS = [40, 44, 42, 46, 45, 44, 42, 46, 46, 46, 48, 49, 44, 23]
@@ -18,6 +18,11 @@ _BAD_LISTED_DATES = {"06/'3/2025", "02/07/024", "1607/2025", "19+/06/2027", "28/
 _BAD_APPLICANT_DATES = {"18/07/18 - 11/05/23"}
 _VALID_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _VALID_IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])")
+
+# One applicant row in the byte-pinned edition visibly contains no X marker in
+# any of the ten sector columns. Preserve that absence instead of inferring a
+# requested sector. Any other all-empty sector row still fails closed.
+_EMPTY_SECTOR_ROWS = {("bari-applicants", 8, 29)}
 
 # pdfplumber splits a small number of visually complete Bari source rows. These
 # repairs are keyed to exact page/company positions in the byte-pinned edition;
@@ -74,7 +79,7 @@ def _sections(row: list[str], *, source_key: str, page: int, row_number: int) ->
                 f"{source_key}: unreviewed sector marker at page {page} row {row_number}, section {index}: {value!r}"
             )
         sections.append(f"Sezione {index}")
-    if not sections:
+    if not sections and (source_key, page, row_number) not in _EMPTY_SECTOR_ROWS:
         raise RuntimeError(f"{source_key}: no source-backed sector at page {page} row {row_number}")
     return sections, markers
 
@@ -250,6 +255,7 @@ def parse_bari_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 "status_raw": row[17],
                 "row_repaired_from_pdf_geometry": row != raw_row,
                 "legal_name_unrecoverable_in_source_extraction": (page, row_number) == (1, 1),
+                "sector_unmarked_in_source": (cfg["source_key"], page, row_number) in _EMPTY_SECTOR_ROWS,
             },
         )
         record["identifiers"] = _strict_identifiers(row[4])
