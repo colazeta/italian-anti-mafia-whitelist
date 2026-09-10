@@ -17,12 +17,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve remaining Bari split-row geometry
+      - name: Inventory Bari parser denominators and unresolved rows
         shell: bash
         run: |
           python -m pip install -q requests beautifulsoup4 pdfplumber
           python - <<'PY'
           import hashlib, json, tempfile
+          from collections import Counter
           from pathlib import Path
           from urllib.parse import urljoin, urlparse
           import pdfplumber, requests
@@ -35,42 +36,47 @@ jobs:
           }
           H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
           def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
-          s=requests.Session(); r=s.get(PAGE,headers=H,timeout=45); r.raise_for_status()
-          soup=BeautifulSoup(r.text,'html.parser')
+          s=requests.Session(); landing=s.get(PAGE,headers=H,timeout=45); landing.raise_for_status()
+          soup=BeautifulSoup(landing.text,'html.parser')
           selected={'listed':[],'applicants':[]}
           for a in soup.find_all('a',href=True):
               href=urljoin(PAGE,a['href']); label=clean(' '.join(a.stripped_strings)); text=(label+' '+Path(urlparse(href).path).name).casefold()
               if not href.lower().endswith('.pdf'): continue
               if 'richiest' in text or 'richiedent' in text: selected['applicants'].append((label,href))
               elif 'societ' in text and 'iscritt' in text: selected['listed'].append((label,href))
-          print('LANDING_STATUS='+str(r.status_code))
+          print('LANDING_STATUS='+str(landing.status_code))
           for kind in ('listed','applicants'):
               if len(selected[kind]) != 1: raise SystemExit(f'{kind}: source selection drift {selected[kind]!r}')
-              label,url=selected[kind][0]
-              data=s.get(url,headers=H,timeout=90).content; sha=hashlib.sha256(data).hexdigest()
-              print(f'{kind.upper()}_LABEL={label}'); print(f'{kind.upper()}_SHA256={sha}')
+              label,url=selected[kind][0]; data=s.get(url,headers=H,timeout=90).content
+              sha=hashlib.sha256(data).hexdigest(); print(f'{kind.upper()}_LABEL={label}'); print(f'{kind.upper()}_URL={url}'); print(f'{kind.upper()}_SHA256={sha}')
               if sha != EXPECTED[kind]: raise SystemExit(f'{kind}: byte drift {sha}')
               with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
                   f.write(data); f.flush()
                   with pdfplumber.open(f.name) as pdf:
-                      targets={19:(225,280)} if kind=='listed' else {1:(90,165),14:(250,305)}
-                      for pno,(y0,y1) in targets.items():
-                          page=pdf.pages[pno-1]; tables=page.find_tables()
-                          if len(tables)!=1: raise SystemExit(f'{kind} page {pno}: {len(tables)} tables')
-                          table=tables[0]; extracted=table.extract(); words=page.extract_words(x_tolerance=1,y_tolerance=1,keep_blank_chars=False)
-                          print(f'BEGIN_{kind.upper()}_PAGE_{pno}_DETAIL')
-                          for ridx,rowobj in enumerate(table.rows):
-                              cells=[c for c in rowobj.cells if c]
-                              if not cells: continue
-                              top=min(c[1] for c in cells); bottom=max(c[3] for c in cells)
-                              if bottom < y0 or top > y1: continue
-                              print('ROW='+json.dumps({'index':ridx,'top':top,'bottom':bottom,'cells':[clean(v) for v in extracted[ridx]]},ensure_ascii=False))
-                              print('CELL_BOXES='+json.dumps([{'i':i,'bbox':c} for i,c in enumerate(rowobj.cells) if c],ensure_ascii=False))
-                          selected_words=[]
-                          for w in words:
-                              cy=(float(w['top'])+float(w['bottom']))/2
-                              if y0 <= cy <= y1:
-                                  selected_words.append({'t':w['text'],'x0':round(float(w['x0']),2),'x1':round(float(w['x1']),2),'top':round(float(w['top']),2),'bottom':round(float(w['bottom']),2)})
-                          print('WORDS='+json.dumps(sorted(selected_words,key=lambda w:(w['top'],w['x0'])),ensure_ascii=False))
-                          print(f'END_{kind.upper()}_PAGE_{pno}_DETAIL')
+                      page_rows=[]; widths=Counter(); statuses=Counter(); blank_status=[]; blank_name=[]; blank_id=[]; headers=[]
+                      ordinal=0
+                      for pno,page in enumerate(pdf.pages,1):
+                          tables=page.find_tables()
+                          if len(tables)!=1: raise SystemExit(f'{kind} page {pno}: expected one table, got {len(tables)}')
+                          extracted=tables[0].extract()
+                          if not extracted: raise SystemExit(f'{kind} page {pno}: empty table')
+                          headers.append([clean(v) for v in extracted[0]])
+                          data_rows=[[clean(v) for v in row] for row in extracted[1:] if any(clean(v) for v in row)]
+                          page_rows.append(len(data_rows))
+                          for ridx,row in enumerate(data_rows,1):
+                              ordinal+=1; widths[len(row)]+=1
+                              status=clean(row[-1]) if row else ''
+                              statuses[status]+=1
+                              if not status: blank_status.append((pno,ridx,ordinal,row))
+                              if row and not clean(row[0]): blank_name.append((pno,ridx,ordinal,row))
+                              id_index=3 if kind=='applicants' else 4
+                              if len(row)>id_index and not clean(row[id_index]): blank_id.append((pno,ridx,ordinal,row))
+                      print(f'{kind.upper()}_PAGES={len(pdf.pages)}')
+                      print(f'{kind.upper()}_PAGE_ROWS='+json.dumps(page_rows))
+                      print(f'{kind.upper()}_WIDTHS='+json.dumps(dict(widths),sort_keys=True))
+                      print(f'{kind.upper()}_HEADERS='+json.dumps(headers,ensure_ascii=False))
+                      print(f'{kind.upper()}_RAW_STATUS_COUNTS='+json.dumps(dict(statuses),ensure_ascii=False,sort_keys=True))
+                      print(f'{kind.upper()}_BLANK_STATUS_ROWS='+json.dumps(blank_status,ensure_ascii=False))
+                      print(f'{kind.upper()}_BLANK_NAME_ROWS='+json.dumps(blank_name,ensure_ascii=False))
+                      print(f'{kind.upper()}_BLANK_ID_ROWS='+json.dumps(blank_id,ensure_ascii=False))
           PY
