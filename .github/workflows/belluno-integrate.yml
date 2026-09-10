@@ -1,0 +1,224 @@
+name: Belluno guarded integration
+
+on:
+  push:
+    branches:
+      - expansion/belluno-2026-09-10
+    paths:
+      - .github/workflows/belluno-integrate.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/belluno-2026-09-10
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply evidence-backed Belluno integration
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import io
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = {
+              "source_key": "belluno-combined",
+              "parser": "belluno_combined",
+              "authority_key": "belluno",
+              "authority_name": "Prefettura di Belluno",
+              "register_key": "belluno-ordinary",
+              "register_name": "White List ordinaria",
+              "population_scope": "listed_and_applicant",
+              "reference_date": "2026-09-02",
+              "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list",
+              "resource_url": "https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf",
+              "sha256": "65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58",
+              "expected_source_rows": 402,
+              "last_source_update": "2026-09-02",
+              "last_source_update_basis": "document heading and dated official resource",
+              "notes": "The current official Belluno PDF explicitly combines enrolled companies and companies requesting registration. The byte-pinned 44-page edition contains 402 source rows in one stable eight-column table across 42 data pages: 392 rows have explicit listing/expiry dates and 10 rows are explicitly marked IN FASE ISTRUTTORIA. The parser maps only source-explicit legal-state signals, normalises only complete valid DD/MM/YYYY tokens, preserves footnote-bearing raw date cells, leaves the visibly truncated application date 07/04/202 blank, and never pads or truncates malformed identifiers."
+          }
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          existing = [s for s in config['sources'] if s['source_key'] == source['source_key']]
+          if existing:
+              if existing != [source]:
+                  raise SystemExit('Conflicting pre-existing Belluno publication source')
+          else:
+              config['sources'].append(source)
+          config['verified_at'] = '2026-09-10'
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          rows = list(csv.DictReader(series_path.open(encoding='utf-8', newline='')))
+          matches = [row for row in rows if row['source_series_key'] == 'belluno-combined']
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one Belluno source-series row, found {len(matches)}')
+          row = matches[0]
+          row['resource_resolution_status'] = 'landing_page_resolved'
+          row['verified_date'] = '2026-09-10'
+          row['notes'] = ('Current official landing page and direct combined PDF verified 10 September 2026. '
+                          'The attachment is explicitly dated 2 September 2026 and contains 392 listed-status rows plus '
+                          '10 rows explicitly in istruttoria; exact SHA and parser boundaries are documented in '
+                          'docs/sources/belluno-operational-check-2026-09-10.md.')
+          with series_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+              writer.writeheader(); writer.writerows(rows)
+
+          catalog_path = Path('data/catalog.csv')
+          catalog_rows = list(csv.DictReader(catalog_path.open(encoding='utf-8', newline='')))
+          catalog_match = [row for row in catalog_rows if row['dataset_id'] == 'multi-prefecture-publication-pilot']
+          if len(catalog_match) != 1 or catalog_match[0]['record_count'] != '19':
+              raise SystemExit('Unexpected publication-config catalog baseline')
+          catalog_match[0]['record_count'] = '20'
+          with catalog_path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=catalog_rows[0].keys())
+              writer.writeheader(); writer.writerows(catalog_rows)
+
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          belluno = [p for p in coverage['prefectures'] if p['authority_key'] == 'belluno']
+          if len(belluno) != 1:
+              raise SystemExit(f'Expected one Belluno coverage row, found {len(belluno)}')
+          item = belluno[0]
+          if item['coverage_status'] != 'SOURCE_IDENTIFIED' or item['public_export_enabled']:
+              raise SystemExit('Unexpected Belluno coverage baseline')
+          checked_at = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00','Z')
+          item.update({
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-02',
+              'last_successful_source_check_at': checked_at,
+              'last_attempted_source_check_at': checked_at,
+              'last_successful_investigation_on': '2026-09-10',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': [
+                  'Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'
+              ],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/belluno-operational-check-2026-09-10.md',
+                  'src/white_list_archive/parsers/belluno_combined.py',
+                  'tests/test_belluno_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json'
+              ],
+              'known_content_sha256': [source['sha256']],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'docs/sources/belluno-operational-check-2026-09-10.md',
+                  'src/white_list_archive/parsers/belluno_combined.py',
+                  'tests/test_belluno_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json'
+              ]
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          pages_path = Path('.github/workflows/public-pages.yml')
+          pages = pages_path.read_text(encoding='utf-8')
+          replacements = {
+              "      - 'src/white_list_archive/parsers/biella_html.py'\n": "      - 'src/white_list_archive/parsers/biella_html.py'\n      - 'src/white_list_archive/parsers/belluno_combined.py'\n      - 'src/white_list_archive/parsers/__init__.py'\n",
+              "assert reg['meta']['record_count'] == 7584": "assert reg['meta']['record_count'] == 7986",
+              "'pesaro-e-urbino','biella'}": "'pesaro-e-urbino','biella','belluno'}",
+              "'pesaro-urbino-ordinary','biella-ordinary'": "'pesaro-urbino-ordinary','biella-ordinary','belluno-ordinary'",
+              "assert reg['meta']['authority_count'] == 10": "assert reg['meta']['authority_count'] == 11",
+              "assert reg['meta']['register_count'] == 11": "assert reg['meta']['register_count'] == 12",
+              "assert pref['meta']['published_count'] == 10": "assert pref['meta']['published_count'] == 11",
+              "          assert len(biella) == 1 and biella[0]['mapped'] and biella[0]['published']\n": "          assert len(biella) == 1 and biella[0]['mapped'] and biella[0]['published']\n          belluno = [x for x in pref['prefectures'] if x['authority_key'] == 'belluno']\n          assert len(belluno) == 1 and belluno[0]['mapped'] and belluno[0]['published']\n",
+          }
+          for old, new in replacements.items():
+              if pages.count(old) != 1:
+                  raise SystemExit(f'Unexpected public-pages baseline for replacement: {old!r} count={pages.count(old)}')
+              pages = pages.replace(old, new)
+          pages_path.write_text(pages, encoding='utf-8')
+
+          browser_path = Path('tests/public_portal_browser.cjs')
+          browser = browser_path.read_text(encoding='utf-8')
+          browser_replacements = {
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Biella'));\n": "      assert.ok(labels.includes('White List ordinaria · Prefettura di Biella'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Belluno'));\n",
+              "      assert.equal(stats.total,7584);": "      assert.equal(stats.total,7986);",
+              "['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella']": "['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','belluno']",
+              "      assert.deepEqual(statusCounts(biella),{listed:213,pending:12,renewal_update_in_progress:14});\n": "      assert.deepEqual(statusCounts(biella),{listed:213,pending:12,renewal_update_in_progress:14});\n      const belluno=registry.records.filter(r=>r.authority_key==='belluno');\n      assert.equal(belluno.length,402);\n      assert.equal(belluno.filter(r=>r.source_key==='belluno-combined').length,402);\n      assert.deepEqual(statusCounts(belluno),{expired_observed:49,listed:281,pending:10,renewal_update_in_progress:62});\n",
+          }
+          for old, new in browser_replacements.items():
+              if browser.count(old) != 1:
+                  raise SystemExit(f'Unexpected browser-test baseline for replacement: {old!r} count={browser.count(old)}')
+              browser = browser.replace(old, new)
+          browser_path.write_text(browser, encoding='utf-8')
+
+          doc = Path('docs/sources/belluno-operational-check-2026-09-10.md')
+          doc.write_text('''# Belluno White List operational check — 10 September 2026\n\n## Current official source\n\n- Official landing page: `https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list`.\n- Current direct attachment: `https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf`.\n- The PDF itself identifies the population as enterprises enrolled in and requesting enrolment in the provincial Belluno White Lists and carries the explicit source date **2 September 2026**.\n- Verified byte SHA-256: `65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58`.\n- The source has 44 pages. Page 1 is the ten-section legend; pages 2–43 each expose exactly one stable eight-column table; page 44 has no data table.\n\n## Population and parser boundary\n\nThe audited edition contains **402 source rows**. Exactly **392** rows carry one explicit listing date and one explicit expiry date. Exactly **10** rows are explicitly marked `IN FASE ISTRUTTORIA` (case-insensitive) and have no listing/expiry date; two of those contain only a single source footnote letter (`M` or `T`) in the listing-date cell. The parser therefore identifies applicant observations only from that explicit source note and the absence of listing/expiry dates; it does not infer applicant status from blank cells alone.\n\nObserved source-status counts are: **281 listed**, **62 renewal/update in progress**, **49 expired observed**, and **10 pending/in istruttoria**. These labels reuse the existing project status vocabulary and are driven only by source-explicit notes. Any future non-blank unrecognised legal-status note fails closed.\n\nDate handling is deliberately conservative. Listing and expiry cells must contain exactly one valid `DD/MM/YYYY` token; surrounding alphabetic footnote markers are retained in raw provenance but are not part of the canonical date. One listed row (`NONNATO LUCA`) exposes the visibly truncated application date `07/04/202`; the parser leaves that canonical application date blank and does not reconstruct the missing year. No source row with a required listing/expiry date is dropped.\n\nIdentifiers are retained verbatim in `identifier_field_raw`. The audited source yields a canonical CF/PIVA token for **388/402** rows; **14/402** are raw-only under the existing strict identifier rule. Examples include a 12-digit numeric source value and a 10-digit numeric source value. They are not padded, truncated, or repaired. Repeated identical identifier tokens are deduplicated only in the canonical identifier list while the raw source field remains unchanged.\n\n## Validation and publication boundary\n\n`belluno_combined` requires 44 pages, the ten-section legend, 42 exact data-page headers, one table per data page, exactly eight columns, and exactly 402 source rows. Section cells accept only Roman section codes I–X and separators. Public records stay inside public contract v3; review diagnostics and source-layout details remain outside the public Pages artifact.\n\nThe publication layer is source-backed public observation only. Canonical hosted-database integration and independent durable-evidence verification are **not** claimed by this expansion and remain governed separately under issue #16.\n''', encoding='utf-8')
+          PY
+      - name: Install publication runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Run repository and Belluno tests
+        run: python -m pytest -q
+      - name: Build and validate Belluno source against pinned official bytes
+        run: |
+          rm -rf /tmp/belluno-integration public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/belluno-integration \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          reg=json.load(open('public-site/data/registry.json',encoding='utf-8'))
+          pref=json.load(open('public-site/data/prefectures.json',encoding='utf-8'))
+          belluno=[r for r in reg['records'] if r['authority_key']=='belluno']
+          assert len(belluno)==402
+          assert Counter(r['source_status'] for r in belluno)==Counter({'listed':281,'renewal_update_in_progress':62,'expired_observed':49,'pending':10})
+          assert sum(bool(r['identifiers']) for r in belluno)==388
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in belluno)==14
+          assert reg['meta']['record_count']==7986
+          assert reg['meta']['authority_count']==11
+          assert reg['meta']['register_count']==12
+          assert pref['meta']['authority_count']==106
+          assert pref['meta']['mapped_count']==35
+          assert pref['meta']['published_count']==11
+          d=json.load(open('/tmp/belluno-integration/belluno-combined.diagnostics.json',encoding='utf-8'))
+          assert d['public_records']==402 and d['applicant_rows']==10 and d['malformed_application_dates']==1 and d['dropped_date_rows']==0
+          print('Belluno integration validated',d)
+          PY
+      - name: Remove generated public data and temporary integration workflow
+        run: |
+          git checkout -- public-site/data 2>/dev/null || true
+          rm -f .github/workflows/belluno-integrate.yml
+      - name: Commit validated integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'No integration changes to commit'; exit 0; }
+          git commit -m 'Expand public archive to Belluno'
+          git push origin HEAD:expansion/belluno-2026-09-10
