@@ -15,90 +15,62 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and profile current official Udine publications
+      - name: Deep-profile byte-pinned Udine PDFs
         shell: bash
         run: |
-          python -m pip install -q beautifulsoup4 pdfplumber
+          python -m pip install -q pdfplumber
           python - <<'PY'
-          import hashlib, json, tempfile
+          import hashlib, json, re, tempfile
           from collections import Counter
-          from pathlib import Path
-          from urllib.parse import urljoin
           from urllib.request import Request, urlopen
-          from bs4 import BeautifulSoup
           import pdfplumber
 
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list'
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-audit)'}
-          def get(url, timeout=90):
-              req=Request(url, headers=H)
-              with urlopen(req, timeout=timeout) as response:
-                  return int(getattr(response,'status',200)), response.headers.get('Content-Type',''), response.read()
-          def clean(v):
-              return ' '.join(str(v or '').replace('\u00a0',' ').split())
-
-          status,ctype,body=get(PAGE,45)
-          print('LANDING_STATUS='+str(status))
-          print('LANDING_SHA256='+hashlib.sha256(body).hexdigest())
-          soup=BeautifulSoup(body.decode('utf-8','replace'),'html.parser')
-          candidates=[]
-          for a in soup.find_all('a',href=True):
-              label=clean(' '.join(a.stripped_strings))
-              url=urljoin(PAGE,a['href'])
-              folded=label.casefold()
-              if ('white list' in folded or 'iscritt' in folded) and ('fornitor' in folded or 'ditte' in folded or 'iscritt' in folded):
-                  candidates.append({'label':label,'url':url})
-          print('CANDIDATES='+json.dumps(candidates,ensure_ascii=False))
-
-          selected={}
-          for item in candidates:
-              f=item['label'].casefold()
-              if 'hanno chiesto' in f or ('fornitor' in f and 'iscritt' in f):
-                  selected.setdefault('applicants',item)
-              if 'ditte iscritte' in f:
-                  selected.setdefault('listed',item)
-          if set(selected) != {'listed','applicants'}:
-              raise SystemExit('Could not positively resolve exactly both Udine populations: '+repr(selected))
-
-          for key,item in selected.items():
-              status,ctype,data=get(item['url'])
-              print(f'{key.upper()}_LABEL='+item['label'])
-              print(f'{key.upper()}_URL='+item['url'])
-              print(f'{key.upper()}_STATUS='+str(status))
-              print(f'{key.upper()}_CONTENT_TYPE='+ctype)
-              print(f'{key.upper()}_SIZE='+str(len(data)))
-              print(f'{key.upper()}_SHA256='+hashlib.sha256(data).hexdigest())
-              if not data.startswith(b'%PDF'):
-                  print(f'{key.upper()}_NONPDF_PREFIX='+repr(data[:80]))
-                  continue
+          SOURCES={
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf','4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971'),
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf','0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba'),
+          }
+          ID11=re.compile(r'(?<!\d)\d{11}(?!\d)')
+          ID16=re.compile(r'\b[A-Z0-9]{16}\b')
+          DATE=re.compile(r'\b\d{2}/\d{2}/\d{4}\b')
+          def get(url):
+              req=Request(url,headers={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; deep-source-audit)'})
+              with urlopen(req,timeout=90) as r:return r.read()
+          def clean(v):return ' '.join(str(v or '').replace('\u00a0',' ').split())
+          for key,(url,expected) in SOURCES.items():
+              data=get(url); sha=hashlib.sha256(data).hexdigest(); assert sha==expected,(key,sha)
               with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
-                  f.write(data); f.flush()
+                  f.write(data);f.flush()
                   with pdfplumber.open(f.name) as pdf:
-                      print(f'{key.upper()}_PAGES='+str(len(pdf.pages)))
-                      page_profile=[]
-                      widths=Counter(); all_rows=[]
+                      profile=[]; all_ids=[]; all_dates=[]; updates=[]; section_pages={}
                       for pno,page in enumerate(pdf.pages,1):
-                          tables=page.find_tables()
-                          trows=[]
-                          for table in tables:
-                              extracted=table.extract() or []
-                              rows=[[clean(c) for c in r] for r in extracted if any(clean(c) for c in r)]
-                              trows.extend(rows)
-                              for row in rows:
-                                  widths[len(row)]+=1
-                                  all_rows.append((pno,row))
-                          page_profile.append({'page':pno,'tables':len(tables),'rows':len(trows),'widths':sorted(set(map(len,trows)))})
-                      print(f'{key.upper()}_PAGE_PROFILE='+json.dumps(page_profile,ensure_ascii=False))
-                      print(f'{key.upper()}_WIDTH_COUNTS='+json.dumps(dict(widths),sort_keys=True))
-                      sample=all_rows[:8]+all_rows[-8:] if len(all_rows)>16 else all_rows
-                      print(f'{key.upper()}_ROW_SAMPLE='+json.dumps(sample,ensure_ascii=False))
-                      maxw=max(widths) if widths else 0
-                      cols=[]
-                      for col in range(maxw):
-                          vals=Counter(clean(r[col]) for _,r in all_rows if len(r)>col and clean(r[col]))
-                          cols.append({'col':col,'nonempty':sum(vals.values()),'common':vals.most_common(12)})
-                      print(f'{key.upper()}_COLUMN_PROFILE='+json.dumps(cols,ensure_ascii=False))
-                      for pno in sorted({1,len(pdf.pages)}):
-                          txt=clean(pdf.pages[pno-1].extract_text() or '')
-                          print(f'{key.upper()}_PAGE_{pno}_TEXT='+txt[:2500])
+                          text=page.extract_text(x_tolerance=2,y_tolerance=2) or ''
+                          ids=ID11.findall(text)+ID16.findall(text.upper())
+                          dates=DATE.findall(text)
+                          upd=len(re.findall(r'In\s+aggiornamento',text,re.I))
+                          secs=[]
+                          for m in re.finditer(r'Sezione\s+([IVXLCDM]+|\d+)',text,re.I):
+                              s=m.group(1).upper()
+                              if s not in secs:secs.append(s)
+                          profile.append({'page':pno,'ids':len(ids),'dates':len(dates),'updates':upd,'sections':secs,'lines':len(text.splitlines())})
+                          all_ids.extend((pno,x) for x in ids);all_dates.extend((pno,x) for x in dates);updates.extend([pno]*upd)
+                          for s in secs:section_pages.setdefault(s,[]).append(pno)
+                      print(key.upper()+'_PROFILE='+json.dumps(profile,ensure_ascii=False))
+                      print(key.upper()+'_TOTAL_IDS='+str(len(all_ids)))
+                      print(key.upper()+'_UNIQUE_IDS='+str(len(set(v for _,v in all_ids))))
+                      print(key.upper()+'_TOTAL_DATES='+str(len(all_dates)))
+                      print(key.upper()+'_UPDATE_MARKERS='+str(len(updates)))
+                      print(key.upper()+'_SECTION_PAGES='+json.dumps(section_pages,ensure_ascii=False,sort_keys=True))
+                      print(key.upper()+'_DUPLICATE_IDS='+json.dumps(Counter(v for _,v in all_ids).most_common(30),ensure_ascii=False))
+                      sample_pages=sorted(set([1,2,len(pdf.pages),20 if len(pdf.pages)>=20 else 1,62 if len(pdf.pages)>=62 else 1]))
+                      for pno in sample_pages:
+                          page=pdf.pages[pno-1]
+                          words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                          anchors=[]
+                          for w in words:
+                              t=w['text'].strip().upper()
+                              if ID11.fullmatch(t) or ID16.fullmatch(t) or DATE.fullmatch(t) or t in {'IN','AGGIORNAMENTO'}:
+                                  anchors.append({'text':w['text'],'x0':round(w['x0'],1),'x1':round(w['x1'],1),'top':round(w['top'],1),'bottom':round(w['bottom'],1)})
+                          print(f'{key.upper()}_PAGE_{pno}_ANCHORS='+json.dumps(anchors,ensure_ascii=False))
+                          lines=(page.extract_text(x_tolerance=2,y_tolerance=2) or '').splitlines()
+                          print(f'{key.upper()}_PAGE_{pno}_LINES='+json.dumps(lines[:20]+(['...'] if len(lines)>40 else [])+lines[-20:],ensure_ascii=False))
           PY
