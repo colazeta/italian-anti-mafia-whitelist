@@ -1,0 +1,87 @@
+name: Diagnose Agrigento maximal logical rows
+
+on:
+  push:
+    branches:
+      - expansion/agrigento-2026-09-10
+    paths:
+      - '.github/workflows/agrigento-maximal-row-diagnose.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/agrigento-2026-09-10
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Count maximal ruled-row intervals only
+        run: |
+          python - <<'PY'
+          import hashlib,tempfile
+          from collections import Counter,defaultdict
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          import pdfplumber
+          from white_list_archive.parsers.agrigento_positioned import _APPLICANT_BANDS,_LISTED_BANDS,_main_table,_row_vertical_bounds,_values
+
+          src={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf','23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81',_LISTED_BANDS,63),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf','cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9',_APPLICANT_BANDS,16),
+          }
+          H={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+Agrigento maximal-row diagnosis)'}
+          for pop,(url,sha,bands,pages_expected) in src.items():
+            with urlopen(Request(url,headers=H),timeout=90) as r: body=r.read()
+            assert hashlib.sha256(body).hexdigest()==sha
+            records=[]; nested=0; perpage=[]
+            with tempfile.TemporaryDirectory() as td:
+              p=Path(td)/(pop+'.pdf');p.write_bytes(body)
+              with pdfplumber.open(p) as pdf:
+                assert len(pdf.pages)==pages_expected
+                for pn,page in enumerate(pdf.pages,1):
+                  if pn==1: perpage.append(0); continue
+                  words=page.extract_words(use_text_flow=False,keep_blank_chars=False,x_tolerance=1,y_tolerance=2)
+                  table=_main_table(page,page_number=pn,population=pop)
+                  candidates=[]
+                  for ri,row in enumerate(table.rows):
+                    b=_row_vertical_bounds(row)
+                    if b is not None: candidates.append((ri,b))
+                  maximal=[]
+                  for ri,b in candidates:
+                    contained=False
+                    for rj,c in candidates:
+                      if ri==rj: continue
+                      if c[0] <= b[0]+0.05 and c[1] >= b[1]-0.05 and (c[0] < b[0]-0.05 or c[1] > b[1]+0.05):
+                        contained=True;break
+                    if contained:
+                      nested+=1;continue
+                    maximal.append((ri,b))
+                  before=len(records)
+                  for ri,b in maximal:
+                    v=_values(words,bands,*b)
+                    name=v['name']
+                    if not name or 'ragione sociale' in name.casefold(): continue
+                    if not v['office']: continue
+                    if pop=='listed' and not v['activity']: continue
+                    records.append({'page':pn,'row':ri,**v})
+                  perpage.append(len(records)-before)
+            print(pop.upper(),'MAXIMAL_RECORDS=',len(records),'NESTED_SKIPPED=',nested,'PER_PAGE=',perpage)
+            ids=defaultdict(list)
+            for r in records:
+              if r['identifier']: ids[r['identifier']].append(r)
+            dup={k:v for k,v in ids.items() if len(v)>1}
+            print(pop.upper(),'DUPLICATE_IDS=',len(dup))
+            for k,v in list(dup.items())[:20]: print(pop.upper(),'DUP',k,[(x['page'],x['row'],x['name'],x.get('application',''),x.get('listing',''),x.get('outcome','')) for x in v])
+            if pop=='applicants':
+              print('APPLICANT_OUTCOMES=',Counter(r['outcome'] for r in records))
+              print('APPLICANT_BLANK_OUTCOME=',[(r['page'],r['row'],r['name'],r['identifier'],r['application']) for r in records if 'istruttoria' not in r['outcome'].casefold()])
+            else:
+              print('LISTED_BLANK_LISTING=',sum(not r['listing'] for r in records),'BLANK_EXPIRY=',sum(not r['expiry'] for r in records),'UPDATE=',sum(bool(r['update']) for r in records))
+          PY
