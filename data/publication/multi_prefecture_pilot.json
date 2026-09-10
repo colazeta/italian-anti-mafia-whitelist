@@ -270,6 +270,23 @@
       "last_source_update": "2026-09-01",
       "last_source_update_basis": "dated official attachment label and resource filename",
       "notes": "The dedicated official applicant page explicitly identifies this population as companies requesting White List registration. The approved parser recovers 244 complete positioned rows anchored on the source application date. Applicant observations remain pending; no final legal outcome is inferred from the absence of a separate outcome field."
+    },
+    {
+      "source_key": "pesaro-urbino-combined",
+      "parser": "pesaro_urbino_combined",
+      "authority_key": "pesaro-e-urbino",
+      "authority_name": "Prefettura di Pesaro e Urbino",
+      "register_key": "pesaro-urbino-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/72/2026-08/elenco-wl-ditte-iscritte-31.08.2026.pdf",
+      "sha256": "7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a",
+      "expected_source_rows": 484,
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "dated official attachment label, document heading and official page update",
+      "notes": "The official page and current PDF explicitly describe a combined population of enrolled companies and companies requesting enrolment. The table exposes row-level listing dates and an explicit Aggiornamento in corso marker, but no separate applicant flag. The parser therefore maps only source-explicit row signals: date-pair rows without X are listed; X rows are renewal_update_in_progress; no pending/applicant status is inferred from blank dates. Two dot-separated date pairs are normalised without changing digits; compound non-canonical identifiers remain raw; one blank section remains an empty activity list."
     }
   ]
 }

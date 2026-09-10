@@ -69,6 +69,59 @@ def _alias_inputs(
     return verified_out, series_out
 
 
+def _alias_publication_config(config: dict, aliases: Path) -> dict:
+    """Add national-index authority-key views for index publication status only.
+
+    The registry itself remains keyed to the canonical project authority.  The
+    national index, however, derives authority keys from Ministry URLs, which
+    can legitimately differ (for example ``pesaro-urbino`` versus the canonical
+    ``pesaro-e-urbino``).  Duplicate source views here let the Prefecture index
+    recognise an already-published canonical source without changing registry
+    identity or source provenance.
+    """
+    sources = list(config["sources"])
+    for alias in _read_rows(aliases):
+        national_key = alias["national_index_key"]
+        catalog_key = alias["catalog_authority_key"]
+        matches = [source for source in config["sources"] if source["authority_key"] == catalog_key]
+        if not matches:
+            continue
+        if any(source["authority_key"] == national_key for source in sources):
+            continue
+        for source in matches:
+            alias_source = dict(source)
+            alias_source["authority_key"] = national_key
+            sources.append(alias_source)
+    return {**config, "sources": sources}
+
+
+def _canonicalise_prefecture_authority_keys(prefectures: dict, aliases: Path) -> dict:
+    """Return the public directory with project-canonical authority identities.
+
+    Ministry URL slugs are discovery identities, not canonical project keys.
+    Once the alias has been explicitly evidenced, the directory must expose the
+    same authority key as the public registry so aggregate and row identities
+    cannot silently diverge.  Jurisdiction labels and official URLs are kept
+    unchanged.
+    """
+    alias_map = {
+        row["national_index_key"]: row["catalog_authority_key"]
+        for row in _read_rows(aliases)
+    }
+    rows = []
+    seen: set[str] = set()
+    for source_row in prefectures["prefectures"]:
+        row = dict(source_row)
+        row["authority_key"] = alias_map.get(row["authority_key"], row["authority_key"])
+        if row["authority_key"] in seen:
+            raise RuntimeError(
+                f"Authority alias collision in public Prefecture directory: {row['authority_key']}"
+            )
+        seen.add(row["authority_key"])
+        rows.append(row)
+    return {**prefectures, "prefectures": rows}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build public national registry and Prefecture index with explicit source/canonical authority aliases"
@@ -93,7 +146,15 @@ def main(argv: list[str] | None = None) -> int:
             Path(tmp),
         )
         registry = build_registry(config, args.work_dir)
-        prefectures = build_prefecture_index(config, verified, series)
+        prefectures = build_prefecture_index(
+            _alias_publication_config(config, args.authority_aliases),
+            verified,
+            series,
+        )
+        prefectures = _canonicalise_prefecture_authority_keys(
+            prefectures,
+            args.authority_aliases,
+        )
 
     args.registry_json.parent.mkdir(parents=True, exist_ok=True)
     args.registry_json.write_text(

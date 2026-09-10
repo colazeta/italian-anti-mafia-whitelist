@@ -20,6 +20,7 @@ from white_list_archive.parsers.cosenza_combined_v2 import parse_pdf as parse_co
 from white_list_archive.parsers.multi_prefecture_tables import PARSERS, ParsedBatch
 from white_list_archive.parsers.arezzo_openxml import PARSERS as AREZZO_PARSERS
 from white_list_archive.parsers.avellino_positioned import PARSERS as AVELLINO_PARSERS
+from white_list_archive.parsers.pesaro_urbino_combined import PARSERS as PESARO_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -126,6 +127,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         PARSERS.get(cfg["parser"])
         or AREZZO_PARSERS.get(cfg["parser"])
         or AVELLINO_PARSERS.get(cfg["parser"])
+        or PESARO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")

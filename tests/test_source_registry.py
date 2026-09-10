@@ -34,11 +34,26 @@ def test_territorial_authority_seed_is_complete_and_unique():
 def test_verified_primary_pages_reference_seeded_authorities():
     authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
     pages = _read_csv("verified_primary_pages.csv")
-    assert len(pages) == 34
+    assert len(pages) == 35
     assert len({row["authority_key"] for row in pages}) == len(pages)
     assert {row["authority_key"] for row in pages} <= authorities
     assert all(row["verification_status"] == "verified" for row in pages)
     assert all(row["landing_url"].startswith("https://") for row in pages)
+
+
+def test_national_index_authority_aliases_reference_seeded_and_verified_catalog_keys():
+    authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
+    verified = {row["authority_key"] for row in _read_csv("verified_primary_pages.csv")}
+    aliases = _read_csv("national_index_authority_aliases.csv")
+
+    assert len({row["national_index_key"] for row in aliases}) == len(aliases)
+    assert all(row["national_index_key"] and row["catalog_authority_key"] and row["reason"] for row in aliases)
+    assert {row["catalog_authority_key"] for row in aliases} <= authorities
+    assert {row["catalog_authority_key"] for row in aliases} <= verified
+    assert any(
+        row["national_index_key"] == "pesaro-urbino" and row["catalog_authority_key"] == "pesaro-e-urbino"
+        for row in aliases
+    )
 
 
 def test_pilot_profiles_are_diverse_and_reference_verified_pages():
