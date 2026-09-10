@@ -28,7 +28,7 @@ jobs:
 
           sources={
             'listed':('https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte','a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01',734,parse_listed),
-            'applicant':('https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti','7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac',202,parse_applicants),
+            'applicant':('https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti','7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac',204,parse_applicants),
           }
           class L(html.parser.HTMLParser):
             def __init__(self): super().__init__(); self.links=[]; self.h=None; self.t=[]
