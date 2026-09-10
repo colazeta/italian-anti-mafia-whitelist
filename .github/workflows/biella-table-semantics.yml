@@ -1,0 +1,68 @@
+name: Biella table semantics
+
+on:
+  push:
+    branches:
+      - expansion/biella-source-audit-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Inspect official Biella table semantics
+        run: |
+          python -m pip install -q requests beautifulsoup4
+          python - <<'PY'
+          import collections, json, re
+          from datetime import datetime
+          import requests
+          from bs4 import BeautifulSoup
+
+          URL='https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list'
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          def clean(v): return ' '.join(str(v or '').replace('\u00a0',' ').split())
+          r=requests.get(URL,headers=H,timeout=45); r.raise_for_status(); soup=BeautifulSoup(r.text,'html.parser')
+          visible=clean(' '.join(soup.stripped_strings))
+          for pat in [r'aggiornat.{0,80}',r'ultimo aggiornamento.{0,80}',r'\b\d{1,2}[./-]\d{1,2}[./-]20\d{2}\b']:
+              hits=re.findall(pat,visible,re.I)
+              print('VISIBLE_PATTERN',pat,repr(hits[:30]))
+          for tno,table in enumerate(soup.find_all('table'),1):
+              rows=[]
+              for ridx,tr in enumerate(table.find_all('tr')):
+                  cells=[clean(c.get_text(' ',strip=True)) for c in tr.find_all(['th','td'])]
+                  if any(cells): rows.append((ridx,cells))
+              print(f'===TABLE {tno}===')
+              print('ROWS',len(rows))
+              widths=collections.Counter(len(cells) for _,cells in rows); print('WIDTHS',dict(widths))
+              data=[]
+              if tno==1:
+                  for ridx,c in rows:
+                      if len(c)==8 and re.fullmatch(r'\d{11}|[A-Z0-9]{16}',re.sub(r'\s+','',c[3].upper())):
+                          data.append((ridx,c))
+                  print('DATA',len(data))
+                  print('STATUSES',dict(collections.Counter(c[6] for _,c in data)))
+                  print('MISSING_DATE',sum(not c[5] for _,c in data))
+                  print('BAD_DATE',[(i,c) for i,c in data if c[5] and not re.fullmatch(r'\d{2}/\d{2}/\d{4}',c[5])][:20])
+                  print('DATES_MAX_SAMPLE',sorted([c[5] for _,c in data if re.fullmatch(r'\d{2}/\d{2}/\d{4}',c[5])], key=lambda x: datetime.strptime(x,'%d/%m/%Y'), reverse=True)[:20])
+                  for status in sorted(set(c[6] for _,c in data)):
+                      ex=[c for _,c in data if c[6]==status][:5]
+                      print('STATUS_EXAMPLES',repr(status),json.dumps(ex,ensure_ascii=False))
+              elif tno==2:
+                  for ridx,c in rows:
+                      if len(c)==7 and re.fullmatch(r'\d{11}|[A-Z0-9]{16}',re.sub(r'\s+','',c[3].upper())):
+                          data.append((ridx,c))
+                  print('DATA',len(data))
+                  print('COL6',dict(collections.Counter(c[6] for _,c in data)))
+                  print('MISSING_LIST_DATE',sum(not c[4] for _,c in data),'MISSING_EXPIRY',sum(not c[5] for _,c in data))
+                  print('DATE_FORMATS',dict(collections.Counter('dd-mon-yy' if re.fullmatch(r'\d{1,2}-[A-Za-z]{3}-\d{2}',c[4]) else 'other' for _,c in data)))
+                  print('ROW_EXAMPLES',json.dumps([c for _,c in data[:10]],ensure_ascii=False))
+                  print('LAST_EXAMPLES',json.dumps([c for _,c in data[-10:]],ensure_ascii=False))
+          PY
