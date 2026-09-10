@@ -16,88 +16,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Profile current official Ancona publication
+      - name: Inspect ambiguous current Ancona rows
         shell: bash
         run: |
           set -euo pipefail
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
           RESOURCE='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf'
-          UA='italian-anti-mafia-whitelist/0.1 (+source verification)'
-          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.html "$PAGE"
-          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.pdf "$RESOURCE"
-          echo '=== IDENTITIES ==='
-          sha256sum /tmp/ancona.html /tmp/ancona.pdf
-          stat -c 'PDF_BYTES=%s' /tmp/ancona.pdf
-          python - <<'PY'
-          from pathlib import Path
-          import html as h, re
-          raw=Path('/tmp/ancona.html').read_text(errors='replace')
-          plain=h.unescape(re.sub(r'<[^>]+>','\n',raw))
-          lines=[' '.join(x.split()) for x in plain.splitlines() if x.strip()]
-          for i,line in enumerate(lines):
-              if re.search(r'WL Elenco|Ultimo aggiornamento',line,re.I):
-                  print('PAGE_CONTEXT', ' | '.join(lines[max(0,i-2):min(len(lines),i+5)]))
-          PY
+          curl --fail --location --retry 2 --retry-delay 2 --user-agent 'italian-anti-mafia-whitelist/0.1 (+source verification)' --output /tmp/ancona.pdf "$RESOURCE"
           python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
-          from pathlib import Path
+          import pdfplumber
           from collections import Counter
-          import pdfplumber, re
-          p=Path('/tmp/ancona.pdf')
-          with pdfplumber.open(p) as pdf:
-              print('PAGES',len(pdf.pages))
-              all_rows=[]
-              page_counts=[]
-              table_counts=[]
-              widths=Counter()
-              headers=[]
-              for n,page in enumerate(pdf.pages,1):
-                  tables=page.extract_tables()
-                  table_counts.append(len(tables))
+          rows=[]
+          with pdfplumber.open('/tmp/ancona.pdf') as pdf:
+              for pno,page in enumerate(pdf.pages,1):
                   candidates=[]
-                  for table in tables:
-                      if not table: continue
-                      for row in table[:4]:
-                          joined=' | '.join(' '.join(str(x or '').split()) for x in row)
-                          if 'Ragione Sociale' in joined and 'Data iscrizione' in joined:
-                              candidates.append(table); break
-                  if len(candidates)!=1:
-                      print('PAGE_TABLE_ANOMALY',n,'tables',len(tables),'candidates',len(candidates))
-                      continue
+                  for table in page.extract_tables():
+                      if table and any('Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in r) and 'Data iscrizione' in ' | '.join(' '.join(str(x or '').split()) for x in r) for r in table[:4]):
+                          candidates.append(table)
+                  assert len(candidates)==1,(pno,len(candidates))
                   table=candidates[0]
-                  # Detect first row whose first cell is a company rather than header text.
-                  start=0
-                  for i,row in enumerate(table):
-                      joined=' '.join(' '.join(str(x or '').split()) for x in row)
-                      if i<5 and ('Ragione Sociale' in joined or 'Sede legale' in joined or 'Codice Fiscale' in joined):
-                          start=i+1
-                  rows=table[start:]
-                  rows=[r for r in rows if any(' '.join(str(x or '').split()) for x in r)]
-                  page_counts.append(len(rows)); all_rows.extend(rows)
-                  for r in rows: widths[len(r)]+=1
-                  if n<=2:
-                      print('PAGE',n,'START',start,'ROWS',len(rows),'HEADER_ROWS',[[' '.join(str(x or '').split()) for x in r] for r in table[:start]])
-                      for r in rows[:5]: print('SAMPLE',n,[' '.join(str(x or '').split()) for x in r])
-              print('TABLE_COUNTS',table_counts)
-              print('PAGE_ROW_COUNTS',page_counts)
-              print('TOTAL_ROWS',len(all_rows),'WIDTHS',dict(widths))
-              if not all_rows: raise SystemExit('no rows extracted')
-              # The current table has 9 semantic columns. Profile signals without assigning a legal state yet.
-              sig=Counter()
-              update_values=Counter(); app_values=[]; bad=[]
-              for i,r in enumerate(all_rows,1):
-                  vals=[' '.join(str(x or '').split()) for x in r]
-                  if len(vals)!=9:
-                      bad.append((i,len(vals),vals)); continue
-                  name,office,secondary,ident,listed,expiry,sections,update,application=vals
-                  key=(bool(listed),bool(expiry),bool(update),bool(application))
-                  sig[key]+=1
-                  if update: update_values[update]+=1
-                  if application: app_values.append(application)
-              print('SIGNAL_SHAPES',dict(sig))
-              print('UPDATE_VALUES',dict(update_values))
-              print('APPLICATION_COUNT',len(app_values),'UNIQUE_APPLICATION_FORMATS',Counter(app_values).most_common(20))
-              print('BAD_WIDTH_COUNT',len(bad)); print('BAD_WIDTH_SAMPLES',bad[:10])
-              text='\n'.join((page.extract_text() or '') for page in pdf.pages)
-              print('FOOTER_07_09_COUNT',text.count('Agg. al 07/09/2026'))
+                  for i,r in enumerate(table[1:],1):
+                      vals=[' '.join(str(x or '').split()) for x in r]
+                      if any(vals): rows.append((pno,i,vals))
+          print('TOTAL',len(rows))
+          for pno,i,v in rows:
+              name,office,secondary,ident,listed,expiry,sections,update,application=v
+              if update != '' and update != 'Richiesto rinnovo':
+                  print('NONSTANDARD_UPDATE',pno,i,v)
+              if not listed and not expiry and not update and not application:
+                  print('NO_STATE_SIGNAL',pno,i,v)
+              if listed and application:
+                  print('LISTED_PLUS_APPLICATION',pno,i,v)
           PY
