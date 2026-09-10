@@ -148,11 +148,11 @@ jobs:
           ac=base|{'source_key':'bari-applicants','population_scope':'applicant','resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-richieste-iscrizione_31-08-2026.pdf','sha256':'9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d'}
           lb=parse_bari_listed(Path('/tmp/bari-listed.pdf'),lc); ab=parse_bari_applicants(Path('/tmp/bari-applicants.pdf'),ac)
           assert len(lb.records)==1065 and lb.diagnostics['status_counts']=={'listed':754,'renewal_update_in_progress':311}
-          assert len(ab.records)==605 and ab.diagnostics['status_counts']=={'pending':605}
+          assert len(ab.records)==605 and ab.diagnostics['status_counts']=={'pending':605} and ab.diagnostics['blank_section_rows']==1
           assert [r for r in ab.records if r['source_page_url']==ac['source_page_url'] and not r['name']]
           roadtek=[r for r in lb.records if r['name']=='ROADTEK SRLS']; assert len(roadtek)==1 and roadtek[0]['identifiers']==[]
           innovatec=[r for r in ab.records if r['name']=='INNOVATEC SRL']; assert len(innovatec)==1
-          assert innovatec[0]['requested_activities']==[] and innovatec[0]['source_fields']['sector_unmarked_in_source'] is True
+          assert innovatec[0]['requested_activities']==[]
           print('Bari parser validation:',lb.diagnostics,ab.diagnostics)
           PY
           pytest -q
