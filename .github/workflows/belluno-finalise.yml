@@ -6,6 +6,7 @@ on:
       - expansion/belluno-final-2026-09-10
     paths:
       - '.github/workflows/belluno-finalise.yml'
+      - '.tmp/belluno_finalise.py'
   workflow_dispatch:
 
 permissions:
