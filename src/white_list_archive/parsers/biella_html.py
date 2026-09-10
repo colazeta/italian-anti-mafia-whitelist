@@ -9,7 +9,7 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-_PARSER_VERSION = "1"
+_PARSER_VERSION = "2"
 _APPLICANT_TITLE = "ELENCO DELLE IMPRESE RICHIEDENTI L'ISCRIZIONE"
 _LISTED_TITLE = "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI"
 _APPLICANT_HEADER = (
@@ -257,11 +257,6 @@ def parse_biella_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 name=row[0], office=row[1], secondary=row[2], identifier_raw=row[3],
                 activities=[activity] if activity else [], status=status, outcome_raw=row[6],
                 application_date=application_date, primary_date_label="Data presentazione istanza",
-                source_fields={
-                    "application_date_raw": _clean(row[5]),
-                    "outcome_raw": _clean(row[6]),
-                    "source_table": "applicants",
-                },
             )
         )
     diagnostics = {
@@ -329,12 +324,13 @@ def parse_biella_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         group = grouped.setdefault(key, {
             "row": row, "listing_date": listing_date, "expiry_date": expiry_date, "status": status,
             "sections": [], "activities": [], "offices": [], "secondary_offices": [],
-            "identifier_raw_variants": [], "source_row_count": 0,
+            "listing_date_raw_variants": [], "expiry_date_raw_variants": [], "source_row_count": 0,
         })
         group["source_row_count"] += 1
         for field, value in (
             ("sections", section), ("activities", activity), ("offices", row[1]),
-            ("secondary_offices", row[2]), ("identifier_raw_variants", row[3]),
+            ("secondary_offices", row[2]), ("listing_date_raw_variants", row[4]),
+            ("expiry_date_raw_variants", row[5]),
         ):
             value = _clean(value)
             if value and value not in group[field]:
@@ -351,12 +347,15 @@ def parse_biella_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 identifier_raw=row[3], activities=group["activities"], status=group["status"], outcome_raw=row[6],
                 listing_date=group["listing_date"], expiry_date=group["expiry_date"], primary_date_label="Data iscrizione",
                 source_fields={
-                    "sections": group["sections"], "registered_office_variants": group["offices"],
+                    "sections": group["sections"],
+                    "registered_office_variants": group["offices"],
                     "secondary_office_variants": group["secondary_offices"],
-                    "identifier_raw_variants": group["identifier_raw_variants"],
-                    "listing_date_raw": _clean(row[4]), "expiry_date_raw": _clean(row[5]),
-                    "update_marker_raw": _clean(row[6]), "source_sector_row_count": group["source_row_count"],
-                    "source_table": "listed",
+                    "listing_date_raw_variants": group["listing_date_raw_variants"],
+                    "expiry_date_raw_variants": group["expiry_date_raw_variants"],
+                    "normalised_listing_date_variants": [group["listing_date"]],
+                    "normalised_expiry_date_variants": [group["expiry_date"]] if group["expiry_date"] else [],
+                    "date_conflict_fields": [],
+                    "malformed_date_pairs": [],
                 },
             )
         )
