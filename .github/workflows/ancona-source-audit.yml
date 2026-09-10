@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect blank-name source evidence
+      - name: Resolve split-row geometry
         shell: bash
         run: |
           set -euo pipefail
@@ -25,15 +25,19 @@ jobs:
           python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
           import pdfplumber
-          targets={2:['00733460422','02809800424'],3:['01479620427'],8:['07898760637'],13:['02272920428'],21:['27/08/2026','02557530421']}
+          target_pages={2,3,8,13,21}
           with pdfplumber.open('/tmp/ancona.pdf') as pdf:
-              for pno,needles in targets.items():
-                  text=pdf.pages[pno-1].extract_text(x_tolerance=2,y_tolerance=3) or ''
-                  lines=text.splitlines()
-                  print('=== PAGE',pno,'===')
-                  for i,line in enumerate(lines):
-                      if any(n in line.replace(' ','') or n in line for n in needles):
-                          for j in range(max(0,i-2),min(len(lines),i+3)):
-                              print(f'{j:03d}',lines[j])
-                          print('---')
+              for pno in sorted(target_pages):
+                  page=pdf.pages[pno-1]
+                  cand=[]
+                  for table in page.extract_tables():
+                      if table and table[0] and 'Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in table[0]): cand.append(table)
+                  assert len(cand)==1
+                  rows=[[' '.join(str(x or '').split()) for x in r] for r in cand[0][1:]]
+                  blank_indexes=[i for i,r in enumerate(rows) if any(r) and not r[0]]
+                  print('=== PAGE',pno,'BLANK INDEXES',blank_indexes,'===')
+                  for i in blank_indexes:
+                      for j in range(max(0,i-2),min(len(rows),i+3)):
+                          print('ROW',j+1,rows[j])
+                      print('---')
           PY
