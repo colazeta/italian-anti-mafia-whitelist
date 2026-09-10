@@ -66,11 +66,25 @@ def test_no_status_signal_remains_unknown():
     assert record["source_status"] == "other_or_unknown"
 
 
-def test_incomplete_or_invalid_source_date_pair_fails_closed():
+def test_incomplete_or_unreviewed_invalid_source_date_pair_fails_closed():
     with pytest.raises(RuntimeError, match="structurally incomplete"):
         _record_from_cells(_row(expiry=""), CFG, 1)
     with pytest.raises(RuntimeError, match="invalid listing source date"):
         _record_from_cells(_row(listing="31/02/2026"), CFG, 1)
+
+
+def test_reviewed_malformed_source_dates_are_preserved_but_never_repaired():
+    listed = _contract_record(_row(expiry="05/08/207"))
+    assert listed["source_status"] == "listed"
+    assert listed["observed_expiry_date"] == ""
+    assert listed["source_fields"]["expiry_date_raw_variants"] == ["05/08/207"]
+    assert listed["source_fields"]["malformed_date_pairs"] == ["expiry:05/08/207"]
+
+    applicant = _contract_record(_row(listing="", expiry="", application="0202/2026"))
+    assert applicant["source_status"] == "pending"
+    assert applicant["application_date"] == ""
+    assert applicant["primary_date_label"] == "Data presentazione istanza"
+    assert applicant["source_fields"]["malformed_date_pairs"] == ["application:0202/2026"]
 
 
 def test_sections_accept_only_source_roman_codes():
