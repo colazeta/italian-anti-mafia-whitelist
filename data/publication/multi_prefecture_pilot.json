@@ -287,6 +287,42 @@
       "last_source_update": "2026-08-31",
       "last_source_update_basis": "dated official attachment label, document heading and official page update",
       "notes": "The official page and current PDF explicitly describe a combined population of enrolled companies and companies requesting enrolment. The table exposes row-level listing dates and an explicit Aggiornamento in corso marker, but no separate applicant flag. The parser therefore maps only source-explicit row signals: date-pair rows without X are listed; X rows are renewal_update_in_progress; no pending/applicant status is inferred from blank dates. Two dot-separated date pairs are normalised without changing digits; compound non-canonical identifiers remain raw; one blank section remains an empty activity list."
+    },
+    {
+      "source_key": "biella-listed",
+      "parser": "biella_html_listed",
+      "authority_key": "biella",
+      "authority_name": "Prefettura di Biella",
+      "register_key": "biella-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-08-26",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+      "sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53",
+      "expected_sector_rows": 234,
+      "expected_source_rows": 130,
+      "last_source_update": "2026-08-26",
+      "last_source_update_basis": "official page Ultimo aggiornamento timestamp and byte-pinned HTML",
+      "notes": "The current official landing HTML contains the listed-company table organised across ten White List sections. The parser groups only repeated source rows sharing conservatively normalised identity, listing date, expiry date and mapped source status; conflicting date tuples remain separate. Italian textual/numeric source dates are parsed without changing digits, non-canonical identifiers remain raw, and the single blank expiry is preserved."
+    },
+    {
+      "source_key": "biella-applicants",
+      "parser": "biella_html_applicants",
+      "authority_key": "biella",
+      "authority_name": "Prefettura di Biella",
+      "register_key": "biella-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-08-26",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+      "sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53",
+      "expected_sector_rows": 109,
+      "expected_source_rows": 109,
+      "last_source_update": "2026-08-26",
+      "last_source_update_basis": "official page Ultimo aggiornamento timestamp and byte-pinned HTML",
+      "notes": "The current official landing HTML explicitly labels the applicant population and exposes requested activity, application date and outcome. Only source-explicit outcomes are mapped: iscritto/iscritta to listed, update markers to renewal_update_in_progress, and blank/in lavorazione to pending. Two non-canonical identifiers and one blank application date remain raw/blank rather than reconstructed."
     }
   ]
 }
