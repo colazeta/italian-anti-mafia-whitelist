@@ -24,8 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install test and publication runtime
-        run: python -m pip install -e '.[dev,publication]'
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev,publication,database,storage]'
       - name: Run repository tests
         run: python -m pytest -q
       - name: Validate pinned Belluno source
