@@ -323,6 +323,40 @@
       "last_source_update": "2026-08-26",
       "last_source_update_basis": "official page Ultimo aggiornamento timestamp and byte-pinned HTML",
       "notes": "The current official landing HTML explicitly labels the applicant population and exposes requested activity, application date and outcome. Only source-explicit outcomes are mapped: iscritto/iscritta to listed, update markers to renewal_update_in_progress, and blank/in lavorazione to pending. Two non-canonical identifiers and one blank application date remain raw/blank rather than reconstructed."
+    },
+    {
+      "source_key": "benevento-listed",
+      "parser": "benevento_listed",
+      "authority_key": "benevento",
+      "authority_name": "Prefettura di Benevento",
+      "register_key": "benevento-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-iscritte-31-08-2026.pdf",
+      "sha256": "a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01",
+      "expected_source_rows": 734,
+      "last_source_update": "2026-09-01",
+      "last_source_update_basis": "official page update and dated attachment label",
+      "notes": "The official source explicitly identifies the listed-company population at 31 August 2026. The PDF table can merge visually distinct company observations under generic extraction; the approved parser uses ruled-table geometry and the source listing-date column as row anchors. Names, offices, activities and identifiers are read only from their source column bands. Two listed rows have an empty raw identifier cell and other non-canonical identifiers remain raw; one malformed expiry value is retained as a raw source variant and is not repaired. Free-text update material is preserved without changing source-population status."
+    },
+    {
+      "source_key": "benevento-applicants",
+      "parser": "benevento_applicants",
+      "authority_key": "benevento",
+      "authority_name": "Prefettura di Benevento",
+      "register_key": "benevento-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-richiedenti-31-08-2026.pdf",
+      "sha256": "7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac",
+      "expected_source_rows": 204,
+      "last_source_update": "2026-09-01",
+      "last_source_update_basis": "official page update and dated attachment label",
+      "notes": "The official source explicitly identifies companies requesting enrolment at 31 August 2026. Position-aware recovery yields 204 complete name/office/activity observations from primary application-date anchors inside the ruled table, preventing distinct visual rows from being collapsed by generic extraction. Applicant rows are published as pending only; no legal or procedural outcome is inferred from blank or free-text cells. One source row has an empty raw identifier and other non-canonical identifiers remain unmodified."
     }
   ]
 }
