@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect ambiguous current Ancona rows
+      - name: Audit source row boundaries
         shell: bash
         run: |
           set -euo pipefail
@@ -25,26 +25,21 @@ jobs:
           python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
           import pdfplumber
-          from collections import Counter
           rows=[]
           with pdfplumber.open('/tmp/ancona.pdf') as pdf:
               for pno,page in enumerate(pdf.pages,1):
-                  candidates=[]
+                  cand=[]
                   for table in page.extract_tables():
-                      if table and any('Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in r) and 'Data iscrizione' in ' | '.join(' '.join(str(x or '').split()) for x in r) for r in table[:4]):
-                          candidates.append(table)
-                  assert len(candidates)==1,(pno,len(candidates))
-                  table=candidates[0]
-                  for i,r in enumerate(table[1:],1):
-                      vals=[' '.join(str(x or '').split()) for x in r]
-                      if any(vals): rows.append((pno,i,vals))
-          print('TOTAL',len(rows))
-          for pno,i,v in rows:
-              name,office,secondary,ident,listed,expiry,sections,update,application=v
-              if update != '' and update != 'Richiesto rinnovo':
-                  print('NONSTANDARD_UPDATE',pno,i,v)
-              if not listed and not expiry and not update and not application:
-                  print('NO_STATE_SIGNAL',pno,i,v)
-              if listed and application:
-                  print('LISTED_PLUS_APPLICATION',pno,i,v)
+                      if table and table[0] and 'Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in table[0]): cand.append(table)
+                  assert len(cand)==1,(pno,len(cand))
+                  for rno,row in enumerate(cand[0][1:],1):
+                      v=[' '.join(str(x or '').split()) for x in row]
+                      if any(v): rows.append((pno,rno,v))
+          blanks=[x for x in rows if not x[2][0]]
+          print('BLANK_NAMES',len(blanks))
+          for x in blanks: print('BLANK',x)
+          for pno,rno,v in rows:
+              if pno==3 and 20 <= rno <= 26: print('P3_CONTEXT',pno,rno,v)
+              if pno==15 and 20 <= rno <= 25: print('P15_CONTEXT',pno,rno,v)
+          print('BLANK_OFFICE',sum(not x[2][1] for x in rows),'BLANK_ID',sum(not x[2][3] for x in rows),'BLANK_SECTIONS',sum(not x[2][6] for x in rows))
           PY
