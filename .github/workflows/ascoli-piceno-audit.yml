@@ -22,62 +22,57 @@ jobs:
           python-version: '3.12'
       - name: Install publication runtime
         run: python -m pip install -e '.[publication]'
-      - name: Resolve and inspect current official sources
+      - name: Resolve and profile current official sources
         run: |
           python - <<'PY'
           from html.parser import HTMLParser
           from urllib.parse import urljoin
           from urllib.request import Request, urlopen
           from pathlib import Path
-          import hashlib, re, pdfplumber
+          from collections import Counter
+          import hashlib, json, re, pdfplumber
 
           landing = 'https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/elenco-iscritti-white-list'
           headers = {'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)'}
-
           def get(url):
               req = Request(url, headers=headers)
               with urlopen(req, timeout=45) as r:
                   body = r.read()
                   print('HTTP', r.status, url, 'bytes', len(body), 'sha256', hashlib.sha256(body).hexdigest())
                   return body
-
-          html = get(landing).decode('utf-8', errors='replace')
-          print('PAGE TITLE/DATE CONTEXT')
-          for line in re.sub(r'<[^>]+>', ' ', html).splitlines():
-              s = ' '.join(line.split())
-              if s and ('Aggiorn' in s or '2026' in s or 'White List' in s):
-                  print(s[:500])
-
           class Links(HTMLParser):
-              def __init__(self):
-                  super().__init__(); self.links=[]
+              def __init__(self): super().__init__(); self.links=[]
               def handle_starttag(self, tag, attrs):
                   if tag == 'a':
-                      a=dict(attrs); href=a.get('href')
+                      href=dict(attrs).get('href')
                       if href: self.links.append(href)
+
+          html=get(landing).decode('utf-8', errors='replace')
           p=Links(); p.feed(html)
           links=[]
           for href in p.links:
               u=urljoin(landing, href)
               if '.pdf' in u.lower() and u not in links: links.append(u)
-          print('PDF LINKS', len(links))
-          for u in links: print(u)
-
-          def pick(pattern):
-              matches=[u for u in links if re.search(pattern, u, re.I)]
-              if not matches: raise SystemExit('No match for '+pattern)
-              return matches[-1]
-
-          listed = pick(r'elenco-degli-iscritti\.pdf')
-          applicants = pick(r'elenco-dei-richiedenti.*iscrizione\.pdf')
-          for label, url in [('listed',listed),('applicants',applicants)]:
+          listed=[u for u in links if re.search(r'/elenco-degli-iscritti\.pdf$',u,re.I)][-1]
+          applicants=[u for u in links if re.search(r'/elenco-dei-richiedenti-l-iscrizione\.pdf$',u,re.I)][-1]
+          report={'landing':landing,'landing_sha256':hashlib.sha256(html.encode()).hexdigest(),'sources':{}}
+          for label,url,start_marker in [('listed',listed,'Ragione Sociale:'),('applicants',applicants,'Azienda:')]:
               data=get(url); path=Path('/tmp')/f'{label}.pdf'; path.write_bytes(data)
-              print('SOURCE', label, url, hashlib.sha256(data).hexdigest())
               with pdfplumber.open(path) as pdf:
-                  print('PAGES', label, len(pdf.pages))
-                  text='\n'.join((page.extract_text(x_tolerance=2, y_tolerance=3) or '') for page in pdf.pages)
-              lines=[x.rstrip() for x in text.splitlines() if x.strip()]
-              print('TEXT SAMPLE BEGIN', label)
-              for x in lines[:180]: print(x[:1000])
-              print('TEXT SAMPLE END', label, 'nonblank_lines', len(lines))
+                  page_text=[page.extract_text(x_tolerance=2,y_tolerance=3) or '' for page in pdf.pages]
+              text='\n'.join(page_text)
+              starts=sum(t.count(start_marker) for t in page_text)
+              dates=Counter(re.findall(r'Aggiornato al\s+(\d{2}/\d{2}/\d{4})',text,re.I))
+              statuses=Counter(re.findall(r'^STATO:\s*([^\n]+)',text,re.I|re.M))
+              outcomes=Counter(re.findall(r'^ESITO:\s*([^\n]*)',text,re.I|re.M))
+              ids=len(re.findall(r'(?i)CODICE FISCALE:\s*([^\n]+)',text)) if label=='listed' else len(re.findall(r'(?i)Codice fiscale:\s*([^\n]+)',text))
+              primary_dates=len(re.findall(r'DATA PROVVEDIMENTO\s*-\s*\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}',text,re.I)) if label=='listed' else len(re.findall(r'Data Presentazione Istanza:\s*\d{2}/\d{2}/\d{4}',text,re.I))
+              page_counts=[t.count(start_marker) for t in page_text]
+              report['sources'][label]={
+                  'url':url,'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data),'pages':len(page_text),
+                  'records_by_start_marker':starts,'date_headers':dict(dates),'status_counts':dict(statuses),
+                  'outcome_counts':dict(outcomes),'identifier_labels':ids,'primary_date_patterns':primary_dates,
+                  'page_record_counts':page_counts,
+              }
+          print('PROFILE_JSON='+json.dumps(report,ensure_ascii=False,sort_keys=True))
           PY
