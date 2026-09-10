@@ -1,0 +1,135 @@
+name: Belluno source audit
+
+on:
+  push:
+    branches:
+      - expansion/belluno-source-audit-2026-09-10
+    paths:
+      - .github/workflows/belluno-source-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser dependencies
+        run: python -m pip install -e .
+      - name: Resolve and inspect official Belluno source
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import io
+          import re
+          import urllib.request
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin
+          import pdfplumber
+          from docx import Document
+          from openpyxl import load_workbook
+
+          UA = 'italian-anti-mafia-whitelist/0.1 (+public source audit)'
+          landing = __import__('os').environ['LANDING_URL']
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.hrefs=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.casefold() == 'a':
+                      href=dict(attrs).get('href')
+                      if href:
+                          self.hrefs.append(href)
+
+          def fetch(url):
+              req=urllib.request.Request(url, headers={'User-Agent':UA,'Accept':'*/*'})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  body=r.read()
+                  return body, r.headers.get_content_type(), r.geturl(), r.headers.get('Content-Disposition','')
+
+          body, mime, final_url, disp = fetch(landing)
+          print('landing_url=', final_url)
+          print('landing_sha256=', hashlib.sha256(body).hexdigest())
+          print('landing_bytes=', len(body))
+          text=body.decode('utf-8','replace')
+          parser=Links(); parser.feed(text)
+          links=[]
+          for href in parser.hrefs:
+              absolute=urljoin(final_url,href)
+              folded=absolute.casefold()
+              if '/sites/default/files/' in folded or 'white' in folded:
+                  if absolute not in links:
+                      links.append(absolute)
+          print('candidate_links=', len(links))
+          for i,url in enumerate(links,1):
+              print(f'candidate[{i}]={url}')
+
+          attachment_candidates=[]
+          for url in links:
+              if '/sites/default/files/' not in url:
+                  continue
+              try:
+                  blob, ctype, resolved, cdisp=fetch(url)
+              except Exception as exc:
+                  print('attachment_fetch_error=',url,repr(exc))
+                  continue
+              sha=hashlib.sha256(blob).hexdigest()
+              head=blob[:8]
+              print('attachment_url=',resolved)
+              print('attachment_sha256=',sha)
+              print('attachment_bytes=',len(blob))
+              print('attachment_content_type=',ctype)
+              print('attachment_content_disposition=',cdisp)
+              print('attachment_magic=',head.hex())
+              attachment_candidates.append((resolved,blob,ctype))
+
+          if len(attachment_candidates) != 1:
+              raise SystemExit(f'Expected exactly one current Belluno White List attachment, found {len(attachment_candidates)}')
+
+          url,blob,ctype=attachment_candidates[0]
+          if blob.startswith(b'%PDF'):
+              with pdfplumber.open(io.BytesIO(blob)) as pdf:
+                  print('format=pdf')
+                  print('pages=',len(pdf.pages))
+                  all_text=[]
+                  for pno,page in enumerate(pdf.pages,1):
+                      t=page.extract_text() or ''
+                      all_text.append(t)
+                      print(f'page_{pno}_chars=',len(t))
+                  joined='\n'.join(all_text)
+                  print('text_chars=',len(joined))
+                  print('text_head=',re.sub(r'\s+',' ',joined[:2000]))
+                  dates=sorted(set(re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b',joined)))
+                  print('date_tokens_sample=',dates[:30])
+          elif blob.startswith(b'PK'):
+              try:
+                  wb=load_workbook(io.BytesIO(blob), data_only=True, read_only=True)
+              except Exception:
+                  doc=Document(io.BytesIO(blob))
+                  print('format=docx')
+                  print('paragraphs=',len(doc.paragraphs))
+                  print('tables=',len(doc.tables))
+                  for ti,table in enumerate(doc.tables[:5],1):
+                      print(f'table_{ti}_rows=',len(table.rows),'cols=',len(table.columns))
+                      for row in table.rows[:5]:
+                          print('row=',[c.text.strip() for c in row.cells])
+              else:
+                  print('format=xlsx')
+                  print('sheets=',wb.sheetnames)
+                  for ws in wb.worksheets:
+                      print('sheet=',ws.title,'max_row=',ws.max_row,'max_column=',ws.max_column)
+                      for row in list(ws.iter_rows(values_only=True))[:8]:
+                          print('row=',row)
+          else:
+              raise SystemExit(f'Unsupported attachment format/content type: {ctype} magic={blob[:16]!r}')
+          PY
