@@ -1,0 +1,69 @@
+name: Ancona source audit
+
+on:
+  push:
+    branches:
+      - expansion/ancona-2026-09-10
+    paths:
+      - .github/workflows/ancona-source-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve official Ancona publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
+          UA='italian-anti-mafia-whitelist/0.1 (+source verification)'
+          curl --fail --location --retry 2 --retry-delay 2 --user-agent "$UA" --output /tmp/ancona.html "$PAGE"
+          echo '=== PAGE SHA256 ==='
+          sha256sum /tmp/ancona.html
+          echo '=== PAGE TITLE / DATE / WHITE LIST CONTEXT ==='
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+          html=Path('/tmp/ancona.html').read_text(errors='replace')
+          text=re.sub(r'<script\b[^>]*>.*?</script>', ' ', html, flags=re.I|re.S)
+          text=re.sub(r'<style\b[^>]*>.*?</style>', ' ', text, flags=re.I|re.S)
+          text=re.sub(r'<[^>]+>', '\n', text)
+          text=re.sub(r'[ \t\r\f\v]+',' ',text)
+          text=re.sub(r'\n+','\n',text)
+          for line in text.splitlines():
+              if re.search(r'white\s*list|iscritt|richied|aggiornat|ultimo aggiornamento', line, re.I):
+                  print(line.strip())
+          print('=== OFFICIAL LINKS ===')
+          for m in re.finditer(r'href=["\']([^"\']+)["\']', html, re.I):
+              href=m.group(1)
+              if re.search(r'white|iscritt|richied|\.pdf|\.xlsx?|\.docx?', href, re.I):
+                  print(href)
+          PY
+          python - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import re, subprocess, hashlib
+          html=Path('/tmp/ancona.html').read_text(errors='replace')
+          base='https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list'
+          links=[]
+          for m in re.finditer(r'href=["\']([^"\']+)["\']', html, re.I):
+              href=urljoin(base,m.group(1))
+              if href.startswith('https://prefettura.interno.gov.it/') and re.search(r'\.pdf(?:$|\?)|\.xlsx?(?:$|\?)|\.docx?(?:$|\?)', href, re.I):
+                  if href not in links: links.append(href)
+          print('=== ATTACHMENT PROBES ===')
+          for i,url in enumerate(links,1):
+              p=f'/tmp/ancona-{i}'
+              cp=subprocess.run(['curl','--fail','--location','--retry','2','--retry-delay','2','--user-agent','italian-anti-mafia-whitelist/0.1 (+source verification)','--output',p,url],capture_output=True,text=True)
+              if cp.returncode:
+                  print('FAILED',url,cp.stderr[-500:])
+                  continue
+              data=Path(p).read_bytes()
+              print('URL',url)
+              print('BYTES',len(data),'SHA256',hashlib.sha256(data).hexdigest(),'MAGIC',data[:12])
+          PY
