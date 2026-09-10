@@ -1,0 +1,75 @@
+name: Diagnose Aosta mutable source drift
+
+on:
+  push:
+    branches:
+      - fix/aosta-source-drift-2026-09-10
+    paths:
+      - '.github/workflows/aosta-source-drift-diagnose.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Download last live-verified public registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/aosta-baseline
+          gh api \
+            -H 'Accept: application/vnd.github+json' \
+            /repos/${{ github.repository }}/actions/artifacts/10146014803/zip \
+            > /tmp/aosta-baseline/review.zip
+          unzip -q /tmp/aosta-baseline/review.zip -d /tmp/aosta-baseline/site
+          test -f /tmp/aosta-baseline/site/data/registry.json
+      - name: Compare current Aosta source semantics with live baseline
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          from white_list_archive.publishing.public_contract import public_record
+          from white_list_archive.publishing.public_national_registry import _download, _parse_source, _semantic_digest
+
+          config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
+          baseline = json.loads(Path('/tmp/aosta-baseline/site/data/registry.json').read_text(encoding='utf-8'))
+          baseline_records = baseline['records']
+
+          for key in ('aosta-listed', 'aosta-applicants'):
+              cfg = next(item for item in config['sources'] if item['source_key'] == key)
+              path = Path('/tmp') / f'{key}.pdf'
+              actual_sha = _download(cfg['resource_url'], path)
+              parse_cfg = dict(cfg)
+              parse_cfg['sha256'] = actual_sha
+              batch = _parse_source(path, parse_cfg)
+              current_public = [public_record(record) for record in batch.records]
+              old = [record for record in baseline_records if record['source_key'] == key]
+              old_semantic = _semantic_digest(old)
+              current_semantic = _semantic_digest(current_public)
+              print(json.dumps({
+                  'source_key': key,
+                  'approved_raw_sha256': cfg['sha256'],
+                  'current_raw_sha256': actual_sha,
+                  'old_records': len(old),
+                  'current_records': len(current_public),
+                  'old_semantic_sha256': old_semantic,
+                  'current_semantic_sha256': current_semantic,
+                  'semantic_equal': old_semantic == current_semantic,
+                  'diagnostics': batch.diagnostics,
+                  'old_status_counts': dict(Counter(r['source_status'] for r in old)),
+                  'current_status_counts': dict(Counter(r['source_status'] for r in current_public)),
+              }, ensure_ascii=False, sort_keys=True))
+          PY
