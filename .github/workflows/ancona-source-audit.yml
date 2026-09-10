@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve split-row geometry
+      - name: Audit all structural extraction anomalies
         shell: bash
         run: |
           set -euo pipefail
@@ -24,20 +24,22 @@ jobs:
           curl --fail --location --retry 2 --retry-delay 2 --user-agent 'italian-anti-mafia-whitelist/0.1 (+source verification)' --output /tmp/ancona.pdf "$RESOURCE"
           python -m pip install -q 'pdfplumber>=0.11,<0.12'
           python - <<'PY'
-          import pdfplumber
-          target_pages={2,3,8,13,21}
+          import pdfplumber,re
           with pdfplumber.open('/tmp/ancona.pdf') as pdf:
-              for pno in sorted(target_pages):
-                  page=pdf.pages[pno-1]
+              for pno,page in enumerate(pdf.pages,1):
                   cand=[]
                   for table in page.extract_tables():
                       if table and table[0] and 'Ragione Sociale' in ' | '.join(' '.join(str(x or '').split()) for x in table[0]): cand.append(table)
-                  assert len(cand)==1
-                  rows=[[' '.join(str(x or '').split()) for x in r] for r in cand[0][1:]]
-                  blank_indexes=[i for i,r in enumerate(rows) if any(r) and not r[0]]
-                  print('=== PAGE',pno,'BLANK INDEXES',blank_indexes,'===')
-                  for i in blank_indexes:
-                      for j in range(max(0,i-2),min(len(rows),i+3)):
-                          print('ROW',j+1,rows[j])
-                      print('---')
+                  assert len(cand)==1,(pno,len(cand))
+                  rows=[[' '.join(str(x or '').split()) for x in r] for r in cand[0][1:] if any(' '.join(str(x or '').split()) for x in r)]
+                  for rno,v in enumerate(rows,1):
+                      name,office,secondary,ident,listed,expiry,sections,update,application=v
+                      ids=re.findall(r'(?<!\d)\d{10,16}(?!\d)',ident.replace(' ',''))
+                      reasons=[]
+                      if not name: reasons.append('blank_name')
+                      if not office: reasons.append('blank_office')
+                      if not ident: reasons.append('blank_identifier')
+                      if not sections: reasons.append('blank_sections')
+                      if len(ids)>1: reasons.append('multiple_numeric_identifiers')
+                      if reasons: print('ANOMALY',pno,rno,','.join(reasons),v)
           PY
