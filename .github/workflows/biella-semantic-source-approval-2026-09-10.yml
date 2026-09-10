@@ -105,8 +105,8 @@ jobs:
               assert 'semantic_sha256' not in source
           biella = [r for r in reg['records'] if r['authority_key'] == 'biella']
           assert len(biella) == 239
-          assert sum(r['source_status'] == 'listed' for r in biella) == 130
-          assert sum(r['source_status'] == 'pending' for r in biella) == 109
+          assert sum(r['source_key'] == 'biella-listed' for r in biella) == 130
+          assert sum(r['source_key'] == 'biella-applicants' for r in biella) == 109
           assert all(r['capture_sha256'] for r in biella)
           print({'records': 8522, 'published_prefectures': 11, 'mapped_prefectures': 35, 'biella_records': len(biella)})
           PY
