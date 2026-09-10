@@ -6,10 +6,12 @@ from white_list_archive.parsers.bari_tables import (
     _APPLICANT_PAGE_COUNTS,
     _BAD_APPLICANT_DATES,
     _BAD_LISTED_DATES,
+    _EMPTY_SECTOR_ROWS,
     _LISTED_PAGE_COUNTS,
     _applicant_row_repair,
     _listed_row_repair,
     _listed_status,
+    _sections,
     _source_date,
     _strict_identifiers,
 )
@@ -38,6 +40,18 @@ def test_only_reviewed_malformed_dates_are_tolerated() -> None:
         _source_date("31.08.2026", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=1, row=1)
     with pytest.raises(RuntimeError, match="invalid calendar date"):
         _source_date("32/01/2026", allowlist=_BAD_LISTED_DATES, source_key="bari-listed", page=1, row=1)
+
+
+def test_exact_reviewed_applicant_row_may_preserve_absent_sector_marker() -> None:
+    assert _EMPTY_SECTOR_ROWS == {("bari-applicants", 8, 29)}
+    row = [""] * 18
+    sections, markers = _sections(row, source_key="bari-applicants", page=8, row_number=29)
+    assert sections == []
+    assert markers == [""] * 10
+    with pytest.raises(RuntimeError, match="no source-backed sector"):
+        _sections(row, source_key="bari-applicants", page=8, row_number=30)
+    with pytest.raises(RuntimeError, match="no source-backed sector"):
+        _sections(row, source_key="bari-listed", page=8, row_number=29)
 
 
 def test_split_rows_are_reconstructed_only_at_reviewed_coordinates() -> None:
