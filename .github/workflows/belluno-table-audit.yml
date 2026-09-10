@@ -1,0 +1,80 @@
+name: Belluno table audit
+
+on:
+  push:
+    branches:
+      - expansion/belluno-source-audit-2026-09-10
+    paths:
+      - .github/workflows/belluno-table-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install pdfplumber
+      - name: Inspect table extraction without mutating source data
+        env:
+          PDF_URL: https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf
+          EXPECTED_SHA256: 65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58
+        run: |
+          python - <<'PY'
+          import hashlib, io, os, re, urllib.request
+          from collections import Counter
+          import pdfplumber
+
+          req=urllib.request.Request(os.environ['PDF_URL'],headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+public source audit)'})
+          with urllib.request.urlopen(req,timeout=60) as r: body=r.read()
+          sha=hashlib.sha256(body).hexdigest()
+          if sha != os.environ['EXPECTED_SHA256']:
+              raise SystemExit(f'SHA mismatch {sha}')
+
+          def c(v): return re.sub(r'\s+',' ',v or '').strip()
+          total_rows=0
+          shapes=Counter()
+          header_signatures=Counter()
+          class_counts=Counter()
+          suspicious=[]
+          with pdfplumber.open(io.BytesIO(body)) as pdf:
+              for pno,page in enumerate(pdf.pages,1):
+                  tables=page.extract_tables()
+                  print(f'page={pno} tables={len(tables)}')
+                  for ti,table in enumerate(tables,1):
+                      cleaned=[[c(x) for x in row] for row in table if row]
+                      widths=Counter(len(row) for row in cleaned)
+                      shapes.update(widths)
+                      print(f'  table={ti} rows={len(cleaned)} widths={dict(widths)}')
+                      for row in cleaned[:3]: print('   sample=',row)
+                      for row in cleaned:
+                          folded=' '.join(row).casefold()
+                          if 'ragione sociale' in folded and ('data iscrizione' in folded or 'data scadenza' in folded):
+                              header_signatures[tuple(row)] += 1
+                              continue
+                          if len(row) < 8 or not c(row[0]):
+                              continue
+                          total_rows += 1
+                          # Expected source columns: name, office, identifier, listing, expiry, application, sections, notes.
+                          listing=c(row[3]) if len(row)>3 else ''
+                          expiry=c(row[4]) if len(row)>4 else ''
+                          application=c(row[5]) if len(row)>5 else ''
+                          if listing and expiry:
+                              class_counts['listed_dates_present'] += 1
+                          elif not listing and not expiry and application:
+                              class_counts['applicant_only_dates'] += 1
+                          else:
+                              class_counts['mixed_or_missing_dates'] += 1
+                              if len(suspicious)<25: suspicious.append((pno,row))
+          print('total_candidate_rows=',total_rows)
+          print('width_counts=',dict(shapes))
+          print('header_occurrences=',sum(header_signatures.values()))
+          print('class_counts=',dict(class_counts))
+          print('suspicious_count_sample=',len(suspicious))
+          for item in suspicious: print('suspicious=',item)
+          PY
