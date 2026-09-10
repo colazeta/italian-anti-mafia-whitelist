@@ -1,0 +1,67 @@
+name: Biella source audit
+
+on:
+  push:
+    branches:
+      - expansion/biella-source-audit-2026-09-10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Inspect current official Biella White List tables
+        run: |
+          python -m pip install -q requests beautifulsoup4
+          python - <<'PY'
+          import hashlib, json, re
+          from collections import Counter
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+
+          pages={
+            'listed':'https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list',
+            'applicants':'https://prefettura.interno.gov.it/it/prefetture/biella/white-list-imprese-richiedenti-iscrizione',
+          }
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-check)'}
+          def clean(x): return ' '.join(str(x or '').replace('\u00a0',' ').split())
+          s=requests.Session()
+          for kind,url in pages.items():
+            r=s.get(url,headers=H,timeout=45); r.raise_for_status()
+            print(kind.upper()+'_STATUS='+str(r.status_code))
+            print(kind.upper()+'_FINAL_URL='+r.url)
+            print(kind.upper()+'_HTML_SHA256='+hashlib.sha256(r.content).hexdigest())
+            soup=BeautifulSoup(r.text,'html.parser')
+            print(kind.upper()+'_TITLE='+clean(soup.title.get_text(' ',strip=True) if soup.title else ''))
+            visible=clean(' '.join(soup.stripped_strings))
+            print(kind.upper()+'_VISIBLE_PREFIX='+visible[:1200])
+            tables=soup.find_all('table')
+            print(kind.upper()+'_TABLE_COUNT='+str(len(tables)))
+            total=0
+            for tno,table in enumerate(tables,1):
+              rows=[]
+              for tr in table.find_all('tr'):
+                cells=[clean(c.get_text(' ',strip=True)) for c in tr.find_all(['th','td'])]
+                if any(cells): rows.append(cells)
+              total += max(0,len(rows)-1)
+              print(kind.upper()+f'_TABLE_{tno}_ROWS='+str(len(rows)))
+              print(kind.upper()+f'_TABLE_{tno}_HEADER='+json.dumps(rows[:2],ensure_ascii=False))
+              print(kind.upper()+f'_TABLE_{tno}_TAIL='+json.dumps(rows[-3:],ensure_ascii=False))
+              widths=Counter(len(row) for row in rows)
+              print(kind.upper()+f'_TABLE_{tno}_WIDTHS='+repr(dict(widths)))
+            print(kind.upper()+'_NAIVE_DATA_ROWS='+str(total))
+            attachments=[]
+            for a in soup.find_all('a',href=True):
+              label=clean(a.get_text(' ',strip=True)); href=urljoin(url,a['href'])
+              if any(k in (label+' '+href).casefold() for k in ('white list','iscritt','richiedent')):
+                attachments.append((label,href))
+            print(kind.upper()+'_RELEVANT_LINKS='+json.dumps(attachments[:40],ensure_ascii=False))
+          PY
