@@ -1,4 +1,4 @@
-name: Asti parser geometry diagnostics
+name: Asti parser validation
 
 on:
   push:
@@ -10,87 +10,62 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install 'pdfplumber>=0.11,<0.12'
-      - name: Audit Asti listed row anchors
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Validate pinned Asti sources and parser output
         shell: python
         run: |
-          import hashlib, re, urllib.request
+          import hashlib
+          import json
+          import urllib.request
           from pathlib import Path
-          import pdfplumber
 
-          URL='https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf'
-          SHA='8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128'
-          req=urllib.request.Request(URL,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source audit)','Accept':'*/*'})
-          body=urllib.request.urlopen(req,timeout=90).read(); assert hashlib.sha256(body).hexdigest()==SHA
-          path=Path('/tmp/listed.pdf'); path.write_bytes(body)
-          date_re=re.compile(r'^\d{1,2}[./]\d{1,2}[./]\d{4}$')
-          id_re=re.compile(r'^[A-Z0-9]{8,16}$',re.I)
-          total_reg=total_exp=0; anomalies=[]
-          with pdfplumber.open(path) as pdf:
-            assert len(pdf.pages)==39
-            for pno,page in enumerate(pdf.pages,1):
-              words=page.extract_words(x_tolerance=2,y_tolerance=2,keep_blank_chars=False)
-              dates=[w for w in words if date_re.match(w['text'].strip())]
-              regs=[w for w in dates if 510 <= w['x0'] < 610]
-              exps=[w for w in dates if 610 <= w['x0'] < 685]
-              ids=[w for w in words if 380 <= w['x0'] < 510 and id_re.match(w['text'].strip()) and any(c.isdigit() for c in w['text'])]
-              total_reg += len(regs); total_exp += len(exps)
-              def mid(w): return (w['top']+w['bottom'])/2
-              # registration dates are the candidate company anchors. Report identifiers without a nearby registration anchor,
-              # and anchors without any nearby identifier; these are where date-anchor grouping could silently fail.
-              id_without=[]
-              for w in ids:
-                d=min((abs(mid(w)-mid(r)) for r in regs),default=999)
-                if d>10: id_without.append((w['text'],round(w['x0'],1),round(w['top'],1),round(d,1)))
-              reg_without=[]
-              for r in regs:
-                d=min((abs(mid(r)-mid(w)) for w in ids),default=999)
-                if d>16: reg_without.append((r['text'],round(r['top'],1),round(d,1)))
-              # expiry mismatch is separate because some source rows may expose updates instead of a conventional expiry.
-              reg_exp=[]
-              for r in regs:
-                d=min((abs(mid(r)-mid(e)) for e in exps),default=999)
-                if d>8: reg_exp.append((r['text'],round(r['top'],1),round(d,1)))
-              if id_without or reg_without or reg_exp or len(regs)!=len(exps):
-                anomalies.append((pno,len(regs),len(exps),id_without,reg_without,reg_exp))
-            print('TOTAL_REG_ANCHORS',total_reg)
-            print('TOTAL_EXPIRY_ANCHORS',total_exp)
-            print('ANOMALY_PAGES',anomalies)
-            # Show table rows from every anomalous page, so source exceptions are reviewable rather than guessed.
-            for pno,*_ in anomalies:
-              page=pdf.pages[pno-1]
-              print('=== ANOMALY PAGE',pno,'===')
-              for ti,table in enumerate(page.extract_tables() or []):
-                print('TABLE',ti)
-                for ri,row in enumerate(table):
-                  print(ri,row)
-      - name: Audit Asti applicant table rows
-        shell: python
-        run: |
-          import hashlib, urllib.request
-          from pathlib import Path
-          import pdfplumber
-          URL='https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf'
-          SHA='ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5'
-          req=urllib.request.Request(URL,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source audit)','Accept':'*/*'})
-          body=urllib.request.urlopen(req,timeout=90).read(); assert hashlib.sha256(body).hexdigest()==SHA
-          path=Path('/tmp/applicants.pdf'); path.write_bytes(body)
-          rows=[]
-          with pdfplumber.open(path) as pdf:
-            assert len(pdf.pages)==6
-            for pno,page in enumerate(pdf.pages,1):
-              tables=page.extract_tables() or []
-              assert len(tables)==1,(pno,len(tables))
-              table=tables[0]
-              assert all(len(r)==7 for r in table),(pno,{len(r) for r in table})
-              for row in table[1:]:
-                if any((c or '').strip() for c in row): rows.append((pno,row))
-          print('APPLICANT_ROWS',len(rows))
-          for item in rows: print(item)
+          from white_list_archive.parsers.asti_positioned import parse_applicants, parse_listed
+
+          headers = {'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source validation)','Accept':'*/*'}
+          sources = {
+              'listed': (
+                  'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf',
+                  '8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128',
+              ),
+              'applicants': (
+                  'https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf',
+                  'ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5',
+              ),
+          }
+          for label,(url,sha) in sources.items():
+              body=urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=90).read()
+              actual=hashlib.sha256(body).hexdigest()
+              assert actual==sha,(label,actual)
+              Path(f'/tmp/asti-{label}.pdf').write_bytes(body)
+
+          common = {
+              'authority_key':'asti','authority_name':'Prefettura di Asti',
+              'register_key':'asti-ordinary','register_name':'White List ordinaria',
+              'reference_date':'2026-09-03',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali',
+          }
+          listed_cfg={**common,'source_key':'asti-listed','population_scope':'listed','resource_url':sources['listed'][0],'sha256':sources['listed'][1]}
+          applicants_cfg={**common,'source_key':'asti-applicants','population_scope':'applicant','resource_url':sources['applicants'][0],'sha256':sources['applicants'][1]}
+          listed=parse_listed(Path('/tmp/asti-listed.pdf'),listed_cfg)
+          applicants=parse_applicants(Path('/tmp/asti-applicants.pdf'),applicants_cfg)
+
+          assert listed.diagnostics['sector_rows']==521, listed.diagnostics
+          assert listed.diagnostics['pending_source_exceptions']==1, listed.diagnostics
+          assert listed.diagnostics['dropped_date_rows']==0
+          assert applicants.diagnostics['public_records']==17, applicants.diagnostics
+          assert applicants.diagnostics['missing_application_dates']==2, applicants.diagnostics
+          assert applicants.diagnostics['status_counts']=={'other_or_unknown':1,'listed':4,'pending':12}, applicants.diagnostics
+          assert applicants.diagnostics['dropped_date_rows']==0
+          ceit=[r for r in listed.records if r['name']=='CEIT SRL' and r['source_status']=='pending']
+          assert len(ceit)==1 and not ceit[0]['observed_listing_date'], ceit
+          jokko=[r for r in applicants.records if r['name'].startswith('JOKKO')]
+          assert len(jokko)==1 and jokko[0]['identifier_field_raw']=='0141215742' and not jokko[0]['identifiers'], jokko
+          print(json.dumps({'listed':listed.diagnostics,'applicants':applicants.diagnostics},ensure_ascii=False,indent=2))
