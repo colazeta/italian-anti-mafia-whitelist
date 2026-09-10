@@ -236,6 +236,40 @@
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "current official attachment byte-verified on this date; the official page does not expose a reliable current edition date",
       "notes": "The current official DOCX contains 32 applicant rows. Applicant membership is represented as pending without inferring a legal outcome. Repeated slash separators in otherwise explicit DD/MM/YYYY source dates are normalised without changing any digit and the raw source form remains in provenance. Raw non-canonical identifiers remain verbatim."
+    },
+    {
+      "source_key": "avellino-listed",
+      "parser": "avellino_listed",
+      "authority_key": "avellino",
+      "authority_name": "Prefettura di Avellino",
+      "register_key": "avellino-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-01",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/24/2026-09/per_pubblicazione_iscritte_av_01-09-2026_note.pdf",
+      "sha256": "9ada9195d72ba3b773448df0f0f46bab5efdd72ad7da35236bad389ad860eaf0",
+      "expected_source_rows": 383,
+      "last_source_update": "2026-09-01",
+      "last_source_update_basis": "dated official attachment label and resource filename",
+      "notes": "The official listed-company page exposes the current PDF dated 1 September 2026. The PDF has no extractable table grid, so the approved parser uses byte-pinned positioned text and primary expiry-date anchors. All 383 rows retain the approved public fields: name, raw identifier, registered office, activities, source expiry date and the source update field as outcome_raw. Free-text notes and page-layout metadata remain outside the public contract. The page itself explicitly defines the listed-company population; no free-text field is used to infer a different legal status."
+    },
+    {
+      "source_key": "avellino-applicants",
+      "parser": "avellino_applicants",
+      "authority_key": "avellino",
+      "authority_name": "Prefettura di Avellino",
+      "register_key": "avellino-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-01",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-richiedenti",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/24/2026-09/per_pubblicazione_richiedenti_iscrizione_av_01-09-2026.pdf",
+      "sha256": "b541e057787e9d26982eb1e87c1233002e88a376e865b637d223c027a6b210be",
+      "expected_source_rows": 244,
+      "last_source_update": "2026-09-01",
+      "last_source_update_basis": "dated official attachment label and resource filename",
+      "notes": "The dedicated official applicant page explicitly identifies this population as companies requesting White List registration. The approved parser recovers 244 complete positioned rows anchored on the source application date. Applicant observations remain pending; no final legal outcome is inferred from the absence of a separate outcome field."
     }
   ]
 }

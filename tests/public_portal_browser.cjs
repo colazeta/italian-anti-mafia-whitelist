@@ -25,6 +25,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Alessandria'));
       assert.ok(labels.includes("White List ordinaria · Regione autonoma Valle d'Aosta · funzioni prefettizie"));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Arezzo'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Avellino'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -63,10 +64,10 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       }
       await page.getByRole('button',{name:'Statistiche',exact:true}).click();
       const stats=publicStatistics(registry.records);
-      // Freeze both the previous four-Prefecture release and the new Alessandria
-      // denominator. This ensures expansion cannot silently rewrite prior totals.
-      assert.equal(stats.total,6234);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo'].includes(r.authority_key));
+      // Freeze the pre-expansion four-Prefecture baseline independently of later
+      // authorities, then assert each added authority and the current total.
+      assert.equal(stats.total,6861);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -86,6 +87,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(arezzo.filter(r=>r.source_key==='arezzo-listed').length,332);
       assert.equal(arezzo.filter(r=>r.source_key==='arezzo-applicants').length,32);
       assert.deepEqual(statusCounts(arezzo),{listed:288,pending:32,renewal_update_in_progress:44});
+      const avellino=registry.records.filter(r=>r.authority_key==='avellino');
+      assert.equal(avellino.length,627);
+      assert.equal(avellino.filter(r=>r.source_key==='avellino-listed').length,383);
+      assert.equal(avellino.filter(r=>r.source_key==='avellino-applicants').length,244);
+      assert.deepEqual(statusCounts(avellino),{listed:383,pending:244});
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
