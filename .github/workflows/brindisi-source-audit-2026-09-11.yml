@@ -34,3 +34,10 @@ jobs:
         run: |
           python scripts/brindisi_source_audit_v2.py
           python scripts/brindisi_parser_smoke.py
+      - name: Upload deterministic parser checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: brindisi-parser-smoke-${{ github.sha }}
+          path: tmp/brindisi-parser-smoke.json
+          if-no-files-found: error
+          retention-days: 1
