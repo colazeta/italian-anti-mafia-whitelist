@@ -48,7 +48,7 @@ jobs:
       - name: Validate repository and national build
         shell: bash
         run: |
-          python -m pip install -e '.[dev,publication]'
+          python -m pip install -e '.[dev,publication,database,storage]'
           pytest -q
           rm -rf /tmp/barletta-production-build /tmp/barletta-production-sources
           white-list-public-national-build \
@@ -64,6 +64,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from collections import Counter
           reg=json.loads(Path('/tmp/barletta-production-build/registry.json').read_text())
           pref=json.loads(Path('/tmp/barletta-production-build/prefectures.json').read_text())
           assert reg['meta']['record_count']==17303,reg['meta']
@@ -77,7 +78,6 @@ jobs:
           assert len(records)==574
           assert sum(r['source_key']=='barletta-andria-trani-listed' for r in records)==493
           assert sum(r['source_key']=='barletta-andria-trani-applicants' for r in records)==81
-          from collections import Counter
           assert Counter(r['source_status'] for r in records)==Counter({'listed':437,'pending':81,'renewal_update_in_progress':56})
           print('BAT national candidate validated:',reg['meta']['record_count'],pref['meta'])
           PY
