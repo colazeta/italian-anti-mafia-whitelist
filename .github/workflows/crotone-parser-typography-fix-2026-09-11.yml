@@ -15,33 +15,49 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: expansion/crotone-2026-09-11
-      - name: Bind the exact reviewed source typography
+      - name: Bind exact reviewed listing-date anomalies
         run: |
           python - <<'PY'
           from pathlib import Path
 
           p=Path('src/white_list_archive/parsers/crotone_tables.py')
           text=p.read_text()
-          old='_DATE_PREFIX = re.compile(rf"^(\\d{{1,2}})(?:°|º)?\\s+({_MONTH_ALT})\\s+(\\d{{4}})(.*)$", re.I)\n_SECTION = re.compile'
-          new='_DATE_PREFIX = re.compile(rf"^(\\d{{1,2}})(?:°|º)?\\s+({_MONTH_ALT})\\s+(\\d{{4}})(.*)$", re.I)\n_REVIEWED_EXPIRY_TYPOGRAPHY = {\n    "7 dicembre2022 Richiesta rinnovo": "7 dicembre 2022 Richiesta rinnovo",\n}\n_SECTION = re.compile'
-          if old not in text: raise SystemExit('Crotone expiry-regex anchor drift')
-          text=text.replace(old,new,1)
-          old='''def _parse_expiry(value: str) -> tuple[str, str]:\n    raw = _clean(value)\n    if not raw:\n        return "", ""\n    match = _DATE_PREFIX.fullmatch(raw)\n    if not match:\n        raise RuntimeError(f"Crotone unreviewed expiry typography: {raw!r}")\n    day, month, year, tail = match.groups()\n    return _iso_date(day, month, year, raw=raw), _clean(tail)\n'''
-          new='''def _parse_expiry(value: str) -> tuple[str, str]:\n    raw = _clean(value)\n    if not raw:\n        return "", ""\n    parse_value = _REVIEWED_EXPIRY_TYPOGRAPHY.get(raw, raw)\n    match = _DATE_PREFIX.fullmatch(parse_value)\n    if not match:\n        raise RuntimeError(f"Crotone unreviewed expiry typography: {raw!r}")\n    day, month, year, tail = match.groups()\n    return _iso_date(day, month, year, raw=raw), _clean(tail)\n'''
-          if old not in text: raise SystemExit('Crotone expiry parser anchor drift')
+          anchor='_REVIEWED_EXPIRY_TYPOGRAPHY = {\n'
+          if '_REVIEWED_DATE_TYPOGRAPHY' not in text:
+              if anchor not in text: raise SystemExit('Crotone typography anchor drift')
+              addition=(
+                  '_REVIEWED_DATE_TYPOGRAPHY = {\n'
+                  '    "23 giungo 2025": "23 giugno 2025",\n'
+                  '}\n'
+                  '_REVIEWED_AMBIGUOUS_DATE_RAW = {\n'
+                  '    "17 febbraio 2015 15 febbraio 2022",\n'
+                  '}\n'
+              )
+              text=text.replace(anchor,addition+anchor,1)
+          old='''def _parse_date(value: str, *, allow_blank: bool = False) -> str:\n    raw = _clean(value)\n    if not raw and allow_blank:\n        return ""\n    match = _DATE.fullmatch(raw)\n    if not match:\n        raise RuntimeError(f"Crotone unreviewed date typography: {raw!r}")\n    return _iso_date(*match.groups(), raw=raw)\n'''
+          new='''def _parse_date(value: str, *, allow_blank: bool = False) -> str:\n    raw = _clean(value)\n    if not raw and allow_blank:\n        return ""\n    if raw in _REVIEWED_AMBIGUOUS_DATE_RAW:\n        return ""\n    parse_value = _REVIEWED_DATE_TYPOGRAPHY.get(raw, raw)\n    match = _DATE.fullmatch(parse_value)\n    if not match:\n        raise RuntimeError(f"Crotone unreviewed date typography: {raw!r}")\n    return _iso_date(*match.groups(), raw=raw)\n'''
+          if old not in text: raise SystemExit('Crotone date parser anchor drift')
           p.write_text(text.replace(old,new,1))
 
           p=Path('tests/test_crotone_parser_semantics.py')
           text=p.read_text()
-          old='''    assert _parse_expiry("23 settembre 2026 Richiesta rinnovo") == (\n        "2026-09-23",\n        "Richiesta rinnovo",\n    )\n'''
-          new=old+'''    assert _parse_expiry("7 dicembre2022 Richiesta rinnovo") == (\n        "2022-12-07",\n        "Richiesta rinnovo",\n    )\n    with pytest.raises(RuntimeError, match="unreviewed expiry typography"):\n        _parse_expiry("8 dicembre2022 Richiesta rinnovo")\n'''
-          if old not in text: raise SystemExit('Crotone parser test anchor drift')
-          p.write_text(text.replace(old,new,1))
+          anchor='''    assert _parse_date("1° agosto 2025") == "2025-08-01"\n    assert _parse_date("", allow_blank=True) == ""\n'''
+          if '23 giungo 2025' not in text:
+              if anchor not in text: raise SystemExit('Crotone date-test anchor drift')
+              addition=(anchor+
+                  '    assert _parse_date("23 giungo 2025") == "2025-06-23"\n'
+                  '    assert _parse_date("17 febbraio 2015 15 febbraio 2022") == ""\n'
+                  '    with pytest.raises(RuntimeError, match="unreviewed date typography"):\n'
+                  '        _parse_date("24 giungo 2025")\n'
+                  '    with pytest.raises(RuntimeError, match="unreviewed date typography"):\n'
+                  '        _parse_date("17 febbraio 2016 15 febbraio 2022")\n')
+              text=text.replace(anchor,addition,1)
+          p.write_text(text)
           PY
-      - name: Commit reviewed typography support
+      - name: Commit reviewed listing-date handling
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/white_list_archive/parsers/crotone_tables.py tests/test_crotone_parser_semantics.py
-          git commit -m 'Handle reviewed Crotone expiry typography'
+          git commit -m 'Handle reviewed Crotone listing-date anomalies'
           git push origin HEAD:expansion/crotone-2026-09-11
