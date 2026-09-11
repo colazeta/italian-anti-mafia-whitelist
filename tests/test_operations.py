@@ -159,7 +159,10 @@ def test_verified_storage_requires_evidence_and_does_not_authorise_publication(l
 
 
 def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):
-    authority_key = "barletta-andria-trani"
+    # Keep this safety invariant attached to an authority that is still at the
+    # source-identified stage. Barletta-Andria-Trani graduates only after both
+    # positive populations, byte identity and parser boundaries are validated.
+    authority_key = "brindisi"
     row = next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)
     assert row["last_successful_source_check_at"] is None
     for assessment in [None, {}, {**ASSESSMENT, "listed_and_applicant_accounted_for": False}]:

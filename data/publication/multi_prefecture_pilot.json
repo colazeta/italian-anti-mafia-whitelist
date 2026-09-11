@@ -604,6 +604,37 @@
       "last_source_update": "2026-08-27",
       "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
       "notes": "Byte-pinned applicant population with 612 reviewed logical rows. Applicant status is supported by the explicit current publication identity; 12 blank application dates and 11 activity rows without a recoverable Roman section prefix are preserved without inference. Exact boundaries are documented in docs/sources/bergamo-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "barletta-andria-trani-listed",
+      "parser": "barletta_andria_trani_listed",
+      "authority_key": "barletta-andria-trani",
+      "authority_name": "Prefettura di Barletta-Andria-Trani",
+      "register_key": "barletta-andria-trani-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf",
+      "sha256": "d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13",
+      "expected_source_rows": 493,
+      "expected_sector_rows": 1013,
+      "notes": "Current byte-pinned registered-company publication, reverified on its dedicated official page on 11 September 2026. The source repeats firms across White List sections: 1,013 reviewed sector rows are grouped only when identity, dates, status and note agree, yielding 493 public source-backed observations. Exact exceptions are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "barletta-andria-trani-applicants",
+      "parser": "barletta_andria_trani_applicants",
+      "authority_key": "barletta-andria-trani",
+      "authority_name": "Prefettura di Barletta-Andria-Trani",
+      "register_key": "barletta-andria-trani-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf",
+      "sha256": "ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57",
+      "expected_source_rows": 81,
+      "notes": "Current byte-pinned applicant publication, positively identified by the dedicated official page and in-document applicant-list title and reverified on 11 September 2026. It yields 81 source-backed pending observations. Exact parser boundaries are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md."
     }
   ]
 }
