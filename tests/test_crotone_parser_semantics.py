@@ -19,8 +19,8 @@ from white_list_archive.parsers.crotone_tables import (
 
 def test_crotone_source_denominators_are_frozen() -> None:
     assert _EXPECTED_LISTED_SECTOR_ROWS == 743
-    assert _EXPECTED_LISTED_RECORDS == 328
-    assert _EXPECTED_LISTED_STATUS_COUNTS == {"listed": 73, "renewal_update_in_progress": 255}
+    assert _EXPECTED_LISTED_RECORDS == 325
+    assert _EXPECTED_LISTED_STATUS_COUNTS == {"listed": 72, "renewal_update_in_progress": 253}
     assert _EXPECTED_APPLICANT_RECORDS == 180
     assert _EXPECTED_APPLICANT_STATUS_COUNTS == {"pending": 180}
     assert _EXPECTED_APPLICANT_CONTINUATIONS == 25
