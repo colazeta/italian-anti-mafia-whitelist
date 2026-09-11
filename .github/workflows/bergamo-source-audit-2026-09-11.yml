@@ -1,73 +1,92 @@
-name: Bergamo source audit 2026-09-11
+name: Bergamo positioned geometry audit 2026-09-11
 
 on:
   push:
     branches: [expansion/bergamo-2026-09-11]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
+    if: github.event.head_commit.message == 'Audit Bergamo positioned geometry'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/bergamo-2026-09-11
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Resolve and inspect official Bergamo publications
+      - name: Derive coordinate evidence from byte-pinned official PDFs
         shell: bash
         run: |
-          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python -m pip install -q requests pdfplumber
           python - <<'PY'
-          import hashlib, json, tempfile
+          import hashlib, json, re
           from pathlib import Path
-          from urllib.parse import urljoin
           import requests, pdfplumber
-          from bs4 import BeautifulSoup
 
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list'
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-audit)'}
-          s=requests.Session(); r=s.get(PAGE,headers=H,timeout=45); r.raise_for_status()
-          print('LANDING_STATUS',r.status_code)
-          soup=BeautifulSoup(r.text,'html.parser')
-          links=[]
-          for a in soup.find_all('a',href=True):
-              label=' '.join(a.stripped_strings).strip()
-              u=urljoin(PAGE,a['href'])
-              folded=label.casefold()
-              if 'elenco richiedenti' in folded or 'elenco iscritte' in folded:
-                  links.append((label,u))
-          print('MATCHED_LINKS',json.dumps(links,ensure_ascii=False))
-          if len(links)!=2:
-              raise SystemExit(f'Expected exactly two current list links, got {links!r}')
-          for label,url in links:
-              resp=s.get(url,headers=H,timeout=90); resp.raise_for_status(); data=resp.content
-              sha=hashlib.sha256(data).hexdigest()
-              print('\nRESOURCE',label)
-              print('URL',url)
-              print('STATUS',resp.status_code)
-              print('CONTENT_TYPE',resp.headers.get('content-type'))
-              print('BYTES',len(data))
-              print('SHA256',sha)
-              if not data.startswith(b'%PDF'):
-                  print('NON_PDF_PREFIX',repr(data[:120])); continue
-              with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
-                  f.write(data); f.flush()
-                  with pdfplumber.open(f.name) as pdf:
-                      print('PAGES',len(pdf.pages))
-                      page_summaries=[]
-                      total_tables=0
-                      for pno,page in enumerate(pdf.pages,1):
-                          tables=page.find_tables(); total_tables+=len(tables)
-                          text=' '.join((page.extract_text() or '').split())
-                          summary={'page':pno,'tables':len(tables),'text_prefix':text[:500]}
-                          if tables:
-                              extracted=tables[0].extract()
-                              summary['table_rows']=len(extracted) if extracted else 0
-                              summary['table_widths']=sorted({len(row) for row in extracted if row}) if extracted else []
-                              summary['first_rows']=extracted[:4] if extracted else []
-                          page_summaries.append(summary)
-                      print('TOTAL_TABLES',total_tables)
-                      print('PAGE_SUMMARIES',json.dumps(page_summaries,ensure_ascii=False))
+          SOURCES={
+            'applicants': {
+              'url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf',
+              'sha':'65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6',
+              'pages':[1,2,8,38,41,42,46,51,56],
+            },
+            'listed': {
+              'url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf',
+              'sha':'b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef',
+              'pages':[1,2,24,29,38,62,102,131],
+            },
+          }
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; positioned-audit)'}
+          DATE=re.compile(r'^\d{1,2}/\d{1,2}/\d{2,4}$')
+          ID11=re.compile(r'^\d{11}$')
+          CF16=re.compile(r'^[A-Z0-9]{16}$',re.I)
+          ROMAN=re.compile(r'^(?:III|IV|V|VI|VII|VIII|X|XI|XII)$')
+          out={'schema_version':1,'sources':{}}
+          s=requests.Session()
+          for key,cfg in SOURCES.items():
+            data=s.get(cfg['url'],headers=H,timeout=90).content
+            observed=hashlib.sha256(data).hexdigest(); assert observed==cfg['sha'],(key,observed)
+            pdf_path=Path('/tmp')/f'bergamo-{key}.pdf'; pdf_path.write_bytes(data)
+            source={'url':cfg['url'],'sha256':observed,'bytes':len(data),'pages':[]}
+            with pdfplumber.open(pdf_path) as pdf:
+              source['page_count']=len(pdf.pages)
+              for pno in cfg['pages']:
+                page=pdf.pages[pno-1]
+                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                tokens=[]
+                for w in words:
+                  text=w['text'].strip()
+                  kind=None
+                  if DATE.fullmatch(text): kind='date'
+                  elif ID11.fullmatch(text): kind='id11'
+                  elif CF16.fullmatch(text) and any(ch.isdigit() for ch in text): kind='cf16'
+                  elif ROMAN.fullmatch(text): kind='activity_code'
+                  if kind:
+                    tokens.append({'kind':kind,'text':text,'x0':round(w['x0'],1),'x1':round(w['x1'],1),'top':round(w['top'],1),'bottom':round(w['bottom'],1)})
+                # capture all text on horizontal bands surrounding anomalous-looking identifiers/dates
+                by_top={}
+                for w in words:
+                  t=round(w['top'],1); by_top.setdefault(t,[]).append(w)
+                lines=[]
+                for top,group in sorted(by_top.items()):
+                  text=' '.join(x['text'] for x in sorted(group,key=lambda x:x['x0']))
+                  if any(tok in text for tok in ('LAINI PRIMO','MI.CO.','N.C.T.','RASCHILLA','SPARTACO','CENTRO BITUMATI','PADRE DANIELE','EDIL 2N','GUALDI GROUP','PRAVISANI')):
+                    lines.append({'top':top,'text':text,'words':[{'t':x['text'],'x0':round(x['x0'],1),'x1':round(x['x1'],1)} for x in sorted(group,key=lambda x:x['x0'])]})
+                source['pages'].append({'page':pno,'width':round(page.width,1),'height':round(page.height,1),'tokens':tokens,'anomaly_lines':lines})
+            out['sources'][key]=source
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/bergamo-geometry.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps({k:{'pages':v['page_count'],'sha256':v['sha256'],'sampled_pages':[x['page'] for x in v['pages']]} for k,v in out['sources'].items()},ensure_ascii=False))
           PY
+      - name: Commit temporary geometry checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/bergamo-geometry.json
+          git diff --cached --check
+          git commit -m 'Checkpoint Bergamo positioned geometry'
+          git push origin HEAD:expansion/bergamo-2026-09-11
