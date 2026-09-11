@@ -189,11 +189,10 @@ def parse_cagliari_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             expiry_date=expiry_date,
             primary_date_label="Data iscrizione",
             source_fields={
-                "sections_raw": [f"sez.{section:02d}" for section in sections],
-                "source_row_locators": group["locators"],
+                "sections": [f"Sezione {section}" for section in sections],
                 "listing_date_raw_variants": [row["listing_raw"]],
                 "expiry_date_raw_variants": [row["expiry_raw"]],
-                "status_note_raw": row["note"],
+                "in_aggiornamento": row["note"] if row["status"] == "renewal_update_in_progress" else "",
             },
         )
         # Keep identifier validation explicitly fail-closed: malformed source values
@@ -292,10 +291,8 @@ def parse_cagliari_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             application_date=_parse_source_date(row["application_raw"]),
             primary_date_label="Data presentazione istanza",
             source_fields={
-                "requested_sections_raw": row["requested_raw"],
-                "application_date_raw": row["application_raw"],
-                "outcome_raw": row["outcome"],
-                "source_row_locator": f"p{row['page']}:t{row['table']}:r{row['row']}",
+                "application_date_raw_variants": [row["application_raw"]],
+                "requested_activities_source": row["requested_raw"],
             },
         )
         record["identifiers"] = _strict_identifiers(row["identifier_raw"])
