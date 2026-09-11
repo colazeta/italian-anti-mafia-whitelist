@@ -38,8 +38,24 @@ _SECTION_RE = re.compile(r"\bSezione\s+([IVX]+)\b", re.I)
 _STRICT_IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])", re.I)
 _IDENTIFIER_LIKE = re.compile(r"(?<!\d)\d{10,11}(?!\d)|(?<![A-Za-z0-9])[A-Za-z0-9]{16}(?![A-Za-z0-9])", re.I)
 _VALID_DATE = re.compile(r"^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$")
-_DATE_ANYWHERE = re.compile(r"(?<!\d)\d{1,2}[-/.]\d{1,2}[-/.]\d{4,5}(?!\d)")
 _ADMIN_TOKENS = ("ragione sociale", "codice fiscale", "data iscrizione", "data scadenza")
+_APPLICANT_BANDS = {
+    "name": (20.0, 170.0),
+    "office": (170.0, 250.0),
+    "secondary_office": (250.0, 340.0),
+    "identifier": (340.0, 435.0),
+    "activity": (435.0, 675.0),
+    "application": (675.0, 760.0),
+    "outcome": (760.0, 842.0),
+}
+_EXPECTED_APPLICANT_HEADER_X = {
+    "ragione": (60.0, 80.0),
+    "sede": (180.0, 205.0),
+    "identifier": (355.0, 385.0),
+    "activity": (475.0, 500.0),
+    "application": (665.0, 695.0),
+    "outcome": (775.0, 805.0),
+}
 
 
 def _strict_identifiers(text: str) -> list[str]:
@@ -234,32 +250,29 @@ def _band_text(words: list[dict[str, Any]], x0: float, x1: float, y0: float, y1:
     return _clean(" ".join(str(word["text"]) for word in selected))
 
 
-def _header_starts(page: Any, source_key: str) -> tuple[float, float, float, float, float]:
+def _validate_applicant_header(page: Any, source_key: str) -> None:
     words = page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False, use_text_flow=False)
-    ragione = [word for word in words if str(word["text"]).casefold() == "ragione"]
-    if not ragione:
-        raise RuntimeError(f"{source_key}: applicant header Ragione not found")
-    header_top = float(ragione[0]["top"])
-    same_line = [word for word in words if abs(float(word["top"]) - header_top) <= 3]
-
-    def x_for(prefix: str, *, after: float = -1.0) -> float:
-        candidates = [word for word in same_line if str(word["text"]).casefold().startswith(prefix) and float(word["x0"]) > after]
-        if len(candidates) != 1:
-            raise RuntimeError(f"{source_key}: applicant header {prefix!r} ambiguous: {[(w['text'], w['x0']) for w in candidates]!r}")
-        return float(candidates[0]["x0"])
-
-    sede_x = x_for("sede", after=float(ragione[0]["x0"]))
-    cf_x = x_for("c.f./partita", after=sede_x)
-    activity_x = x_for("attività", after=cf_x)
-    esito_x = x_for("esito", after=activity_x)
-    date_candidates = [
-        word for word in words
-        if str(word["text"]).casefold() == "data" and float(word["x0"]) > esito_x and float(word["top"]) <= header_top + 5
-    ]
-    if len(date_candidates) != 1:
-        raise RuntimeError(f"{source_key}: applicant Data header ambiguous: {[(w['text'], w['x0'], w['top']) for w in date_candidates]!r}")
-    date_x = float(date_candidates[0]["x0"])
-    return sede_x, cf_x, activity_x, esito_x, date_x
+    tokens = {
+        "ragione": "ragione",
+        "sede": "sede",
+        "identifier": "c.f./partita",
+        "activity": "attività",
+        "application": "data",
+        "outcome": "esito",
+    }
+    for key, token in tokens.items():
+        lo, hi = _EXPECTED_APPLICANT_HEADER_X[key]
+        matches = [
+            word for word in words
+            if str(word["text"]).casefold().startswith(token)
+            and lo <= float(word["x0"]) <= hi
+            and float(word["top"]) < 125
+        ]
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"{source_key}: applicant header anchor {key!r} drift: "
+                f"{[(word['text'], word['x0'], word['top']) for word in matches]!r}"
+            )
 
 
 def _applicant_rows(path: Path, source_key: str) -> list[dict[str, Any]]:
@@ -268,8 +281,12 @@ def _applicant_rows(path: Path, source_key: str) -> list[dict[str, Any]]:
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _APPLICANT_PAGES:
             raise RuntimeError(f"{source_key}: applicant page-count drift; expected {_APPLICANT_PAGES}, got {len(pdf.pages)}")
-        sede_x, cf_x, activity_x, esito_x, date_x = _header_starts(pdf.pages[0], source_key)
+        if not 840.0 <= float(pdf.pages[0].width) <= 843.0:
+            raise RuntimeError(f"{source_key}: applicant page-width drift: {pdf.pages[0].width}")
+        _validate_applicant_header(pdf.pages[0], source_key)
         for page_number, page in enumerate(pdf.pages, 1):
+            if not 840.0 <= float(page.width) <= 843.0:
+                raise RuntimeError(f"{source_key}: applicant page-width drift at page {page_number}: {page.width}")
             words = page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False, use_text_flow=False)
             page_rows: list[dict[str, Any]] = []
             for table in page.find_tables():
@@ -281,15 +298,16 @@ def _applicant_rows(path: Path, source_key: str) -> list[dict[str, Any]]:
                     blob = _clean(" ".join(_clean(cell) for cell in raw))
                     if not blob or not _IDENTIFIER_LIKE.search(blob):
                         continue
-                    x0, y0, x1, y1 = table_row.bbox
+                    _, y0, _, y1 = table_row.bbox
                     values = {
-                        "name": _band_text(words, 0, sede_x, y0, y1),
-                        "office": _band_text(words, sede_x, cf_x, y0, y1),
-                        "identifier": _band_text(words, cf_x, activity_x, y0, y1),
-                        "activity": _band_text(words, activity_x, esito_x, y0, y1),
-                        "outcome": _band_text(words, esito_x, date_x, y0, y1),
-                        "application": _band_text(words, date_x, float(page.width) + 1, y0, y1),
+                        field: _band_text(words, x0, x1, y0, y1)
+                        for field, (x0, x1) in _APPLICANT_BANDS.items()
                     }
+                    if values["secondary_office"]:
+                        raise RuntimeError(
+                            f"{source_key}: unexpected applicant secondary-office text at page {page_number}: "
+                            f"{values['secondary_office']!r}"
+                        )
                     if not values["name"] or not values["office"] or not values["identifier"]:
                         raise RuntimeError(f"{source_key}: unresolved applicant columns at page {page_number}: {values!r}")
                     page_rows.append({"page": page_number, "row": len(page_rows) + 1, **values})
