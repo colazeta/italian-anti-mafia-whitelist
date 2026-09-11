@@ -153,7 +153,7 @@ jobs:
                       continue
                   if not in_table:
                       continue
-                  padded = (vals + ['']*8)[:8]
+                  padded = (vals[1:9] + ['']*8)[:8]
                   name, office, province, secondary, ident, listing, expiry, update = padded
                   if not any(padded):
                       continue
