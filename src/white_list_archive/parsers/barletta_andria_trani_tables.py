@@ -220,12 +220,18 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             for raw_date in _date_fields(row):
                 if raw_date not in raw_dates:
                     raw_dates.append(raw_date)
-        if not 1 <= len(raw_dates) <= 2:
+        if not raw_dates:
             raise RuntimeError(
-                f"{cfg['source_key']}: expected one or two source date fields at page {item['page']} row {item['row']}, got {raw_dates!r}"
+                f"{cfg['source_key']}: missing source date fields at page {item['page']} row {item['row']}"
+            )
+        note_raw = _clean(item["base"][-1]) if len(item["base"]) >= 8 else ""
+        extra_note_dates = raw_dates[2:]
+        if any(value not in note_raw for value in extra_note_dates):
+            raise RuntimeError(
+                f"{cfg['source_key']}: unreviewed extra source date at page {item['page']} row {item['row']}: {raw_dates!r}"
             )
         listing_raw = raw_dates[0]
-        expiry_raw = raw_dates[1] if len(raw_dates) == 2 else ""
+        expiry_raw = raw_dates[1] if len(raw_dates) >= 2 else ""
         listing_date = _parse_source_date(listing_raw, source_key=cfg["source_key"], page=item["page"], row=item["row"])
         expiry_date = _parse_source_date(expiry_raw, source_key=cfg["source_key"], page=item["page"], row=item["row"]) if expiry_raw else ""
         for raw, parsed in ((listing_raw, listing_date), (expiry_raw, expiry_date)):
@@ -249,7 +255,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
         )
         reviewed.append({
             "identity": identity,
-            "group_key": (*identity, *date_key, status),
+            "group_key": (*identity, *date_key, status, note_raw.casefold()),
             "name": name,
             "office": _row_office(item),
             "identifier_raw": identifier_raw,
@@ -259,6 +265,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             "listing_date": listing_date,
             "expiry_date": expiry_date,
             "status": status,
+            "note_raw": note_raw,
             "section": item["section"],
             "page": item["page"],
             "row": item["row"],
@@ -297,7 +304,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             "sections": sections,
             "listing_date_raw_variants": group["listing_raw"],
             "expiry_date_raw_variants": group["expiry_raw"],
-            "in_aggiornamento": "Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",
+            "in_aggiornamento": representative["note_raw"] if "aggiornamento" in representative["note_raw"].casefold() else "",
         }
         record = _record(
             cfg,
@@ -307,7 +314,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             identifier_raw=identifier_raw,
             activities=sections,
             status=representative["status"],
-            outcome_raw="Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",
+            outcome_raw=representative["note_raw"],
             listing_date=representative["listing_date"],
             expiry_date=representative["expiry_date"],
             primary_date_label="Data iscrizione" if representative["listing_date"] else "",
