@@ -1,0 +1,1160 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "applicants": {
+      "sha256": "65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6",
+      "row_count": 612,
+      "date_state_counts": {
+        "application:valid": 600,
+        "application:blank": 12
+      },
+      "date_anomalies": [],
+      "noncanonical_identifier_count": 71,
+      "noncanonical_identifiers": [
+        {
+          "page": 1,
+          "row": 8,
+          "raw": "CRJDRD91M01Z100",
+          "strict_tokens": [],
+          "name": "3C INSTALLAZIONI DI EDUARD CURAJ"
+        },
+        {
+          "page": 5,
+          "row": 10,
+          "raw": "RGNVTR74E22G160",
+          "strict_tokens": [],
+          "name": "AUTOTRASPORTI RIGANTE VITTORIO"
+        },
+        {
+          "page": 6,
+          "row": 2,
+          "raw": "ZMBLCU85A10L388",
+          "strict_tokens": [],
+          "name": "AUTOTRASPORTI ZAMBETTI LUCA"
+        },
+        {
+          "page": 6,
+          "row": 3,
+          "raw": "PDRMTT92L12L388",
+          "strict_tokens": [],
+          "name": "AZIENDA AGRICOLA PEDRINI DI PEDRINI MATTEO"
+        },
+        {
+          "page": 6,
+          "row": 4,
+          "raw": "PDRMTT92L12L388",
+          "strict_tokens": [],
+          "name": "AZIENDA AGRICOLA PEDRINI DI PEDRINI MATTEO"
+        },
+        {
+          "page": 6,
+          "row": 5,
+          "raw": "PDRMTT92L12L388",
+          "strict_tokens": [],
+          "name": "AZIENDA AGRICOLA PEDRINI DI PEDRINI MATTEO"
+        },
+        {
+          "page": 7,
+          "row": 1,
+          "raw": "BNDDRA73R24C800",
+          "strict_tokens": [],
+          "name": "BENDOTTI DARIO"
+        },
+        {
+          "page": 7,
+          "row": 2,
+          "raw": "BNDDRA73R24C800",
+          "strict_tokens": [],
+          "name": "BENDOTTI DARIO"
+        },
+        {
+          "page": 7,
+          "row": 5,
+          "raw": "01531870176/010742",
+          "strict_tokens": [
+            "01531870176"
+          ],
+          "name": "BIANCHI ANGELO S.R.L."
+        },
+        {
+          "page": 8,
+          "row": 2,
+          "raw": "02143600167/BRTG",
+          "strict_tokens": [
+            "02143600167"
+          ],
+          "name": "BORTOLOTTI EUGENIO"
+        },
+        {
+          "page": 8,
+          "row": 7,
+          "raw": "LNGJCP93A01A794",
+          "strict_tokens": [],
+          "name": "BSL COSTRUZIONI DI LONGHI JACOPO"
+        },
+        {
+          "page": 8,
+          "row": 8,
+          "raw": "LNGJCP93A01A794",
+          "strict_tokens": [],
+          "name": "BSL COSTRUZIONI DI LONGHI JACOPO"
+        },
+        {
+          "page": 9,
+          "row": 10,
+          "raw": "90027810168/035002",
+          "strict_tokens": [
+            "90027810168"
+          ],
+          "name": "CARPENTERIE TRUSSARDI S.R.L."
+        },
+        {
+          "page": 10,
+          "row": 2,
+          "raw": "04417290162/CRRR",
+          "strict_tokens": [
+            "04417290162"
+          ],
+          "name": "CARRARA ERMANNO"
+        },
+        {
+          "page": 12,
+          "row": 10,
+          "raw": "80008650162/004731",
+          "strict_tokens": [
+            "80008650162"
+          ],
+          "name": "COOPERATIVA DELLA COMUNITA' SOCIETA' COOPERATIVA SOCIALE"
+        },
+        {
+          "page": 13,
+          "row": 8,
+          "raw": "CSSGCM73L22C800",
+          "strict_tokens": [],
+          "name": "COSSALI GIACOMO"
+        },
+        {
+          "page": 14,
+          "row": 1,
+          "raw": "CRPMCL48H01M305",
+          "strict_tokens": [],
+          "name": "CRIPPA MARCELLO"
+        },
+        {
+          "page": 14,
+          "row": 4,
+          "raw": "CMNJCP02R04A246",
+          "strict_tokens": [],
+          "name": "CUMINETTI FINE ART DI CUMINETTI JACOPO"
+        },
+        {
+          "page": 14,
+          "row": 5,
+          "raw": "CMNMSM65M09A24",
+          "strict_tokens": [],
+          "name": "CUMINETTI MASSIMO"
+        },
+        {
+          "page": 15,
+          "row": 7,
+          "raw": "CTTGRL89B18A246",
+          "strict_tokens": [],
+          "name": "DEMOTEC DI CATTANEO GABRIELE"
+        },
+        {
+          "page": 15,
+          "row": 8,
+          "raw": "CTTGRL89B18A246",
+          "strict_tokens": [],
+          "name": "DEMOTEC DI CATTANEO GABRIELE"
+        },
+        {
+          "page": 15,
+          "row": 9,
+          "raw": "CTTGRL89B18A246",
+          "strict_tokens": [],
+          "name": "DEMOTEC DI CATTANEO GABRIELE"
+        },
+        {
+          "page": 15,
+          "row": 10,
+          "raw": "CTTGRL89B18A246",
+          "strict_tokens": [],
+          "name": "DEMOTEC DI CATTANEO GABRIELE"
+        },
+        {
+          "page": 15,
+          "row": 11,
+          "raw": "CTTGRL89B18A246",
+          "strict_tokens": [],
+          "name": "DEMOTEC DI CATTANEO GABRIELE"
+        },
+        {
+          "page": 22,
+          "row": 7,
+          "raw": "PRNDMN87D28C800",
+          "strict_tokens": [],
+          "name": "EDILSCAVI DI PERANI DAMIANO"
+        },
+        {
+          "page": 25,
+          "row": 9,
+          "raw": "FERRARI DAMIANO",
+          "strict_tokens": [],
+          "name": "FERRARI DAMIANO"
+        },
+        {
+          "page": 25,
+          "row": 10,
+          "raw": "FERRARI DAMIANO",
+          "strict_tokens": [],
+          "name": "FERRARI DAMIANO"
+        },
+        {
+          "page": 25,
+          "row": 11,
+          "raw": "FERRARI DAMIANO",
+          "strict_tokens": [],
+          "name": "FERRARI DAMIANO"
+        },
+        {
+          "page": 26,
+          "row": 4,
+          "raw": "FGRDRA70S09E704",
+          "strict_tokens": [],
+          "name": "FIGAROLI DARIO"
+        },
+        {
+          "page": 26,
+          "row": 11,
+          "raw": "FGLGNN64S19A794",
+          "strict_tokens": [],
+          "name": "FOGLIENI GIOVANNI"
+        },
+        {
+          "page": 27,
+          "row": 1,
+          "raw": "FGLGNN64S19A794",
+          "strict_tokens": [],
+          "name": "FOGLIENI GIOVANNI"
+        },
+        {
+          "page": 27,
+          "row": 5,
+          "raw": "01759000167/01649",
+          "strict_tokens": [
+            "01759000167"
+          ],
+          "name": "FORNITURE EDILI - S.R.L."
+        },
+        {
+          "page": 27,
+          "row": 6,
+          "raw": "01759000167/01649",
+          "strict_tokens": [
+            "01759000167"
+          ],
+          "name": "FORNITURE EDILI - S.R.L."
+        },
+        {
+          "page": 27,
+          "row": 7,
+          "raw": "01649580139/017590",
+          "strict_tokens": [
+            "01649580139"
+          ],
+          "name": "FORNITURE EDILI - S.R.L."
+        },
+        {
+          "page": 27,
+          "row": 8,
+          "raw": "01759000167/01649",
+          "strict_tokens": [
+            "01759000167"
+          ],
+          "name": "FORNITURE EDILI - S.R.L."
+        },
+        {
+          "page": 27,
+          "row": 9,
+          "raw": "01759000167/01649",
+          "strict_tokens": [
+            "01759000167"
+          ],
+          "name": "FORNITURE EDILI - S.R.L."
+        },
+        {
+          "page": 28,
+          "row": 1,
+          "raw": "FSNMSM65P19I437",
+          "strict_tokens": [],
+          "name": "FUSINI MASSIMO"
+        },
+        {
+          "page": 28,
+          "row": 10,
+          "raw": "GSHFMA76S17Z160",
+          "strict_tokens": [],
+          "name": "GASHI FAIM"
+        },
+        {
+          "page": 28,
+          "row": 11,
+          "raw": "GSHFMA76S17Z160",
+          "strict_tokens": [],
+          "name": "GASHI FAIM"
+        },
+        {
+          "page": 29,
+          "row": 3,
+          "raw": "GHDVNI71T11A794",
+          "strict_tokens": [],
+          "name": "GHIDOTTI IVAN"
+        },
+        {
+          "page": 29,
+          "row": 5,
+          "raw": "GYNBCC98P18Z306",
+          "strict_tokens": [],
+          "name": "GIEYANME IMPIANTI DI GIEYANME BRICE CREPIN"
+        },
+        {
+          "page": 29,
+          "row": 8,
+          "raw": "MGGFNC86D10D708",
+          "strict_tokens": [],
+          "name": "GREEN ECOLOGY DI MAGGIALETTI FRANCESCO"
+        },
+        {
+          "page": 29,
+          "row": 9,
+          "raw": "MGGFNC86D10D708",
+          "strict_tokens": [],
+          "name": "GREEN ECOLOGY DI MAGGIALETTI FRANCESCO"
+        },
+        {
+          "page": 33,
+          "row": 11,
+          "raw": "FRNLCU97M09A794",
+          "strict_tokens": [],
+          "name": "IMPRESA FIORONA DI FIORONA LUCA"
+        },
+        {
+          "page": 36,
+          "row": 4,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "KHALIL COSTRUZIONI SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICA TA"
+        },
+        {
+          "page": 36,
+          "row": 5,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "KHALIL COSTRUZIONI SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICA TA"
+        },
+        {
+          "page": 36,
+          "row": 6,
+          "raw": "KHLYSF00H24M052",
+          "strict_tokens": [],
+          "name": "KHALIL YOUSSEF"
+        },
+        {
+          "page": 37,
+          "row": 4,
+          "raw": "GSSFRC72H68A794",
+          "strict_tokens": [],
+          "name": "LA VIE EST BELLE DI GUSSAGO FEDERICA"
+        },
+        {
+          "page": 37,
+          "row": 8,
+          "raw": "LNALRT66P20A794",
+          "strict_tokens": [],
+          "name": "LAINI ALBERTO"
+        },
+        {
+          "page": 37,
+          "row": 9,
+          "raw": "LNALRT66P20A794",
+          "strict_tokens": [],
+          "name": "LAINI ALBERTO"
+        },
+        {
+          "page": 37,
+          "row": 10,
+          "raw": "LNALRT66P20A794",
+          "strict_tokens": [],
+          "name": "LAINI ALBERTO"
+        },
+        {
+          "page": 37,
+          "row": 11,
+          "raw": "LNALRT66P20A794",
+          "strict_tokens": [],
+          "name": "LAINI ALBERTO"
+        },
+        {
+          "page": 38,
+          "row": 1,
+          "raw": "250101065",
+          "strict_tokens": [],
+          "name": "LAINI PRIMO"
+        },
+        {
+          "page": 40,
+          "row": 8,
+          "raw": "01303850166/034341",
+          "strict_tokens": [
+            "01303850166"
+          ],
+          "name": "METALL STEEL METALTUBI S.R.L."
+        },
+        {
+          "page": 40,
+          "row": 9,
+          "raw": "04234530162/BTTCT",
+          "strict_tokens": [
+            "04234530162"
+          ],
+          "name": "METALLOGISTIC DI BETTONI COSTANZO"
+        },
+        {
+          "page": 41,
+          "row": 7,
+          "raw": "MLOFLV50T27A214",
+          "strict_tokens": [],
+          "name": "MOIOLI FULVIO"
+        },
+        {
+          "page": 41,
+          "row": 8,
+          "raw": "03886440167 /MNZ",
+          "strict_tokens": [
+            "03886440167"
+          ],
+          "name": "MONZIO COMPAGNONI ERNESTO"
+        },
+        {
+          "page": 43,
+          "row": 8,
+          "raw": "SNGMJT80M26Z222",
+          "strict_tokens": [],
+          "name": "PABLA DI SINGH MANJIT"
+        },
+        {
+          "page": 43,
+          "row": 9,
+          "raw": "PLMDNL71D27Z133",
+          "strict_tokens": [],
+          "name": "PALAMINI DANILO"
+        },
+        {
+          "page": 43,
+          "row": 11,
+          "raw": "RGGPP75L61F839Y",
+          "strict_tokens": [],
+          "name": "PANE AMORE E FANTASIA DI MARIGLIANO GIUSEPPINA"
+        },
+        {
+          "page": 44,
+          "row": 5,
+          "raw": "PDRMLE77E26E704",
+          "strict_tokens": [],
+          "name": "PEDRETTI EMIL"
+        },
+        {
+          "page": 45,
+          "row": 11,
+          "raw": "RPSGLN58A08A528",
+          "strict_tokens": [],
+          "name": "RAPIS GIULIANO AUTOTRASPORTI"
+        },
+        {
+          "page": 51,
+          "row": 4,
+          "raw": "HMDMTF91P11Z336",
+          "strict_tokens": [],
+          "name": "STAR EDILIZIA DI AHMED ABDELGHANI AHMED MOUSTAFA"
+        },
+        {
+          "page": 51,
+          "row": 5,
+          "raw": "HMDMTF91P11Z336",
+          "strict_tokens": [],
+          "name": "STAR EDILIZIA DI AHMED ABDELGHANI AHMED MOUSTAFA"
+        },
+        {
+          "page": 52,
+          "row": 7,
+          "raw": "TRBGPP78E06L388",
+          "strict_tokens": [],
+          "name": "TIRABOSCHI GIUSEPPE"
+        },
+        {
+          "page": 52,
+          "row": 10,
+          "raw": "TRRNNN65P05G273",
+          "strict_tokens": [],
+          "name": "TORREGROSSA ANTONINO"
+        },
+        {
+          "page": 52,
+          "row": 11,
+          "raw": "02452490168/BLSMS",
+          "strict_tokens": [
+            "02452490168"
+          ],
+          "name": "TRASPORTI BALESTRA MASSIMO"
+        },
+        {
+          "page": 54,
+          "row": 9,
+          "raw": "ZNCSFN69T31A794",
+          "strict_tokens": [],
+          "name": "ZANCHI STEFANO"
+        },
+        {
+          "page": 54,
+          "row": 10,
+          "raw": "ZNCSFN69T31A794",
+          "strict_tokens": [],
+          "name": "ZANCHI STEFANO"
+        },
+        {
+          "page": 54,
+          "row": 11,
+          "raw": "ZNCSFN69T31A794",
+          "strict_tokens": [],
+          "name": "ZANCHI STEFANO"
+        },
+        {
+          "page": 55,
+          "row": 8,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "ZENOLO SRL"
+        }
+      ],
+      "identifier_record_coverage": 555,
+      "multiple_strict_identifier_records": 0,
+      "update_nonblank_count": null
+    },
+    "listed": {
+      "sha256": "b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef",
+      "row_count": 1434,
+      "date_state_counts": {
+        "listing:valid": 1434,
+        "expiry:valid": 1434,
+        "update:blank": 626,
+        "update:valid": 808
+      },
+      "date_anomalies": [],
+      "noncanonical_identifier_count": 66,
+      "noncanonical_identifiers": [
+        {
+          "page": 1,
+          "row": 3,
+          "raw": "04447980162/FRRGRL93T11B1 57V",
+          "strict_tokens": [
+            "04447980162"
+          ],
+          "name": "2F PAVIMENTAZIONI DI FERRARI GABRIELE"
+        },
+        {
+          "page": 1,
+          "row": 5,
+          "raw": "11109710159/02603000163",
+          "strict_tokens": [
+            "11109710159",
+            "02603000163"
+          ],
+          "name": "3V S.R.L."
+        },
+        {
+          "page": 1,
+          "row": 6,
+          "raw": "11109710159/02603000163",
+          "strict_tokens": [
+            "11109710159",
+            "02603000163"
+          ],
+          "name": "3V S.R.L."
+        },
+        {
+          "page": 1,
+          "row": 7,
+          "raw": "11109710159/02603000163",
+          "strict_tokens": [
+            "11109710159",
+            "02603000163"
+          ],
+          "name": "3V S.R.L."
+        },
+        {
+          "page": 1,
+          "row": 8,
+          "raw": "11109710159/02603000163",
+          "strict_tokens": [
+            "11109710159",
+            "02603000163"
+          ],
+          "name": "3V S.R.L."
+        },
+        {
+          "page": 2,
+          "row": 2,
+          "raw": "02345080168/12406470158",
+          "strict_tokens": [
+            "02345080168",
+            "12406470158"
+          ],
+          "name": "A.C.R. S.R.L."
+        },
+        {
+          "page": 4,
+          "row": 3,
+          "raw": "03758710168/MNATNT76H21Z1 00C",
+          "strict_tokens": [
+            "03758710168"
+          ],
+          "name": "AR.TA. DI MANE TAULANT"
+        },
+        {
+          "page": 6,
+          "row": 8,
+          "raw": "BKHBLL92S29Z330H/04153680 162",
+          "strict_tokens": [
+            "BKHBLL92S29Z330H"
+          ],
+          "name": "AUTOFFICINA ABDE DI BAKHAKH ABDELALI"
+        },
+        {
+          "page": 7,
+          "row": 8,
+          "raw": "00238480164/12766480151",
+          "strict_tokens": [
+            "00238480164",
+            "12766480151"
+          ],
+          "name": "AUTOTRASPORTI F.LLI MAGRI S.RL."
+        },
+        {
+          "page": 8,
+          "row": 3,
+          "raw": "LNICTN65R05C259J/02706010 655",
+          "strict_tokens": [
+            "LNICTN65R05C259J"
+          ],
+          "name": "AUTOTRASPORTI IULIANO COSTANTINO"
+        },
+        {
+          "page": 9,
+          "row": 2,
+          "raw": "MLOLCU83B13A246A/04723820 165",
+          "strict_tokens": [
+            "MLOLCU83B13A246A"
+          ],
+          "name": "AUTOTRASPORTI MOIOLI LUCIO"
+        },
+        {
+          "page": 14,
+          "row": 8,
+          "raw": "01297940163/BRTNLR62C02E7 04S",
+          "strict_tokens": [
+            "01297940163"
+          ],
+          "name": "BERTONI ANGELO REMIGIO"
+        },
+        {
+          "page": 14,
+          "row": 10,
+          "raw": "05127471000/00756290565",
+          "strict_tokens": [
+            "05127471000",
+            "00756290565"
+          ],
+          "name": "BETONTIR S.R.L."
+        },
+        {
+          "page": 14,
+          "row": 11,
+          "raw": "05127471000/00756290565",
+          "strict_tokens": [
+            "05127471000",
+            "00756290565"
+          ],
+          "name": "BETONTIR S.R.L."
+        },
+        {
+          "page": 17,
+          "row": 8,
+          "raw": "00802300160/RNLNNN54C24M 184D",
+          "strict_tokens": [
+            "00802300160"
+          ],
+          "name": "BREMBANA TRASPORTI DI RINALDI ANTONIO ANDREA"
+        },
+        {
+          "page": 17,
+          "row": 9,
+          "raw": "00802300160/RNLNNN54C24M 184D",
+          "strict_tokens": [
+            "00802300160"
+          ],
+          "name": "BREMBANA TRASPORTI DI RINALDI ANTONIO ANDREA"
+        },
+        {
+          "page": 18,
+          "row": 1,
+          "raw": "01007520164/BRMRNT59S22A7 94L",
+          "strict_tokens": [
+            "01007520164"
+          ],
+          "name": "BREMBILLA RENATO"
+        },
+        {
+          "page": 18,
+          "row": 3,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "BRM METALFER SRL"
+        },
+        {
+          "page": 21,
+          "row": 5,
+          "raw": "01275110169/CPFNGL48C01A0 57N",
+          "strict_tokens": [
+            "01275110169"
+          ],
+          "name": "CAPOFERRI ANGELO"
+        },
+        {
+          "page": 22,
+          "row": 4,
+          "raw": "02254190164/CRRPLG67H02B3 93T",
+          "strict_tokens": [
+            "02254190164"
+          ],
+          "name": "CARRARA PIERLUIGI"
+        },
+        {
+          "page": 22,
+          "row": 5,
+          "raw": "02254190164/CRRPLG67H02B3 93T",
+          "strict_tokens": [
+            "02254190164"
+          ],
+          "name": "CARRARA PIERLUIGI"
+        },
+        {
+          "page": 24,
+          "row": 1,
+          "raw": "30/03/2025",
+          "strict_tokens": [],
+          "name": "CENTRO BITUMATI 2000 S.R.L."
+        },
+        {
+          "page": 29,
+          "row": 2,
+          "raw": "2466650138/0285408016",
+          "strict_tokens": [],
+          "name": "COOPERATIVA SOCIALE PADRE DANIELE BADIALI - ONLUS"
+        },
+        {
+          "page": 29,
+          "row": 3,
+          "raw": "2466650138/02854080161",
+          "strict_tokens": [
+            "02854080161"
+          ],
+          "name": "COOPERATIVA SOCIALE PADRE DANIELE BADIALI - ONLUS"
+        },
+        {
+          "page": 32,
+          "row": 1,
+          "raw": "LZZMRN66D52D903Y/04150440 164",
+          "strict_tokens": [
+            "LZZMRN66D52D903Y"
+          ],
+          "name": "COSTRUZIONI OTTO DI LAZZARINI MARINA"
+        },
+        {
+          "page": 33,
+          "row": 4,
+          "raw": "DLPCRD65R12B137L/04639850 165",
+          "strict_tokens": [
+            "DLPCRD65R12B137L"
+          ],
+          "name": "DEL PRATO CORRADO"
+        },
+        {
+          "page": 34,
+          "row": 6,
+          "raw": "01702930163/00914700067",
+          "strict_tokens": [
+            "01702930163",
+            "00914700067"
+          ],
+          "name": "DO.RO. S.R.L."
+        },
+        {
+          "page": 34,
+          "row": 7,
+          "raw": "01702930163/00914700067",
+          "strict_tokens": [
+            "01702930163",
+            "00914700067"
+          ],
+          "name": "DO.RO. S.R.L."
+        },
+        {
+          "page": 34,
+          "row": 8,
+          "raw": "01702930163/00914700067",
+          "strict_tokens": [
+            "01702930163",
+            "00914700067"
+          ],
+          "name": "DO.RO. S.R.L."
+        },
+        {
+          "page": 40,
+          "row": 5,
+          "raw": "12/08/2024",
+          "strict_tokens": [],
+          "name": "EDILBOGNI S.R.L."
+        },
+        {
+          "page": 43,
+          "row": 9,
+          "raw": "S.N.C.02069480164",
+          "strict_tokens": [
+            "02069480164"
+          ],
+          "name": "EFFECI TECNOIMPIANTI S.R.L."
+        },
+        {
+          "page": 52,
+          "row": 7,
+          "raw": "03542960160/FRNMNL85A29D9 52T",
+          "strict_tokens": [
+            "03542960160"
+          ],
+          "name": "FRANCHINA MANUEL"
+        },
+        {
+          "page": 52,
+          "row": 8,
+          "raw": "03542960160/FRNMNL85A29D9 52T",
+          "strict_tokens": [
+            "03542960160"
+          ],
+          "name": "FRANCHINA MANUEL"
+        },
+        {
+          "page": 52,
+          "row": 9,
+          "raw": "03542960160/FRNMNL85A29D9 52T",
+          "strict_tokens": [
+            "03542960160"
+          ],
+          "name": "FRANCHINA MANUEL"
+        },
+        {
+          "page": 52,
+          "row": 10,
+          "raw": "03542960160/FRNMNL85A29D9 52T",
+          "strict_tokens": [
+            "03542960160"
+          ],
+          "name": "FRANCHINA MANUEL"
+        },
+        {
+          "page": 52,
+          "row": 11,
+          "raw": "03542960160/FRNMNL85A29D9 52T",
+          "strict_tokens": [
+            "03542960160"
+          ],
+          "name": "FRANCHINA MANUEL"
+        },
+        {
+          "page": 59,
+          "row": 3,
+          "raw": "00686310152/01852980166",
+          "strict_tokens": [
+            "00686310152",
+            "01852980166"
+          ],
+          "name": "GIMA S.R.L."
+        },
+        {
+          "page": 62,
+          "row": 1,
+          "raw": "14/07/2025",
+          "strict_tokens": [],
+          "name": "GUALDI GROUP S.R.L."
+        },
+        {
+          "page": 68,
+          "row": 11,
+          "raw": "01255970160/CCCLDA60S25D9 05F",
+          "strict_tokens": [
+            "01255970160"
+          ],
+          "name": "IMPRESA EDILE CACCIA ALDO"
+        },
+        {
+          "page": 77,
+          "row": 9,
+          "raw": "07075130158/ 01640880165",
+          "strict_tokens": [
+            "07075130158",
+            "01640880165"
+          ],
+          "name": "ITALGREEN S.P.A."
+        },
+        {
+          "page": 77,
+          "row": 10,
+          "raw": "01640880165/07075130158",
+          "strict_tokens": [
+            "01640880165",
+            "07075130158"
+          ],
+          "name": "ITALGREEN S.P.A."
+        },
+        {
+          "page": 81,
+          "row": 7,
+          "raw": "00677110132/00778900167",
+          "strict_tokens": [
+            "00677110132",
+            "00778900167"
+          ],
+          "name": "LEVIAT S.R.L."
+        },
+        {
+          "page": 94,
+          "row": 9,
+          "raw": "01654300167/LDRRLD59A07A7 94K",
+          "strict_tokens": [
+            "01654300167"
+          ],
+          "name": "OLDRATI ARNALDO"
+        },
+        {
+          "page": 94,
+          "row": 10,
+          "raw": "00708510169/LDRLCN49A05E2 19D",
+          "strict_tokens": [
+            "00708510169"
+          ],
+          "name": "OLDRATI LUCIANO"
+        },
+        {
+          "page": 96,
+          "row": 6,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "PACCANI COSTRUZIONI S.R.L."
+        },
+        {
+          "page": 96,
+          "row": 10,
+          "raw": "'",
+          "strict_tokens": [],
+          "name": "PACCANI COSTRUZIONI S.R.L."
+        },
+        {
+          "page": 96,
+          "row": 11,
+          "raw": "01251100390/02502440163",
+          "strict_tokens": [
+            "01251100390",
+            "02502440163"
+          ],
+          "name": "PAMIR S.R.L."
+        },
+        {
+          "page": 97,
+          "row": 8,
+          "raw": "PDRGPL73T07C800D/0288967 0168",
+          "strict_tokens": [
+            "PDRGPL73T07C800D"
+          ],
+          "name": "PEDROCCHI GIANPAOLO"
+        },
+        {
+          "page": 98,
+          "row": 8,
+          "raw": "PZZFLV60D05A246K/ 01696860160",
+          "strict_tokens": [
+            "PZZFLV60D05A246K",
+            "01696860160"
+          ],
+          "name": "PEZZOTTA FLAVIO"
+        },
+        {
+          "page": 102,
+          "row": 1,
+          "raw": "09042026",
+          "strict_tokens": [],
+          "name": "PRAVISANI S.P.A."
+        },
+        {
+          "page": 103,
+          "row": 3,
+          "raw": "00747320158/02511260164",
+          "strict_tokens": [
+            "00747320158",
+            "02511260164"
+          ],
+          "name": "PROSIMET S.P.A."
+        },
+        {
+          "page": 105,
+          "row": 6,
+          "raw": "10383020152/02337030163",
+          "strict_tokens": [
+            "10383020152",
+            "02337030163"
+          ],
+          "name": "RI.CO.MAS. S.R.L."
+        },
+        {
+          "page": 105,
+          "row": 7,
+          "raw": "03671080160/LNGRMN81P19D 952D",
+          "strict_tokens": [
+            "03671080160"
+          ],
+          "name": "RISANEDIL DI LONGHI RAMON"
+        },
+        {
+          "page": 106,
+          "row": 4,
+          "raw": "02810400164/RBRMRT67H06A 794P",
+          "strict_tokens": [
+            "02810400164"
+          ],
+          "name": "ROBERTI UMBERTO"
+        },
+        {
+          "page": 108,
+          "row": 10,
+          "raw": "CPLSCR71H07A794V/00265060 160",
+          "strict_tokens": [
+            "CPLSCR71H07A794V"
+          ],
+          "name": "S.M.I.T. S.N.C. DI CAPELLI OSCAR & C."
+        },
+        {
+          "page": 110,
+          "row": 6,
+          "raw": "02644550168/SVLMRC69R04C8 00S",
+          "strict_tokens": [
+            "02644550168"
+          ],
+          "name": "SAVOLDELLI AUTOTRASPORTI DI SAVOLDELLI MARCO"
+        },
+        {
+          "page": 124,
+          "row": 7,
+          "raw": "04950940157/02860650163",
+          "strict_tokens": [
+            "04950940157",
+            "02860650163"
+          ],
+          "name": "TRAFILERIE ALLUMINIO ALEXIA S.P.A."
+        },
+        {
+          "page": 125,
+          "row": 10,
+          "raw": "01846020160/MDLLVR65R07G2 59P",
+          "strict_tokens": [
+            "01846020160"
+          ],
+          "name": "TRATER DI MEDOLAGO OLIVIERO"
+        },
+        {
+          "page": 125,
+          "row": 11,
+          "raw": "01846020160/MDLLVR65R07G2 59P",
+          "strict_tokens": [
+            "01846020160"
+          ],
+          "name": "TRATER DI MEDOLAGO OLIVIERO"
+        },
+        {
+          "page": 126,
+          "row": 10,
+          "raw": "TRNGPP53M27B138V/0070217 0168",
+          "strict_tokens": [
+            "TRNGPP53M27B138V"
+          ],
+          "name": "TURANI GIUSEPPE"
+        },
+        {
+          "page": 127,
+          "row": 8,
+          "raw": "17/07/2024",
+          "strict_tokens": [],
+          "name": "UNISERV S.R.L."
+        },
+        {
+          "page": 130,
+          "row": 3,
+          "raw": "02421290160/11111070154",
+          "strict_tokens": [
+            "02421290160",
+            "11111070154"
+          ],
+          "name": "VIVIANI IMPIANTI S.R.L."
+        },
+        {
+          "page": 130,
+          "row": 4,
+          "raw": "02421290160/11111070154",
+          "strict_tokens": [
+            "02421290160",
+            "11111070154"
+          ],
+          "name": "VIVIANI IMPIANTI S.R.L."
+        },
+        {
+          "page": 130,
+          "row": 6,
+          "raw": "01380870160/ZMBFLV58T30H1 77F",
+          "strict_tokens": [
+            "01380870160"
+          ],
+          "name": "ZAMBETTI FULVIO"
+        },
+        {
+          "page": 130,
+          "row": 7,
+          "raw": "00963290168/ZNCZBR61L20M1 84F",
+          "strict_tokens": [
+            "00963290168"
+          ],
+          "name": "ZANCHI EZIO ALBERTO"
+        },
+        {
+          "page": 130,
+          "row": 8,
+          "raw": "00963290168/ZNCZBR61L20M1 84F",
+          "strict_tokens": [
+            "00963290168"
+          ],
+          "name": "ZANCHI EZIO ALBERTO"
+        }
+      ],
+      "identifier_record_coverage": 1425,
+      "multiple_strict_identifier_records": 22,
+      "update_nonblank_count": 808
+    }
+  }
+}
