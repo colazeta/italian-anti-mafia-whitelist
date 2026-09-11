@@ -1,0 +1,53 @@
+name: Campobasso date typography fix
+
+on:
+  push:
+    branches:
+      - expansion/campobasso-2026-09-11
+    paths:
+      - .github/workflows/campobasso-date-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/campobasso-2026-09-11
+      - name: Apply reviewed Italian month-name typography
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/white_list_archive/parsers/campobasso_openxml.py')
+          text = p.read_text(encoding='utf-8')
+          old = '''    match = _DATE_DMY.fullmatch(raw)\n    if not match:\n        raise RuntimeError(f"Campobasso unreviewed date typography: {raw!r}")\n    day, month, year = map(int, match.groups())\n    try:\n        return date(year, month, day).isoformat()\n    except ValueError as exc:\n        raise RuntimeError(f"Campobasso invalid calendar date: {raw!r}") from exc\n'''
+          new = '''    match = _DATE_DMY.fullmatch(raw)\n    if match:\n        day, month, year = map(int, match.groups())\n    else:\n        named = re.fullmatch(r"(\\d{1,2})\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", raw)\n        months = {\n            "gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4,\n            "maggio": 5, "giugno": 6, "luglio": 7, "agosto": 8,\n            "settembre": 9, "ottobre": 10, "novembre": 11, "dicembre": 12,\n        }\n        if not named or named.group(2).casefold() not in months:\n            raise RuntimeError(f"Campobasso unreviewed date typography: {raw!r}")\n        day = int(named.group(1))\n        month = months[named.group(2).casefold()]\n        year = int(named.group(3))\n    try:\n        return date(year, month, day).isoformat()\n    except ValueError as exc:\n        raise RuntimeError(f"Campobasso invalid calendar date: {raw!r}") from exc\n'''
+          if old not in text:
+              raise SystemExit('Expected date parser block not found; refusing unbounded edit')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          t = Path('tests/test_campobasso_parser_semantics.py')
+          tests = t.read_text(encoding='utf-8')
+          replacements = {
+              '"14/11/2025"': '"14 novembre 2025"',
+              '"07/08/2026"': '"07 agosto 2026"',
+          }
+          for old_value, new_value in replacements.items():
+              if old_value not in tests:
+                  raise SystemExit(f'Expected synthetic applicant date {old_value} not found')
+              tests = tests.replace(old_value, new_value, 1)
+          t.write_text(tests, encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- src/white_list_archive/parsers/campobasso_openxml.py tests/test_campobasso_parser_semantics.py
+      - name: Commit reviewed parser fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/campobasso_openxml.py tests/test_campobasso_parser_semantics.py
+          git commit -m 'Support audited Campobasso Italian month dates'
+          git push origin HEAD:expansion/campobasso-2026-09-11
