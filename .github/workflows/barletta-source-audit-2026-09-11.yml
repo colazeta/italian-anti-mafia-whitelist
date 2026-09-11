@@ -1,4 +1,4 @@
-name: Barletta-Andria-Trani parser validation 2026-09-11
+name: Barletta-Andria-Trani status discrepancy audit 2026-09-11
 
 on:
   push:
@@ -8,10 +8,10 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    if: github.event.head_commit.message == 'Revalidate Barletta note-date parser'
+  audit:
+    if: github.event.head_commit.message == 'Audit Barletta status denominator discrepancy'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,34 +20,62 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install parser runtime
-        run: python -m pip install -e '.[dev,publication]'
-      - name: Verify source bytes and parser output
+        run: python -m pip install -e '.[publication]'
+      - name: Compare old audit boundary with production boundary
         shell: bash
         run: |
-          pytest -q tests/test_barletta_andria_trani_parser_semantics.py
           python - <<'PY'
-          import hashlib
-          from pathlib import Path
+          import hashlib, re, tempfile
+          from collections import Counter
           from urllib.request import Request, urlopen
-          from white_list_archive.parsers.barletta_andria_trani_tables import parse_barletta_andria_trani_listed, parse_barletta_andria_trani_applicants
-          sources={
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf','d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'),
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf','ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57'),
-          }
-          paths={}
-          for kind,(url,expected) in sources.items():
-              req=Request(url,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 parser-validation'})
-              with urlopen(req,timeout=90) as response: body=response.read()
-              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(kind,observed)
-              path=Path('/tmp',f'barletta-{kind}.pdf'); path.write_bytes(body); paths[kind]=path
-          base={'authority_key':'barletta-andria-trani','authority_name':'Prefettura di Barletta-Andria-Trani','register_key':'barletta-andria-trani-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-11'}
-          lc=base|{'source_key':'barletta-andria-trani-listed','population_scope':'listed','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte','resource_url':sources['listed'][0],'sha256':sources['listed'][1]}
-          ac=base|{'source_key':'barletta-andria-trani-applicants','population_scope':'applicant','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione','resource_url':sources['applicants'][0],'sha256':sources['applicants'][1]}
-          listed=parse_barletta_andria_trani_listed(paths['listed'],lc)
-          applicants=parse_barletta_andria_trani_applicants(paths['applicants'],ac)
-          print('LISTED_DIAGNOSTICS',listed.diagnostics)
-          print('APPLICANT_DIAGNOSTICS',applicants.diagnostics)
-          print('TOTAL_PUBLIC_RECORDS',len(listed.records)+len(applicants.records))
-          note=[r for r in listed.records if r['name']=='VIVA COSTRUZIONI SRL']
-          print('VIVA_RECORDS',note)
+          import pdfplumber
+          from white_list_archive.parsers.barletta_andria_trani_tables import (
+              _clean, _listed_candidate, _listed_sector_rows, _strict_identifiers,
+          )
+
+          URL='https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf'
+          SHA='d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'
+          OLD_DATEISH=re.compile(r'\d{1,2}[./-]\d{1,2}[./-](?:\d{4}|\d{3}\s*\d)|\d{1,2}/\d{1,2}/\d{1,2}/\d{4}')
+          def old_candidate(row):
+              if not row or not _clean(row[0]): return False
+              dates=[]
+              for value in row[3:]:
+                  dates.extend(OLD_DATEISH.findall(_clean(value)))
+              ids=_strict_identifiers(' | '.join(row[2:]))
+              return bool((ids and dates) or len(dates)>=2)
+
+          req=Request(URL,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 status-boundary-audit'})
+          with urlopen(req,timeout=90) as response: body=response.read()
+          assert hashlib.sha256(body).hexdigest()==SHA
+          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+              f.write(body); f.flush()
+              old=[]; prod=[]
+              with pdfplumber.open(f.name) as pdf:
+                  for pno,page in enumerate(pdf.pages,1):
+                      rows=[]
+                      for table in page.find_tables():
+                          rows.extend([[_clean(c) for c in raw] for raw in (table.extract() or []) if any(_clean(c) for c in raw)])
+                      for idx,row in enumerate(rows,1):
+                          if old_candidate(row): old.append((pno,idx,row))
+                          if _listed_candidate(row): prod.append((pno,idx,row))
+              prod_logical,markers=_listed_sector_rows(__import__('pathlib').Path(f.name),'barletta-listed')
+          old_keys={(p,r) for p,r,_ in old}; prod_keys={(p,r) for p,r,_ in prod}
+          print('OLD_COUNT',len(old),'PROD_BASE_COUNT',len(prod),'PROD_LOGICAL_COUNT',len(prod_logical))
+          print('OLD_STATUS',Counter('renewal' if 'aggiornament' in ' '.join(row).casefold() else 'listed' for _,_,row in old))
+          print('PROD_BASE_STATUS',Counter('renewal' if 'aggiornament' in ' '.join(row).casefold() else 'listed' for _,_,row in prod))
+          print('PROD_LOGICAL_STATUS',Counter('renewal' if 'aggiornament' in ' '.join(' '.join(x) for x in [item['base'],*item['continuations']]).casefold() else 'listed' for item in prod_logical))
+          print('OLD_ONLY_COUNT',len(old_keys-prod_keys))
+          for p,r in sorted(old_keys-prod_keys):
+              row=next(row for pp,rr,row in old if pp==p and rr==r)
+              print('OLD_ONLY',p,r,repr(row))
+          print('PROD_ONLY_COUNT',len(prod_keys-old_keys))
+          for p,r in sorted(prod_keys-old_keys):
+              row=next(row for pp,rr,row in prod if pp==p and rr==r)
+              print('PROD_ONLY',p,r,repr(row))
+          # Print every production logical row whose status comes only from a continuation.
+          for item in prod_logical:
+              base=' '.join(item['base']).casefold()
+              full=' '.join(' '.join(x) for x in [item['base'],*item['continuations']]).casefold()
+              if 'aggiornament' not in base and 'aggiornament' in full:
+                  print('UPDATE_IN_CONTINUATION',item['page'],item['row'],repr(item['base']),repr(item['continuations']))
           PY
