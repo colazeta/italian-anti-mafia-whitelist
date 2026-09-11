@@ -95,7 +95,7 @@ jobs:
           assert reg['meta']['authority_count']==25
           assert reg['meta']['register_count']==26
           assert pref['meta']['published_count']==25
-          assert pref['meta']['mapped_count']==36
+          assert pref['meta']['mapped_count']==37
           cb=[r for r in reg['records'] if r['authority_key']=='campobasso']
           assert len(cb)==342
           print('Campobasso national candidate validated:',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['mapped_count'])
