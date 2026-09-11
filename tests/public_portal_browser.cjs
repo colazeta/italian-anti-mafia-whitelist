@@ -40,6 +40,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Barletta-Andria-Trani'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Brindisi'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Cagliari'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Caltanissetta'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -80,8 +81,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,18515);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari'].includes(r.authority_key));
+      assert.equal(stats.total,19321);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -189,6 +190,15 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(cagliari.filter(r=>r.source_key==='cagliari-listed').length,750);
       assert.equal(cagliari.filter(r=>r.source_key==='cagliari-applicants').length,51);
       assert.deepEqual(statusCounts(cagliari),{listed:713,pending:51,renewal_update_in_progress:37});
+      const caltanissetta=registry.records.filter(r=>r.authority_key==='caltanissetta');
+      assert.equal(caltanissetta.length,806);
+      assert.equal(caltanissetta.filter(r=>r.source_key==='caltanissetta-listed').length,518);
+      assert.equal(caltanissetta.filter(r=>r.source_key==='caltanissetta-applicants').length,288);
+      assert.deepEqual(statusCounts(caltanissetta),{listed:281,other_or_unknown:5,pending:288,renewal_update_in_progress:232});
+      const a2g=caltanissetta.filter(r=>r.name==='A2G CONSTRUCTION SRL');
+      assert.equal(a2g.length,1);
+      assert.equal(a2g[0].identifier_field_raw,'020826508502');
+      assert.deepEqual(a2g[0].identifiers,[]);
       const aeffe=cagliari.filter(r=>r.name==='AEFFE di Farci Alessandro');
       assert.equal(aeffe.length,1);
       assert.equal(aeffe[0].identifier_field_raw,'0336817853');

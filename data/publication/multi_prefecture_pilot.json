@@ -705,6 +705,40 @@
       "last_source_update": "2026-09-06",
       "last_source_update_basis": "dated official resource exposed by the current official landing page",
       "notes": "Official landing page positively exposes the applicant attachment. It contains 51 explicit In istruttoria observations. Malformed ten-digit source identifier 3814850925 and one blank source address are preserved without reconstruction or inference."
+    },
+    {
+      "source_key": "caltanissetta-listed",
+      "parser": "caltanissetta_listed",
+      "authority_key": "caltanissetta",
+      "authority_name": "Prefettura di Caltanissetta",
+      "register_key": "caltanissetta-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/caltanissetta/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-iscritte-nella-white-list_09.09.2026.pdf",
+      "sha256": "539285d8096c25c3f1d38ba7bb0d4cc33eb10e6de5ca24b268b1c7d2f31abb74",
+      "expected_source_rows": 518,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "official landing page updated 10 September 2026; current attachment explicitly dated 9 September 2026",
+      "notes": "Current byte-pinned registered-company publication. The reviewed 55-page table yields 518 observations: 281 ordinary listed, 232 explicit update-in-progress and five source-explicit special-condition rows retained as other_or_unknown. Malformed identifiers and source date relationships are preserved without reconstruction. Exact boundaries are documented in docs/sources/caltanissetta-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "caltanissetta-applicants",
+      "parser": "caltanissetta_applicants",
+      "authority_key": "caltanissetta",
+      "authority_name": "Prefettura di Caltanissetta",
+      "register_key": "caltanissetta-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/caltanissetta/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-richiedenti-iscrizione-nella-white-list_09.09.2026.pdf",
+      "sha256": "7c8b43dee53dc478d4a59d7e3d60763155814551cfc88811a398d82433d84954",
+      "expected_source_rows": 288,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "official landing page updated 10 September 2026; current attachment explicitly dated 9 September 2026",
+      "notes": "Current byte-pinned applicant publication positively identified by the official landing page and in-document title. It yields 288 pending source observations. The parenthetical variation note on one application date and malformed or blank identifiers remain source provenance and are never reconstructed."
     }
   ]
 }
