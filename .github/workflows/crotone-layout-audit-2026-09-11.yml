@@ -1,0 +1,94 @@
+name: Crotone layout audit 2026-09-11
+
+on:
+  push:
+    branches: [expansion/crotone-2026-09-11]
+    paths: [.github/workflows/crotone-layout-audit-2026-09-11.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/crotone-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pdfplumber
+      - name: Characterise all listed rows
+        run: |
+          python - <<'PY'
+          import hashlib,json,re,time
+          from collections import Counter,defaultdict
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          import pdfplumber
+
+          URL='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-iscritte-white-list-2.pdf'
+          EXPECTED='c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511'
+          months='gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'.split()
+          date=re.compile(r'^(?:[0-3]?\d)\s+(?:'+'|'.join(months)+r')\s+\d{4}$',re.I)
+          section_re=re.compile(r'(?:SEZIONE|SEZ\.?)[\s\n]*(10|[1-9])\b',re.I)
+          def clean(x): return ' '.join(str(x or '').split())
+          def get():
+            last=None
+            for i in range(5):
+              try:
+                with urlopen(Request(URL,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+layout audit)','Accept':'application/pdf,*/*'}),timeout=90) as r:return r.read()
+              except Exception as e:
+                last=e; time.sleep(3*(i+1))
+            raise last
+          b=get(); sha=hashlib.sha256(b).hexdigest()
+          if sha!=EXPECTED: raise RuntimeError(f'SHA drift {sha}')
+          p=Path('/tmp/crotone-listed.pdf');p.write_bytes(b)
+          patterns=Counter(); samples=defaultdict(list); rows=[]; current=None
+          with pdfplumber.open(p) as pdf:
+            for pno,page in enumerate(pdf.pages,1):
+              hits=[int(x) for x in section_re.findall(page.extract_text() or '')]
+              if hits:
+                if len(set(hits))!=1: raise RuntimeError(f'ambiguous section page {pno}: {hits}')
+                current=hits[0]
+              for tno,t in enumerate(page.extract_tables() or [],1):
+                for rno,row in enumerate(t or [],1):
+                  c=[clean(x) for x in row]
+                  if not any(c): continue
+                  positions=tuple(i for i,x in enumerate(c) if date.fullmatch(x))
+                  pat=f'{len(c)}:{positions}'
+                  patterns[pat]+=1
+                  rec={'page':pno,'table':tno,'row':rno,'section':current,'cells':c}
+                  if len(samples[pat])<12:samples[pat].append(rec)
+                  if len(c)==6 and current is not None and c[0] and 'ragione sociale' not in c[0].casefold(): rows.append(rec)
+          # Focus all apparent data rows regardless of expiry typography.
+          data=[]
+          for r in rows:
+            c=r['cells']; pos=tuple(i for i,x in enumerate(c) if date.fullmatch(x))
+            if 3 in pos: data.append((r,pos))
+          cell4=Counter(); cell5=Counter(); note_by_expiry=Counter(); datepos=Counter(); sections=Counter()
+          for r,pos in data:
+            c=r['cells'];datepos[str(pos)]+=1;sections[r['section']]+=1
+            cell4[c[4]]+=1;cell5[c[5]]+=1
+            note_by_expiry[(c[4],c[5])]+=1
+          out={
+            'sha256':sha,'pages':130,'all_patterns':dict(patterns),
+            'pattern_samples':dict(samples),
+            'apparent_data_rows_with_listing_date':len(data),
+            'data_date_positions':dict(datepos),
+            'section_counts_listing_date_rows':dict(sorted(sections.items())),
+            'expiry_cell_values_top80':cell4.most_common(80),
+            'note_cell_values_top80':cell5.most_common(80),
+            'expiry_note_pairs_top120':[[a,b,n] for (a,b),n in note_by_expiry.most_common(120)],
+          }
+          Path('tmp/crotone-layout-audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps({k:v for k,v in out.items() if k!='pattern_samples'},ensure_ascii=False,indent=2))
+          PY
+      - name: Commit layout checkpoint
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/crotone-layout-audit.json
+          git commit -m 'Checkpoint Crotone layout audit'
+          git push origin HEAD:expansion/crotone-2026-09-11
