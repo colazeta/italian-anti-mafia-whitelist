@@ -41,6 +41,7 @@ _DATE = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})$", re.
 _DATE_PREFIX = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})(.*)$", re.I)
 _REVIEWED_EXPIRY_TYPOGRAPHY = {
     "7 dicembre2022 Richiesta rinnovo": "7 dicembre 2022 Richiesta rinnovo",
+    "14 giungo 2022 Richiesta rinnovo": "14 giugno 2022 Richiesta rinnovo",
 }
 _SECTION = re.compile(r"(?:SEZIONE|SEZ\.?)\s*(10|[1-9])\b", re.I)
 _STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Za-z0-9]{16})$", re.I)
