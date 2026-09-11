@@ -159,9 +159,9 @@ def parse_caltanissetta_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             source_fields={
                 "listing_date_raw_variants": [row["listing_raw"]],
                 "expiry_date_raw_variants": [row["expiry_raw"]],
-                "activities_source": row["activities_raw"],
-                "status_source": row["note"],
-                "source_locator": f"p{row['page']}:t{row['table']}:r{row['row']}",
+                # Preserve the source activity cell using the already-approved
+                # provenance field instead of extending the public contract.
+                "requested_activities_source": row["activities_raw"],
             },
         )
         record["identifiers"] = _strict_identifiers(row["identifier_raw"])
@@ -239,7 +239,7 @@ def parse_caltanissetta_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBat
 
     records: list[dict[str, Any]] = []
     for row in rows:
-        application_date, application_note = _parse_application_date(row["application_raw"])
+        application_date, _application_note = _parse_application_date(row["application_raw"])
         record = _record(
             cfg,
             len(records) + 1,
@@ -253,10 +253,10 @@ def parse_caltanissetta_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBat
             application_date=application_date,
             primary_date_label="Data presentazione istanza",
             source_fields={
+                # The full raw value retains any source parenthesis/note while
+                # the normalised application_date remains separately typed.
                 "application_date_raw_variants": [row["application_raw"]],
-                "application_date_note": application_note,
-                "activities_source": row["activities_raw"],
-                "source_locator": f"p{row['page']}:t{row['table']}:r{row['row']}",
+                "requested_activities_source": row["activities_raw"],
             },
         )
         record["identifiers"] = _strict_identifiers(row["identifier_raw"])
