@@ -1,52 +1,59 @@
-name: Barletta-Andria-Trani targeted geometry audit 2026-09-11
+name: Barletta-Andria-Trani note-date patch 2026-09-11
 
 on:
   push:
     branches: [expansion/barletta-andria-trani-2026-09-11]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
-    if: github.event.head_commit.message == 'Audit Barletta page 136 geometry'
+  patch:
+    if: github.event.head_commit.message == 'Patch Barletta note-date semantics'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/barletta-andria-trani-2026-09-11
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Inspect source rows and coordinates
+      - name: Preserve note-column dates without reclassifying them
         shell: bash
         run: |
-          python -m pip install -q pdfplumber
           python - <<'PY'
-          import hashlib, tempfile
-          from urllib.request import Request, urlopen
-          import pdfplumber
-          URL='https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf'
-          SHA='d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'
-          req=Request(URL,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 targeted-geometry-audit'})
-          with urlopen(req,timeout=90) as response: body=response.read()
-          assert hashlib.sha256(body).hexdigest()==SHA
-          clean=lambda v:' '.join(str(v or '').replace('\u00a0',' ').split())
-          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
-              f.write(body); f.flush()
-              with pdfplumber.open(f.name) as pdf:
-                  for pno in (135,136,137):
-                      page=pdf.pages[pno-1]
-                      print('=== PAGE',pno,'TEXT ===')
-                      print(page.extract_text() or '')
-                      print('=== TABLES ===')
-                      for ti,table in enumerate(page.find_tables(),1):
-                          print('TABLE',ti,'BBOX',table.bbox)
-                          for ri,row in enumerate(table.extract() or [],1):
-                              print('ROW',ri,repr([clean(c) for c in row]))
-                      print('=== WORDS ===')
-                      for word in page.extract_words(use_text_flow=False, keep_blank_chars=False):
-                          if word.get('text'):
-                              print(round(word['x0'],1),round(word['top'],1),round(word['x1'],1),round(word['bottom'],1),repr(word['text']))
+          from pathlib import Path
+          path=Path('src/white_list_archive/parsers/barletta_andria_trani_tables.py')
+          text=path.read_text()
+          old='''        if not 1 <= len(raw_dates) <= 2:\n            raise RuntimeError(\n                f"{cfg['source_key']}: expected one or two source date fields at page {item['page']} row {item['row']}, got {raw_dates!r}"\n            )\n        listing_raw = raw_dates[0]\n        expiry_raw = raw_dates[1] if len(raw_dates) == 2 else ""\n'''
+          new='''        if not raw_dates:\n            raise RuntimeError(\n                f"{cfg['source_key']}: missing source date fields at page {item['page']} row {item['row']}"\n            )\n        note_raw = _clean(item["base"][-1]) if len(item["base"]) >= 8 else ""\n        extra_note_dates = raw_dates[2:]\n        if any(value not in note_raw for value in extra_note_dates):\n            raise RuntimeError(\n                f"{cfg['source_key']}: unreviewed extra source date at page {item['page']} row {item['row']}: {raw_dates!r}"\n            )\n        listing_raw = raw_dates[0]\n        expiry_raw = raw_dates[1] if len(raw_dates) >= 2 else ""\n'''
+          if old not in text:
+              raise SystemExit('date-count block not found')
+          text=text.replace(old,new,1)
+          old='''            "group_key": (*identity, *date_key, status),\n'''
+          new='''            "group_key": (*identity, *date_key, status, note_raw.casefold()),\n'''
+          if old not in text:
+              raise SystemExit('group-key block not found')
+          text=text.replace(old,new,1)
+          old='''            "status": status,\n            "section": item["section"],\n'''
+          new='''            "status": status,\n            "note_raw": note_raw,\n            "section": item["section"],\n'''
+          if old not in text:
+              raise SystemExit('reviewed block not found')
+          text=text.replace(old,new,1)
+          old='''            "in_aggiornamento": "Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",\n        }\n'''
+          new='''            "in_aggiornamento": representative["note_raw"] if "aggiornamento" in representative["note_raw"].casefold() else "",\n        }\n'''
+          if old not in text:
+              raise SystemExit('source-fields block not found')
+          text=text.replace(old,new,1)
+          old='''            outcome_raw="Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",\n'''
+          new='''            outcome_raw=representative["note_raw"],\n'''
+          if old not in text:
+              raise SystemExit('outcome block not found')
+          text=text.replace(old,new,1)
+          path.write_text(text)
           PY
+          git diff --check
+      - name: Commit parser correction
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/barletta_andria_trani_tables.py
+          git commit -m 'Preserve Barletta note-column dates'
+          git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
