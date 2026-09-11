@@ -536,6 +536,40 @@
       "last_source_update": "2026-08-31",
       "last_source_update_basis": "explicit current official attachment label",
       "notes": "Current byte-pinned applicant population; all 605 reviewed observations are explicitly in istruttoria. One reviewed source row has no sector marker and is preserved without sector inference."
+    },
+    {
+      "source_key": "udine-listed",
+      "parser": "udine_positioned_listed",
+      "authority_key": "udine",
+      "authority_name": "Prefettura di Udine",
+      "register_key": "udine-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf",
+      "sha256": "0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba",
+      "expected_source_rows": 1431,
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "current official attachment label updated 09/09/2026",
+      "notes": "Current byte-pinned registered-company population. Borderless geometry is parsed with frozen page denominators and ten reviewed section transitions; exact anomalies and conservative treatment are documented in docs/sources/udine-operational-check-2026-09-10.md."
+    },
+    {
+      "source_key": "udine-applicants",
+      "parser": "udine_positioned_applicants",
+      "authority_key": "udine",
+      "authority_name": "Prefettura di Udine",
+      "register_key": "udine-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf",
+      "sha256": "4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971",
+      "expected_source_rows": 19,
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "current official attachment label updated 09/09/2026",
+      "notes": "Current byte-pinned requesting-company population. The official document positively identifies the applicant population; all 19 observations map to pending. Exact page-boundary repair is documented in docs/sources/udine-operational-check-2026-09-10.md."
     }
   ]
 }
