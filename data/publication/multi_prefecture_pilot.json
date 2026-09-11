@@ -739,6 +739,40 @@
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "official landing page updated 10 September 2026; current attachment explicitly dated 9 September 2026",
       "notes": "Current byte-pinned applicant publication positively identified by the official landing page and in-document title. It yields 288 pending source observations. The parenthetical variation note on one application date and malformed or blank identifiers remain source provenance and are never reconstructed."
+    },
+    {
+      "source_key": "crotone-listed",
+      "parser": "crotone_listed",
+      "authority_key": "crotone",
+      "authority_name": "Prefettura di Crotone",
+      "register_key": "crotone-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-iscritte-white-list-2.pdf",
+      "sha256": "c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511",
+      "expected_source_rows": 325,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "current official attachment independently verified on 11 September 2026; the PDF does not state an edition date and its metadata records creation on 9 September 2026",
+      "notes": "Current byte-pinned 130-page listed-company publication. 743 reviewed section rows, including one deterministic continuation of the preceding identity, yield 325 conservative company observations after formatting-only address normalisation (72 listed; 253 renewal/update in progress). Five broader identity/date groups have substantive address conflicts and therefore remain separate. Blank or malformed source identifiers/dates are never reconstructed. Exact evidence is documented in docs/sources/crotone-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "crotone-applicants",
+      "parser": "crotone_applicants",
+      "authority_key": "crotone",
+      "authority_name": "Prefettura di Crotone",
+      "register_key": "crotone-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-con-richiesta-iscrizione-white-list-2.pdf",
+      "sha256": "af66ff6bf6a173c4156fef3e7741ca26956769e399285764123ef8405097e6d1",
+      "expected_source_rows": 180,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "current official attachment independently verified on 11 September 2026; the PDF does not state an edition date and its metadata records creation on 9 September 2026",
+      "notes": "Current byte-pinned 46-page applicant publication. 205 non-header physical table rows contain 25 deterministic cross-page continuation fragments and yield 180 distinct pending applicant observations. Source text and malformed identifiers remain raw; no missing values are inferred. Exact evidence is documented in docs/sources/crotone-operational-check-2026-09-11.md."
     }
   ]
 }
