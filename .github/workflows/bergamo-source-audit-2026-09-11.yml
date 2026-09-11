@@ -1,4 +1,4 @@
-name: Bergamo row lattice audit 2026-09-11
+name: Bergamo column boundary audit 2026-09-11
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   audit:
-    if: github.event.head_commit.message == 'Audit Bergamo row lattice'
+    if: github.event.head_commit.message == 'Audit Bergamo column boundaries'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -19,108 +19,71 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Derive full logical-row lattice
+      - name: Validate horizontal extraction bands against the frozen lattice
         shell: bash
         run: |
           python -m pip install -q requests pdfplumber
           python - <<'PY'
-          import hashlib, json, re, statistics
+          import hashlib, json
           from collections import Counter
           from pathlib import Path
           import requests, pdfplumber
 
+          lattice=json.loads(Path('tmp/bergamo-lattice.json').read_text())
           SOURCES={
             'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'),
             'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'),
           }
-          DATE=re.compile(r'^\d{1,2}/\d{1,2}/\d{2,4}$')
-          ROMAN=re.compile(r'^(?:III|IV|V|VI|VII|VIII|X|XI|XII)$')
-          IDLIKE=re.compile(r'^[A-Za-z0-9/\-\.\']{8,32}$')
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; row-lattice-audit)'}
-
-          def cluster(values, tol=14.0):
-            values=sorted(values)
-            groups=[]
-            for value in values:
-              if not groups or value-groups[-1][-1] > tol:
-                groups.append([value])
-              else:
-                groups[-1].append(value)
-            return [round(statistics.median(g),1) for g in groups]
-
-          s=requests.Session(); report={'schema_version':1,'row_step':42.5,'sources':{}}
-          for key,(url,expected_sha) in SOURCES.items():
-            body=s.get(url,headers=H,timeout=90).content
-            observed=hashlib.sha256(body).hexdigest(); assert observed==expected_sha,(key,observed)
-            path=Path('/tmp')/f'bergamo-{key}.pdf'; path.write_bytes(body)
-            pages=[]; all_steps=[]; total_rows=0; page_counts=[]; signal_exceptions=[]
-            with pdfplumber.open(path) as pdf:
-              for pno,page in enumerate(pdf.pages,1):
-                assert round(page.width)==842 and round(page.height)==595,(key,pno,page.width,page.height)
+          # Boundaries are midpoints between the actual fixed column starts visible in both PDFs.
+          BANDS={
+            'applicants': {'name':(25,190),'municipality':(190,285),'street':(285,390),'number':(390,415),'identifier':(415,500),'activity':(500,680),'application':(680,735)},
+            'listed': {'name':(25,190),'municipality':(190,285),'street':(285,390),'number':(390,412),'identifier':(412,500),'activity':(500,645),'listing':(645,695),'expiry':(695,745),'update':(745,825)},
+          }
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; column-audit)'}
+          def centre(w): return (float(w['x0'])+float(w['x1']))/2
+          def text_band(words,x0,x1,y0,y1):
+            selected=[w for w in words if x0<=centre(w)<x1 and y0<=float(w['top'])<y1]
+            selected.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
+            return ' '.join(str(w['text']) for w in selected).strip()
+          s=requests.Session(); out={'schema_version':1,'bands':BANDS,'sources':{}}
+          for key,(url,sha) in SOURCES.items():
+            body=s.get(url,headers=H,timeout=90).content; assert hashlib.sha256(body).hexdigest()==sha
+            p=Path('/tmp')/f'bergamo-{key}.pdf'; p.write_bytes(body)
+            exceptions=[]; rows=[]; empties=Counter(); date_shape=Counter(); activity_roman=Counter()
+            with pdfplumber.open(p) as pdf:
+              # capture header coordinate evidence from first ordinary page (page 2)
+              header_words=[w for w in pdf.pages[1].extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False) if float(w['top'])<52]
+              header=[{'text':w['text'],'x0':round(float(w['x0']),1),'x1':round(float(w['x1']),1),'top':round(float(w['top']),1)} for w in sorted(header_words,key=lambda w:(float(w['top']),float(w['x0'])))]
+              for page_meta,page in zip(lattice['sources'][key]['pages'],pdf.pages):
                 words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                signal_tops=[]; signals=[]
-                for w in words:
-                  text=w['text'].strip(); x0=float(w['x0']); top=float(w['top'])
-                  kind=None
-                  if 500 <= x0 <= 525 and ROMAN.fullmatch(text): kind='activity'
-                  elif x0 >= 640 and DATE.fullmatch(text): kind='date'
-                  elif 405 <= x0 <= 500 and IDLIKE.fullmatch(text) and any(ch.isdigit() for ch in text): kind='identifier_like'
-                  if kind:
-                    signal_tops.append(top); signals.append((kind,text,x0,top))
-                anchors=cluster(signal_tops)
-                # remove rare header/noise clusters: true data anchors participate in the 42.5pt lattice.
-                if len(anchors)>=2:
-                  # split into lattice-connected components and keep the largest.
-                  components=[]
-                  for a in anchors:
-                    if not components or a-components[-1][-1] > 55:
-                      components.append([a])
-                    else:
-                      components[-1].append(a)
-                  anchors=max(components,key=len)
-                if not anchors:
-                  raise RuntimeError(f'{key} page {pno}: no row-anchor signals')
-                # infer missing slots from the stable 42.5pt layout.
-                first=anchors[0]; last=anchors[-1]
-                inferred=[]; current=first
-                while current <= last+5:
-                  inferred.append(round(current,1)); current += 42.5
-                # align each inferred slot to nearest observed anchor and record signal coverage.
-                slot_rows=[]
-                for ridx,target in enumerate(inferred,1):
-                  nearest=min(anchors,key=lambda a:abs(a-target)); observed_anchor=nearest if abs(nearest-target)<=8 else None
-                  kinds=set(); raw=[]
-                  for kind,text,x0,top in signals:
-                    if abs(top-target)<=14:
-                      kinds.add(kind); raw.append({'kind':kind,'text':text,'x0':round(x0,1),'top':round(top,1)})
-                  slot={'row':ridx,'target_top':target,'observed_anchor':observed_anchor,'signals':sorted(kinds)}
-                  if not kinds or 'activity' not in kinds or ('date' not in kinds and 'identifier_like' not in kinds):
-                    slot['signal_detail']=raw
-                    signal_exceptions.append({'page':pno,**slot})
-                  slot_rows.append(slot)
-                # Fail if observed anchors cannot be explained by inferred grid.
-                unexplained=[a for a in anchors if min(abs(a-t) for t in inferred)>8]
-                if unexplained:
-                  raise RuntimeError(f'{key} page {pno}: unexplained anchors {unexplained}')
-                for a,b in zip(anchors,anchors[1:]):
-                  d=round(b-a,1)
-                  if d>20: all_steps.append(d)
-                total_rows+=len(inferred); page_counts.append(len(inferred))
-                pages.append({'page':pno,'first_top':first,'last_top':last,'observed_anchor_count':len(anchors),'inferred_row_count':len(inferred),'observed_anchors':anchors,'rows':slot_rows})
-            report['sources'][key]={
-              'url':url,'sha256':observed,'page_count':len(pages),'total_inferred_rows':total_rows,
-              'page_counts':page_counts,'page_count_distribution':dict(sorted(Counter(page_counts).items())),
-              'step_distribution':dict(Counter(round(x,1) for x in all_steps).most_common(12)),
-              'signal_exception_count':len(signal_exceptions),'signal_exceptions':signal_exceptions,'pages':pages,
+                targets=[row['target_top'] for row in page_meta['rows']]
+                for idx,y in enumerate(targets):
+                  y0=y-4; y1=(targets[idx+1]-4 if idx+1<len(targets) else min(y+38,float(page.height)-15))
+                  rec={'page':page_meta['page'],'row':idx+1,'top':y}
+                  for field,(x0,x1) in BANDS[key].items(): rec[field]=text_band(words,x0,x1,y0,y1)
+                  required=['name','municipality','activity']
+                  if key=='applicants': required+=['application']
+                  else: required+=['listing','expiry']
+                  missing=[f for f in required if not rec[f]]
+                  for f in BANDS[key]:
+                    if not rec[f]: empties[f]+=1
+                  if missing: exceptions.append({'page':rec['page'],'row':rec['row'],'missing':missing,'record':rec})
+                  rows.append(rec)
+            out['sources'][key]={
+              'sha256':sha,'row_count':len(rows),'header_words':header,'empty_field_counts':dict(empties),
+              'required_field_exception_count':len(exceptions),'required_field_exceptions':exceptions,
+              'sample_rows':rows[:3]+rows[-3:],
             }
-            print(key.upper(),'ROWS',total_rows,'PAGE_COUNTS',Counter(page_counts),'EXCEPTIONS',len(signal_exceptions),'STEPS',Counter(all_steps).most_common(8))
-          Path('tmp/bergamo-lattice.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+            print(key.upper(),'ROWS',len(rows),'EMPTY',dict(empties),'REQUIRED_EXCEPTIONS',len(exceptions))
+            if exceptions: print(key.upper(),'EXCEPTION_SAMPLE',json.dumps(exceptions[:20],ensure_ascii=False))
+            print(key.upper(),'HEADER',json.dumps(header,ensure_ascii=False))
+          Path('tmp/bergamo-columns.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           PY
-      - name: Commit temporary lattice checkpoint
+      - name: Commit temporary column checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/bergamo-lattice.json
+          git add tmp/bergamo-columns.json
           git diff --cached --check
-          git commit -m 'Checkpoint Bergamo row lattice'
+          git commit -m 'Checkpoint Bergamo column extraction'
           git push origin HEAD:expansion/bergamo-2026-09-11
