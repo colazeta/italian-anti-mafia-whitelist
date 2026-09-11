@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   finalize:
-    if: github.event.head_commit.message == 'Prepare Barletta production integration'
+    if: github.event.head_commit.message == 'Run Barletta production finalizer'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -25,234 +25,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends poppler-utils
           python -m pip install -e '.[dev,publication,database,storage]'
           python -m pip install -q beautifulsoup4
-      - name: Verify current official source identities and materialize production metadata
-        shell: bash
-        run: |
-          python - <<'PY'
-          import csv, hashlib, json
-          from collections import Counter
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from urllib.parse import urljoin
-          from urllib.request import Request, urlopen
-          from bs4 import BeautifulSoup
-          from white_list_archive.parsers.barletta_andria_trani_tables import (
-              parse_barletta_andria_trani_listed,
-              parse_barletta_andria_trani_applicants,
-          )
-
-          AUTH='barletta-andria-trani'
-          AUTH_NAME='Prefettura di Barletta-Andria-Trani'
-          REGISTER='barletta-andria-trani-ordinary'
-          LISTED_PAGE='https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte'
-          APPLICANT_PAGE='https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione'
-          LISTED_URL='https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf'
-          APPLICANT_URL='https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf'
-          LISTED_SHA='d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'
-          APPLICANT_SHA='ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57'
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-verification)'}
-
-          def fetch(url, timeout=90):
-              req=Request(url,headers=H)
-              with urlopen(req,timeout=timeout) as response:
-                  return int(getattr(response,'status',200)),response.read()
-
-          page_evidence={}
-          for kind,page_url,resource_url in [
-              ('listed',LISTED_PAGE,LISTED_URL),('applicants',APPLICANT_PAGE,APPLICANT_URL)
-          ]:
-              status,body=fetch(page_url,45)
-              assert status==200,(kind,status)
-              soup=BeautifulSoup(body.decode('utf-8','replace'),'html.parser')
-              links={urljoin(page_url,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
-              assert resource_url in links,(kind,resource_url,sorted(links)[:5])
-              page_evidence[kind]={'page_status':status,'attachment_label':links[resource_url]}
-
-          paths={}
-          for kind,url,expected in [('listed',LISTED_URL,LISTED_SHA),('applicants',APPLICANT_URL,APPLICANT_SHA)]:
-              status,body=fetch(url,90); assert status==200,(kind,status)
-              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(kind,observed)
-              path=Path('/tmp',f'barletta-{kind}.pdf'); path.write_bytes(body); paths[kind]=path
-
-          base={'authority_key':AUTH,'authority_name':AUTH_NAME,'register_key':REGISTER,'register_name':'White List ordinaria','reference_date':'2026-09-11'}
-          lc=base|{'source_key':'barletta-andria-trani-listed','population_scope':'listed','source_page_url':LISTED_PAGE,'resource_url':LISTED_URL,'sha256':LISTED_SHA}
-          ac=base|{'source_key':'barletta-andria-trani-applicants','population_scope':'applicant','source_page_url':APPLICANT_PAGE,'resource_url':APPLICANT_URL,'sha256':APPLICANT_SHA}
-          listed=parse_barletta_andria_trani_listed(paths['listed'],lc)
-          applicants=parse_barletta_andria_trani_applicants(paths['applicants'],ac)
-          assert listed.diagnostics['sector_rows']==1013
-          assert listed.diagnostics['sector_status_counts']=={'listed':883,'renewal_update_in_progress':130}
-          assert listed.diagnostics['public_records']==493
-          assert listed.diagnostics['status_counts']=={'listed':437,'renewal_update_in_progress':56}
-          assert applicants.diagnostics['public_records']==81
-          assert applicants.diagnostics['status_counts']=={'pending':81}
-          assert len(listed.records)+len(applicants.records)==574
-          print('Barletta source/parser boundary verified:',page_evidence,listed.diagnostics,applicants.diagnostics)
-
-          # Approved parser dispatch.
-          registry_path=Path('src/white_list_archive/publishing/public_national_registry.py')
-          text=registry_path.read_text()
-          import_anchor='from white_list_archive.parsers.bergamo_positioned import PARSERS as BERGAMO_PARSERS\n'
-          dispatch_anchor='        or BERGAMO_PARSERS.get(cfg["parser"])\n'
-          assert import_anchor in text and dispatch_anchor in text
-          if 'BARLETTA_ANDRIA_TRANI_PARSERS' not in text:
-              text=text.replace(import_anchor,import_anchor+'from white_list_archive.parsers.barletta_andria_trani_tables import PARSERS as BARLETTA_ANDRIA_TRANI_PARSERS\n')
-              text=text.replace(dispatch_anchor,dispatch_anchor+'        or BARLETTA_ANDRIA_TRANI_PARSERS.get(cfg["parser"])\n')
-          registry_path.write_text(text)
-
-          # Public source configuration: 493 grouped listed observations retain a
-          # separately frozen 1,013 source-sector-row denominator; applicants are 81.
-          cfg_path=Path('data/publication/multi_prefecture_pilot.json')
-          cfg=json.loads(cfg_path.read_text())
-          assert not [x for x in cfg['sources'] if x['source_key'] in {'barletta-andria-trani-listed','barletta-andria-trani-applicants'}]
-          cfg['sources'].extend([
-            {
-              'source_key':'barletta-andria-trani-listed','parser':'barletta_andria_trani_listed',
-              'authority_key':AUTH,'authority_name':AUTH_NAME,'register_key':REGISTER,'register_name':'White List ordinaria',
-              'population_scope':'listed','reference_date':'2026-09-11','source_page_url':LISTED_PAGE,'resource_url':LISTED_URL,
-              'sha256':LISTED_SHA,'expected_source_rows':493,'expected_sector_rows':1013,
-              'notes':'Current byte-pinned registered-company publication, reverified on its dedicated official page on 11 September 2026. The source repeats firms across White List sections: 1,013 reviewed sector rows are grouped only when identity, dates, status and note agree, yielding 493 public source-backed observations. Exact exceptions are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md.'
-            },
-            {
-              'source_key':'barletta-andria-trani-applicants','parser':'barletta_andria_trani_applicants',
-              'authority_key':AUTH,'authority_name':AUTH_NAME,'register_key':REGISTER,'register_name':'White List ordinaria',
-              'population_scope':'applicant','reference_date':'2026-09-11','source_page_url':APPLICANT_PAGE,'resource_url':APPLICANT_URL,
-              'sha256':APPLICANT_SHA,'expected_source_rows':81,
-              'notes':'Current byte-pinned applicant publication, positively identified by the dedicated official page and in-document applicant-list title and reverified on 11 September 2026. It yields 81 source-backed pending observations. Exact parser boundaries are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md.'
-            }
-          ])
-          cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n')
-
-          # Existing mapped source-series rows are refreshed rather than duplicated.
-          series_path=Path('data/source_registry/source_series_inventory.csv')
-          with series_path.open(newline='',encoding='utf-8') as f:
-              reader=csv.DictReader(f); fields=reader.fieldnames; series=list(reader)
-          assert fields
-          replacements={
-            'barletta-andria-trani-listed': {
-              'source_series_key':'barletta-andria-trani-listed','authority_key':AUTH,'regime_code':'WL-REGIME-L190-2012',
-              'population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':LISTED_PAGE,
-              'resource_resolution_status':'direct_series_page_resolved','verified_date':'2026-09-11',
-              'notes':'Dedicated current official registered-company page and attachment reverified 11 September 2026. Byte identity, 1,013 source-sector-row denominator, 493 grouped public observations and reviewed exceptions are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md.'
-            },
-            'barletta-andria-trani-applicants': {
-              'source_series_key':'barletta-andria-trani-applicants','authority_key':AUTH,'regime_code':'WL-REGIME-L190-2012',
-              'population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':APPLICANT_PAGE,
-              'resource_resolution_status':'direct_series_page_resolved','verified_date':'2026-09-11',
-              'notes':'Dedicated current official applicant page and attachment reverified 11 September 2026; the in-document title positively identifies the applicant population and the parser yields 81 observations. Exact evidence is documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md.'
-            }
-          }
-          found=set()
-          for i,row in enumerate(series):
-              key=row['source_series_key']
-              if key in replacements:
-                  series[i]={field:replacements[key].get(field,'') for field in fields}; found.add(key)
-          assert found==set(replacements),found
-          with series_path.open('w',newline='',encoding='utf-8') as f:
-              writer=csv.DictWriter(f,fieldnames=fields,lineterminator='\n'); writer.writeheader(); writer.writerows(series)
-
-          pages_path=Path('data/source_registry/verified_primary_pages.csv')
-          with pages_path.open(newline='',encoding='utf-8') as f:
-              reader=csv.DictReader(f); pfields=reader.fieldnames; pages=list(reader)
-          matches=[row for row in pages if row['authority_key']==AUTH]; assert len(matches)==1
-          matches[0].update({'landing_url':LISTED_PAGE,'verification_date':'2026-09-11','verification_status':'verified'})
-          with pages_path.open('w',newline='',encoding='utf-8') as f:
-              writer=csv.DictWriter(f,fieldnames=pfields,lineterminator='\n'); writer.writeheader(); writer.writerows(pages)
-
-          coverage_path=Path('data/monitoring/national_coverage.json')
-          coverage=json.loads(coverage_path.read_text())
-          authority=next(x for x in coverage['prefectures'] if x['authority_key']==AUTH)
-          now=datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
-          authority.update({
-              'official_landing_page':LISTED_PAGE,'source_verified':True,'current_edition_identified':True,
-              'capture_implemented':True,'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,
-              'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,
-              'durable_evidence_verified':False,'population_scopes_complete':True,'latest_source_reference_date':'2026-09-11',
-              'last_successful_source_check_at':now,'last_attempted_source_check_at':now,'last_successful_investigation_on':'2026-09-11',
-              'monitoring_status':'CURRENT','unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
-              'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
-              'completion_evidence':['docs/sources/barletta-andria-trani-operational-check-2026-09-11.md','src/white_list_archive/parsers/barletta_andria_trani_tables.py','tests/test_barletta_andria_trani_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
-              'known_content_sha256':[LISTED_SHA,APPLICANT_SHA],
-              'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/barletta-andria-trani-operational-check-2026-09-11.md'],
-              'last_completed_coverage_stage':'VALIDATED'
-          })
-          coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n')
-
-          doc=Path('docs/sources/barletta-andria-trani-operational-check-2026-09-11.md')
-          doc.write_text('''# Barletta-Andria-Trani operational source check — 11 September 2026
-
-## Current official publications
-
-The current White List populations were independently reverified on the Prefettura di Barletta Andria Trani website on 11 September 2026. The authority publishes separate dedicated official pages for registered companies and applicants; each page directly exposes one current PDF attachment.
-
-- Registered-company page: `'''+LISTED_PAGE+'''`.
-- Registered-company PDF: `'''+LISTED_URL+'''`; 211 pages; SHA-256 `'''+LISTED_SHA+'''`.
-- Applicant page: `'''+APPLICANT_PAGE+'''`.
-- Applicant PDF: `'''+APPLICANT_URL+'''`; 15 pages; SHA-256 `'''+APPLICANT_SHA+'''`.
-
-The applicant PDF is positively population-bounded by its in-document title, `ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE`; applicant status is therefore not inferred from discovery failure or from an unlabeled document.
-
-The archive reference date `2026-09-11` records this verified current-edition checkpoint; it is not presented as an inferred legal effective date for an individual firm.
-
-## Registered-company parser boundary
-
-The registered-company PDF is organised into the ten White List sections. The parser freezes both page boundaries and the exact reviewed sector-row denominators: I 148, II 68, III 211, IV 84, V 205, VI 136, VII 8, VIII 12, IX 23 and X 118, for **1,013 source sector rows**.
-
-Because the official document repeats the same firm across sections, the public archive groups rows only when the source-backed identity, semantic listing/expiry dates, procedural status and note agree. This yields **493 public registered-population observations**, while preserving all contributing sections. The current grouped status distribution is **437 `listed`** and **56 `renewal_update_in_progress`**. At the ungrouped source-row layer the frozen distribution is **883 listed + 130 update-in-progress = 1,013**.
-
-Two rows for `EDIL AGRESTI SRL` (page 167, source row 4, section VI; page 210, source row 2, section X) contain the visibly split source typography `Aggiornament o in corso`. That exact reviewed source token is treated as positive update-in-progress evidence and is preserved raw; the parser does not generalise this repair to arbitrary near-matches.
-
-Seven malformed date strings are retained verbatim in provenance and are never reconstructed: `14/072026`, `21/05/20259`, `30/06 /2027`, `17/11/20255`, `17/07/202 6`, `01/09/20267`, and `2/6/09/2025`. The reviewed embedded string `31/07/2026 Aggiornamento in corso` contributes the explicit date `31/07/2026` while preserving the procedural text. Any new unsupported date typography fails closed.
-
-Identifiers are normalised only when an exact contiguous 11-digit numeric or 16-character alphanumeric token is present. The parser does not pad, truncate or reconstruct identifiers.
-
-## Applicant parser boundary
-
-The current applicant edition yields exactly **81 public observations**, all mapped to `pending` because they occur in the positively identified applicant publication. The parser freezes the reviewed 15-page geometry and two page-leading continuations needed to preserve split source rows; any new unresolved structural drift fails closed.
-
-## Publication boundary
-
-The two current populations contribute **574 source-backed public observations**. Canonical hosted-database integration and independent durable-evidence verification remain separately governed under issue #16 and are not implied by this public-source validation.
-''',encoding='utf-8')
-
-          # Permanent Pages gate and browser acceptance assertions.
-          pages_workflow=Path('.github/workflows/public-pages.yml')
-          p=pages_workflow.read_text()
-          parser_trigger="      - 'src/white_list_archive/parsers/bergamo_positioned.py'\n"
-          assert parser_trigger in p
-          if 'barletta_andria_trani_tables.py' not in p:
-              p=p.replace(parser_trigger,parser_trigger+"      - 'src/white_list_archive/parsers/barletta_andria_trani_tables.py'\n")
-          replacements_exact={
-              "assert reg['meta']['record_count'] == 16729":"assert reg['meta']['record_count'] == 17303",
-              "'udine','bergamo'}":"'udine','bergamo','barletta-andria-trani'}",
-              "'udine-ordinary','bergamo-ordinary'":"'udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary'",
-              "assert reg['meta']['authority_count'] == 19":"assert reg['meta']['authority_count'] == 20",
-              "assert reg['meta']['register_count'] == 20":"assert reg['meta']['register_count'] == 21",
-              "assert pref['meta']['published_count'] == 19":"assert pref['meta']['published_count'] == 20",
-          }
-          for old,new in replacements_exact.items():
-              assert old in p,old; p=p.replace(old,new,1)
-          bergamo_assert="          bergamo = [x for x in pref['prefectures'] if x['authority_key'] == 'bergamo']\n          assert len(bergamo) == 1 and bergamo[0]['mapped'] and bergamo[0]['published']\n"
-          assert bergamo_assert in p
-          p=p.replace(bergamo_assert,bergamo_assert+"          barletta = [x for x in pref['prefectures'] if x['authority_key'] == 'barletta-andria-trani']\n          assert len(barletta) == 1 and barletta[0]['mapped'] and barletta[0]['published']\n",1)
-          pages_workflow.write_text(p)
-
-          browser=Path('tests/public_portal_browser.cjs')
-          b=browser.read_text()
-          label_anchor="      assert.ok(labels.includes('White List ordinaria · Prefettura di Bergamo'));\n"
-          assert label_anchor in b
-          b=b.replace(label_anchor,label_anchor+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Barletta-Andria-Trani'));\n",1)
-          assert 'assert.equal(stats.total,16729);' in b
-          b=b.replace('assert.equal(stats.total,16729);','assert.equal(stats.total,17303);',1)
-          old_exclusion="'ancona','bari','udine','bergamo'].includes(r.authority_key)"
-          new_exclusion="'ancona','bari','udine','bergamo','barletta-andria-trani'].includes(r.authority_key)"
-          assert old_exclusion in b; b=b.replace(old_exclusion,new_exclusion,1)
-          bergamo_block="      const bergamo=registry.records.filter(r=>r.authority_key==='bergamo');\n      assert.equal(bergamo.length,2046);\n      assert.equal(bergamo.filter(r=>r.source_key==='bergamo-listed').length,1434);\n      assert.equal(bergamo.filter(r=>r.source_key==='bergamo-applicants').length,612);\n      assert.deepEqual(statusCounts(bergamo),{listed:626,pending:612,renewal_update_in_progress:808});\n"
-          assert bergamo_block in b
-          bat_block="      const barletta=registry.records.filter(r=>r.authority_key==='barletta-andria-trani');\n      assert.equal(barletta.length,574);\n      assert.equal(barletta.filter(r=>r.source_key==='barletta-andria-trani-listed').length,493);\n      assert.equal(barletta.filter(r=>r.source_key==='barletta-andria-trani-applicants').length,81);\n      assert.deepEqual(statusCounts(barletta),{listed:437,pending:81,renewal_update_in_progress:56});\n"
-          b=b.replace(bergamo_block,bergamo_block+bat_block,1)
-          browser.write_text(b)
-          PY
-      - name: Validate repository and national build
+      - name: Materialize reviewed production integration
+        run: python scripts/barletta_production_finalize_tmp.py
+      - name: Validate repository and complete national build
         shell: bash
         run: |
           pytest -q
@@ -276,7 +51,9 @@ The two current populations contribute **574 source-backed public observations**
           assert reg['meta']['authority_count']==20 and reg['meta']['register_count']==21
           assert reg['meta']['authority_counts']['barletta-andria-trani']==574
           assert reg['meta']['register_counts']['barletta-andria-trani-ordinary']==574
-          assert pref['meta']['authority_count']==106 and pref['meta']['published_count']==20 and pref['meta']['mapped_count']==35
+          assert pref['meta']['authority_count']==106
+          assert pref['meta']['published_count']==20
+          assert pref['meta']['mapped_count']==35
           bat=[x for x in pref['prefectures'] if x['authority_key']=='barletta-andria-trani']
           assert len(bat)==1 and bat[0]['mapped'] and bat[0]['published']
           print('National Barletta candidate validated:',reg['meta']['record_count'],pref['meta'])
