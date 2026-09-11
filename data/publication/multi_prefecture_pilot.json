@@ -635,6 +635,41 @@
       "sha256": "ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57",
       "expected_source_rows": 81,
       "notes": "Current byte-pinned applicant publication, positively identified by the dedicated official page and in-document applicant-list title and reverified on 11 September 2026. It yields 81 source-backed pending observations. Exact parser boundaries are documented in docs/sources/barletta-andria-trani-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "brindisi-listed",
+      "parser": "brindisi_listed",
+      "authority_key": "brindisi",
+      "authority_name": "Prefettura di Brindisi",
+      "register_key": "brindisi-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-08",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/brindisi/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white-list-elenco-imprese-iscritte_1.pdf",
+      "sha256": "11d33d62f5e40139d4869e5f39752b1a69686bb064e46446161929fd84eeb06a",
+      "expected_source_rows": 385,
+      "expected_sector_rows": 830,
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
+      "notes": "Current byte-pinned registered-company publication. The source repeats firms across ten White List sections: 830 reviewed sector rows are grouped only where identity, dates, status and source note agree, yielding 385 public source-backed observations. Three reviewed malformed expiry tokens remain raw and are never repaired. Exact boundaries are documented in docs/sources/brindisi-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "brindisi-applicants",
+      "parser": "brindisi_applicants",
+      "authority_key": "brindisi",
+      "authority_name": "Prefettura di Brindisi",
+      "register_key": "brindisi-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-08",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/brindisi/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white_list_della_provincia_di_brindisi-elenco_delle_imprese_richiedenti_l-iscrizione_0.pdf",
+      "sha256": "1153781d3bf17b6cfc6513c90f8e083edf3a432fe6be382c4a1ffde9845f9e1b",
+      "expected_source_rows": 26,
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
+      "notes": "Current byte-pinned applicant publication positively identified by the official landing page as Elenco imprese richiedenti iscrizione. It yields 26 pending observations across three pages. One reviewed application date is blank; non-canonical identifiers remain raw and are never reconstructed. Exact boundaries are documented in docs/sources/brindisi-operational-check-2026-09-11.md."
     }
   ]
 }
