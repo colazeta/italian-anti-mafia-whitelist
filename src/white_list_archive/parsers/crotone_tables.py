@@ -39,6 +39,12 @@ _MONTHS = {
 _MONTH_ALT = "|".join(_MONTHS)
 _DATE = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})$", re.I)
 _DATE_PREFIX = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})(.*)$", re.I)
+_REVIEWED_DATE_TYPOGRAPHY = {
+    "23 giungo 2025": "23 giugno 2025",
+}
+_REVIEWED_AMBIGUOUS_DATE_RAW = {
+    "17 febbraio 2015 15 febbraio 2022",
+}
 _REVIEWED_EXPIRY_TYPOGRAPHY = {
     "7 dicembre2022 Richiesta rinnovo": "7 dicembre 2022 Richiesta rinnovo",
     "14 giungo 2022 Richiesta rinnovo": "14 giugno 2022 Richiesta rinnovo",
@@ -63,7 +69,10 @@ def _parse_date(value: str, *, allow_blank: bool = False) -> str:
     raw = _clean(value)
     if not raw and allow_blank:
         return ""
-    match = _DATE.fullmatch(raw)
+    if raw in _REVIEWED_AMBIGUOUS_DATE_RAW:
+        return ""
+    parse_value = _REVIEWED_DATE_TYPOGRAPHY.get(raw, raw)
+    match = _DATE.fullmatch(parse_value)
     if not match:
         raise RuntimeError(f"Crotone unreviewed date typography: {raw!r}")
     return _iso_date(*match.groups(), raw=raw)

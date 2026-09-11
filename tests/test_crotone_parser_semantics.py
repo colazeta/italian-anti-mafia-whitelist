@@ -30,6 +30,12 @@ def test_crotone_italian_dates_are_strict_but_allow_source_ordinal() -> None:
     assert _parse_date("23 settembre 2025") == "2025-09-23"
     assert _parse_date("1° agosto 2025") == "2025-08-01"
     assert _parse_date("", allow_blank=True) == ""
+    assert _parse_date("23 giungo 2025") == "2025-06-23"
+    assert _parse_date("17 febbraio 2015 15 febbraio 2022") == ""
+    with pytest.raises(RuntimeError, match="unreviewed date typography"):
+        _parse_date("24 giungo 2025")
+    with pytest.raises(RuntimeError, match="unreviewed date typography"):
+        _parse_date("17 febbraio 2016 15 febbraio 2022")
     assert _parse_expiry("23 settembre 2026 Richiesta rinnovo") == (
         "2026-09-23",
         "Richiesta rinnovo",
