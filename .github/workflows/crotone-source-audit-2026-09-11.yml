@@ -1,0 +1,164 @@
+name: Crotone source audit 2026-09-11
+
+on:
+  push:
+    branches:
+      - expansion/crotone-2026-09-11
+    paths:
+      - .github/workflows/crotone-source-audit-2026-09-11.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/crotone-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check pdfplumber
+      - name: Resolve, capture and audit current official publications
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, html, json, re, time
+          from collections import Counter
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin
+          from urllib.request import Request, urlopen
+          import pdfplumber
+
+          LANDING = 'https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list'
+          TARGETS = {
+              'listed': 'ditte iscritte white list',
+              'applicants': 'ditte con richiesta iscrizione white list',
+          }
+          STRICT_ID = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          DATE_TOKEN = re.compile(r'\b(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+\d{4})\b')
+
+          def clean(v):
+              return ' '.join(html.unescape(str(v or '')).split())
+
+          def fetch(url, accept='*/*'):
+              last = None
+              for i in range(5):
+                  try:
+                      req = Request(url, headers={
+                          'User-Agent': 'italian-anti-mafia-whitelist/0.1 (+source audit)',
+                          'Accept': accept,
+                      })
+                      with urlopen(req, timeout=90) as r:
+                          body = r.read()
+                          final_url = r.geturl()
+                          ctype = r.headers.get('Content-Type', '')
+                      return body, final_url, ctype
+                  except Exception as e:
+                      last = e
+                      if i < 4:
+                          time.sleep(5 * (i + 1))
+              raise last
+
+          class AnchorParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.current_href = None
+                  self.current_text = []
+                  self.anchors = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == 'a':
+                      self.current_href = dict(attrs).get('href')
+                      self.current_text = []
+              def handle_data(self, data):
+                  if self.current_href is not None:
+                      self.current_text.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == 'a' and self.current_href is not None:
+                      self.anchors.append((clean(' '.join(self.current_text)), self.current_href))
+                      self.current_href = None
+                      self.current_text = []
+
+          Path('tmp').mkdir(exist_ok=True)
+          landing_body, landing_final, landing_ctype = fetch(LANDING, 'text/html,*/*')
+          landing_text = landing_body.decode('utf-8', errors='replace')
+          parser = AnchorParser(); parser.feed(landing_text)
+          resolved = {}
+          for scope, label in TARGETS.items():
+              matches = []
+              for text, href in parser.anchors:
+                  t = clean(text).casefold()
+                  if label in t and href:
+                      matches.append({'text': clean(text), 'url': urljoin(landing_final, href)})
+              if len(matches) != 1:
+                  raise RuntimeError(f'{scope}: expected one official attachment link for {label!r}, found {matches!r}')
+              resolved[scope] = matches[0]
+
+          report = {
+              'verified_on': '2026-09-11',
+              'landing_page': LANDING,
+              'landing_final_url': landing_final,
+              'landing_content_type': landing_ctype,
+              'landing_sha256': hashlib.sha256(landing_body).hexdigest(),
+              'landing_contains_update_14_aug_2026': '14 Agosto 2026' in landing_text or '14 agosto 2026' in landing_text,
+              'resolved_links': resolved,
+              'sources': {},
+          }
+
+          for scope, link in resolved.items():
+              body, final_url, ctype = fetch(link['url'], 'application/pdf,*/*')
+              if not body.startswith(b'%PDF'):
+                  raise RuntimeError(f'{scope}: non-PDF response from {final_url}: {body[:32]!r}')
+              path = Path('tmp') / f'crotone-{scope}.pdf'
+              path.write_bytes(body)
+              info = {
+                  'link_text': link['text'],
+                  'url': link['url'],
+                  'final_url': final_url,
+                  'content_type': ctype,
+                  'sha256': hashlib.sha256(body).hexdigest(),
+                  'bytes': len(body),
+              }
+              table_shapes = Counter(); page_table_counts = []; page_text_lengths = []; samples = []; all_rows = []
+              with pdfplumber.open(path) as pdf:
+                  info['pages'] = len(pdf.pages)
+                  for pno, page in enumerate(pdf.pages, 1):
+                      text = clean(page.extract_text() or '')
+                      page_text_lengths.append(len(text))
+                      tables = page.extract_tables() or []
+                      page_table_counts.append(len(tables))
+                      for tno, table in enumerate(tables, 1):
+                          for rno, row in enumerate(table or [], 1):
+                              cells = [clean(x) for x in row]
+                              if not any(cells):
+                                  continue
+                              table_shapes[len(cells)] += 1
+                              rec = {'page': pno, 'table': tno, 'row': rno, 'cells': cells}
+                              all_rows.append(rec)
+                              if len(samples) < 80:
+                                  samples.append(rec)
+              info['table_shape_counts'] = dict(sorted(table_shapes.items()))
+              info['page_table_counts'] = page_table_counts
+              info['page_text_lengths'] = page_text_lengths
+              info['nonempty_table_rows'] = len(all_rows)
+              info['sample_rows'] = samples
+              info['rows_with_date_token'] = sum(any(DATE_TOKEN.search(c) for c in r['cells']) for r in all_rows)
+              info['strict_identifier_like_cells'] = sum(any(STRICT_ID.fullmatch(c) for c in r['cells']) for r in all_rows)
+              info['unique_row_lengths'] = sorted({len(r['cells']) for r in all_rows})
+              report['sources'][scope] = info
+
+          Path('tmp/crotone-source-audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Commit recoverable audit checkpoint
+        run: |
+          rm -f tmp/crotone-listed.pdf tmp/crotone-applicants.pdf
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/crotone-source-audit.json
+          git commit -m 'Checkpoint Crotone source audit'
+          git push origin HEAD:expansion/crotone-2026-09-11
