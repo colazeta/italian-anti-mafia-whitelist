@@ -6,6 +6,7 @@ on:
       - expansion/cagliari-2026-09-11
     paths:
       - scripts/cagliari_finalize.py
+      - scripts/cagliari_contract_fix.py
       - src/white_list_archive/parsers/cagliari_tables.py
       - tests/test_cagliari_parser_semantics.py
       - docs/sources/cagliari-operational-check-2026-09-11.md
@@ -25,7 +26,9 @@ jobs:
         with:
           python-version: '3.13'
       - name: Materialise production candidate
-        run: python scripts/cagliari_finalize.py
+        run: |
+          python scripts/cagliari_finalize.py
+          python scripts/cagliari_contract_fix.py
       - name: Install validation runtime
         run: |
           sudo apt-get update -qq
@@ -87,6 +90,7 @@ jobs:
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
             data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/parsers/cagliari_tables.py \
             src/white_list_archive/publishing/public_national_registry.py \
             tests/public_portal_browser.cjs \
             tests/test_operations.py
