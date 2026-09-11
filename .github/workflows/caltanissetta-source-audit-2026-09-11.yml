@@ -1,0 +1,106 @@
+name: Caltanissetta source audit 2026-09-11
+
+on:
+  push:
+    branches:
+      - expansion/caltanissetta-2026-09-11
+    paths:
+      - .github/workflows/caltanissetta-source-audit-2026-09-11.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caltanissetta-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check pdfplumber
+      - name: Capture and audit current official PDFs
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, re, time
+          from collections import Counter
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          import pdfplumber
+
+          URLS = {
+            'listed': 'https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-iscritte-nella-white-list_09.09.2026.pdf',
+            'applicants': 'https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-richiedenti-iscrizione-nella-white-list_09.09.2026.pdf',
+          }
+          DATE = re.compile(r'^(\d{2})/(\d{2})/(\d{4})(?:\s+\(.*\))?$')
+          STRICT_ID = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          def clean(v): return ' '.join(str(v or '').split())
+          def download(url, path):
+              last = None
+              for i in range(5):
+                  try:
+                      req = Request(url, headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source audit)','Accept':'application/pdf,*/*'})
+                      with urlopen(req, timeout=90) as r:
+                          body = r.read()
+                      if not body.startswith(b'%PDF'):
+                          raise RuntimeError(f'non-PDF response: {body[:20]!r}')
+                      path.write_bytes(body)
+                      return body
+                  except Exception as e:
+                      last = e
+                      if i < 4: time.sleep(5 * (i + 1))
+              raise last
+
+          Path('tmp').mkdir(exist_ok=True)
+          report = {'verified_on':'2026-09-11','landing_page':'https://prefettura.interno.gov.it/it/prefetture/caltanissetta/evidenza/white-list','reference_date':'2026-09-09','sources':{}}
+          for scope, url in URLS.items():
+              path = Path('tmp') / f'caltanissetta-{scope}.pdf'
+              body = download(url, path)
+              info = {'url':url,'sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)}
+              cell_lengths = Counter(); page_counts=[]; rows=[]
+              with pdfplumber.open(path) as pdf:
+                  info['pages'] = len(pdf.pages)
+                  for pno, page in enumerate(pdf.pages, 1):
+                      n = 0
+                      for tno, table in enumerate(page.extract_tables(), 1):
+                          for rno, row in enumerate(table or [], 1):
+                              cells = [clean(x) for x in row]
+                              cell_lengths[len(cells)] += 1
+                              if scope == 'listed' and len(cells) == 8:
+                                  name, office, secondary, ident, listing, expiry, activities, status = cells
+                                  if DATE.fullmatch(listing) and DATE.fullmatch(expiry) and name and 'ragione sociale' not in name.casefold():
+                                      rows.append({'page':pno,'table':tno,'row':rno,'name':name,'office':office,'secondary':secondary,'identifier_raw':ident,'listing_raw':listing,'expiry_raw':expiry,'activities_raw':activities,'status_raw':status})
+                                      n += 1
+                              elif scope == 'applicants' and len(cells) == 6:
+                                  name, office, secondary, ident, activities, application = cells
+                                  if DATE.fullmatch(application) and name and 'ragione sociale' not in name.casefold():
+                                      rows.append({'page':pno,'table':tno,'row':rno,'name':name,'office':office,'secondary':secondary,'identifier_raw':ident,'activities_raw':activities,'application_raw':application})
+                                      n += 1
+                      page_counts.append(n)
+              info['cell_length_counts'] = dict(sorted(cell_lengths.items()))
+              info['page_row_counts'] = page_counts
+              info['candidate_rows'] = len(rows)
+              info['strict_identifier_coverage'] = sum(bool(STRICT_ID.fullmatch(r['identifier_raw'])) for r in rows)
+              info['noncanonical_identifier_rows'] = [{'page':r['page'],'name':r['name'],'identifier_raw':r['identifier_raw']} for r in rows if not STRICT_ID.fullmatch(r['identifier_raw'])]
+              if scope == 'listed':
+                  info['status_raw_counts'] = dict(Counter(r['status_raw'] for r in rows))
+                  info['special_status_rows'] = [{'page':r['page'],'name':r['name'],'status_raw':r['status_raw']} for r in rows if r['status_raw'] and 'corso di aggiornamento' not in r['status_raw'].casefold()]
+                  info['duplicate_identity_date_rows'] = len(rows) - len({(r['name'].casefold(),r['identifier_raw'].casefold(),r['office'].casefold(),r['secondary'].casefold(),r['listing_raw'],r['expiry_raw'],r['activities_raw'].casefold(),r['status_raw'].casefold()) for r in rows})
+              else:
+                  info['duplicate_identity_application_rows'] = len(rows) - len({(r['name'].casefold(),r['identifier_raw'].casefold(),r['office'].casefold(),r['secondary'].casefold(),r['application_raw'],r['activities_raw'].casefold()) for r in rows})
+              report['sources'][scope] = info
+          Path('tmp/caltanissetta-source-audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Commit recoverable audit checkpoint
+        run: |
+          rm -f tmp/caltanissetta-listed.pdf tmp/caltanissetta-applicants.pdf
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/caltanissetta-source-audit.json
+          git commit -m 'Checkpoint Caltanissetta source audit'
+          git push origin HEAD:expansion/caltanissetta-2026-09-11
