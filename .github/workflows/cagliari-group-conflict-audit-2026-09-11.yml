@@ -1,0 +1,115 @@
+name: Audit Cagliari conservative grouping conflicts
+
+on:
+  push:
+    branches:
+      - expansion/cagliari-2026-09-11
+    paths:
+      - .github/workflows/cagliari-group-conflict-audit-2026-09-11.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install inspection runtime
+        run: python -m pip install pdfplumber
+      - name: Audit grouping compatibility
+        run: |
+          python - <<'PY'
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          import hashlib, re, time, urllib.request
+          import pdfplumber
+
+          URL='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-iscritte-al-06-settembre-2026.pdf'
+          EXPECTED='dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114'
+          UA='italian-anti-mafia-whitelist/0.1 source-verification'
+          DATE=re.compile(r'\b\d{1,2}/\d{1,2}/\d{4}\b')
+          STRICT_ID=re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$',re.I)
+
+          def norm(v): return ' '.join(str(v or '').split())
+          def norm_ci(v): return norm(v).casefold()
+          last=None
+          for attempt in range(1,4):
+              try:
+                  req=urllib.request.Request(URL,headers={'User-Agent':UA,'Accept':'application/pdf,*/*'})
+                  with urllib.request.urlopen(req,timeout=45) as r: body=r.read()
+                  break
+              except Exception as exc:
+                  last=exc; print('GET_RETRY',attempt,type(exc).__name__,str(exc)); time.sleep(attempt*3)
+          else: raise last
+          sha=hashlib.sha256(body).hexdigest(); print('SOURCE_BYTES_SHA',len(body),sha); assert sha==EXPECTED
+          path=Path('/tmp/cagliari-listed.pdf'); path.write_bytes(body)
+
+          rows=[]
+          with pdfplumber.open(path) as pdf:
+              for pno,page in enumerate(pdf.pages,1):
+                  for tno,t in enumerate(page.find_tables(),1):
+                      for ridx,row in enumerate(t.extract() or [],1):
+                          cells=[norm(x) for x in row]
+                          if len(cells)!=9: continue
+                          ordinal,section,name,address,address2,raw_id,start,end,note=cells
+                          if not ordinal.isdigit() or not re.fullmatch(r'sez\.\s*0?(?:[1-9]|10)',section,re.I): continue
+                          if not (DATE.fullmatch(start) and DATE.fullmatch(end)): continue
+                          status='renewal_update_in_progress' if 'aggiornamento in corso' in note.casefold() or 'rinnovo' in note.casefold() else 'listed'
+                          rows.append(dict(page=pno,ordinal=ordinal,section=section,name=name,address=address,address2=address2,raw_id=raw_id,start=start,end=end,note=note,status=status))
+          print('SOURCE_ROWS',len(rows)); assert len(rows)==1832
+
+          # Candidate broad identity/date/status grouping. Used only to expose conflicts.
+          broad=defaultdict(list)
+          for r in rows:
+              ident=('id',r['raw_id'].casefold()) if r['raw_id'] else ('name',norm_ci(r['name']))
+              broad[(ident,r['start'],r['end'],r['status'])].append(r)
+          conflicts=[]
+          for key,rs in broad.items():
+              names={norm_ci(r['name']) for r in rs}
+              addresses={(norm_ci(r['address']),norm_ci(r['address2'])) for r in rs}
+              rawids={norm_ci(r['raw_id']) for r in rs}
+              if len(names)>1 or len(addresses)>1 or len(rawids)>1:
+                  conflicts.append((key,rs,names,addresses,rawids))
+          print('BROAD_GROUPS',len(broad))
+          print('BROAD_CONFLICT_GROUPS',len(conflicts))
+          print('BROAD_NAME_CONFLICTS',sum(len(x[2])>1 for x in conflicts))
+          print('BROAD_ADDRESS_CONFLICTS',sum(len(x[3])>1 for x in conflicts))
+          for key,rs,names,addresses,rawids in conflicts:
+              print('CONFLICT',repr(key),'NAMES',repr(sorted(names)),'ADDRESSES',repr(sorted(addresses)),'IDS',repr(sorted(rawids)))
+              for r in rs: print('CONFLICT_ROW',repr(r))
+
+          # Production-safe grouping: require cleaned source identity AND cleaned address pair AND exact date/status.
+          conservative=defaultdict(list)
+          for r in rows:
+              key=(norm_ci(r['name']),norm_ci(r['raw_id']),norm_ci(r['address']),norm_ci(r['address2']),r['start'],r['end'],r['status'])
+              conservative[key].append(r)
+          print('CONSERVATIVE_GROUPS',len(conservative))
+          print('CONSERVATIVE_STATUS',dict(Counter(k[-1] for k in conservative)))
+          print('CONSERVATIVE_MULTI_SECTION',sum(len({x['section'] for x in rs})>1 for rs in conservative.values()))
+          print('CONSERVATIVE_MAX_SECTOR_ROWS',max(len(rs) for rs in conservative.values()))
+          print('CONSERVATIVE_DUP_SAME_SECTION_EXTRA',sum(sum(n-1 for n in Counter(x['section'] for x in rs).values() if n>1) for rs in conservative.values()))
+
+          # Check whether dropping address would alter observations and enumerate only those cases.
+          noaddr=defaultdict(list)
+          for r in rows:
+              key=(norm_ci(r['name']),norm_ci(r['raw_id']),r['start'],r['end'],r['status'])
+              noaddr[key].append(r)
+          addr_sensitive=[]
+          for key,rs in noaddr.items():
+              addrs={(norm_ci(r['address']),norm_ci(r['address2'])) for r in rs}
+              if len(addrs)>1: addr_sensitive.append((key,rs,addrs))
+          print('NAME_ID_DATE_STATUS_GROUPS',len(noaddr),'ADDRESS_SENSITIVE_GROUPS',len(addr_sensitive))
+          for key,rs,addrs in addr_sensitive:
+              print('ADDRESS_SENSITIVE',repr(key),repr(sorted(addrs)))
+              for r in rs: print('ADDRESS_SENSITIVE_ROW',repr(r))
+
+          # Identifier anomaly is retained verbatim and must not be repaired.
+          malformed=[r for r in rows if r['raw_id'] and not STRICT_ID.fullmatch(r['raw_id'])]
+          print('MALFORMED_ID_ROWS',len(malformed))
+          for r in malformed: print('MALFORMED_ID_ROW',repr(r))
+          PY
