@@ -1,4 +1,4 @@
-name: Barletta-Andria-Trani parser revalidation 2026-09-11
+name: Barletta-Andria-Trani status token audit 2026-09-11
 
 on:
   push:
@@ -8,10 +8,10 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    if: github.event.head_commit.message == 'Revalidate current Barletta parser output'
+  audit:
+    if: github.event.head_commit.message == 'Audit Barletta update-status variants'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,42 +20,31 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install parser runtime
-        run: python -m pip install -e '.[dev,publication]'
-      - name: Verify current source bytes and exact parser output
+        run: python -m pip install -e '.[publication]'
+      - name: Enumerate reviewed update-status variants
         shell: bash
         run: |
-          pytest -q tests/test_barletta_andria_trani_parser_semantics.py
           python - <<'PY'
-          import hashlib, json
-          from collections import Counter
+          import hashlib, re, tempfile
           from pathlib import Path
           from urllib.request import Request, urlopen
-          from white_list_archive.parsers.barletta_andria_trani_tables import parse_barletta_andria_trani_listed, parse_barletta_andria_trani_applicants
-
-          sources={
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf','d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'),
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf','ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57'),
-          }
-          paths={}
-          for kind,(url,expected) in sources.items():
-              req=Request(url,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 parser-revalidation'})
-              with urlopen(req,timeout=90) as response: body=response.read()
-              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(kind,observed)
-              path=Path('/tmp',f'barletta-{kind}.pdf'); path.write_bytes(body); paths[kind]=path
-          base={'authority_key':'barletta-andria-trani','authority_name':'Prefettura di Barletta-Andria-Trani','register_key':'barletta-andria-trani-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-11'}
-          lc=base|{'source_key':'barletta-andria-trani-listed','population_scope':'listed','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte','resource_url':sources['listed'][0],'sha256':sources['listed'][1]}
-          ac=base|{'source_key':'barletta-andria-trani-applicants','population_scope':'applicant','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione','resource_url':sources['applicants'][0],'sha256':sources['applicants'][1]}
-          listed=parse_barletta_andria_trani_listed(paths['listed'],lc)
-          applicants=parse_barletta_andria_trani_applicants(paths['applicants'],ac)
-          result={
-            'listed': listed.diagnostics,
-            'applicants': applicants.diagnostics,
-            'listed_public_statuses': dict(Counter(r['source_status'] for r in listed.records)),
-            'total_public_records': len(listed.records)+len(applicants.records),
-          }
-          print('BARLETTA_CURRENT_OUTPUT='+json.dumps(result,ensure_ascii=False,sort_keys=True))
-          assert listed.diagnostics['sector_rows']==1013
-          assert applicants.diagnostics['public_records']==81
-          assert result['total_public_records'] > 81
+          from white_list_archive.parsers.barletta_andria_trani_tables import _listed_sector_rows, _clean
+          url='https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf'
+          sha='d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'
+          req=Request(url,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 status-variant-audit'})
+          with urlopen(req,timeout=90) as response: body=response.read()
+          assert hashlib.sha256(body).hexdigest()==sha
+          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+              f.write(body); f.flush(); logical,_=_listed_sector_rows(Path(f.name),'barletta-listed')
+          variants=[]
+          for item in logical:
+              rows=[item['base'],*item['continuations']]
+              text=_clean(' '.join(' '.join(r) for r in rows))
+              folded=text.casefold()
+              if 'aggiornament' in folded and 'aggiornamento' not in folded:
+                  tokens=sorted(set(re.findall(r'\b\w*aggiornament\w*\b',folded)))
+                  variants.append((item['page'],item['row'],item['section'],tokens,text,item['base'][-1] if item['base'] else ''))
+          print('VARIANT_ONLY_COUNT',len(variants))
+          for value in variants: print('VARIANT_ONLY',repr(value))
+          assert len(variants)==2, variants
           PY
-          pytest -q
