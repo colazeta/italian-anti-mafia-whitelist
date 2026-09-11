@@ -67,9 +67,20 @@ def _source_date(value: Any) -> str:
         except ValueError as exc:
             raise RuntimeError(f"Campobasso invalid calendar date: {raw!r}") from exc
     match = _DATE_DMY.fullmatch(raw)
-    if not match:
-        raise RuntimeError(f"Campobasso unreviewed date typography: {raw!r}")
-    day, month, year = map(int, match.groups())
+    if match:
+        day, month, year = map(int, match.groups())
+    else:
+        named = re.fullmatch(r"(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", raw)
+        months = {
+            "gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4,
+            "maggio": 5, "giugno": 6, "luglio": 7, "agosto": 8,
+            "settembre": 9, "ottobre": 10, "novembre": 11, "dicembre": 12,
+        }
+        if not named or named.group(2).casefold() not in months:
+            raise RuntimeError(f"Campobasso unreviewed date typography: {raw!r}")
+        day = int(named.group(1))
+        month = months[named.group(2).casefold()]
+        year = int(named.group(3))
     try:
         return date(year, month, day).isoformat()
     except ValueError as exc:

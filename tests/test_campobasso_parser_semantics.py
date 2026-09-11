@@ -141,9 +141,9 @@ def test_campobasso_applicant_repeated_header_and_pending_status(tmp_path: Path,
     for cell, value in zip(table.rows[0].cells, header):
         cell.text = value
     for values in (
-        ["RICHIEDENTE UNO SRL", "Campobasso", "", "01234567890", "Noli a caldo", "14/11/2025"],
+        ["RICHIEDENTE UNO SRL", "Campobasso", "", "01234567890", "Noli a caldo", "14 novembre 2025"],
         header,
-        ["RICHIEDENTE DUE SRL", "Bojano", "", "880470703", "Guardiania dei cantieri", "07/08/2026"],
+        ["RICHIEDENTE DUE SRL", "Bojano", "", "880470703", "Guardiania dei cantieri", "07 agosto 2026"],
     ):
         row = table.add_row().cells
         for cell, value in zip(row, values):
