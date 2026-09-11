@@ -217,7 +217,9 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
         source_rows = [item["base"], *item["continuations"]]
         raw_dates: list[str] = []
         for row in source_rows:
-            raw_dates.extend(_date_fields(row))
+            for raw_date in _date_fields(row):
+                if raw_date not in raw_dates:
+                    raw_dates.append(raw_date)
         if not 1 <= len(raw_dates) <= 2:
             raise RuntimeError(
                 f"{cfg['source_key']}: expected one or two source date fields at page {item['page']} row {item['row']}, got {raw_dates!r}"
