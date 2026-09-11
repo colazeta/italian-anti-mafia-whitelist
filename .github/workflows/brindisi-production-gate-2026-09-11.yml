@@ -1,5 +1,6 @@
 name: Brindisi production gate 2026-09-11
 
+# Retry after removing the temporary source-audit artifact surface.
 on:
   push:
     branches: [expansion/brindisi-2026-09-11]
