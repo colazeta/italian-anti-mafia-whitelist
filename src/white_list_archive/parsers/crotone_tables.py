@@ -39,6 +39,9 @@ _MONTHS = {
 _MONTH_ALT = "|".join(_MONTHS)
 _DATE = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})$", re.I)
 _DATE_PREFIX = re.compile(rf"^(\d{{1,2}})(?:°|º)?\s+({_MONTH_ALT})\s+(\d{{4}})(.*)$", re.I)
+_REVIEWED_EXPIRY_TYPOGRAPHY = {
+    "7 dicembre2022 Richiesta rinnovo": "7 dicembre 2022 Richiesta rinnovo",
+}
 _SECTION = re.compile(r"(?:SEZIONE|SEZ\.?)\s*(10|[1-9])\b", re.I)
 _STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Za-z0-9]{16})$", re.I)
 
@@ -69,7 +72,8 @@ def _parse_expiry(value: str) -> tuple[str, str]:
     raw = _clean(value)
     if not raw:
         return "", ""
-    match = _DATE_PREFIX.fullmatch(raw)
+    parse_value = _REVIEWED_EXPIRY_TYPOGRAPHY.get(raw, raw)
+    match = _DATE_PREFIX.fullmatch(parse_value)
     if not match:
         raise RuntimeError(f"Crotone unreviewed expiry typography: {raw!r}")
     day, month, year, tail = match.groups()
