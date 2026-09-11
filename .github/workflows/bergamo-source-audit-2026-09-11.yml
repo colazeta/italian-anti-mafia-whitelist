@@ -1,17 +1,17 @@
-name: Bergamo source value audit 2026-09-11
+name: Bergamo parser validation 2026-09-11
 
 on:
   push:
     branches: [expansion/bergamo-2026-09-11]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  audit:
-    if: github.event.head_commit.message == 'Audit Bergamo source values'
+  validate:
+    if: github.event.head_commit.message == 'Validate Bergamo parser'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,84 +19,60 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Audit exact date and identifier values
+      - name: Install validation runtime
+        run: |
+          python -m pip install -e '.[dev,publication]'
+          python -m pip install -q requests beautifulsoup4
+      - name: Reverify official source identity
         shell: bash
         run: |
-          python -m pip install -q requests pdfplumber
           python - <<'PY'
-          import hashlib, json, re
-          from collections import Counter
-          from datetime import date
+          import hashlib
           from pathlib import Path
-          import requests, pdfplumber
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
 
-          lattice=json.loads(Path('tmp/bergamo-lattice.json').read_text())
-          columns=json.loads(Path('tmp/bergamo-columns.json').read_text())
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list'
           SOURCES={
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'),
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6','ELENCO RICHIEDENTI ISCRIZIONE'),
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef','ELENCO ISCRITTE'),
           }
-          VALID_ID=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
-          ID_TOKEN=re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Z0-9]{16})(?![A-Za-z0-9])',re.I)
-          DATE=re.compile(r'^(\d{2})/(\d{2})/(\d{4})$')
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; value-audit)'}
-          def centre(w): return (float(w['x0'])+float(w['x1']))/2
-          def text_band(words,x0,x1,y0,y1):
-            selected=[w for w in words if x0<=centre(w)<x1 and y0<=float(w['top'])<y1]
-            selected.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
-            return ' '.join(str(w['text']) for w in selected).strip()
-          def date_state(value):
-            if not value: return 'blank'
-            m=DATE.fullmatch(value)
-            if not m: return 'malformed'
-            d,mn,y=map(int,m.groups())
-            try: date(y,mn,d); return 'valid'
-            except ValueError: return 'calendar_invalid'
-          s=requests.Session(); out={'schema_version':1,'sources':{}}
-          for key,(url,sha) in SOURCES.items():
-            body=s.get(url,headers=H,timeout=90).content; assert hashlib.sha256(body).hexdigest()==sha
-            p=Path('/tmp')/f'bergamo-{key}.pdf'; p.write_bytes(body)
-            anomalies=[]; raw_ids=[]; date_counts=Counter(); valid_id_records=0; multi_id_records=0; update_nonblank=0; total=0
-            with pdfplumber.open(p) as pdf:
-              for page_meta,page in zip(lattice['sources'][key]['pages'],pdf.pages):
-                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                targets=[r['target_top'] for r in page_meta['rows']]
-                for idx,y in enumerate(targets):
-                  y0=y-4; y1=(targets[idx+1]-4 if idx+1<len(targets) else min(y+38,float(page.height)-15))
-                  bands=columns['bands'][key]
-                  vals={f:text_band(words,*xy,y0,y1) for f,xy in bands.items()}
-                  total+=1
-                  raw=vals['identifier']; ids=[]
-                  for m in ID_TOKEN.finditer(raw):
-                    v=m.group(0).upper()
-                    if v not in ids: ids.append(v)
-                  if ids: valid_id_records+=1
-                  if len(ids)>1: multi_id_records+=1
-                  if not VALID_ID.fullmatch(raw.upper()): raw_ids.append({'page':page_meta['page'],'row':idx+1,'raw':raw,'strict_tokens':ids,'name':vals['name']})
-                  fields=['application'] if key=='applicants' else ['listing','expiry','update']
-                  for field in fields:
-                    state=date_state(vals[field]); date_counts[f'{field}:{state}']+=1
-                    if state in {'malformed','calendar_invalid'}:
-                      anomalies.append({'page':page_meta['page'],'row':idx+1,'field':field,'raw':vals[field],'name':vals['name'],'state':state})
-                  if key=='listed' and vals['update']: update_nonblank+=1
-            out['sources'][key]={
-              'sha256':sha,'row_count':total,'date_state_counts':dict(date_counts),
-              'date_anomalies':anomalies,'noncanonical_identifier_count':len(raw_ids),
-              'noncanonical_identifiers':raw_ids,'identifier_record_coverage':valid_id_records,
-              'multiple_strict_identifier_records':multi_id_records,
-              'update_nonblank_count':update_nonblank if key=='listed' else None,
-            }
-            print(key.upper(),'ROWS',total,'DATES',dict(date_counts),'DATE_ANOMALIES',json.dumps(anomalies,ensure_ascii=False))
-            print(key.upper(),'NONCANONICAL_IDS',len(raw_ids),'ID_COVERAGE',valid_id_records,'MULTI',multi_id_records)
-            print(key.upper(),'ID_EXCEPTIONS',json.dumps(raw_ids,ensure_ascii=False))
-            if key=='listed': print('LISTED_UPDATE_NONBLANK',update_nonblank)
-          Path('tmp/bergamo-values.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-verification)'}
+          s=requests.Session(); landing=s.get(PAGE,headers=H,timeout=45); landing.raise_for_status()
+          soup=BeautifulSoup(landing.text,'html.parser')
+          links={urljoin(PAGE,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
+          page_text=' '.join(soup.stripped_strings)
+          assert '27 Agosto 2026' in page_text, 'official page update marker drift'
+          for key,(url,sha,label) in SOURCES.items():
+              assert url in links, (key,'resource link missing')
+              assert label.casefold() in links[url].casefold(), (key,links[url])
+              response=s.get(url,headers=H,timeout=90); response.raise_for_status(); body=response.content
+              observed=hashlib.sha256(body).hexdigest(); assert observed==sha,(key,observed)
+              Path('/tmp',f'bergamo-{key}.pdf').write_bytes(body)
+              print(key,label,observed,len(body))
           PY
-      - name: Commit temporary value checkpoint
+      - name: Validate parser against byte-pinned sources
+        shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/bergamo-values.json
-          git diff --cached --check
-          git commit -m 'Checkpoint Bergamo source values'
-          git push origin HEAD:expansion/bergamo-2026-09-11
+          pytest -q tests/test_bergamo_parser_semantics.py
+          python - <<'PY'
+          from pathlib import Path
+          from white_list_archive.parsers.bergamo_positioned import parse_bergamo_applicants, parse_bergamo_listed
+
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list'
+          base={'authority_key':'bergamo','authority_name':'Prefettura di Bergamo','register_key':'bergamo-ordinary','register_name':'White List ordinaria','reference_date':'2026-08-27','source_page_url':PAGE}
+          ac=base|{'source_key':'bergamo-applicants','population_scope':'applicant','resource_url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','sha256':'65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'}
+          lc=base|{'source_key':'bergamo-listed','population_scope':'listed','resource_url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','sha256':'b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'}
+          applicants=parse_bergamo_applicants(Path('/tmp/bergamo-applicants.pdf'),ac)
+          listed=parse_bergamo_listed(Path('/tmp/bergamo-listed.pdf'),lc)
+          assert len(applicants.records)==612
+          assert applicants.diagnostics['status_counts']=={'pending':612}
+          assert applicants.diagnostics['identifier_coverage']==555
+          assert len(listed.records)==1434
+          assert listed.diagnostics['status_counts']=={'listed':626,'renewal_update_in_progress':808}
+          assert listed.diagnostics['identifier_coverage']==1425
+          assert listed.diagnostics['multiple_strict_identifier_records']==22
+          print('APPLICANTS',applicants.diagnostics)
+          print('LISTED',listed.diagnostics)
+          PY
