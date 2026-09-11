@@ -48,6 +48,8 @@ jobs:
       - name: Validate repository and national build
         shell: bash
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
           python -m pip install -e '.[dev,publication,database,storage]'
           pytest -q
           rm -rf /tmp/barletta-production-build /tmp/barletta-production-sources
