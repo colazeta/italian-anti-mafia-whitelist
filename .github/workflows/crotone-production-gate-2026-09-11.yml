@@ -67,8 +67,8 @@ jobs:
 
           p=root/'data/monitoring/national_coverage.json'
           coverage=json.loads(p.read_text())
-          rows=coverage.get('authority_statuses') if isinstance(coverage,dict) else None
-          if not isinstance(rows,list): raise SystemExit('coverage shape drift: expected authority_statuses list')
+          rows=coverage.get('prefectures') if isinstance(coverage,dict) else None
+          if not isinstance(rows,list): raise SystemExit('coverage shape drift: expected prefectures list')
           matches=[x for x in rows if x.get('authority_key')=='crotone']
           if len(matches)!=1: raise SystemExit(f'Crotone coverage cardinality drift: {len(matches)}')
           row=matches[0]
