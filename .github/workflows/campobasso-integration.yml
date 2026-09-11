@@ -26,6 +26,16 @@ jobs:
       - name: Materialise Campobasso production candidate
         run: |
           python tmp/campobasso_integration.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in (
+              "data/catalog.csv",
+              "data/source_registry/source_series_inventory.csv",
+              "data/source_registry/verified_primary_pages.csv",
+          ):
+              path = Path(name)
+              path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n"))
+          PY
           git diff --check
           git status --short
       - name: Install full validation runtime
