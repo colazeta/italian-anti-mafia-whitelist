@@ -1,4 +1,4 @@
-name: Bergamo activity-prefix audit 2026-09-11
+name: Bergamo ambiguous-activity inspection 2026-09-11
 
 on:
   push:
@@ -8,8 +8,8 @@ permissions:
   contents: write
 
 jobs:
-  audit:
-    if: github.event.head_commit.message == 'Audit Bergamo activity prefixes'
+  inspect:
+    if: github.event.head_commit.message == 'Inspect Bergamo ambiguous activities'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -19,67 +19,53 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Audit unlabelled activity values against source-labelled descriptions
+      - name: Inspect exact physical words around unresolved activity rows
         shell: bash
         run: |
           python -m pip install -q requests pdfplumber
           python - <<'PY'
-          import hashlib, json, re
-          from collections import defaultdict
+          import hashlib, json
           from pathlib import Path
           import requests, pdfplumber
 
-          lattice=json.loads(Path('tmp/bergamo-lattice.json').read_text())
-          columns=json.loads(Path('tmp/bergamo-columns.json').read_text())
           SOURCES={
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'),
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6',[(25,6),(45,10),(47,6),(54,11),(11,9)]),
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef',[(3,3),(56,11),(97,11),(109,10),(112,7),(118,3),(130,9)]),
           }
-          ROMAN=re.compile(r'^(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\b\s*',re.I)
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; activity-audit)'}
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; ambiguity-inspection)'}
           def centre(w): return (float(w['x0'])+float(w['x1']))/2
-          def text_band(words,x0,x1,y0,y1):
-            selected=[w for w in words if x0<=centre(w)<x1 and y0<=float(w['top'])<y1]
-            selected.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
-            return ' '.join(str(w['text']) for w in selected).strip()
+          def target_top(kind,page,row):
+            first=(117.3 if page==1 else 54.2) if kind=='applicants' else (157.7 if page==1 else 73.0)
+            return first+42.5*(row-1)
           s=requests.Session(); out={'schema_version':1,'sources':{}}
-          for key,(url,sha) in SOURCES.items():
+          for kind,(url,sha,coords) in SOURCES.items():
             response=s.get(url,headers=H,timeout=90); response.raise_for_status(); body=response.content
             assert hashlib.sha256(body).hexdigest()==sha
-            path=Path('/tmp')/f'bergamo-{key}.pdf'; path.write_bytes(body)
-            labelled=defaultdict(set); rows=[]
+            path=Path('/tmp')/f'bergamo-{kind}.pdf'; path.write_bytes(body)
+            inspected=[]
             with pdfplumber.open(path) as pdf:
-              for page_meta,page in zip(lattice['sources'][key]['pages'],pdf.pages):
+              for page_no,row_no in coords:
+                page=pdf.pages[page_no-1]
                 words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                targets=[r['target_top'] for r in page_meta['rows']]
-                for idx,y in enumerate(targets):
-                  y0=y-4; y1=(targets[idx+1]-4 if idx+1<len(targets) else min(y+38,float(page.height)-15))
-                  activity=text_band(words,*columns['bands'][key]['activity'],y0,y1)
-                  m=ROMAN.match(activity)
-                  if m:
-                    code=m.group(1).upper(); description=ROMAN.sub('',activity).strip()
-                    labelled[description].add(code)
-                  rows.append({'page':page_meta['page'],'row':idx+1,'activity':activity})
-            exceptions=[]
-            for item in rows:
-              activity=item['activity']; m=ROMAN.match(activity)
-              if m: continue
-              exact_codes=sorted(labelled.get(activity,set())) if activity else []
-              exceptions.append(item|{'exact_source_label_matches':exact_codes})
-            out['sources'][key]={
-              'row_count':len(rows),
-              'labelled_description_count':len(labelled),
-              'unlabelled_count':len(exceptions),
-              'exceptions':exceptions,
-            }
-            print(key.upper(),'UNLABELLED',len(exceptions),json.dumps(exceptions,ensure_ascii=False))
-          Path('tmp/bergamo-activity-prefixes.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+                y=target_top(kind,page_no,row_no)
+                nearby=[]
+                for w in words:
+                  top=float(w['top']); x0=float(w['x0']); x1=float(w['x1'])
+                  if y-12 <= top < y+38:
+                    nearby.append({'text':str(w['text']),'x0':round(x0,1),'x1':round(x1,1),'top':round(top,1),'centre':round(centre(w),1)})
+                nearby.sort(key=lambda w:(w['top'],w['x0']))
+                wider_activity=[w for w in nearby if 470 <= w['centre'] < 690]
+                all_row_text=' '.join(w['text'] for w in nearby)
+                inspected.append({'page':page_no,'row':row_no,'target_top':y,'row_text':all_row_text,'activity_neighbourhood':wider_activity,'all_words':nearby})
+            out['sources'][kind]={'sha256':sha,'inspected':inspected}
+            print(kind.upper(),json.dumps(inspected,ensure_ascii=False))
+          Path('tmp/bergamo-activity-ambiguous.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
           PY
-      - name: Commit temporary activity-prefix checkpoint
+      - name: Commit temporary ambiguity checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/bergamo-activity-prefixes.json
+          git add tmp/bergamo-activity-ambiguous.json
           git diff --cached --check
-          git commit -m 'Checkpoint Bergamo activity prefixes'
+          git commit -m 'Checkpoint Bergamo ambiguous activities'
           git push origin HEAD:expansion/bergamo-2026-09-11
