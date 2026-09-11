@@ -52,7 +52,12 @@ jobs:
           done
           python -m pip install -e '.[dev,publication,storage,database]'
       - name: Run full repository tests
-        run: python -m pytest -q
+        run: |
+          set +e
+          python -m pytest -q --junitxml=/tmp/campobasso-pytest.xml 2>&1 | tee /tmp/campobasso-pytest.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          exit "$rc"
       - name: Validate Campobasso national public candidate
         run: |
           set +e
@@ -100,12 +105,15 @@ jobs:
           assert len(cb)==342
           print('Campobasso national candidate validated:',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['mapped_count'])
           PY
-      - name: Save national build failure log
+      - name: Save failure diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: campobasso-national-build-failure-attempt-${{ github.run_attempt }}
-          path: /tmp/campobasso-national-build-attempt-*.log
+          name: campobasso-integration-failure-attempt-${{ github.run_attempt }}
+          path: |
+            /tmp/campobasso-pytest.log
+            /tmp/campobasso-pytest.xml
+            /tmp/campobasso-national-build-attempt-*.log
           retention-days: 7
           if-no-files-found: ignore
       - name: Commit production candidate only
