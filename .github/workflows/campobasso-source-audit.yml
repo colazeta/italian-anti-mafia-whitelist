@@ -29,7 +29,7 @@ jobs:
           APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/21/2026-08/11-agosto-2026-elenco-delle-imprese-richiedenti-l-iscrizione.docx
         run: |
           python - <<'PY'
-          import hashlib, json, os, re, sys
+          import hashlib, json, os, re
           from collections import Counter, defaultdict
           from datetime import date, datetime
           from pathlib import Path
@@ -73,60 +73,75 @@ jobs:
               return re.sub(r'\s+', ' ', str(v)).strip()
 
           wb = openpyxl.load_workbook(files['listed']['path'], data_only=True, read_only=True)
-          sections = []
           raw_rows = []
           status_values = Counter()
           identifier_lengths = Counter()
           malformed_identifiers = []
+          section_meta = {}
           for ws in wb.worksheets:
-              rows = list(ws.iter_rows(values_only=True))
-              header_i = None
-              for i, row in enumerate(rows):
-                  joined = ' | '.join(clean(v).casefold() for v in row)
+              current_section = ''
+              current_activity = ''
+              in_table = False
+              for rowno, row in enumerate(ws.iter_rows(values_only=True), start=1):
+                  vals = [clean(v) for v in row]
+                  first = vals[0] if vals else ''
+                  joined = ' | '.join(v.casefold() for v in vals)
+                  sec_match = re.fullmatch(r'sezione\s+([ivx]+)', first, re.I)
+                  if sec_match:
+                      current_section = f'Sezione {sec_match.group(1).upper()}'
+                      current_activity = ''
+                      in_table = False
+                      section_meta.setdefault(current_section, {'sheet':ws.title,'section':current_section,'activity':'','rows':0,'header_rows':[]})
+                      continue
+                  if current_section and not in_table and first and 'ragione sociale' not in joined:
+                      low = first.casefold()
+                      if not low.startswith('prefettura') and 'elenco dei fornitori' not in low and 'ministero' not in low and not re.fullmatch(r'\d{1,2}\s+\w+\s+\d{4}', low):
+                          current_activity = first
+                          section_meta[current_section]['activity'] = first
                   if 'ragione sociale' in joined and 'codice fiscale' in joined and 'data di iscrizione' in joined and 'aggiornamento in corso' in joined:
-                      header_i = i
-                      break
-              if header_i is None:
-                  raise SystemExit(f'no audited listed header in sheet {ws.title!r}')
-              section = ''
-              activity = ''
-              for row in rows[:header_i]:
-                  first = clean(row[0]) if row else ''
-                  if re.match(r'^sezione\s+[ivx]+$', first, re.I): section = first
-                  elif section and first and not first.casefold().startswith('prefettura') and 'elenco dei fornitori' not in first.casefold(): activity = first
-              if not section:
-                  section = ws.title
-              data_count = 0
-              for rowno, row in enumerate(rows[header_i+1:], start=header_i+2):
-                  vals = [clean(v) for v in list(row) + [None]*8][:8]
-                  if not any(vals): continue
-                  name, office, province, secondary, ident, listing, expiry, update = vals
+                      if not current_section:
+                          raise SystemExit(f'listed header before section at {ws.title}:{rowno}')
+                      in_table = True
+                      section_meta[current_section]['header_rows'].append(rowno)
+                      continue
+                  if not in_table:
+                      continue
+                  padded = (vals + ['']*8)[:8]
+                  name, office, province, secondary, ident, listing, expiry, update = padded
+                  if not any(padded):
+                      continue
+                  # End/next section markers are handled above. Accept only complete company rows.
                   if not name or not listing or not expiry:
                       continue
-                  data_count += 1
+                  section_meta[current_section]['rows'] += 1
                   status_values[update] += 1
                   digits = re.sub(r'\D','',ident)
                   if ident:
                       identifier_lengths[len(digits)] += 1
                       if len(digits) != 11:
-                          malformed_identifiers.append({'sheet':ws.title,'row':rowno,'name':name,'identifier_raw':ident})
+                          malformed_identifiers.append({'sheet':ws.title,'row':rowno,'section':current_section,'name':name,'identifier_raw':ident})
                   raw_rows.append({
-                      'sheet': ws.title, 'section': section, 'activity': activity,
+                      'sheet': ws.title, 'section': current_section, 'activity': current_activity,
                       'row': rowno, 'name': name, 'office': office, 'province': province,
                       'secondary': secondary, 'identifier_raw': ident,
                       'listing': listing, 'expiry': expiry, 'update_raw': update,
                   })
-              sections.append({'sheet':ws.title,'section':section,'activity':activity,'rows':data_count})
 
-          # Group only on exact source identity/date/address/status-independent fields.
-          # Status is aggregated separately so per-section notes cannot split an otherwise identical observation.
+          sections = list(section_meta.values())
+          if len(sections) != 10:
+              raise SystemExit(f'expected 10 statutory sections, found {len(sections)}: {[s["section"] for s in sections]}')
+
+          # Primary semantic grouping excludes province because the source itself uses placeholders such as "==".
+          # Address variants are audited explicitly; no province is invented or normalised here.
           grouped = defaultdict(list)
           for r in raw_rows:
-              key=(r['name'],r['office'],r['province'],r['secondary'],r['identifier_raw'],r['listing'],r['expiry'])
+              key=(r['name'],r['office'],r['secondary'],r['identifier_raw'],r['listing'],r['expiry'])
               grouped[key].append(r)
+
           group_status = Counter()
           note_only_groups=[]
           status_conflict_groups=[]
+          address_variant_groups=[]
           duplicate_same_section=[]
           for key, rs in grouped.items():
               updates=[r['update_raw'] for r in rs if r['update_raw']]
@@ -134,7 +149,11 @@ jobs:
               scoped=[u for u in updates if 'non richiesto per questa sezione' in u.casefold()]
               other=[u for u in updates if u not in plain_si and u not in scoped]
               seen=Counter(r['section'] for r in rs)
-              if any(v>1 for v in seen.values()): duplicate_same_section.append({'key':key,'sections':dict(seen)})
+              if any(v>1 for v in seen.values()):
+                  duplicate_same_section.append({'key':key,'sections':dict(seen)})
+              provinces=sorted(set(r['province'] for r in rs))
+              if len(provinces)>1:
+                  address_variant_groups.append({'key':key,'provinces':provinces,'sections':[r['section'] for r in rs]})
               if plain_si:
                   status='renewal_update_in_progress'
               elif scoped:
@@ -148,28 +167,34 @@ jobs:
               if len(set(updates))>1:
                   status_conflict_groups.append({'key':key,'updates':sorted(set(updates)),'sections':[r['section'] for r in rs]})
 
+          # Secondary identity-only audit catches date/address divergence without collapsing it.
+          identity_groups=defaultdict(list)
+          for r in raw_rows:
+              identity_groups[(r['name'],r['identifier_raw'])].append(r)
+          identity_conflicts=[]
+          for key, rs in identity_groups.items():
+              tuples=sorted(set((r['office'],r['province'],r['secondary'],r['listing'],r['expiry']) for r in rs))
+              if len(tuples)>1:
+                  identity_conflicts.append({'key':key,'variants':tuples,'sections':[r['section'] for r in rs]})
+
           doc = Document(files['applicant']['path'])
           applicant_rows=[]
           applicant_headers=[]
-          repeated_headers=0
           for ti, table in enumerate(doc.tables):
               for ri, row in enumerate(table.rows):
                   vals=[clean(c.text) for c in row.cells]
                   joined=' | '.join(v.casefold() for v in vals)
                   if 'ragione sociale' in joined and 'data di presentazione' in joined:
                       applicant_headers.append({'table':ti,'row':ri+1,'values':vals})
-                      repeated_headers += 1
                       continue
-                  vals=(vals+[""]*6)[:6]
+                  vals=(vals+['']*6)[:6]
                   if not any(vals): continue
                   name, office, secondary, ident, activities, application_date=vals
                   if not name: continue
                   applicant_rows.append({'table':ti,'row':ri+1,'name':name,'office':office,'secondary':secondary,'identifier_raw':ident,'activities_raw':activities,'application_date_raw':application_date})
 
-          applicant_dupes=[]
-          seen=Counter((r['name'],r['office'],r['secondary'],r['identifier_raw'],r['activities_raw'],r['application_date_raw']) for r in applicant_rows)
-          for key,count in seen.items():
-              if count>1: applicant_dupes.append({'key':key,'count':count})
+          applicant_seen=Counter((r['name'],r['office'],r['secondary'],r['identifier_raw'],r['activities_raw'],r['application_date_raw']) for r in applicant_rows)
+          applicant_dupes=[{'key':key,'count':count} for key,count in applicant_seen.items() if count>1]
           applicant_bad_ident=[]
           for r in applicant_rows:
               digits=re.sub(r'\D','',r['identifier_raw'])
@@ -181,14 +206,16 @@ jobs:
               'files': {k:{x:y for x,y in v.items() if x!='path'} for k,v in files.items()},
               'listed': {
                   'sheet_count': len(wb.sheetnames), 'sections': sections, 'raw_section_rows':len(raw_rows),
-                  'exact_identity_date_address_groups':len(grouped), 'group_status_counts':dict(group_status),
+                  'semantic_groups':len(grouped), 'group_status_counts':dict(group_status),
                   'raw_update_values':dict(status_values), 'identifier_digit_lengths':dict(identifier_lengths),
                   'malformed_identifier_count':len(malformed_identifiers),'malformed_identifiers':malformed_identifiers,
                   'note_only_groups':note_only_groups,'status_conflict_group_count':len(status_conflict_groups),
-                  'status_conflict_groups':status_conflict_groups,'duplicate_same_section':duplicate_same_section,
+                  'status_conflict_groups':status_conflict_groups,'address_variant_group_count':len(address_variant_groups),
+                  'address_variant_groups':address_variant_groups,'duplicate_same_section':duplicate_same_section,
+                  'identity_conflict_count':len(identity_conflicts),'identity_conflicts':identity_conflicts,
               },
               'applicant': {
-                  'table_count':len(doc.tables),'header_occurrences':repeated_headers,'headers':applicant_headers,
+                  'table_count':len(doc.tables),'header_occurrences':len(applicant_headers),'headers':applicant_headers,
                   'rows':len(applicant_rows),'duplicate_rows':applicant_dupes,
                   'malformed_identifier_count':len(applicant_bad_ident),'malformed_identifiers':applicant_bad_ident,
                   'records':applicant_rows,
