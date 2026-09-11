@@ -72,7 +72,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            .github/workflows/public-pages.yml \
             data/monitoring/national_coverage.json \
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
