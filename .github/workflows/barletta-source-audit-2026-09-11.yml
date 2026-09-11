@@ -27,6 +27,18 @@ jobs:
           python -m pip install -q beautifulsoup4
       - name: Materialize reviewed production integration
         run: python scripts/barletta_production_finalize_tmp.py
+      - name: Preserve incomplete-population regression on an actually incomplete authority
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('tests/test_operations.py')
+          text=path.read_text()
+          block='''def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):\n    authority_key = "barletta-andria-trani"\n'''
+          replacement='''def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):\n    # Keep this safety invariant attached to an authority that is still at the\n    # source-identified stage. Barletta-Andria-Trani graduates only after both\n    # positive populations, byte identity and parser boundaries are validated.\n    authority_key = "brindisi"\n'''
+          assert text.count(block)==1
+          path.write_text(text.replace(block,replacement,1))
+          PY
       - name: Validate repository and complete national build
         shell: bash
         run: |
@@ -72,7 +84,8 @@ jobs:
             data/monitoring/national_coverage.json \
             docs/sources/barletta-andria-trani-operational-check-2026-09-11.md \
             .github/workflows/public-pages.yml \
-            tests/public_portal_browser.cjs
+            tests/public_portal_browser.cjs \
+            tests/test_operations.py
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
           git commit -m 'Integrate Barletta-Andria-Trani public archive'
