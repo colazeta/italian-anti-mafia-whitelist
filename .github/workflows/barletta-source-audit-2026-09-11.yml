@@ -1,4 +1,4 @@
-name: Barletta-Andria-Trani grouping audit 2026-09-11
+name: Barletta-Andria-Trani date-field audit 2026-09-11
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   audit:
-    if: github.event.head_commit.message == 'Run Barletta grouping audit'
+    if: github.event.head_commit.message == 'Run Barletta date-field audit'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -19,15 +19,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Run repeated-sector grouping audit
+      - name: Audit exact listed source-date fields
         run: |
           python -m pip install -q pdfplumber
-          python scripts/barletta_grouping_audit_tmp.py
-      - name: Commit recoverable grouping checkpoint
+          python scripts/barletta_date_fields_tmp.py
+      - name: Commit recoverable date-field checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/barletta-andria-trani-grouping.json
+          git add tmp/barletta-andria-trani-date-fields.json
           git diff --cached --check
-          git commit -m 'Record Barletta-Andria-Trani grouping boundary'
+          git commit -m 'Record Barletta-Andria-Trani date-field boundary'
           git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
