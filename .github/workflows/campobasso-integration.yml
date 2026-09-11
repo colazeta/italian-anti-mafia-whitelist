@@ -55,16 +55,37 @@ jobs:
         run: python -m pytest -q
       - name: Validate Campobasso national public candidate
         run: |
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/public-national-sources \
-            --registry-json public-site/data/registry.json \
-            --registry-csv public-site/data/registry.csv \
-            --prefectures-json public-site/data/prefectures.json \
-            --prefectures-csv public-site/data/prefectures.csv
+          set +e
+          rc=1
+          for attempt in 1 2; do
+            log="/tmp/campobasso-national-build-attempt-${attempt}.log"
+            PYTHONUNBUFFERED=1 white-list-public-national-build \
+              --source-config data/publication/multi_prefecture_pilot.json \
+              --verified-pages data/source_registry/verified_primary_pages.csv \
+              --source-series data/source_registry/source_series_inventory.csv \
+              --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+              --work-dir /tmp/public-national-sources \
+              --registry-json public-site/data/registry.json \
+              --registry-csv public-site/data/registry.csv \
+              --prefectures-json public-site/data/prefectures.json \
+              --prefectures-csv public-site/data/prefectures.csv \
+              2>&1 | tee "$log"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -eq 0 ]; then
+              break
+            fi
+            if grep -Eqi 'HTTP Error (403|408|429|5[0-9][0-9])|timed out|timeout|URLError|Temporary failure|Connection reset|Remote end closed connection' "$log"; then
+              echo "Transient source/network failure detected; bounded retry $attempt/2" >&2
+              sleep $((attempt * 5))
+              continue
+            fi
+            echo "Non-transient national build failure; not retrying" >&2
+            break
+          done
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            exit "$rc"
+          fi
           python - <<'PY'
           import json
           from pathlib import Path
@@ -79,6 +100,14 @@ jobs:
           assert len(cb)==342
           print('Campobasso national candidate validated:',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['mapped_count'])
           PY
+      - name: Save national build failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: campobasso-national-build-failure-attempt-${{ github.run_attempt }}
+          path: /tmp/campobasso-national-build-attempt-*.log
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Commit production candidate only
         run: |
           git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
