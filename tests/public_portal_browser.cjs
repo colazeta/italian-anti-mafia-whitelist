@@ -152,9 +152,15 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(udine.filter(r=>r.source_key==='udine-applicants').length,19);
       assert.deepEqual(statusCounts(udine),{listed:1187,pending:19,renewal_update_in_progress:244});
       const toson=udine.filter(r=>r.name==='TOSON & TOSON DI TOSON DANIELE & C. S.A.S.');
-      assert.equal(toson.length,1);
-      assert.equal(toson[0].identifier_field_raw,'000152050308');
-      assert.deepEqual(toson[0].identifiers,[]);
+      assert.equal(toson.length,2);
+      const toson5=toson.filter(r=>r.requested_activities.length===1&&r.requested_activities[0]==='Sezione 5');
+      const toson10=toson.filter(r=>r.requested_activities.length===1&&r.requested_activities[0]==='Sezione 10');
+      assert.equal(toson5.length,1);
+      assert.equal(toson5[0].identifier_field_raw,'00152050308');
+      assert.deepEqual(toson5[0].identifiers,['00152050308']);
+      assert.equal(toson10.length,1);
+      assert.equal(toson10[0].identifier_field_raw,'000152050308');
+      assert.deepEqual(toson10[0].identifiers,[]);
       const palma=udine.filter(r=>r.name==='IMPERMEABILIZZAZIONI PALMA S.R.L.');
       assert.equal(palma.length,1);
       assert.deepEqual(palma[0].source_fields.expiry_date_raw_variants,['269/01/2027']);
