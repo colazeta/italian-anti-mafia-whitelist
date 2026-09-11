@@ -1,0 +1,126 @@
+name: Barletta-Andria-Trani source audit 2026-09-11
+
+on:
+  push:
+    branches: [expansion/barletta-andria-trani-2026-09-11]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    if: github.event.head_commit.message == 'Audit current Barletta-Andria-Trani White List sources'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/barletta-andria-trani-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Inspect official current sources
+        shell: bash
+        run: |
+          python -m pip install -q requests beautifulsoup4 pdfplumber
+          python - <<'PY'
+          import hashlib, json, tempfile
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+
+          targets = {
+              'listed': 'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte',
+              'applicants': 'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione',
+          }
+          headers = {'User-Agent': 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; evidence-source-audit)'}
+          session = requests.Session()
+          out = {'checked_at': '2026-09-11', 'targets': {}}
+
+          def clean(value):
+              return ' '.join(str(value or '').replace('\u00a0', ' ').split())
+
+          for kind, page_url in targets.items():
+              item = {'page_url': page_url}
+              try:
+                  page = session.get(page_url, headers=headers, timeout=45)
+                  item['page_status'] = page.status_code
+                  page.raise_for_status()
+                  soup = BeautifulSoup(page.text, 'html.parser')
+                  item['page_title'] = clean(soup.find('h1').get_text(' ', strip=True) if soup.find('h1') else '')
+                  item['page_text_head'] = clean(soup.get_text(' ', strip=True))[:1200]
+                  candidates = []
+                  for a in soup.find_all('a', href=True):
+                      href = urljoin(page_url, a['href'])
+                      label = clean(' '.join(a.stripped_strings))
+                      if href.lower().endswith('.pdf') or '/sites/default/files/' in href:
+                          candidates.append({'label': label, 'url': href})
+                  # Deduplicate exact URLs while preserving page order.
+                  seen = set(); unique = []
+                  for candidate in candidates:
+                      if candidate['url'] not in seen:
+                          seen.add(candidate['url']); unique.append(candidate)
+                  item['attachment_candidates'] = unique
+                  if len(unique) != 1:
+                      item['error'] = f'expected exactly one current attachment candidate, got {len(unique)}'
+                      out['targets'][kind] = item
+                      continue
+                  attachment = unique[0]
+                  response = session.get(attachment['url'], headers=headers, timeout=90)
+                  item['attachment_status'] = response.status_code
+                  response.raise_for_status()
+                  body = response.content
+                  item['attachment'] = {
+                      'label': attachment['label'],
+                      'url': attachment['url'],
+                      'sha256': hashlib.sha256(body).hexdigest(),
+                      'size_bytes': len(body),
+                  }
+                  with tempfile.NamedTemporaryFile(suffix='.pdf') as tmp:
+                      tmp.write(body); tmp.flush()
+                      with pdfplumber.open(tmp.name) as pdf:
+                          item['pdf_pages'] = len(pdf.pages)
+                          pages = []
+                          for pno, p in enumerate(pdf.pages, 1):
+                              text = clean(p.extract_text() or '')
+                              tables = p.find_tables()
+                              table_shapes = []
+                              extracted_rows = []
+                              for table in tables:
+                                  rows = table.extract() or []
+                                  widths = sorted({len(row) for row in rows if row is not None})
+                                  table_shapes.append({'rows': len(rows), 'widths': widths})
+                                  extracted_rows.append([[clean(cell) for cell in row] for row in rows[:5]])
+                              words = p.extract_words() or []
+                              pages.append({
+                                  'page': pno,
+                                  'text_head': text[:1800],
+                                  'word_count': len(words),
+                                  'table_count': len(tables),
+                                  'table_shapes': table_shapes,
+                                  'table_row_samples': extracted_rows[:2],
+                              })
+                          item['pages'] = pages
+              except Exception as exc:
+                  item['error'] = f'{type(exc).__name__}: {exc}'
+              out['targets'][kind] = item
+
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/barletta-andria-trani-audit.json').write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(out, ensure_ascii=False)[:12000])
+          PY
+      - name: Commit recoverable audit checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/barletta-andria-trani-audit.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No audit delta to commit'
+          else
+            git commit -m 'Record Barletta-Andria-Trani source audit'
+            git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
+          fi
