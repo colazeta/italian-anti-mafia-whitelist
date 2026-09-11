@@ -1,0 +1,486 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "applicants": {
+      "row_count": 612,
+      "labelled_description_count": 9,
+      "unlabelled_count": 11,
+      "exceptions": [
+        {
+          "page": 4,
+          "row": 11,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 5,
+          "row": 1,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 11,
+          "row": 9,
+          "activity": "",
+          "exact_source_label_matches": []
+        },
+        {
+          "page": 16,
+          "row": 6,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 16,
+          "row": 7,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 25,
+          "row": 6,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 30,
+          "row": 3,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 30,
+          "row": 4,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 45,
+          "row": 10,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 47,
+          "row": 6,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 54,
+          "row": 11,
+          "activity": "stefanozanchi69@pec.it",
+          "exact_source_label_matches": []
+        }
+      ]
+    },
+    "listed": {
+      "row_count": 1434,
+      "labelled_description_count": 11,
+      "unlabelled_count": 47,
+      "exceptions": [
+        {
+          "page": 3,
+          "row": 3,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 4,
+          "row": 5,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 4,
+          "row": 6,
+          "activity": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+          "exact_source_label_matches": [
+            "IV"
+          ]
+        },
+        {
+          "page": 4,
+          "row": 7,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 4,
+          "row": 8,
+          "activity": "Servizi ambientali comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, gestione dei rifiuti .",
+          "exact_source_label_matches": [
+            "XII"
+          ]
+        },
+        {
+          "page": 9,
+          "row": 7,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 20,
+          "row": 3,
+          "activity": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+          "exact_source_label_matches": [
+            "IV"
+          ]
+        },
+        {
+          "page": 21,
+          "row": 6,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 21,
+          "row": 7,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 21,
+          "row": 8,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 22,
+          "row": 3,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 24,
+          "row": 3,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 24,
+          "row": 6,
+          "activity": "Servizi ambientali comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, gestione dei rifiuti .",
+          "exact_source_label_matches": [
+            "XII"
+          ]
+        },
+        {
+          "page": 24,
+          "row": 8,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 25,
+          "row": 2,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 34,
+          "row": 9,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 34,
+          "row": 10,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 34,
+          "row": 11,
+          "activity": "Servizi ambientali comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, gestione dei rifiuti .",
+          "exact_source_label_matches": [
+            "XII"
+          ]
+        },
+        {
+          "page": 49,
+          "row": 7,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 49,
+          "row": 8,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 49,
+          "row": 9,
+          "activity": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+          "exact_source_label_matches": [
+            "IV"
+          ]
+        },
+        {
+          "page": 49,
+          "row": 10,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 51,
+          "row": 6,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 56,
+          "row": 10,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 56,
+          "row": 11,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 57,
+          "row": 1,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 61,
+          "row": 6,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 61,
+          "row": 7,
+          "activity": "Servizi ambientali comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, gestione dei rifiuti .",
+          "exact_source_label_matches": [
+            "XII"
+          ]
+        },
+        {
+          "page": 61,
+          "row": 8,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 87,
+          "row": 10,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 92,
+          "row": 3,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 93,
+          "row": 10,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 95,
+          "row": 7,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 97,
+          "row": 9,
+          "activity": "Autotrasporto per conto terzi",
+          "exact_source_label_matches": [
+            "VIII"
+          ]
+        },
+        {
+          "page": 97,
+          "row": 10,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 97,
+          "row": 11,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 98,
+          "row": 1,
+          "activity": "Noli a freddo di macchinari",
+          "exact_source_label_matches": [
+            "V"
+          ]
+        },
+        {
+          "page": 98,
+          "row": 2,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 98,
+          "row": 3,
+          "activity": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+          "exact_source_label_matches": [
+            "IV"
+          ]
+        },
+        {
+          "page": 102,
+          "row": 3,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 104,
+          "row": 3,
+          "activity": "Noli a caldo",
+          "exact_source_label_matches": [
+            "VII"
+          ]
+        },
+        {
+          "page": 104,
+          "row": 4,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 109,
+          "row": 10,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 112,
+          "row": 7,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 118,
+          "row": 3,
+          "activity": "Fornitura di ferro lavorato",
+          "exact_source_label_matches": [
+            "IV",
+            "VI"
+          ]
+        },
+        {
+          "page": 130,
+          "row": 4,
+          "activity": "Estrazione, fornitura e trasporto di terra e materiali inerti",
+          "exact_source_label_matches": [
+            "III"
+          ]
+        },
+        {
+          "page": 130,
+          "row": 9,
+          "activity": "",
+          "exact_source_label_matches": []
+        }
+      ]
+    }
+  }
+}
