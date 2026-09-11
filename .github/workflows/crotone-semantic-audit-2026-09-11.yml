@@ -1,0 +1,149 @@
+name: Crotone semantic audit 2026-09-11
+
+on:
+  push:
+    branches: [expansion/crotone-2026-09-11]
+    paths: [.github/workflows/crotone-semantic-audit-2026-09-11.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/crotone-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pdfplumber
+      - name: Audit complete listed/applicant population semantics
+        run: |
+          python - <<'PY'
+          import hashlib,json,re,time
+          from collections import Counter,defaultdict
+          from datetime import date
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          import pdfplumber
+
+          URLS={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-iscritte-white-list-2.pdf','c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-con-richiesta-iscrizione-white-list-2.pdf','af66ff6bf6a173c4156fef3e7741ca26956769e399285764123ef8405097e6d1'),
+          }
+          months={'gennaio':1,'febbraio':2,'marzo':3,'aprile':4,'maggio':5,'giugno':6,'luglio':7,'agosto':8,'settembre':9,'ottobre':10,'novembre':11,'dicembre':12}
+          month_alt='|'.join(months)
+          full_date=re.compile(rf'^(?P<d>\d{{1,2}})(?:°|º)?\s+(?P<m>{month_alt})\s+(?P<y>\d{{4}})$',re.I)
+          prefix_date=re.compile(rf'^(?P<d>\d{{1,2}})(?:°|º)?\s+(?P<m>{month_alt})\s+(?P<y>\d{{4}})(?P<tail>.*)$',re.I)
+          section_re=re.compile(r'(?:SEZIONE|SEZ\.?)[\s\n]*(10|[1-9])\b',re.I)
+          strict_id=re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$',re.I)
+          def clean(x): return ' '.join(str(x or '').split())
+          def fetch(url):
+            last=None
+            for i in range(5):
+              try:
+                with urlopen(Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+semantic audit)','Accept':'application/pdf,*/*'}),timeout=90) as r:return r.read()
+              except Exception as e:
+                last=e; time.sleep(3*(i+1))
+            raise last
+          def parse_date(v):
+            raw=clean(v); m=full_date.fullmatch(raw)
+            if not m:return None
+            try:return date(int(m['y']),months[m['m'].casefold()],int(m['d'])).isoformat()
+            except ValueError:return None
+          def split_expiry(v):
+            raw=clean(v);m=prefix_date.fullmatch(raw)
+            if not m:return None,raw,''
+            iso=date(int(m['y']),months[m['m'].casefold()],int(m['d'])).isoformat()
+            date_raw=raw[:m.end('y')]
+            return iso,date_raw,clean(m['tail'])
+          def status(expiry_tail,note):
+            text=(clean(expiry_tail)+' '+clean(note)).casefold()
+            if any(k in text for k in ('rinnovo','istruttoria','aggiornamento')):return 'renewal_update_in_progress'
+            return 'listed'
+
+          out={'audited_on':'2026-09-11','sources':{}}
+          # listed
+          url,expected=URLS['listed'];body=fetch(url);sha=hashlib.sha256(body).hexdigest()
+          if sha!=expected:raise RuntimeError(f'listed SHA drift: {sha}')
+          p=Path('/tmp/listed.pdf');p.write_bytes(body)
+          rows=[];current=None;headers=0
+          with pdfplumber.open(p) as pdf:
+            pages=len(pdf.pages)
+            for pno,page in enumerate(pdf.pages,1):
+              hits=[int(x) for x in section_re.findall(page.extract_text() or '')]
+              if hits:
+                if len(set(hits))!=1:raise RuntimeError(f'ambiguous section p{pno}: {hits}')
+                current=hits[0]
+              for tno,t in enumerate(page.extract_tables() or [],1):
+                for rno,row in enumerate(t or [],1):
+                  c=[clean(x) for x in row]
+                  if not any(c):continue
+                  if len(c)!=6:raise RuntimeError(f'unreviewed listed table width p{pno} r{rno}: {len(c)}')
+                  if c[0].casefold()=='ragione sociale': headers+=1;continue
+                  if not c[0]:raise RuntimeError(f'listed non-header blank company p{pno} r{rno}: {c!r}')
+                  if current is None:raise RuntimeError(f'listed row before section p{pno} r{rno}')
+                  listing_iso=parse_date(c[3]) if c[3] else None
+                  expiry_iso,expiry_date_raw,expiry_tail=split_expiry(c[4])
+                  rowrec={'page':pno,'table':tno,'row':rno,'section':current,'name':c[0],'id':c[1],'office':c[2],'listing_raw':c[3],'listing_iso':listing_iso,'expiry_raw':c[4],'expiry_date_raw':expiry_date_raw,'expiry_iso':expiry_iso,'expiry_tail':expiry_tail,'note':c[5]}
+                  rowrec['status']=status(expiry_tail,c[5]);rows.append(rowrec)
+          section_counts=Counter(r['section'] for r in rows);status_counts=Counter(r['status'] for r in rows)
+          listing_missing=[r for r in rows if not r['listing_iso']]
+          expiry_missing=[r for r in rows if not r['expiry_iso']]
+          groups={}
+          for r in rows:
+            key=(r['name'].casefold(),r['id'].casefold(),r['office'].casefold(),r['listing_raw'].casefold(),r['expiry_raw'].casefold(),r['note'].casefold(),r['status'])
+            g=groups.setdefault(key,{'row':r,'sections':[],'locators':[]})
+            if r['section'] in g['sections']:raise RuntimeError(f'duplicate same-section exact observation {r["name"]!r} section {r["section"]}')
+            g['sections'].append(r['section']);g['locators'].append(f'p{r["page"]}:t{r["table"]}:r{r["row"]}')
+          broad=defaultdict(list)
+          for r in rows:broad[(r['name'].casefold(),r['id'].casefold())].append(r)
+          conflicts=[]
+          for ident,rs in broad.items():
+            variants={(r['office'].casefold(),r['listing_raw'].casefold(),r['expiry_raw'].casefold(),r['note'].casefold(),r['status']) for r in rs}
+            if len(variants)>1:conflicts.append({'identity':ident,'variant_count':len(variants),'rows':rs[:12]})
+          grouped_status=Counter(g['row']['status'] for g in groups.values())
+          grouped_ids=sum(bool(strict_id.fullmatch(g['row']['id'].upper())) for g in groups.values())
+          out['sources']['listed']={
+            'url':url,'sha256':sha,'pages':pages,'header_rows':headers,'sector_rows':len(rows),'section_counts':dict(sorted(section_counts.items())),
+            'source_status_counts':dict(status_counts),'listing_date_unparsed_count':len(listing_missing),'expiry_date_unparsed_count':len(expiry_missing),
+            'listing_date_unparsed_rows':listing_missing[:50],'expiry_date_unparsed_rows':expiry_missing[:50],
+            'grouped_records':len(groups),'grouped_status_counts':dict(grouped_status),'grouped_identifier_coverage':grouped_ids,
+            'section_span_counts':dict(Counter(len(g['sections']) for g in groups.values())),
+            'identity_variant_conflict_count':len(conflicts),'identity_variant_conflicts':conflicts[:50],
+            'malformed_group_identifiers':[{'name':g['row']['name'],'raw':g['row']['id']} for g in groups.values() if not strict_id.fullmatch(g['row']['id'].upper())][:50],
+          }
+          # applicants: every non-header row with six cells; require date parse.
+          url,expected=URLS['applicants'];body=fetch(url);sha=hashlib.sha256(body).hexdigest()
+          if sha!=expected:raise RuntimeError(f'applicant SHA drift: {sha}')
+          p=Path('/tmp/applicants.pdf');p.write_bytes(body)
+          arows=[];headers=0;page_counts=[]
+          with pdfplumber.open(p) as pdf:
+            apages=len(pdf.pages)
+            for pno,page in enumerate(pdf.pages,1):
+              pc=0
+              for tno,t in enumerate(page.extract_tables() or [],1):
+                for rno,row in enumerate(t or [],1):
+                  c=[clean(x) for x in row]
+                  if not any(c):continue
+                  if len(c)!=6:raise RuntimeError(f'unreviewed applicant width p{pno} r{rno}: {len(c)}')
+                  if 'codice fiscale' in c[0].casefold() or c[1].casefold()=='ragione sociale':headers+=1;continue
+                  if not c[0] or not c[1]:raise RuntimeError(f'applicant blank identity p{pno} r{rno}: {c!r}')
+                  application=parse_date(c[5])
+                  if not application:raise RuntimeError(f'applicant unreviewed date p{pno} r{rno}: {c[5]!r}')
+                  arows.append({'page':pno,'table':tno,'row':rno,'id':c[0],'name':c[1],'office':c[2],'secondary':c[3],'activities':c[4],'application_raw':c[5],'application_iso':application});pc+=1
+              page_counts.append(pc)
+          dup=len(arows)-len({(r['id'].casefold(),r['name'].casefold(),r['office'].casefold(),r['secondary'].casefold(),r['activities'].casefold(),r['application_raw'].casefold()) for r in arows})
+          out['sources']['applicants']={'url':url,'sha256':sha,'pages':apages,'header_rows':headers,'records':len(arows),'page_counts':page_counts,'duplicates':dup,'identifier_coverage':sum(bool(strict_id.fullmatch(r['id'].upper())) for r in arows),'malformed_identifiers':[{'name':r['name'],'raw':r['id']} for r in arows if not strict_id.fullmatch(r['id'].upper())][:50]}
+          Path('tmp/crotone-semantic-audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit semantic checkpoint
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/crotone-semantic-audit.json
+          git commit -m 'Checkpoint Crotone semantic audit'
+          git push origin HEAD:expansion/crotone-2026-09-11
