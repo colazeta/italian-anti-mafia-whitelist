@@ -1,0 +1,128 @@
+name: Caltanissetta production gate v2 2026-09-11
+
+on:
+  push:
+    branches:
+      - expansion/caltanissetta-2026-09-11
+    paths:
+      - .github/workflows/caltanissetta-production-gate-v2-2026-09-11.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caltanissetta-2026-09-11
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialise reviewed production candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          # Reuse the already-reviewed materialisation block from the first gate;
+          # that failed only after materialisation, during the repository test suite.
+          gate = Path('.github/workflows/caltanissetta-production-gate-2026-09-11.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = gate.index(marker) + len(marker)
+          end = gate.index("\n          PY\n", start)
+          script = textwrap.dedent(gate[start:end])
+          exec(compile(script, '<caltanissetta-materialisation>', 'exec'), {'__name__': '__main__'})
+          PY
+      - name: Reconcile governance denominators
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          from pathlib import Path
+
+          # A new independently verified primary page and two complete source series
+          # change repository governance denominators. Update the frozen counts rather
+          # than weakening the tests.
+          catalog = Path('data/catalog.csv')
+          with catalog.open(newline='', encoding='utf-8') as fh:
+              reader = csv.DictReader(fh)
+              fields = reader.fieldnames
+              rows = list(reader)
+          for row in rows:
+              if row['dataset_id'] == 'verified-primary-pages':
+                  row['record_count'] = '36'
+              elif row['dataset_id'] == 'source-series-inventory':
+                  row['record_count'] = '68'
+          with catalog.open('w', newline='', encoding='utf-8') as fh:
+              writer = csv.DictWriter(fh, fieldnames=fields)
+              writer.writeheader()
+              writer.writerows(rows)
+
+          population_test = Path('tests/test_source_population_coverage.py')
+          text = population_test.read_text(encoding='utf-8')
+          text = text.replace('assert report["verified_authority_count"] == 35', 'assert report["verified_authority_count"] == 36')
+          text = text.replace('assert report["register_scope_count"] == 36', 'assert report["register_scope_count"] == 37')
+          text = text.replace('assert report["complete_register_scope_count"] == 34', 'assert report["complete_register_scope_count"] == 35')
+          population_test.write_text(text, encoding='utf-8')
+
+          registry_test = Path('tests/test_source_registry.py')
+          text = registry_test.read_text(encoding='utf-8')
+          text = text.replace('assert len(pages) == 35', 'assert len(pages) == 36')
+          registry_test.write_text(text, encoding='utf-8')
+          PY
+      - name: Install full repository validation runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install -e '.[dev,publication,storage,database]'
+      - name: Run repository tests
+        run: pytest -q
+      - name: Validate national public build
+        run: |
+          rm -rf /tmp/caltanissetta-public /tmp/caltanissetta-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/caltanissetta-sources \
+            --registry-json /tmp/caltanissetta-public/registry.json \
+            --registry-csv /tmp/caltanissetta-public/registry.csv \
+            --prefectures-json /tmp/caltanissetta-public/prefectures.json \
+            --prefectures-csv /tmp/caltanissetta-public/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/caltanissetta-public/registry.json').read_text())
+          pref=json.loads(Path('/tmp/caltanissetta-public/prefectures.json').read_text())
+          assert reg['meta']['record_count']==19321, reg['meta']
+          assert reg['meta']['authority_count']==23, reg['meta']
+          assert reg['meta']['register_count']==24, reg['meta']
+          assert pref['meta']['published_count']==23, pref['meta']
+          assert pref['meta']['mapped_count']==36, pref['meta']
+          cl=[r for r in reg['records'] if r['authority_key']=='caltanissetta']
+          assert len(cl)==806
+          assert sum(r['source_key']=='caltanissetta-listed' for r in cl)==518
+          assert sum(r['source_key']=='caltanissetta-applicants' for r in cl)==288
+          assert Counter(r['source_status'] for r in cl)==Counter({'pending':288,'listed':281,'renewal_update_in_progress':232,'other_or_unknown':5})
+          a2g=[r for r in cl if r['name']=='A2G CONSTRUCTION SRL']
+          assert len(a2g)==1 and a2g[0]['identifier_field_raw']=='020826508502' and a2g[0]['identifiers']==[]
+          print('Caltanissetta candidate validated:', reg['meta'], pref['meta'])
+          PY
+          node --check tests/public_portal_browser.cjs
+      - name: Commit production-only checkpoint
+        run: |
+          git rm -f .github/workflows/caltanissetta-source-audit-2026-09-11.yml
+          git rm -f .github/workflows/caltanissetta-production-gate-2026-09-11.yml
+          git rm -f .github/workflows/caltanissetta-production-gate-v2-2026-09-11.yml
+          git rm -f tmp/caltanissetta-source-audit.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/public-pages.yml data/catalog.csv data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv data/source_registry/source_series_inventory.csv docs/sources/caltanissetta-operational-check-2026-09-11.md src/white_list_archive/parsers/caltanissetta_tables.py src/white_list_archive/publishing/public_national_registry.py tests/public_portal_browser.cjs tests/test_caltanissetta_parser_semantics.py tests/test_source_population_coverage.py tests/test_source_registry.py
+          git commit -m 'Integrate Caltanissetta public archive'
+          git push origin HEAD:expansion/caltanissetta-2026-09-11
