@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-09-10",
+  "verified_at": "2026-09-11",
   "sources": [
     {
       "source_key": "cosenza-combined",
@@ -670,6 +670,41 @@
       "last_source_update": "2026-09-08",
       "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
       "notes": "Current byte-pinned applicant publication positively identified by the official landing page as Elenco imprese richiedenti iscrizione. It yields 26 pending observations across three pages. One reviewed application date is blank; non-canonical identifiers remain raw and are never reconstructed. Exact boundaries are documented in docs/sources/brindisi-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "cagliari-listed",
+      "parser": "cagliari_listed",
+      "authority_key": "cagliari",
+      "authority_name": "Prefettura di Cagliari",
+      "register_key": "cagliari-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-06",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/cagliari/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-iscritte-al-06-settembre-2026.pdf",
+      "sha256": "dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114",
+      "expected_sector_rows": 1832,
+      "expected_source_rows": 750,
+      "last_source_update": "2026-09-06",
+      "last_source_update_basis": "dated official resource exposed by the current official landing page",
+      "notes": "Official landing page positively labels this attachment as Elenco Ditte iscritte. The PDF internal title incorrectly says richiedenti, while its table semantics are registration date, expiry date and update-in-progress. The discrepancy is retained as source provenance; the byte-pinned 1,832 sector rows yield 750 observations after conflict-audited conservative repeat grouping. Malformed ten-digit source identifier 0336817853 is preserved raw and never reconstructed."
+    },
+    {
+      "source_key": "cagliari-applicants",
+      "parser": "cagliari_applicants",
+      "authority_key": "cagliari",
+      "authority_name": "Prefettura di Cagliari",
+      "register_key": "cagliari-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-06",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/cagliari/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-richiedenti-iscrizione-al-06-settembre-2026.pdf",
+      "sha256": "7429040f5945ecb72cc7b152dbd8aaeee0e0a5df9bb7414e951a4cec4a4f50f7",
+      "expected_source_rows": 51,
+      "last_source_update": "2026-09-06",
+      "last_source_update_basis": "dated official resource exposed by the current official landing page",
+      "notes": "Official landing page positively exposes the applicant attachment. It contains 51 explicit In istruttoria observations. Malformed ten-digit source identifier 3814850925 and one blank source address are preserved without reconstruction or inference."
     }
   ]
 }

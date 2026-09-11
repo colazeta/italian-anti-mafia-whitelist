@@ -160,9 +160,9 @@ def test_verified_storage_requires_evidence_and_does_not_authorise_publication(l
 
 def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):
     # Keep this safety invariant attached to an authority that is still at the
-    # source-identified stage. Cagliari remains unadvanced while Brindisi graduates
+    # source-identified stage. Crotone remains unadvanced while Cagliari graduates
     # only after positive listed/applicant evidence, byte identity and parser validation.
-    authority_key = "cagliari"
+    authority_key = "crotone"
     row = next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)
     assert row["last_successful_source_check_at"] is None
     for assessment in [None, {}, {**ASSESSMENT, "listed_and_applicant_accounted_for": False}]:

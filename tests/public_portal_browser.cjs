@@ -39,6 +39,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Bergamo'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Barletta-Andria-Trani'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Brindisi'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Cagliari'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -79,8 +80,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,17714);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi'].includes(r.authority_key));
+      assert.equal(stats.total,18515);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -183,6 +184,23 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(brindisi.filter(r=>r.source_key==='brindisi-listed').length,385);
       assert.equal(brindisi.filter(r=>r.source_key==='brindisi-applicants').length,26);
       assert.deepEqual(statusCounts(brindisi),{listed:341,pending:26,renewal_update_in_progress:44});
+      const cagliari=registry.records.filter(r=>r.authority_key==='cagliari');
+      assert.equal(cagliari.length,801);
+      assert.equal(cagliari.filter(r=>r.source_key==='cagliari-listed').length,750);
+      assert.equal(cagliari.filter(r=>r.source_key==='cagliari-applicants').length,51);
+      assert.deepEqual(statusCounts(cagliari),{listed:713,pending:51,renewal_update_in_progress:37});
+      const aeffe=cagliari.filter(r=>r.name==='AEFFE di Farci Alessandro');
+      assert.equal(aeffe.length,1);
+      assert.equal(aeffe[0].identifier_field_raw,'0336817853');
+      assert.deepEqual(aeffe[0].identifiers,[]);
+      assert.deepEqual(aeffe[0].requested_activities,['Sezione 1','Sezione 5']);
+      const lapignola=cagliari.filter(r=>r.name==='La Pignola S.r.l.');
+      assert.equal(lapignola.length,1);
+      assert.equal(lapignola[0].identifier_field_raw,'3814850925');
+      assert.deepEqual(lapignola[0].identifiers,[]);
+      const collu=cagliari.filter(r=>r.name==='Collu Giuliano Impresa Individuale');
+      assert.equal(collu.length,1);
+      assert.equal(collu[0].registered_office,'');
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
