@@ -1,0 +1,56 @@
+name: Udine browser assertion fix
+
+on:
+  push:
+    branches: [expansion/udine-2026-09-10]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Patch Udine browser assertion'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/udine-2026-09-10
+      - name: Make the anomaly assertion observation-specific
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/public_portal_browser.cjs')
+          text = path.read_text(encoding='utf-8')
+          old = """      const toson=udine.filter(r=>r.name==='TOSON & TOSON DI TOSON DANIELE & C. S.A.S.');
+      assert.equal(toson.length,1);
+      assert.equal(toson[0].identifier_field_raw,'000152050308');
+      assert.deepEqual(toson[0].identifiers,[]);
+"""
+          new = """      const toson=udine.filter(r=>r.name==='TOSON & TOSON DI TOSON DANIELE & C. S.A.S.');
+      assert.equal(toson.length,2);
+      const toson5=toson.filter(r=>r.requested_activities.length===1&&r.requested_activities[0]==='Sezione 5');
+      const toson10=toson.filter(r=>r.requested_activities.length===1&&r.requested_activities[0]==='Sezione 10');
+      assert.equal(toson5.length,1);
+      assert.equal(toson5[0].identifier_field_raw,'00152050308');
+      assert.deepEqual(toson5[0].identifiers,['00152050308']);
+      assert.equal(toson10.length,1);
+      assert.equal(toson10[0].identifier_field_raw,'000152050308');
+      assert.deepEqual(toson10[0].identifiers,[]);
+"""
+          if text.count(old) != 1:
+              raise SystemExit('expected Udine TOSON assertion block not found exactly once')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm .github/workflows/udine-browser-fix.yml
+          git diff --check
+      - name: Commit clean production-only fix
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/public_portal_browser.cjs .github/workflows/udine-browser-fix.yml
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'Fix Udine browser anomaly assertion'
+          git push origin HEAD:expansion/udine-2026-09-10
