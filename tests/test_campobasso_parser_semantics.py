@@ -24,6 +24,12 @@ def _cfg(parser: str, source_key: str, scope: str) -> dict[str, str]:
 
 
 def _append_section(ws, roman: str, activity: str, rows: list[list[object]]) -> None:
+    # The real Section X heading is longer than its compact catalogue label and
+    # explicitly refers to waste-management and remediation activities. Keep the
+    # synthetic fixture faithful to that audited structure rather than weakening
+    # the production parser's Section X guard.
+    if roman == "X" and activity == "Servizi ambientali":
+        activity = "Servizi ambientali - gestione rifiuti e bonifica"
     ws.append([])
     ws.append([None, f"SEZIONE {roman}"])
     ws.append([None, activity])
