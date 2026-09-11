@@ -773,6 +773,41 @@
       "last_source_update": "2026-09-11",
       "last_source_update_basis": "current official attachment independently verified on 11 September 2026; the PDF does not state an edition date and its metadata records creation on 9 September 2026",
       "notes": "Current byte-pinned 46-page applicant publication. 205 non-header physical table rows contain 25 deterministic cross-page continuation fragments and yield 180 distinct pending applicant observations. Source text and malformed identifiers remain raw; no missing values are inferred. Exact evidence is documented in docs/sources/crotone-operational-check-2026-09-11.md."
+    },
+    {
+      "authority_key": "campobasso",
+      "authority_name": "Prefettura di Campobasso",
+      "register_key": "campobasso-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/campobasso/evidenza/white-list",
+      "last_source_update": "2026-08-11",
+      "last_source_update_basis": "current official landing page directly verified 11 September 2026; both attachments are explicitly dated 11 August 2026",
+      "source_key": "campobasso-listed",
+      "parser": "campobasso_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/21/2026-08/11-agosto-2026-elenco-delle-imprese-non-soggette-a-tentativo-di-infilt.xlsx",
+      "sha256": "9d07423eb023025e1dd318c610a205f287a4bee165e4f7fe34e2448f8d91d2a1",
+      "expected_source_rows": 323,
+      "expected_sector_rows": 882,
+      "notes": "Current byte-pinned XLSX listed-company publication. Ten statutory White List sections contain 882 reviewed section rows, conservatively grouped to 323 observations (276 listed; 47 renewal/update in progress). Province-only source placeholders such as ==/CB/blank are not treated as identity changes; substantive registered-office differences remain separate. Malformed source identifiers remain raw and are never reconstructed. Exact evidence is documented in docs/sources/campobasso-operational-check-2026-09-11.md."
+    },
+    {
+      "authority_key": "campobasso",
+      "authority_name": "Prefettura di Campobasso",
+      "register_key": "campobasso-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/campobasso/evidenza/white-list",
+      "last_source_update": "2026-08-11",
+      "last_source_update_basis": "current official landing page directly verified 11 September 2026; both attachments are explicitly dated 11 August 2026",
+      "source_key": "campobasso-applicants",
+      "parser": "campobasso_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/21/2026-08/11-agosto-2026-elenco-delle-imprese-richiedenti-l-iscrizione.docx",
+      "sha256": "6b1b1f877a0ae5fe68d2472034975914723626a553257d4978296b3632a635ba",
+      "expected_source_rows": 19,
+      "notes": "Current byte-pinned DOCX applicant publication positively identified by the official landing page. One table with a repeated header contains exactly 19 applicant observations, all represented as pending. Italian written-month dates are accepted only through the audited strict month map; malformed or absent values are never inferred. Exact evidence is documented in docs/sources/campobasso-operational-check-2026-09-11.md."
     }
   ]
 }

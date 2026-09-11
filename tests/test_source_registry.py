@@ -34,7 +34,7 @@ def test_territorial_authority_seed_is_complete_and_unique():
 def test_verified_primary_pages_reference_seeded_authorities():
     authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
     pages = _read_csv("verified_primary_pages.csv")
-    assert len(pages) == 36
+    assert len(pages) == 37
     assert len({row["authority_key"] for row in pages}) == len(pages)
     assert {row["authority_key"] for row in pages} <= authorities
     assert all(row["verification_status"] == "verified" for row in pages)
