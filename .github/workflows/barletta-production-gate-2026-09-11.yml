@@ -1,0 +1,93 @@
+name: Barletta-Andria-Trani production gate 2026-09-11
+
+on:
+  push:
+    branches: [expansion/barletta-andria-trani-2026-09-11]
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Prepare Barletta production gate'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/barletta-andria-trani-2026-09-11
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialize permanent Pages gate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('.github/workflows/public-pages.yml')
+          text=path.read_text()
+          parser="      - 'src/white_list_archive/parsers/bergamo_positioned.py'\n"
+          assert text.count(parser)==1
+          text=text.replace(parser, parser+"      - 'src/white_list_archive/parsers/barletta_andria_trani_tables.py'\n",1)
+          text=text.replace("assert reg['meta']['record_count'] == 16729","assert reg['meta']['record_count'] == 17303",1)
+          old="'udine','bergamo'}"
+          assert text.count(old)==1
+          text=text.replace(old,"'udine','bergamo','barletta-andria-trani'}",1)
+          old="'udine-ordinary','bergamo-ordinary'\n          }"
+          assert text.count(old)==1
+          text=text.replace(old,"'udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary'\n          }",1)
+          text=text.replace("assert reg['meta']['authority_count'] == 19","assert reg['meta']['authority_count'] == 20",1)
+          text=text.replace("assert reg['meta']['register_count'] == 20","assert reg['meta']['register_count'] == 21",1)
+          text=text.replace("assert pref['meta']['published_count'] == 19","assert pref['meta']['published_count'] == 20",1)
+          anchor="          bergamo = [x for x in pref['prefectures'] if x['authority_key'] == 'bergamo']\n          assert len(bergamo) == 1 and bergamo[0]['mapped'] and bergamo[0]['published']\n"
+          assert text.count(anchor)==1
+          text=text.replace(anchor,anchor+"          barletta = [x for x in pref['prefectures'] if x['authority_key'] == 'barletta-andria-trani']\n          assert len(barletta) == 1 and barletta[0]['mapped'] and barletta[0]['published']\n",1)
+          path.write_text(text)
+          PY
+          git diff --check
+      - name: Validate repository and national build
+        shell: bash
+        run: |
+          python -m pip install -e '.[dev,publication]'
+          pytest -q
+          rm -rf /tmp/barletta-production-build /tmp/barletta-production-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/barletta-production-sources \
+            --registry-json /tmp/barletta-production-build/registry.json \
+            --registry-csv /tmp/barletta-production-build/registry.csv \
+            --prefectures-json /tmp/barletta-production-build/prefectures.json \
+            --prefectures-csv /tmp/barletta-production-build/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/barletta-production-build/registry.json').read_text())
+          pref=json.loads(Path('/tmp/barletta-production-build/prefectures.json').read_text())
+          assert reg['meta']['record_count']==17303,reg['meta']
+          assert reg['meta']['authority_count']==20 and reg['meta']['register_count']==21
+          assert reg['meta']['authority_counts']['barletta-andria-trani']==574
+          assert reg['meta']['register_counts']['barletta-andria-trani-ordinary']==574
+          assert pref['meta']['authority_count']==106 and pref['meta']['published_count']==20 and pref['meta']['mapped_count']==35
+          bat=[x for x in pref['prefectures'] if x['authority_key']=='barletta-andria-trani']
+          assert len(bat)==1 and bat[0]['mapped'] and bat[0]['published']
+          records=[r for r in reg['records'] if r['authority_key']=='barletta-andria-trani']
+          assert len(records)==574
+          assert sum(r['source_key']=='barletta-andria-trani-listed' for r in records)==493
+          assert sum(r['source_key']=='barletta-andria-trani-applicants' for r in records)==81
+          from collections import Counter
+          assert Counter(r['source_status'] for r in records)==Counter({'listed':437,'pending':81,'renewal_update_in_progress':56})
+          print('BAT national candidate validated:',reg['meta']['record_count'],pref['meta'])
+          PY
+      - name: Commit permanent gate
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'Finalize Barletta-Andria-Trani public gate'
+          git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
