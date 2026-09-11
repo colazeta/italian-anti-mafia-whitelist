@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install project and parser dependencies
-        run: python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+        run: python -m pip install --disable-pip-version-check -e '.[dev,publication]' requests
       - name: Run Campobasso semantic tests
         run: python -m pytest -q tests/test_campobasso_parser_semantics.py
       - name: Fetch byte-pinned official sources and validate live parser
