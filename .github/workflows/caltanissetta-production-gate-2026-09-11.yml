@@ -1,0 +1,209 @@
+name: Caltanissetta production gate 2026-09-11
+
+on:
+  push:
+    branches:
+      - expansion/caltanissetta-2026-09-11
+    paths:
+      - .github/workflows/caltanissetta-production-gate-2026-09-11.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caltanissetta-2026-09-11
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialise production integration
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv, json
+          from pathlib import Path
+
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/caltanissetta/evidenza/white-list'
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-iscritte-nella-white-list_09.09.2026.pdf'
+          applicant_url = 'https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-richiedenti-iscrizione-nella-white-list_09.09.2026.pdf'
+          listed_sha = '539285d8096c25c3f1d38ba7bb0d4cc33eb10e6de5ca24b268b1c7d2f31abb74'
+          applicant_sha = '7c8b43dee53dc478d4a59d7e3d60763155814551cfc88811a398d82433d84954'
+
+          # Publication config: add only the two positively identified populations.
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          config['verified_at'] = '2026-09-11'
+          config['sources'] = [s for s in config['sources'] if s.get('authority_key') != 'caltanissetta']
+          config['sources'].extend([
+              {
+                  'source_key':'caltanissetta-listed','parser':'caltanissetta_listed',
+                  'authority_key':'caltanissetta','authority_name':'Prefettura di Caltanissetta',
+                  'register_key':'caltanissetta-ordinary','register_name':'White List ordinaria',
+                  'population_scope':'listed','reference_date':'2026-09-09',
+                  'source_page_url':landing,'resource_url':listed_url,'sha256':listed_sha,
+                  'expected_source_rows':518,'last_source_update':'2026-09-10',
+                  'last_source_update_basis':'official landing page updated 10 September 2026; current attachment explicitly dated 9 September 2026',
+                  'notes':'Current byte-pinned registered-company publication. The reviewed 55-page table yields 518 observations: 281 ordinary listed, 232 explicit update-in-progress and five source-explicit special-condition rows retained as other_or_unknown. Malformed identifiers and source date relationships are preserved without reconstruction. Exact boundaries are documented in docs/sources/caltanissetta-operational-check-2026-09-11.md.'
+              },
+              {
+                  'source_key':'caltanissetta-applicants','parser':'caltanissetta_applicants',
+                  'authority_key':'caltanissetta','authority_name':'Prefettura di Caltanissetta',
+                  'register_key':'caltanissetta-ordinary','register_name':'White List ordinaria',
+                  'population_scope':'applicant','reference_date':'2026-09-09',
+                  'source_page_url':landing,'resource_url':applicant_url,'sha256':applicant_sha,
+                  'expected_source_rows':288,'last_source_update':'2026-09-10',
+                  'last_source_update_basis':'official landing page updated 10 September 2026; current attachment explicitly dated 9 September 2026',
+                  'notes':'Current byte-pinned applicant publication positively identified by the official landing page and in-document title. It yields 288 pending source observations. The parenthetical variation note on one application date and malformed or blank identifiers remain source provenance and are never reconstructed.'
+              }
+          ])
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Parser binding in the national builder.
+          registry_path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = registry_path.read_text(encoding='utf-8')
+          anchor = 'from white_list_archive.parsers.cagliari_tables import PARSERS as CAGLIARI_PARSERS\n'
+          addition = anchor + 'from white_list_archive.parsers.caltanissetta_tables import PARSERS as CALTANISSETTA_PARSERS\n'
+          if 'CALTANISSETTA_PARSERS' not in text:
+              text = text.replace(anchor, addition)
+          lookup_anchor = '        or CAGLIARI_PARSERS.get(cfg["parser"])\n'
+          lookup_addition = lookup_anchor + '        or CALTANISSETTA_PARSERS.get(cfg["parser"])\n'
+          if 'or CALTANISSETTA_PARSERS.get' not in text:
+              text = text.replace(lookup_anchor, lookup_addition)
+          registry_path.write_text(text, encoding='utf-8')
+
+          # Verified landing-page registry.
+          vp = Path('data/source_registry/verified_primary_pages.csv')
+          with vp.open(newline='', encoding='utf-8') as fh:
+              reader = csv.DictReader(fh); fields = reader.fieldnames; rows = list(reader)
+          rows = [r for r in rows if r['authority_key'] != 'caltanissetta']
+          rows.append({'authority_key':'caltanissetta','landing_url':landing,'verification_date':'2026-09-11','verification_status':'verified'})
+          rows.sort(key=lambda r:r['authority_key'])
+          with vp.open('w', newline='', encoding='utf-8') as fh:
+              writer=csv.DictWriter(fh, fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+
+          # Source-series inventory.
+          si = Path('data/source_registry/source_series_inventory.csv')
+          with si.open(newline='', encoding='utf-8') as fh:
+              reader=csv.DictReader(fh); fields=reader.fieldnames; rows=list(reader)
+          rows=[r for r in rows if r['authority_key']!='caltanissetta']
+          rows.extend([
+              {'source_series_key':'caltanissetta-listed','authority_key':'caltanissetta','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-11','notes':'Current official landing page directly verified 11 September 2026; separately exposes the registered-company PDF dated 9 September 2026. Exact SHA-256, 518-row denominator and special-status handling are documented in docs/sources/caltanissetta-operational-check-2026-09-11.md.'},
+              {'source_series_key':'caltanissetta-applicants','authority_key':'caltanissetta','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-11','notes':'Current official landing page directly verified 11 September 2026; separately exposes the applicant PDF dated 9 September 2026. Exact SHA-256 and 288-row denominator are documented in docs/sources/caltanissetta-operational-check-2026-09-11.md.'}
+          ])
+          rows.sort(key=lambda r:(r['authority_key'],r['source_series_key']))
+          with si.open('w', newline='', encoding='utf-8') as fh:
+              writer=csv.DictWriter(fh,fieldnames=fields); writer.writeheader(); writer.writerows(rows)
+
+          # Coverage status.
+          cov_path=Path('data/monitoring/national_coverage.json')
+          cov=json.loads(cov_path.read_text(encoding='utf-8'))
+          item=next(x for x in cov['prefectures'] if x['authority_key']=='caltanissetta')
+          item.update({
+              'source_verified':True,'current_edition_identified':True,
+              'capture_implemented':True,'parser_implemented':True,'parser_validated':True,
+              'company_observations_loaded':True,'observation_layer':'public_source_observations',
+              'canonical_integration_validated':False,'public_export_enabled':True,
+              'durable_evidence_verified':False,'population_scopes_complete':True,
+              'latest_source_reference_date':'2026-09-09','last_successful_source_check_at':'2026-09-11T14:05:44Z',
+              'last_attempted_source_check_at':'2026-09-11T14:05:44Z','last_successful_investigation_on':'2026-09-11',
+              'monitoring_status':'CURRENT','unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
+              'completion_evidence':['docs/sources/caltanissetta-operational-check-2026-09-11.md','src/white_list_archive/parsers/caltanissetta_tables.py','tests/test_caltanissetta_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+              'known_content_sha256':[listed_sha,applicant_sha],
+              'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/caltanissetta-operational-check-2026-09-11.md'],
+              'last_completed_coverage_stage':'VALIDATED'
+          })
+          cov_path.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Permanent Pages gate.
+          pp=Path('.github/workflows/public-pages.yml')
+          text=pp.read_text(encoding='utf-8')
+          if "parsers/caltanissetta_tables.py" not in text:
+              text=text.replace("      - 'src/white_list_archive/parsers/cagliari_tables.py'\n", "      - 'src/white_list_archive/parsers/cagliari_tables.py'\n      - 'src/white_list_archive/parsers/caltanissetta_tables.py'\n")
+          text=text.replace("assert reg['meta']['record_count'] == 18515", "assert reg['meta']['record_count'] == 19321")
+          text=text.replace("'brindisi','cagliari'}", "'brindisi','cagliari','caltanissetta'}")
+          text=text.replace("'brindisi-ordinary','cagliari-ordinary'", "'brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary'")
+          text=text.replace("assert reg['meta']['authority_count'] == 22", "assert reg['meta']['authority_count'] == 23")
+          text=text.replace("assert reg['meta']['register_count'] == 23", "assert reg['meta']['register_count'] == 24")
+          text=text.replace("assert pref['meta']['published_count'] == 22", "assert pref['meta']['published_count'] == 23")
+          text=text.replace("assert pref['meta']['mapped_count'] == 35", "assert pref['meta']['mapped_count'] == 36")
+          marker="          assert len(cagliari) == 1 and cagliari[0]['mapped'] and cagliari[0]['published']\n"
+          if "authority_key'] == 'caltanissetta'" not in text:
+              text=text.replace(marker, marker+"          caltanissetta = [x for x in pref['prefectures'] if x['authority_key'] == 'caltanissetta']\n          assert len(caltanissetta) == 1 and caltanissetta[0]['mapped'] and caltanissetta[0]['published']\n")
+          pp.write_text(text,encoding='utf-8')
+
+          # Browser acceptance and current frozen totals.
+          browser=Path('tests/public_portal_browser.cjs')
+          text=browser.read_text(encoding='utf-8')
+          label="      assert.ok(labels.includes('White List ordinaria · Prefettura di Cagliari'));\n"
+          if 'White List ordinaria · Prefettura di Caltanissetta' not in text:
+              text=text.replace(label,label+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Caltanissetta'));\n")
+          text=text.replace('assert.equal(stats.total,18515);','assert.equal(stats.total,19321);')
+          text=text.replace("'brindisi','cagliari'].includes(r.authority_key)", "'brindisi','cagliari','caltanissetta'].includes(r.authority_key)")
+          marker="      assert.deepEqual(statusCounts(cagliari),{listed:713,pending:51,renewal_update_in_progress:37});\n"
+          block=(marker+"      const caltanissetta=registry.records.filter(r=>r.authority_key==='caltanissetta');\n"
+                 "      assert.equal(caltanissetta.length,806);\n"
+                 "      assert.equal(caltanissetta.filter(r=>r.source_key==='caltanissetta-listed').length,518);\n"
+                 "      assert.equal(caltanissetta.filter(r=>r.source_key==='caltanissetta-applicants').length,288);\n"
+                 "      assert.deepEqual(statusCounts(caltanissetta),{listed:281,other_or_unknown:5,pending:288,renewal_update_in_progress:232});\n"
+                 "      const a2g=caltanissetta.filter(r=>r.name==='A2G CONSTRUCTION SRL');\n"
+                 "      assert.equal(a2g.length,1);\n"
+                 "      assert.equal(a2g[0].identifier_field_raw,'020826508502');\n"
+                 "      assert.deepEqual(a2g[0].identifiers,[]);\n")
+          if "const caltanissetta=registry.records.filter" not in text:
+              text=text.replace(marker,block)
+          browser.write_text(text,encoding='utf-8')
+          PY
+      - name: Install validation runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install -e '.[dev,publication]'
+      - name: Run repository tests
+        run: pytest -q
+      - name: Validate national public build
+        run: |
+          rm -rf /tmp/caltanissetta-public
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/caltanissetta-sources \
+            --registry-json /tmp/caltanissetta-public/registry.json \
+            --registry-csv /tmp/caltanissetta-public/registry.csv \
+            --prefectures-json /tmp/caltanissetta-public/prefectures.json \
+            --prefectures-csv /tmp/caltanissetta-public/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/caltanissetta-public/registry.json').read_text())
+          pref=json.loads(Path('/tmp/caltanissetta-public/prefectures.json').read_text())
+          assert reg['meta']['record_count']==19321, reg['meta']
+          assert reg['meta']['authority_count']==23, reg['meta']
+          assert reg['meta']['register_count']==24, reg['meta']
+          assert pref['meta']['published_count']==23, pref['meta']
+          assert pref['meta']['mapped_count']==36, pref['meta']
+          cl=[r for r in reg['records'] if r['authority_key']=='caltanissetta']
+          assert len(cl)==806
+          assert sum(r['source_key']=='caltanissetta-listed' for r in cl)==518
+          assert sum(r['source_key']=='caltanissetta-applicants' for r in cl)==288
+          print('Caltanissetta candidate validated:', reg['meta'], pref['meta'])
+          PY
+          node --check tests/public_portal_browser.cjs
+      - name: Commit production-only checkpoint
+        run: |
+          git rm -f .github/workflows/caltanissetta-source-audit-2026-09-11.yml
+          git rm -f .github/workflows/caltanissetta-production-gate-2026-09-11.yml
+          git rm -f tmp/caltanissetta-source-audit.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv data/source_registry/source_series_inventory.csv data/monitoring/national_coverage.json src/white_list_archive/publishing/public_national_registry.py src/white_list_archive/parsers/caltanissetta_tables.py tests/test_caltanissetta_parser_semantics.py tests/public_portal_browser.cjs docs/sources/caltanissetta-operational-check-2026-09-11.md .github/workflows/public-pages.yml
+          git commit -m 'Integrate Caltanissetta public archive'
+          git push origin HEAD:expansion/caltanissetta-2026-09-11
