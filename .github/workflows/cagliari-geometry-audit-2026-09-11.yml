@@ -1,0 +1,169 @@
+name: Audit Cagliari table geometry
+
+on:
+  push:
+    branches:
+      - expansion/cagliari-2026-09-11
+    paths:
+      - .github/workflows/cagliari-geometry-audit-2026-09-11.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install inspection runtime
+        run: python -m pip install pdfplumber
+      - name: Audit frozen Cagliari PDFs
+        run: |
+          python - <<'PY'
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          import hashlib, re, time, urllib.request
+          import pdfplumber
+
+          SOURCES = {
+              'listed': (
+                  'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-iscritte-al-06-settembre-2026.pdf',
+                  'dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114',
+              ),
+              'applicant': (
+                  'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-richiedenti-iscrizione-al-06-settembre-2026.pdf',
+                  '7429040f5945ecb72cc7b152dbd8aaeee0e0a5df9bb7414e951a4cec4a4f50f7',
+              ),
+          }
+          UA = 'italian-anti-mafia-whitelist/0.1 source-verification'
+          DATE = re.compile(r'\b\d{1,2}/\d{1,2}/\d{4}\b')
+          SECTION = re.compile(r'\bSezione\s+([IVX]+)\b', re.I)
+          STRICT_ID = re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])', re.I)
+          ID_LIKE = re.compile(r'(?<!\d)\d{9,12}(?!\d)|(?<![A-Za-z0-9])[A-Za-z0-9]{16}(?![A-Za-z0-9])', re.I)
+
+          def clean(v): return ' '.join(str(v or '').split())
+          def fetch(url):
+              last = None
+              for attempt in range(1,4):
+                  try:
+                      req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': 'application/pdf,*/*'})
+                      with urllib.request.urlopen(req, timeout=45) as r: return r.read()
+                  except Exception as exc:
+                      last = exc; print('GET_RETRY', attempt, url, type(exc).__name__, str(exc))
+                      if attempt < 3: time.sleep(attempt*3)
+              raise last
+
+          paths = {}
+          for key,(url,expected) in SOURCES.items():
+              body=fetch(url); sha=hashlib.sha256(body).hexdigest(); print('SOURCE',key,len(body),sha)
+              assert sha == expected, (key,sha,expected)
+              p=Path('/tmp')/f'cagliari-{key}.pdf'; p.write_bytes(body); paths[key]=p
+
+          # Inspect table extraction geometry first, without assuming a production parser layout.
+          listed_candidates=[]; marker_pages=[]; table_shapes=Counter(); table_counts=[]
+          with pdfplumber.open(paths['listed']) as pdf:
+              print('LISTED_PAGES',len(pdf.pages),'PAGE_WIDTHS',Counter(round(float(p.width),1) for p in pdf.pages))
+              for pno,page in enumerate(pdf.pages,1):
+                  text=page.extract_text() or ''
+                  marker=SECTION.search(text)
+                  if marker: marker_pages.append((pno,marker.group(1).upper()))
+                  tables=page.find_tables(); table_counts.append(len(tables))
+                  if pno in (1,2,3,4,5,6,7,8,9,10,12,14,16,18,20,22,24):
+                      print('PAGE_GEOMETRY',pno,'marker',marker.group(1).upper() if marker else None,'tables',len(tables))
+                  for tno,table in enumerate(tables,1):
+                      rows=table.extract() or []
+                      for ridx,row in enumerate(rows,1):
+                          vals=[clean(x) for x in row]; table_shapes[len(vals)] += 1
+                          joined=' | '.join(vals)
+                          if DATE.search(joined) and ('sez.' in joined.casefold() or len(DATE.findall(joined)) >= 2):
+                              listed_candidates.append((pno,tno,ridx,vals))
+                      if pno <= 3 and tno <= 2:
+                          print('TABLE_SAMPLE',pno,tno,'ROWS',len(rows))
+                          for row in rows[:8]: print('ROW_SAMPLE',pno,tno,repr([clean(x) for x in row]))
+              print('LISTED_MARKER_PAGES',marker_pages)
+              print('LISTED_TABLES_PER_PAGE',table_counts)
+              print('LISTED_TABLE_ROW_SHAPES',dict(table_shapes))
+              print('LISTED_CANDIDATE_ROWS',len(listed_candidates))
+              for item in listed_candidates[:30]: print('LISTED_CANDIDATE_SAMPLE',repr(item))
+
+          # Derive a conservative diagnostic parse from extracted cells. Require section token + two dates.
+          diag=[]; anomalies=[]
+          for pno,tno,ridx,vals in listed_candidates:
+              joined=' '.join(vals)
+              secm=re.search(r'\bsez\.?\s*0?([1-9]|10)\b',joined,re.I)
+              dates=DATE.findall(joined)
+              if not secm or len(dates) < 2:
+                  anomalies.append((pno,tno,ridx,vals)); continue
+              ids=STRICT_ID.findall(joined); idlikes=ID_LIKE.findall(joined)
+              status='renewal_update_in_progress' if 'aggiornamento in corso' in joined.casefold() or 'rinnovo' in joined.casefold() else 'listed'
+              # Strip ordinal/section at the start of the first nonempty cells only for a diagnostic name signal.
+              nonempty=[v for v in vals if v]
+              diag.append({'page':pno,'section':int(secm.group(1)),'dates':tuple(dates[-2:]),'status':status,'ids':tuple(x.upper() for x in ids),'idlikes':tuple(x.upper() for x in idlikes),'cells':tuple(vals),'nonempty':tuple(nonempty)})
+          print('LISTED_DIAG_ROWS',len(diag),'ANOMALY_ROWS',len(anomalies))
+          print('LISTED_SECTION_COUNTS',dict(Counter(x['section'] for x in diag)))
+          print('LISTED_SECTOR_STATUS_COUNTS',dict(Counter(x['status'] for x in diag)))
+          print('LISTED_STRICT_ID_ROWS',sum(bool(x['ids']) for x in diag),'IDLIKE_ONLY_ROWS',sum(bool(x['idlikes']) and not x['ids'] for x in diag))
+          for x in diag:
+              if x['idlikes'] and not x['ids']: print('LISTED_ID_ANOMALY',x['page'],x['section'],x['idlikes'],repr(x['cells']))
+          for x in anomalies[:40]: print('LISTED_UNPARSED',repr(x))
+
+          # Examine identity/date/status groupability using identifier when strict, otherwise a conservative cell-derived name token.
+          groups=defaultdict(list); fallback_examples=[]
+          for x in diag:
+              cells=list(x['cells'])
+              # locate cell containing section token then take following nonempty cell as name when geometry permits
+              sec_index=next((i for i,v in enumerate(cells) if re.search(r'\bsez\.?\s*0?([1-9]|10)\b',v,re.I)),None)
+              name=''
+              if sec_index is not None:
+                  name=next((clean(cells[j]) for j in range(sec_index+1,len(cells)) if clean(cells[j]) and not DATE.search(clean(cells[j]))), '')
+              if not name:
+                  # fallback: remove obvious ordinal/section/date/id/note fragments from joined cells; diagnostic only
+                  pieces=[]
+                  for v in cells:
+                      if not v or DATE.fullmatch(v) or re.fullmatch(r'\d+',v) or re.search(r'\bsez\.?\s*0?([1-9]|10)\b',v,re.I): continue
+                      if STRICT_ID.fullmatch(v) or ID_LIKE.fullmatch(v) or 'aggiornamento in corso' in v.casefold(): continue
+                      pieces.append(v)
+                  name=pieces[0] if pieces else ''
+              identity=('id',)+tuple(sorted(x['ids'])) if x['ids'] else ('name',name.casefold())
+              key=(*identity,*x['dates'],x['status'])
+              groups[key].append((x['section'],name,x['cells']))
+              if not x['ids']: fallback_examples.append((x['section'],name,x['idlikes'],x['cells']))
+          print('LISTED_DIAG_GROUPS',len(groups))
+          print('LISTED_DIAG_GROUP_STATUS',dict(Counter(k[-1] for k in groups)))
+          print('LISTED_MULTI_SECTION_GROUPS',sum(len({r[0] for r in rows})>1 for rows in groups.values()),'MAX_SECTION_ROWS',max((len(rows) for rows in groups.values()),default=0))
+          print('LISTED_NO_STRICT_ID_ROWS',len(fallback_examples))
+          for x in fallback_examples[:30]: print('LISTED_FALLBACK_IDENTITY',repr(x))
+
+          # Applicant PDF: inspect tables and require numbered rows with application date + explicit outcome.
+          applicant_candidates=[]; app_shapes=Counter()
+          with pdfplumber.open(paths['applicant']) as pdf:
+              print('APPLICANT_PAGES',len(pdf.pages),'PAGE_WIDTHS',Counter(round(float(p.width),1) for p in pdf.pages))
+              for pno,page in enumerate(pdf.pages,1):
+                  tables=page.find_tables(); print('APPLICANT_PAGE_TABLES',pno,len(tables))
+                  for tno,table in enumerate(tables,1):
+                      rows=table.extract() or []
+                      print('APPLICANT_TABLE',pno,tno,'ROWS',len(rows))
+                      for row in rows[:8]: print('APPLICANT_ROW_SAMPLE',pno,tno,repr([clean(x) for x in row]))
+                      for ridx,row in enumerate(rows,1):
+                          vals=[clean(x) for x in row]; app_shapes[len(vals)]+=1; joined=' '.join(vals)
+                          if DATE.search(joined) and 'istruttoria' in joined.casefold(): applicant_candidates.append((pno,tno,ridx,vals))
+              print('APPLICANT_ROW_SHAPES',dict(app_shapes))
+          print('APPLICANT_CANDIDATE_ROWS',len(applicant_candidates))
+          app_ids=Counter(); app_date_counts=Counter(); app_identity=Counter(); app_bad=[]
+          for item in applicant_candidates:
+              pno,tno,ridx,vals=item; joined=' '.join(vals); ids=STRICT_ID.findall(joined); idlikes=ID_LIKE.findall(joined); dates=DATE.findall(joined)
+              if ids: app_ids['strict']+=1
+              elif idlikes: app_ids['like_only']+=1; app_bad.append(('identifier',pno,idlikes,vals))
+              else: app_ids['missing']+=1; app_bad.append(('identifier_missing',pno,(),vals))
+              app_date_counts[len(dates)] += 1
+              identity=tuple(x.upper() for x in ids) if ids else tuple(x.upper() for x in idlikes)
+              app_identity[(identity,dates[-1] if dates else '',tuple(vals))]+=1
+          print('APPLICANT_ID_COVERAGE',dict(app_ids),'DATE_COUNTS',dict(app_date_counts))
+          print('APPLICANT_EXACT_DUP_EXTRA',sum(n-1 for n in app_identity.values() if n>1))
+          for x in app_bad: print('APPLICANT_ANOMALY',repr(x))
+          for x in applicant_candidates[:60]: print('APPLICANT_CANDIDATE',repr(x))
+          PY
