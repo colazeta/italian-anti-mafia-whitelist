@@ -30,6 +30,11 @@ def test_source_dates_normalise_only_supported_typography() -> None:
         _parse_source_date("32/01/2026", source_key="barletta-listed", page=1, row=1)
 
 
+def test_reviewed_split_update_status_typography_is_frozen_in_parser_source() -> None:
+    source = __import__("inspect").getsource(__import__("white_list_archive.parsers.barletta_andria_trani_tables", fromlist=["*"]).parse_barletta_andria_trani_listed)
+    assert "aggiornament o" in source
+
+
 def test_identifiers_are_exact_and_never_reconstructed() -> None:
     assert _strict_identifiers("P.IVA 07030880723") == ["07030880723"]
     assert _strict_identifiers("08658770725/ SPRMHL85H17A285E") == ["08658770725", "SPRMHL85H17A285E"]

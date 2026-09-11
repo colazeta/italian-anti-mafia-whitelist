@@ -238,7 +238,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             if raw and not parsed:
                 malformed[raw] += 1
         row_text = _clean(" ".join(" ".join(row) for row in source_rows))
-        status = "renewal_update_in_progress" if "aggiornamento" in row_text.casefold() else "listed"
+        status = "renewal_update_in_progress" if ("aggiornamento" in row_text.casefold() or "aggiornament o" in row_text.casefold()) else "listed"
         identifier_raw = _identifier_raw(source_rows)
         identifiers = _strict_identifiers(identifier_raw)
         name = _row_name(item)
@@ -304,7 +304,7 @@ def parse_barletta_andria_trani_listed(path: Path, cfg: dict[str, Any]) -> Parse
             "sections": sections,
             "listing_date_raw_variants": group["listing_raw"],
             "expiry_date_raw_variants": group["expiry_raw"],
-            "in_aggiornamento": representative["note_raw"] if "aggiornamento" in representative["note_raw"].casefold() else "",
+            "in_aggiornamento": representative["note_raw"] if ("aggiornamento" in representative["note_raw"].casefold() or "aggiornament o" in representative["note_raw"].casefold()) else "",
         }
         record = _record(
             cfg,
