@@ -1,4 +1,5 @@
 name: Campobasso parser validation
+# Revalidation trigger after the audited Italian written-month date fix.
 
 on:
   push:
