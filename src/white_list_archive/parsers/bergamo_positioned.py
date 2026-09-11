@@ -20,6 +20,26 @@ _APPLICANT_BLANK_APPLICATIONS = {
 }
 _APPLICANT_BLANK_ACTIVITY = {(11, 9)}
 _LISTED_BLANK_ACTIVITY = {(130, 9)}
+
+# These source rows contain activity text without a recoverable Roman section
+# prefix (or, at the two documented coordinates above, no recoverable activity
+# text at all). They were reviewed against the byte-pinned PDFs. We preserve the
+# raw activity but deliberately do not infer a section from similar text in other
+# rows, because at least one description is used under more than one section.
+_APPLICANT_UNLABELLED_ACTIVITY = {
+    (4, 11), (5, 1), (11, 9), (16, 6), (16, 7), (25, 6),
+    (30, 3), (30, 4), (45, 10), (47, 6), (54, 11),
+}
+_LISTED_UNLABELLED_ACTIVITY = {
+    (3, 3), (4, 5), (4, 6), (4, 7), (4, 8), (9, 7), (20, 3),
+    (21, 6), (21, 7), (21, 8), (22, 3), (24, 3), (24, 6), (24, 8),
+    (25, 2), (34, 9), (34, 10), (34, 11), (49, 7), (49, 8), (49, 9),
+    (49, 10), (51, 6), (56, 10), (56, 11), (57, 1), (61, 6), (61, 7),
+    (61, 8), (87, 10), (92, 3), (93, 10), (95, 7), (97, 9), (97, 10),
+    (97, 11), (98, 1), (98, 2), (98, 3), (102, 3), (104, 3), (104, 4),
+    (109, 10), (112, 7), (118, 3), (130, 4), (130, 9),
+}
+
 _VALID_IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])", re.I)
 _VALID_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _ROMAN = re.compile(r"^(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\b", re.I)
@@ -79,17 +99,19 @@ def _strict_date(raw: str, *, allow_blank: bool, source_key: str, page: int, row
         raise RuntimeError(f"{source_key}: invalid calendar date at page {page} row {row}: {value!r}") from exc
 
 
-def _section(activity: str, *, allow_blank: bool, source_key: str, page: int, row: int) -> tuple[list[str], str]:
+def _section(
+    activity: str, *, reviewed_unlabelled: bool, source_key: str, page: int, row: int
+) -> tuple[list[str], str]:
     value = _clean(activity)
+    match = _ROMAN.match(value) if value else None
+    if match:
+        roman = match.group(1).upper()
+        return [f"Sezione {_ROMAN_NUMBER[roman]}"], value
+    if reviewed_unlabelled:
+        return [], value
     if not value:
-        if allow_blank:
-            return [], ""
         raise RuntimeError(f"{source_key}: unexpected blank activity at page {page} row {row}")
-    match = _ROMAN.match(value)
-    if not match:
-        raise RuntimeError(f"{source_key}: unreviewed activity prefix at page {page} row {row}: {value!r}")
-    roman = match.group(1).upper()
-    return [f"Sezione {_ROMAN_NUMBER[roman]}"], value
+    raise RuntimeError(f"{source_key}: unreviewed activity prefix at page {page} row {row}: {value!r}")
 
 
 def _targets(kind: str, page: int, count: int) -> list[float]:
@@ -137,6 +159,7 @@ def parse_bergamo_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     blank_dates: set[tuple[int, int]] = set()
     blank_activities: set[tuple[int, int]] = set()
+    unlabelled_activities: set[tuple[int, int]] = set()
     multi_ids = 0
     for page, row, values in rows:
         coordinate = (page, row)
@@ -147,9 +170,11 @@ def parse_bergamo_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         if not values["application"]:
             blank_dates.add(coordinate)
         sections, activity_raw = _section(
-            values["activity"], allow_blank=coordinate in _APPLICANT_BLANK_ACTIVITY,
+            values["activity"], reviewed_unlabelled=coordinate in _APPLICANT_UNLABELLED_ACTIVITY,
             source_key=cfg["source_key"], page=page, row=row,
         )
+        if not _ROMAN.match(_clean(values["activity"])):
+            unlabelled_activities.add(coordinate)
         if not values["activity"]:
             blank_activities.add(coordinate)
         identifiers = _strict_identifiers(values["identifier"])
@@ -172,6 +197,10 @@ def parse_bergamo_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"{cfg['source_key']}: reviewed blank-date set drift: {sorted(blank_dates)!r}")
     if blank_activities != _APPLICANT_BLANK_ACTIVITY:
         raise RuntimeError(f"{cfg['source_key']}: reviewed blank-activity set drift: {sorted(blank_activities)!r}")
+    if unlabelled_activities != _APPLICANT_UNLABELLED_ACTIVITY:
+        raise RuntimeError(
+            f"{cfg['source_key']}: reviewed unlabelled-activity set drift: {sorted(unlabelled_activities)!r}"
+        )
     identifier_coverage = sum(bool(record["identifiers"]) for record in records)
     if identifier_coverage != 555 or multi_ids != 0:
         raise RuntimeError(
@@ -184,6 +213,7 @@ def parse_bergamo_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "identifier_coverage": identifier_coverage,
         "multiple_strict_identifier_records": multi_ids,
         "reviewed_blank_application_dates": len(blank_dates),
+        "reviewed_unlabelled_activity_rows": len(unlabelled_activities),
         "dropped_date_rows": 0,
     })
 
@@ -194,6 +224,7 @@ def parse_bergamo_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     rows = _rows(path, kind="listed", page_counts=_LISTED_PAGE_COUNTS, source_key=cfg["source_key"])
     records: list[dict[str, Any]] = []
     blank_activities: set[tuple[int, int]] = set()
+    unlabelled_activities: set[tuple[int, int]] = set()
     multi_ids = 0
     for page, row, values in rows:
         coordinate = (page, row)
@@ -201,9 +232,11 @@ def parse_bergamo_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         expiry = _strict_date(values["expiry"], allow_blank=False, source_key=cfg["source_key"], page=page, row=row)
         update = _strict_date(values["update"], allow_blank=True, source_key=cfg["source_key"], page=page, row=row)
         sections, activity_raw = _section(
-            values["activity"], allow_blank=coordinate in _LISTED_BLANK_ACTIVITY,
+            values["activity"], reviewed_unlabelled=coordinate in _LISTED_UNLABELLED_ACTIVITY,
             source_key=cfg["source_key"], page=page, row=row,
         )
+        if not _ROMAN.match(_clean(values["activity"])):
+            unlabelled_activities.add(coordinate)
         if not values["activity"]:
             blank_activities.add(coordinate)
         identifiers = _strict_identifiers(values["identifier"])
@@ -229,6 +262,10 @@ def parse_bergamo_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         records.append(record)
     if blank_activities != _LISTED_BLANK_ACTIVITY:
         raise RuntimeError(f"{cfg['source_key']}: reviewed blank-activity set drift: {sorted(blank_activities)!r}")
+    if unlabelled_activities != _LISTED_UNLABELLED_ACTIVITY:
+        raise RuntimeError(
+            f"{cfg['source_key']}: reviewed unlabelled-activity set drift: {sorted(unlabelled_activities)!r}"
+        )
     statuses = Counter(record["source_status"] for record in records)
     expected_statuses = Counter({"listed": 626, "renewal_update_in_progress": 808})
     if statuses != expected_statuses:
@@ -244,7 +281,7 @@ def parse_bergamo_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "status_counts": dict(statuses),
         "identifier_coverage": identifier_coverage,
         "multiple_strict_identifier_records": multi_ids,
-        "reviewed_blank_activity_rows": len(blank_activities),
+        "reviewed_unlabelled_activity_rows": len(unlabelled_activities),
         "dropped_date_rows": 0,
     })
 
