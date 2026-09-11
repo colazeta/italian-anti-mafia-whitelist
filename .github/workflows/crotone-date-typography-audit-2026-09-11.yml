@@ -33,20 +33,25 @@ jobs:
               body=r.read()
           assert hashlib.sha256(body).hexdigest()==sha
           path=Path('/tmp/crotone-listed.pdf'); path.write_bytes(body)
-          rejected_listing=Counter(); rejected_expiry=Counter()
+          rejected_listing=Counter(); rejected_expiry=Counter(); contexts=[]
           with pdfplumber.open(path) as pdf:
-              for page in pdf.pages:
-                  for table in page.extract_tables() or []:
-                      for row in table or []:
+              for page_number,page in enumerate(pdf.pages,start=1):
+                  for table_number,table in enumerate(page.extract_tables() or [],start=1):
+                      for row_number,row in enumerate(table or [],start=1):
                           cells=[_clean(c) for c in row]
                           if not any(cells) or len(cells)!=6 or _is_header(cells):
                               continue
                           if cells[3]:
                               try: _parse_date(cells[3])
-                              except RuntimeError: rejected_listing[cells[3]] += 1
+                              except RuntimeError:
+                                  rejected_listing[cells[3]] += 1
+                                  contexts.append({'kind':'listing','page':page_number,'table':table_number,'row':row_number,'cells':cells})
                           if cells[4]:
                               try: _parse_expiry(cells[4])
-                              except RuntimeError: rejected_expiry[cells[4]] += 1
+                              except RuntimeError:
+                                  rejected_expiry[cells[4]] += 1
+                                  contexts.append({'kind':'expiry','page':page_number,'table':table_number,'row':row_number,'cells':cells})
           print('REJECTED_LISTING',dict(rejected_listing))
           print('REJECTED_EXPIRY',dict(rejected_expiry))
+          print('REJECTED_CONTEXTS',contexts)
           PY
