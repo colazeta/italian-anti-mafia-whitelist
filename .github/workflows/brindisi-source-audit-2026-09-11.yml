@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/brindisi-source-audit-2026-09-11.yml
       - scripts/brindisi_source_audit_v2.py
+      - scripts/brindisi_applicant_geometry.py
   workflow_dispatch:
 
 permissions:
@@ -28,4 +29,6 @@ jobs:
         env:
           LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white-list-elenco-imprese-iscritte_1.pdf
           APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white_list_della_provincia_di_brindisi-elenco_delle_imprese_richiedenti_l-iscrizione_0.pdf
-        run: python scripts/brindisi_source_audit_v2.py
+        run: |
+          python scripts/brindisi_source_audit_v2.py
+          python scripts/brindisi_applicant_geometry.py
