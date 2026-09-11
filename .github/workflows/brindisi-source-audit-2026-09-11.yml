@@ -8,6 +8,8 @@ on:
       - .github/workflows/brindisi-source-audit-2026-09-11.yml
       - scripts/brindisi_source_audit_v2.py
       - scripts/brindisi_applicant_geometry.py
+      - scripts/brindisi_parser_smoke.py
+      - src/white_list_archive/parsers/brindisi_tables.py
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y poppler-utils
           python -m pip install --upgrade pip
+          python -m pip install -e .
           python -m pip install pdfplumber
       - name: Fetch and audit official sources
         env:
@@ -31,4 +34,4 @@ jobs:
           APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white_list_della_provincia_di_brindisi-elenco_delle_imprese_richiedenti_l-iscrizione_0.pdf
         run: |
           python scripts/brindisi_source_audit_v2.py
-          python scripts/brindisi_applicant_geometry.py
+          python scripts/brindisi_parser_smoke.py
