@@ -1,0 +1,1742 @@
+{
+  "sector_rows": 1013,
+  "grouped_records": 491,
+  "sector_rows_by_section": {
+    "I": 148,
+    "II": 68,
+    "III": 211,
+    "IV": 84,
+    "V": 205,
+    "VI": 136,
+    "VII": 8,
+    "VIII": 12,
+    "IX": 23,
+    "X": 118
+  },
+  "sector_status_counts": {
+    "listed": 883,
+    "renewal_update_in_progress": 130
+  },
+  "group_size_distribution": {
+    "5": 23,
+    "1": 268,
+    "6": 9,
+    "3": 47,
+    "4": 34,
+    "8": 6,
+    "2": 96,
+    "7": 7,
+    "10": 1
+  },
+  "multi_section_group_count": 222,
+  "identifier_conflict_count": 37,
+  "identifier_conflicts": {
+    "01267870721": [
+      "(('28/06/2023', '26/06/2026'), 'listed')",
+      "(('28/06/2023', '27/06/2026'), 'listed')"
+    ],
+    "00918100728": [
+      "(('29/05/2015', '28/05/2022'), 'listed')",
+      "(('29/05/2015', '28/05/2027'), 'listed')"
+    ],
+    "06552150721": [
+      "(('10/03/2016', '09/03/2026'), 'listed')",
+      "(('10/03/2016', '09/03/2026'), 'renewal_update_in_progress')"
+    ],
+    "07045260721": [
+      "(('06/06/2022', '05/06/2023'), 'listed')",
+      "(('20/06/2016', '19/06/2021'), 'listed')"
+    ],
+    "05474610721": [
+      "(('06/11/2025', '23/07/2027'), 'listed')",
+      "(('24/07/2018', '23/07/2027'), 'listed')"
+    ],
+    "04621970724": [
+      "(('20/12/2024', '19/12/2026'), 'listed')",
+      "(('20/12/2024', '19/12/2026'), 'renewal_update_in_progress')"
+    ],
+    "03195710722": [
+      "(('13/01/2022', '12/01/2023'), 'listed')",
+      "(('13/01/2022', '12/01/2025'), 'renewal_update_in_progress')"
+    ],
+    "06376330723": [
+      "(('22/03/2019', '21/03/2026'), 'renewal_update_in_progress')",
+      "(('22/03/2019', '21/03/2027'), 'listed')"
+    ],
+    "05908220725": [
+      "(('17/11/2025', '02/10/2026'), 'listed')",
+      "(('29/07/2020', '28/07/2023'), 'listed')"
+    ],
+    "04790910725": [
+      "(('01/02/2024', '22.05.2026'), 'listed')",
+      "(('01/02/2024', '22/05/2026'), 'listed')"
+    ],
+    "07761530729": [
+      "(('24/04/2024', '02.06.2026'), 'listed')",
+      "(('24/04/2024', '02/06/2026'), 'listed')"
+    ],
+    "06541400724|PGNNDR84B25L328N": [
+      "(('12/09/2024', '11/09/2026'), 'listed')",
+      "(('12/09/2024', '11/09/2026'), 'renewal_update_in_progress')"
+    ],
+    "07818190725|PSTVCN66A28A285N": [
+      "(('30/06/2026', '29/06/2026'), 'listed')",
+      "(('30/06/2026', '29/06/2027'), 'listed')"
+    ],
+    "PZZRRT75B01A883V": [
+      "(('15/07/2026', '14/07/2027'), 'listed')",
+      "(('15/07/2026',), 'listed')"
+    ],
+    "07748260721": [
+      "(('30/07/2026', '29/07/2027'), 'listed')",
+      "(('30/08/2018', '29/08/2024'), 'listed')"
+    ],
+    "06275980727": [
+      "(('02/09/2026', '01/09/20267'), 'listed')",
+      "(('02/09/2026', '01/09/2027'), 'listed')"
+    ],
+    "04864550720|CCRGNN67S27A285D": [
+      "(('17/07/2025', '17/07/202 6'), 'listed')",
+      "(('17/07/2025', '17/07/2026'), 'listed')"
+    ],
+    "04599380724": [
+      "(('17/11/2025', '13/10/2026'), 'listed')",
+      "(('17/11/20255', '13/10/2026'), 'listed')"
+    ],
+    "07619060721": [
+      "(('12/11/2025', '20/03/2027'), 'listed')",
+      "(('21/11/2025', '20/03/2027'), 'listed')"
+    ],
+    "05669070723": [
+      "(('18/11/2025', '29/10/2026'), 'listed')",
+      "(('30/10/2018', '29/10/2026'), 'listed')"
+    ],
+    "08157730725": [
+      "(('11/04/2019', '10/04/2026'), 'listed')",
+      "(('11/04/2019', '10/04/2027'), 'listed')"
+    ],
+    "07991390720": [
+      "(('21/05/2025', '20/05/2026'), 'renewal_update_in_progress')",
+      "(('21/05/2025', '21/05/2026'), 'listed')",
+      "(('21/05/20259', '20/05/2026'), 'renewal_update_in_progress')"
+    ],
+    "06790800723": [
+      "(('06/12/2019', '05/12/2026'), 'listed')",
+      "(('27/02/2026', '05/12/2026'), 'listed')"
+    ],
+    "08029700724": [
+      "(('11/01/2022', '10/01/2022'), 'renewal_update_in_progress')",
+      "(('11/01/2022', '10/01/2023'), 'renewal_update_in_progress')"
+    ],
+    "08748030726": [
+      "(('10/05/2023', '10/05/2026'), 'renewal_update_in_progress')",
+      "(('10/05/2023', '10/05/2027'), 'listed')"
+    ],
+    "07674460725": [
+      "(('18/11/2025', '09/08/2026'), 'listed')",
+      "(('18/11/2053', '09/08/2026'), 'listed')"
+    ],
+    "05355910729": [
+      "(('18/11/2025', '20/08/2026'), 'listed')",
+      "(('20/08/2024', '19/08/2026'), 'listed')"
+    ],
+    "08987060723": [
+      "(('31.07.2025', '30/06/2027'), 'listed')",
+      "(('31/07/2025',), 'listed')"
+    ],
+    "08330320725": [
+      "(('30/06/2025', '29/06/2025'), 'renewal_update_in_progress')",
+      "(('30/06/2025', '29/06/2026'), 'renewal_update_in_progress')"
+    ],
+    "VTBNTN54C27B915Q": [
+      "(('20/06/2016', '19/06/2017'), 'renewal_update_in_progress')",
+      "(('20/06/2016', '19/06/2018'), 'listed')"
+    ],
+    "08538500722": [
+      "(('30/11/2021', '29/11/2023'), 'listed')",
+      "(('30/11/2021', '29/11/2023'), 'renewal_update_in_progress')"
+    ],
+    "05024390725": [
+      "(('2/6/09/2025', '26/09/2027'), 'listed')",
+      "(('26/09/2025', '25/09/2027'), 'listed')"
+    ],
+    "06235400725": [
+      "(('23/04/2015', '22/04/2022'), 'listed')",
+      "(('23/04/2015', '22/04/2025'), 'renewal_update_in_progress')"
+    ],
+    "MNPMHL89C14B619Z": [
+      "(('07/04/2026', '06/04/2027'), 'listed')",
+      "(('07/04/2026', '07/04/2027'), 'listed')"
+    ],
+    "06923170721": [
+      "(('12/06/2018', '11/06/2019'), 'listed')",
+      "(('30/11/2021', '29/11/2022'), 'listed')"
+    ],
+    "07395430726": [
+      "(('13/05/2021', '12/05/2022'), 'listed')",
+      "(('26/01/2023', '25/01/2027'), 'listed')"
+    ],
+    "06890980722": [
+      "(('02/09/2026', '01/09/2027'), 'listed')",
+      "(('24/03/2025', '23/03/2026'), 'listed')"
+    ]
+  },
+  "sample_multi_groups": [
+    {
+      "records": [
+        {
+          "page": 2,
+          "row": 2,
+          "section": "I",
+          "name": "Ditta Edil 2000 Costruzioni S.r.l.",
+          "office": "ANDRIA (BT) Via Flavio Giugno n.18",
+          "ids": [
+            "05394210727"
+          ],
+          "dates": [
+            "18/12/2014",
+            "17/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 32,
+          "row": 2,
+          "section": "II",
+          "name": "Ditta Edil 2000 Costruzioni S.r.l.",
+          "office": "ANDRIA (BT) Via Flavio Giugno n.18",
+          "ids": [
+            "05394210727"
+          ],
+          "dates": [
+            "18/12/2014",
+            "17/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 45,
+          "row": 3,
+          "section": "III",
+          "name": "Ditta Edil 2000 Costruzioni S.r.l.",
+          "office": "ANDRIA (BT) Via Flavio Giugno n.18",
+          "ids": [
+            "05394210727"
+          ],
+          "dates": [
+            "18/12/2014",
+            "17/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 86,
+          "row": 2,
+          "section": "IV",
+          "name": "Ditta Edil 2000 Costruzioni S.r.l.",
+          "office": "ANDRIA (BT) Via Flavio Giugno n.18",
+          "ids": [
+            "05394210727"
+          ],
+          "dates": [
+            "18/12/2014",
+            "17/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 125,
+          "row": 2,
+          "section": "V",
+          "name": "Ditta Edil 2000 Costruzioni S.r.l.",
+          "office": "ANDRIA (BT) Via Flavio Giugno n.18",
+          "ids": [
+            "05394210727"
+          ],
+          "dates": [
+            "18/12/2014",
+            "17/12/2026"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 2,
+          "row": 4,
+          "section": "I",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA- TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 32,
+          "row": 5,
+          "section": "II",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA-TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 46,
+          "row": 2,
+          "section": "III",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA-TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 106,
+          "row": 3,
+          "section": "V",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA- TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 146,
+          "row": 5,
+          "section": "VI",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA- TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 201,
+          "row": 1,
+          "section": "X",
+          "name": "D’ORIA GIUSEPPE & C. SRL",
+          "office": "S.P. ANDRIA-TRANI KM. 4,500",
+          "ids": [
+            "00918100728"
+          ],
+          "dates": [
+            "29/05/2015",
+            "28/05/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 2,
+          "row": 5,
+          "section": "I",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA (BT) Via Vittorio Veneto n. 19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 32,
+          "row": 6,
+          "section": "II",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA (BT) Via Vittorio Veneto n. 19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 46,
+          "row": 4,
+          "section": "III",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA Via V. Veneto n. 19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 106,
+          "row": 4,
+          "section": "V",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA Via V. Veneto N.19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 149,
+          "row": 3,
+          "section": "VI",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA (BT) Via Vittorio Veneto n. 19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 190,
+          "row": 3,
+          "section": "X",
+          "name": "S.C.E.A.P. SRL",
+          "office": "ANDRIA (BT) Via Vittorio Veneto n. 19",
+          "ids": [
+            "00393110721"
+          ],
+          "dates": [
+            "30/12/2015",
+            "29/12/2026"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 2,
+          "row": 6,
+          "section": "I",
+          "name": "TRANI SCAVI SRL",
+          "office": "BISCEGLIE (BT) Via Vecchia Corato Loc. Piccolo Chiano sn",
+          "ids": [
+            "05238560725"
+          ],
+          "dates": [
+            "09/02/2016",
+            "08/02/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 46,
+          "row": 6,
+          "section": "III",
+          "name": "TRANI SCAVI SRL",
+          "office": "BISCEGLIE (BT) Via Vecchia Corato Loc. Piccolo Chiano sn",
+          "ids": [
+            "05238560725"
+          ],
+          "dates": [
+            "09/02/2016",
+            "08/02/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 106,
+          "row": 6,
+          "section": "V",
+          "name": "TRANI SCAVI SRL",
+          "office": "BISCEGLIE (BT) Via Vecchia Corato Loc. Piccolo Chiano sn",
+          "ids": [
+            "05238560725"
+          ],
+          "dates": [
+            "09/02/2016",
+            "08/02/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 2,
+          "row": 7,
+          "section": "I",
+          "name": "EDILTRASPORTI SRL",
+          "office": "ANDRIA (BT) C.da Ospedaletto C.N.",
+          "ids": [
+            "06552150721"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 107,
+          "row": 2,
+          "section": "V",
+          "name": "EDILTRASPORTI SRL",
+          "office": "ANDRIA (BT) C.da Ospedaletto C.N.",
+          "ids": [
+            "06552150721"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 147,
+          "row": 2,
+          "section": "VI",
+          "name": "EDILTRASPORTI SRL",
+          "office": "ANDRIA (BT) C.da Ospedaletto C.N.",
+          "ids": [
+            "06552150721"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 189,
+          "row": 5,
+          "section": "X",
+          "name": "EDILTRASPORTI SRL",
+          "office": "ANDRIA (BT) C.da Ospedaletto C.N.",
+          "ids": [
+            "06552150721"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        }
+      ],
+      "sections": [
+        "I",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 3,
+          "row": 2,
+          "section": "I",
+          "name": "GECOS – GESTIONI COSTRUZIONI SERVIZI SRL",
+          "office": "ANDRIA (BT) Via Trani Km. 2,500",
+          "ids": [
+            "03974710729"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 33,
+          "row": 2,
+          "section": "II",
+          "name": "GECOS – GESTIONI COSTRUZIONI SERVIZI SRL",
+          "office": "ANDRIA Via Trani Km. 2,500",
+          "ids": [
+            "03974710729"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 46,
+          "row": 8,
+          "section": "III",
+          "name": "GECOS – GESTIONI COSTRUZIONI SERVIZI SRL",
+          "office": "ANDRIA (BT) Via Trani Km. 2,500",
+          "ids": [
+            "03974710729"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 107,
+          "row": 3,
+          "section": "V",
+          "name": "GECOS – GESTIONI COSTRUZIONI SERVIZI SRL",
+          "office": "ANDRIA (BT) Via Trani Km. 2,500",
+          "ids": [
+            "03974710729"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 3,
+          "row": 3,
+          "section": "I",
+          "name": "SERVIZI E COSTRUZIONI SRL",
+          "office": "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "ids": [
+            "05696760726"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 33,
+          "row": 3,
+          "section": "II",
+          "name": "SERVIZI E COSTRUZIONI SRL",
+          "office": "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "ids": [
+            "05696760726"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 47,
+          "row": 2,
+          "section": "III",
+          "name": "SERVIZI E COSTRUZIONI SRL",
+          "office": "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "ids": [
+            "05696760726"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 87,
+          "row": 2,
+          "section": "IV",
+          "name": "SERVIZI E COSTRUZIONI SRL",
+          "office": "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "ids": [
+            "05696760726"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 107,
+          "row": 4,
+          "section": "V",
+          "name": "SERVIZI E COSTRUZIONI SRL",
+          "office": "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "ids": [
+            "05696760726"
+          ],
+          "dates": [
+            "10/03/2016",
+            "09/03/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 3,
+          "row": 4,
+          "section": "I",
+          "name": "EDIL TER SRL del geom. CATALDO TERRONE",
+          "office": "ANDRIA (BT) Via C. Appio n.2/4",
+          "ids": [
+            "07045260721"
+          ],
+          "dates": [
+            "20/06/2016",
+            "19/06/2021"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 47,
+          "row": 5,
+          "section": "III",
+          "name": "EDIL TER SRL del geom. CATALDO TERRONE",
+          "office": "ANDRIA (BT) Via C. Appio n.2/4",
+          "ids": [
+            "07045260721"
+          ],
+          "dates": [
+            "20/06/2016",
+            "19/06/2021"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 87,
+          "row": 3,
+          "section": "IV",
+          "name": "EDIL TER SRL del geom. CATALDO TERRONE",
+          "office": "ANDRIA (BT) Via C. Appio n.2/4",
+          "ids": [
+            "07045260721"
+          ],
+          "dates": [
+            "20/06/2016",
+            "19/06/2021"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 108,
+          "row": 1,
+          "section": "V",
+          "name": "EDIL TER SRL del geom. CATALDO TERRONE",
+          "office": "ANDRIA (BT) Via C. Appio n.2/4",
+          "ids": [
+            "07045260721"
+          ],
+          "dates": [
+            "20/06/2016",
+            "19/06/2021"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "IV",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 3,
+          "row": 7,
+          "section": "I",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 35,
+          "row": 2,
+          "section": "II",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 47,
+          "row": 7,
+          "section": "III",
+          "name": "PALUMBO TOMMASO Impr. Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 87,
+          "row": 5,
+          "section": "IV",
+          "name": "PALUMBO TOMMASO Imp. Indiv.",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 108,
+          "row": 2,
+          "section": "V",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 153,
+          "row": 6,
+          "section": "VI",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 193,
+          "row": 4,
+          "section": "X",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 196,
+          "row": 1,
+          "section": "X",
+          "name": "PALUMBO TOMMASO Impresa Individuale",
+          "office": "ANDRIA(BT) Via Jacopo Beccari n. 41",
+          "ids": [
+            "PLMTMS56D04A285S",
+            "07316660724"
+          ],
+          "dates": [
+            "03/03/2017",
+            "02/03/2022"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 1,
+          "section": "I",
+          "name": "LORUSSO GAETANO Imp. Ind.",
+          "office": "ANDRIA (BT) Via Bitonto n. 43",
+          "ids": [
+            "LRSGTN75A01A285L"
+          ],
+          "dates": [
+            "30/10/2019",
+            "29/10/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 33,
+          "row": 6,
+          "section": "II",
+          "name": "LORUSSO GAETANO Imp. Ind.",
+          "office": "ANDRIA (BT) Via Bitonto n. 43",
+          "ids": [
+            "LRSGTN75A01A285L"
+          ],
+          "dates": [
+            "30/10/2019",
+            "29/10/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 153,
+          "row": 3,
+          "section": "VI",
+          "name": "LORUSSO GAETANO Imp. Ind.",
+          "office": "ANDRIA (BT) Via Bitonto n. 43",
+          "ids": [
+            "LRSGTN75A01A285L"
+          ],
+          "dates": [
+            "30/10/2019",
+            "29/10/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "VI"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 2,
+          "section": "I",
+          "name": "COSTRUZIONI MAZZEO S.R.L.",
+          "office": "ANDRIA (BT) Via Aristofane Zona Pip Sub D7 Lotto 5",
+          "ids": [
+            "03454280722",
+            "05666570725"
+          ],
+          "dates": [
+            "29/06/2017",
+            "28/06/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 48,
+          "row": 2,
+          "section": "III",
+          "name": "COSTRUZIONI MAZZEO S.R.L.",
+          "office": "ANDRIA (BT) Via Aristofane Zona Pip Sub D7 Lotto 5",
+          "ids": [
+            "03454280722",
+            "05666570725"
+          ],
+          "dates": [
+            "29/06/2017",
+            "28/06/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 158,
+          "row": 1,
+          "section": "VI",
+          "name": "COSTRUZIONI MAZZEO S.R.L.",
+          "office": "ANDRIA (BT) Via Aristofane Zona Pip Sub D7 Lotto 5",
+          "ids": [
+            "03454280722",
+            "05666570725"
+          ],
+          "dates": [
+            "29/06/2017",
+            "28/06/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "VI"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 3,
+          "section": "I",
+          "name": "IMPRESA DALOISO SRL",
+          "office": "MARGHERITA DI SAVOIA (BT) Via D.B. Jovinen.14",
+          "ids": [
+            "03614110710"
+          ],
+          "dates": [
+            "13/07/2017",
+            "12/07/2018"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 48,
+          "row": 4,
+          "section": "III",
+          "name": "IMPRESA DALOISO SRL",
+          "office": "MARGHERITA DI SAVOIA (BT) Via D.B. Jovine n.14",
+          "ids": [
+            "03614110710"
+          ],
+          "dates": [
+            "13/07/2017",
+            "12/07/2018"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 108,
+          "row": 5,
+          "section": "V",
+          "name": "IMPRESA DALOISO SRL",
+          "office": "MARGHERITA DI SAVOIA (BT) Via D.B. Jovine n.14",
+          "ids": [
+            "03614110710"
+          ],
+          "dates": [
+            "13/07/2017",
+            "12/07/2018"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 4,
+          "section": "I",
+          "name": "dell’ERBA Gaetano SRL",
+          "office": "TRANI (BT) Via Duchessa D’Andria n. 132",
+          "ids": [
+            "08556050725"
+          ],
+          "dates": [
+            "25/08/2017",
+            "24/08/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 48,
+          "row": 6,
+          "section": "III",
+          "name": "dell’ERBA Gaetano SRL",
+          "office": "TRANI (BT) Via Duchessa D’Andria n. 132",
+          "ids": [
+            "08556050725"
+          ],
+          "dates": [
+            "25/08/2017",
+            "24/08/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 108,
+          "row": 6,
+          "section": "V",
+          "name": "dell’ERBA Gaetano SRL",
+          "office": "TRANI (BT) Via Duchessa D’Andria n. 132",
+          "ids": [
+            "08556050725"
+          ],
+          "dates": [
+            "25/08/2017",
+            "24/08/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 149,
+          "row": 1,
+          "section": "VI",
+          "name": "dell’ERBA Gaetano SRL",
+          "office": "TRANI (BT) Via Duchessa D’Andria n. 132",
+          "ids": [
+            "08556050725"
+          ],
+          "dates": [
+            "25/08/2017",
+            "24/08/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        },
+        {
+          "page": 202,
+          "row": 3,
+          "section": "X",
+          "name": "dell’ERBA Gaetano SRL",
+          "office": "TRANI (BT) Via Duchessa D’Andria n. 132",
+          "ids": [
+            "08556050725"
+          ],
+          "dates": [
+            "25/08/2017",
+            "24/08/2026"
+          ],
+          "status": "renewal_update_in_progress"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 5,
+          "section": "I",
+          "name": "CAPUTO GIUSEPPE Impresa Individuale",
+          "office": "CANOSA DI PUGLIA (BT) Via Fontana dei Tartari n. 59",
+          "ids": [
+            "CPTGPP46B23B619Q"
+          ],
+          "dates": [
+            "24/11/2017",
+            "23/11/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 48,
+          "row": 7,
+          "section": "III",
+          "name": "CAPUTO GIUSEPPE Impresa Individuale",
+          "office": "CANOSA DI PUGLIA (BT) Via Fontana dei Tartari n. 59",
+          "ids": [
+            "CPTGPP46B23B619Q"
+          ],
+          "dates": [
+            "24/11/2017",
+            "23/11/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 109,
+          "row": 1,
+          "section": "V",
+          "name": "CAPUTO GIUSEPPE Impresa Individuale",
+          "office": "CANOSA DI PUGLIA (BT) Via Fontana dei Tartari n. 59",
+          "ids": [
+            "CPTGPP46B23B619Q"
+          ],
+          "dates": [
+            "24/11/2017",
+            "23/11/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 149,
+          "row": 2,
+          "section": "VI",
+          "name": "CAPUTO GIUSEPPE Impresa Individuale",
+          "office": "CANOSA DI PUGLIA (BT) Via Fontana dei Tartari n. 59",
+          "ids": [
+            "CPTGPP46B23B619Q"
+          ],
+          "dates": [
+            "24/11/2017",
+            "23/11/2026"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 189,
+          "row": 7,
+          "section": "X",
+          "name": "CAPUTO GIUSEPPE Impresa Individuale",
+          "office": "CANOSA DI PUGLIA (BT) Via Fontana dei Tartari n. 59",
+          "ids": [
+            "CPTGPP46B23B619Q"
+          ],
+          "dates": [
+            "24/11/2017",
+            "23/11/2026"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 4,
+          "row": 6,
+          "section": "I",
+          "name": "EDILBAT SRL",
+          "office": "TRANI (BT) Via Don Nicola Ragno 41",
+          "ids": [
+            "06559050726"
+          ],
+          "dates": [
+            "18/12/2017",
+            "17/12/2018"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 49,
+          "row": 1,
+          "section": "III",
+          "name": "EDILBAT SRL",
+          "office": "TRANI (BT) Via Don Nicola Ragno 41",
+          "ids": [
+            "06559050726"
+          ],
+          "dates": [
+            "18/12/2017",
+            "17/12/2018"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 109,
+          "row": 2,
+          "section": "V",
+          "name": "EDILBAT SRL",
+          "office": "TRANI (BT) Via Don Nicola Ragno 41",
+          "ids": [
+            "06559050726"
+          ],
+          "dates": [
+            "18/12/2017",
+            "17/12/2018"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 5,
+          "row": 3,
+          "section": "I",
+          "name": "SANTOVITO MICHELE Impresa Individuale",
+          "office": "ANDRIA (BT) Via Milano n. 29",
+          "ids": [
+            "SNTMHL60L15A285I",
+            "01142720729"
+          ],
+          "dates": [
+            "01/03/2018",
+            "01/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 49,
+          "row": 2,
+          "section": "III",
+          "name": "SANTOVITO MICHELE Impresa Individuale",
+          "office": "ANDRIA (BT) Via Milano n. 29",
+          "ids": [
+            "SNTMHL60L15A285I",
+            "01142720729"
+          ],
+          "dates": [
+            "01/03/2018",
+            "01/03/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 109,
+          "row": 3,
+          "section": "V",
+          "name": "SANTOVITO MICHELE Impresa Individuale",
+          "office": "ANDRIA (BT) Via Milano n. 29",
+          "ids": [
+            "SNTMHL60L15A285I",
+            "01142720729"
+          ],
+          "dates": [
+            "01/03/2018",
+            "01/03/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 5,
+          "row": 4,
+          "section": "I",
+          "name": "LACOGEIT SRL",
+          "office": "BISCEGLIE (BT) Vico G. Monterisi n. 5",
+          "ids": [
+            "08126680720"
+          ],
+          "dates": [
+            "18/11/2025",
+            "19/08/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 49,
+          "row": 4,
+          "section": "III",
+          "name": "LACOGEIT SRL",
+          "office": "BISCEGLIE (BT) Vico G. Monterisi n. 5",
+          "ids": [
+            "08126680720"
+          ],
+          "dates": [
+            "18/11/2025",
+            "19/08/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 109,
+          "row": 5,
+          "section": "V",
+          "name": "LACOGEIT SRL",
+          "office": "BISCEGLIE (BT) Vico G. Monterisi n. 5",
+          "ids": [
+            "08126680720"
+          ],
+          "dates": [
+            "18/11/2025",
+            "19/08/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 5,
+          "row": 5,
+          "section": "I",
+          "name": "SAVOIA TRASPORTI SOC. COOP.",
+          "office": "MARGHERITA DI SAVOIA (BT) Via I Regina 2",
+          "ids": [
+            "02278750712"
+          ],
+          "dates": [
+            "05/06/2018",
+            "04/06/2019"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 151,
+          "row": 2,
+          "section": "VI",
+          "name": "SAVOIA TRASPORTI SOC. COOP.",
+          "office": "MARGHERITA DI SAVOIA (BT) Via I Regina 2",
+          "ids": [
+            "02278750712"
+          ],
+          "dates": [
+            "05/06/2018",
+            "04/06/2019"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 191,
+          "row": 3,
+          "section": "X",
+          "name": "SAVOIA TRASPORTI SOC. COOP.",
+          "office": "MARGHERITA DI SAVOIA (BT) Via I Regina 2",
+          "ids": [
+            "02278750712"
+          ],
+          "dates": [
+            "05/06/2018",
+            "04/06/2019"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 195,
+          "row": 2,
+          "section": "X",
+          "name": "SAVOIA TRASPORTI SOC. COOP.",
+          "office": "MARGHERITA DI SAVOIA (BT) Via I Regina 2",
+          "ids": [
+            "02278750712"
+          ],
+          "dates": [
+            "05/06/2018",
+            "04/06/2019"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "VI",
+        "X"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 5,
+          "row": 6,
+          "section": "I",
+          "name": "ACS SERVICE SRL",
+          "office": "BISCEGLIE (BT) Via Macchione n. 35",
+          "ids": [
+            "05474610721"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 33,
+          "row": 5,
+          "section": "II",
+          "name": "ACS SERVICE SRL",
+          "office": "BISCEGLIE (BT) Via Macchione n. 35",
+          "ids": [
+            "05474610721"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 51,
+          "row": 1,
+          "section": "III",
+          "name": "ACS SERVICE SRL",
+          "office": "BISCEGLIE (BT) Via Macchione n. 35",
+          "ids": [
+            "05474610721"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 110,
+          "row": 5,
+          "section": "V",
+          "name": "ACS SERVICE SRL",
+          "office": "BISCEGLIE (BT) Via Macchione n. 35",
+          "ids": [
+            "05474610721"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "V"
+      ]
+    },
+    {
+      "records": [
+        {
+          "page": 6,
+          "row": 1,
+          "section": "I",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 36,
+          "row": 1,
+          "section": "II",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 51,
+          "row": 2,
+          "section": "III",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 91,
+          "row": 5,
+          "section": "IV",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 111,
+          "row": 1,
+          "section": "V",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 152,
+          "row": 1,
+          "section": "VI",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 191,
+          "row": 5,
+          "section": "X",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        },
+        {
+          "page": 195,
+          "row": 3,
+          "section": "X",
+          "name": "MULTISCAVI SRL",
+          "office": "ANDRIA (BT) via strada comunale Zagaria n.29",
+          "ids": [
+            "06908950725"
+          ],
+          "dates": [
+            "24/07/2018",
+            "23/07/2027"
+          ],
+          "status": "listed"
+        }
+      ],
+      "sections": [
+        "I",
+        "II",
+        "III",
+        "IV",
+        "V",
+        "VI",
+        "X"
+      ]
+    }
+  ],
+  "no_strict_identifier_sector_rows": 24
+}
