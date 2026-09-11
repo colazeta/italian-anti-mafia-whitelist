@@ -1,0 +1,2361 @@
+{
+  "listed": {
+    "sha256": "d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13",
+    "pages": 211,
+    "table_counts": {
+      "1": 208,
+      "2": 3
+    },
+    "width_counts": {
+      "8": 891,
+      "9": 59,
+      "13": 5,
+      "12": 6,
+      "7": 115,
+      "11": 6,
+      "6": 9,
+      "10": 6
+    },
+    "section_markers": [
+      [
+        1,
+        "I"
+      ],
+      [
+        32,
+        "II"
+      ],
+      [
+        44,
+        "III"
+      ],
+      [
+        86,
+        "IV"
+      ],
+      [
+        104,
+        "V"
+      ],
+      [
+        145,
+        "VI"
+      ],
+      [
+        174,
+        "VII"
+      ],
+      [
+        177,
+        "VIII"
+      ],
+      [
+        181,
+        "IX"
+      ],
+      [
+        188,
+        "X"
+      ]
+    ],
+    "candidate_count": 1013,
+    "candidate_by_section": {
+      "I": 148,
+      "II": 68,
+      "III": 211,
+      "IV": 84,
+      "V": 205,
+      "VI": 136,
+      "VII": 8,
+      "VIII": 12,
+      "IX": 23,
+      "X": 118
+    },
+    "update_candidate_rows": 130,
+    "malformed_dates": [
+      [
+        78,
+        3,
+        "7/9/11",
+        [
+          "LAMANNA STEFANO MARIA impresa individuale",
+          "TRANI via Madre M. N. Majone 7/9/11",
+          "",
+          "LMNSFN83P05 A662O/07656 690729",
+          "06/05/2025",
+          "25185",
+          "05/05/2027",
+          ""
+        ]
+      ],
+      [
+        104,
+        1,
+        "32/34/36",
+        [
+          "",
+          "Via Berlino n.32/34/36",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ],
+      [
+        138,
+        4,
+        "17/07/202",
+        [
+          "IMPRESA CICIRIELLO GIOVANNI",
+          "ANDRIA (BT) Via B. Messadaglia n. 59",
+          "",
+          "C.F. CCRGNN67S27A285D P.IVA 04864550720",
+          "",
+          "17/07/2025",
+          "",
+          "41720",
+          "",
+          "17/07/202 6",
+          ""
+        ]
+      ],
+      [
+        207,
+        2,
+        "2/6/09",
+        [
+          "SIMONE VINCENZO -Impresa individuale-",
+          "ANDRIA, contrada Martinelli snc",
+          "",
+          "P.IVA 05024390725",
+          "2/6/09/2025",
+          "55105",
+          "26/09/2027"
+        ]
+      ]
+    ],
+    "suspicious_noncandidate_count": 74,
+    "suspicious_noncandidate_rows": [
+      {
+        "page": 2,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "",
+          "ITALIA",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 3,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "C.N.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 5,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "Ragno 41",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 7,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "",
+          "Elena",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 8,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "Fontana dei Tartari",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 9,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "DONATO, MASSIMO & C.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 11,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "STRADE S.r.l.",
+          "Santa Maria Località Podice SS655 Bradanica km81+900",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 13,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "SRL",
+          "Vittorio Emanuele 49",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 18,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "MICHELE Impresa Individuale",
+          "Via Nicola Sernia n.35c",
+          "",
+          "C.F. CPRMHL56E08A669B",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 19,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "individuale",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 21,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "(località Castel del Monte)",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 24,
+        "row": 1,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "",
+          "Coppa n. 27/A",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 26,
+        "row": 1,
+        "width": 13,
+        "section": "I",
+        "cells": [
+          "",
+          "Querce n.252",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 29,
+        "row": 1,
+        "width": 7,
+        "section": "I",
+        "cells": [
+          "SRLS",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 31,
+        "row": 1,
+        "width": 7,
+        "section": "I",
+        "cells": [
+          "-Impresa individuale-",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 33,
+        "row": 1,
+        "width": 8,
+        "section": "II",
+        "cells": [
+          "",
+          "Vittorio Veneto n. 19",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 39,
+        "row": 1,
+        "width": 8,
+        "section": "II",
+        "cells": [
+          "Claudio & C.",
+          "n.38",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 44,
+        "row": 1,
+        "width": 7,
+        "section": "III",
+        "cells": [
+          "individuale",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 45,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "E DITTA",
+          "",
+          "CON RAPPRESENTANZA STABILE IN ITALIA",
+          "",
+          "ISCRIZIONE NELLE WHITE LIST",
+          "PROVVEDIMENT O DI ISCRIZIONE",
+          "SCADENZA",
+          ""
+        ]
+      },
+      {
+        "page": 47,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "SERVIZI SRL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 48,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "GENERALI SRL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 55,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "S.r.l.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 66,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "ANTONIO & C.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 68,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "SRL",
+          "Capacchione n. 2",
+          "",
+          "06712400727",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 70,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "individuale",
+          "",
+          "",
+          "TRNFLV74T41L 328D",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 71,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "CALVANO MATTEO impresa individuale",
+          "Sant’Angelo 40/A",
+          "",
+          "05746300721",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 75,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "",
+          "1,500",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 76,
+        "row": 1,
+        "width": 8,
+        "section": "III",
+        "cells": [
+          "GEOM. MARIO",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 79,
+        "row": 1,
+        "width": 9,
+        "section": "III",
+        "cells": [
+          "MEDITERRANEA",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 79,
+        "row": 4,
+        "width": 9,
+        "section": "III",
+        "cells": [
+          "EDILFERRO S.r.l.",
+          "EDILFERRO S.r.l.",
+          "EDI LFE RR O S.r.l .",
+          "EDILFERRO S.r.l.",
+          "EDILFERRO S.r.l.",
+          "",
+          "EDILFERRO S.r.l.",
+          "EDILFERRO S.r.l.",
+          "EDILFERRO S.r.l."
+        ]
+      },
+      {
+        "page": 84,
+        "row": 1,
+        "width": 9,
+        "section": "III",
+        "cells": [
+          "individuale",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 87,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "SRL",
+          "n.37",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 88,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "MAURO & C. SNC",
+          "per Ruvo 13",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 89,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "impresa individuale",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 91,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "",
+          "113",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 96,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "DI FRANCESCO BALESTRUCCI & C. SAS",
+          "Marconi 2",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 100,
+        "row": 1,
+        "width": 8,
+        "section": "IV",
+        "cells": [
+          "LAVORO",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 102,
+        "row": 1,
+        "width": 7,
+        "section": "IV",
+        "cells": [
+          "C. di Monterisi Sabino S.A.A.",
+          "Via Anna De Salzedo n.32",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 103,
+        "row": 1,
+        "width": 7,
+        "section": "IV",
+        "cells": [
+          "DI ZINETTI MICHELE impresa individuale",
+          "Pezza della Chiesa 14",
+          "",
+          "05930870729/ZNTM HL67M11C983N",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 104,
+        "row": 1,
+        "width": 7,
+        "section": "V",
+        "cells": [
+          "",
+          "Via Berlino n.32/34/36",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 105,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "",
+          "",
+          "STABILE IN ITALIA",
+          "",
+          "",
+          "ISCRIZIO NE",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 107,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "",
+          "Piazza Marconi n.14",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 117,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "UNIPERSONALE",
+          "Via Cesare Dante Cioce n. 28",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 123,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "SRL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 129,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "",
+          "provinciale 231 km. 44,321",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 133,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "SAS",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 134,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "SNC",
+          "85",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 135,
+        "row": 1,
+        "width": 8,
+        "section": "V",
+        "cells": [
+          "PIGNATARO ANDREA",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 138,
+        "row": 1,
+        "width": 11,
+        "section": "V",
+        "cells": [
+          "individuale",
+          "Bovio 189",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 139,
+        "row": 1,
+        "width": 7,
+        "section": "V",
+        "cells": [
+          "NDIVIDUALE",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 144,
+        "row": 1,
+        "width": 6,
+        "section": "V",
+        "cells": [
+          "S.R.L.",
+          "Via Giovanni Bovio n.343",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 151,
+        "row": 1,
+        "width": 8,
+        "section": "VI",
+        "cells": [
+          "CARBURANTI E LOCAZIONI SRL",
+          "Veneto n. 111",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 159,
+        "row": 1,
+        "width": 8,
+        "section": "VI",
+        "cells": [
+          "SRL",
+          "per Foggia KM. 44,500",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 160,
+        "row": 1,
+        "width": 8,
+        "section": "VI",
+        "cells": [
+          "",
+          "Madonna dello Sterpeto 19",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 162,
+        "row": 1,
+        "width": 8,
+        "section": "VI",
+        "cells": [
+          "",
+          "MURGETTA N.28",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 166,
+        "row": 1,
+        "width": 9,
+        "section": "VI",
+        "cells": [
+          "",
+          "78",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 168,
+        "row": 1,
+        "width": 7,
+        "section": "VI",
+        "cells": [
+          "TRASPORTI SRL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 170,
+        "row": 1,
+        "width": 7,
+        "section": "VI",
+        "cells": [
+          "",
+          "C.DA PEZZA LA PERA SN",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 172,
+        "row": 1,
+        "width": 8,
+        "section": "VI",
+        "cells": [
+          "impresa individuale",
+          "Ricci 217",
+          "",
+          "A669Z",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 175,
+        "row": 1,
+        "width": 8,
+        "section": "VII",
+        "cells": [
+          "",
+          "",
+          "IN ITALIA",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 176,
+        "row": 1,
+        "width": 8,
+        "section": "VII",
+        "cells": [
+          "",
+          "",
+          "Operativa",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 179,
+        "row": 1,
+        "width": 8,
+        "section": "VIII",
+        "cells": [
+          "E RUGGIERO RICCO",
+          "Montessori n. 13",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 183,
+        "row": 1,
+        "width": 8,
+        "section": "IX",
+        "cells": [
+          "",
+          "",
+          "RA” Via Olivetti – Zona ASI BARI Parco Commerciale “SANTA CATERINA” Via Martiri delle Foibe 6/4",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 186,
+        "row": 1,
+        "width": 8,
+        "section": "IX",
+        "cells": [
+          "",
+          "Plauto n. 127",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 189,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "",
+          "",
+          "AN ZA STA BIL E IN ITA LIA",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 190,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "GIUSEPPE Impresa Individuale",
+          "(BT) Via Fontana dei Tartari n. 59",
+          "NO SA DI PU GLI A (BT ) Via Lo mb ardi a n. 5",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 195,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "Impr. Ind.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 199,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "SRL",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 200,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "DEFAZIO NICOLA & C. S.R.L.",
+          "dello Sterpeto n.11",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 202,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "",
+          "206/A",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 205,
+        "row": 1,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "",
+          "XXIII Zona Ind.le",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 207,
+        "row": 1,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "TRANSPORT & LOGISTIC DI MAURO SINISI",
+          "Custoza 20",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 208,
+        "row": 1,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "",
+          "Cristoforo Colombo 10",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 211,
+        "row": 1,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "impresa individuale",
+          "MANTEGAZZA 83",
+          "PSTVCN66A28A285N",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    ],
+    "first_candidates": [
+      {
+        "page": 2,
+        "row": 2,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "Ditta Edil 2000 Costruzioni S.r.l.",
+          "ANDRIA (BT) Via Flavio Giugno n.18",
+          "",
+          "05394210727",
+          "18/12/2014",
+          "17835",
+          "17/12/2026",
+          ""
+        ],
+        "dates": [
+          "18/12/2014",
+          "17/12/2026"
+        ],
+        "ids": [
+          "05394210727"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 2,
+        "row": 3,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "GUGLIELMI GIOVANNI Impresa Individuale",
+          "ANDRIA (BT) Via Dei Gerani, 7",
+          "",
+          "01267870721",
+          "28/06/2023",
+          "29613",
+          "26/06/2026",
+          ""
+        ],
+        "dates": [
+          "28/06/2023",
+          "26/06/2026"
+        ],
+        "ids": [
+          "01267870721"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 2,
+        "row": 4,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "D’ORIA GIUSEPPE & C. SRL",
+          "S.P. ANDRIA- TRANI KM. 4,500",
+          "",
+          "00918100728",
+          "29/05/2015",
+          "13079",
+          "28/05/2027",
+          ""
+        ],
+        "dates": [
+          "29/05/2015",
+          "28/05/2027"
+        ],
+        "ids": [
+          "00918100728"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 2,
+        "row": 5,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "S.C.E.A.P. SRL",
+          "ANDRIA (BT) Via Vittorio Veneto n. 19",
+          "",
+          "00393110721",
+          "30/12/2015",
+          "19205",
+          "29/12/2026",
+          ""
+        ],
+        "dates": [
+          "30/12/2015",
+          "29/12/2026"
+        ],
+        "ids": [
+          "00393110721"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 2,
+        "row": 6,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "TRANI SCAVI SRL",
+          "BISCEGLIE (BT) Via Vecchia Corato Loc. Piccolo Chiano sn",
+          "",
+          "05238560725",
+          "09/02/2016",
+          "4349",
+          "08/02/2026",
+          "Aggiornamento in corso"
+        ],
+        "dates": [
+          "09/02/2016",
+          "08/02/2026"
+        ],
+        "ids": [
+          "05238560725"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 2,
+        "row": 7,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "EDILTRASPORTI SRL",
+          "ANDRIA (BT) C.da Ospedaletto",
+          "",
+          "06552150721",
+          "10/03/2016",
+          "6213",
+          "09/03/2026",
+          "Aggiornamento in corso"
+        ],
+        "dates": [
+          "10/03/2016",
+          "09/03/2026"
+        ],
+        "ids": [
+          "06552150721"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 2,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "GECOS – GESTIONI COSTRUZIONI SERVIZI SRL",
+          "ANDRIA (BT) Via Trani Km. 2,500",
+          "",
+          "03974710729",
+          "10/03/2016",
+          "6201",
+          "09/03/2027",
+          ""
+        ],
+        "dates": [
+          "10/03/2016",
+          "09/03/2027"
+        ],
+        "ids": [
+          "03974710729"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 3,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "SERVIZI E COSTRUZIONI SRL",
+          "ANDRIA (BT) Via Giuseppe Galliano n. 48",
+          "",
+          "05696760726",
+          "10/03/2016",
+          "6199",
+          "09/03/2027",
+          ""
+        ],
+        "dates": [
+          "10/03/2016",
+          "09/03/2027"
+        ],
+        "ids": [
+          "05696760726"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 4,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "EDIL TER SRL del geom. CATALDO TERRONE",
+          "ANDRIA (BT) Via C. Appio n.2/4",
+          "",
+          "07045260721",
+          "20/06/2016",
+          "11603",
+          "19/06/2021",
+          ""
+        ],
+        "dates": [
+          "20/06/2016",
+          "19/06/2021"
+        ],
+        "ids": [
+          "07045260721"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 5,
+        "width": 8,
+        "section": "I",
+        "cells": [
+          "SELLITRI FELICE impr. indiv.",
+          "ANDRIA (BT) Via Maggior Galliano n.69",
+          "",
+          "01108180728",
+          "10/02/2017",
+          "1806",
+          "09/02/2023",
+          ""
+        ],
+        "dates": [
+          "10/02/2017",
+          "09/02/2023"
+        ],
+        "ids": [
+          "01108180728"
+        ],
+        "cfs": []
+      }
+    ],
+    "last_candidates": [
+      {
+        "page": 209,
+        "row": 5,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "LACAVALLA MARIANO impresa individuale",
+          "BARLETTA (BT) via Prascina 33- 35-37",
+          "",
+          "04464800723 / LCVMRN67T06A669M",
+          "02/04/2026",
+          "20262",
+          "01/04/2027"
+        ],
+        "dates": [
+          "02/04/2026",
+          "01/04/2027"
+        ],
+        "ids": [
+          "04464800723"
+        ],
+        "cfs": [
+          "LCVMRN67T06A669M"
+        ]
+      },
+      {
+        "page": 209,
+        "row": 6,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "DE BENEDITTIS PIETRO S.R.L.",
+          "TRINITAPOLI VIALE 1 MAGGIO 70",
+          "",
+          "03206540712",
+          "09/04/2026",
+          "21390",
+          "08/04/2027"
+        ],
+        "dates": [
+          "09/04/2026",
+          "08/04/2027"
+        ],
+        "ids": [
+          "03206540712"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 209,
+        "row": 7,
+        "width": 7,
+        "section": "X",
+        "cells": [
+          "CONTRACT SRL",
+          "ANDRIA VIA MOZART 33",
+          "",
+          "07419770727",
+          "27/05/2026",
+          "32403",
+          "26/05/2027"
+        ],
+        "dates": [
+          "27/05/2026",
+          "26/05/2027"
+        ],
+        "ids": [
+          "07419770727"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 1,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "DIDACO SRL",
+          "ANDRIA (BT) S.P. ANDRIA – TRANI KM- 1,500",
+          "",
+          "P.IVA 06786170727",
+          "27/05/2026",
+          "",
+          "32411",
+          "",
+          "26/05/2027",
+          ""
+        ],
+        "dates": [
+          "27/05/2026",
+          "26/05/2027"
+        ],
+        "ids": [
+          "06786170727"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 2,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "EDIL AGRESTI SRL",
+          "ANDRIA (BT) VIA STAZIO N. 124",
+          "",
+          "07768360724",
+          "01/07/2025",
+          "38223",
+          "01/07/2026",
+          "",
+          "",
+          "Aggiornament o in corso"
+        ],
+        "dates": [
+          "01/07/2025",
+          "01/07/2026"
+        ],
+        "ids": [
+          "07768360724"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 3,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "AN.ELI GROUP S.R.L.",
+          "ANDRIA Via Foggia n.28",
+          "",
+          "08687490725",
+          "10/06/2026",
+          "35310",
+          "09/06/2027",
+          "",
+          "",
+          ""
+        ],
+        "dates": [
+          "10/06/2026",
+          "09/06/2027"
+        ],
+        "ids": [
+          "08687490725"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 4,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "COCCO S.R.L.",
+          "ANDRIA S.P. 130 Andria-Trani Km. 2,500",
+          "",
+          "06601670729",
+          "10/06/2026",
+          "35307",
+          "09/06/2027",
+          "",
+          "",
+          ""
+        ],
+        "dates": [
+          "10/06/2026",
+          "09/06/2027"
+        ],
+        "ids": [
+          "06601670729"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 5,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "ADRIATICA SCAVI S.N.C. DI DI PINTO MAURO E DI PINTO DANILO & C.",
+          "BISCEGLIE CONTRADA SAN FELICE SN",
+          "",
+          "05564310729",
+          "17/06/2026",
+          "36515",
+          "16/06/2027",
+          "",
+          "",
+          ""
+        ],
+        "dates": [
+          "17/06/2026",
+          "16/06/2027"
+        ],
+        "ids": [
+          "05564310729"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 210,
+        "row": 6,
+        "width": 10,
+        "section": "X",
+        "cells": [
+          "TRASPORTI V.P. DI PASTORE VINCENZO",
+          "ANDRIA VIA PAOLO",
+          "",
+          "07818190725 /",
+          "30/06/2026",
+          "39527",
+          "",
+          "29/06/2026",
+          "",
+          ""
+        ],
+        "dates": [
+          "30/06/2026",
+          "29/06/2026"
+        ],
+        "ids": [
+          "07818190725"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 211,
+        "row": 2,
+        "width": 8,
+        "section": "X",
+        "cells": [
+          "INNOVA COSTRUZIONI S.R.L.",
+          "BISCEGLIE Via Giovanni Bovio n.343",
+          "07539370721",
+          "29/08/2023",
+          "39094",
+          "28/08/2027",
+          "",
+          ""
+        ],
+        "dates": [
+          "29/08/2023",
+          "28/08/2027"
+        ],
+        "ids": [
+          "07539370721"
+        ],
+        "cfs": []
+      }
+    ]
+  },
+  "applicants": {
+    "sha256": "ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57",
+    "pages": 15,
+    "table_counts": {
+      "1": 14,
+      "0": 1
+    },
+    "width_counts": {
+      "7": 72,
+      "8": 14
+    },
+    "section_markers": [
+      [
+        14,
+        "I"
+      ],
+      [
+        15,
+        "VII"
+      ]
+    ],
+    "candidate_count": 81,
+    "candidate_by_section": {
+      "UNKNOWN": 78,
+      "I": 3
+    },
+    "update_candidate_rows": 0,
+    "malformed_dates": [],
+    "suspicious_noncandidate_count": 4,
+    "suspicious_noncandidate_rows": [
+      {
+        "page": 2,
+        "row": 1,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "",
+          "",
+          "p r e s e n t a n z a s t a b i l e i n I t a l i",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 3,
+        "row": 1,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "",
+          "",
+          "a",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 11,
+        "row": 1,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "PETROLIFERI",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      {
+        "page": 13,
+        "row": 1,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "GREGORIO",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    ],
+    "first_candidates": [
+      {
+        "page": 3,
+        "row": 2,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "COSTRADE SRL",
+          "ANDRIA (BT) Via Stazio n.238",
+          "",
+          "03301300723",
+          "III-IV-V-VI-VII",
+          "01/03/2016",
+          ""
+        ],
+        "dates": [
+          "01/03/2016"
+        ],
+        "ids": [
+          "03301300723"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 3,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "LEONE METALLI SRL",
+          "TRANI (BT) S.P. ANDRIA-TRANI KM.1,800",
+          "",
+          "07129730722",
+          "X",
+          "10/02/2017",
+          ""
+        ],
+        "dates": [
+          "10/02/2017"
+        ],
+        "ids": [
+          "07129730722"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 4,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "FRAMI SRLS",
+          "TRANI (BT) Via Gisotti n.47",
+          "",
+          "07820310725",
+          "I",
+          "09/10/2017",
+          ""
+        ],
+        "dates": [
+          "09/10/2017"
+        ],
+        "ids": [
+          "07820310725"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 5,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "ECO BIOIL SRL",
+          "ANDRIA viale della Costituzione nr. 195",
+          "",
+          "07992390729",
+          "X",
+          "29/01/2018",
+          ""
+        ],
+        "dates": [
+          "29/01/2018"
+        ],
+        "ids": [
+          "07992390729"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 6,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "KEYLOG S.P.A. SOCIETA’ CONSORTILE",
+          "TRANI (BT) Corso M.R. IMBRIANI N.111",
+          "",
+          "04632940963",
+          "III",
+          "07/02/2019",
+          ""
+        ],
+        "dates": [
+          "07/02/2019"
+        ],
+        "ids": [
+          "04632940963"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 7,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "A.R.C. TRASPORTI SOCIETA’ COOPERATIVA",
+          "ANDRIA via Torquato Tasso n. 3",
+          "",
+          "P. IVA 07030880723",
+          "X – I – III – V - VI",
+          "22/10/2019",
+          ""
+        ],
+        "dates": [
+          "22/10/2019"
+        ],
+        "ids": [
+          "07030880723"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 8,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "AUTOTRASPORTI CALABRESE MARIA ROSARIA",
+          "Barletta (BT) Via Degli Orti n.75",
+          "",
+          "Cod. Fisc. CLBMRS59C56A669NP. IVA 03256310727",
+          "X – VI",
+          "01/02/2019",
+          ""
+        ],
+        "dates": [
+          "01/02/2019"
+        ],
+        "ids": [
+          "03256310727"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 3,
+        "row": 9,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "AUTOTRASPORTI PALMITESSA MASSIMO PASQUALE",
+          "Barletta (BT) Via Degli Orti n.75",
+          "",
+          "Cod. Fisc. PLMMSM88E18A669K P.IVA 07054540724",
+          "X – VI",
+          "01/02/2019",
+          ""
+        ],
+        "dates": [
+          "01/02/2019"
+        ],
+        "ids": [
+          "07054540724"
+        ],
+        "cfs": [
+          "PLMMSM88E18A669K"
+        ]
+      },
+      {
+        "page": 3,
+        "row": 10,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "ECO ITALIA SRL",
+          "BARLETTA (BT) Via Vicinale Petraro, 65",
+          "",
+          "07010710726",
+          "X",
+          "17/03/2021",
+          ""
+        ],
+        "dates": [
+          "17/03/2021"
+        ],
+        "ids": [
+          "07010710726"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 4,
+        "row": 1,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "COOPERATIVE ENGINEERING & SERVICE S.C.A.R.L.",
+          "ANDRIA (BT) Via Annunziata n. 182",
+          "",
+          "P.IVA 08053090729",
+          "VIII",
+          "18/03/2022",
+          ""
+        ],
+        "dates": [
+          "18/03/2022"
+        ],
+        "ids": [
+          "08053090729"
+        ],
+        "cfs": []
+      }
+    ],
+    "last_candidates": [
+      {
+        "page": 12,
+        "row": 6,
+        "width": 8,
+        "section": null,
+        "cells": [
+          "DE FEUDIS S.R.L.",
+          "TRANI Via Barletta C.da Curatoio s.n.c.",
+          "",
+          "",
+          "09141520727",
+          "I",
+          "01/07/2026",
+          ""
+        ],
+        "dates": [
+          "01/07/2026"
+        ],
+        "ids": [
+          "09141520727"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 12,
+        "row": 7,
+        "width": 8,
+        "section": null,
+        "cells": [
+          "F.LLI CAPUZZOLO TRASPORTI SNC DI CAPUZZOLO GIUSEPPE &",
+          "ANDRIA (BT) VIA PARIGI N.15",
+          "",
+          "P.IVA 05974720723",
+          "",
+          "I – II – III – V – VI - X",
+          "07/07/2026",
+          ""
+        ],
+        "dates": [
+          "07/07/2026"
+        ],
+        "ids": [
+          "05974720723"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 13,
+        "row": 2,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "GLOW UP COSTRUZIONI S.R.L.",
+          "BISCEGLIE Via San Lorenzo n.40",
+          "",
+          "09144500726",
+          "II-III-VI-VII",
+          "21/07/2026",
+          ""
+        ],
+        "dates": [
+          "21/07/2026"
+        ],
+        "ids": [
+          "09144500726"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 13,
+        "row": 3,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "IMPRENDIL S.R.L.",
+          "MARGHERITA DI SAVOIA P.za Marconi n.9",
+          "",
+          "09196790720",
+          "I-III-V",
+          "28/07/2026",
+          ""
+        ],
+        "dates": [
+          "28/07/2026"
+        ],
+        "ids": [
+          "09196790720"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 13,
+        "row": 4,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "LANOTTE LUIGI Impresa individuale",
+          "BARLETTA Via Canne n.76",
+          "",
+          "LNTLGU84H19A669Z",
+          "X",
+          "28/07/2026",
+          ""
+        ],
+        "dates": [
+          "28/07/2026"
+        ],
+        "ids": [],
+        "cfs": [
+          "LNTLGU84H19A669Z"
+        ]
+      },
+      {
+        "page": 13,
+        "row": 5,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "TEKNOTERM S.N.C. di Carbone Antonio & C.",
+          "BISCEGLIE Via Del Cristianesimo n.14",
+          "",
+          "05683460728",
+          "IV",
+          "30/07/2026",
+          ""
+        ],
+        "dates": [
+          "30/07/2026"
+        ],
+        "ids": [
+          "05683460728"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 13,
+        "row": 6,
+        "width": 7,
+        "section": null,
+        "cells": [
+          "SPIRITICCHIO MICHELE IMPRESA INDIVIDUALE",
+          "ANDRIA VIA GIOVANNI CABOTO 10, 76123",
+          "",
+          "08658770725/ SPRMHL85H17A285E",
+          "I",
+          "05/08/2026",
+          ""
+        ],
+        "dates": [
+          "05/08/2026"
+        ],
+        "ids": [
+          "08658770725"
+        ],
+        "cfs": [
+          "SPRMHL85H17A285E"
+        ]
+      },
+      {
+        "page": 14,
+        "row": 1,
+        "width": 7,
+        "section": "I",
+        "cells": [
+          "PIAZZOLLA GIOACCHINO -Impresa individuale",
+          "BARLETTA Via Pio La Torre n.7",
+          "",
+          "PZZGCH86M09A669T",
+          "VI",
+          "07/09/2026",
+          ""
+        ],
+        "dates": [
+          "07/09/2026"
+        ],
+        "ids": [],
+        "cfs": [
+          "PZZGCH86M09A669T"
+        ]
+      },
+      {
+        "page": 14,
+        "row": 2,
+        "width": 7,
+        "section": "I",
+        "cells": [
+          "SO.GE.AL. DI PARENTE FRANCESCO & C. S.A.S.",
+          "BARLETTA VIA FOGGIA 37",
+          "",
+          "02521840724",
+          "IX",
+          "07/09/2026",
+          ""
+        ],
+        "dates": [
+          "07/09/2026"
+        ],
+        "ids": [
+          "02521840724"
+        ],
+        "cfs": []
+      },
+      {
+        "page": 14,
+        "row": 3,
+        "width": 7,
+        "section": "I",
+        "cells": [
+          "OPERE GESTIONI S.R.L.",
+          "TRANI VIA DALMAZIA 44",
+          "",
+          "08104790723",
+          "III",
+          "08/01/2026",
+          ""
+        ],
+        "dates": [
+          "08/01/2026"
+        ],
+        "ids": [
+          "08104790723"
+        ],
+        "cfs": []
+      }
+    ]
+  }
+}
