@@ -37,6 +37,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Bari'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Udine'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Bergamo'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Barletta-Andria-Trani'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -77,8 +78,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,16729);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo'].includes(r.authority_key));
+      assert.equal(stats.total,17303);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -171,6 +172,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(bergamo.filter(r=>r.source_key==='bergamo-listed').length,1434);
       assert.equal(bergamo.filter(r=>r.source_key==='bergamo-applicants').length,612);
       assert.deepEqual(statusCounts(bergamo),{listed:626,pending:612,renewal_update_in_progress:808});
+      const barletta=registry.records.filter(r=>r.authority_key==='barletta-andria-trani');
+      assert.equal(barletta.length,574);
+      assert.equal(barletta.filter(r=>r.source_key==='barletta-andria-trani-listed').length,493);
+      assert.equal(barletta.filter(r=>r.source_key==='barletta-andria-trani-applicants').length,81);
+      assert.deepEqual(statusCounts(barletta),{listed:437,pending:81,renewal_update_in_progress:56});
       const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
