@@ -1,17 +1,17 @@
-name: Bergamo parser validation 2026-09-11
+name: Bergamo activity-prefix audit 2026-09-11
 
 on:
   push:
     branches: [expansion/bergamo-2026-09-11]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  validate:
-    if: github.event.head_commit.message == 'Validate Bergamo parser'
+  audit:
+    if: github.event.head_commit.message == 'Audit Bergamo activity prefixes'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,60 +19,67 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install validation runtime
-        run: |
-          python -m pip install -e '.[dev,publication]'
-          python -m pip install -q requests beautifulsoup4
-      - name: Reverify official source identity
+      - name: Audit unlabelled activity values against source-labelled descriptions
         shell: bash
         run: |
+          python -m pip install -q requests pdfplumber
           python - <<'PY'
-          import hashlib
+          import hashlib, json, re
+          from collections import defaultdict
           from pathlib import Path
-          from urllib.parse import urljoin
-          import requests
-          from bs4 import BeautifulSoup
+          import requests, pdfplumber
 
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list'
+          lattice=json.loads(Path('tmp/bergamo-lattice.json').read_text())
+          columns=json.loads(Path('tmp/bergamo-columns.json').read_text())
           SOURCES={
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6','ELENCO RICHIEDENTI ISCRIZIONE'),
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef','ELENCO ISCRITTE'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'),
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'),
           }
-          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; source-verification)'}
-          s=requests.Session(); landing=s.get(PAGE,headers=H,timeout=45); landing.raise_for_status()
-          soup=BeautifulSoup(landing.text,'html.parser')
-          links={urljoin(PAGE,a['href']):' '.join(a.stripped_strings) for a in soup.find_all('a',href=True)}
-          page_text=' '.join(soup.stripped_strings)
-          assert '27 Agosto 2026' in page_text, 'official page update marker drift'
-          for key,(url,sha,label) in SOURCES.items():
-              assert url in links, (key,'resource link missing')
-              assert label.casefold() in links[url].casefold(), (key,links[url])
-              response=s.get(url,headers=H,timeout=90); response.raise_for_status(); body=response.content
-              observed=hashlib.sha256(body).hexdigest(); assert observed==sha,(key,observed)
-              Path('/tmp',f'bergamo-{key}.pdf').write_bytes(body)
-              print(key,label,observed,len(body))
+          ROMAN=re.compile(r'^(XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)\b\s*',re.I)
+          H={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelistArchive/1.0; activity-audit)'}
+          def centre(w): return (float(w['x0'])+float(w['x1']))/2
+          def text_band(words,x0,x1,y0,y1):
+            selected=[w for w in words if x0<=centre(w)<x1 and y0<=float(w['top'])<y1]
+            selected.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
+            return ' '.join(str(w['text']) for w in selected).strip()
+          s=requests.Session(); out={'schema_version':1,'sources':{}}
+          for key,(url,sha) in SOURCES.items():
+            response=s.get(url,headers=H,timeout=90); response.raise_for_status(); body=response.content
+            assert hashlib.sha256(body).hexdigest()==sha
+            path=Path('/tmp')/f'bergamo-{key}.pdf'; path.write_bytes(body)
+            labelled=defaultdict(set); rows=[]
+            with pdfplumber.open(path) as pdf:
+              for page_meta,page in zip(lattice['sources'][key]['pages'],pdf.pages):
+                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                targets=[r['target_top'] for r in page_meta['rows']]
+                for idx,y in enumerate(targets):
+                  y0=y-4; y1=(targets[idx+1]-4 if idx+1<len(targets) else min(y+38,float(page.height)-15))
+                  activity=text_band(words,*columns['bands'][key]['activity'],y0,y1)
+                  m=ROMAN.match(activity)
+                  if m:
+                    code=m.group(1).upper(); description=ROMAN.sub('',activity).strip()
+                    labelled[description].add(code)
+                  rows.append({'page':page_meta['page'],'row':idx+1,'activity':activity})
+            exceptions=[]
+            for item in rows:
+              activity=item['activity']; m=ROMAN.match(activity)
+              if m: continue
+              exact_codes=sorted(labelled.get(activity,set())) if activity else []
+              exceptions.append(item|{'exact_source_label_matches':exact_codes})
+            out['sources'][key]={
+              'row_count':len(rows),
+              'labelled_description_count':len(labelled),
+              'unlabelled_count':len(exceptions),
+              'exceptions':exceptions,
+            }
+            print(key.upper(),'UNLABELLED',len(exceptions),json.dumps(exceptions,ensure_ascii=False))
+          Path('tmp/bergamo-activity-prefixes.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
           PY
-      - name: Validate parser against byte-pinned sources
-        shell: bash
+      - name: Commit temporary activity-prefix checkpoint
         run: |
-          pytest -q tests/test_bergamo_parser_semantics.py
-          python - <<'PY'
-          from pathlib import Path
-          from white_list_archive.parsers.bergamo_positioned import parse_bergamo_applicants, parse_bergamo_listed
-
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list'
-          base={'authority_key':'bergamo','authority_name':'Prefettura di Bergamo','register_key':'bergamo-ordinary','register_name':'White List ordinaria','reference_date':'2026-08-27','source_page_url':PAGE}
-          ac=base|{'source_key':'bergamo-applicants','population_scope':'applicant','resource_url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf','sha256':'65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6'}
-          lc=base|{'source_key':'bergamo-listed','population_scope':'listed','resource_url':'https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf','sha256':'b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef'}
-          applicants=parse_bergamo_applicants(Path('/tmp/bergamo-applicants.pdf'),ac)
-          listed=parse_bergamo_listed(Path('/tmp/bergamo-listed.pdf'),lc)
-          assert len(applicants.records)==612
-          assert applicants.diagnostics['status_counts']=={'pending':612}
-          assert applicants.diagnostics['identifier_coverage']==555
-          assert len(listed.records)==1434
-          assert listed.diagnostics['status_counts']=={'listed':626,'renewal_update_in_progress':808}
-          assert listed.diagnostics['identifier_coverage']==1425
-          assert listed.diagnostics['multiple_strict_identifier_records']==22
-          print('APPLICANTS',applicants.diagnostics)
-          print('LISTED',listed.diagnostics)
-          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/bergamo-activity-prefixes.json
+          git diff --cached --check
+          git commit -m 'Checkpoint Bergamo activity prefixes'
+          git push origin HEAD:expansion/bergamo-2026-09-11
