@@ -38,8 +38,14 @@ def test_crotone_italian_dates_are_strict_but_allow_source_ordinal() -> None:
         "2022-12-07",
         "Richiesta rinnovo",
     )
+    assert _parse_expiry("14 giungo 2022 Richiesta rinnovo") == (
+        "2022-06-14",
+        "Richiesta rinnovo",
+    )
     with pytest.raises(RuntimeError, match="unreviewed expiry typography"):
         _parse_expiry("8 dicembre2022 Richiesta rinnovo")
+    with pytest.raises(RuntimeError, match="unreviewed expiry typography"):
+        _parse_expiry("15 giungo 2022 Richiesta rinnovo")
     with pytest.raises(RuntimeError, match="unreviewed date typography"):
         _parse_date("23/09/2025")
     with pytest.raises(RuntimeError, match="invalid calendar date"):
