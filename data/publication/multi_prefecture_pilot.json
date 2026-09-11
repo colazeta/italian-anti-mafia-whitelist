@@ -570,6 +570,40 @@
       "last_source_update": "2026-09-09",
       "last_source_update_basis": "current official attachment label updated 09/09/2026",
       "notes": "Current byte-pinned requesting-company population. The official document positively identifies the applicant population; all 19 observations map to pending. Exact page-boundary repair is documented in docs/sources/udine-operational-check-2026-09-10.md."
+    },
+    {
+      "source_key": "bergamo-listed",
+      "parser": "bergamo_positioned_listed",
+      "authority_key": "bergamo",
+      "authority_name": "Prefettura di Bergamo",
+      "register_key": "bergamo-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-08-27",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf",
+      "sha256": "b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef",
+      "expected_source_rows": 1434,
+      "last_source_update": "2026-08-27",
+      "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
+      "notes": "Byte-pinned listed population with 1,434 reviewed logical rows. 808 source rows carry a positive update-in-progress date; 47 reviewed activity rows lack a recoverable Roman section prefix and retain raw activity without an inferred section. Exact boundaries are documented in docs/sources/bergamo-operational-check-2026-09-11.md."
+    },
+    {
+      "source_key": "bergamo-applicants",
+      "parser": "bergamo_positioned_applicants",
+      "authority_key": "bergamo",
+      "authority_name": "Prefettura di Bergamo",
+      "register_key": "bergamo-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-08-27",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf",
+      "sha256": "65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6",
+      "expected_source_rows": 612,
+      "last_source_update": "2026-08-27",
+      "last_source_update_basis": "official landing page Ultimo aggiornamento marker and current attachment identity reverified 11 September 2026",
+      "notes": "Byte-pinned applicant population with 612 reviewed logical rows. Applicant status is supported by the explicit current publication identity; 12 blank application dates and 11 activity rows without a recoverable Roman section prefix are preserved without inference. Exact boundaries are documented in docs/sources/bergamo-operational-check-2026-09-11.md."
     }
   ]
 }
