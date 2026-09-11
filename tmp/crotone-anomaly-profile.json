@@ -1,0 +1,2500 @@
+{
+  "profiled_on": "2026-09-11",
+  "sources": {
+    "listed": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-iscritte-white-list-2.pdf",
+      "sha256": "c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511",
+      "pages": 130,
+      "raw_nonempty_rows": 752,
+      "headers": 8,
+      "named_rows": 742,
+      "blank_identity_rows": [
+        {
+          "page": 63,
+          "table": 1,
+          "row": 6,
+          "section": 4,
+          "cells": [
+            "",
+            "",
+            "",
+            "23 settembre 2025",
+            "23 settembre 2026 Richiesta rinnovo",
+            "istruttoria"
+          ],
+          "previous": [
+            "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+            "02613630793",
+            "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+            "27 marzo 2023",
+            "27 marzo 2024 Richiesta rinnovo",
+            "istruttoria"
+          ],
+          "next": [
+            "SCERBO LUIGI",
+            "03838490799",
+            "Piazza Fiume Neto,24- ISOLA DI CAPO RIZZUTO",
+            "10 luglio 2025",
+            "10 luglio 2026",
+            ""
+          ]
+        },
+        {
+          "page": 117,
+          "table": 2,
+          "row": 1,
+          "section": 9,
+          "cells": [
+            "",
+            "PARTITA IVA",
+            "SEDE",
+            "DATA ISCRIZIONE",
+            "SCADENZA ISCRIZIONE",
+            "NOTE"
+          ],
+          "previous": null,
+          "next": null
+        }
+      ],
+      "blank_page_texts": {
+        "63": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA (C.D. WHITE LIST) PM COSTRUZIONI S.R.L. 0330033796 Via Esterna Verdogne n.38- 30 marzo 2026 30 marzo 2027 CROTONE REAL S.R.L. 03734690799 Via A. Avogadro, 188 – 16 gennaio 2026 16 gennaio 2027 rinnovo CROTONE RIILLO GIORGIO D.I. 02102860794 Via Le Castella – ISOLA DI CAPO 11 febbraio 2025 11 febbraio 2026 rinnovo RIZZUTO (KR) SA.CAL.BIT. S.R.L. 02929200794 Contrada Lipuda – CIRO’ 21 gennaio 2020 21 gennaio 2021 MARINA (KR) Richiesta rinnovo Istruttoria SAMMARCO GIUSEPPE 02613630793 Loc. Lipuda snc -CIRO’ MARINA 27 marzo 2023 27 marzo 2024 istruttoria COSTRUZIONI GENERALI SRL (KR) Richiesta rinnovo 23 settembre 2025 23 settembre 2026 istruttoria Richiesta rinnovo SCERBO LUIGI 03838490799 Piazza Fiume Neto,24- ISOLA DI 10 luglio 2025 10 luglio 2026 CAPO RIZZUTO SCHIPANI SIGFRIDO 02297160794 VIA NAZIONALE N.36- 23 settembre 2025 23 settembre 2026 istruttoria MESORACA Richiesta rinnovo",
+        "117": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA (C.D. WHITE LIST) FIELD S.R.L. 03319040790 Via Serravalle,9 - 1 agosto 2024 1° agosto 2025 istruttoria CUTRO Richiesta rinnovo FIORI LAUDARI DI 03935040794 Via Vittorio 2 ottobre 2025 2 ottobre 2026 ABBRUZZESE ROSETTA Veneto,159- CROTONE FLOREAL INNOVATIVE 03643150794 Via Leonardo Gallucci, istruttoria COSENTINO – 64 - CROTONE 27 febbraio 2023 27 febbraio 2024 SOCIETA’ Richiesta rinnovo COOPERATIVA Via Conte n.16- 6 maggio 2025 6 maggio 2026 istruttoria 02837380795 PALLAGORIO Richiesta rinnovo GRAZIANO ERNESTO IL PUNTO VERDE DI DE 02089190793 Via Roma n.35- 24 ottobre 2023 24 ottobre 2024 istruttoria TURSI MICHELE STRONGOLI Richiesta rinnovo AZIENDE ISCRITTE NELLA SEZIONE 9 - Ristorazione, gestione delle mense e catering PARTITA IVA SEDE DATA ISCRIZIONE SCADENZA NOTE ISCRIZIONE"
+      },
+      "section_counts": {
+        "1": 108,
+        "2": 57,
+        "3": 151,
+        "4": 61,
+        "5": 154,
+        "6": 125,
+        "7": 8,
+        "8": 4,
+        "9": 10,
+        "10": 64
+      },
+      "status_counts": {
+        "renewal_update_in_progress": 601,
+        "listed": 141
+      },
+      "listing_blank_count": 2,
+      "listing_nonblank_unparsed_count": 2,
+      "expiry_blank_count": 1,
+      "expiry_nonblank_unparsed_count": 2,
+      "groups": 340,
+      "group_status_counts": {
+        "renewal_update_in_progress": 267,
+        "listed": 73
+      },
+      "group_identifier_coverage": 331,
+      "group_malformed_ids": [
+        {
+          "name": "C.B. COSTRUZIONI S.A.S DI BASILE C & C",
+          "raw": "04953390152/00868600792"
+        },
+        {
+          "name": "CLARA’ ANTONIO",
+          "raw": "CLRNTN63D08I308M 01643890799"
+        },
+        {
+          "name": "PM COSTRUZIONI S.R.L.",
+          "raw": "0330033796"
+        },
+        {
+          "name": "ELIA SALVATORE",
+          "raw": "0200230793"
+        },
+        {
+          "name": "MITTICA COSTRUZIONI EDILI DI FRANCESCO MITTICA",
+          "raw": "MTTFNC92T06D122K 03503440798"
+        },
+        {
+          "name": "PM COSTRUZIONI S.R.L.",
+          "raw": "0330033796"
+        },
+        {
+          "name": "CLARA’ ANTONIO",
+          "raw": "CLRNTN63D08I308M 01643890799"
+        },
+        {
+          "name": "AMARITI ANSELMO",
+          "raw": "C.F. MRTNLM57M01H403J"
+        },
+        {
+          "name": "MAGNOLIA MARTA",
+          "raw": "MGNMRT90R43D122 D 03565230798"
+        }
+      ],
+      "same_section_duplicate_groups": [],
+      "identity_variant_conflict_count": 23,
+      "identity_variant_conflicts": [
+        {
+          "identity": [
+            "3g costruzioni srl",
+            "09666730016"
+          ],
+          "variant_count": 3,
+          "rows": [
+            {
+              "page": 1,
+              "table": 1,
+              "row": 2,
+              "section": 1,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc - COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 28,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc - COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 56,
+              "table": 1,
+              "row": 2,
+              "section": 4,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc -COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 65,
+              "table": 1,
+              "row": 2,
+              "section": 5,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc- COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 91,
+              "table": 1,
+              "row": 2,
+              "section": 6,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc- COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 114,
+              "table": 1,
+              "row": 2,
+              "section": 7,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc- COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 120,
+              "table": 1,
+              "row": 2,
+              "section": 10,
+              "name": "3G COSTRUZIONI SRL",
+              "id": "09666730016",
+              "office": "Località Cona snc - COTRONEI (KR)",
+              "listing_raw": "3 settembre 2025",
+              "listing_iso": "2025-09-03",
+              "expiry_raw": "3 settembre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-09-03",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "a.s. scavi s.r.l.",
+            "03724190792"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 1,
+              "table": 1,
+              "row": 4,
+              "section": 1,
+              "name": "A.S. SCAVI S.R.L.",
+              "id": "03724190792",
+              "office": "Località Ovile Spinoso, snc- ISOLA DI CAPO RIZZUTO",
+              "listing_raw": "2 ottobre 2025",
+              "listing_iso": "2025-10-02",
+              "expiry_raw": "2 ottobre 2026",
+              "expiry_iso": "2026-10-02",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            },
+            {
+              "page": 28,
+              "table": 1,
+              "row": 5,
+              "section": 3,
+              "name": "A.S. SCAVI S.R.L.",
+              "id": "03724190792",
+              "office": "Località Ovile Spinoso,snc- ISOLA DI CAPO RIZZUTO",
+              "listing_raw": "2 ottobre 2025",
+              "listing_iso": "2025-10-02",
+              "expiry_raw": "2 ottobre 2026",
+              "expiry_iso": "2026-10-02",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            },
+            {
+              "page": 65,
+              "table": 1,
+              "row": 4,
+              "section": 5,
+              "name": "A.S. SCAVI S.R.L.",
+              "id": "03724190792",
+              "office": "Località Ovile Spinoso,snc- ISOLA DI CAPO RIZZUTO",
+              "listing_raw": "2 ottobre 2025",
+              "listing_iso": "2025-10-02",
+              "expiry_raw": "2 ottobre 2026",
+              "expiry_iso": "2026-10-02",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "c.m. costruzioni s.r.l.",
+            "03672320797"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 2,
+              "table": 1,
+              "row": 7,
+              "section": 1,
+              "name": "C.M. COSTRUZIONI S.R.L.",
+              "id": "03672320797",
+              "office": "Via Paolo Borsellino,12- MELISSA",
+              "listing_raw": "6 marzo 2025",
+              "listing_iso": "2025-03-06",
+              "expiry_raw": "6 marzo 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-03-06",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 31,
+              "table": 1,
+              "row": 4,
+              "section": 3,
+              "name": "C.M. COSTRUZIONI S.R.L.",
+              "id": "03672320797",
+              "office": "Via Paolo Borsellino,12- MELISSA",
+              "listing_raw": "6 marzo 2025",
+              "listing_iso": "2025-03-06",
+              "expiry_raw": "6 marzo 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-03-06",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 68,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "C.M. COSTRUZIONI S.R.L.",
+              "id": "03672320797",
+              "office": "Via Paolo Borsellino, 12, frazione Torre - MELISSA (KR)",
+              "listing_raw": "6 marzo 2025",
+              "listing_iso": "2025-03-06",
+              "expiry_raw": "6 marzo 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-03-06",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "chisari gaetano s.r.l.",
+            "02412350791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 3,
+              "table": 1,
+              "row": 5,
+              "section": 1,
+              "name": "CHISARI GAETANO S.R.L.",
+              "id": "02412350791",
+              "office": "Loc. Ventarola n.21 ISOLA DI CAPO RIZZUTO (KR)",
+              "listing_raw": "18 dicembre 2023",
+              "listing_iso": "2023-12-18",
+              "expiry_raw": "18 dicembre 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-12-18",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 19,
+              "table": 1,
+              "row": 2,
+              "section": 2,
+              "name": "CHISARI GAETANO S.R.L.",
+              "id": "02412350791",
+              "office": "Loc. Ventarola n.21 ISOLA DI CAPO RIZZUTO (KR)",
+              "listing_raw": "18 dicembre 2023",
+              "listing_iso": "2023-12-18",
+              "expiry_raw": "18 dicembre 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-12-18",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 32,
+              "table": 1,
+              "row": 5,
+              "section": 3,
+              "name": "CHISARI GAETANO S.R.L.",
+              "id": "02412350791",
+              "office": "Loc. Ventarola n.21 ISOLA DI CAPO RIZZUTO (KR)",
+              "listing_raw": "18 dicembre 2023",
+              "listing_iso": "2023-12-18",
+              "expiry_raw": "18 dicembre 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-12-18",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 57,
+              "table": 1,
+              "row": 4,
+              "section": 4,
+              "name": "CHISARI GAETANO S.R.L.",
+              "id": "02412350791",
+              "office": "Loc. Ventarola n.21 - ISOLA DI CAPO RIZZUTO (KR)",
+              "listing_raw": "18 dicembre 2023",
+              "listing_iso": "2023-12-18",
+              "expiry_raw": "18 dicembre 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-12-18",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 69,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "CHISARI GAETANO S.R.L.",
+              "id": "02412350791",
+              "office": "Loc. Ventarola n.21 - ISOLA DI CAPO RIZZUTO (KR)",
+              "listing_raw": "18 dicembre 2023",
+              "listing_iso": "2023-12-18",
+              "expiry_raw": "18 dicembre 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-12-18",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "clara’ antonio",
+            "clrntn63d08i308m 01643890799"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 3,
+              "table": 1,
+              "row": 7,
+              "section": 1,
+              "name": "CLARA’ ANTONIO",
+              "id": "CLRNTN63D08I308M 01643890799",
+              "office": "Via Barracco n.1 – SANTA SEVERINA",
+              "listing_raw": "14 giugno 2021",
+              "listing_iso": "2021-06-14",
+              "expiry_raw": "14 giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-14",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 19,
+              "table": 1,
+              "row": 3,
+              "section": 2,
+              "name": "CLARA’ ANTONIO",
+              "id": "CLRNTN63D08I308M 01643890799",
+              "office": "Via Barracco n.1 – SANTA SEVERINA",
+              "listing_raw": "14 giugno 2021",
+              "listing_iso": "2021-06-14",
+              "expiry_raw": "14 giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-14",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 33,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "CLARA’ ANTONIO",
+              "id": "CLRNTN63D08I308M 01643890799",
+              "office": "Via Barracco n.1 – SANTA SEVERINA",
+              "listing_raw": "14 giugno 2021",
+              "listing_iso": "2021-06-14",
+              "expiry_raw": "14 giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-14",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 69,
+              "table": 1,
+              "row": 5,
+              "section": 5,
+              "name": "CLARA’ ANTONIO",
+              "id": "CLRNTN63D08I308M 01643890799",
+              "office": "Via Barracco n.1 – SANTA SEVERINA",
+              "listing_raw": "14 giugno 2021",
+              "listing_iso": "2021-06-14",
+              "expiry_raw": "14 giungo 2022 Richiesta rinnovo",
+              "expiry_iso": "",
+              "expiry_tail": "14 giungo 2022 Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "colacino nicola impresa edile",
+            "03764390799"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 4,
+              "table": 1,
+              "row": 1,
+              "section": 1,
+              "name": "COLACINO NICOLA IMPRESA EDILE",
+              "id": "03764390799",
+              "office": "Via Salerno n. 2 - CUTRO",
+              "listing_raw": "25 settembre 2025",
+              "listing_iso": "2025-09-25",
+              "expiry_raw": "25 settembre 2026",
+              "expiry_iso": "2026-09-25",
+              "expiry_tail": "",
+              "note": "rinnovo",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 19,
+              "table": 1,
+              "row": 5,
+              "section": 2,
+              "name": "COLACINO NICOLA IMPRESA EDILE",
+              "id": "03764390799",
+              "office": "Via Salerno n. 2 - CUTRO",
+              "listing_raw": "25 settembre 2025",
+              "listing_iso": "2025-09-25",
+              "expiry_raw": "25 settembre 2026",
+              "expiry_iso": "2026-09-25",
+              "expiry_tail": "",
+              "note": "rinnovo",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 57,
+              "table": 1,
+              "row": 5,
+              "section": 4,
+              "name": "COLACINO NICOLA IMPRESA EDILE",
+              "id": "03764390799",
+              "office": "Via Salerno n. 2 -CUTRO",
+              "listing_raw": "25 settembre 2025",
+              "listing_iso": "2025-09-25",
+              "expiry_raw": "25 settembre 2026",
+              "expiry_iso": "2026-09-25",
+              "expiry_tail": "",
+              "note": "rinnovo",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "gcc s.r.l.",
+            "03225630791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 6,
+              "table": 1,
+              "row": 5,
+              "section": 1,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 21,
+              "table": 1,
+              "row": 5,
+              "section": 2,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 41,
+              "table": 1,
+              "row": 1,
+              "section": 3,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 58,
+              "table": 1,
+              "row": 9,
+              "section": 4,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 76,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 101,
+              "table": 1,
+              "row": 6,
+              "section": 6,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 115,
+              "table": 1,
+              "row": 3,
+              "section": 7,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc - PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 124,
+              "table": 1,
+              "row": 1,
+              "section": 10,
+              "name": "GCC S.R.L.",
+              "id": "03225630791",
+              "office": "Località Pugillo snc- PETILIA POLICASTRO (KR)",
+              "listing_raw": "29 giugno 2022",
+              "listing_iso": "2022-06-29",
+              "expiry_raw": "29 giugno 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-06-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "icea s.r.l.",
+            "03379890795"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 7,
+              "table": 1,
+              "row": 2,
+              "section": 1,
+              "name": "ICEA S.R.L.",
+              "id": "03379890795",
+              "office": "Contrada Marinetto – CIRO’ MARINA (KR)",
+              "listing_raw": "1° giugno 2021",
+              "listing_iso": "2021-06-01",
+              "expiry_raw": "1° giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 22,
+              "table": 1,
+              "row": 4,
+              "section": 2,
+              "name": "ICEA S.R.L.",
+              "id": "03379890795",
+              "office": "Contrada Marinetto – CIRO’ MARINA (KR)",
+              "listing_raw": "1 giugno 2021",
+              "listing_iso": "2021-06-01",
+              "expiry_raw": "1 giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 42,
+              "table": 1,
+              "row": 5,
+              "section": 3,
+              "name": "ICEA S.R.L.",
+              "id": "03379890795",
+              "office": "Contrada Marinetto – CIRO’ MARINA (KR)",
+              "listing_raw": "1° giugno 2021",
+              "listing_iso": "2021-06-01",
+              "expiry_raw": "1° giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 78,
+              "table": 1,
+              "row": 4,
+              "section": 5,
+              "name": "ICEA S.R.L.",
+              "id": "03379890795",
+              "office": "Contrada Marinetto – CIRO’ MARINA (KR)",
+              "listing_raw": "1° giugno 2021",
+              "listing_iso": "2021-06-01",
+              "expiry_raw": "1° giugno 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-06-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "mauro francesco costruzioni s.r.l.",
+            "02882550797"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 9,
+              "table": 1,
+              "row": 2,
+              "section": 1,
+              "name": "MAURO FRANCESCO COSTRUZIONI S.R.L.",
+              "id": "02882550797",
+              "office": "Loc. Topanello- ROCCA DI NETO",
+              "listing_raw": "9 giugno 2025",
+              "listing_iso": "2025-06-09",
+              "expiry_raw": "9 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-09",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Iscritta con decorrenza 9 giugno 2025 data del provvedimento prefettizio n.28475 emesso ai sensi dell’ex art.34/bis comma 6, del D.Lgs n.159/2011 che ha ammesso l’impresa alla misura del controllo giudiziario. istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 24,
+              "table": 1,
+              "row": 1,
+              "section": 2,
+              "name": "MAURO FRANCESCO COSTRUZIONI S.R.L.",
+              "id": "02882550797",
+              "office": "Loc. Topanello- ROCCA DI NETO",
+              "listing_raw": "9 giugno 2025",
+              "listing_iso": "2025-06-09",
+              "expiry_raw": "9 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-09",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Iscritta con decorrenza 9 giugno 2025 data del provvedimento prefettizio n.28475 emesso ai sensi dell’ex art.34/bis comma 6, del D.Lgs n.159/2011 che ha ammesso l’impresa all’impresa alla misura del controllo giudiziario. Istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 46,
+              "table": 1,
+              "row": 1,
+              "section": 3,
+              "name": "MAURO FRANCESCO COSTRUZIONI S.R.L.",
+              "id": "02882550797",
+              "office": "Loc. Topanello- ROCCA DI NETO",
+              "listing_raw": "9 giugno 2025",
+              "listing_iso": "2025-06-09",
+              "expiry_raw": "9 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-09",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Iscritta con decorrenza 9 giugno 2025 data del provvedimento prefettizio n.28475 emesso ai sensi dell’ex art.34/bis comma 6, del D.Lgs n.159/2011 che ha ammesso l’impresa alla misura del controllo giudiziario. istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 81,
+              "table": 1,
+              "row": 5,
+              "section": 5,
+              "name": "MAURO FRANCESCO COSTRUZIONI S.R.L.",
+              "id": "02882550797",
+              "office": "Loc. Topanello- ROCCA DI NETO",
+              "listing_raw": "9 giugno 2025",
+              "listing_iso": "2025-06-09",
+              "expiry_raw": "9 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-09",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Iscritta con decorrenza 9 giugno 2025 data del provvedimento prefettizio n.28475 emesso ai sensi dell’ex art.34/bis comma 6, del D.Lgs n.159/2011 che ha ammesso l’impresa alla misura del controllo giudiziario. istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "opera srl",
+            "03176900797"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 10,
+              "table": 1,
+              "row": 9,
+              "section": 1,
+              "name": "OPERA SRL",
+              "id": "03176900797",
+              "office": "Via Salvatore Baffa, 233 – COTRONEI",
+              "listing_raw": "23 giugno 2025",
+              "listing_iso": "2025-06-23",
+              "expiry_raw": "23 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-23",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 50,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "OPERA SRL",
+              "id": "03176900797",
+              "office": "Via Salvatore Baffa, 233 – COTRONEI",
+              "listing_raw": "23 giugno 2025",
+              "listing_iso": "2025-06-23",
+              "expiry_raw": "23 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-23",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 86,
+              "table": 1,
+              "row": 2,
+              "section": 5,
+              "name": "OPERA SRL",
+              "id": "03176900797",
+              "office": "Via Salvatore Baffa, 233 – COTRONEI",
+              "listing_raw": "23 giungo 2025",
+              "listing_iso": "",
+              "expiry_raw": "23 giugno 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-06-23",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "pm costruzioni s.r.l.",
+            "0330033796"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 11,
+              "table": 1,
+              "row": 3,
+              "section": 1,
+              "name": "PM COSTRUZIONI S.R.L.",
+              "id": "0330033796",
+              "office": "Via Esterna Verdogne n.38- CROTONE",
+              "listing_raw": "",
+              "listing_iso": "",
+              "expiry_raw": "30 marzo 2026",
+              "expiry_iso": "2026-03-30",
+              "expiry_tail": "",
+              "note": "30 marzo 2027",
+              "status": "listed"
+            },
+            {
+              "page": 50,
+              "table": 1,
+              "row": 4,
+              "section": 3,
+              "name": "PM COSTRUZIONI S.R.L.",
+              "id": "0330033796",
+              "office": "Via Esterna Verdogne n.38- CROTONE",
+              "listing_raw": "30 marzo 2026",
+              "listing_iso": "2026-03-30",
+              "expiry_raw": "30 marzo 2027",
+              "expiry_iso": "2027-03-30",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            },
+            {
+              "page": 63,
+              "table": 1,
+              "row": 1,
+              "section": 4,
+              "name": "PM COSTRUZIONI S.R.L.",
+              "id": "0330033796",
+              "office": "Via Esterna Verdogne n.38- CROTONE",
+              "listing_raw": "30 marzo 2026",
+              "listing_iso": "2026-03-30",
+              "expiry_raw": "30 marzo 2027",
+              "expiry_iso": "2027-03-30",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            },
+            {
+              "page": 86,
+              "table": 1,
+              "row": 4,
+              "section": 5,
+              "name": "PM COSTRUZIONI S.R.L.",
+              "id": "0330033796",
+              "office": "Via Esterna Verdogne n.38- CROTONE",
+              "listing_raw": "30 marzo 2026",
+              "listing_iso": "2026-03-30",
+              "expiry_raw": "30 marzo 2027",
+              "expiry_iso": "2027-03-30",
+              "expiry_tail": "",
+              "note": "",
+              "status": "listed"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "recycling srl",
+            "02467810798"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 11,
+              "table": 1,
+              "row": 5,
+              "section": 1,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passo Vecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 50,
+              "table": 1,
+              "row": 7,
+              "section": 3,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passovecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 87,
+              "table": 1,
+              "row": 1,
+              "section": 5,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passovecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 108,
+              "table": 1,
+              "row": 4,
+              "section": 6,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passovecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 116,
+              "table": 1,
+              "row": 1,
+              "section": 8,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passovecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 128,
+              "table": 1,
+              "row": 6,
+              "section": 10,
+              "name": "RECYCLING SRL",
+              "id": "02467810798",
+              "office": "Località Passovecchio – CROTONE (KR)",
+              "listing_raw": "12 agosto 2025",
+              "listing_iso": "2025-08-12",
+              "expiry_raw": "12 agosto 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-08-12",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "sa.bi. sammarco srl",
+            "01807760796"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 11,
+              "table": 1,
+              "row": 8,
+              "section": 1,
+              "name": "SA.BI. SAMMARCO SRL",
+              "id": "01807760796",
+              "office": "Località Lipuda –CIRO’ MARINA (KR)",
+              "listing_raw": "7 dicembre 2021",
+              "listing_iso": "2021-12-07",
+              "expiry_raw": "7 dicembre2022 Richiesta rinnovo",
+              "expiry_iso": "",
+              "expiry_tail": "7 dicembre2022 Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 51,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "SA.BI. SAMMARCO SRL",
+              "id": "01807760796",
+              "office": "Località Lipuda –CIRO’ MARINA (KR)",
+              "listing_raw": "7 dicembre 2021",
+              "listing_iso": "2021-12-07",
+              "expiry_raw": "7 dicembre 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-12-07",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "sammarco giuseppe costruzioni generali srl",
+            "02613630793"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 12,
+              "table": 1,
+              "row": 4,
+              "section": 1,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 26,
+              "table": 1,
+              "row": 4,
+              "section": 2,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 52,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 63,
+              "table": 1,
+              "row": 5,
+              "section": 4,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 88,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc - CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 110,
+              "table": 1,
+              "row": 1,
+              "section": 6,
+              "name": "SAMMARCO GIUSEPPE COSTRUZIONI GENERALI SRL",
+              "id": "02613630793",
+              "office": "Loc. Lipuda snc -CIRO’ MARINA (KR)",
+              "listing_raw": "27 marzo 2023",
+              "listing_iso": "2023-03-27",
+              "expiry_raw": "27 marzo 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-03-27",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "tre c s.r.l.",
+            "03151250796"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 15,
+              "table": 1,
+              "row": 1,
+              "section": 1,
+              "name": "TRE C S.R.L.",
+              "id": "03151250796",
+              "office": "Via Esterna Marinella n.46 - CROTONE",
+              "listing_raw": "15 febbraio 2022",
+              "listing_iso": "2022-02-15",
+              "expiry_raw": "15 febbraio 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-02-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria In precedenza denominata CL COSTRUZIONI SRL",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 53,
+              "table": 1,
+              "row": 4,
+              "section": 3,
+              "name": "TRE C S.R.L.",
+              "id": "03151250796",
+              "office": "Via Esterna Marinella n.46 - CROTONE",
+              "listing_raw": "15 febbraio 2022",
+              "listing_iso": "2022-02-15",
+              "expiry_raw": "15 febbraio 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-02-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria In precedenza denominata CL COSTRUZIONI SRL",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 89,
+              "table": 1,
+              "row": 7,
+              "section": 5,
+              "name": "TRE C S.R.L.",
+              "id": "03151250796",
+              "office": "Via Esterna Marinella n.46 - CROTONE",
+              "listing_raw": "15 febbraio 2022",
+              "listing_iso": "2022-02-15",
+              "expiry_raw": "15 febbraio 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-02-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria In precedenza, denominata CL COSTRUZIONI SRL",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "baffa costruzioni di baffa lodo & figli s.r.l.",
+            "03102380791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 30,
+              "table": 1,
+              "row": 2,
+              "section": 3,
+              "name": "BAFFA COSTRUZIONI DI BAFFA LODO & FIGLI S.R.L.",
+              "id": "03102380791",
+              "office": "C.da Polveracchio – COTRONEI (KR)",
+              "listing_raw": "14 maggio 2025",
+              "listing_iso": "2025-05-14",
+              "expiry_raw": "14 maggio 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-05-14",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 67,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "BAFFA COSTRUZIONI DI BAFFA LODO & FIGLI S.R.L.",
+              "id": "03102380791",
+              "office": "C. da Polveracchio – COTRONEI (KR)",
+              "listing_raw": "14 maggio 2025",
+              "listing_iso": "2025-05-14",
+              "expiry_raw": "14 maggio 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-05-14",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "co.ge. srl progettazioni costruzioni generali servizi vari",
+            "00972720791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 33,
+              "table": 1,
+              "row": 4,
+              "section": 3,
+              "name": "CO.GE. SRL PROGETTAZIONI COSTRUZIONI GENERALI SERVIZI VARI",
+              "id": "00972720791",
+              "office": "Via S.P. 52 Km 0 n.84 – CROTONE (KR)",
+              "listing_raw": "4 aprile 2025",
+              "listing_iso": "2025-04-04",
+              "expiry_raw": "4 aprile 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-04-04",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 70,
+              "table": 1,
+              "row": 1,
+              "section": 5,
+              "name": "CO.GE. SRL PROGETTAZIONI COSTRUZIONI GENERALI SERVIZI VARI",
+              "id": "00972720791",
+              "office": "Via S.P. 52 Km 0 n.84 – CROTONE (KR)",
+              "listing_raw": "4 aprile 2025",
+              "listing_iso": "2025-04-04",
+              "expiry_raw": "",
+              "expiry_iso": "",
+              "expiry_tail": "",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "co.ge.sa. s.r.l.",
+            "03062050798"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 33,
+              "table": 1,
+              "row": 6,
+              "section": 3,
+              "name": "CO.GE.SA. S.R.L.",
+              "id": "03062050798",
+              "office": "C.so Garibaldi n.20 - CRUCOLI",
+              "listing_raw": "23 ottobre 2025",
+              "listing_iso": "2025-10-23",
+              "expiry_raw": "23 ottobre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-10-23",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 70,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "CO.GE.SA. S.R.L.",
+              "id": "03062050798",
+              "office": "C.so Garibaldi n.20 - CRUCOLI",
+              "listing_raw": "",
+              "listing_iso": "",
+              "expiry_raw": "23 ottobre 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-10-23",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "costantino energy e costruzioni s.r.l.",
+            "02966450799"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 35,
+              "table": 1,
+              "row": 1,
+              "section": 3,
+              "name": "COSTANTINO ENERGY E COSTRUZIONI S.R.L.",
+              "id": "02966450799",
+              "office": "Contrada Zanchi, snc - COTRONEI",
+              "listing_raw": "1° dicembre 2023",
+              "listing_iso": "2023-12-01",
+              "expiry_raw": "1° dicembre 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-12-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 71,
+              "table": 1,
+              "row": 2,
+              "section": 5,
+              "name": "COSTANTINO ENERGY E COSTRUZIONI S.R.L.",
+              "id": "02966450799",
+              "office": "Contrada Zanchi, snc - COTRONEI",
+              "listing_raw": "1° dicembre 2023",
+              "listing_iso": "2023-12-01",
+              "expiry_raw": "1 dicembre 2023 Richiesta rinnovo",
+              "expiry_iso": "2023-12-01",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "gaetano curcio costruzioni srl",
+            "03575690791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 40,
+              "table": 1,
+              "row": 5,
+              "section": 3,
+              "name": "GAETANO CURCIO COSTRUZIONI SRL",
+              "id": "03575690791",
+              "office": "Via Mola n.11 – COTRONEI (KR)",
+              "listing_raw": "5 marzo 2019",
+              "listing_iso": "2019-03-05",
+              "expiry_raw": "5 marzo 2020 Richiesta rinnovo",
+              "expiry_iso": "2020-03-05",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 58,
+              "table": 1,
+              "row": 8,
+              "section": 4,
+              "name": "GAETANO CURCIO COSTRUZIONI SRL",
+              "id": "03575690791",
+              "office": "Via Mola n.11 – COTRONEI (KR)",
+              "listing_raw": "05 marzo 2019",
+              "listing_iso": "2019-03-05",
+              "expiry_raw": "05 marzo 2020 Richiesta rinnovo",
+              "expiry_iso": "2020-03-05",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 76,
+              "table": 1,
+              "row": 1,
+              "section": 5,
+              "name": "GAETANO CURCIO COSTRUZIONI SRL",
+              "id": "03575690791",
+              "office": "Via Mola n.11 – COTRONEI (KR)",
+              "listing_raw": "05 marzo 2019",
+              "listing_iso": "2019-03-05",
+              "expiry_raw": "05 marzo 2020 Richiesta rinnovo",
+              "expiry_iso": "2020-03-05",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 101,
+              "table": 1,
+              "row": 4,
+              "section": 6,
+              "name": "GAETANO CURCIO COSTRUZIONI SRL",
+              "id": "03575690791",
+              "office": "Via Mola n.11 – COTRONEI (KR)",
+              "listing_raw": "05 marzo 2019",
+              "listing_iso": "2019-03-05",
+              "expiry_raw": "05 marzo 2020 Richiesta rinnovo",
+              "expiry_iso": "2020-03-05",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 115,
+              "table": 1,
+              "row": 2,
+              "section": 7,
+              "name": "GAETANO CURCIO COSTRUZIONI SRL",
+              "id": "03575690791",
+              "office": "via Mola n.11 – COTRONEI (KR)",
+              "listing_raw": "05 marzo 2019",
+              "listing_iso": "2019-03-05",
+              "expiry_raw": "05 marzo 2020 Richiesta rinnovo",
+              "expiry_iso": "2020-03-05",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "Istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "vgr servizi srl",
+            "03134630791"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 54,
+              "table": 1,
+              "row": 5,
+              "section": 3,
+              "name": "VGR SERVIZI SRL",
+              "id": "03134630791",
+              "office": "Via Laghi Silani – P.I. COTRONEI",
+              "listing_raw": "15 maggio 2023",
+              "listing_iso": "2023-05-15",
+              "expiry_raw": "15 maggio 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-05-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 90,
+              "table": 1,
+              "row": 4,
+              "section": 5,
+              "name": "VGR SERVIZI SRL",
+              "id": "03134630791",
+              "office": "Via Laghi Silani – P.I. COTRONEI",
+              "listing_raw": "15 maggio 2023",
+              "listing_iso": "2023-05-15",
+              "expiry_raw": "15 maggio 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-05-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 119,
+              "table": 1,
+              "row": 4,
+              "section": 10,
+              "name": "VGR SERVIZI SRL",
+              "id": "03134630791",
+              "office": "Via Laghi Silani – COTRONEI (KR)",
+              "listing_raw": "15 maggio 2023",
+              "listing_iso": "2023-05-15",
+              "expiry_raw": "15 maggio 2024 Richiesta rinnovo",
+              "expiry_iso": "2024-05-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "marasco logistica e servizi srl",
+            "03066210794"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 81,
+              "table": 1,
+              "row": 4,
+              "section": 5,
+              "name": "MARASCO LOGISTICA E SERVIZI SRL",
+              "id": "03066210794",
+              "office": "Via Milone n.1 frazione Marina STRONGOLI (KR)",
+              "listing_raw": "15 aprile 2021",
+              "listing_iso": "2021-04-15",
+              "expiry_raw": "15 aprile 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-04-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 104,
+              "table": 1,
+              "row": 2,
+              "section": 6,
+              "name": "MARASCO LOGISTICA E SERVIZI SRL",
+              "id": "03066210794",
+              "office": "Via Milone n.1 frazione Marina – STRONGOLI (KR)",
+              "listing_raw": "15 aprile 2021",
+              "listing_iso": "2021-04-15",
+              "expiry_raw": "15 aprile 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-04-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 126,
+              "table": 1,
+              "row": 3,
+              "section": 10,
+              "name": "MARASCO LOGISTICA E SERVIZI SRL",
+              "id": "03066210794",
+              "office": "Via Milone n.1 frazione Marina STRONGOLI (KR)",
+              "listing_raw": "15 aprile 2021",
+              "listing_iso": "2021-04-15",
+              "expiry_raw": "15 aprile 2022 Richiesta rinnovo",
+              "expiry_iso": "2022-04-15",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        },
+        {
+          "identity": [
+            "rocca s.r.l.",
+            "02994940795"
+          ],
+          "variant_count": 2,
+          "rows": [
+            {
+              "page": 87,
+              "table": 1,
+              "row": 3,
+              "section": 5,
+              "name": "ROCCA S.R.L.",
+              "id": "02994940795",
+              "office": "Via San Leonardo, 38 – SAN MAURO MARCHESATO",
+              "listing_raw": "29 aprile 2025",
+              "listing_iso": "2025-04-29",
+              "expiry_raw": "29 aprile 2026 Richiesta rinnovo",
+              "expiry_iso": "2026-04-29",
+              "expiry_tail": "Richiesta rinnovo",
+              "note": "istruttoria",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 108,
+              "table": 1,
+              "row": 5,
+              "section": 6,
+              "name": "ROCCA S.R.L.",
+              "id": "02994940795",
+              "office": "Via San Leonardo, 38 – SAN MAURO MARCHESATO",
+              "listing_raw": "29 aprile 2025",
+              "listing_iso": "2025-04-29",
+              "expiry_raw": "29 aprile 2026",
+              "expiry_iso": "2026-04-29",
+              "expiry_tail": "",
+              "note": "rinnovo",
+              "status": "renewal_update_in_progress"
+            },
+            {
+              "page": 129,
+              "table": 1,
+              "row": 1,
+              "section": 10,
+              "name": "ROCCA S.R.L.",
+              "id": "02994940795",
+              "office": "Via San Leonardo, 38 – SAN MAURO MARCHESATO",
+              "listing_raw": "29 aprile 2025",
+              "listing_iso": "2025-04-29",
+              "expiry_raw": "29 aprile 2026",
+              "expiry_iso": "2026-04-29",
+              "expiry_tail": "",
+              "note": "rinnovo",
+              "status": "renewal_update_in_progress"
+            }
+          ]
+        }
+      ],
+      "group_section_span_counts": {
+        "3": 47,
+        "2": 48,
+        "1": 179,
+        "4": 27,
+        "6": 11,
+        "5": 22,
+        "7": 6
+      }
+    },
+    "applicants": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-con-richiesta-iscrizione-white-list-2.pdf",
+      "sha256": "af66ff6bf6a173c4156fef3e7741ca26956769e399285764123ef8405097e6d1",
+      "pages": 46,
+      "headers": 1,
+      "records_including_anomalies": 205,
+      "page_counts": [
+        5,
+        5,
+        4,
+        3,
+        6,
+        2,
+        4,
+        6,
+        4,
+        3,
+        5,
+        2,
+        5,
+        6,
+        5,
+        4,
+        5,
+        6,
+        4,
+        4,
+        4,
+        6,
+        2,
+        5,
+        4,
+        3,
+        5,
+        5,
+        6,
+        7,
+        4,
+        3,
+        8,
+        7,
+        3,
+        5,
+        4,
+        5,
+        2,
+        5,
+        5,
+        5,
+        5,
+        3,
+        3,
+        3
+      ],
+      "anomaly_rows": [
+        {
+          "page": 3,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03723820795",
+            "F.L. CALCESTRUZZI E INERTI S.R.L.S.",
+            "Località Fondo Barco snc – ROCCA DI NETO",
+            "",
+            "-estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari.",
+            "29 luglio 2020"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "RLLGGR87M29 B774G/ 03332600794",
+            "BAR CAFFE’ DI RIILLO GREGORIO",
+            "Viale della Repubblica- ISOLA DI CAPO RIZZUTO",
+            "",
+            "-estrazione, fornitura e trasporto di terra e materiali inerti;",
+            "14 giugno 2022"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "-autotrasporto per conto terzi.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03861910796",
+            "C.T.S. S.R.L.",
+            "Località Ovile Spinoso, snc – ISOLA DI CAPO RIZZUTO",
+            "",
+            "estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume; -noli a freddo di macchinari; -fornitura di ferro lavorato; -- noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti,",
+            "29 novembre 2022"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03896850793",
+            "VALLE DEL PINETO S.R.L.",
+            "Via Marco Franco Rocca n.18 - MESORACA",
+            "",
+            "-autotrasporto per conto terzi.",
+            "24 gennaio 2023"
+          ]
+        },
+        {
+          "page": 9,
+          "table": 1,
+          "row": 4,
+          "id": "03931130797",
+          "name": "INERTI CALCESTRUZZI",
+          "office": "Contrada Setteporte snc –",
+          "secondary": "",
+          "activities": "estrazione, fornitura e trasporto di terra e materiali inerti;",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": [
+            "03891010799",
+            "GP GROUP S.R.L.",
+            "Via G. Licausi n.3- MELISSA",
+            "",
+            "-estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari; - noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+            "12 ottobre 2023"
+          ],
+          "next": null
+        },
+        {
+          "page": 10,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "NETO S.A.S DI SALVATORE LIDONNICI & C",
+          "office": "ROCCA DI NETO",
+          "secondary": "",
+          "activities": "-confezionamento, fornitura e trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari; - noli a caldo.",
+          "application_raw": "19 ottobre 2023",
+          "application_iso": "2023-10-19",
+          "previous": null,
+          "next": [
+            "03665770792",
+            "ALBATROS TRASPORTI DI MUMMOLO GIOVANNI BATTISTA",
+            "Via Foggia,6 – CIRO’ MARINA",
+            "",
+            "-autotrasporto per conto terzi.",
+            "24 ottobre 2023"
+          ]
+        },
+        {
+          "page": 11,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03686380795",
+            "SAVA S.R.L.S.",
+            "Via Capo Delle Colonne n.65- CROTONE",
+            "",
+            "-noli a freddo di macchinari.",
+            "15 novembre 2023"
+          ]
+        },
+        {
+          "page": 12,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03136310798",
+            "AMBIENTE & COSTRUZIONI S.R.L.",
+            "Via Amedeo Avogadro snc località Passovecchio",
+            "",
+            "-estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari; -noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+            "12 gennaio 2024"
+          ]
+        },
+        {
+          "page": 15,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "02808330795",
+            "DRAGO ANTONIO",
+            "Via Provinciale Centro - MELISSA",
+            "",
+            "-estrazione, fornitura e trasporto di terra e materiali inerti; -noli a freddo di macchinari; -noli a caldo.",
+            "25 giugno 2024"
+          ]
+        },
+        {
+          "page": 17,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "-noli a caldo; -autotrasporto per conto terzi.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03683030799",
+            "ONORANZE FUNEBRI NUCCIO VRENNA S.R.L.S.",
+            "Piazza Francesco Corrado snc - CROTONE",
+            "",
+            "-Servizi funerari e cimiteriali.",
+            "7 ottobre 2024"
+          ]
+        },
+        {
+          "page": 22,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "RESPONSABILITA ’ LIMITATA SEMPLIFICATA",
+          "office": "",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "04000920795",
+            "CIRASELLA SONIA",
+            "Contrada Salinella n.7- STRONGOLI",
+            "",
+            "-ristorazione, gestione delle mense e catering.",
+            "29 aprile 2025"
+          ]
+        },
+        {
+          "page": 23,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "-noli a freddo di macchinari.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03505680797",
+            "MG S.R.L.S.",
+            "Via Ruggiero Leoncavallo,2- CROTONE",
+            "",
+            "estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume -fornitura di ferro lavorato; -noli a caldo autotrasporto per conto terzi guardiania ai cantieri Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+            "21 maggio 2025"
+          ]
+        },
+        {
+          "page": 27,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "NETO",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "02282820352",
+            "EDIL TODARO S.R.L.",
+            "Via Sassari,4 - CUTRO",
+            "",
+            "noli a caldo; -guardiania dei cantieri",
+            "1° settembre 2025"
+          ]
+        },
+        {
+          "page": 28,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03914940790",
+            "CARPET COSTRUZIONI S.R.L.",
+            "Via Biricchini,15- ISOLA DI CAPO RIZZUTO",
+            "",
+            "-noli a freddo di macchinari; -noli a caldo.",
+            "15 ottobre 2025"
+          ]
+        },
+        {
+          "page": 29,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03351640796",
+            "AUTOTRASPORTI DI BELLA DI APA MARIA",
+            "Via XXV Aprile,3 - STRONGOLI",
+            "",
+            "-autotrasporto per conto terzi.",
+            "9 novembre 2025"
+          ]
+        },
+        {
+          "page": 30,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "bitume.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "04016430797",
+            "IGP S.R.L.",
+            "Viale del Porto Antico, 30 - STRONGOLI",
+            "",
+            "autotrasporto per conto terzi.",
+            "28 novembre 2025"
+          ]
+        },
+        {
+          "page": 33,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "S.R.L. SEMPLIFICATA",
+          "office": "CUTRO",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03969980790",
+            "AF COSTRUZIONI S.R.L.",
+            "Piazza Fiume Neto,1 – ISOLA DI CAPO RIZZUTO",
+            "",
+            "noli a caldo",
+            "22 gennaio 2026"
+          ]
+        },
+        {
+          "page": 34,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "CROTONE",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "02975000791",
+            "PKG AUTOTRASPORTI DI MADDALONE PIETRO",
+            "Traversa Terza di Via G. Bruno,14 - STRONGOLI",
+            "",
+            "autotrasporto per conto terzi",
+            "28 gennaio 2026"
+          ]
+        },
+        {
+          "page": 35,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "trasporto di calcestruzzo e di bitume; -noli a freddo di macchinari; fornitura di ferro lavorato; -noli a caldo; autotrasporto per conto terzi; servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03422730790",
+            "I.C.M. INDUSTRIA CARPENTERIA METALLICA DI FRANCESCA RIILLO",
+            "Via Francesco Mancuso – ISOLA DI CAPO RIZZUTO",
+            "",
+            "fornitura di ferro lavorato",
+            "20 febbraio 2026"
+          ]
+        },
+        {
+          "page": 36,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "SALVATORE E C",
+          "office": "A",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "04029250794",
+            "CMB DI CAMBARERI SERAFINO",
+            "LOCALITA’ CIPOLLA SNC – ISOLA DI CAPO RIZZUTO",
+            "",
+            "noli a freddo di macchinari; -noli a caldo.",
+            "12 marzo 2026"
+          ]
+        },
+        {
+          "page": 37,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "noli a caldo; autotrasporto per conto terzi.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "02488180791",
+            "TALARICO S.R.L.",
+            "VIA ACQUABONA,8 - CROTONE",
+            "",
+            "estrazione, fornitura e trasporto di terra e materiali inerti;",
+            "20 marzo 2026"
+          ]
+        },
+        {
+          "page": 38,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "gestione dei rifiuti.",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03553750799",
+            "PENTABLOC DI PUPA S.R.L.",
+            "LOCALITA’ VATTIATO SNC - CUTRO",
+            "",
+            "estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume.",
+            "3 aprile 2026"
+          ]
+        },
+        {
+          "page": 39,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03505680797",
+            "MG S.R.L.",
+            "VIA LIBERTA’,48 BIS - CROTONE",
+            "",
+            "estrazione, fornitura e trasporto di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume -fornitura di ferro lavorato; -noli a caldo autotrasporto per conto terzi",
+            "20 aprile 2026"
+          ]
+        },
+        {
+          "page": 40,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "",
+          "secondary": "",
+          "activities": "guardiania ai cantieri Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "01469390791",
+            "GUIDONI ANTONIO",
+            "VIA IPAZIA,5- CROTONE",
+            "",
+            "autotrasporto per conto terzi",
+            "21 aprile 2026"
+          ]
+        },
+        {
+          "page": 42,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "",
+          "office": "CIRO’ MARINA",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "02489040390",
+            "TRASPORTI M. LEONARDO DI MUMMOLO FERDINANDO",
+            "Traversa I Taverna,31 – CIRO’ MARINA",
+            "",
+            "autotrasporto per conto terzi",
+            "11 giugno 2026"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 1,
+          "row": 1,
+          "id": "",
+          "name": "SANTIS GIUSEPPE",
+          "office": "CROTONE",
+          "secondary": "",
+          "activities": "",
+          "application_raw": "",
+          "application_iso": "",
+          "previous": null,
+          "next": [
+            "03789370792",
+            "AGRI-FORESTALE PATERINO SOCIETA’ COOPERATIVA",
+            "Via Luigi Giordano,88- PETILIA POLICASTRO",
+            "",
+            "noli a freddo di macchinari noli a caldo",
+            "3 settembre 2026"
+          ]
+        }
+      ],
+      "anomaly_page_texts": {
+        "3": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03723820795 -estrazione, fornitura e trasporto di terra e F.L. Località Fondo materiali inerti; CALCESTRUZZI E Barco snc – ROCCA -confezionamento, fornitura e trasporto di 29 luglio 2020 INERTI S.R.L.S. DI NETO calcestruzzo e di bitume; - noli a freddo di macchinari. -Estrazione, fornitura e trasporto di terra e 03525790790 SALGANA Località Mottarello materiali inerti; COSTRUZIONI 18 marzo 2021 snc – CRUCOLI (KR) - noli a freddo di macchinari; EDILI S.R.L. - noli a caldo. EUROLIFTER Località Vattiato 00991980798 19 luglio 2021 S.R.L. CUTRO (KR) -nolo a freddo di macchinari.",
+        "5": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA bonifica e gli altri servizi connessi alla gestione dei rifiuti. RLLGGR87M29 BAR CAFFE’ DI Viale della -estrazione, fornitura e B774G/ RIILLO Repubblica- ISOLA 14 giugno 2022 03332600794 GREGORIO DI CAPO RIZZUTO trasporto di terra e materiali inerti; CSTSNT76A16F CASTAGNINO Via Nazionale, 53 - -Servizi funerari e cimiteriali. 19 agosto 2022 157F SANTO MESORACA IMPRESA LVRVMS96P01 FUNEBRE SAN D122A Via XXV Aprile, 100 DIONIGI DI -Servizi funerari e cimiteriali. 25 agosto 2022 - CROTONE OLIVERIO VJAMES Via Mario LA CROTONESE 03676790797 Nicoletta, 223- -Servizi funerari e cimiteriali. 26 agosto 2022 S.R.L. CROTONE 03809150794 VERTERAME Via Brindisi,14 – -estrazione, fornitura e 21 novembre 2022 TRASPORTI DI ISOLA DI CAPO trasporto di terra e materiali VERTERAME RIZZUTO FILIPPO inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume;",
+        "6": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA -autotrasporto per conto terzi. 03861910796 C.T.S. S.R.L. Località Ovile estrazione, fornitura e 29 novembre 2022 Spinoso, snc – trasporto di terra e materiali ISOLA DI CAPO RIZZUTO inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume; -noli a freddo di macchinari; -fornitura di ferro lavorato; -- noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti,",
+        "7": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03896850793 Via Marco Franco -autotrasporto per conto terzi. VALLE DEL Rocca n.18 - 24 gennaio 2023 PINETO S.R.L. MESORACA -estrazione, fornitura e trasporto di terra e materiali inerti; ROTONDO - noli a freddo di macchinari; COSTRUZIONI Via Vittorio Veneto 03894310790 2 febbraio 2023 GENERALI - CUTRO -fornitura di ferro lavorato; S.R.L.S. - noli a caldo; -autotrasporto per conto terzi. Servizi ambientali, comprese le attività FORCINITI di raccolta, di trasporto nazionale e COSTRUZIONI E Contrada Santa transfrontaliero, anche per conto di terzi, Via Tuscolana, 667 – 03394480796 SERVIZI PER Focà,21- di trattamento e di smaltimento dei rifiuti, 14 marzo 2023 ROMA L’AMBIENTE STRONGOLI nonché le attività di risanamento e di S.R.L. bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+        "9": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA 02713980346 PRISMA S.R.L. Contrada Anastasi Via Del Porto,2 – -autotrasporto per conto terzi. 26 agosto 2023 snc – ISOLA DI SORBOLO MEZZANI (PR) CAPO RIZZUTO 03319040790 FIELD S.R.L. Via Serravalle n.9 - -servizi funerari e cimiteriali. 26 settembre 2023 CUTRO 03891010799 GP GROUP S.R.L. Via G. Licausi n.3- -estrazione, fornitura e trasporto MELISSA di terra e materiali inerti; -confezionamento, fornitura e 12 ottobre 2023 trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari; - noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03931130797 INERTI Contrada estrazione, fornitura e trasporto CALCESTRUZZI Setteporte snc – di terra e materiali inerti;",
+        "10": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA NETO S.A.S DI ROCCA DI NETO -confezionamento, fornitura e SALVATORE trasporto di calcestruzzo e di LIDONNICI & C bitume; 19 ottobre 2023 - noli a freddo di macchinari; - noli a caldo. 03665770792 ALBATROS Via Foggia,6 – -autotrasporto per conto terzi. 24 ottobre 2023 TRASPORTI DI CIRO’ MARINA MUMMOLO GIOVANNI BATTISTA 03725280790 V.M. TRASPORTI Via Federico Fellini -estrazione, fornitura e trasporto S.R.L - CROTONE di terra e materiali inerti; -confezionamento, fornitura e 24 ottobre 2023 trasporto di calcestruzzo e di bitume; - noli a freddo di macchinari; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e",
+        "11": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03686380795 SAVA S.R.L.S. Via Capo Delle -noli a freddo di macchinari. 15 novembre 2023 Colonne n.65- CROTONE 01254410796 LABONIA Viale Kennedy 12 dicembre 2023 GIUSEPPE frazione Torretta- - Ristorazione, gestione delle mense e CRUCOLI catering. 03451080794 D&G Via Monte -noli a freddo di macchinari. 8 gennaio 2024 COSTRUZIONI DI Grappa,10 - GRECO ROCCABERNARDA GIUSEPPINA 03202950790 ORMAS S.R.L. Via Giulio Natta, -autotrasporto per conto terzi; 8 gennaio 2024 4/6-CROTONE -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi,",
+        "12": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03136310798 AMBIENTE & Via Amedeo -estrazione, fornitura e trasporto COSTRUZIONI Avogadro snc di terra e materiali inerti; S.R.L. località -confezionamento, fornitura e Passovecchio trasporto di calcestruzzo e di 12 gennaio 2024 bitume; - noli a freddo di macchinari; -noli a caldo; -autotrasporto per conto terzi; -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+        "15": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA gestione dei rifiuti. 02808330795 DRAGO Via Provinciale -estrazione, fornitura e trasporto 25 giugno 2024 ANTONIO Centro - MELISSA di terra e materiali inerti; -noli a freddo di macchinari; -noli a caldo. 03617430792 FUNERAL HOME Via Giovanni Paolo -servizi funerari e cimiteriali. 11 luglio 2024 S.R.L.S. II n.302- CROTONE 03603750799 SERRAVALLE Via A. Gramsci -noli a caldo. 15 luglio 2024 FRANCESCO n.89/A - MESORACA 03929190795 AUTOTRASPORTI Via R. Scalise – -autotrasporto per conto terzi. 23 luglio 2024 CARVELLI PETILIA TERESA POLICASTRO",
+        "17": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA -noli a caldo; -autotrasporto per conto terzi. 03683030799 ONORANZE Piazza Francesco -Servizi funerari e cimiteriali. 7 ottobre 2024 FUNEBRI Corrado snc - NUCCIO VRENNA CROTONE S.R.L.S. 03971800796 CS TRASPORTI Via Provvidenza,10- -autotrasporto per conto terzi. 28 ottobre 2024 SOCIETA’ A STRONGOLI RESPONSABILITA ’ LIMIATTA SEMPLIFICATA 03737410799 PRISMA SERVIZI C.da Vattiato Scalo -autotrasporto per conto terzi. 4 novembre 2024 S.R.L.S. FF.SS snc - CUTRO 03982700795 SOCIETA’ Località Foresta snc -noli a freddo di macchinari. 12 novembre 2024 AGRICOLA – PETILIA FORESTALE POLICASTRO A.R.L.",
+        "22": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA RESPONSABILITA ’ LIMITATA SEMPLIFICATA 04000920795 CIRASELLA Contrada Salinella -ristorazione, gestione delle mense e 29 aprile 2025 SONIA n.7- STRONGOLI catering. 02928590799 VARANO Via S. Margherita – -noli a freddo di macchinari; 16 maggio 2025 ROSARIO ISOLA DI CAPO -noli a caldo. SIMONE RIZZUTO 03594630794 R.C.M.T. Via A. De Gasperi,7 -estrazione, fornitura e trasporto 16 maggio 2025 CIAMPA’ - CUTRO di terra e materiali inerti; SOCIETA’ A -confezionamento, fornitura e RESPONSABILITA ’ LIMITATA trasporto di calcestruzzo e di SEMPLIFICATA bitume. 03995350794 AUTOTRASPORTI Via San - autotrasporto per conto terzi. 19 maggio 2025 BEVILACQUA DI Francesco,25 - BEVILACQUA MELISSA NICOLA FRANCESCO 02661320792 I.T.E.M. S.R.L. Via Rosito,13- -estrazione, fornitura e trasporto 19 maggio 2025 CUTRO di terra e materiali inerti;",
+        "23": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA -noli a freddo di macchinari. 03505680797 MG S.R.L.S. Via Ruggiero estrazione, fornitura e trasporto 21 maggio 2025 Leoncavallo,2- di terra e materiali inerti; CROTONE -confezionamento, fornitura e trasporto di calcestruzzo e di bitume -fornitura di ferro lavorato; -noli a caldo autotrasporto per conto terzi guardiania ai cantieri Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+        "27": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA NETO 02282820352 EDIL TODARO S.R.L. Via Sassari,4 - noli a caldo; 1° settembre 2025 CUTRO -guardiania dei cantieri 03699570796 LE CASTELLA B&B Via Acqua -ristorazione, gestione delle mense e 26 settembre 2025 RESTAURANT S.R.L.S. Vrara,10 – ISOLA catering. DI CAPO RIZZUTO 03351760792 MALENA Via Enrico Mattei, -estrazione, fornitura e trasporto 2 ottobre 2025 COSTRUZIONI S.N.C. 17 - MELISSA di terra e materiali inerti; DEI FRATELLI - noli a caldo. MALENA ROBERTO E PASQUALE 02355280799 GENTILE MASSIMO Via Cina, 15- -estrazione, fornitura e trasporto 8 ottobre 2025 CROTONE di terra e materiali inerti; -noli a freddo di macchinari; -noli a caldo, -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale",
+        "28": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03914940790 CARPET Via Biricchini,15- -noli a freddo di macchinari; 15 ottobre 2025 COSTRUZIONI S.R.L. ISOLA DI CAPO -noli a caldo. RIZZUTO 03674630797 GINEVRA SABATINI C.LE EPITAFFIO noli a freddo di macchinari; 27 ottobre 2025 SNC – CIRO’ -noli a caldo; MARINA -autotrasporto per conto terzi. 02596870796 AUTOTRASPORTI Via Mercato,62 – -autotrasporto per conto terzi. 28 ottobre 2025 VONA DOMENICO PETILIA POLICASTRO 03090290796 CAPUTO Rione Destra,45 – -noli a caldo; 31 ottobre 2025 COSTRUZIONI S.N.C. CACCURI -Servizi ambientali, comprese le DI CAPUTO PIETRO attività di raccolta, di trasporto nazionale SALVATORE & C e transfrontaliero, anche per conto di",
+        "29": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03351640796 AUTOTRASPORTI DI Via XXV Aprile,3 -autotrasporto per conto terzi. 9 novembre 2025 BELLA DI APA MARIA - STRONGOLI 04017280795 CARVELLI ARMANDO Via Arringa,229- -autotrasporto per conto terzi. 11 novembre 2025 JUNIOR PETILIA POLICASTRO 03827720792 EDLP DI GRECO Via Pier Santi -noli a caldo. 13 novembre 2025 FRANCESCHINA Mattarella snc – ROCCA DI NETO 03982110797 AMA TRASPORTI Via -autotrasporto per conto terzi. 17 novembre 2025 S.R.L.S. Sant’Antonio,48- SANTA SEVERINA 03825590791 GP MULTISERVICE Via -estrazione, fornitura e trasporto 27 novembre 2025 S.R.L.S. Gariobaldi,271- di terra e materiali inerti; COTRONEI -confezionamento, fornitura e trasporto di calcestruzzo e di",
+        "30": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA bitume. 04016430797 IGP S.R.L. Viale del Porto autotrasporto per conto terzi. 28 novembre 2025 Antico, 30 - STRONGOLI 00406050799 F.LLI RUSSO DI Via Madina di fornitura di ferro lavorato. 1 dicembre 2025 RUSSO CATALDO E Mare,19- CIRO’ DOMENICO MARINA ANRONIO S.N.C. 03995640798 LEQUOQUE Via Russia n, 46- -noli a freddo di macchinari; 2 dicembre 2025 FABRIZIO CROTONE -noli a caldo. 02818870798 MEGNA Via Torino,119/B- -estrazione, fornitura e trasporto 15 dicembre 2025 COSTRUZIONI S.R.L. CROTONE di terra e materiali inerti. 03802400790 ISOLE GRONDE DI C.da Marinella -fornitura di ferro lavorato. 16 dicembre 2025 VARCA ANTONIO snc – ISOLA DI CAPO RIZZUTO 03673810796 I.C.E.L. GROUP Via Ugo Foscolo, -estrazione, fornitura e trasporto 23 dicembre 2025 S.R.L.S. 14- CERENZIA di terra e materiali inerti; -noli a freddo di macchinari; -noli a caldo.",
+        "33": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA S.R.L. SEMPLIFICATA CUTRO 03969980790 AF COSTRUZIONI Piazza Fiume noli a caldo 22 gennaio 2026 S.R.L. Neto,1 – ISOLA DI CAPO RIZZUTO 03602920799 GUAGLARDI Via Quasimodo estrazione, fornitura e trasporto 22 gennaio 2026 COSTRUZIONI S.R.L. snc – CIRO’ di terra e materiali inerti MARINA noli a freddo di macchinari noli a caldo 13503920962 DKF TRANSPORT Via Antonio autotrasporto per conto terzi 23 gennaio 2026 S.R.L. Panella, 155 - CROTONE 03371240791 LARIGOM DI Via Scifo snc – noli a freddo di macchinari 24 gennaio 2026 WDOWCZYK SAN MAURO ALEKSANDRA MARCHESATO 03689030793 IMPRESA EDILE Via Scifo snc – noli a freddo di macchinari 27 gennaio 2026 BARBUTO GIUSEPPE SAN MAURO MARCHESATO 03928810799 SCERBO VINCENZO Piazza Fiume noli a freddo di macchinari 27 gennaio 2026 ANTONIO Neto,1 – ISOLA DI noli a caldo CAPO RIZZUTO 02684160795 SCRENCI FAUSTO Via Panella,236- autotrasporto per conto terzi 27 gennaio 2026",
+        "34": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA CROTONE 02975000791 PKG Traversa Terza di autotrasporto per conto terzi 28 gennaio 2026 AUTOTRASPORTI DI Via G. Bruno,14 - MADDALONE PIETRO STRONGOLI 04017190796 S.M. COSTRUZIONI Fondo Chiuse, snc noli a caldo 28 gennaio 2026 S.R.L. – ISOLA DI CAPO RIZZUTO 04013530797 2025 BUILDING S.R.L. Via Vittprio confezionamento, fornitura e 7 febbraio 2026 Veneto,13- trasporto di calcestruzzo e di CROTONE bitume fornitura di ferro lavorato 02303580795 IL TRIANGOLO S.R.L. Via per Capo Ristorazione, gestione delle mense e 9 febbraio 2026 Rizzuto snc – catering ISOLA DI CAPO RIZZUTO 02318740798 TECNOEDIL & SPORT Via Carlo estrazione, fornitura e trasporto 10 febbraio 2026 S.R.L. Matteucci, snc - di terra e materiali inerti CROTONE 03980570794 CV BUILD S.R.L. Via dei estrazione, fornitura e trasporto 11 febbraio 2026 Melograni,4 - di terra e materiali inerti; CROTONE confezionamento, fornitura e",
+        "35": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA trasporto di calcestruzzo e di bitume; -noli a freddo di macchinari; fornitura di ferro lavorato; -noli a caldo; autotrasporto per conto terzi; servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti. 03422730790 I.C.M. INDUSTRIA Via Francesco fornitura di ferro lavorato 20 febbraio 2026 CARPENTERIA Mancuso – ISOLA METALLICA DI DI CAPO RIZZUTO FRANCESCA RIILLO 017733230790 CERAMICHE VIA DEI estrazione, fornitura e trasporto 9 marzo 2026 MARAZZITA S.N.C. DI BIZANTINI SN - di terra e materiali inerti MARAZZITA ROCCABERNARD",
+        "36": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA SALVATORE E C A 04029250794 CMB DI CAMBARERI LOCALITA’ noli a freddo di macchinari; 12 marzo 2026 SERAFINO CIPOLLA SNC – -noli a caldo. ISOLA DI CAPO RIZZUTO 03465450793 HOSPITALITY VIA ENRICO Ristorazione, gestione delle mense e 17 marzo 2026 INVESTMENTS S.R.L. FERMI SNC - catering CROTONE 03528470796 C.M. COSTRUZIONI E STRADA STATLE noli a freddo di macchinari; 17 marzo 2026 MONTAGGI SS 106 KM. 251 -noli a caldo. IMPIANTI ELETTRICI LOC. ZIGARI SNC - S.R.L.. CROTONE 03745410799 INHOUSE EDILIZIA VIA SAN estrazione, fornitura e trasporto 19 marzo 2026 SOCIETA’ A ISIDORO,13- di terra e materiali inerti; RESPONSABILITA’ CROTONE confezionamento, fornitura e LIMITATA SEMPLIFICATA trasporto di calcestruzzo e di bitume; noli a freddo di macchinari;",
+        "37": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA noli a caldo; autotrasporto per conto terzi. 02488180791 TALARICO S.R.L. VIA estrazione, fornitura e trasporto 20 marzo 2026 ACQUABONA,8 - di terra e materiali inerti; CROTONE 04014050795 EVOLMEC S.R.L. VIA noli a freddo di macchinari 27 marzo 2026 BOTTEGHELLE fornitura di ferro lavorato SNC - CROTONE -noli a caldo. 02851000790 CISAF S.R.L. STRADA STATALE estrazione, fornitura e trasporto 3 aprile 2026 SS 106 Km 235 – di terra e materiali inerti; ISOAL DI CAPO noli a freddo di macchinari RIZZUTO servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla",
+        "38": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA gestione dei rifiuti. 03553750799 PENTABLOC DI PUPA LOCALITA’ estrazione, fornitura e trasporto 3 aprile 2026 S.R.L. VATTIATO SNC - di terra e materiali inerti; CUTRO confezionamento, fornitura e trasporto di calcestruzzo e di bitume. 03166140792 CLIMATEK S.A.S. DI CORSO noli a freddo di macchinari 9 aprile 2026 PERROTTA RAFFAELE MAZZINI,125- & C CROTONE 03420150793 BENINCASA VIA ONATA I autotrasporto per conto terzi 14 aprile 2026 AUTOTRASPORTI TRAVERSA,3 - servizi ambientali, comprese le S.A.S. DI VINCENZO STRONGOLI attività di raccolta, di trasporto nazionale BENINCASA & C e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti 02226180798 NEWEDIL S.N.C. DI VIA EUROPA,6 – noli a freddo di macchinari; 18 aprile 2026 VISCOME ANTONIO ROCCA DI NETO noli a caldo;",
+        "39": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti 03505680797 MG S.R.L. VIA LIBERTA’,48 estrazione, fornitura e trasporto 20 aprile 2026 BIS - CROTONE di terra e materiali inerti; -confezionamento, fornitura e trasporto di calcestruzzo e di bitume -fornitura di ferro lavorato; -noli a caldo autotrasporto per conto terzi",
+        "40": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA guardiania ai cantieri Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti 01469390791 GUIDONI ANTONIO VIA IPAZIA,5- autotrasporto per conto terzi 21 aprile 2026 CROTONE 03927480792 CIRILLO GROUP Strada Ristorazione, gestione delle mense e 5 maggio 2026 S.R.L. Provinciale,38 – catering. SAN MAURO MARCHESATO 04049920798 AUTOTRASPORTI Via del autotrasporto per conto terzi 12 maggio 2026 CERAUDO Ginnasiarca Minato,8 - STRONGOLI 03116130794 LAVORI EDILI DI Via Fausto estrazione, fornitura e trasporto 19 maggio 2026 CAMPISI GIOVANNI Coppi,39 - di terra e materiali inerti; CROTONE",
+        "42": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA CIRO’ MARINA 02489040390 TRASPORTI M. Traversa I autotrasporto per conto terzi 11 giugno 2026 LEONARDO DI Taverna,31 – MUMMOLO CIRO’ MARINA FERDINANDO 04051340794 GEOSERVICE S.A.S. Via San estrazione, fornitura e trasporto di 16 giugno 2026 DI CARMINE Francesco, snc – terra e materiali inerti; SOMMARIO & C COTRONEI noli a caldo; Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti 01208160794 Y OX ALL. INFISSI Fondo Marinetto- fornitura di ferro lavorato 17 giugno 2026 GAMMA OSSIDATI MELISSA ALLUMINI INFISSI S.N.C. DI MUSACCHIO ERCOLE E C 04034800799 FB S.R.L.S. Via Calabria,9 - estrazione, fornitura e trasporto di 1° luglio 2026 CUTRO terra e materiali inerti;",
+        "46": "Prefettura - Ufficio Territoriale del Governo di Crotone ELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA SANTIS GIUSEPPE CROTONE 03789370792 AGRI-FORESTALE Via Luigi noli a freddo di macchinari 3 settembre 2026 PATERINO SOCIETA’ Giordano,88- noli a caldo COOPERATIVA PETILIA POLICASTRO 03432120792 EDILMADIA S.R.L.S. Via Marcello estrazione, fornitura e i terra e materiali 5 settembre 2026 Mastroianni,12- inerti; CROTONE noli a freddo di macchinari"
+      },
+      "duplicates": 1,
+      "identifier_coverage": 174,
+      "malformed_ids": [
+        {
+          "name": "VERTERAME GIUSEPPE",
+          "raw": "VRTGPP43P20 E339O"
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "BAR CAFFE’ DI RIILLO GREGORIO",
+          "raw": "RLLGGR87M29 B774G/ 03332600794"
+        },
+        {
+          "name": "CASTAGNINO SANTO",
+          "raw": "CSTSNT76A16F 157F"
+        },
+        {
+          "name": "IMPRESA FUNEBRE SAN DIONIGI DI OLIVERIO VJAMES",
+          "raw": "LVRVMS96P01 D122A"
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "NETO S.A.S DI SALVATORE LIDONNICI & C",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "RESPONSABILITA ’ LIMITATA SEMPLIFICATA",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "MARRAZZO LEGNAMI DI MARRAZZO FRANCESCO",
+          "raw": "MRRFNC98A20 C352S"
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "S.R.L. SEMPLIFICATA",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "CERAMICHE MARAZZITA S.N.C. DI MARAZZITA",
+          "raw": "017733230790"
+        },
+        {
+          "name": "SALVATORE E C",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "",
+          "raw": ""
+        },
+        {
+          "name": "SANTIS GIUSEPPE",
+          "raw": ""
+        }
+      ]
+    }
+  }
+}
