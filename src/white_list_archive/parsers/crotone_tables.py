@@ -157,7 +157,7 @@ def parse_crotone_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 for row in (table or [])
                 if any(_clean(cell) for cell in row)
             ]
-            if page_section is not None and (current_section is None or (nonempty and _is_header(nonempty[0]))):
+            if page_section is not None:
                 current_section = page_section
 
             for table_number, table in enumerate(tables, start=1):
