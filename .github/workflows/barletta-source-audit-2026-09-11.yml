@@ -1,59 +1,53 @@
-name: Barletta-Andria-Trani note-date patch 2026-09-11
+name: Barletta-Andria-Trani parser validation 2026-09-11
 
 on:
   push:
     branches: [expansion/barletta-andria-trani-2026-09-11]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.event.head_commit.message == 'Patch Barletta note-date semantics'
+  validate:
+    if: github.event.head_commit.message == 'Revalidate Barletta note-date parser'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/barletta-andria-trani-2026-09-11
-      - name: Preserve note-column dates without reclassifying them
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: python -m pip install -e '.[dev,publication]'
+      - name: Verify source bytes and parser output
         shell: bash
         run: |
+          pytest -q tests/test_barletta_andria_trani_parser_semantics.py
           python - <<'PY'
+          import hashlib
           from pathlib import Path
-          path=Path('src/white_list_archive/parsers/barletta_andria_trani_tables.py')
-          text=path.read_text()
-          old='''        if not 1 <= len(raw_dates) <= 2:\n            raise RuntimeError(\n                f"{cfg['source_key']}: expected one or two source date fields at page {item['page']} row {item['row']}, got {raw_dates!r}"\n            )\n        listing_raw = raw_dates[0]\n        expiry_raw = raw_dates[1] if len(raw_dates) == 2 else ""\n'''
-          new='''        if not raw_dates:\n            raise RuntimeError(\n                f"{cfg['source_key']}: missing source date fields at page {item['page']} row {item['row']}"\n            )\n        note_raw = _clean(item["base"][-1]) if len(item["base"]) >= 8 else ""\n        extra_note_dates = raw_dates[2:]\n        if any(value not in note_raw for value in extra_note_dates):\n            raise RuntimeError(\n                f"{cfg['source_key']}: unreviewed extra source date at page {item['page']} row {item['row']}: {raw_dates!r}"\n            )\n        listing_raw = raw_dates[0]\n        expiry_raw = raw_dates[1] if len(raw_dates) >= 2 else ""\n'''
-          if old not in text:
-              raise SystemExit('date-count block not found')
-          text=text.replace(old,new,1)
-          old='''            "group_key": (*identity, *date_key, status),\n'''
-          new='''            "group_key": (*identity, *date_key, status, note_raw.casefold()),\n'''
-          if old not in text:
-              raise SystemExit('group-key block not found')
-          text=text.replace(old,new,1)
-          old='''            "status": status,\n            "section": item["section"],\n'''
-          new='''            "status": status,\n            "note_raw": note_raw,\n            "section": item["section"],\n'''
-          if old not in text:
-              raise SystemExit('reviewed block not found')
-          text=text.replace(old,new,1)
-          old='''            "in_aggiornamento": "Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",\n        }\n'''
-          new='''            "in_aggiornamento": representative["note_raw"] if "aggiornamento" in representative["note_raw"].casefold() else "",\n        }\n'''
-          if old not in text:
-              raise SystemExit('source-fields block not found')
-          text=text.replace(old,new,1)
-          old='''            outcome_raw="Aggiornamento in corso" if representative["status"] == "renewal_update_in_progress" else "",\n'''
-          new='''            outcome_raw=representative["note_raw"],\n'''
-          if old not in text:
-              raise SystemExit('outcome block not found')
-          text=text.replace(old,new,1)
-          path.write_text(text)
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.barletta_andria_trani_tables import parse_barletta_andria_trani_listed, parse_barletta_andria_trani_applicants
+          sources={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf','d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf','ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57'),
+          }
+          paths={}
+          for kind,(url,expected) in sources.items():
+              req=Request(url,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 parser-validation'})
+              with urlopen(req,timeout=90) as response: body=response.read()
+              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(kind,observed)
+              path=Path('/tmp',f'barletta-{kind}.pdf'); path.write_bytes(body); paths[kind]=path
+          base={'authority_key':'barletta-andria-trani','authority_name':'Prefettura di Barletta-Andria-Trani','register_key':'barletta-andria-trani-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-11'}
+          lc=base|{'source_key':'barletta-andria-trani-listed','population_scope':'listed','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte','resource_url':sources['listed'][0],'sha256':sources['listed'][1]}
+          ac=base|{'source_key':'barletta-andria-trani-applicants','population_scope':'applicant','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione','resource_url':sources['applicants'][0],'sha256':sources['applicants'][1]}
+          listed=parse_barletta_andria_trani_listed(paths['listed'],lc)
+          applicants=parse_barletta_andria_trani_applicants(paths['applicants'],ac)
+          print('LISTED_DIAGNOSTICS',listed.diagnostics)
+          print('APPLICANT_DIAGNOSTICS',applicants.diagnostics)
+          print('TOTAL_PUBLIC_RECORDS',len(listed.records)+len(applicants.records))
+          note=[r for r in listed.records if r['name']=='VIVA COSTRUZIONI SRL']
+          print('VIVA_RECORDS',note)
           PY
-          git diff --check
-      - name: Commit parser correction
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/barletta_andria_trani_tables.py
-          git commit -m 'Preserve Barletta note-column dates'
-          git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
