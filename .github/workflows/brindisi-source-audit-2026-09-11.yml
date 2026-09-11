@@ -1,0 +1,153 @@
+name: Brindisi source audit 2026-09-11
+
+on:
+  push:
+    branches:
+      - expansion/brindisi-2026-09-11
+    paths:
+      - .github/workflows/brindisi-source-audit-2026-09-11.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install audit runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --upgrade pip
+          python -m pip install pdfplumber
+      - name: Fetch and audit official sources
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white-list-elenco-imprese-iscritte_1.pdf
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white_list_della_provincia_di_brindisi-elenco_delle_imprese_richiedenti_l-iscrizione_0.pdf
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, os, re, urllib.request
+          from collections import Counter
+          from pathlib import Path
+          import pdfplumber
+
+          out = Path('tmp')
+          out.mkdir(exist_ok=True)
+          date_re = re.compile(r'(?<!\d)(\d{1,2}[./-]\d{1,2}[./-]\d{4,5})(?!\d)')
+          id_re = re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])', re.I)
+          section_re = re.compile(r'\bSezione\s+([IVX]+)\b', re.I)
+
+          def download(url: str, path: Path):
+              req = urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0 white-list-archive-source-audit'})
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  body = response.read()
+                  status = getattr(response, 'status', 200)
+                  ctype = response.headers.get('Content-Type','')
+              if status != 200 or not body.startswith(b'%PDF'):
+                  raise RuntimeError(f'bad source fetch {url}: status={status} content-type={ctype} bytes={len(body)}')
+              path.write_bytes(body)
+              return {'url': url, 'status': status, 'content_type': ctype, 'bytes': len(body), 'sha256': hashlib.sha256(body).hexdigest()}
+
+          listed_path = out/'brindisi-listed.pdf'
+          applicant_path = out/'brindisi-applicants.pdf'
+          result = {'listed_fetch': download(os.environ['LISTED_URL'], listed_path), 'applicant_fetch': download(os.environ['APPLICANT_URL'], applicant_path)}
+
+          listed_rows = []
+          markers = []
+          current_section = None
+          listed_tables_per_page = {}
+          with pdfplumber.open(listed_path) as pdf:
+              result['listed_pages'] = len(pdf.pages)
+              for pno, page in enumerate(pdf.pages, 1):
+                  text = page.extract_text() or ''
+                  m = section_re.search(text)
+                  if m:
+                      current_section = m.group(1).upper()
+                      markers.append([pno, current_section])
+                  page_rows = []
+                  tables = page.find_tables()
+                  listed_tables_per_page[str(pno)] = len(tables)
+                  for tno, table in enumerate(tables, 1):
+                      for rno, raw in enumerate(table.extract() or [], 1):
+                          row = [(' ' .join((cell or '').split())) for cell in raw]
+                          if not any(row):
+                              continue
+                          folded = ' | '.join(row).casefold()
+                          if ('ragione sociale' in folded or 'codice fiscale' in folded or 'data iscrizione' in folded or 'data scadenza' in folded):
+                              continue
+                          dates = date_re.findall(' | '.join(row))
+                          ids = id_re.findall(' | '.join(row))
+                          # Source-row candidate: a business-like table row with at least one date and enough populated cells.
+                          populated = sum(bool(v) for v in row)
+                          if dates and populated >= 3:
+                              item = {'page':pno,'table':tno,'row':rno,'section':current_section,'cells':row,'dates':dates,'ids':ids}
+                              listed_rows.append(item)
+                              page_rows.append(item)
+                  if page_rows:
+                      print(f'LISTED_PAGE {pno} section={current_section} candidates={len(page_rows)} tables={len(tables)}')
+          result['listed_section_markers'] = markers
+          result['listed_candidate_rows'] = len(listed_rows)
+          result['listed_section_counts'] = dict(Counter(x['section'] for x in listed_rows))
+          result['listed_rows_with_no_strict_id'] = [x for x in listed_rows if not x['ids']]
+          result['listed_rows_with_lt2_dates'] = [x for x in listed_rows if len(x['dates']) < 2]
+          result['listed_rows_with_blank_first_cell'] = [x for x in listed_rows if not x['cells'][0]]
+          result['listed_renewal_rows'] = sum('rinnovo' in ' '.join(x['cells']).casefold() or 'aggiornamento' in ' '.join(x['cells']).casefold() for x in listed_rows)
+          result['listed_tables_per_page'] = listed_tables_per_page
+
+          applicant_rows = []
+          applicant_tables_per_page = {}
+          with pdfplumber.open(applicant_path) as pdf:
+              result['applicant_pages'] = len(pdf.pages)
+              for pno, page in enumerate(pdf.pages, 1):
+                  tables = page.find_tables()
+                  applicant_tables_per_page[str(pno)] = len(tables)
+                  for tno, table in enumerate(tables, 1):
+                      for rno, raw in enumerate(table.extract() or [], 1):
+                          row = [(' '.join((cell or '').split())) for cell in raw]
+                          if not any(row):
+                              continue
+                          folded = ' | '.join(row).casefold()
+                          if ('ragione sociale' in folded or 'c.f./partita iva' in folded or 'data di presentazione' in folded):
+                              continue
+                          dates = date_re.findall(' | '.join(row))
+                          if dates or (row and row[0] and len(row) >= 4):
+                              applicant_rows.append({'page':pno,'table':tno,'row':rno,'cells':row,'dates':dates,'ids':id_re.findall(' | '.join(row))})
+          result['applicant_candidate_rows'] = len(applicant_rows)
+          result['applicant_rows'] = applicant_rows
+          result['applicant_tables_per_page'] = applicant_tables_per_page
+          result['applicant_rows_with_no_date'] = [x for x in applicant_rows if not x['dates']]
+          result['applicant_rows_with_no_strict_id'] = [x for x in applicant_rows if not x['ids']]
+
+          # Preserve compact exact anomaly evidence, while keeping the full deterministic audit as an artifact.
+          (out/'brindisi-audit.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('AUDIT_SUMMARY', json.dumps({
+              'listed_fetch': result['listed_fetch'],
+              'listed_pages': result['listed_pages'],
+              'listed_section_markers': result['listed_section_markers'],
+              'listed_candidate_rows': result['listed_candidate_rows'],
+              'listed_section_counts': result['listed_section_counts'],
+              'listed_renewal_rows': result['listed_renewal_rows'],
+              'listed_no_id_count': len(result['listed_rows_with_no_strict_id']),
+              'listed_lt2_dates_count': len(result['listed_rows_with_lt2_dates']),
+              'listed_blank_name_count': len(result['listed_rows_with_blank_first_cell']),
+              'applicant_fetch': result['applicant_fetch'],
+              'applicant_pages': result['applicant_pages'],
+              'applicant_candidate_rows': result['applicant_candidate_rows'],
+              'applicant_no_date_count': len(result['applicant_rows_with_no_date']),
+              'applicant_no_id_count': len(result['applicant_rows_with_no_strict_id']),
+          }, ensure_ascii=False))
+          print('LISTED_NO_ID', json.dumps(result['listed_rows_with_no_strict_id'], ensure_ascii=False))
+          print('LISTED_LT2_DATES', json.dumps(result['listed_rows_with_lt2_dates'], ensure_ascii=False))
+          print('LISTED_BLANK_NAME', json.dumps(result['listed_rows_with_blank_first_cell'], ensure_ascii=False))
+          print('APPLICANT_ROWS', json.dumps(result['applicant_rows'], ensure_ascii=False))
+          PY
+      - name: Upload deterministic audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: brindisi-source-audit
+          path: tmp/brindisi-audit.json
+          retention-days: 7
