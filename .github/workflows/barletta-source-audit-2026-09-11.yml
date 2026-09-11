@@ -1,37 +1,54 @@
-name: Barletta-Andria-Trani parser patch 2026-09-11
+name: Barletta-Andria-Trani parser validation 2026-09-11
 
 on:
   push:
     branches: [expansion/barletta-andria-trani-2026-09-11]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.event.head_commit.message == 'Fix Barletta duplicate date geometry'
+  validate:
+    if: github.event.head_commit.message == 'Revalidate Barletta-Andria-Trani parsers'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/barletta-andria-trani-2026-09-11
-      - name: Deduplicate only identical date tokens within one logical row
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: python -m pip install -e '.[dev,publication]'
+      - name: Verify source bytes and parser output
+        shell: bash
         run: |
+          pytest -q tests/test_barletta_andria_trani_parser_semantics.py
           python - <<'PY'
+          import hashlib
           from pathlib import Path
-          path=Path('src/white_list_archive/parsers/barletta_andria_trani_tables.py')
-          text=path.read_text()
-          old='''        raw_dates: list[str] = []\n        for row in source_rows:\n            raw_dates.extend(_date_fields(row))\n        if not 1 <= len(raw_dates) <= 2:\n'''
-          new='''        raw_dates: list[str] = []\n        for row in source_rows:\n            for raw_date in _date_fields(row):\n                if raw_date not in raw_dates:\n                    raw_dates.append(raw_date)\n        if not 1 <= len(raw_dates) <= 2:\n'''
-          if old not in text:
-              raise SystemExit('expected parser block not found')
-          path.write_text(text.replace(old,new,1))
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.barletta_andria_trani_tables import (
+              parse_barletta_andria_trani_listed,
+              parse_barletta_andria_trani_applicants,
+          )
+          sources={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf','d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf','ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57'),
+          }
+          paths={}
+          for kind,(url,expected) in sources.items():
+              req=Request(url,headers={'User-Agent':'ItalianAntiMafiaWhitelistArchive/1.0 parser-validation'})
+              with urlopen(req,timeout=90) as response: body=response.read()
+              observed=hashlib.sha256(body).hexdigest(); assert observed==expected,(kind,observed)
+              path=Path('/tmp',f'barletta-{kind}.pdf'); path.write_bytes(body); paths[kind]=path
+          base={'authority_key':'barletta-andria-trani','authority_name':'Prefettura di Barletta-Andria-Trani','register_key':'barletta-andria-trani-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-11'}
+          lc=base|{'source_key':'barletta-andria-trani-listed','population_scope':'listed','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte','resource_url':sources['listed'][0],'sha256':sources['listed'][1]}
+          ac=base|{'source_key':'barletta-andria-trani-applicants','population_scope':'applicant','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione','resource_url':sources['applicants'][0],'sha256':sources['applicants'][1]}
+          listed=parse_barletta_andria_trani_listed(paths['listed'],lc)
+          applicants=parse_barletta_andria_trani_applicants(paths['applicants'],ac)
+          print('LISTED_DIAGNOSTICS',listed.diagnostics)
+          print('APPLICANT_DIAGNOSTICS',applicants.diagnostics)
+          print('TOTAL_PUBLIC_RECORDS',len(listed.records)+len(applicants.records))
           PY
-          git diff --check
-      - name: Commit parser correction
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/barletta_andria_trani_tables.py
-          git commit -m 'Handle duplicate Barletta source date geometry'
-          git push origin HEAD:expansion/barletta-andria-trani-2026-09-11
