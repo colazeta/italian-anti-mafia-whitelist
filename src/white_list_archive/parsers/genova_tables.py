@@ -23,6 +23,9 @@ _SECTION = re.compile(r"SEZ\.\s*(X|IX|VIII|VII|VI|V|IV|III|II|I)\b", re.I)
 _STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$", re.I)
 _DATE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
 
+_CANONICAL_SECTIONS = re.compile(r"^(?:Sez\.\s*(?:X|IX|VIII|VII|VI|V|IV|III|II|I)\s*)+$", re.I)
+
+
 # The 10 September 2026 PDFs contain three extraction artefacts that are
 # deterministic on the byte-pinned source. These are reviewed source-layout
 # exceptions, not inferred repairs of the underlying official data.
@@ -46,6 +49,32 @@ _REVIEWED_APPLICANT_PAGE9 = [
     "",
     "01660680990",
 ]
+
+
+_REVIEWED_SECTION_FIELDS = {
+    ("listed", "ANTICA TRATTORIA ROCCHIN DI BONA VERA E C. SNC", ""): ["Sezione 9"],
+    ("listed", "DE PASCALE LOREDANA", ""): ["Sezione 6"],
+    ("listed", "DG TRASPORTI SRL", ""): ["Sezione 5", "Sezione 6"],
+    ("listed", "GENOVA INSIEME COOPERATIVA SOCIALE A RL", ""): ["Sezione 6", "Sezione 10"],
+    ("listed", "PH FACILITY SRL", ""): ["Sezione 6", "Sezione 10"],
+    ("listed", "RA.RO SCAVI E COSTRUZIONI SRL", ""): ["Sezione 1", "Sezione 3", "Sezione 5"],
+    ("listed", "RR SERVICE SRL", ""): ["Sezione 2", "Sezione 3"],
+    ("listed", "VALLEVERDE SERVIZI SNC DI ALLUCI FEDERICO & C.", ""): ["Sezione 1", "Sezione 5"],
+    ("listed", "AMICO A. SRL", "Se. V"): ["Sezione 5"],
+    ("listed", "GC COSTRUZIONI SNC DI GIOVINAZZO SALVATORE & LUCIANO", "Sez. I Sez. II Sez. III Sez.. IV Sez. V Sez. VI Sez. VIII Sez. X"): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 4", "Sezione 5", "Sezione 6", "Sezione 8", "Sezione 10"],
+    ("listed", "OILMEC SERVICE DI SEMENZA ANDREA", "Sez. I Sez. II Sez. III Sez. IV Sez. V Sex. X"): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 4", "Sezione 5", "Sezione 10"],
+    ("listed", "ROTUNDO DOMENICO", "Sez. I Sez II Sez. V"): ["Sezione 1", "Sezione 2", "Sezione 5"],
+    ("listed", "VARONA NICOLA", "Sex. IX Sez. X"): ["Sezione 9", "Sezione 10"],
+    ("applicant", "COOPERATIVA ALTA VAL D'AVETO", ""): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 5"],
+    ("applicant", "MATERIO SRL", ""): ["Sezione 1", "Sezione 5"],
+    ("applicant", "ASSALINO STEFANO", "SEZ I"): ["Sezione 1"],
+    ("applicant", "AUTOTRASPORTI DI GIUSTO & C. - SOCIETA' IN NOME COLLETTIVO", "Sez,I Sez.VI"): ["Sezione 1", "Sezione 6"],
+    ("applicant", "FERROGGIARO ALESSANDRO", "Sez. I Sez. III Sez. V Sez VI Sez. X"): ["Sezione 1", "Sezione 3", "Sezione 5", "Sezione 6", "Sezione 10"],
+    ("applicant", "FORZA MOTRICE SRL", "SEZ. I SEZ II"): ["Sezione 1", "Sezione 2"],
+    ("applicant", "IMPRESA EDILE VALERIANI SRL", "SEZ. I SEZ II SEZ III"): ["Sezione 1", "Sezione 2", "Sezione 3"],
+    ("applicant", "R&R S.R.L.SPEDIZIONI INTERNAZIONALI", "SEZ VI"): ["Sezione 6"],
+    ("applicant", "S & C SRL", "Sex. IX"): ["Sezione 9"],
+}
 
 
 def _compact(value: str) -> str:
@@ -75,8 +104,14 @@ def _parse_date(value: str, *, allow_blank: bool = True) -> str:
         raise RuntimeError(f"Genova invalid calendar date: {raw!r}") from exc
 
 
-def _sections(value: str) -> list[str]:
-    matches = _SECTION.findall(_clean(value))
+def _sections(value: str, *, scope: str, name: str) -> list[str]:
+    raw = _clean(value)
+    reviewed = _REVIEWED_SECTION_FIELDS.get((scope, name, raw))
+    if reviewed is not None:
+        return list(reviewed)
+    if not _CANONICAL_SECTIONS.fullmatch(raw):
+        raise RuntimeError(f"Genova unreviewed White List section typography for {scope}/{name!r}: {raw!r}")
+    matches = _SECTION.findall(raw)
     roman_to_int = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
     sections: list[str] = []
     for match in matches:
@@ -84,7 +119,7 @@ def _sections(value: str) -> list[str]:
         if label not in sections:
             sections.append(label)
     if not sections:
-        raise RuntimeError(f"Genova row without a recognised White List section: {value!r}")
+        raise RuntimeError(f"Genova row without a recognised White List section: {raw!r}")
     return sections
 
 
@@ -174,7 +209,7 @@ def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                         repaired_page47 += 1
                     if not cells[0]:
                         raise RuntimeError(f"Genova listed row without company name p{page_number}:t{table_number}:r{row_number}")
-                    sections = _sections(cells[4])
+                    sections = _sections(cells[4], scope="listed", name=cells[0])
                     listing_date = _parse_date(cells[5])
                     expiry_date = _parse_date(cells[6])
                     status = _listed_status(cells[7])
@@ -303,7 +338,7 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
                 if not cells[0]:
                     raise RuntimeError(f"Genova applicant row without company name p{page_number}:t{table_number}:r{row_number}")
-                sections = _sections(cells[4])
+                sections = _sections(cells[4], scope="applicant", name=cells[0])
                 application_date = _parse_date(cells[5])
                 outcome_raw = _applicant_outcome(cells[6])
                 rows.append(
