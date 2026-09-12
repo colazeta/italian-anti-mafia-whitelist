@@ -1,14 +1,14 @@
-name: Genova reviewed section patch
+name: Genova national candidate gate
 on:
   push:
     branches: [expansion/genova-2026-09-12]
     paths: [.github/workflows/genova-section-patch.yml]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  validate:
+  candidate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,52 +16,132 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install parser validation runtime
-        run: python -m pip install --disable-pip-version-check -e . requests pdfplumber
-      - name: Validate frozen Genova sources
+      - name: Install publication runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install --disable-pip-version-check -e '.[publication]'
+      - name: Materialize Genova candidate in runner
         run: |
           python - <<'PY'
-          import hashlib, json, pathlib, tempfile
-          from collections import Counter
-          import requests
-          from white_list_archive.parsers.genova_tables import parse_genova_applicants, parse_genova_listed
+          import csv
+          import json
+          from pathlib import Path
 
           page = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
-          specs = {
-            'listed': ('genova-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf','baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'),
-            'applicant': ('genova-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf','13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'),
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf'
+          applicant_url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf'
+          listed_sha = 'baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'
+          applicant_sha = '13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'
+
+          cfg_path = Path('data/publication/multi_prefecture_pilot.json')
+          cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
+          sources = cfg['sources']
+          if any(x.get('authority_key') == 'genova' for x in sources):
+              raise SystemExit('Genova already present in publication config; refuse duplicate materialization')
+          common = {
+              'authority_key': 'genova',
+              'authority_name': 'Prefettura di Genova',
+              'register_key': 'genova-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-10',
+              'source_page_url': page,
+              'last_source_update': '2026-09-10',
+              'last_source_update_basis': 'dated official resources directly verified 12 September 2026',
           }
-          report={'authority_key':'genova','validated_on':'2026-09-12','sources':{}}
-          s=requests.Session(); s.headers['User-Agent']='italian-anti-mafia-whitelist parser validation/1.0'
-          with tempfile.TemporaryDirectory() as td:
-            td=pathlib.Path(td); batches={}
-            for scope,(key,pop,url,expected) in specs.items():
-              r=s.get(url,timeout=(15,120)); r.raise_for_status()
-              actual=hashlib.sha256(r.content).hexdigest(); assert actual==expected,(scope,actual)
-              p=td/f'{scope}.pdf'; p.write_bytes(r.content)
-              cfg={'source_key':key,'authority_key':'genova','authority_name':'Prefettura di Genova','register_key':'genova-ordinary','register_name':'White List ordinaria','population_scope':pop,'reference_date':'2026-09-10','source_page_url':page,'resource_url':url,'sha256':expected}
-              b=parse_genova_listed(p,cfg) if scope=='listed' else parse_genova_applicants(p,cfg)
-              batches[scope]=b; report['sources'][scope]=b.diagnostics
-            listed=batches['listed'].records; applicants=batches['applicant'].records
-            assert len(listed)==652 and Counter(x['source_status'] for x in listed)==Counter({'listed':528,'renewal_update_in_progress':124})
-            assert len(applicants)==110 and Counter(x['source_status'] for x in applicants)==Counter({'pending':110})
-            g=next(x for x in listed if x['name']=='GENOVARENT SRL'); assert g['observed_listing_date']=='' and g['source_fields']['listing_date_raw']=='26//09/2023'
-            l=next(x for x in applicants if x['name']=='LO SCACCIA PENSIERI SRL'); assert l['application_date']=='' and l['source_fields']['application_date_raw']=='16/072026'
-            e=next(x for x in applicants if x['name']=='EDILQUADRIFOGLIO SRL'); assert e['identifiers']==['01660680990'] and e['application_date']=='2026-07-03'
-            f=next(x for x in listed if x['name']=='FISIA ITALIMPIANTI SPA'); assert f['identifiers']==['02340830997'] and f['source_status']=='renewal_update_in_progress'
-            for name in ['PARODI PAOLO','PIROMALLI ANTONINO srl','ROSSI ROBERTO','TRAVERSO SERGIO']:
-              assert next(x for x in listed if x['name']==name)['identifiers']==[]
-            report['total_records']=762; report['status_counts']={'listed':528,'renewal_update_in_progress':124,'pending':110}
-          out=pathlib.Path('tmp/genova_parser_validation.json'); out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-          print(json.dumps(report,ensure_ascii=False,indent=2))
+          sources.extend([
+              {
+                  **common,
+                  'source_key': 'genova-listed',
+                  'parser': 'genova_listed',
+                  'population_scope': 'listed',
+                  'resource_url': listed_url,
+                  'sha256': listed_sha,
+                  'expected_source_rows': 652,
+                  'notes': 'Byte-pinned 114-page listed-company PDF. The fail-closed parser yields 652 observations: 528 listed and 124 renewal/update in progress. Reviewed extraction anomalies and malformed official identifiers/dates remain explicit raw provenance and are never fuzzily repaired.',
+              },
+              {
+                  **common,
+                  'source_key': 'genova-applicants',
+                  'parser': 'genova_applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': applicant_url,
+                  'sha256': applicant_sha,
+                  'expected_source_rows': 110,
+                  'notes': 'Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed page 7/page 9 table-extraction cases are exact evidence-backed reconstructions; malformed official dates remain raw and uninferred.',
+              },
+          ])
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          verified = Path('data/source_registry/verified_primary_pages.csv')
+          rows = list(csv.DictReader(verified.open(encoding='utf-8', newline='')))
+          matches = [r for r in rows if r['authority_key'] == 'genova']
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly one existing Genova verified-page row, found {len(matches)}')
+          old = matches[0]
+          if old != {
+              'authority_key': 'genova',
+              'landing_url': 'https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list',
+              'verification_date': '2026-09-06',
+              'verification_status': 'verified',
+          }:
+              raise SystemExit(f'unexpected pre-existing Genova verified-page state: {old!r}')
+          old['landing_url'] = page
+          old['verification_date'] = '2026-09-12'
+          with verified.open('w', encoding='utf-8', newline='') as fh:
+              writer = csv.DictWriter(fh, fieldnames=['authority_key','landing_url','verification_date','verification_status'], lineterminator='\n')
+              writer.writeheader(); writer.writerows(rows)
+
+          registry = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = registry.read_text(encoding='utf-8')
+          import_anchor = 'from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS\n'
+          import_line = 'from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS\n'
+          if text.count(import_anchor) != 1 or import_line in text:
+              raise SystemExit('unexpected public-registry import state')
+          text = text.replace(import_anchor, import_anchor + import_line, 1)
+          chain_anchor = '        or CATANIA_PARSERS.get(cfg["parser"])\n'
+          chain_line = '        or GENOVA_PARSERS.get(cfg["parser"])\n'
+          if text.count(chain_anchor) != 1 or chain_line in text:
+              raise SystemExit('unexpected public-registry parser-chain state')
+          text = text.replace(chain_anchor, chain_anchor + chain_line, 1)
+          registry.write_text(text, encoding='utf-8')
           PY
-      - name: Checkpoint validation
+          git diff --check
+          git diff -- data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv src/white_list_archive/publishing/public_national_registry.py
+      - name: Build Genova national candidate
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add tmp/genova_parser_validation.json
-          git diff --cached --check
-          if ! git diff --cached --quiet; then
-            git commit -m 'Validate Genova parser against official sources'
-            git push origin HEAD:expansion/genova-2026-09-12
-          fi
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/genova-national-sources \
+            --registry-json /tmp/genova-registry.json \
+            --registry-csv /tmp/genova-registry.csv \
+            --prefectures-json /tmp/genova-prefectures.json \
+            --prefectures-csv /tmp/genova-prefectures.csv
+      - name: Validate Genova national candidate
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          reg = json.loads(Path('/tmp/genova-registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/genova-prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 29600, reg['meta']
+          assert reg['meta']['authority_count'] == 30, reg['meta']
+          assert reg['meta']['register_count'] == 31, reg['meta']
+          assert reg['meta']['record_count'] == len(reg['records'])
+          assert reg['meta']['authority_counts']['genova'] == 762
+          assert reg['meta']['register_counts']['genova-ordinary'] == 762
+          genova = [r for r in reg['records'] if r['authority_key'] == 'genova']
+          assert len(genova) == 762
+          assert Counter(r['source_status'] for r in genova) == Counter({'listed': 528, 'renewal_update_in_progress': 124, 'pending': 110})
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['published_count'] == 30
+          assert pref['meta']['mapped_count'] == 39
+          gp = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']
+          assert len(gp) == 1 and gp[0]['mapped'] and gp[0]['published'] and gp[0]['series_count'] == 2, gp
+          print(json.dumps({'record_count': reg['meta']['record_count'], 'authority_count': reg['meta']['authority_count'], 'register_count': reg['meta']['register_count'], 'mapped_count': pref['meta']['mapped_count'], 'published_count': pref['meta']['published_count'], 'genova_records': len(genova), 'genova_status_counts': dict(Counter(r['source_status'] for r in genova))}, indent=2))
+          PY
