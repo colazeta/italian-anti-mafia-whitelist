@@ -1,0 +1,135 @@
+name: Genova source audit
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-source-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bounded audit runtime
+        run: python -m pip install --disable-pip-version-check requests pypdf
+      - name: Verify and profile official sources
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import tempfile
+          import time
+          import requests
+          from pypdf import PdfReader
+
+          landing_url = os.environ['LANDING_URL']
+          urls = {
+              'listed': os.environ['LISTED_URL'],
+              'applicant': os.environ['APPLICANT_URL'],
+          }
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'italian-anti-mafia-whitelist source audit/1.0'})
+
+          def get(url):
+              last = None
+              for attempt in range(3):
+                  try:
+                      response = session.get(url, timeout=(15, 90), allow_redirects=True)
+                      response.raise_for_status()
+                      return response
+                  except Exception as exc:
+                      last = exc
+                      if attempt < 2:
+                          time.sleep(2 ** attempt)
+              raise last
+
+          landing = get(landing_url)
+          landing_text = landing.text
+          for key, url in urls.items():
+              if url not in landing_text:
+                  raise SystemExit(f'{key} official attachment URL not positively present on landing page')
+
+          report = {
+              'authority_key': 'genova',
+              'verified_on': '2026-09-12',
+              'landing_url': landing_url,
+              'landing_status': landing.status_code,
+              'landing_final_url': landing.url,
+              'positive_population_evidence': {
+                  'listed': 'Elenco imprese iscritte in White List al 10/09/2026',
+                  'applicant': "Elenco imprese richiedenti l'iscrizione in White List al 10/09/2026",
+              },
+              'sources': {},
+          }
+
+          with tempfile.TemporaryDirectory(prefix='genova-source-audit-') as td:
+              td = pathlib.Path(td)
+              for key, url in urls.items():
+                  first = get(url)
+                  second = get(url)
+                  if first.content != second.content:
+                      raise SystemExit(f'{key} repeated acquisition is not byte-identical')
+                  data = first.content
+                  if not data.startswith(b'%PDF'):
+                      raise SystemExit(f'{key} response is not a PDF')
+                  p = td / f'{key}.pdf'
+                  p.write_bytes(data)
+                  reader = PdfReader(str(p), strict=True)
+                  pages = len(reader.pages)
+                  if pages < 1:
+                      raise SystemExit(f'{key} PDF has no pages')
+                  first_text = (reader.pages[0].extract_text() or '').strip()
+                  last_text = (reader.pages[-1].extract_text() or '').strip()
+                  report['sources'][key] = {
+                      'resource_url': url,
+                      'status': first.status_code,
+                      'final_url': first.url,
+                      'content_type': first.headers.get('content-type'),
+                      'bytes': len(data),
+                      'sha256': hashlib.sha256(data).hexdigest(),
+                      'repeat_fetch_byte_identical': True,
+                      'pages': pages,
+                      'pdf_metadata': {str(k): str(v) for k, v in (reader.metadata or {}).items()},
+                      'first_page_text_prefix': first_text[:800],
+                      'last_page_text_prefix': last_text[:400],
+                  }
+
+          out = pathlib.Path('tmp/genova_source_profile.json')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'listed_sha256': report['sources']['listed']['sha256'],
+              'listed_pages': report['sources']['listed']['pages'],
+              'applicant_sha256': report['sources']['applicant']['sha256'],
+              'applicant_pages': report['sources']['applicant']['pages'],
+          }, indent=2))
+          PY
+      - name: Checkpoint source profile
+        run: |
+          test -f tmp/genova_source_profile.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/genova_source_profile.json
+          if git diff --cached --quiet; then
+            echo 'No profile change to commit.'
+          else
+            git commit -m 'Checkpoint Genova official source profile'
+            git push origin HEAD:expansion/genova-2026-09-12
+          fi
