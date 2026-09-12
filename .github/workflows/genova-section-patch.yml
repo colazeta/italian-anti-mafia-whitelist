@@ -1,14 +1,14 @@
-name: Genova canonical record binding validation
+name: Genova listed legend audit
 on:
   push:
     branches: [expansion/genova-2026-09-12]
     paths: [.github/workflows/genova-section-patch.yml]
 permissions:
-  contents: write
+  contents: read
 jobs:
-  validate:
+  audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,78 +16,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Complete canonical record semantics
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('src/white_list_archive/parsers/genova_tables.py')
-          text = path.read_text(encoding='utf-8')
-          listed_anchor = '''            office=row["address"],\n            status=row["source_status"],\n'''
-          listed_replacement = '''            office=row["address"],\n            secondary=row["secondary"],\n            activities=row["sections"],\n            status=row["source_status"],\n            outcome_raw=row["update_raw"],\n'''
-          applicant_anchor = '''            office=row["address"],\n            status="pending",\n'''
-          applicant_replacement = '''            office=row["address"],\n            secondary=row["secondary"],\n            activities=row["sections"],\n            status="pending",\n            outcome_raw=row["outcome_raw"],\n'''
-          if listed_replacement not in text:
-              if text.count(listed_anchor) != 1:
-                  raise SystemExit(f'listed canonical-record anchor drift: {text.count(listed_anchor)}')
-              text = text.replace(listed_anchor, listed_replacement, 1)
-          if applicant_replacement not in text:
-              if text.count(applicant_anchor) != 1:
-                  raise SystemExit(f'applicant canonical-record anchor drift: {text.count(applicant_anchor)}')
-              text = text.replace(applicant_anchor, applicant_replacement, 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-          git diff --check
-          python -m py_compile src/white_list_archive/parsers/genova_tables.py
-      - name: Install frozen-source validation runtime
-        run: python -m pip install --disable-pip-version-check -e . requests pdfplumber
-      - name: Validate frozen Genova sources and canonical records
+      - name: Install bounded audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Audit byte-pinned listed legend rows
         run: |
           python - <<'PY'
           import hashlib, json, pathlib, tempfile
-          from collections import Counter
-          import requests
-          from white_list_archive.parsers.genova_tables import parse_genova_applicants, parse_genova_listed
-
-          page = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
-          specs = {
-            'listed': ('genova-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf','baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'),
-            'applicant': ('genova-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf','13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'),
-          }
-          report={'authority_key':'genova','validated_on':'2026-09-12','sources':{}}
-          s=requests.Session(); s.headers['User-Agent']='italian-anti-mafia-whitelist parser validation/1.0'
+          import pdfplumber, requests
+          url='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf'
+          expected='baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'
+          r=requests.get(url,headers={'User-Agent':'italian-anti-mafia-whitelist source audit/1.0'},timeout=(15,120)); r.raise_for_status()
+          actual=hashlib.sha256(r.content).hexdigest(); assert actual==expected,actual
+          hits=[]
           with tempfile.TemporaryDirectory() as td:
-            td=pathlib.Path(td); batches={}
-            for scope,(key,pop,url,expected) in specs.items():
-              r=s.get(url,timeout=(15,120)); r.raise_for_status()
-              actual=hashlib.sha256(r.content).hexdigest(); assert actual==expected,(scope,actual)
-              p=td/f'{scope}.pdf'; p.write_bytes(r.content)
-              cfg={'source_key':key,'authority_key':'genova','authority_name':'Prefettura di Genova','register_key':'genova-ordinary','register_name':'White List ordinaria','population_scope':pop,'reference_date':'2026-09-10','source_page_url':page,'resource_url':url,'sha256':expected}
-              b=parse_genova_listed(p,cfg) if scope=='listed' else parse_genova_applicants(p,cfg)
-              batches[scope]=b; report['sources'][scope]=b.diagnostics
-            listed=batches['listed'].records; applicants=batches['applicant'].records
-            assert len(listed)==652 and Counter(x['source_status'] for x in listed)==Counter({'listed':528,'renewal_update_in_progress':124})
-            assert len(applicants)==110 and Counter(x['source_status'] for x in applicants)==Counter({'pending':110})
-            assert all(x['authority_key']=='genova' and x['register_key']=='genova-ordinary' for x in listed+applicants)
-            assert all(x['activities'] for x in listed+applicants)
-            assert all(x['population_scope']=='listed' for x in listed)
-            assert all(x['population_scope']=='applicant' for x in applicants)
-            g=next(x for x in listed if x['name']=='GENOVARENT SRL'); assert g['observed_listing_date']=='' and g['source_fields']['listing_date_raw']=='26//09/2023'
-            l=next(x for x in applicants if x['name']=='LO SCACCIA PENSIERI SRL'); assert l['application_date']=='' and l['source_fields']['application_date_raw']=='16/072026'
-            e=next(x for x in applicants if x['name']=='EDILQUADRIFOGLIO SRL'); assert e['identifiers']==['01660680990'] and e['application_date']=='2026-07-03' and e['activities']==['3','4']
-            f=next(x for x in listed if x['name']=='FISIA ITALIMPIANTI SPA'); assert f['identifiers']==['02340830997'] and f['source_status']=='renewal_update_in_progress' and f['outcome_raw']=='RICHIESTO RINNOVO'
-            for name in ['PARODI PAOLO','PIROMALLI ANTONINO srl','ROSSI ROBERTO','TRAVERSO SERGIO']:
-              assert next(x for x in listed if x['name']==name)['identifiers']==[]
-            report['total_records']=762; report['status_counts']={'listed':528,'renewal_update_in_progress':124,'pending':110}
-          out=pathlib.Path('tmp/genova_parser_validation.json'); out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(json.dumps(report,ensure_ascii=False,indent=2))
+            p=pathlib.Path(td)/'listed.pdf'; p.write_bytes(r.content)
+            with pdfplumber.open(p) as pdf:
+              for page_number,page in enumerate(pdf.pages,start=1):
+                for table_index,table in enumerate(page.extract_tables() or [],start=1):
+                  for row_index,row in enumerate(table or [],start=1):
+                    cells=[' '.join(str(x or '').split()) for x in (row or [])]
+                    joined=' '.join(cells)
+                    if 'Legenda Sez. I - Estrazione' in joined:
+                      hits.append({'page':page_number,'table':table_index,'row':row_index,'cells':cells})
+          print(json.dumps({'sha256':actual,'legend_rows':hits,'count':len(hits)},ensure_ascii=False,indent=2))
           PY
-      - name: Checkpoint validated parser binding
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/white_list_archive/parsers/genova_tables.py tmp/genova_parser_validation.json
-          git diff --cached --check
-          if ! git diff --cached --quiet; then
-            git commit -m 'Validate Genova canonical record binding'
-            git push origin HEAD:expansion/genova-2026-09-12
-          fi
