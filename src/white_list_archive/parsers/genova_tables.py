@@ -8,7 +8,7 @@ from typing import Any
 
 import pdfplumber
 
-from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _base_record
+from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _record
 
 PARSER_VERSION = "1"
 _LISTED_PAGES = 114
@@ -296,15 +296,15 @@ def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Genova listed record-count drift: {len(rows)}")
     records: list[dict[str, Any]] = []
     for row in rows:
-        record = _base_record(
+        record = _record(
             cfg=cfg,
-            source_ordinal=row["ordinal"],
+            row_ordinal=row["ordinal"],
             name=row["name"],
             identifier_raw=row["identifier_raw"],
-            address=row["address"],
-            source_status=row["source_status"],
-            observed_listing_date=row["listing_date"],
-            observed_expiry_date=row["expiry_date"],
+            office=row["address"],
+            status=row["source_status"],
+            listing_date=row["listing_date"],
+            expiry_date=row["expiry_date"],
             application_date="",
             primary_date_label="Data iscrizione",
             source_fields={
@@ -343,15 +343,15 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Genova applicant record-count drift: {len(rows)}")
     records: list[dict[str, Any]] = []
     for row in rows:
-        record = _base_record(
+        record = _record(
             cfg=cfg,
-            source_ordinal=row["ordinal"],
+            row_ordinal=row["ordinal"],
             name=row["name"],
             identifier_raw=row["identifier_raw"],
-            address=row["address"],
-            source_status="pending",
-            observed_listing_date="",
-            observed_expiry_date="",
+            office=row["address"],
+            status="pending",
+            listing_date="",
+            expiry_date="",
             application_date=row["application_date"],
             primary_date_label="Data presentazione istanza",
             source_fields={
