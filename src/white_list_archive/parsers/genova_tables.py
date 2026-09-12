@@ -344,7 +344,7 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     if cells[:4] != ["", "", "", ""]:
                         raise RuntimeError(f"Genova applicant page-9 reviewed row drift: {cells!r}")
                     page_compact = _compact(page.extract_text() or "")
-                    reviewed_support = "EDILQUADRIFOGLIOSRL0166068099003/07/2026INISTRUTTORIAVIACESAREA,11/6"
+                    reviewed_support = "edilquadrifogliosrl0166068099003/07/2026inistruttoriaviacesarea,11/6"
                     if reviewed_support not in page_compact:
                         raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")
                     cells = _REVIEWED_APPLICANT_PAGE9 + cells[4:]
