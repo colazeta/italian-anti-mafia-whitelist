@@ -26,32 +26,51 @@ def patch_parser() -> None:
         "_EXPECTED_LISTED_SECTOR_ROWS = 3308\n",
         "_EXPECTED_LISTED_SECTOR_ROWS = 3308\n"
         "_EXPECTED_LISTED_NAME_SHIFT_ROWS = 72\n"
-        "_EXPECTED_LISTED_NAME_SHIFT_SHA256 = \"f6d55887c3f4e45e46217447100e5e896e509c5daa50f603a9ab48a53c5a41c2\"\n",
-        "name-shift constants",
+        "_EXPECTED_LISTED_NAME_SHIFT_SHA256 = \"f6d55887c3f4e45e46217447100e5e896e509c5daa50f603a9ab48a53c5a41c2\"\n"
+        "_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS = 1\n"
+        "_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256 = \"494b0d0d6944b0c006f0a103889004950b190070ee36f2cdfa8d7d9e8c63e610\"\n",
+        "layout constants",
     )
     text = replace_once(
         text,
         "_REVIEWED_APPLICANT_MALFORMED_DATES = frozenset({\"25/092025\"})\n\n\n"
         "def _validate_cfg",
-        "_REVIEWED_APPLICANT_MALFORMED_DATES = frozenset({\"25/092025\"})\n\n\n"
-        "def _name_shift_sha256(signatures: list[list[Any]]) -> str:\n"
+        "_REVIEWED_APPLICANT_MALFORMED_DATES = frozenset({\"25/092025\"})\n"
+        "_LISTED_LAYOUT_DATE_RE = re.compile(\n"
+        "    r\"\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,5}|\\d{4}-\\d{2}-\\d{2}(?: 00:00:00)?\"\n"
+        ")\n\n\n"
+        "def _layout_sha256(signatures: list[list[Any]]) -> str:\n"
         "    payload = json.dumps(signatures, ensure_ascii=False, separators=(\",\", \":\")).encode(\"utf-8\")\n"
         "    return hashlib.sha256(payload).hexdigest()\n\n\n"
+        "def _listed_company_signal(values: list[str]) -> bool:\n"
+        "    return any(re.fullmatch(r\"\\d{11}\", value) for value in values if value) or any(\n"
+        "        _LISTED_LAYOUT_DATE_RE.fullmatch(value) for value in values if value\n"
+        "    )\n\n\n"
         "def _validate_cfg",
-        "name-shift digest helper",
+        "layout helpers",
     )
     text = replace_once(
         text,
         "    rows: list[dict[str, Any]] = []\n    structural_shift_rows = 0\n",
         "    rows: list[dict[str, Any]] = []\n"
         "    structural_shift_rows = 0\n"
-        "    name_shift_signatures: list[list[Any]] = []\n",
-        "name-shift accumulator",
+        "    name_shift_signatures: list[list[Any]] = []\n"
+        "    non_company_noise_signatures: list[list[Any]] = []\n",
+        "layout accumulators",
     )
     text = replace_once(
         text,
+        "        listing_value: Any = raw_values[listing_i] if listing_i < len(raw_values) else \"\"\n"
+        "        expiry_value: Any = raw_values[expiry_i] if expiry_i < len(raw_values) else \"\"\n\n"
         "        if not name:\n"
         "            raise RuntimeError(f\"Brescia nonempty listed row without company name at row {source_row}: {values!r}\")\n",
+        "        listing_value: Any = raw_values[listing_i] if listing_i < len(raw_values) else \"\"\n"
+        "        expiry_value: Any = raw_values[expiry_i] if expiry_i < len(raw_values) else \"\"\n\n"
+        "        if not name and not _listed_company_signal(values):\n"
+        "            non_company_noise_signatures.append(\n"
+        "                [source_row, section, [[index, value] for index, value in enumerate(values) if value]]\n"
+        "            )\n"
+        "            continue\n\n"
         "        if not name:\n"
         "            fallback_name = values[0] if values else \"\"\n"
         "            signature = [\n"
@@ -74,7 +93,7 @@ def patch_parser() -> None:
         "                )\n"
         "            name_shift_signatures.append(signature)\n"
         "            name = fallback_name\n",
-        "name-shift row handling",
+        "audited layout handling",
     )
     text = replace_once(
         text,
@@ -85,7 +104,7 @@ def patch_parser() -> None:
     text = replace_once(
         text,
         "    if section_headers != Counter({section: 1 for section in _EXPECTED_SECTIONS}):\n",
-        "    name_shift_sha256 = _name_shift_sha256(name_shift_signatures)\n"
+        "    name_shift_sha256 = _layout_sha256(name_shift_signatures)\n"
         "    if len(name_shift_signatures) != _EXPECTED_LISTED_NAME_SHIFT_ROWS:\n"
         "        raise RuntimeError(\n"
         "            f\"Brescia reviewed listed-name shift count drift: {len(name_shift_signatures)} \"\n"
@@ -96,8 +115,19 @@ def patch_parser() -> None:
         "            f\"Brescia reviewed listed-name shift fingerprint drift: {name_shift_sha256} \"\n"
         "            f\"!= {_EXPECTED_LISTED_NAME_SHIFT_SHA256}\"\n"
         "        )\n"
+        "    noise_sha256 = _layout_sha256(non_company_noise_signatures)\n"
+        "    if len(non_company_noise_signatures) != _EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS:\n"
+        "        raise RuntimeError(\n"
+        "            f\"Brescia reviewed non-company layout-noise count drift: \"\n"
+        "            f\"{len(non_company_noise_signatures)} != {_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS}\"\n"
+        "        )\n"
+        "    if noise_sha256 != _EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256:\n"
+        "        raise RuntimeError(\n"
+        "            f\"Brescia reviewed non-company layout-noise fingerprint drift: {noise_sha256} \"\n"
+        "            f\"!= {_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256}\"\n"
+        "        )\n"
         "    if section_headers != Counter({section: 1 for section in _EXPECTED_SECTIONS}):\n",
-        "name-shift fail-closed validation",
+        "layout fail-closed validation",
     )
     PARSER.write_text(text, encoding="utf-8")
 
@@ -127,9 +157,11 @@ def patch_tests() -> None:
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_SECTOR_ROWS\", sum(section_counts.values()))\n"
         "    expected_shift = [[4, \"I\", \"UNICA I SRL\", \"Brescia via I\", \"00000000001\", \"2026-01-01 00:00:00\", \"2027-01-01 00:00:00\", \"\"]]\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_ROWS\", 1)\n"
-        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_SHA256\", bs._name_shift_sha256(expected_shift))\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_SHA256\", bs._layout_sha256(expected_shift))\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS\", 0)\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256\", bs._layout_sha256([]))\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_PEER_RESOLVED_DATE_ROWS\", 0)\n",
-        "fixture expected shift fingerprint",
+        "fixture expected layout fingerprints",
     )
     text = replace_once(
         text,
@@ -137,9 +169,11 @@ def patch_tests() -> None:
         "    try:\n",
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_SECTOR_ROWS\", sum(len(rows) for rows in by_section.values()))\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_ROWS\", 0)\n"
-        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_SHA256\", bs._name_shift_sha256([]))\n\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_SHA256\", bs._layout_sha256([]))\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS\", 0)\n"
+        "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256\", bs._layout_sha256([]))\n\n"
         "    try:\n",
-        "no-shift fail-closed fixture",
+        "fail-closed fixture layout fingerprints",
     )
     TESTS.write_text(text, encoding="utf-8")
 
