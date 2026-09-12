@@ -77,6 +77,12 @@ _REVIEWED_SECTION_FIELDS = {
 }
 
 
+_REVIEWED_INVALID_DATE_FIELDS = {
+    ("listed", "GENOVARENT SRL", "listing", "26//09/2023"),
+    ("applicant", "LO SCACCIA PENSIERI SRL", "application", "16/072026"),
+}
+
+
 def _compact(value: str) -> str:
     return re.sub(r"\s+", "", _clean(value)).casefold()
 
@@ -102,6 +108,13 @@ def _parse_date(value: str, *, allow_blank: bool = True) -> str:
         return date(year, month, day).isoformat()
     except ValueError as exc:
         raise RuntimeError(f"Genova invalid calendar date: {raw!r}") from exc
+
+
+def _parse_observed_date(value: str, *, scope: str, name: str, field: str) -> str:
+    raw = _clean(value)
+    if (scope, name, field, raw) in _REVIEWED_INVALID_DATE_FIELDS:
+        return ""
+    return _parse_date(raw)
 
 
 def _sections(value: str, *, scope: str, name: str) -> list[str]:
@@ -210,8 +223,8 @@ def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     if not cells[0]:
                         raise RuntimeError(f"Genova listed row without company name p{page_number}:t{table_number}:r{row_number}")
                     sections = _sections(cells[4], scope="listed", name=cells[0])
-                    listing_date = _parse_date(cells[5])
-                    expiry_date = _parse_date(cells[6])
+                    listing_date = _parse_observed_date(cells[5], scope="listed", name=cells[0], field="listing")
+                    expiry_date = _parse_observed_date(cells[6], scope="listed", name=cells[0], field="expiry")
                     status = _listed_status(cells[7])
                     rows.append(
                         {
@@ -330,8 +343,9 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 if page_number == 9 and table_number == 1 and row_number == 1:
                     if cells[:4] != ["", "", "", ""]:
                         raise RuntimeError(f"Genova applicant page-9 reviewed row drift: {cells!r}")
-                    page_text = _clean(page.extract_text() or "")
-                    if not all(token in page_text for token in (_REVIEWED_APPLICANT_PAGE9[0], _REVIEWED_APPLICANT_PAGE9[1], _REVIEWED_APPLICANT_PAGE9[3])):
+                    page_compact = _compact(page.extract_text() or "")
+                    reviewed_support = "EDILQUADRIFOGLIOSRL0166068099003/07/2026INISTRUTTORIAVIACESAREA,11/6"
+                    if reviewed_support not in page_compact:
                         raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")
                     cells = _REVIEWED_APPLICANT_PAGE9 + cells[4:]
                     reviewed_page9 += 1
@@ -339,7 +353,7 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 if not cells[0]:
                     raise RuntimeError(f"Genova applicant row without company name p{page_number}:t{table_number}:r{row_number}")
                 sections = _sections(cells[4], scope="applicant", name=cells[0])
-                application_date = _parse_date(cells[5])
+                application_date = _parse_observed_date(cells[5], scope="applicant", name=cells[0], field="application")
                 outcome_raw = _applicant_outcome(cells[6])
                 rows.append(
                     {
