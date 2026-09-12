@@ -1,5 +1,5 @@
 # Transactional Catania integration gate; supersedes temporary v1/v2 attempts.
-# Rerun after denominator-test import correction and with full test extras.
+# Rerun after fail-closed source-series CSV serialisation correction.
 name: Catania integration gate v3
 
 on:
