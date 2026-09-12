@@ -5,1881 +5,375 @@
   },
   "listed": {
     "table_count": 10,
-    "table_profiles": [
-      {
-        "section": 1,
-        "rows_total": 309,
-        "data_rows_nonempty": 307,
-        "widths": {
-          "9": 307
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungs-datum",
-          "Gültigkeit der Eintragung bis zum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5,
-            6
-          ],
-          "update_raw": [
-            7,
-            8
-          ]
-        },
-        "projected_company_rows": 49,
-        "anomaly_count": 516,
-        "anomalies": [
-          {
-            "section": 1,
-            "row": 51,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "11/02/2026",
-              "11/02/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 51,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 51,
-              "name": "DE.CO.BAU - SOC. A R.L.",
-              "office": "39100 BOLZANO-BOZEN",
-              "secondary": "",
-              "identifier_raw": "00677460214",
-              "listed_raw": "11/02/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "DE.CO.BAU - SOC. A R.L.",
-              "39100 BOLZANO-BOZEN",
-              "",
-              "00677460214",
-              "11/02/2026",
-              "11/02/2026",
-              "11/02/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 52,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "27/06/204",
-              "26/06/2025"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 52,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 52,
-              "name": "DECONX SRL",
-              "office": "39010 GARGAZZONE-GARGAZON",
-              "secondary": "",
-              "identifier_raw": "03016890216",
-              "listed_raw": "27/06/204",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "DECONX SRL",
-              "39010 GARGAZZONE-GARGAZON",
-              "",
-              "03016890216",
-              "27/06/204",
-              "27/06/204",
-              "26/06/2025",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 53,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "25/08/2026",
-              "25/08/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 53,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 53,
-              "name": "DELUEG & CO. OHG DES M. DELUEG SNC",
-              "office": "39049 VAL DI VIZZE-PFITSCHTAL (BZ)",
-              "secondary": "",
-              "identifier_raw": "01186350219",
-              "listed_raw": "25/08/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "DELUEG & CO. OHG DES M. DELUEG SNC",
-              "39049 VAL DI VIZZE-PFITSCHTAL (BZ)",
-              "",
-              "01186350219",
-              "25/08/2026",
-              "25/08/2026",
-              "25/08/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 54,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "28/01/2026",
-              "28/01/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 54,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 54,
-              "name": "DEMACLENKO SPA",
-              "office": "39049 VIPITENO-STERZING",
-              "secondary": "",
-              "identifier_raw": "02712150214",
-              "listed_raw": "28/01/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "DEMACLENKO SPA",
-              "39049 VIPITENO-STERZING",
-              "",
-              "02712150214",
-              "28/01/2026",
-              "28/01/2026",
-              "28/01/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 56,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "19/01/2026",
-              "19/01/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 56,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 56,
-              "name": "ECOROTT S.R.L.",
-              "office": "39040 ALDINO-ALDEIN",
-              "secondary": "",
-              "identifier_raw": "01476820210",
-              "listed_raw": "19/01/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "ECOROTT S.R.L.",
-              "39040 ALDINO-ALDEIN",
-              "",
-              "01476820210",
-              "19/01/2026",
-              "19/01/2026",
-              "19/01/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 57,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "10/02/2024",
-              "09/02/2025"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 57,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 57,
-              "name": "EDELZOONE CONSORZIO STABILE SOCIETA’CONSORTILE A.R.L.",
-              "office": "39100 BOLZANO-BOZEN",
-              "secondary": "",
-              "identifier_raw": "02080980226",
-              "listed_raw": "10/02/2024",
-              "expiry_raw": "",
-              "update_raw": "SI-JA"
-            },
-            "raw": [
-              "EDELZOONE CONSORZIO STABILE SOCIETA’CONSORTILE A.R.L.",
-              "39100 BOLZANO-BOZEN",
-              "",
-              "02080980226",
-              "10/02/2024",
-              "10/02/2024",
-              "09/02/2025",
-              "SI-JA",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 58,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "02/07/2026",
-              "02/07/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 58,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 58,
-              "name": "EDILFERRETTI S.R.L.",
-              "office": "39100 BOLZANO-BOZEN",
-              "secondary": "",
-              "identifier_raw": "02475680225",
-              "listed_raw": "02/07/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "EDILFERRETTI S.R.L.",
-              "39100 BOLZANO-BOZEN",
-              "",
-              "02475680225",
-              "02/07/2026",
-              "02/07/2026",
-              "02/07/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 59,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "06/05/2026",
-              "06/05/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 59,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 59,
-              "name": "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
-              "office": "39041 BRENNERO-BRENNER (BZ)",
-              "secondary": "",
-              "identifier_raw": "00197290216",
-              "listed_raw": "06/05/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
-              "39041 BRENNERO-BRENNER (BZ)",
-              "",
-              "00197290216",
-              "06/05/2026",
-              "06/05/2026",
-              "06/05/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 60,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "25/08/2026",
-              "25/08/2027"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 60,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 60,
-              "name": "EDILPASSIRIA SRL",
-              "office": "39010 SAN MARTINO IN PASSIRIA ST. MARTIN IN PASSEIER",
-              "secondary": "",
-              "identifier_raw": "01331350213",
-              "listed_raw": "25/08/2026",
-              "expiry_raw": "",
-              "update_raw": ""
-            },
-            "raw": [
-              "EDILPASSIRIA SRL",
-              "39010 SAN MARTINO IN PASSIRIA ST. MARTIN IN PASSEIER",
-              "",
-              "01331350213",
-              "25/08/2026",
-              "25/08/2026",
-              "25/08/2027",
-              "",
-              ""
-            ]
-          },
-          {
-            "section": 1,
-            "row": 61,
-            "field": "expiry_raw",
-            "reason": "merged_cell_disagreement",
-            "values": [
-              "27/05/2025",
-              "26/05/2026"
-            ]
-          },
-          {
-            "section": 1,
-            "row": 61,
-            "reason": "incomplete_company_row",
-            "projected": {
-              "section": 1,
-              "row": 61,
-              "name": "EGGENTALER BAU SRL",
-              "office": "39056 NOVA LEVANTE-WELSCHNOFEN (BZ)",
-              "secondary": "",
-              "identifier_raw": "03227840216",
-              "listed_raw": "27/05/2025",
-              "expiry_raw": "",
-              "update_raw": "SI-JA"
-            },
-            "raw": [
-              "EGGENTALER BAU SRL",
-              "39056 NOVA LEVANTE-WELSCHNOFEN (BZ)",
-              "",
-              "03227840216",
-              "27/05/2025",
-              "27/05/2025",
-              "26/05/2026",
-              "SI-JA",
-              ""
-            ]
-          }
-        ]
+    "parsed_source_rows": 1696,
+    "section_source_rows": {
+      "1": 306,
+      "2": 144,
+      "3": 218,
+      "4": 156,
+      "5": 268,
+      "6": 224,
+      "7": 21,
+      "8": 10,
+      "9": 162,
+      "10": 187
+    },
+    "row_widths_by_section": {
+      "1": {
+        "9": 307
       },
-      {
-        "section": 2,
-        "rows_total": 146,
-        "data_rows_nonempty": 144,
-        "widths": {
-          "8": 142,
-          "10": 1,
-          "9": 1
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6,
-            7
-          ]
-        },
-        "projected_company_rows": 144,
-        "anomaly_count": 0,
-        "anomalies": []
+      "2": {
+        "8": 142,
+        "10": 1,
+        "9": 1
       },
-      {
-        "section": 3,
-        "rows_total": 221,
-        "data_rows_nonempty": 219,
-        "widths": {
-          "7": 219
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungs-datum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 219,
-        "anomaly_count": 0,
-        "anomalies": []
+      "3": {
+        "7": 219
       },
-      {
-        "section": 4,
-        "rows_total": 160,
-        "data_rows_nonempty": 158,
-        "widths": {
-          "7": 158
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 158,
-        "anomaly_count": 0,
-        "anomalies": []
+      "4": {
+        "7": 158
       },
-      {
-        "section": 5,
-        "rows_total": 271,
-        "data_rows_nonempty": 269,
-        "widths": {
-          "7": 269
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungs-datum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 269,
-        "anomaly_count": 0,
-        "anomalies": []
+      "5": {
+        "7": 269
       },
-      {
-        "section": 6,
-        "rows_total": 229,
-        "data_rows_nonempty": 226,
-        "widths": {
-          "7": 227
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 226,
-        "anomaly_count": 0,
-        "anomalies": []
+      "6": {
+        "7": 226
       },
-      {
-        "section": 7,
-        "rows_total": 23,
-        "data_rows_nonempty": 21,
-        "widths": {
-          "7": 21
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 21,
-        "anomaly_count": 0,
-        "anomalies": []
+      "7": {
+        "7": 21
       },
-      {
-        "section": 8,
-        "rows_total": 12,
-        "data_rows_nonempty": 10,
-        "widths": {
-          "7": 10
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 10,
-        "anomaly_count": 0,
-        "anomalies": []
+      "8": {
+        "7": 10
       },
-      {
-        "section": 9,
-        "rows_total": 167,
-        "data_rows_nonempty": 165,
-        "widths": {
-          "7": 165
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungsdatum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 165,
-        "anomaly_count": 0,
-        "anomalies": []
+      "9": {
+        "7": 165
       },
-      {
-        "section": 10,
-        "rows_total": 189,
-        "data_rows_nonempty": 187,
-        "widths": {
-          "7": 187
-        },
-        "header_1": [
-          "ragione sociale",
-          "sede legale",
-          "sede secondaria con rappresentanza stabile in Italia",
-          "codice fiscale e partita IVA",
-          "data di iscrizione",
-          "data validità iscrizione fino al",
-          "aggiornamento in corso"
-        ],
-        "header_2": [
-          "Firma",
-          "Rechtssitz",
-          "Zweigniederlassung in Italien",
-          "Steuernummer MwST-Nummer",
-          "Eintragungs-datum",
-          "Gültigkeit der Eintragung bis zum",
-          "Neubearbeitung"
-        ],
-        "field_indexes": {
-          "name": [
-            0
-          ],
-          "office": [
-            1
-          ],
-          "secondary": [
-            2
-          ],
-          "identifier_raw": [
-            3
-          ],
-          "listed_raw": [
-            4
-          ],
-          "expiry_raw": [
-            5
-          ],
-          "update_raw": [
-            6
-          ]
-        },
-        "projected_company_rows": 187,
-        "anomaly_count": 0,
-        "anomalies": []
+      "10": {
+        "7": 187
       }
-    ],
-    "source_row_anomaly_count": 516,
+    },
+    "semantic_tail_patterns": {
+      "(9, 3, 2, ('SI -JA',))": 2,
+      "(9, 2, 2, ())": 205,
+      "(9, 3, 2, ('SI-JA',))": 82,
+      "(9, 3, 2, ('SI-Ja',))": 1,
+      "(9, 1, 1, ())": 1,
+      "(9, 3, 2, ('Si-JA',))": 5,
+      "(9, 3, 2, ('SI - JA',))": 2,
+      "(9, 3, 2, ('Si - JA',))": 1,
+      "(9, 3, 2, ('Si-ja',))": 7,
+      "(9, 3, 2, ('SI- JA',))": 1,
+      "(9, 3, 2, ('Si- Ja',))": 1,
+      "(8, 3, 2, ('Si–JA',))": 1,
+      "(8, 2, 2, ())": 90,
+      "(8, 3, 2, ('SI-JA',))": 44,
+      "(8, 3, 2, ('Si-ja',))": 4,
+      "(8, 3, 2, ('Si-JA',))": 2,
+      "(8, 3, 2, ('SI-Ja',))": 1,
+      "(10, 2, 2, ())": 1,
+      "(7, 3, 2, ('SI -JA',))": 2,
+      "(7, 2, 2, ())": 836,
+      "(7, 3, 2, ('SI-JA',))": 320,
+      "(7, 3, 2, ('Si-ja',))": 35,
+      "(7, 3, 2, ('Si-JA',))": 16,
+      "(7, 2, 1, ('027/07/2026',))": 1,
+      "(7, 3, 2, ('Si- Ja',))": 2,
+      "(7, 3, 2, ('Si - ja',))": 1,
+      "(7, 3, 2, ('Si-Ja',))": 7,
+      "(7, 3, 2, ('Si -JA',))": 4,
+      "(7, 3, 2, ('SI-Ja',))": 3,
+      "(7, 3, 2, ('SI/JA',))": 4,
+      "(7, 2, 1, ('2/8/01/2027',))": 1,
+      "(7, 3, 2, ('SI - JA',))": 4,
+      "(7, 2, 1, ('15/012026',))": 1,
+      "(7, 3, 2, ('SI- JA',))": 4,
+      "(7, 3, 2, ('Si.JA',))": 1,
+      "(7, 3, 2, ('SI-ja',))": 2,
+      "(7, 2, 1, ('25/008/2026',))": 1,
+      "(7, 3, 2, ('Si_JA',))": 1,
+      "(7, 3, 2, ('Si- JA',))": 1,
+      "(7, 3, 2, ('SI-jA',))": 1,
+      "(7, 1, 1, ())": 1,
+      "(7, 2, 1, ('12/06/02025',))": 1,
+      "(7, 3, 2, ('SI--Ja',))": 1,
+      "(7, 2, 1, ('22/0248769021204/2027',))": 1,
+      "(7, 2, 1, ('02/09/20259',))": 1,
+      "(7, 2, 1, ('23/06/25025',))": 1,
+      "(7, 3, 2, ('SI -Ja',))": 1
+    },
+    "source_row_anomaly_count": 10,
     "source_row_anomalies": [
       {
         "section": 1,
-        "row": 51,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "11/02/2026",
-          "11/02/2027"
-        ]
+        "row": 55,
+        "reason": "semantic_tail_shape",
+        "raw": [
+          "DURNWALDER BAU S.R.L.",
+          "39030 FALZES-PFALZEN (BZ)",
+          "",
+          "01670020211",
+          "29/06/2026",
+          "29/06/2026",
+          "29/06/2026",
+          "",
+          ""
+        ],
+        "distinct_tail": [
+          "29/06/2026"
+        ],
+        "date_tokens": [
+          "29/06/2026"
+        ],
+        "other_tokens": []
       },
       {
-        "section": 1,
-        "row": 51,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 51,
-          "name": "DE.CO.BAU - SOC. A R.L.",
-          "office": "39100 BOLZANO-BOZEN",
-          "secondary": "",
-          "identifier_raw": "00677460214",
-          "listed_raw": "11/02/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
+        "section": 3,
+        "row": 54,
+        "reason": "semantic_tail_shape",
         "raw": [
-          "DE.CO.BAU - SOC. A R.L.",
+          "EDILFERRETTI S.R.L.",
           "39100 BOLZANO-BOZEN",
           "",
-          "00677460214",
-          "11/02/2026",
-          "11/02/2026",
-          "11/02/2027",
-          "",
+          "02475680225",
+          "027/07/2026",
+          "02/07/2027",
           ""
+        ],
+        "distinct_tail": [
+          "027/07/2026",
+          "02/07/2027"
+        ],
+        "date_tokens": [
+          "02/07/2027"
+        ],
+        "other_tokens": [
+          "027/07/2026"
         ]
       },
       {
-        "section": 1,
-        "row": 52,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "27/06/204",
-          "26/06/2025"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 52,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 52,
-          "name": "DECONX SRL",
-          "office": "39010 GARGAZZONE-GARGAZON",
-          "secondary": "",
-          "identifier_raw": "03016890216",
-          "listed_raw": "27/06/204",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "DECONX SRL",
-          "39010 GARGAZZONE-GARGAZON",
-          "",
-          "03016890216",
-          "27/06/204",
-          "27/06/204",
-          "26/06/2025",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 53,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "25/08/2026",
-          "25/08/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 53,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 53,
-          "name": "DELUEG & CO. OHG DES M. DELUEG SNC",
-          "office": "39049 VAL DI VIZZE-PFITSCHTAL (BZ)",
-          "secondary": "",
-          "identifier_raw": "01186350219",
-          "listed_raw": "25/08/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "DELUEG & CO. OHG DES M. DELUEG SNC",
-          "39049 VAL DI VIZZE-PFITSCHTAL (BZ)",
-          "",
-          "01186350219",
-          "25/08/2026",
-          "25/08/2026",
-          "25/08/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 54,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "28/01/2026",
-          "28/01/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 54,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 54,
-          "name": "DEMACLENKO SPA",
-          "office": "39049 VIPITENO-STERZING",
-          "secondary": "",
-          "identifier_raw": "02712150214",
-          "listed_raw": "28/01/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
+        "section": 4,
+        "row": 25,
+        "reason": "semantic_tail_shape",
         "raw": [
           "DEMACLENKO SPA",
           "39049 VIPITENO-STERZING",
           "",
           "02712150214",
           "28/01/2026",
+          "2/8/01/2027",
+          ""
+        ],
+        "distinct_tail": [
           "28/01/2026",
-          "28/01/2027",
-          "",
-          ""
+          "2/8/01/2027"
+        ],
+        "date_tokens": [
+          "28/01/2026"
+        ],
+        "other_tokens": [
+          "2/8/01/2027"
         ]
       },
       {
-        "section": 1,
+        "section": 4,
         "row": 56,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "19/01/2026",
-          "19/01/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 56,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 56,
-          "name": "ECOROTT S.R.L.",
-          "office": "39040 ALDINO-ALDEIN",
-          "secondary": "",
-          "identifier_raw": "01476820210",
-          "listed_raw": "19/01/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
+        "reason": "semantic_tail_shape",
         "raw": [
-          "ECOROTT S.R.L.",
-          "39040 ALDINO-ALDEIN",
+          "GRUBER CHRISTIAN & CO. SNC",
+          "39011 LANA",
           "",
-          "01476820210",
-          "19/01/2026",
-          "19/01/2026",
-          "19/01/2027",
-          "",
+          "01192500211",
+          "16/01/2025",
+          "15/012026",
           ""
+        ],
+        "distinct_tail": [
+          "16/01/2025",
+          "15/012026"
+        ],
+        "date_tokens": [
+          "16/01/2025"
+        ],
+        "other_tokens": [
+          "15/012026"
         ]
       },
       {
-        "section": 1,
-        "row": 57,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "10/02/2024",
-          "09/02/2025"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 57,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 57,
-          "name": "EDELZOONE CONSORZIO STABILE SOCIETA’CONSORTILE A.R.L.",
-          "office": "39100 BOLZANO-BOZEN",
-          "secondary": "",
-          "identifier_raw": "02080980226",
-          "listed_raw": "10/02/2024",
-          "expiry_raw": "",
-          "update_raw": "SI-JA"
-        },
+        "section": 5,
+        "row": 134,
+        "reason": "semantic_tail_shape",
         "raw": [
-          "EDELZOONE CONSORZIO STABILE SOCIETA’CONSORTILE A.R.L.",
+          "LAND u. FORSTSERVICE des RASSLER PAUL",
+          "39054 RENON",
+          "",
+          "02754100218",
+          "25/08/2025",
+          "25/008/2026",
+          ""
+        ],
+        "distinct_tail": [
+          "25/08/2025",
+          "25/008/2026"
+        ],
+        "date_tokens": [
+          "25/08/2025"
+        ],
+        "other_tokens": [
+          "25/008/2026"
+        ]
+      },
+      {
+        "section": 6,
+        "row": 103,
+        "reason": "semantic_tail_shape",
+        "raw": [
+          "INERTI LANA S.R.L.",
+          "39011 LANA",
+          "",
+          "02675950212",
+          "26/11/2025",
+          "26/11/2025",
+          ""
+        ],
+        "distinct_tail": [
+          "26/11/2025"
+        ],
+        "date_tokens": [
+          "26/11/2025"
+        ],
+        "other_tokens": []
+      },
+      {
+        "section": 6,
+        "row": 121,
+        "reason": "semantic_tail_shape",
+        "raw": [
+          "LAMPAR AUTOTRASPORTI DI PARTELI D. & C. SAS",
           "39100 BOLZANO-BOZEN",
           "",
-          "02080980226",
-          "10/02/2024",
-          "10/02/2024",
-          "09/02/2025",
-          "SI-JA",
+          "01555630217",
+          "12/06/02025",
+          "11/06/2026",
           ""
+        ],
+        "distinct_tail": [
+          "12/06/02025",
+          "11/06/2026"
+        ],
+        "date_tokens": [
+          "11/06/2026"
+        ],
+        "other_tokens": [
+          "12/06/02025"
         ]
       },
       {
-        "section": 1,
-        "row": 58,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "02/07/2026",
-          "02/07/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 58,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 58,
-          "name": "EDILFERRETTI S.R.L.",
-          "office": "39100 BOLZANO-BOZEN",
-          "secondary": "",
-          "identifier_raw": "02475680225",
-          "listed_raw": "02/07/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
+        "section": 9,
+        "row": 14,
+        "reason": "semantic_tail_shape",
         "raw": [
-          "EDILFERRETTI S.R.L.",
+          "BAN RUTZNER SRL",
+          "39040 BRESSANONE (BZ)",
+          "",
+          "02415170212",
+          "22/04/2026",
+          "22/0248769021204/2027",
+          ""
+        ],
+        "distinct_tail": [
+          "22/04/2026",
+          "22/0248769021204/2027"
+        ],
+        "date_tokens": [
+          "22/04/2026"
+        ],
+        "other_tokens": [
+          "22/0248769021204/2027"
+        ]
+      },
+      {
+        "section": 9,
+        "row": 24,
+        "reason": "semantic_tail_shape",
+        "raw": [
+          "CLAB SOCIETA' BENEFIT S.R.L.",
           "39100 BOLZANO-BOZEN",
           "",
-          "02475680225",
-          "02/07/2026",
-          "02/07/2026",
-          "02/07/2027",
-          "",
+          "02995360217",
+          "02/09/20259",
+          "02/09/2026",
           ""
+        ],
+        "distinct_tail": [
+          "02/09/20259",
+          "02/09/2026"
+        ],
+        "date_tokens": [
+          "02/09/2026"
+        ],
+        "other_tokens": [
+          "02/09/20259"
         ]
       },
       {
-        "section": 1,
-        "row": 59,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "06/05/2026",
-          "06/05/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 59,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 59,
-          "name": "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
-          "office": "39041 BRENNERO-BRENNER (BZ)",
-          "secondary": "",
-          "identifier_raw": "00197290216",
-          "listed_raw": "06/05/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
+        "section": 9,
+        "row": 108,
+        "reason": "semantic_tail_shape",
         "raw": [
-          "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
-          "39041 BRENNERO-BRENNER (BZ)",
+          "MITTERRUTZNER PETER",
+          "39040 VELTURNO-FELDTHURNS",
           "",
-          "00197290216",
-          "06/05/2026",
-          "06/05/2026",
-          "06/05/2027",
-          "",
+          "02979920218",
+          "23/06/25025",
+          "22/06/2026",
           ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 60,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "25/08/2026",
-          "25/08/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 60,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 60,
-          "name": "EDILPASSIRIA SRL",
-          "office": "39010 SAN MARTINO IN PASSIRIA ST. MARTIN IN PASSEIER",
-          "secondary": "",
-          "identifier_raw": "01331350213",
-          "listed_raw": "25/08/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "EDILPASSIRIA SRL",
-          "39010 SAN MARTINO IN PASSIRIA ST. MARTIN IN PASSEIER",
-          "",
-          "01331350213",
-          "25/08/2026",
-          "25/08/2026",
-          "25/08/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 61,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "27/05/2025",
-          "26/05/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 61,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 61,
-          "name": "EGGENTALER BAU SRL",
-          "office": "39056 NOVA LEVANTE-WELSCHNOFEN (BZ)",
-          "secondary": "",
-          "identifier_raw": "03227840216",
-          "listed_raw": "27/05/2025",
-          "expiry_raw": "",
-          "update_raw": "SI-JA"
-        },
-        "raw": [
-          "EGGENTALER BAU SRL",
-          "39056 NOVA LEVANTE-WELSCHNOFEN (BZ)",
-          "",
-          "03227840216",
-          "27/05/2025",
-          "27/05/2025",
-          "26/05/2026",
-          "SI-JA",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 62,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "12/12/2025",
-          "12/12/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 62,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 62,
-          "name": "EGGENTALER BAUSCHUTT RECYCLING GMBH",
-          "office": "39056 NOVA LEVANTE WELSCHNOFEN",
-          "secondary": "",
-          "identifier_raw": "02267230213",
-          "listed_raw": "12/12/2025",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "EGGENTALER BAUSCHUTT RECYCLING GMBH",
-          "39056 NOVA LEVANTE WELSCHNOFEN",
-          "",
-          "02267230213",
-          "12/12/2025",
-          "12/12/2025",
-          "12/12/2026",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 63,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "13/03/2024",
-          "12/03/2025"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 63,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 63,
-          "name": "E.MA.PRI.CE. S.P.A.",
-          "office": "39100 BOLZANO-BOZEN",
-          "secondary": "",
-          "identifier_raw": "03176890261",
-          "listed_raw": "13/03/2024",
-          "expiry_raw": "",
-          "update_raw": "Si-JA"
-        },
-        "raw": [
-          "E.MA.PRI.CE. S.P.A.",
-          "39100 BOLZANO-BOZEN",
-          "",
-          "03176890261",
-          "13/03/2024",
-          "13/03/2024",
-          "12/03/2025",
-          "Si-JA",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 64,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "14/01/2026",
-          "14/01/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 64,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 64,
-          "name": "ERDBAU RIEDL DES HELMUT RIEDL",
-          "office": "39024 MALLES VENOSTA MALS VINSCHGAU",
-          "secondary": "",
-          "identifier_raw": "00755180213",
-          "listed_raw": "14/01/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "ERDBAU RIEDL DES HELMUT RIEDL",
-          "39024 MALLES VENOSTA MALS VINSCHGAU",
-          "",
-          "00755180213",
-          "14/01/2026",
-          "14/01/2026",
-          "14/01/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 65,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "11/02/2026",
-          "11/02/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 65,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 65,
-          "name": "ERDBAU S.R.L.",
-          "office": "39012 MERANO-MERAN (BZ)",
-          "secondary": "",
-          "identifier_raw": "01153820210",
-          "listed_raw": "11/02/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "ERDBAU S.R.L.",
-          "39012 MERANO-MERAN (BZ)",
-          "",
-          "01153820210",
-          "11/02/2026",
-          "11/02/2026",
-          "11/02/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 66,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "25/08/2025",
-          "25/08/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 66,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 66,
-          "name": "ERDBEWEGUNGSSERVICE DI HELMUTH E HUBERT AUGSCHOELL SNC",
-          "office": "39040 FUNES-VILLNÖSS (BZ)",
-          "secondary": "",
-          "identifier_raw": "01350120216",
-          "listed_raw": "25/08/2025",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "ERDBEWEGUNGSSERVICE DI HELMUTH E HUBERT AUGSCHOELL SNC",
-          "39040 FUNES-VILLNÖSS (BZ)",
-          "",
-          "01350120216",
-          "25/08/2025",
-          "25/08/2025",
-          "25/08/2026",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 67,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "25/08/2025",
-          "25/08/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 67,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 67,
-          "name": "ERLACHER MARKUS",
-          "office": "39030 MAREBBE-ENNEBERG",
-          "secondary": "",
-          "identifier_raw": "02217790217",
-          "listed_raw": "25/08/2025",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "ERLACHER MARKUS",
-          "39030 MAREBBE-ENNEBERG",
-          "",
-          "02217790217",
-          "25/08/2025",
-          "25/08/2025",
-          "25/08/2026",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 68,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "23/01/2025",
-          "22/01/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 68,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 68,
-          "name": "ENVALUE ITALIA S.R.L.",
-          "office": "39100 BOLZANO-BOZEN",
-          "secondary": "",
-          "identifier_raw": "06960510961",
-          "listed_raw": "23/01/2025",
-          "expiry_raw": "",
-          "update_raw": "SI-JA"
-        },
-        "raw": [
-          "ENVALUE ITALIA S.R.L.",
-          "39100 BOLZANO-BOZEN",
-          "",
-          "06960510961",
-          "23/01/2025",
-          "23/01/2025",
-          "22/01/2026",
-          "SI-JA",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 69,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "30/01/2026",
-          "30/01/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 69,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 69,
-          "name": "EUROBETON 2000 SRL",
-          "office": "39012 MERANO-MERAN",
-          "secondary": "",
-          "identifier_raw": "02233360219",
-          "listed_raw": "30/01/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "EUROBETON 2000 SRL",
-          "39012 MERANO-MERAN",
-          "",
-          "02233360219",
-          "30/01/2026",
-          "30/01/2026",
-          "30/01/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 70,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "20/11/2025",
-          "20/11/2026"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 70,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 70,
-          "name": "F & R BEREGNUNGSBAU SRL",
-          "office": "39052 CALDARO SULLA STRADA DEL VINO (BZ)",
-          "secondary": "",
-          "identifier_raw": "03073250213",
-          "listed_raw": "20/11/2025",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "F & R BEREGNUNGSBAU SRL",
-          "39052 CALDARO SULLA STRADA DEL VINO (BZ)",
-          "",
-          "03073250213",
-          "20/11/2025",
-          "20/11/2025",
-          "20/11/2026",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 71,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "02/07/2026",
-          "02/07/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 71,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 71,
-          "name": "FALSERBAU S.R.L.",
-          "office": "39053 CORNEDO ALL’ ISARCO- KARNEID (BZ)",
-          "secondary": "",
-          "identifier_raw": "01665690218",
-          "listed_raw": "02/07/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "FALSERBAU S.R.L.",
-          "39053 CORNEDO ALL’ ISARCO- KARNEID (BZ)",
-          "",
-          "01665690218",
-          "02/07/2026",
-          "02/07/2026",
-          "02/07/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 72,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "24/02/2026",
-          "24/02/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 72,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 72,
-          "name": "FAMAS SYSTEM S.P.A.",
-          "office": "39044 EGNA-NEUMARKT (BZ)",
-          "secondary": "",
-          "identifier_raw": "01527360216",
-          "listed_raw": "24/02/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "FAMAS SYSTEM S.P.A.",
-          "39044 EGNA-NEUMARKT (BZ)",
-          "",
-          "01527360216",
-          "24/02/2026",
-          "24/02/2026",
-          "24/02/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 73,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "06/05/2026",
-          "06/05/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 73,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 73,
-          "name": "FELDERER BAU S.R.L.",
-          "office": "39043 CHIUSA-KLAUSEN (BZ)",
-          "secondary": "",
-          "identifier_raw": "02546120219",
-          "listed_raw": "06/05/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "FELDERER BAU S.R.L.",
-          "39043 CHIUSA-KLAUSEN (BZ)",
-          "",
-          "02546120219",
-          "06/05/2026",
-          "06/05/2026",
-          "06/05/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 74,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "15/10/2024",
-          "14/10/2025"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 74,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 74,
-          "name": "FELDERER SRL",
-          "office": "39025 PLAUS-PLAUS",
-          "secondary": "",
-          "identifier_raw": "02929950216",
-          "listed_raw": "15/10/2024",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "FELDERER SRL",
-          "39025 PLAUS-PLAUS",
-          "",
-          "02929950216",
-          "15/10/2024",
-          "15/10/2024",
-          "14/10/2025",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 75,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "24/03/2026",
-          "24/03/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 75,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 75,
-          "name": "FISCHER & FISCHER SRL",
-          "office": "39020 PARCINES-PARTSCHINGS (BZ)",
-          "secondary": "",
-          "identifier_raw": "00129980215",
-          "listed_raw": "24/03/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "FISCHER & FISCHER SRL",
-          "39020 PARCINES-PARTSCHINGS (BZ)",
-          "",
-          "00129980215",
-          "24/03/2026",
-          "24/03/2026",
-          "24/03/2027",
-          "",
-          ""
-        ]
-      },
-      {
-        "section": 1,
-        "row": 76,
-        "field": "expiry_raw",
-        "reason": "merged_cell_disagreement",
-        "values": [
-          "11/03/2026",
-          "11/03/2027"
-        ]
-      },
-      {
-        "section": 1,
-        "row": 76,
-        "reason": "incomplete_company_row",
-        "projected": {
-          "section": 1,
-          "row": 76,
-          "name": "F.LLI WALCH DI WALCH RUDOLF E ANTON S.N.C.",
-          "office": "39030 CHIENES-KIENS (BZ)",
-          "secondary": "",
-          "identifier_raw": "00381300219",
-          "listed_raw": "11/03/2026",
-          "expiry_raw": "",
-          "update_raw": ""
-        },
-        "raw": [
-          "F.LLI WALCH DI WALCH RUDOLF E ANTON S.N.C.",
-          "39030 CHIENES-KIENS (BZ)",
-          "",
-          "00381300219",
-          "11/03/2026",
-          "11/03/2026",
-          "11/03/2027",
-          "",
-          ""
+        ],
+        "distinct_tail": [
+          "23/06/25025",
+          "22/06/2026"
+        ],
+        "date_tokens": [
+          "22/06/2026"
+        ],
+        "other_tokens": [
+          "23/06/25025"
         ]
       }
     ],
-    "parsed_source_rows": 1448,
-    "section_source_rows": {
-      "1": 49,
-      "2": 144,
-      "3": 219,
-      "4": 158,
-      "5": 269,
-      "6": 226,
-      "7": 21,
-      "8": 10,
-      "9": 165,
-      "10": 187
-    },
-    "semantic_groups_exact": 777,
+    "semantic_groups_exact": 833,
+    "same_section_exact_duplicate_count": 0,
+    "same_section_exact_duplicates": [],
     "status_counts_exact_grouping": {
-      "renewal_update_in_progress": 217,
-      "listed": 560
+      "renewal_update_in_progress": 234,
+      "listed": 599
     },
     "group_section_multiplicity": {
-      "1": 492,
+      "1": 507,
       "2": 108,
-      "4": 40,
-      "3": 71,
-      "5": 38,
-      "6": 20,
-      "7": 7,
-      "8": 1
+      "4": 48,
+      "3": 78,
+      "5": 32,
+      "6": 40,
+      "7": 14,
+      "8": 5,
+      "9": 1
     },
     "update_values": {
-      "SI -JA": 3,
-      "": 968,
-      "SI-JA": 380,
+      "SI -JA": 4,
+      "": 1132,
+      "SI-JA": 446,
       "SI-Ja": 5,
+      "Si-JA": 23,
+      "SI - JA": 6,
+      "Si - JA": 1,
+      "Si-ja": 46,
+      "SI- JA": 5,
+      "Si- Ja": 3,
       "Si–JA": 1,
-      "Si-ja": 39,
-      "Si-JA": 18,
-      "Si- Ja": 2,
       "Si - ja": 1,
       "Si-Ja": 7,
       "Si -JA": 4,
       "SI/JA": 4,
-      "SI - JA": 4,
-      "SI- JA": 4,
       "Si.JA": 1,
       "SI-ja": 2,
       "Si_JA": 1,
@@ -1888,6 +382,7 @@
       "SI--Ja": 1,
       "SI -Ja": 1
     },
+    "unreviewed_update_group_count": 5,
     "unreviewed_update_groups": [
       {
         "key": [
@@ -1899,13 +394,34 @@
           "03/06/2026"
         ],
         "updates": [
-          "SI -Ja",
-          "SI--Ja",
+          "SI - JA",
           "SI-Ja",
-          "Si- Ja"
+          "Si- Ja",
+          "SI--Ja",
+          "SI -Ja"
         ],
-        "folded_unknown": [
-          "si--ja"
+        "folded": [
+          "si--ja",
+          "si-ja"
+        ]
+      },
+      {
+        "key": [
+          "PIFFER MASSIMO",
+          "39040 SALORNO-SALURN (BZ)",
+          "",
+          "01459620215",
+          "22/07/2024",
+          "21/07/2025"
+        ],
+        "updates": [
+          "Si-JA",
+          "Si_JA",
+          "SI-JA"
+        ],
+        "folded": [
+          "si-ja",
+          "si_ja"
         ]
       },
       {
@@ -1920,7 +436,7 @@
         "updates": [
           "SI/JA"
         ],
-        "folded_unknown": [
+        "folded": [
           "si/ja"
         ]
       },
@@ -1936,7 +452,7 @@
         "updates": [
           "SI/JA"
         ],
-        "folded_unknown": [
+        "folded": [
           "si/ja"
         ]
       },
@@ -1952,50 +468,25 @@
         "updates": [
           "Si.JA"
         ],
-        "folded_unknown": [
+        "folded": [
           "si.ja"
-        ]
-      },
-      {
-        "key": [
-          "PIFFER MASSIMO",
-          "39040 SALORNO-SALURN (BZ)",
-          "",
-          "01459620215",
-          "22/07/2024",
-          "21/07/2025"
-        ],
-        "updates": [
-          "SI-JA",
-          "Si_JA"
-        ],
-        "folded_unknown": [
-          "si_ja"
         ]
       }
     ],
     "listed_date_bad": [
-      "02/09/20259",
-      "027/07/2026",
       "03/0/2025",
       "06/05/206",
-      "12/06/02025",
-      "23/06/25025",
       "27/06/204",
       "29/6/2026"
     ],
     "expiry_date_bad": [
-      "15/012026",
-      "2/8/01/2027",
-      "22/0248769021204/2027",
-      "25/008/2026",
       "29/0/2026"
     ],
     "invalid_identifier_values": {
       "ATU 31173208": 3,
+      "CHE 114.114.053": 3,
+      "DE815237411": 6,
       "ATU 68087508": 1,
-      "CHE 114.114.053": 2,
-      "DE815237411": 5,
       "DITTA ESTERA": 1,
       "ATU 79717317": 2,
       "DE 192869039": 1,
@@ -2016,47 +507,6 @@
   },
   "applicant": {
     "rows_total": 353,
-    "header_1": [
-      "ragione sociale",
-      "sede legale",
-      "sede secondaria con rappresentanza stabile in Italia",
-      "codice fiscale e partita IVA",
-      "Attività per cui è richiesta l’iscrizione Vedi piè di pagina",
-      "data di presentazione dell’istanza",
-      "Esito"
-    ],
-    "header_2": [
-      "Firma",
-      "Rechtssitz",
-      "Zweigniederlassung in Italien",
-      "Steuernummer MwSt.-Nummer",
-      "Tätigkeit für welche um Eintragung ersucht wird Siehe Fußnoten",
-      "Datum der Antragstellung",
-      "Ausgang"
-    ],
-    "field_indexes": {
-      "name": [
-        0
-      ],
-      "office": [
-        1
-      ],
-      "secondary": [
-        2
-      ],
-      "identifier_raw": [
-        3
-      ],
-      "activities_raw": [
-        4
-      ],
-      "submitted_raw": [
-        5
-      ],
-      "outcome_raw": [
-        6
-      ]
-    },
     "parsed_source_rows": 351,
     "source_row_anomaly_count": 0,
     "source_row_anomalies": [],
