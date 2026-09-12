@@ -138,18 +138,13 @@ def _footer_signature(sheet: Any, *, applicant: bool) -> list[tuple[str, str]]:
     return result
 
 
-_EXPECTED_FOOTER_LABELS = [
-    "SEZIONI WHITE LIST",
-    "SEZ. I",
-    "SEZ. II",
-    "SEZ III",
-    "SEZ IV",
-    "SEZ IX",
-    "SEZ V",
-    "SEZ VI",
-    "SEZ VII",
-    "SEZ VIII",
-    "SEZ X",
+_EXPECTED_LISTED_FOOTER_LABELS = [
+    "SEZIONI WHITE LIST", "SEZ. I", "SEZ. II", "SEZ III", "SEZ IV",
+    "SEZ V", "SEZ VI", "SEZ VII", "SEZ VIII", "SEZ IX", "SEZ X",
+]
+_EXPECTED_APPLICANT_FOOTER_LABELS = [
+    "SEZIONI WHITE LIST", "SEZ. I", "SEZ. II", "SEZ III", "SEZ IV",
+    "SEZ IX", "SEZ V", "SEZ VI", "SEZ VII", "SEZ VIII", "SEZ X",
 ]
 
 
@@ -200,7 +195,8 @@ def _validate_structure(sheet: Any, *, population: str) -> None:
 
     footer = _footer_signature(sheet, applicant=applicant)
     labels = [item[0] for item in footer]
-    if labels != _EXPECTED_FOOTER_LABELS:
+    expected_footer = _EXPECTED_APPLICANT_FOOTER_LABELS if applicant else _EXPECTED_LISTED_FOOTER_LABELS
+    if labels != expected_footer:
         raise RuntimeError(f"Catania {population} footer-label drift: {labels!r}")
     if first != header + 1:
         raise AssertionError("Internal Catania row-boundary definition error")
@@ -216,8 +212,8 @@ def _listed_status(raw: Any) -> str:
 
 def parse_catania_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_cfg(cfg, "catania-listed")
-    formulas_book = openpyxl.load_workbook(path, read_only=True, data_only=False)
-    values_book = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    formulas_book = openpyxl.load_workbook(path, read_only=False, data_only=False)
+    values_book = openpyxl.load_workbook(path, read_only=False, data_only=True)
     if formulas_book.sheetnames != [_SHEET] or values_book.sheetnames != [_SHEET]:
         raise RuntimeError(f"Catania listed worksheet drift: {formulas_book.sheetnames!r}")
     formula_sheet = formulas_book[_SHEET]
@@ -341,7 +337,7 @@ def parse_catania_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
 def parse_catania_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_cfg(cfg, "catania-applicants")
-    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    workbook = openpyxl.load_workbook(path, read_only=False, data_only=True)
     if workbook.sheetnames != [_SHEET]:
         raise RuntimeError(f"Catania applicant worksheet drift: {workbook.sheetnames!r}")
     sheet = workbook[_SHEET]
