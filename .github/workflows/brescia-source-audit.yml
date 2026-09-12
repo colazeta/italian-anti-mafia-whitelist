@@ -24,7 +24,7 @@ jobs:
           python-version: '3.12'
       - name: Install audit dependencies
         run: python -m pip install --disable-pip-version-check 'openpyxl>=3.1,<4' requests
-      - name: Fetch and audit current official Brescia sources
+      - name: Profile current official Brescia sources
         env:
           LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list
           LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-iscritte-10-settembre-2026.xlsx
@@ -33,148 +33,262 @@ jobs:
           mkdir -p tmp
           python - <<'PY'
           import hashlib, io, json, os, re
-          from collections import Counter
+          from collections import Counter, defaultdict
           from datetime import date, datetime
           from pathlib import Path
 
           import openpyxl
           import requests
 
-          headers = {
-              'User-Agent': 'italian-anti-mafia-whitelist/official-source-audit (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
-          }
+          HEADERS = {'User-Agent': 'italian-anti-mafia-whitelist/official-source-audit (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+          SECTION_RE = re.compile(r'\bsezione\s+(i{1,3}|iv|v|vi{0,3}|ix|x)\b', re.I)
+          DMY_RE = re.compile(r'^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$')
 
           def get(url):
-              r = requests.get(url, headers=headers, timeout=60)
+              r = requests.get(url, headers=HEADERS, timeout=60)
               r.raise_for_status()
               return r
 
           def clean(v):
-              if v is None:
-                  return ''
-              if isinstance(v, datetime):
-                  return v.isoformat()
-              if isinstance(v, date):
-                  return v.isoformat()
+              if v is None: return ''
+              if isinstance(v, datetime): return v.date().isoformat()
+              if isinstance(v, date): return v.isoformat()
               return re.sub(r'\s+', ' ', str(v)).strip()
+
+          def date_norm(v):
+              if isinstance(v, datetime): return v.date().isoformat(), clean(v), None
+              if isinstance(v, date): return v.isoformat(), clean(v), None
+              raw = clean(v)
+              if not raw: return '', '', None
+              if re.fullmatch(r'\d{4}-\d{2}-\d{2}(?:T00:00:00)?', raw):
+                  try: return date.fromisoformat(raw[:10]).isoformat(), raw, None
+                  except ValueError: return '', raw, 'invalid'
+              m = DMY_RE.fullmatch(raw)
+              if m:
+                  try: return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat(), raw, None
+                  except ValueError: return '', raw, 'invalid'
+              return '', raw, 'unreviewed'
+
+          def fetch_twice(url):
+              a, b = get(url), get(url)
+              sha_a = hashlib.sha256(a.content).hexdigest()
+              sha_b = hashlib.sha256(b.content).hexdigest()
+              if sha_a != sha_b:
+                  raise SystemExit(f'source changed between independent GETs: {url}: {sha_a} != {sha_b}')
+              if a.content[:4] != b'PK\x03\x04':
+                  raise SystemExit(f'expected XLSX OpenXML source: {url}')
+              return a, sha_a
+
+          def cell_index(headers, predicates):
+              for i, value in enumerate(headers):
+                  folded = value.casefold()
+                  if all(token in folded for token in predicates):
+                      return i
+              return None
+
+          listed_response, listed_sha = fetch_twice(os.environ['LISTED_URL'])
+          applicant_response, applicant_sha = fetch_twice(os.environ['APPLICANT_URL'])
 
           report = {
               'verified_on': '2026-09-12',
               'current_reference_date': '2026-09-10',
-              'landing': {'url': os.environ['LANDING_URL']},
-              'attachments': {},
+              'landing_url': os.environ['LANDING_URL'],
+              'listed': {'url': os.environ['LISTED_URL'], 'sha256': listed_sha, 'bytes': len(listed_response.content)},
+              'applicant': {'url': os.environ['APPLICANT_URL'], 'sha256': applicant_sha, 'bytes': len(applicant_response.content)},
           }
 
-          # The Ministry landing endpoint intermittently rejects generic runner GETs.
-          # Record that state, but do not turn a failed second channel into negative evidence.
+          # Independent runner verification of current landing. Failure is recorded, not interpreted negatively.
           try:
               landing = get(os.environ['LANDING_URL'])
-              report['landing'].update({
+              text = landing.text.casefold()
+              report['landing_fetch'] = {
                   'status_code': landing.status_code,
                   'sha256': hashlib.sha256(landing.content).hexdigest(),
-                  'contains_current_date': '10 settembre 2026' in landing.text.casefold(),
-                  'contains_listed_label': 'elenco ditte iscritte in white list aggiornato al 10 settembre 2026' in landing.text.casefold(),
-                  'contains_applicant_label': 'elenco ditte richiedenti iscrizione in white list aggiornato al 10 settembre 2026' in landing.text.casefold(),
-              })
-          except Exception as exc:
-              report['landing'].update({'fetch_error': f'{type(exc).__name__}: {exc}'})
-
-          def audit_xlsx(data, kind):
-              wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True, read_only=True)
-              result = {'format': 'xlsx', 'sheet_count': len(wb.sheetnames), 'sheets': []}
-              total_nonempty = 0
-              all_rows = []
-              for ws in wb.worksheets:
-                  rows = list(ws.iter_rows(values_only=True))
-                  nonempty = []
-                  for rowno, row in enumerate(rows, start=1):
-                      vals = [clean(v) for v in row]
-                      if not any(vals):
-                          continue
-                      total_nonempty += 1
-                      nonempty.append((rowno, vals))
-                      all_rows.append((ws.title, rowno, vals))
-                  result['sheets'].append({
-                      'title': ws.title,
-                      'max_row': ws.max_row,
-                      'max_column': ws.max_column,
-                      'nonempty_rows': len(nonempty),
-                      'first_nonempty_rows': [
-                          {'row': rowno, 'values': vals[:16]} for rowno, vals in nonempty[:20]
-                      ],
-                      'last_nonempty_rows': [
-                          {'row': rowno, 'values': vals[:16]} for rowno, vals in nonempty[-10:]
-                      ],
-                  })
-              result['total_nonempty_rows'] = total_nonempty
-
-              # Generic structure/profile evidence only; parser semantics are bound later.
-              joined_rows = [' | '.join(vals) for _, _, vals in all_rows]
-              result['header_like_rows'] = [
-                  {'sheet': sh, 'row': rowno, 'values': vals[:16]}
-                  for sh, rowno, vals in all_rows
-                  if any(x in ' '.join(vals).casefold() for x in ('ragione sociale','codice fiscale','partita iva','data iscrizione','data di iscrizione','data presentazione','aggiornamento'))
-              ][:60]
-              lengths = Counter()
-              numeric_tokens = Counter()
-              date_tokens = Counter()
-              status_tokens = Counter()
-              for text in joined_rows:
-                  for token in re.findall(r'(?<!\d)\d{8,16}(?!\d)', text):
-                      lengths[len(token)] += 1
-                      if len(token) in (10, 11, 12):
-                          numeric_tokens[token] += 1
-                  for token in re.findall(r'(?<!\d)\d{1,2}[./-]\d{1,2}[./-]\d{2,4}(?!\d)', text):
-                      date_tokens[token] += 1
-                  low = text.casefold()
-                  for term in ('iscritt', 'aggiornamento', 'rinnovo', 'istruttoria', 'richiedent', 'sospes', 'cancell'):
-                      if term in low:
-                          status_tokens[term] += 1
-              result['digit_token_lengths'] = dict(lengths)
-              result['distinct_10_12_digit_tokens'] = len(numeric_tokens)
-              result['sample_10_12_digit_tokens'] = list(numeric_tokens)[:80]
-              result['distinct_date_tokens'] = len(date_tokens)
-              result['sample_date_tokens'] = list(date_tokens)[:80]
-              result['row_term_hits'] = dict(status_tokens)
-              return result
-
-          for kind, env_name in [('listed', 'LISTED_URL'), ('applicant', 'APPLICANT_URL')]:
-              url = os.environ[env_name]
-              first = get(url)
-              second = get(url)
-              sha1 = hashlib.sha256(first.content).hexdigest()
-              sha2 = hashlib.sha256(second.content).hexdigest()
-              if sha1 != sha2:
-                  raise SystemExit(f'{kind} source changed across independent GETs: {sha1} != {sha2}')
-              if first.content[:4] != b'PK\x03\x04':
-                  raise SystemExit(f'{kind} source is not an OpenXML package')
-              inspection = audit_xlsx(first.content, kind)
-              report['attachments'][kind] = {
-                  'url': url,
-                  'final_url': first.url,
-                  'status_code': first.status_code,
-                  'bytes': len(first.content),
-                  'sha256': sha1,
-                  'second_get_sha256': sha2,
-                  'content_type': first.headers.get('content-type', ''),
-                  'content_disposition': first.headers.get('content-disposition', ''),
-                  'last_modified': first.headers.get('last-modified'),
-                  'inspection': inspection,
+                  'listed_current_label': 'elenco ditte iscritte in white list aggiornato al 10 settembre 2026' in text,
+                  'applicant_current_label': 'elenco ditte richiedenti iscrizione in white list aggiornato al 10 settembre 2026' in text,
               }
+          except Exception as exc:
+              report['landing_fetch'] = {'error': f'{type(exc).__name__}: {exc}'}
 
-          Path('tmp/brescia-source-audit.json').write_text(
-              json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8'
-          )
+          # ---- listed workbook ----
+          wb = openpyxl.load_workbook(io.BytesIO(listed_response.content), data_only=True, read_only=True)
+          listed_profile = {
+              'sheet_names': wb.sheetnames,
+              'sheet_dimensions': {}, 'headers': [], 'sections': [], 'raw_rows': 0,
+              'section_row_counts': Counter(), 'status_counts_raw_rows': Counter(),
+              'update_values': Counter(), 'unparsed_dates': [], 'incomplete_candidate_rows': [],
+          }
+          listed_rows = []
+          for ws in wb.worksheets:
+              listed_profile['sheet_dimensions'][ws.title] = [ws.max_row, ws.max_column]
+              current_section = ''
+              current_activity = ''
+              cols = None
+              for rowno, row in enumerate(ws.iter_rows(values_only=True), start=1):
+                  vals = [clean(v) for v in row]
+                  nonempty = [v for v in vals if v]
+                  joined = ' | '.join(vals)
+                  section_hits = []
+                  for v in nonempty:
+                      m = SECTION_RE.search(v)
+                      if m: section_hits.append(m.group(1).upper())
+                  if section_hits:
+                      if len(set(section_hits)) != 1:
+                          raise SystemExit(f'ambiguous listed section marker {ws.title}:{rowno}: {section_hits}')
+                      current_section = section_hits[0]
+                      current_activity = ''
+                      cols = None
+                      listed_profile['sections'].append({'sheet': ws.title, 'row': rowno, 'section': current_section, 'raw': nonempty[:4]})
+                      continue
+                  if current_section and cols is None and nonempty:
+                      if not any('ragione sociale' in v.casefold() for v in nonempty):
+                          candidate = max(nonempty, key=len)
+                          if not any(x in candidate.casefold() for x in ('prefettura','ufficio antimafia','elenco dei fornitori','art.1')):
+                              current_activity = candidate
+                  if any('ragione sociale' in v.casefold() for v in vals):
+                      idx_name = cell_index(vals, ('ragione sociale',))
+                      idx_office = cell_index(vals, ('sede legale',))
+                      idx_id = next((i for i,v in enumerate(vals) if 'codice fiscale' in v.casefold() or 'partita iva' in v.casefold()), None)
+                      idx_listing = next((i for i,v in enumerate(vals) if 'data iscrizione' in v.casefold() or 'data di iscrizione' in v.casefold()), None)
+                      idx_expiry = next((i for i,v in enumerate(vals) if 'data scadenza' in v.casefold() or 'data di scadenza' in v.casefold()), None)
+                      idx_update = next((i for i,v in enumerate(vals) if 'aggiornamento' in v.casefold()), None)
+                      required = (idx_name, idx_office, idx_id, idx_listing, idx_expiry, idx_update)
+                      if any(i is None for i in required):
+                          raise SystemExit(f'unreviewed listed header {ws.title}:{rowno}: {vals}')
+                      cols = tuple(required)
+                      listed_profile['headers'].append({'sheet':ws.title,'row':rowno,'section':current_section,'activity':current_activity,'columns':list(cols),'values':vals})
+                      continue
+                  if cols is None:
+                      continue
+                  idx_name, idx_office, idx_id, idx_listing, idx_expiry, idx_update = cols
+                  name = vals[idx_name] if idx_name < len(vals) else ''
+                  if not name:
+                      continue
+                  office = vals[idx_office] if idx_office < len(vals) else ''
+                  ident = vals[idx_id] if idx_id < len(vals) else ''
+                  lval = row[idx_listing] if idx_listing < len(row) else None
+                  eval_ = row[idx_expiry] if idx_expiry < len(row) else None
+                  update = vals[idx_update] if idx_update < len(vals) else ''
+                  listing_date, listing_raw, listing_err = date_norm(lval)
+                  expiry_date, expiry_raw, expiry_err = date_norm(eval_)
+                  if not ident and not listing_raw and not expiry_raw and not update:
+                      listed_profile['incomplete_candidate_rows'].append({'sheet':ws.title,'row':rowno,'section':current_section,'values':vals[:12]})
+                      continue
+                  if not current_section or not current_activity or not ident or not listing_raw or not expiry_raw:
+                      listed_profile['incomplete_candidate_rows'].append({'sheet':ws.title,'row':rowno,'section':current_section,'activity':current_activity,'values':vals[:12]})
+                      continue
+                  if listing_err: listed_profile['unparsed_dates'].append({'sheet':ws.title,'row':rowno,'field':'listing','raw':listing_raw,'error':listing_err})
+                  if expiry_err: listed_profile['unparsed_dates'].append({'sheet':ws.title,'row':rowno,'field':'expiry','raw':expiry_raw,'error':expiry_err})
+                  status = 'renewal_update_in_progress' if 'aggiornamento' in update.casefold() else 'listed'
+                  listed_profile['update_values'][update] += 1
+                  listed_profile['status_counts_raw_rows'][status] += 1
+                  listed_profile['section_row_counts'][current_section] += 1
+                  listed_profile['raw_rows'] += 1
+                  listed_rows.append({
+                      'sheet':ws.title,'row':rowno,'section':current_section,'activity':current_activity,
+                      'name':name,'office':office,'identifier_raw':ident,
+                      'listing_date':listing_date,'listing_raw':listing_raw,
+                      'expiry_date':expiry_date,'expiry_raw':expiry_raw,
+                      'update_raw':update,'status':status,
+                  })
+
+          # Exact conservative semantic grouping across repeated sector rows.
+          exact_groups = defaultdict(list)
+          no_office_groups = defaultdict(list)
+          no_status_groups = defaultdict(list)
+          per_section = Counter()
+          for r in listed_rows:
+              per_section[(r['section'], r['name'], r['office'], r['identifier_raw'], r['listing_date'] or r['listing_raw'], r['expiry_date'] or r['expiry_raw'], r['status'])] += 1
+              exact_key=(r['name'],r['office'],r['identifier_raw'],r['listing_date'] or r['listing_raw'],r['expiry_date'] or r['expiry_raw'],r['status'])
+              exact_groups[exact_key].append(r)
+              no_office_key=(r['name'],r['identifier_raw'],r['listing_date'] or r['listing_raw'],r['expiry_date'] or r['expiry_raw'],r['status'])
+              no_office_groups[no_office_key].append(r)
+              no_status_key=(r['name'],r['office'],r['identifier_raw'],r['listing_date'] or r['listing_raw'],r['expiry_date'] or r['expiry_raw'])
+              no_status_groups[no_status_key].append(r)
+          listed_profile['exact_semantic_groups'] = len(exact_groups)
+          listed_profile['exact_group_status_counts'] = dict(Counter(k[-1] for k in exact_groups))
+          listed_profile['duplicate_within_same_section'] = [
+              {'key': list(k), 'count': c} for k,c in per_section.items() if c > 1
+          ][:100]
+          listed_profile['office_variant_group_count'] = sum(len({r['office'] for r in rs}) > 1 for rs in no_office_groups.values())
+          listed_profile['office_variant_examples'] = [
+              {'key_without_office': list(k), 'offices': sorted({r['office'] for r in rs}), 'sections': sorted({r['section'] for r in rs})}
+              for k,rs in no_office_groups.items() if len({r['office'] for r in rs}) > 1
+          ][:40]
+          listed_profile['status_conflict_group_count'] = sum(len({r['status'] for r in rs}) > 1 for rs in no_status_groups.values())
+          listed_profile['status_conflict_examples'] = [
+              {'key_without_status': list(k), 'statuses': sorted({r['status'] for r in rs}), 'updates': sorted({r['update_raw'] for r in rs}), 'sections': sorted({r['section'] for r in rs})}
+              for k,rs in no_status_groups.items() if len({r['status'] for r in rs}) > 1
+          ][:40]
+          listed_profile['update_values'] = dict(listed_profile['update_values'])
+          listed_profile['section_row_counts'] = dict(listed_profile['section_row_counts'])
+          listed_profile['status_counts_raw_rows'] = dict(listed_profile['status_counts_raw_rows'])
+          report['listed']['profile'] = listed_profile
+
+          # ---- applicant workbook ----
+          wb2 = openpyxl.load_workbook(io.BytesIO(applicant_response.content), data_only=True, read_only=True)
+          app_profile = {'sheet_names': wb2.sheetnames, 'sheet_dimensions': {}, 'headers': [], 'candidate_rows': 0, 'incomplete_rows': [], 'unparsed_dates': []}
+          app_rows = []
+          for ws in wb2.worksheets:
+              app_profile['sheet_dimensions'][ws.title] = [ws.max_row, ws.max_column]
+              cols = None
+              for rowno, row in enumerate(ws.iter_rows(values_only=True), start=1):
+                  vals=[clean(v) for v in row]
+                  joined=' | '.join(vals).casefold()
+                  if 'ragione sociale' in joined and ('codice fiscale' in joined or 'partita iva' in joined):
+                      idx_name=cell_index(vals,('ragione sociale',))
+                      idx_office=next((i for i,v in enumerate(vals) if 'sede' in v.casefold()),None)
+                      idx_id=next((i for i,v in enumerate(vals) if 'codice fiscale' in v.casefold() or 'partita iva' in v.casefold()),None)
+                      idx_date=next((i for i,v in enumerate(vals) if 'data' in v.casefold() and ('istanza' in v.casefold() or 'presentazione' in v.casefold() or 'richiesta' in v.casefold())),None)
+                      idx_activity=next((i for i,v in enumerate(vals) if 'attivit' in v.casefold() or 'settore' in v.casefold()),None)
+                      if idx_date is None:
+                          date_cols=[i for i,v in enumerate(vals) if 'data' in v.casefold()]
+                          idx_date=date_cols[0] if len(date_cols)==1 else None
+                      if any(i is None for i in (idx_name,idx_office,idx_id,idx_date)):
+                          raise SystemExit(f'unreviewed applicant header {ws.title}:{rowno}: {vals}')
+                      cols=(idx_name,idx_office,idx_id,idx_date,idx_activity)
+                      app_profile['headers'].append({'sheet':ws.title,'row':rowno,'columns':[idx_name,idx_office,idx_id,idx_date,idx_activity],'values':vals})
+                      continue
+                  if cols is None: continue
+                  idx_name,idx_office,idx_id,idx_date,idx_activity=cols
+                  name=vals[idx_name] if idx_name < len(vals) else ''
+                  if not name: continue
+                  office=vals[idx_office] if idx_office < len(vals) else ''
+                  ident=vals[idx_id] if idx_id < len(vals) else ''
+                  dateval=row[idx_date] if idx_date < len(row) else None
+                  application_date, application_raw, date_err=date_norm(dateval)
+                  activity=vals[idx_activity] if idx_activity is not None and idx_activity < len(vals) else ''
+                  if not ident and not application_raw and not activity:
+                      app_profile['incomplete_rows'].append({'sheet':ws.title,'row':rowno,'values':vals[:16]})
+                      continue
+                  if not ident or not application_raw:
+                      app_profile['incomplete_rows'].append({'sheet':ws.title,'row':rowno,'values':vals[:16]})
+                      continue
+                  if date_err: app_profile['unparsed_dates'].append({'sheet':ws.title,'row':rowno,'raw':application_raw,'error':date_err})
+                  app_rows.append({'sheet':ws.title,'row':rowno,'name':name,'office':office,'identifier_raw':ident,'application_date':application_date,'application_raw':application_raw,'activity':activity})
+          app_profile['candidate_rows']=len(app_rows)
+          app_groups=defaultdict(list)
+          for r in app_rows:
+              key=(r['name'],r['office'],r['identifier_raw'],r['application_date'] or r['application_raw'],r['activity'])
+              app_groups[key].append(r)
+          app_profile['exact_semantic_groups']=len(app_groups)
+          app_profile['duplicate_exact_groups']=[{'key':list(k),'count':len(v)} for k,v in app_groups.items() if len(v)>1][:100]
+          app_profile['activity_nonempty_count']=sum(bool(r['activity']) for r in app_rows)
+          app_profile['activity_distinct_count']=len({r['activity'] for r in app_rows if r['activity']})
+          app_profile['activity_examples']=sorted({r['activity'] for r in app_rows if r['activity']})[:50]
+          report['applicant']['profile']=app_profile
+
+          Path('tmp/brescia-source-profile.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
           print(json.dumps(report, ensure_ascii=False, indent=2))
           PY
       - name: Persist audit checkpoint on expansion branch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/brescia-source-audit.json
+          git add tmp/brescia-source-profile.json
           if git diff --cached --quiet; then
-            echo 'Audit checkpoint unchanged.'
+            echo 'Profile checkpoint unchanged.'
           else
-            git commit -m 'Checkpoint Brescia source audit'
+            git commit -m 'Checkpoint Brescia source profile'
             git push origin HEAD:expansion/brescia-2026-09-12
           fi
