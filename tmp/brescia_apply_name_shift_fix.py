@@ -119,7 +119,7 @@ def patch_tests() -> None:
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_SECTOR_ROWS\", sum(section_counts.values()))\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_PEER_RESOLVED_DATE_ROWS\", 0)\n",
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_SECTOR_ROWS\", sum(section_counts.values()))\n"
-        "    expected_shift = [[4, \"I\", \"UNICA I SRL\", \"Brescia via I\", \"00000000001\", \"2026-01-01\", \"2027-01-01\", \"\"]]\n"
+        "    expected_shift = [[4, \"I\", \"UNICA I SRL\", \"Brescia via I\", \"00000000001\", \"2026-01-01 00:00:00\", \"2027-01-01 00:00:00\", \"\"]]\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_ROWS\", 1)\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_LISTED_NAME_SHIFT_SHA256\", bs._name_shift_sha256(expected_shift))\n"
         "    monkeypatch.setattr(bs, \"_EXPECTED_PEER_RESOLVED_DATE_ROWS\", 0)\n",
