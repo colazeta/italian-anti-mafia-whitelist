@@ -1,0 +1,37 @@
+{
+  "authority_key": "genova",
+  "validated_on": "2026-09-12",
+  "sources": {
+    "listed": {
+      "parser": "genova_listed",
+      "parser_version": "1",
+      "source_pages": 114,
+      "public_records": 652,
+      "status_counts": {
+        "listed": 528,
+        "renewal_update_in_progress": 124
+      },
+      "identifier_coverage": 643,
+      "reviewed_page47_reconstructions": 1,
+      "shifted_leading_blank_rows": 25
+    },
+    "applicant": {
+      "parser": "genova_applicants",
+      "parser_version": "1",
+      "source_pages": 20,
+      "public_records": 110,
+      "status_counts": {
+        "pending": 110
+      },
+      "identifier_coverage": 99,
+      "reviewed_page7_split_rows": 6,
+      "reviewed_page9_reconstructions": 1
+    }
+  },
+  "total_records": 762,
+  "status_counts": {
+    "listed": 528,
+    "renewal_update_in_progress": 124,
+    "pending": 110
+  }
+}
