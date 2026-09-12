@@ -1,0 +1,90 @@
+name: Catania parser validation
+
+on:
+  push:
+    branches:
+      - expansion/catania-2026-09-12
+    paths:
+      - .github/workflows/catania-parser-validation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/catania-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Correct population-specific footer order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src/white_list_archive/parsers/catania_openxml.py')
+          text=path.read_text()
+          old='''_EXPECTED_FOOTER_LABELS = [\n    "SEZIONI WHITE LIST",\n    "SEZ. I",\n    "SEZ. II",\n    "SEZ III",\n    "SEZ IV",\n    "SEZ IX",\n    "SEZ V",\n    "SEZ VI",\n    "SEZ VII",\n    "SEZ VIII",\n    "SEZ X",\n]\n'''
+          new='''_EXPECTED_LISTED_FOOTER_LABELS = [\n    "SEZIONI WHITE LIST", "SEZ. I", "SEZ. II", "SEZ III", "SEZ IV",\n    "SEZ V", "SEZ VI", "SEZ VII", "SEZ VIII", "SEZ IX", "SEZ X",\n]\n_EXPECTED_APPLICANT_FOOTER_LABELS = [\n    "SEZIONI WHITE LIST", "SEZ. I", "SEZ. II", "SEZ III", "SEZ IV",\n    "SEZ IX", "SEZ V", "SEZ VI", "SEZ VII", "SEZ VIII", "SEZ X",\n]\n'''
+          if text.count(old)!=1: raise SystemExit('Expected footer block not found exactly once')
+          text=text.replace(old,new)
+          old2='''    labels = [item[0] for item in footer]\n    if labels != _EXPECTED_FOOTER_LABELS:\n        raise RuntimeError(f"Catania {population} footer-label drift: {labels!r}")\n'''
+          new2='''    labels = [item[0] for item in footer]\n    expected_footer = _EXPECTED_APPLICANT_FOOTER_LABELS if applicant else _EXPECTED_LISTED_FOOTER_LABELS\n    if labels != expected_footer:\n        raise RuntimeError(f"Catania {population} footer-label drift: {labels!r}")\n'''
+          if text.count(old2)!=1: raise SystemExit('Expected footer validation block not found exactly once')
+          path.write_text(text.replace(old2,new2))
+          PY
+      - name: Install project runtime
+        run: python -m pip install --disable-pip-version-check -e '.[publication]'
+      - name: Validate parser on byte-pinned official sources
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.catania_openxml import parse_catania_listed, parse_catania_applicants
+          from white_list_archive.publishing.public_contract import public_record
+
+          root=Path('/tmp/catania-parser-validation'); root.mkdir(exist_ok=True)
+          page='https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale'
+          specs=[
+            ('listed','https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx','1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291',parse_catania_listed,'catania-listed','listed'),
+            ('applicants','https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx','4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27',parse_catania_applicants,'catania-applicants','applicant'),
+          ]
+          summary={}
+          for label,url,expected_sha,parser,source_key,population in specs:
+            req=Request(url,headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+parser validation)'})
+            with urlopen(req,timeout=60) as response: body=response.read()
+            got=hashlib.sha256(body).hexdigest()
+            if got!=expected_sha: raise SystemExit(f'{label} SHA drift: {got}')
+            path=root/f'{label}.xlsx'; path.write_bytes(body)
+            cfg={
+              'source_key':source_key,'authority_key':'catania','authority_name':'Prefettura di Catania',
+              'register_key':'catania-ordinary','register_name':'White List ordinaria',
+              'population_scope':population,'reference_date':'2026-09-11','source_page_url':page,
+              'resource_url':url,'sha256':expected_sha,
+            }
+            batch=parser(path,cfg)
+            for record in batch.records: public_record(record)
+            summary[label]=batch.diagnostics
+          if summary['listed']['public_records'] != 1632: raise SystemExit(summary)
+          if summary['listed']['status_counts'] != {'listed':1281,'renewal_update_in_progress':351}: raise SystemExit(summary)
+          if summary['listed']['identifier_coverage'] != 1588: raise SystemExit(summary)
+          if summary['applicants']['public_records'] != 324: raise SystemExit(summary)
+          if summary['applicants']['status_counts'] != {'pending':324}: raise SystemExit(summary)
+          if summary['applicants']['identifier_coverage'] != 322: raise SystemExit(summary)
+          print(json.dumps(summary,ensure_ascii=False,sort_keys=True))
+          PY
+      - name: Run parser-focused static tests
+        run: |
+          python -m compileall -q src/white_list_archive/parsers/catania_openxml.py
+          git diff --check
+      - name: Commit validated parser correction
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/catania_openxml.py
+          git commit -m 'Validate Catania parser against official sources'
+          git push origin HEAD:expansion/catania-2026-09-12
