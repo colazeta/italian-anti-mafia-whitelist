@@ -1,4 +1,4 @@
-name: Genova national candidate gate
+name: Genova national candidate gate v2
 on:
   push:
     branches: [expansion/genova-2026-09-12]
@@ -40,36 +40,15 @@ jobs:
           if any(x.get('authority_key') == 'genova' for x in sources):
               raise SystemExit('Genova already present in publication config; refuse duplicate materialization')
           common = {
-              'authority_key': 'genova',
-              'authority_name': 'Prefettura di Genova',
-              'register_key': 'genova-ordinary',
-              'register_name': 'White List ordinaria',
-              'reference_date': '2026-09-10',
-              'source_page_url': page,
+              'authority_key': 'genova', 'authority_name': 'Prefettura di Genova',
+              'register_key': 'genova-ordinary', 'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-10', 'source_page_url': page,
               'last_source_update': '2026-09-10',
               'last_source_update_basis': 'dated official resources directly verified 12 September 2026',
           }
           sources.extend([
-              {
-                  **common,
-                  'source_key': 'genova-listed',
-                  'parser': 'genova_listed',
-                  'population_scope': 'listed',
-                  'resource_url': listed_url,
-                  'sha256': listed_sha,
-                  'expected_source_rows': 652,
-                  'notes': 'Byte-pinned 114-page listed-company PDF. The fail-closed parser yields 652 observations: 528 listed and 124 renewal/update in progress. Reviewed extraction anomalies and malformed official identifiers/dates remain explicit raw provenance and are never fuzzily repaired.',
-              },
-              {
-                  **common,
-                  'source_key': 'genova-applicants',
-                  'parser': 'genova_applicants',
-                  'population_scope': 'applicant',
-                  'resource_url': applicant_url,
-                  'sha256': applicant_sha,
-                  'expected_source_rows': 110,
-                  'notes': 'Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed page 7/page 9 table-extraction cases are exact evidence-backed reconstructions; malformed official dates remain raw and uninferred.',
-              },
+              {**common, 'source_key': 'genova-listed', 'parser': 'genova_listed', 'population_scope': 'listed', 'resource_url': listed_url, 'sha256': listed_sha, 'expected_source_rows': 652, 'notes': 'Byte-pinned 114-page listed-company PDF. The fail-closed parser yields 652 observations: 528 listed and 124 renewal/update in progress. Reviewed extraction anomalies and malformed official identifiers/dates remain explicit raw provenance and are never fuzzily repaired.'},
+              {**common, 'source_key': 'genova-applicants', 'parser': 'genova_applicants', 'population_scope': 'applicant', 'resource_url': applicant_url, 'sha256': applicant_sha, 'expected_source_rows': 110, 'notes': 'Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed page 7/page 9 table-extraction cases are exact evidence-backed reconstructions; malformed official dates remain raw and uninferred.'},
           ])
           cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
@@ -79,15 +58,10 @@ jobs:
           if len(matches) != 1:
               raise SystemExit(f'expected exactly one existing Genova verified-page row, found {len(matches)}')
           old = matches[0]
-          if old != {
-              'authority_key': 'genova',
-              'landing_url': 'https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list',
-              'verification_date': '2026-09-06',
-              'verification_status': 'verified',
-          }:
+          expected_old = {'authority_key': 'genova', 'landing_url': 'https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list', 'verification_date': '2026-09-06', 'verification_status': 'verified'}
+          if old != expected_old:
               raise SystemExit(f'unexpected pre-existing Genova verified-page state: {old!r}')
-          old['landing_url'] = page
-          old['verification_date'] = '2026-09-12'
+          old['landing_url'] = page; old['verification_date'] = '2026-09-12'
           with verified.open('w', encoding='utf-8', newline='') as fh:
               writer = csv.DictWriter(fh, fieldnames=['authority_key','landing_url','verification_date','verification_status'], lineterminator='\n')
               writer.writeheader(); writer.writerows(rows)
@@ -107,7 +81,6 @@ jobs:
           registry.write_text(text, encoding='utf-8')
           PY
           git diff --check
-          git diff -- data/publication/multi_prefecture_pilot.json data/source_registry/verified_primary_pages.csv src/white_list_archive/publishing/public_national_registry.py
       - name: Build Genova national candidate
         run: |
           white-list-public-national-build \
@@ -126,7 +99,6 @@ jobs:
           import json
           from collections import Counter
           from pathlib import Path
-
           reg = json.loads(Path('/tmp/genova-registry.json').read_text(encoding='utf-8'))
           pref = json.loads(Path('/tmp/genova-prefectures.json').read_text(encoding='utf-8'))
           assert reg['meta']['record_count'] == 29600, reg['meta']
