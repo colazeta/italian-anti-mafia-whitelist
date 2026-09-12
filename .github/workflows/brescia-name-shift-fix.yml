@@ -24,13 +24,13 @@ jobs:
           ref: expansion/brescia-2026-09-12
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.13'
       - name: Apply exact source-layout fix
         run: |
           python tmp/brescia_apply_name_shift_fix.py
           python tmp/brescia_apply_audited_row_counts.py
       - name: Install validation runtime
-        run: python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+        run: python -m pip install --disable-pip-version-check -e '.[dev,database,storage,publication]'
       - name: Run Brescia semantic tests
         run: python -m pytest -q tests/test_brescia_parser_semantics.py
       - name: Validate byte-pinned official sources
