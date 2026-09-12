@@ -41,6 +41,7 @@ jobs:
           awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
           test -s /tmp/genova_materialise.py
           python /tmp/genova_materialise.py
+          python tmp/genova_public_adapter_patch.py
           git diff --check
       - name: Capture national build diagnostics
         shell: bash
