@@ -1,0 +1,30 @@
+name: Brescia real-source validation
+
+on:
+  push:
+    branches:
+      - expansion/brescia-2026-09-12
+    paths:
+      - .github/workflows/brescia-real-source-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validation runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+      - name: Validate byte-pinned current official sources
+        run: python tmp/brescia_validate_parser.py
+      - name: Run Brescia semantic tests
+        run: python -m pytest -q tests/test_brescia_parser_semantics.py
