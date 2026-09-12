@@ -18,6 +18,17 @@ _EXPECTED_APPLICANT_RECORDS = 110
 _EXPECTED_LISTED_STATUS = {"listed": 528, "renewal_update_in_progress": 124}
 _EXPECTED_SECTIONS = {str(i) for i in range(1, 11)}
 _RENEWAL = "RICHIESTO RINNOVO"
+_REVIEWED_LISTED_LEGEND = (
+    "Legenda Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti "
+    "Sez. II - Confezionamento, fornitura e trasporto di calcestruzzo e bitume "
+    "Sez. III - Noli a freddo di macchinari Sez. IV - Fornitura di ferro lavorato "
+    "Sez. V - Noli a caldo Sez. VI - Autotrasporto per conto terzi "
+    "Sez. VII - Guardiani ai cantieri Sez. VIII - Servizi funerari e cimiteriali "
+    "Sez. IX - Ristorazione, gestione delle mense e catering "
+    "Sez. X - Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, "
+    "anche per conto terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento "
+    "e bonifica e gli altri servizi connessi alla gestione dei rifiuti"
+)
 
 _REVIEWED_LISTED_PAGE47 = (
     "FISIA ITALIMPIANTI SPA",
@@ -158,6 +169,10 @@ def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], int, int]:
                     name = cells[0]
                     if not name:
                         raise RuntimeError(f"Genova listed blank name on page {page_number}, row {table_row}")
+                    if name == _REVIEWED_LISTED_LEGEND:
+                        if any(cells[1:]):
+                            raise RuntimeError(f"Genova listed reviewed legend geometry drift: {cells!r}")
+                        continue
                     section_values = _sections(cells[4], scope="listed", name=name)
                     if not section_values:
                         raise RuntimeError(f"Genova listed missing section for {name!r}")
