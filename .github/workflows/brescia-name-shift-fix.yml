@@ -1,0 +1,48 @@
+name: Brescia audited name-shift fix
+
+on:
+  push:
+    branches:
+      - expansion/brescia-2026-09-12
+    paths:
+      - .github/workflows/brescia-name-shift-fix.yml
+      - tmp/brescia_apply_name_shift_fix.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply exact source-layout fix
+        run: python tmp/brescia_apply_name_shift_fix.py
+      - name: Install validation runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+      - name: Run Brescia semantic tests
+        run: python -m pytest -q tests/test_brescia_parser_semantics.py
+      - name: Validate byte-pinned official sources
+        run: python tmp/brescia_validate_parser.py
+      - name: Run full repository test suite
+        run: python -m pytest -q
+      - name: Commit validated production changes
+        run: |
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/brescia_openxml.py tests/test_brescia_parser_semantics.py
+          if git diff --cached --quiet; then
+            echo 'No production changes to commit.'
+            exit 0
+          fi
+          git diff --cached --check
+          git commit -m 'Handle audited Brescia listed-name layout shifts'
+          git push origin HEAD:expansion/brescia-2026-09-12
