@@ -1,0 +1,27 @@
+name: Genova parser correction
+on:
+  push:
+    branches: [expansion/genova-2026-09-12]
+    paths: [.github/workflows/genova-parser-correct.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - name: Patch parser
+        run: |
+          python -c 'from pathlib import Path; p=Path("src/white_list_archive/parsers/genova_tables.py"); s=p.read_text(); old="            primary_date=row[\"application_date\"],\\n            primary_date_label=\"Data di presentazione dell\x27istanza\",\\n"; new="            application_date=row[\"application_date\"],\\n            primary_date_label=\"Data presentazione istanza\",\\n"; assert s.count(old)==1, s.count(old); p.write_text(s.replace(old,new))'
+          git diff --check
+          git diff -- src/white_list_archive/parsers/genova_tables.py
+      - name: Commit parser
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/white_list_archive/parsers/genova_tables.py
+          test "$(git diff --cached --name-only | wc -l)" -eq 1
+          git commit -m 'Fix Genova applicant primary-date binding'
+          git push origin HEAD:expansion/genova-2026-09-12
