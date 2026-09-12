@@ -1,0 +1,144 @@
+name: Genova parser profile
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-parser-profile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bounded parser-profile runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Profile exact table row semantics
+        run: |
+          python - <<'PY'
+          import collections
+          import hashlib
+          import json
+          import pathlib
+          import re
+          import tempfile
+          import requests
+          import pdfplumber
+
+          source_profile = json.loads(pathlib.Path('tmp/genova_source_profile.json').read_text(encoding='utf-8'))
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'italian-anti-mafia-whitelist parser profile/1.0'})
+          strict_id = re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
+          date_re = re.compile(r'^\d{1,2}/\d{1,2}/\d{4}$')
+
+          def clean(value):
+              return re.sub(r'\s+', ' ', (value or '').replace('\u00a0', ' ')).strip()
+
+          out = {'authority_key': 'genova', 'profiled_on': '2026-09-12', 'sources': {}}
+          with tempfile.TemporaryDirectory(prefix='genova-parser-profile-') as td:
+              td = pathlib.Path(td)
+              for scope in ('listed', 'applicant'):
+                  cfg = source_profile['sources'][scope]
+                  r = session.get(cfg['resource_url'], timeout=(15, 120))
+                  r.raise_for_status()
+                  if hashlib.sha256(r.content).hexdigest() != cfg['sha256']:
+                      raise SystemExit(f'{scope} source drift')
+                  p = td / f'{scope}.pdf'
+                  p.write_bytes(r.content)
+                  rows = []
+                  with pdfplumber.open(p) as pdf:
+                      if len(pdf.pages) != cfg['pages']:
+                          raise SystemExit(f'{scope} page drift')
+                      for page_no, page in enumerate(pdf.pages, 1):
+                          for table_no, table in enumerate(page.extract_tables() or [], 1):
+                              for row_no, row in enumerate(table or [], 1):
+                                  cells = [clean(c) for c in row]
+                                  if not any(cells):
+                                      continue
+                                  joined = ' | '.join(cells)
+                                  folded = joined.casefold()
+                                  is_header = any(t in folded for t in ('ragione sociale', 'codice fiscale', 'partita iva', 'data iscrizione', 'data di presentazione'))
+                                  if is_header:
+                                      continue
+                                  rows.append({'page': page_no, 'table': table_no, 'row': row_no, 'cells': cells})
+
+                  widths = collections.Counter(len(x['cells']) for x in rows)
+                  samples = {}
+                  for width in sorted(widths):
+                      subset = [x for x in rows if len(x['cells']) == width]
+                      samples[str(width)] = subset[:20]
+
+                  # Capture candidate identifier and date coordinates without guessing field semantics.
+                  id_positions = collections.Counter()
+                  date_positions = collections.Counter()
+                  empty_positions = collections.Counter()
+                  terminal_values = collections.Counter()
+                  rows_without_strict_id = []
+                  for item in rows:
+                      ids = []
+                      for i, cell in enumerate(item['cells']):
+                          token = clean(cell).upper().replace(' ', '')
+                          if strict_id.fullmatch(token):
+                              ids.append((i, token))
+                              id_positions[i] += 1
+                          if date_re.fullmatch(clean(cell)):
+                              date_positions[i] += 1
+                          if not clean(cell):
+                              empty_positions[i] += 1
+                      if not ids and len(rows_without_strict_id) < 80:
+                          rows_without_strict_id.append(item)
+                      terminal_values[clean(item['cells'][-1])] += 1
+
+                  # Raw first-cell blank rows are especially relevant for page/table continuation logic.
+                  blank_first = [item for item in rows if not clean(item['cells'][0])]
+                  out['sources'][scope] = {
+                      'sha256': cfg['sha256'],
+                      'pages': cfg['pages'],
+                      'row_count_excluding_headers': len(rows),
+                      'row_width_distribution': dict(sorted(widths.items())),
+                      'strict_identifier_positions': {str(k): v for k, v in sorted(id_positions.items())},
+                      'date_positions': {str(k): v for k, v in sorted(date_positions.items())},
+                      'empty_cell_positions': {str(k): v for k, v in sorted(empty_positions.items())},
+                      'terminal_values_top': terminal_values.most_common(30),
+                      'blank_first_count': len(blank_first),
+                      'blank_first_samples': blank_first[:30],
+                      'rows_without_strict_id_count': sum(1 for item in rows if not any(strict_id.fullmatch(clean(c).upper().replace(' ', '')) for c in item['cells'])),
+                      'rows_without_strict_id_samples': rows_without_strict_id,
+                      'samples_by_width': samples,
+                  }
+
+          path = pathlib.Path('tmp/genova_parser_profile.json')
+          path.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({scope: {
+              'rows': data['row_count_excluding_headers'],
+              'widths': data['row_width_distribution'],
+              'id_positions': data['strict_identifier_positions'],
+              'date_positions': data['date_positions'],
+              'blank_first_count': data['blank_first_count'],
+              'rows_without_strict_id_count': data['rows_without_strict_id_count'],
+              'terminal_values_top': data['terminal_values_top'][:12],
+              'unusual_samples': {k: v[:4] for k, v in data['samples_by_width'].items() if (scope == 'listed' and k != '8') or (scope == 'applicant' and k != '7')},
+          } for scope, data in out['sources'].items()}, ensure_ascii=False, indent=2))
+          PY
+      - name: Checkpoint parser profile
+        run: |
+          test -f tmp/genova_parser_profile.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/genova_parser_profile.json
+          if git diff --cached --quiet; then
+            echo 'No parser profile change to commit.'
+          else
+            git commit -m 'Checkpoint Genova parser profile'
+            git push origin HEAD:expansion/genova-2026-09-12
+          fi
