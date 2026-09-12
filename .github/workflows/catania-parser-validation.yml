@@ -13,7 +13,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Correct population-specific footer order
+      - name: Apply reviewed parser corrections
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -34,7 +34,14 @@ jobs:
           old2='''    labels = [item[0] for item in footer]\n    if labels != _EXPECTED_FOOTER_LABELS:\n        raise RuntimeError(f"Catania {population} footer-label drift: {labels!r}")\n'''
           new2='''    labels = [item[0] for item in footer]\n    expected_footer = _EXPECTED_APPLICANT_FOOTER_LABELS if applicant else _EXPECTED_LISTED_FOOTER_LABELS\n    if labels != expected_footer:\n        raise RuntimeError(f"Catania {population} footer-label drift: {labels!r}")\n'''
           if text.count(old2)!=1: raise SystemExit('Expected footer validation block not found exactly once')
-          path.write_text(text.replace(old2,new2))
+          text=text.replace(old2,new2)
+          # These files are small. The parser requires bounded random row access for
+          # exact source-row fingerprints; normal mode avoids openpyxl read-only
+          # rescanning the sheet for every indexed row.
+          if text.count('read_only=True') != 3:
+              raise SystemExit(f'Unexpected read_only parser count: {text.count("read_only=True")}')
+          text=text.replace('read_only=True','read_only=False')
+          path.write_text(text)
           PY
       - name: Install project runtime
         run: python -m pip install --disable-pip-version-check -e '.[publication]'
@@ -69,12 +76,14 @@ jobs:
             batch=parser(path,cfg)
             for record in batch.records: public_record(record)
             summary[label]=batch.diagnostics
-          if summary['listed']['public_records'] != 1632: raise SystemExit(summary)
-          if summary['listed']['status_counts'] != {'listed':1281,'renewal_update_in_progress':351}: raise SystemExit(summary)
-          if summary['listed']['identifier_coverage'] != 1588: raise SystemExit(summary)
-          if summary['applicants']['public_records'] != 324: raise SystemExit(summary)
-          if summary['applicants']['status_counts'] != {'pending':324}: raise SystemExit(summary)
-          if summary['applicants']['identifier_coverage'] != 322: raise SystemExit(summary)
+          expected={
+            'listed':{'public_records':1632,'status_counts':{'listed':1281,'renewal_update_in_progress':351},'identifier_coverage':1588},
+            'applicants':{'public_records':324,'status_counts':{'pending':324},'identifier_coverage':322},
+          }
+          for population, assertions in expected.items():
+            for key,value in assertions.items():
+              if summary[population][key] != value:
+                raise SystemExit(f'{population} {key} drift: {summary[population][key]!r} != {value!r}')
           print(json.dumps(summary,ensure_ascii=False,sort_keys=True))
           PY
       - name: Run parser-focused static tests
