@@ -7,7 +7,7 @@ on:
     paths:
       - .github/workflows/genova-parser-validation.yml
 
-# Re-run the unchanged evidence-pinned assertions after restoring canonical CI.
+# Re-run the unchanged evidence-pinned assertions after the reviewed legend-row exclusion.
 permissions:
   contents: write
 
