@@ -51,7 +51,7 @@ _EXPECTED_LISTED_UPDATE_VALUES = {
     "SI/JA": 4,
     "Si.JA": 1,
     "SI- ja": 1,
-    "Si_JA": 1,
+    "Si_ JA": 1,
     "Si- JA": 1,
     "SI-ja": 1,
     "SI- jA": 1,
@@ -411,3 +411,9 @@ def parse_bolzano_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             ),
         },
     )
+
+
+PARSERS = {
+    "bolzano_listed": parse_bolzano_listed,
+    "bolzano_applicants": parse_bolzano_applicants,
+}
