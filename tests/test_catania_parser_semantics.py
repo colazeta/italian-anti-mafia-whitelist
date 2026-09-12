@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 
 from white_list_archive.parsers.catania_openxml import (
+    _APPLICANT_RECORDS,
     _EXPECTED_APPLICANT_IDENTIFIER_COVERAGE,
-    _EXPECTED_APPLICANT_RECORDS,
     _EXPECTED_APPLICANT_STATUS_COUNTS,
     _EXPECTED_LISTED_FORMULAS,
     _EXPECTED_LISTED_IDENTIFIER_COVERAGE,
-    _EXPECTED_LISTED_RECORDS,
     _EXPECTED_LISTED_STANDARD_FORMULAS,
     _EXPECTED_LISTED_STATUS_COUNTS,
+    _LISTED_RECORDS,
     _listed_status,
     _sections,
     _strict_date,
@@ -19,8 +19,8 @@ from white_list_archive.parsers.catania_openxml import (
 
 
 def test_catania_source_denominators_are_frozen() -> None:
-    assert _EXPECTED_LISTED_RECORDS == 1632
-    assert _EXPECTED_APPLICANT_RECORDS == 324
+    assert _LISTED_RECORDS == 1632
+    assert _APPLICANT_RECORDS == 324
     assert _EXPECTED_LISTED_STATUS_COUNTS == {
         "listed": 1281,
         "renewal_update_in_progress": 351,
