@@ -1,0 +1,113 @@
+name: Catania source profile
+
+on:
+  push:
+    branches:
+      - expansion/catania-2026-09-12
+    paths:
+      - .github/workflows/catania-source-profile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/catania-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install profiling dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 openpyxl
+      - name: Verify official page and profile attached workbooks
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, re, time
+          from io import BytesIO
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+          from openpyxl import load_workbook
+
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale'
+          S = requests.Session()
+          S.headers.update({'User-Agent': 'Mozilla/5.0 (compatible; whitelist-archive-source-verifier/1.0)'})
+
+          def get(url):
+              r = S.get(url, timeout=45, allow_redirects=True)
+              r.raise_for_status()
+              return r
+
+          page = get(PAGE)
+          soup = BeautifulSoup(page.text, 'html.parser')
+          links = []
+          for a in soup.find_all('a', href=True):
+              href = urljoin(page.url, a['href'])
+              text = ' '.join(a.stripped_strings)
+              if href.lower().split('?', 1)[0].endswith('.xlsx') or '.xlsx' in href.lower() or '.xlsx' in text.lower():
+                  links.append({'text': text, 'url': href})
+          uniq = []
+          seen = set()
+          for x in links:
+              if x['url'] not in seen:
+                  seen.add(x['url']); uniq.append(x)
+          if len(uniq) != 2:
+              raise SystemExit(f'Expected exactly two XLSX attachments, found {len(uniq)}: {uniq}')
+
+          out = {
+              'authority_key': 'catania',
+              'official_page': PAGE,
+              'resolved_page': page.url,
+              'page_status': page.status_code,
+              'page_title': soup.title.get_text(' ', strip=True) if soup.title else None,
+              'page_sha256': hashlib.sha256(page.content).hexdigest(),
+              'attachments': []
+          }
+          for item in uniq:
+              r1 = get(item['url'])
+              time.sleep(1)
+              r2 = get(item['url'])
+              h1 = hashlib.sha256(r1.content).hexdigest()
+              h2 = hashlib.sha256(r2.content).hexdigest()
+              if h1 != h2 or r1.content != r2.content:
+                  raise SystemExit(f'Non-identical repeated fetch for {item["url"]}')
+              wb = load_workbook(BytesIO(r1.content), read_only=True, data_only=False)
+              sheets = []
+              for ws in wb.worksheets:
+                  rows = []
+                  for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 15), values_only=True):
+                      rows.append([None if v is None else str(v)[:500] for v in row[:min(ws.max_column, 20)]])
+                  sheets.append({
+                      'title': ws.title,
+                      'max_row': ws.max_row,
+                      'max_column': ws.max_column,
+                      'sample_rows': rows,
+                  })
+              out['attachments'].append({
+                  'link_text': item['text'],
+                  'url': item['url'],
+                  'resolved_url': r1.url,
+                  'status': r1.status_code,
+                  'content_type': r1.headers.get('content-type'),
+                  'content_length': len(r1.content),
+                  'sha256': h1,
+                  'repeat_sha256': h2,
+                  'repeat_identical': True,
+                  'sheets': sheets,
+              })
+
+          os.makedirs('tmp', exist_ok=True)
+          with open('tmp/catania_source_profile.json', 'w', encoding='utf-8') as f:
+              json.dump(out, f, ensure_ascii=False, indent=2)
+              f.write('\n')
+          PY
+      - name: Commit source profile checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/catania_source_profile.json
+          git commit -m 'Checkpoint Catania official source profile'
+          git push origin HEAD:expansion/catania-2026-09-12
