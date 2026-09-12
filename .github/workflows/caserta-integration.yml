@@ -26,6 +26,22 @@ jobs:
           python-version: '3.13'
       - name: Materialise Caserta production candidate
         run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('data/monitoring/national_coverage.json')
+          data=json.loads(path.read_text(encoding='utf-8'))
+          matches=[item for item in data['prefectures'] if item['authority_key']=='caserta']
+          assert len(matches)==1, f'Expected one Caserta coverage placeholder, got {len(matches)}'
+          current=matches[0]
+          assert current.get('source_verified') is False
+          assert current.get('capture_implemented') is False
+          assert current.get('parser_implemented') is False
+          assert current.get('company_observations_loaded') is False
+          data['prefectures']=[item for item in data['prefectures'] if item['authority_key']!='caserta']
+          path.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('Removed exactly one unvalidated Caserta coverage placeholder for transactional replacement')
+          PY
           python tmp/caserta_integration.py
           python - <<'PY'
           from pathlib import Path
@@ -56,7 +72,6 @@ jobs:
         run: |
           python - <<'PY'
           from white_list_archive.parsers.caserta_tables import PARSERS
-          from white_list_archive.publishing.public_contract import public_record
           assert set(PARSERS) == {'caserta_listed','caserta_applicants'}
           print('Caserta parser public-contract binding available')
           PY
