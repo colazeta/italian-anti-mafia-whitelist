@@ -6,32 +6,62 @@ on:
 permissions:
   contents: write
 jobs:
-  patch:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/genova-2026-09-12
-      - name: Fix exact casefold guard
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install parser validation runtime
+        run: python -m pip install --disable-pip-version-check -e . requests pdfplumber
+      - name: Validate frozen Genova sources
         run: |
           python - <<'PY'
-          from pathlib import Path
-          path = Path('src/white_list_archive/parsers/genova_tables.py')
-          text = path.read_text(encoding='utf-8')
-          old = 'reviewed_support = "EDILQUADRIFOGLIOSRL0166068099003/07/2026INISTRUTTORIAVIACESAREA,11/6"'
-          new = 'reviewed_support = "edilquadrifogliosrl0166068099003/07/2026inistruttoriaviacesarea,11/6"'
-          if text.count(old) != 1:
-              raise SystemExit(f'expected exactly one uppercase reviewed support guard, found {text.count(old)}')
-          text = text.replace(old, new, 1)
-          path.write_text(text, encoding='utf-8')
+          import hashlib, json, pathlib, tempfile
+          from collections import Counter
+          import requests
+          from white_list_archive.parsers.genova_tables import parse_genova_applicants, parse_genova_listed
+
+          page = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
+          specs = {
+            'listed': ('genova-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf','baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'),
+            'applicant': ('genova-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf','13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'),
+          }
+          report={'authority_key':'genova','validated_on':'2026-09-12','sources':{}}
+          s=requests.Session(); s.headers['User-Agent']='italian-anti-mafia-whitelist parser validation/1.0'
+          with tempfile.TemporaryDirectory() as td:
+            td=pathlib.Path(td); batches={}
+            for scope,(key,pop,url,expected) in specs.items():
+              r=s.get(url,timeout=(15,120)); r.raise_for_status()
+              actual=hashlib.sha256(r.content).hexdigest(); assert actual==expected,(scope,actual)
+              p=td/f'{scope}.pdf'; p.write_bytes(r.content)
+              cfg={'source_key':key,'authority_key':'genova','authority_name':'Prefettura di Genova','register_key':'genova-ordinary','register_name':'White List ordinaria','population_scope':pop,'reference_date':'2026-09-10','source_page_url':page,'resource_url':url,'sha256':expected}
+              b=parse_genova_listed(p,cfg) if scope=='listed' else parse_genova_applicants(p,cfg)
+              batches[scope]=b; report['sources'][scope]=b.diagnostics
+            listed=batches['listed'].records; applicants=batches['applicant'].records
+            assert len(listed)==652 and Counter(x['source_status'] for x in listed)==Counter({'listed':528,'renewal_update_in_progress':124})
+            assert len(applicants)==110 and Counter(x['source_status'] for x in applicants)==Counter({'pending':110})
+            g=next(x for x in listed if x['name']=='GENOVARENT SRL'); assert g['observed_listing_date']=='' and g['source_fields']['listing_date_raw']=='26//09/2023'
+            l=next(x for x in applicants if x['name']=='LO SCACCIA PENSIERI SRL'); assert l['application_date']=='' and l['source_fields']['application_date_raw']=='16/072026'
+            e=next(x for x in applicants if x['name']=='EDILQUADRIFOGLIO SRL'); assert e['identifiers']==['01660680990'] and e['application_date']=='2026-07-03'
+            f=next(x for x in listed if x['name']=='FISIA ITALIMPIANTI SPA'); assert f['identifiers']==['02340830997'] and f['source_status']=='renewal_update_in_progress'
+            for name in ['PARODI PAOLO','PIROMALLI ANTONINO srl','ROSSI ROBERTO','TRAVERSO SERGIO']:
+              assert next(x for x in listed if x['name']==name)['identifiers']==[]
+            report['total_records']=762; report['status_counts']={'listed':528,'renewal_update_in_progress':124,'pending':110}
+          out=pathlib.Path('tmp/genova_parser_validation.json'); out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
-          git diff --check
-      - name: Commit parser guard fix
+      - name: Checkpoint validation
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/white_list_archive/parsers/genova_tables.py
-          test "$(git diff --cached --name-only | wc -l)" -eq 1
-          git commit -m 'Fix Genova reviewed page 9 guard casefold'
-          git push origin HEAD:expansion/genova-2026-09-12
+          git add tmp/genova_parser_validation.json
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m 'Validate Genova parser against official sources'
+            git push origin HEAD:expansion/genova-2026-09-12
+          fi
