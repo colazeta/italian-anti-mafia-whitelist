@@ -1,0 +1,365 @@
+{
+  "authority_key": "catania",
+  "official_page": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+  "resolved_page": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+  "page_status": 200,
+  "page_title": "White List Provinciale | Prefettura - Ufficio Territoriale del Governo di Catania",
+  "page_sha256": "fc6cd241bb11e837a3b9acb1708defb94fb57cae375305aaa3c581f8e3f40f9d",
+  "attachments": [
+    {
+      "link_text": "white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+      "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+      "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+      "status": 200,
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content_length": 198502,
+      "sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
+      "repeat_sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
+      "repeat_identical": true,
+      "sheets": [
+        {
+          "title": "Foglio1",
+          "max_row": 3380,
+          "max_column": 8,
+          "sample_rows": [
+            [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "SEDE SECONDARIA CON RAPPRESENTANZA IN ITALIA",
+              "1,2,",
+              "CODICE FISCALE/PARTITA IVA",
+              "DATA DI ISCRIZIONE",
+              "SCADENZA ISCRIZIONE",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "@CARE SRLS",
+              "BIANCAVILLA",
+              null,
+              "10",
+              "05762290871",
+              "2026-07-06 00:00:00",
+              "2027-07-06 00:00:00",
+              null
+            ],
+            [
+              "0.3 SRL",
+              "CATANIA",
+              null,
+              "3,5",
+              "05185400875",
+              "2024-09-05 00:00:00",
+              "=DATE(YEAR(F4)+1,MONTH(F4),DAY(F4))",
+              "richiesto rinnovo"
+            ],
+            [
+              "28 58 SECURITY SRL",
+              "MISTERBIANCO",
+              null,
+              "7",
+              "04495320873",
+              "2024-11-22 00:00:00",
+              "=DATE(YEAR(F5)+1,MONTH(F5),DAY(F5))",
+              "richiesto rinnovo"
+            ],
+            [
+              "2L SERVICE DI PONZO ANGELO",
+              "BRONTE",
+              null,
+              "3,5",
+              "06127520879  ",
+              "2026-06-22 00:00:00",
+              "=DATE(YEAR(F6)+1,MONTH(F6),DAY(F6))",
+              null
+            ],
+            [
+              "2V IMPIANTI SRL",
+              "BRONTE",
+              null,
+              "3.5",
+              "05570630870",
+              "2025-11-10 00:00:00",
+              "=DATE(YEAR(F7)+1,MONTH(F7),DAY(F7))",
+              null
+            ],
+            [
+              "3 ESSE CORPORATION S.R.L.",
+              "PATERNO'",
+              null,
+              "1,2,3,4,5,6",
+              "05815120877",
+              "2026-07-06 00:00:00",
+              "=DATE(YEAR(F8)+1,MONTH(F8),DAY(F8))",
+              null
+            ],
+            [
+              "3 P SERVIZI E LOGISTICA SRL S",
+              "CAMPOROTONDO ETNEO",
+              null,
+              "1,6,10",
+              "05035320877",
+              "2025-11-13 00:00:00",
+              "=DATE(YEAR(F9)+1,MONTH(F9),DAY(F9))",
+              null
+            ],
+            [
+              "3C SCAVI SRLS",
+              "MASCALI",
+              null,
+              "3",
+              "05836540871",
+              "2026-03-16 00:00:00",
+              "=DATE(YEAR(F10)+1,MONTH(F10),DAY(F10))",
+              null
+            ],
+            [
+              "3C SRL",
+              "GRAVINA DI CATANIA ",
+              null,
+              "1,3,5,6,10",
+              "05878650877",
+              "2026-03-11 00:00:00",
+              "=DATE(YEAR(F11)+1,MONTH(F11),DAY(F11))",
+              null
+            ],
+            [
+              "3C SRL",
+              "PATERNO'",
+              null,
+              "1,2,3,5,6,10",
+              "05578620873",
+              "2026-05-22 00:00:00",
+              "=DATE(YEAR(F12)+1,MONTH(F12),DAY(F12))",
+              null
+            ],
+            [
+              "3E S.R.L.",
+              "GRAVINA DI CATANIA ",
+              null,
+              "4",
+              "10303640964",
+              "2025-01-08 00:00:00",
+              "=DATE(YEAR(F13)+1,MONTH(F13),DAY(F13))",
+              "richiesto rinnovo"
+            ],
+            [
+              "3P SRL SERVIZI TRASPORTI E LOGISTICA",
+              "CATANIA",
+              null,
+              "6",
+              "05356260876",
+              "2026-07-06 00:00:00",
+              "=DATE(YEAR(F14)+1,MONTH(F14),DAY(F14))",
+              null
+            ],
+            [
+              "3R DI RIOLO ANGELO",
+              "MISTERBIANCO",
+              null,
+              "6,10",
+              "05802470871",
+              "2026-07-17 00:00:00",
+              "2027-07-17 00:00:00",
+              null
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "link_text": "white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+      "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+      "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+      "status": 200,
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content_length": 78666,
+      "sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27",
+      "repeat_sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27",
+      "repeat_identical": true,
+      "sheets": [
+        {
+          "title": "Foglio1",
+          "max_row": 1806,
+          "max_column": 9,
+          "sample_rows": [
+            [
+              "ELENCO DELLE IMPRESE CHE HANNO RICHIESTO L'ISCRIZIONE NELL'ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI                                                                                                                                                                                                                                                                                                                                                                                                              ",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA - Art. 11 - bis D.L. 19.06.2015 n.78",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              null,
+              null,
+              "(WHITE LIST)",
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "SEDE SECONDARIA CON RAPPRESENTANZA IN ITALIA",
+              "ATTIVITA' (sezioni) PER CUI E' RICHIESTA L'ISCRIZIONE                   (vedi elenco white list)",
+              "CODICE FISCALE/PARTITA IVA",
+              "DATA PRESENTAZIONE ISTANZA",
+              "ESITO",
+              null,
+              null
+            ],
+            [
+              "3C INFRASTRUTTURE SRLS",
+              "MASCALI",
+              null,
+              "3",
+              "06297030873",
+              "2026-07-20 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "3R SRLS",
+              "ACIREALE",
+              null,
+              "1,2,3",
+              "06274120879",
+              "2026-07-07 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "A&G TRASPORTI S.R.L. ",
+              "CATANIA",
+              null,
+              "6",
+              "05803900876",
+              "2026-06-12 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "A.B.INRECOMUNICATION SRL",
+              "CATANIA",
+              null,
+              "4",
+              "04554590879",
+              "2026-03-17 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "A.G.S. SRL-AZIENDA GENERALE DI SERVIZI",
+              "CATANIA",
+              null,
+              "10",
+              "04187300878",
+              "2026-03-31 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "A.R. TRASPORTI SRL",
+              "BELPASSO",
+              null,
+              "2,6",
+              "06153620874",
+              "2025-04-16 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "A.U.V. SECURITY S.R.L.",
+              "MASCALUCIA",
+              null,
+              "7",
+              "06220120874",
+              "2026-04-17 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "ACESE SERRAMENTI - SOCIETA' COOPERATIVA",
+              "ACIREALE",
+              null,
+              "4",
+              "03619790870",
+              "2026-04-16 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "ACIGALATEA S.R.L.",
+              "SANTA VENERINA",
+              null,
+              "1,3,5",
+              "05423690873",
+              "2026-06-10 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "ACQUE NORD SRL",
+              "PATERNO'",
+              null,
+              "10",
+              "03220850873",
+              "2026-03-16 00:00:00",
+              null,
+              null,
+              null
+            ],
+            [
+              "ACR IMPIANTI S.R.L. ",
+              "SAN PIETRO CLARENZA",
+              null,
+              "5",
+              "05776600875",
+              "2026-05-19 00:00:00",
+              null,
+              null,
+              null
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}
