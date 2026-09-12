@@ -1,0 +1,26 @@
+name: Brescia layout audit
+
+on:
+  push:
+    branches:
+      - expansion/brescia-2026-09-12
+    paths:
+      - .github/workflows/brescia-layout-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check openpyxl
+      - run: python tmp/brescia_layout_audit.py
