@@ -48,6 +48,18 @@ def main() -> None:
         "_EXPECTED_LISTED_SECTOR_ROWS = 3380\n",
         "listed sector-row total",
     )
+    text = replace_once(
+        text,
+        "_EXPECTED_LISTED_RECORDS = 2032\n",
+        "_EXPECTED_LISTED_RECORDS = 2071\n",
+        "listed semantic-group total",
+    )
+    text = replace_once(
+        text,
+        '_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 1820, "renewal_update_in_progress": 212}\n',
+        '_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 1859, "renewal_update_in_progress": 212}\n',
+        "listed status totals",
+    )
     PARSER.write_text(text, encoding="utf-8")
 
 
