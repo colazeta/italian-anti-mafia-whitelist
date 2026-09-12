@@ -39,6 +39,7 @@ on:
       - 'src/white_list_archive/parsers/brescia_openxml.py'
       - 'src/white_list_archive/parsers/bolzano_docx.py'
       - 'src/white_list_archive/parsers/caserta_tables.py'
+      - 'src/white_list_archive/parsers/catania_openxml.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -129,22 +130,24 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 26882
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta'}
+          assert reg['meta']['record_count'] == 28838
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary'
           }
-          assert reg['meta']['authority_count'] == 28
-          assert reg['meta']['register_count'] == 29
+          assert reg['meta']['authority_count'] == 29
+          assert reg['meta']['register_count'] == 30
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 28
-          assert pref['meta']['mapped_count'] == 38
+          assert pref['meta']['published_count'] == 29
+          assert pref['meta']['mapped_count'] == 39
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['published'] and bolzano[0]['series_count'] > 0
           caserta = [x for x in pref['prefectures'] if x['authority_key'] == 'caserta']
           assert len(caserta) == 1 and caserta[0]['mapped'] and caserta[0]['published'] and caserta[0]['series_count'] > 0
+          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']
+          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2
           alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']
           assert len(alessandria) == 1 and alessandria[0]['mapped'] and alessandria[0]['published']
           aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']
