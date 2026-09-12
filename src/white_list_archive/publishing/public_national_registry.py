@@ -38,9 +38,84 @@ from white_list_archive.parsers.caltanissetta_tables import PARSERS as CALTANISS
 from white_list_archive.parsers.crotone_tables import PARSERS as CROTONE_PARSERS
 from white_list_archive.parsers.campobasso_openxml import PARSERS as CAMPOBASSO_PARSERS
 from white_list_archive.parsers.brescia_openxml import PARSERS as BRESCIA_PARSERS
+from white_list_archive.parsers.bolzano_docx import (
+    parse_bolzano_applicants,
+    parse_bolzano_listed,
+)
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
+BOLZANO_PARSERS = {
+    "bolzano_listed": parse_bolzano_listed,
+    "bolzano_applicants": parse_bolzano_applicants,
+}
+
+
+def _adapt_bolzano_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Map audited parser evidence onto the already-approved public source-field contract.
+
+    The Bolzano parser keeps source-row diagnostics that are useful for review but are
+    deliberately not part of the public contract. This adapter is explicit and fail-closed:
+    an unexpected parser field, type, or row/section cardinality stops publication.
+    """
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Bolzano source_fields must be a mapping")
+        if parser_name == "bolzano_listed":
+            expected = {
+                "listed_sections",
+                "listed_source_rows",
+                "listing_date_raw",
+                "expiry_date_raw",
+                "update_raw_values",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Bolzano listed source-field drift: {sorted(fields)!r}")
+            sections = fields["listed_sections"]
+            source_rows = fields["listed_source_rows"]
+            updates = fields["update_raw_values"]
+            if (
+                not isinstance(sections, list)
+                or any(type(value) is not int for value in sections)
+                or not isinstance(source_rows, list)
+                or any(type(value) is not int for value in source_rows)
+                or len(sections) != len(source_rows)
+                or not isinstance(updates, list)
+                or any(not isinstance(value, str) for value in updates)
+            ):
+                raise RuntimeError("Bolzano listed source-field type/cardinality drift")
+            listing_raw = fields["listing_date_raw"]
+            expiry_raw = fields["expiry_date_raw"]
+            if not isinstance(listing_raw, str) or not isinstance(expiry_raw, str):
+                raise RuntimeError("Bolzano listed raw-date field type drift")
+            record["source_fields"] = {
+                "sections": [f"Sezione {section}" for section in sections],
+                "listing_date_raw_variants": [listing_raw] if listing_raw else [],
+                "expiry_date_raw_variants": [expiry_raw] if expiry_raw else [],
+                "in_aggiornamento": " · ".join(updates),
+            }
+        elif parser_name == "bolzano_applicants":
+            expected = {"source_row", "activities_raw", "application_date_raw", "outcome_raw"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Bolzano applicant source-field drift: {sorted(fields)!r}")
+            if type(fields["source_row"]) is not int:
+                raise RuntimeError("Bolzano applicant source-row type drift")
+            if any(not isinstance(fields[key], str) for key in ("activities_raw", "application_date_raw", "outcome_raw")):
+                raise RuntimeError("Bolzano applicant source-field type drift")
+            if fields["outcome_raw"]:
+                raise RuntimeError("Bolzano applicant outcome became nonblank during publication adaptation")
+            application_raw = fields["application_date_raw"]
+            record["source_fields"] = {
+                "requested_activities_source": fields["activities_raw"],
+                "application_date_raw_variants": [application_raw] if application_raw else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Bolzano parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 # The Ministry discovery index also lists its website template. This is not a
 # territorial authority. Exclude only the evidenced key from the public directory;
 # never delete or filter the underlying national-index discovery evidence.
@@ -180,10 +255,13 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or CROTONE_PARSERS.get(cfg["parser"])
         or CAMPOBASSO_PARSERS.get(cfg["parser"])
         or BRESCIA_PARSERS.get(cfg["parser"])
+        or BOLZANO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
     batch = parser(path, cfg)
+    if cfg["parser"] in BOLZANO_PARSERS:
+        batch = _adapt_bolzano_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "1"
