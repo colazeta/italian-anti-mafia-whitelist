@@ -1,0 +1,127 @@
+name: Catania parser profile
+
+on:
+  push:
+    branches:
+      - expansion/catania-2026-09-12
+    paths:
+      - .github/workflows/catania-parser-profile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/catania-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests openpyxl
+      - name: Build fail-closed parser profile
+        run: |
+          python - <<'PY'
+          import collections, hashlib, json, re
+          from datetime import date, datetime
+          from io import BytesIO
+          from pathlib import Path
+          import requests
+          from openpyxl import load_workbook
+
+          SOURCES = {
+            'listed': ('https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx','1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291',2,8),
+            'applicants': ('https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx','4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27',4,7),
+          }
+          s=requests.Session(); s.headers['User-Agent']='Mozilla/5.0 (compatible; whitelist-archive-audit/1.0)'
+          def clean(v):
+            if v is None: return ''
+            if isinstance(v,(date,datetime)): return v.isoformat()
+            return ' '.join(str(v).replace('\u00a0',' ').split())
+          def valid_id(v):
+            x=clean(v).replace(' ','').upper()
+            return (x.isdigit() and len(x)==11) or (len(x)==16 and x.isalnum())
+          out={'authority_key':'catania','reference_date':'2026-09-11','sources':{}}
+          for pop,(url,expected,header,cols) in SOURCES.items():
+            b=s.get(url,timeout=45).content
+            got=hashlib.sha256(b).hexdigest()
+            if got!=expected: raise SystemExit(f'{pop} hash drift {got}')
+            wf=load_workbook(BytesIO(b),read_only=True,data_only=False)['Foglio1']
+            wd=load_workbook(BytesIO(b),read_only=True,data_only=True)['Foglio1']
+            rf={rn:list(v) for rn,v in enumerate(wf.iter_rows(min_row=header+1,max_col=cols,values_only=True),start=header+1)}
+            rd={rn:list(v) for rn,v in enumerate(wd.iter_rows(min_row=header+1,max_col=cols,values_only=True),start=header+1)}
+            footer=[]; companies=[]
+            for rn,v in rf.items():
+              c=[clean(x) for x in v]
+              if rn>=wf.max_row-10 and any(c): footer.append((rn,c))
+              elif any(c): companies.append((rn,v,c))
+            # Company observations must be one contiguous block immediately after the header.
+            row_numbers=[rn for rn,_,_ in companies]
+            expected_rows=list(range(header+1, header+1+len(row_numbers)))
+            if row_numbers!=expected_rows:
+              raise SystemExit(f'{pop} non-contiguous company block: first/last={row_numbers[:3]}/{row_numbers[-3:]} count={len(row_numbers)}')
+            if [rn for rn,_ in footer] != list(range(wf.max_row-10,wf.max_row+1)):
+              raise SystemExit(f'{pop} footer boundary drift: {[rn for rn,_ in footer]}')
+            p={'sha256':got,'company_first_row':row_numbers[0],'company_last_row':row_numbers[-1],'company_rows':len(companies),'footer_rows':[rn for rn,_ in footer],'footer_values':footer,'nonstandard_identifiers':[],'sector_anomalies':[],'date_anomalies':[]}
+            if pop=='listed':
+              statuses=collections.Counter(); formula_shapes=collections.Counter(); expiry_anom=[]; missing=[]
+              for rn,v,c in companies:
+                name,office,secondary,sectors,ident,listing,expiry,status=v
+                statuses[clean(status)] += 1
+                if not office: missing.append([rn,'office',clean(name)])
+                if not sectors: missing.append([rn,'sectors',clean(name)])
+                if not ident: missing.append([rn,'identifier',clean(name)])
+                if not listing: missing.append([rn,'listing_date',clean(name)])
+                if not expiry: missing.append([rn,'expiry',clean(name)])
+                if ident and not valid_id(ident): p['nonstandard_identifiers'].append([rn,clean(name),clean(ident)])
+                toks=[x for x in re.split(r'\s*[,.;]+\s*',clean(sectors)) if x]
+                invalid=[x for x in toks if x not in {str(i) for i in range(1,11)}]
+                if invalid: p['sector_anomalies'].append([rn,clean(name),clean(sectors),invalid])
+                if isinstance(expiry,str) and expiry.startswith('='):
+                  formula_shapes[re.sub(r'\d+','#',expiry)] += 1
+                  cached=rd[rn][6]
+                  if not isinstance(cached,(date,datetime)): expiry_anom.append([rn,clean(name),expiry,clean(cached),type(cached).__name__])
+                if isinstance(listing,str):
+                  raw=clean(listing)
+                  if not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',raw): p['date_anomalies'].append([rn,clean(name),'listing',raw])
+              p['status_vocab']=dict(statuses)
+              p['status_rows']=[[rn,c[0],c[7]] for rn,_,c in companies if c[7]]
+              p['formula_shapes']=dict(formula_shapes)
+              p['expiry_cache_anomalies']=expiry_anom
+              p['missing_required_company_fields']=missing
+              p['proposed_status_counts']={
+                'renewal_update_in_progress':sum(n for k,n in statuses.items() if 'rinnovo' in k.casefold()),
+                'listed':sum(n for k,n in statuses.items() if 'rinnovo' not in k.casefold()),
+              }
+            else:
+              missing=[]
+              outcome=collections.Counter()
+              for rn,v,c in companies:
+                name,office,secondary,sectors,ident,appdate,outcome_raw=v
+                outcome[clean(outcome_raw)] += 1
+                for label,val in [('name',name),('office',office),('sectors',sectors),('identifier',ident),('application_date',appdate)]:
+                  if not val: missing.append([rn,label,clean(name)])
+                if ident and not valid_id(ident): p['nonstandard_identifiers'].append([rn,clean(name),clean(ident)])
+                toks=[x for x in re.split(r'\s*[,.;]+\s*',clean(sectors)) if x]
+                invalid=[x for x in toks if x not in {str(i) for i in range(1,11)}]
+                if invalid: p['sector_anomalies'].append([rn,clean(name),clean(sectors),invalid])
+                if isinstance(appdate,str):
+                  raw=clean(appdate)
+                  if not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}',raw): p['date_anomalies'].append([rn,clean(name),'application',raw])
+              p['outcome_vocab']=dict(outcome)
+              p['missing_required_company_fields']=missing
+              p['proposed_status_counts']={'pending':len(companies)}
+            out['sources'][pop]=p
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/catania_parser_profile.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Commit parser profile checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/catania_parser_profile.json
+          git commit -m 'Checkpoint Catania parser profile'
+          git push origin HEAD:expansion/catania-2026-09-12
