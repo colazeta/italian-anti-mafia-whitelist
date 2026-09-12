@@ -22,12 +22,16 @@ def _cfg(parser: str, source_key: str, scope: str) -> dict[str, str]:
     }
 
 
-def _workbook() -> tuple[openpyxl.Workbook, openpyxl.worksheet.worksheet.Worksheet]:
+def _workbook(*, applicant: bool = False) -> tuple[openpyxl.Workbook, openpyxl.worksheet.worksheet.Worksheet]:
     workbook = openpyxl.Workbook()
     ws = workbook.active
     ws.title = "Foglio1"
-    workbook.create_sheet("Foglio3")
-    workbook.create_sheet("Foglio2")
+    if applicant:
+        workbook.create_sheet("Foglio2")
+        workbook.create_sheet("Foglio3")
+    else:
+        workbook.create_sheet("Foglio3")
+        workbook.create_sheet("Foglio2")
     return workbook, ws
 
 
@@ -112,7 +116,7 @@ def test_brescia_listed_groups_exact_identity_across_office_variants_and_preserv
 
 def test_brescia_applicant_exact_duplicate_collapses_but_blank_dates_remain_pending(tmp_path: Path, monkeypatch):
     path = tmp_path / "applicants.xlsx"
-    workbook, ws = _workbook()
+    workbook, ws = _workbook(applicant=True)
     ws.append([])
     ws.append([
         None,

@@ -12,7 +12,8 @@ from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _cle
 
 PARSER_VERSION = "1"
 _REFERENCE_DATE = "2026-09-10"
-_EXPECTED_SHEETS = ["Foglio1", "Foglio3", "Foglio2"]
+_EXPECTED_LISTED_SHEETS = ["Foglio1", "Foglio3", "Foglio2"]
+_EXPECTED_APPLICANT_SHEETS = ["Foglio1", "Foglio2", "Foglio3"]
 _EXPECTED_SECTIONS = {
     "I": "Estrazione, fornitura e trasporto di terra e materiali inerti",
     "II": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
@@ -183,14 +184,14 @@ def _activity_matches(section: str, value: str) -> bool:
 
 def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], Counter[str], Counter[str], int]:
     workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
-    if workbook.sheetnames != _EXPECTED_SHEETS:
+    if workbook.sheetnames != _EXPECTED_LISTED_SHEETS:
         raise RuntimeError(f"Brescia listed worksheet drift: {workbook.sheetnames!r}")
-    for sheet_name in _EXPECTED_SHEETS[1:]:
+    for sheet_name in _EXPECTED_LISTED_SHEETS[1:]:
         sheet = workbook[sheet_name]
         if any(_clean(cell.value) for row in sheet.iter_rows() for cell in row):
             raise RuntimeError(f"Brescia unexpected data in auxiliary listed worksheet {sheet_name!r}")
 
-    worksheet = workbook[_EXPECTED_SHEETS[0]]
+    worksheet = workbook[_EXPECTED_LISTED_SHEETS[0]]
     section: str | None = None
     activity = ""
     columns: tuple[int, ...] | None = None
@@ -451,14 +452,14 @@ def parse_brescia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 def parse_brescia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_cfg(cfg, "brescia-applicants")
     workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
-    if workbook.sheetnames != _EXPECTED_SHEETS:
+    if workbook.sheetnames != _EXPECTED_APPLICANT_SHEETS:
         raise RuntimeError(f"Brescia applicant worksheet drift: {workbook.sheetnames!r}")
-    for sheet_name in _EXPECTED_SHEETS[1:]:
+    for sheet_name in _EXPECTED_APPLICANT_SHEETS[1:]:
         sheet = workbook[sheet_name]
         if any(_clean(cell.value) for row in sheet.iter_rows() for cell in row):
             raise RuntimeError(f"Brescia unexpected data in auxiliary applicant worksheet {sheet_name!r}")
 
-    worksheet = workbook[_EXPECTED_SHEETS[0]]
+    worksheet = workbook[_EXPECTED_APPLICANT_SHEETS[0]]
     columns: tuple[int, ...] | None = None
     header_count = 0
     rows: list[dict[str, Any]] = []
