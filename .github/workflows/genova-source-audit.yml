@@ -44,6 +44,10 @@ jobs:
               'listed': os.environ['LISTED_URL'],
               'applicant': os.environ['APPLICANT_URL'],
           }
+          expected = {
+              'listed': ('wl-10-09-26.pdf', 'Elenco imprese iscritte in White List al 10/09/2026'),
+              'applicant': ('sez-richiedenti-10-09-26.pdf', "Elenco imprese richiedenti l'iscrizione in White List al 10/09/2026"),
+          }
           session = requests.Session()
           session.headers.update({'User-Agent': 'italian-anti-mafia-whitelist source audit/1.0'})
 
@@ -62,9 +66,9 @@ jobs:
 
           landing = get(landing_url)
           landing_text = landing.text
-          for key, url in urls.items():
-              if url not in landing_text:
-                  raise SystemExit(f'{key} official attachment URL not positively present on landing page')
+          for key, (filename, label) in expected.items():
+              if filename not in landing_text or label not in landing_text:
+                  raise SystemExit(f'{key} population identity/attachment filename not positively present on official page')
 
           report = {
               'authority_key': 'genova',
@@ -72,10 +76,7 @@ jobs:
               'landing_url': landing_url,
               'landing_status': landing.status_code,
               'landing_final_url': landing.url,
-              'positive_population_evidence': {
-                  'listed': 'Elenco imprese iscritte in White List al 10/09/2026',
-                  'applicant': "Elenco imprese richiedenti l'iscrizione in White List al 10/09/2026",
-              },
+              'positive_population_evidence': {key: label for key, (_, label) in expected.items()},
               'sources': {},
           }
 
