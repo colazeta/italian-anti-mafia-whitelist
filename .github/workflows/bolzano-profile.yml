@@ -1,0 +1,191 @@
+name: Bolzano source profile
+
+on:
+  push:
+    branches:
+      - expansion/bolzano-bozen-2026-09-12
+    paths:
+      - .github/workflows/bolzano-profile.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/bolzano-bozen-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install profile dependencies
+        run: python -m pip install --disable-pip-version-check 'python-docx>=1.1,<2' requests
+      - name: Profile byte-pinned Bolzano DOCX populations
+        run: |
+          python - <<'PY'
+          import hashlib, io, json, re
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          import requests
+          from docx import Document
+
+          SOURCES = {
+              'listed': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-white-list-da-sez-1-a-sez-10_iscritti-rinnovi.docx', '96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04'),
+              'applicant': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-richiesta-iscrizione-wl.docx', '8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae'),
+          }
+          HEADERS = {'User-Agent': 'italian-anti-mafia-whitelist/source-profile (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+          DATE_RE = re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          STRICT_ID = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+
+          def clean(v):
+              return re.sub(r'\s+', ' ', v or '').strip()
+
+          def fetch(kind):
+              url, expected = SOURCES[kind]
+              r = requests.get(url, headers=HEADERS, timeout=60)
+              r.raise_for_status()
+              digest = hashlib.sha256(r.content).hexdigest()
+              if digest != expected:
+                  raise SystemExit(f'{kind} source drift: {digest} != {expected}')
+              return r.content
+
+          def cells(row):
+              return [clean(c.text) for c in row.cells]
+
+          listed_doc = Document(io.BytesIO(fetch('listed')))
+          if len(listed_doc.tables) != 10:
+              raise SystemExit(f'listed table-count drift: {len(listed_doc.tables)}')
+
+          listed_rows = []
+          table_profiles = []
+          for ti, table in enumerate(listed_doc.tables, start=1):
+              if len(table.rows) < 3:
+                  raise SystemExit(f'listed section {ti} unexpectedly short')
+              h1 = cells(table.rows[0])
+              h2 = cells(table.rows[1])
+              widths = Counter()
+              duplicate_pairs = Counter()
+              anomalies = []
+              data_count = 0
+              for ri, row in enumerate(table.rows[2:], start=3):
+                  vals = cells(row)
+                  widths[len(vals)] += 1
+                  if not any(vals):
+                      continue
+                  data_count += 1
+                  # Word may repeat horizontally merged cells. Collapse only adjacent exact duplicates
+                  # after recording them; never infer across unequal cells.
+                  compact = []
+                  for value in vals:
+                      if compact and value and value == compact[-1]:
+                          duplicate_pairs[value] += 1
+                          continue
+                      compact.append(value)
+                  # Expected semantic shape: name, office, secondary office, id, listing date,
+                  # expiry date, renewal/update marker. Any other width is retained as an anomaly.
+                  if len(compact) != 7:
+                      anomalies.append({'row': ri, 'raw': vals, 'compact': compact})
+                      continue
+                  name, office, secondary, ident, listed_date, expiry_date, update = compact
+                  listed_rows.append({'section': ti, 'row': ri, 'name': name, 'office': office, 'secondary': secondary, 'identifier_raw': ident, 'listed_raw': listed_date, 'expiry_raw': expiry_date, 'update_raw': update})
+              table_profiles.append({'section': ti, 'rows_total': len(table.rows), 'data_rows_nonempty': data_count, 'widths': dict(widths), 'header_1': h1, 'header_2': h2, 'adjacent_exact_duplicate_cells': sum(duplicate_pairs.values()), 'shape_anomalies': anomalies[:30], 'shape_anomaly_count': len(anomalies)})
+
+          if any(x['shape_anomaly_count'] for x in table_profiles):
+              # Persist the complete profile but fail after writing would prevent checkpointing; instead
+              # include anomaly facts and let the next parser step remain blocked explicitly.
+              pass
+
+          listed_date_bad = sorted({r['listed_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['listed_raw'])})
+          expiry_date_bad = sorted({r['expiry_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['expiry_raw'])})
+          update_values = Counter(r['update_raw'] for r in listed_rows)
+          invalid_ids = Counter(r['identifier_raw'] for r in listed_rows if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))
+
+          groups = defaultdict(list)
+          for r in listed_rows:
+              key = (r['name'], r['office'], r['secondary'], r['identifier_raw'], r['listed_raw'], r['expiry_raw'])
+              groups[key].append(r)
+          group_status = Counter()
+          section_multiplicity = Counter()
+          cross_group_update_variants = []
+          for key, members in groups.items():
+              sections = [r['section'] for r in members]
+              if len(sections) != len(set(sections)):
+                  raise SystemExit(f'exact listed duplicate inside one section: {key!r}')
+              section_multiplicity[len(sections)] += 1
+              updates = sorted({r['update_raw'] for r in members if r['update_raw']})
+              folded = {u.casefold().replace('–','-').replace(' ','') for u in updates}
+              unknown = [u for u in folded if u not in {'si-ja','sì-ja'}]
+              if unknown:
+                  cross_group_update_variants.append({'key': key, 'updates': updates})
+              status = 'renewal_update_in_progress' if folded else 'listed'
+              group_status[status] += 1
+
+          applicant_doc = Document(io.BytesIO(fetch('applicant')))
+          if len(applicant_doc.tables) != 1:
+              raise SystemExit(f'applicant table-count drift: {len(applicant_doc.tables)}')
+          at = applicant_doc.tables[0]
+          applicant_rows = []
+          applicant_shape_anomalies = []
+          for ri, row in enumerate(at.rows[2:], start=3):
+              vals = cells(row)
+              if not any(vals):
+                  continue
+              if len(vals) != 7:
+                  applicant_shape_anomalies.append({'row': ri, 'raw': vals})
+                  continue
+              name, office, secondary, ident, activities, submitted, outcome = vals
+              applicant_rows.append({'row': ri, 'name': name, 'office': office, 'secondary': secondary, 'identifier_raw': ident, 'activities_raw': activities, 'submitted_raw': submitted, 'outcome_raw': outcome})
+          applicant_date_bad = sorted({r['submitted_raw'] for r in applicant_rows if not DATE_RE.fullmatch(r['submitted_raw'])})
+          applicant_invalid_ids = Counter(r['identifier_raw'] for r in applicant_rows if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))
+          applicant_outcomes = Counter(r['outcome_raw'] for r in applicant_rows)
+          applicant_exact = Counter((r['name'], r['office'], r['secondary'], r['identifier_raw'], r['activities_raw'], r['submitted_raw'], r['outcome_raw']) for r in applicant_rows)
+          exact_dupes = [{'row_key': list(k), 'count': v} for k, v in applicant_exact.items() if v > 1]
+
+          report = {
+              'source_sha256': {k: v[1] for k, v in SOURCES.items()},
+              'listed': {
+                  'table_count': len(listed_doc.tables),
+                  'table_profiles': table_profiles,
+                  'parsed_source_rows': len(listed_rows),
+                  'section_source_rows': dict(Counter(r['section'] for r in listed_rows)),
+                  'semantic_groups_exact': len(groups),
+                  'status_counts_exact_grouping': dict(group_status),
+                  'group_section_multiplicity': dict(section_multiplicity),
+                  'update_values': dict(update_values),
+                  'unreviewed_update_variants': cross_group_update_variants[:50],
+                  'listed_date_bad': listed_date_bad,
+                  'expiry_date_bad': expiry_date_bad,
+                  'invalid_identifier_values': dict(invalid_ids),
+              },
+              'applicant': {
+                  'rows_total': len(at.rows),
+                  'parsed_source_rows': len(applicant_rows),
+                  'shape_anomaly_count': len(applicant_shape_anomalies),
+                  'shape_anomalies': applicant_shape_anomalies[:30],
+                  'submitted_date_bad': applicant_date_bad,
+                  'outcome_values': dict(applicant_outcomes),
+                  'invalid_identifier_values': dict(applicant_invalid_ids),
+                  'exact_duplicate_groups': exact_dupes,
+                  'exact_unique_rows': len(applicant_exact),
+              },
+          }
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/bolzano_source_profile.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Persist profile checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/bolzano_source_profile.json
+          if git diff --cached --quiet; then
+            echo 'No profile change to checkpoint.'
+            exit 0
+          fi
+          git commit -m 'Checkpoint Bolzano source profile'
+          git push origin HEAD:expansion/bolzano-bozen-2026-09-12
