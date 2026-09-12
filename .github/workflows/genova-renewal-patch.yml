@@ -1,0 +1,148 @@
+name: Genova renewal vocabulary patch and validation
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-renewal-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Bind renewal vocabulary to audited official source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/white_list_archive/parsers/genova_tables.py')
+          text = path.read_text(encoding='utf-8')
+          old = '_RENEWAL = "RICHIESTO RINNOVO"\n'
+          new = '_RENEWAL = "IN FASE DI RINNOVO"\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'unexpected renewal constant count: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Install parser runtime
+        run: python -m pip install --disable-pip-version-check -e . requests pdfplumber
+      - name: Validate exact sources and parser output
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import tempfile
+          import requests
+          from collections import Counter
+          from white_list_archive.parsers.genova_tables import parse_genova_applicants, parse_genova_listed
+
+          page = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
+          specs = {
+              'listed': {
+                  'source_key': 'genova-listed',
+                  'population_scope': 'listed',
+                  'url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf',
+                  'sha256': 'baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403',
+              },
+              'applicant': {
+                  'source_key': 'genova-applicants',
+                  'population_scope': 'applicant',
+                  'url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf',
+                  'sha256': '13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7',
+              },
+          }
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'italian-anti-mafia-whitelist parser validation/1.0'})
+          report = {'authority_key': 'genova', 'validated_on': '2026-09-12', 'sources': {}}
+          with tempfile.TemporaryDirectory(prefix='genova-parser-validation-') as td:
+              td = pathlib.Path(td)
+              batches = {}
+              for scope, spec in specs.items():
+                  r = session.get(spec['url'], timeout=(15, 120))
+                  r.raise_for_status()
+                  sha = hashlib.sha256(r.content).hexdigest()
+                  if sha != spec['sha256']:
+                      raise SystemExit(f'{scope} source drift: {sha}')
+                  source_path = td / f'{scope}.pdf'
+                  source_path.write_bytes(r.content)
+                  cfg = {
+                      'source_key': spec['source_key'],
+                      'authority_key': 'genova',
+                      'authority_name': 'Prefettura di Genova',
+                      'register_key': 'genova-ordinary',
+                      'register_name': 'White List ordinaria',
+                      'population_scope': spec['population_scope'],
+                      'reference_date': '2026-09-10',
+                      'source_page_url': page,
+                      'resource_url': spec['url'],
+                      'sha256': spec['sha256'],
+                  }
+                  batch = parse_genova_listed(source_path, cfg) if scope == 'listed' else parse_genova_applicants(source_path, cfg)
+                  batches[scope] = batch
+                  report['sources'][scope] = batch.diagnostics
+
+              listed = batches['listed'].records
+              applicants = batches['applicant'].records
+              assert len(listed) == 652, len(listed)
+              assert Counter(x['source_status'] for x in listed) == Counter({'listed': 528, 'renewal_update_in_progress': 124})
+              assert len(applicants) == 110, len(applicants)
+              assert Counter(x['source_status'] for x in applicants) == Counter({'pending': 110})
+              assert all(x['capture_sha256'] == specs['listed']['sha256'] for x in listed)
+              assert all(x['capture_sha256'] == specs['applicant']['sha256'] for x in applicants)
+              assert all(x['population_scope'] == 'listed' for x in listed)
+              assert all(x['population_scope'] == 'applicant' for x in applicants)
+
+              fisia = [x for x in listed if x['name'] == 'FISIA ITALIMPIANTI SPA']
+              assert len(fisia) == 1
+              assert fisia[0]['identifiers'] == ['02340830997']
+              assert fisia[0]['source_status'] == 'renewal_update_in_progress'
+              assert fisia[0]['observed_listing_date'] == '2024-09-06'
+              assert fisia[0]['observed_expiry_date'] == '2026-09-05'
+
+              p7 = {x['name']: x for x in applicants if x['name'] in {
+                  'CRESTA & DELFINO SRL', 'CUNEO LUIGI', 'CURZI LUIGI - AUTOTRASPORTI C/TERZI',
+                  'DAMA SRL', 'DASSORI SRL', 'DE BREEZE SRL'}}
+              assert len(p7) == 6
+              assert p7['CRESTA & DELFINO SRL']['identifiers'] == ['01345600991']
+              assert p7['DE BREEZE SRL']['application_date'] == '2026-05-19'
+              assert p7['DE BREEZE SRL']['source_fields']['application_date_raw'] == '1 9 / 0 5 / 2 0 2 6'
+
+              edilq = [x for x in applicants if x['name'] == 'EDILQUADRIFOGLIO SRL']
+              assert len(edilq) == 1
+              assert edilq[0]['identifiers'] == ['01660680990']
+              assert edilq[0]['application_date'] == '2026-07-03'
+
+              raw_anomalies = {x['name']: x for x in listed if x['name'] in {'PARODI PAOLO', 'PIROMALLI ANTONINO srl', 'ROSSI ROBERTO', 'TRAVERSO SERGIO'}}
+              assert raw_anomalies['PARODI PAOLO']['identifier_field_raw'] == '018509000992'
+              assert raw_anomalies['PARODI PAOLO']['identifiers'] == []
+              assert raw_anomalies['PIROMALLI ANTONINO srl']['identifiers'] == []
+              assert raw_anomalies['ROSSI ROBERTO']['identifiers'] == []
+              assert raw_anomalies['TRAVERSO SERGIO']['identifiers'] == []
+
+              report['total_records'] = len(listed) + len(applicants)
+              report['status_counts'] = dict(Counter(x['source_status'] for x in listed + applicants))
+              report['listed_identifier_coverage'] = sum(bool(x['identifiers']) for x in listed)
+              report['applicant_identifier_coverage'] = sum(bool(x['identifiers']) for x in applicants)
+
+          out = pathlib.Path('tmp/genova_parser_validation.json')
+          out.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Commit validated parser correction
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/genova_tables.py tmp/genova_parser_validation.json
+          git diff --cached --check
+          git commit -m 'Validate Genova renewal vocabulary'
+          git push origin HEAD:expansion/genova-2026-09-12
