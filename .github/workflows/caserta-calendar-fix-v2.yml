@@ -1,0 +1,49 @@
+name: Caserta calendar correction v2
+
+on:
+  push:
+    branches:
+      - expansion/caserta-2026-09-12
+    paths:
+      - .github/workflows/caserta-calendar-fix-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caserta-2026-09-12
+          fetch-depth: 0
+      - name: Synchronise branch before editing
+        run: git pull --ff-only origin expansion/caserta-2026-09-12
+      - name: Apply exact evidence-based calendar allowlist
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('src/white_list_archive/parsers/caserta_tables.py')
+          text=path.read_text(encoding='utf-8')
+          needle='''    112: "17/04/025",\n    361: "26052025",'''
+          replacement='''    112: "17/04/025",\n    188: "28/25/2025",\n    361: "26052025",'''
+          if replacement in text:
+              print('Exact Caserta calendar evidence already allowlisted.')
+          elif needle in text:
+              path.write_text(text.replace(needle,replacement,1),encoding='utf-8')
+          else:
+              raise SystemExit('Expected Caserta parser anchor not found; refusing broad edit.')
+          PY
+      - name: Commit exact correction
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/white_list_archive/parsers/caserta_tables.py
+          if git diff --cached --quiet; then
+            echo 'No parser change to commit.'
+            exit 0
+          fi
+          git commit -m 'Allowlist reviewed Caserta invalid calendar date'
+          git push origin HEAD:expansion/caserta-2026-09-12
