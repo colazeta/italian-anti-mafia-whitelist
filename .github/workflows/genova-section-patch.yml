@@ -6,63 +6,64 @@ on:
 permissions:
   contents: write
 jobs:
-  patch:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/genova-2026-09-12
-      - name: Apply exact reviewed Genova exceptions
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install validation runtime
+        run: python -m pip install --disable-pip-version-check -e .[dev] requests pdfplumber
+      - name: Run repository tests
+        run: pytest -q
+      - name: Validate frozen Genova sources
         run: |
           python - <<'PY'
-          from pathlib import Path
+          import hashlib, json, pathlib, tempfile
+          from collections import Counter
+          import requests
+          from white_list_archive.parsers.genova_tables import parse_genova_applicants, parse_genova_listed
 
-          path = Path('src/white_list_archive/parsers/genova_tables.py')
-          text = path.read_text(encoding='utf-8')
-
-          marker = '_REVIEWED_INVALID_DATE_FIELDS = {'
-          if marker not in text:
-              anchor = '''_REVIEWED_SECTION_FIELDS = {'''
-              start = text.index(anchor)
-              end_marker = '''\n}\n\n\ndef _compact'''
-              end = text.index(end_marker, start)
-              insertion = '''\n}\n\n\n_REVIEWED_INVALID_DATE_FIELDS = {\n    ("listed", "GENOVARENT SRL", "listing", "26//09/2023"),\n    ("applicant", "LO SCACCIA PENSIERI SRL", "application", "16/072026"),\n}\n\n\ndef _compact'''
-              text = text[:end] + insertion + text[end + len(end_marker):]
-
-              old_helper = '''def _sections(value: str, *, scope: str, name: str) -> list[str]:'''
-              new_helper = '''def _parse_observed_date(value: str, *, scope: str, name: str, field: str) -> str:\n    raw = _clean(value)\n    if (scope, name, field, raw) in _REVIEWED_INVALID_DATE_FIELDS:\n        return ""\n    return _parse_date(raw)\n\n\ndef _sections(value: str, *, scope: str, name: str) -> list[str]:'''
-              if text.count(old_helper) != 1:
-                  raise SystemExit(f'expected one _sections anchor, found {text.count(old_helper)}')
-              text = text.replace(old_helper, new_helper)
-
-              replacements = {
-                  'listing_date = _parse_date(cells[5])': 'listing_date = _parse_observed_date(cells[5], scope="listed", name=cells[0], field="listing")',
-                  'expiry_date = _parse_date(cells[6])': 'expiry_date = _parse_observed_date(cells[6], scope="listed", name=cells[0], field="expiry")',
-                  'application_date = _parse_date(cells[5])': 'application_date = _parse_observed_date(cells[5], scope="applicant", name=cells[0], field="application")',
-              }
-              for old, new in replacements.items():
-                  if text.count(old) != 1:
-                      raise SystemExit(f'expected one date binding {old!r}, found {text.count(old)}')
-                  text = text.replace(old, new)
-
-          old_page9 = '''                    page_text = _clean(page.extract_text() or "")\n                    if not all(token in page_text for token in (_REVIEWED_APPLICANT_PAGE9[0], _REVIEWED_APPLICANT_PAGE9[1], _REVIEWED_APPLICANT_PAGE9[3])):\n                        raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")\n'''
-          new_page9 = '''                    page_compact = _compact(page.extract_text() or "")\n                    reviewed_support = "EDILQUADRIFOGLIOSRL0166068099003/07/2026INISTRUTTORIAVIACESAREA,11/6"\n                    if reviewed_support not in page_compact:\n                        raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")\n'''
-          if old_page9 in text:
-              text = text.replace(old_page9, new_page9, 1)
-          elif new_page9 not in text:
-              raise SystemExit('reviewed page-9 support anchor not found')
-
-          path.write_text(text, encoding='utf-8')
+          page = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
+          specs = {
+            'listed': ('genova-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf','baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'),
+            'applicant': ('genova-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf','13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'),
+          }
+          report={'authority_key':'genova','validated_on':'2026-09-12','sources':{}}
+          s=requests.Session(); s.headers['User-Agent']='italian-anti-mafia-whitelist parser validation/1.0'
+          with tempfile.TemporaryDirectory() as td:
+            td=pathlib.Path(td); batches={}
+            for scope,(key,pop,url,expected) in specs.items():
+              r=s.get(url,timeout=(15,120)); r.raise_for_status()
+              actual=hashlib.sha256(r.content).hexdigest(); assert actual==expected,(scope,actual)
+              p=td/f'{scope}.pdf'; p.write_bytes(r.content)
+              cfg={'source_key':key,'authority_key':'genova','authority_name':'Prefettura di Genova','register_key':'genova-ordinary','register_name':'White List ordinaria','population_scope':pop,'reference_date':'2026-09-10','source_page_url':page,'resource_url':url,'sha256':expected}
+              b=parse_genova_listed(p,cfg) if scope=='listed' else parse_genova_applicants(p,cfg)
+              batches[scope]=b; report['sources'][scope]=b.diagnostics
+            listed=batches['listed'].records; applicants=batches['applicant'].records
+            assert len(listed)==652 and Counter(x['source_status'] for x in listed)==Counter({'listed':528,'renewal_update_in_progress':124})
+            assert len(applicants)==110 and Counter(x['source_status'] for x in applicants)==Counter({'pending':110})
+            g=next(x for x in listed if x['name']=='GENOVARENT SRL'); assert g['observed_listing_date']=='' and g['source_fields']['listing_date_raw']=='26//09/2023'
+            l=next(x for x in applicants if x['name']=='LO SCACCIA PENSIERI SRL'); assert l['application_date']=='' and l['source_fields']['application_date_raw']=='16/072026'
+            e=next(x for x in applicants if x['name']=='EDILQUADRIFOGLIO SRL'); assert e['identifiers']==['01660680990'] and e['application_date']=='2026-07-03'
+            f=next(x for x in listed if x['name']=='FISIA ITALIMPIANTI SPA'); assert f['identifiers']==['02340830997'] and f['source_status']=='renewal_update_in_progress'
+            for name in ['PARODI PAOLO','PIROMALLI ANTONINO srl','ROSSI ROBERTO','TRAVERSO SERGIO']:
+              assert next(x for x in listed if x['name']==name)['identifiers']==[]
+            report['total_records']=762; report['status_counts']={'listed':528,'renewal_update_in_progress':124,'pending':110}
+          out=pathlib.Path('tmp/genova_parser_validation.json'); out.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
-          git diff --check
-      - name: Commit reviewed parser patch
+      - name: Checkpoint validation
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/white_list_archive/parsers/genova_tables.py
-          test "$(git diff --cached --name-only | wc -l)" -eq 1
+          git add tmp/genova_parser_validation.json
+          git diff --cached --check
           if ! git diff --cached --quiet; then
-            git commit -m 'Handle reviewed Genova page 9 and invalid dates'
+            git commit -m 'Validate Genova parser against official sources'
             git push origin HEAD:expansion/genova-2026-09-12
           fi
