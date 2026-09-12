@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 38
-    assert report["register_scope_count"] == 39
-    assert report["complete_register_scope_count"] == 37
+    assert report["verified_authority_count"] == 39
+    assert report["register_scope_count"] == 40
+    assert report["complete_register_scope_count"] == 38
     assert report["incomplete_register_scope_count"] == 2
 
     by_scope = {}
