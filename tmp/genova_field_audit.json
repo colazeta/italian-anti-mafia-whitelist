@@ -1,0 +1,61 @@
+{
+  "authority_key": "genova",
+  "audited_on": "2026-09-12",
+  "sources": {
+    "listed": {
+      "invalid_date_typography_count": 1,
+      "invalid_date_typography": [
+        {
+          "page": 52,
+          "table": 1,
+          "row": 3,
+          "name": "GENOVARENT SRL",
+          "field": "listing",
+          "raw": "26//09/2023"
+        }
+      ],
+      "blank_date_counts": {
+        "listing": 87,
+        "expiry": 87
+      },
+      "status_value_counts": {
+        "": 528,
+        "IN FASE DI RINNOVO": 103,
+        "in FASE DI RINNOVO": 8,
+        "in fase di rinnovo": 4,
+        "I N F A SE DI RINNOVO": 1,
+        "iN FASE DI RINNOVO": 3,
+        "I N F A S E D I RINNOVO": 1,
+        "I n FASE DI RINNOVO": 1,
+        "I N F ASE DI RINNOVO": 1,
+        "I N F A S E DI RINNOVO": 1
+      }
+    },
+    "applicant": {
+      "invalid_date_typography_count": 1,
+      "invalid_date_typography": [
+        {
+          "page": 14,
+          "table": 1,
+          "row": 6,
+          "name": "LO SCACCIA PENSIERI SRL",
+          "field": "application",
+          "raw": "16/072026"
+        }
+      ],
+      "blank_date_counts": {
+        "application": 4
+      },
+      "status_value_counts": {
+        "IN ISTRUTTORIA": 91,
+        "in istruttoria": 4,
+        "": 3,
+        "I N I S T RUTTORIA": 1,
+        "I N ISTRUTTORIA": 2,
+        "in ISTRUTTORIA": 1,
+        "I N I S TRUTTORIA": 1,
+        "I N I S T R U T T O R IA": 1
+      }
+    }
+  }
+}
