@@ -1,0 +1,197 @@
+name: Catania integration gate
+
+on:
+  push:
+    branches:
+      - expansion/catania-2026-09-12
+    paths:
+      - .github/workflows/catania-integration-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/catania-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materialise production candidate
+        run: |
+          python - <<'PY'
+          import copy, json
+          from pathlib import Path
+
+          page='https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale'
+          listed_url='https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx'
+          applicant_url='https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx'
+          listed_sha='1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291'
+          applicant_sha='4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27'
+
+          def replace_once(path, old, new):
+              p=Path(path); text=p.read_text(encoding='utf-8')
+              if text.count(old)!=1:
+                  raise SystemExit(f'{path}: expected exactly one baseline occurrence for {old!r}; got {text.count(old)}')
+              p.write_text(text.replace(old,new),encoding='utf-8')
+
+          # Verified page: Catania was not previously mapped; add only from positive official evidence.
+          p=Path('data/source_registry/verified_primary_pages.csv'); lines=p.read_text(encoding='utf-8').splitlines()
+          if any(line.startswith('catania,') for line in lines): raise SystemExit('Catania verified page already present')
+          pos=next(i for i,line in enumerate(lines) if line.startswith('caserta,'))+1
+          lines.insert(pos,f'catania,{page},2026-09-12,verified')
+          p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+
+          # Two independently identified logical source series.
+          p=Path('data/source_registry/source_series_inventory.csv'); lines=p.read_text(encoding='utf-8').splitlines()
+          if any(line.startswith('catania-') for line in lines): raise SystemExit('Catania source series already present')
+          caserta=[i for i,line in enumerate(lines) if line.startswith('caserta-')]
+          if len(caserta)!=2: raise SystemExit(f'Expected two Caserta anchor series, got {len(caserta)}')
+          new_series=[
+            f'catania-applicants,catania,WL-REGIME-L190-2012,applicant,all,periodic_attachment,{page},landing_page_resolved,2026-09-12,Current official landing page directly verified 12 September 2026 and exposes a dedicated applicant XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 324 pending applicant observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.',
+            f'catania-listed,catania,WL-REGIME-L190-2012,listed,all,periodic_attachment,{page},landing_page_resolved,2026-09-12,Current official landing page directly verified 12 September 2026 and exposes a dedicated registered-company XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 1,632 listed-population observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.',
+          ]
+          insert=max(caserta)+1
+          lines[insert:insert]=new_series
+          p.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+
+          # Catalogue denominators advance only with the verified page + two evidenced series.
+          replace_once('data/catalog.csv',
+            'verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,38,false,internal_research,Independently verified primary White List landing pages.',
+            'verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,39,false,internal_research,Independently verified primary White List landing pages.')
+          replace_once('data/catalog.csv',
+            'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,72,false,internal_research,Qualified recurring White List publication series and publication models.',
+            'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,74,false,internal_research,Qualified recurring White List publication series and publication models.')
+
+          # Publication inputs: raw hashes are immutable approval gates.
+          p=Path('data/publication/multi_prefecture_pilot.json'); cfg=json.loads(p.read_text(encoding='utf-8'))
+          if len(cfg['sources'])!=29: raise SystemExit(f'Unexpected baseline source count {len(cfg["sources"])}')
+          if any(x['authority_key']=='catania' for x in cfg['sources']): raise SystemExit('Catania already in publication config')
+          cfg['sources'].extend([
+            {
+              'source_key':'catania-listed','parser':'catania_listed','authority_key':'catania','authority_name':'Prefettura di Catania',
+              'register_key':'catania-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-09-11',
+              'source_page_url':page,'resource_url':listed_url,'sha256':listed_sha,'expected_source_rows':1632,
+              'last_source_update':'2026-09-11','last_source_update_basis':'dated official resource',
+              'notes':'Source formulas and reviewed malformed strings remain provenance; canonical values are emitted only under explicit fail-closed parser rules documented in the Catania operational check.'
+            },
+            {
+              'source_key':'catania-applicants','parser':'catania_applicants','authority_key':'catania','authority_name':'Prefettura di Catania',
+              'register_key':'catania-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-09-11',
+              'source_page_url':page,'resource_url':applicant_url,'sha256':applicant_sha,'expected_source_rows':324,
+              'last_source_update':'2026-09-11','last_source_update_basis':'dated official resource',
+              'notes':'Applicant status is grounded in the separately identified official applicant population; nonstandard identifiers remain raw and are never repaired.'
+            }
+          ])
+          p.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # National operational coverage: Catania has no existing entry; create one from the
+          # fully integrated Caserta schema so no fields are silently omitted.
+          p=Path('data/monitoring/national_coverage.json'); cov=json.loads(p.read_text(encoding='utf-8'))
+          if any(x['authority_key']=='catania' for x in cov['prefectures']): raise SystemExit('Catania coverage entry already exists')
+          anchor=next(x for x in cov['prefectures'] if x['authority_key']=='caserta')
+          row=copy.deepcopy(anchor)
+          row.update({
+            'authority_key':'catania','prefecture':'Catania','region':'Sicilia','national_index_key':'catania','official_landing_page':page,
+            'latest_source_reference_date':'2026-09-11','last_successful_source_check_at':None,'last_attempted_source_check_at':None,
+            'last_content_change_at':None,'last_successful_investigation_on':'2026-09-12','monitoring_status':'NEVER_CHECKED',
+            'completion_evidence':['docs/sources/catania-operational-check-2026-09-12.md','src/white_list_archive/parsers/catania_openxml.py','tests/test_catania_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+            'known_content_sha256':[listed_sha,applicant_sha],
+            'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/catania-operational-check-2026-09-12.md'],
+          })
+          idx=next(i for i,x in enumerate(cov['prefectures']) if x['authority_key']=='caserta')+1
+          cov['prefectures'].insert(idx,row)
+          p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Bind parser into the national publication dispatcher.
+          replace_once('src/white_list_archive/publishing/public_national_registry.py',
+            'from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS\n',
+            'from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS\nfrom white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS\n')
+          replace_once('src/white_list_archive/publishing/public_national_registry.py',
+            '        or CASERTA_PARSERS.get(cfg["parser"])\n',
+            '        or CASERTA_PARSERS.get(cfg["parser"])\n        or CATANIA_PARSERS.get(cfg["parser"])\n')
+
+          # Governance baselines.
+          replace_once('tests/test_source_registry.py','assert len(pages) == 38','assert len(pages) == 39')
+          replace_once('tests/test_source_population_coverage.py','assert report["verified_authority_count"] == 38','assert report["verified_authority_count"] == 39')
+          replace_once('tests/test_source_population_coverage.py','assert report["register_scope_count"] == 39','assert report["register_scope_count"] == 40')
+          replace_once('tests/test_source_population_coverage.py','assert report["complete_register_scope_count"] == 37','assert report["complete_register_scope_count"] == 38')
+
+          # Browser acceptance must explicitly expose Catania and freeze its own denominator.
+          replace_once('tests/public_portal_browser.cjs',
+            "      assert.ok(labels.includes('White List ordinaria · Prefettura di Caserta'));\n",
+            "      assert.ok(labels.includes('White List ordinaria · Prefettura di Caserta'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Catania'));\n")
+          replace_once('tests/public_portal_browser.cjs','      assert.equal(stats.total,26882);','      assert.equal(stats.total,28838);')
+          replace_once('tests/public_portal_browser.cjs',
+            "'campobasso','brescia','bolzano-bozen','caserta'].includes(r.authority_key)",
+            "'campobasso','brescia','bolzano-bozen','caserta','catania'].includes(r.authority_key)")
+          caserta_tail="""      assert.equal(caserta.filter(r=>r.source_fields&&Array.isArray(r.source_fields.application_date_raw_variants)&&r.source_fields.application_date_raw_variants.includes('28/25/2025')&&r.application_date==='').length,1);\n"""
+          catania_tail=caserta_tail+"""      const catania=registry.records.filter(r=>r.authority_key==='catania');\n      assert.equal(catania.length,1956);\n      assert.equal(catania.filter(r=>r.source_key==='catania-listed').length,1632);\n      assert.equal(catania.filter(r=>r.source_key==='catania-applicants').length,324);\n      assert.deepEqual(statusCounts(catania),{listed:1281,pending:324,renewal_update_in_progress:351});\n      assert.equal(catania.filter(r=>r.source_fields&&Array.isArray(r.source_fields.listing_date_raw_variants)&&r.source_fields.listing_date_raw_variants.includes('16/072026')&&r.observed_listing_date==='').length,1);\n"""
+          replace_once('tests/public_portal_browser.cjs',caserta_tail,catania_tail)
+          PY
+      - name: Install runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then break; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+      - name: Run full repository tests
+        run: pytest -q
+      - name: Validate Catania national public candidate
+        run: |
+          rm -rf /tmp/catania-national public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/catania-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python -m white_list_archive.publishing.public_artifact public-site
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text())
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==28838, reg['meta']
+          assert reg['meta']['authority_count']==29, reg['meta']
+          assert reg['meta']['register_count']==30, reg['meta']
+          assert pref['meta']['authority_count']==106, pref['meta']
+          assert pref['meta']['published_count']==29, pref['meta']
+          assert pref['meta']['mapped_count']==39, pref['meta']
+          c=[r for r in reg['records'] if r['authority_key']=='catania']
+          assert len(c)==1956
+          assert Counter(r['source_status'] for r in c)==Counter({'listed':1281,'renewal_update_in_progress':351,'pending':324})
+          assert sum(r['source_key']=='catania-listed' for r in c)==1632
+          assert sum(r['source_key']=='catania-applicants' for r in c)==324
+          cp=[x for x in pref['prefectures'] if x['authority_key']=='catania']
+          assert len(cp)==1 and cp[0]['mapped'] and cp[0]['published'] and cp[0]['series_count']==2, cp
+          PY
+          git diff --check
+      - name: Commit validated production candidate
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          git commit -m 'Integrate Catania public archive'
+          git push origin HEAD:expansion/catania-2026-09-12
