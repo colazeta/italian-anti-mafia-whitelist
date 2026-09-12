@@ -808,6 +808,41 @@
       "sha256": "6b1b1f877a0ae5fe68d2472034975914723626a553257d4978296b3632a635ba",
       "expected_source_rows": 19,
       "notes": "Current byte-pinned DOCX applicant publication positively identified by the official landing page. One table with a repeated header contains exactly 19 applicant observations, all represented as pending. Italian written-month dates are accepted only through the audited strict month map; malformed or absent values are never inferred. Exact evidence is documented in docs/sources/campobasso-operational-check-2026-09-11.md."
+    },
+    {
+      "authority_key": "brescia",
+      "authority_name": "Prefettura di Brescia",
+      "register_key": "brescia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official landing page and both current attachments directly verified 12 September 2026; attachment names and HTTP Last-Modified values identify the 10 September 2026 edition",
+      "source_key": "brescia-listed",
+      "parser": "brescia_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-iscritte-10-settembre-2026.xlsx",
+      "sha256": "509e6724de2d4d63f403e254236ec2c5b77077d676ee8c17382464d5c9da07a7",
+      "expected_source_rows": 2071,
+      "expected_sector_rows": 3380,
+      "notes": "Current byte-pinned XLSX listed-company publication. Ten statutory sections contain 3,380 reviewed source rows and yield 2,071 semantic observations (1,859 listed; 212 renewal/update in progress). The parser admits only the exact audited 72-row company-name layout-shift fingerprint, separately freezes one non-company noise row, preserves the reviewed ADMG structural shift, and resolves only two malformed date tokens from exact clean peers. No fuzzy matching or identifier reconstruction is used. Exact evidence is documented in docs/sources/brescia-operational-check-2026-09-12.md."
+    },
+    {
+      "authority_key": "brescia",
+      "authority_name": "Prefettura di Brescia",
+      "register_key": "brescia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "current official landing page and both current attachments directly verified 12 September 2026; attachment names and HTTP Last-Modified values identify the 10 September 2026 edition",
+      "source_key": "brescia-applicants",
+      "parser": "brescia_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-richiedenti-l-iscrizione-10-settembre-2026.xlsx",
+      "sha256": "0ab15af0f0f2838aa162177cbc07b91f3d7d80b561ca490611b8ec368c595f34",
+      "expected_source_rows": 1263,
+      "notes": "Current byte-pinned XLSX applicant publication. 1,264 reviewed source rows yield 1,263 pending applicant observations after one exact duplicate group. Missing or malformed application dates remain uninferred; source identifiers remain raw unless they satisfy the strict parser format. Exact evidence is documented in docs/sources/brescia-operational-check-2026-09-12.md."
     }
   ]
 }
