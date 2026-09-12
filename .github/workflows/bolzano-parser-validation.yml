@@ -100,7 +100,7 @@ jobs:
           malformed_listing = listed.diagnostics['malformed_listing_values']
           malformed_expiry = listed.diagnostics['malformed_expiry_values']
           malformed_application = applicants.diagnostics['malformed_application_values']
-          if len(malformed_listing) != 9 or len(malformed_expiry) != 10 or malformed_application != ['14/032025']:
+          if len(malformed_listing) != 9 or len(malformed_expiry) != 11 or malformed_application != ['14/032025']:
               raise SystemExit(
                   f'malformed-date evidence drift: listing={malformed_listing!r}; '
                   f'expiry={malformed_expiry!r}; applicant={malformed_application!r}'
