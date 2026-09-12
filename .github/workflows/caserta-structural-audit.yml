@@ -1,0 +1,172 @@
+name: Caserta structural audit
+
+on:
+  push:
+    branches:
+      - expansion/caserta-2026-09-12
+    paths:
+      - .github/workflows/caserta-structural-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caserta-2026-09-12
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Audit byte-pinned official PDFs
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/30/2026-09/elenco-iscritti-31082026_white-list.pdf
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/30/2026-08/elenco_imprese_richiedenti_iscrizione_white_list-al-31.08.2026.pdf
+          LISTED_SHA256: d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a
+          APPLICANT_SHA256: 90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, os, re
+          from collections import Counter
+          from pathlib import Path
+          import requests, pdfplumber
+
+          OUT=Path('tmp/caserta_structural_audit.json')
+          OUT.parent.mkdir(parents=True, exist_ok=True)
+          UA={'User-Agent':'italian-anti-mafia-whitelist structural auditor/1.0'}
+          DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          DATE_PREFIX=re.compile(r'^(\d{2}/\d{2}/\d{4})(.*)$')
+          STRICT_ID=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
+          SECTION_TOKEN=re.compile(r'^(?:10|[1-9])$')
+
+          def clean(v):
+              return re.sub(r'\s+',' ',(v or '').replace('\xa0',' ')).strip()
+
+          def norm_id(v):
+              return re.sub(r'[^A-Z0-9]','',clean(v).upper())
+
+          def fetch(url, expected, stem):
+              r=requests.get(url,headers=UA,timeout=120)
+              if r.status_code != 200:
+                  raise RuntimeError(f'{stem}: HTTP {r.status_code}')
+              sha=hashlib.sha256(r.content).hexdigest()
+              if sha != expected:
+                  raise RuntimeError(f'{stem}: SHA mismatch {sha} != {expected}')
+              p=Path(f'/tmp/{stem}.pdf'); p.write_bytes(r.content); return p
+
+          def section_tokens(raw):
+              raw=clean(raw)
+              # Caserta publishes numeric sections separated by hyphens/en-dashes and whitespace.
+              parts=[x for x in re.split(r'[^0-9]+',raw) if x]
+              return parts
+
+          def audit(path, kind):
+              rows=[]; headers=[]; table_counts=[]; widths=Counter()
+              with pdfplumber.open(path) as pdf:
+                  pages=len(pdf.pages)
+                  for pno,page in enumerate(pdf.pages,1):
+                      tables=page.extract_tables() or []
+                      table_counts.append(len(tables))
+                      for tno,table in enumerate(tables,1):
+                          for rno,row in enumerate(table or [],1):
+                              cells=[clean(c) for c in row]
+                              if not any(cells): continue
+                              widths[len(cells)] += 1
+                              if cells[0].isdigit():
+                                  rows.append({'page':pno,'table':tno,'row':rno,'cells':cells})
+                              else:
+                                  headers.append({'page':pno,'table':tno,'row':rno,'cells':cells})
+              indices=[int(x['cells'][0]) for x in rows]
+              expected=list(range(1,(max(indices) if indices else 0)+1))
+              blank=Counter(); invalid_dates=[]; expiry_tails=[]; id_shifts=[]; invalid_ids=[]; invalid_sections=[]
+              statuses=Counter(); row_fps=[]
+              names=[]
+              for rec in rows:
+                  c=rec['cells']; idx=int(c[0]); names.append(c[1])
+                  row_fps.append(hashlib.sha256('\x1f'.join(c).encode()).hexdigest())
+                  for i,v in enumerate(c):
+                      if not v: blank[str(i)] += 1
+                  identifier=norm_id(c[4]) if len(c)>4 else ''
+                  secondary=norm_id(c[3]) if len(c)>3 else ''
+                  if not STRICT_ID.fullmatch(identifier or ''):
+                      if not identifier and STRICT_ID.fullmatch(secondary or ''):
+                          id_shifts.append({'index':idx,'page':rec['page'],'secondary_raw':c[3],'id_raw':c[4]})
+                      else:
+                          invalid_ids.append({'index':idx,'page':rec['page'],'raw':c[4],'secondary_raw':c[3],'normalised':identifier})
+                  if kind=='listed':
+                      for label,pos in [('registration',5)]:
+                          if c[pos] and not DATE.fullmatch(c[pos]):
+                              invalid_dates.append({'index':idx,'field':label,'raw':c[pos]})
+                      exp=c[6]
+                      if exp and not DATE.fullmatch(exp):
+                          m=DATE_PREFIX.match(exp)
+                          if m:
+                              expiry_tails.append({'index':idx,'date':m.group(1),'tail':clean(m.group(2))})
+                          else:
+                              invalid_dates.append({'index':idx,'field':'expiry','raw':exp})
+                      statuses[clean(c[7]).casefold()] += 1
+                      sec=section_tokens(c[8])
+                      if not sec or any(not SECTION_TOKEN.fullmatch(x) for x in sec):
+                          invalid_sections.append({'index':idx,'raw':c[8],'tokens':sec})
+                  else:
+                      appdate=c[6]
+                      if appdate and not DATE.fullmatch(appdate):
+                          invalid_dates.append({'index':idx,'field':'application','raw':appdate})
+                      statuses[clean(c[7]).casefold()] += 1
+                      sec=section_tokens(c[5])
+                      if not sec or any(not SECTION_TOKEN.fullmatch(x) for x in sec):
+                          invalid_sections.append({'index':idx,'raw':c[5],'tokens':sec})
+              return {
+                  'page_count':pages,
+                  'tables_per_page_counts':dict(Counter(table_counts)),
+                  'row_width_counts':dict(sorted(widths.items())),
+                  'header_rows':len(headers),
+                  'header_fingerprint':hashlib.sha256(json.dumps([h['cells'] for h in headers],ensure_ascii=False,sort_keys=True).encode()).hexdigest(),
+                  'data_rows':len(rows),
+                  'index_min':min(indices) if indices else None,
+                  'index_max':max(indices) if indices else None,
+                  'index_sequence_exact':indices==expected,
+                  'missing_indices':sorted(set(expected)-set(indices)),
+                  'duplicate_indices':sorted(k for k,v in Counter(indices).items() if v>1),
+                  'blank_field_counts':dict(blank),
+                  'status_values':dict(statuses),
+                  'identifier_shifts':id_shifts,
+                  'invalid_identifier_rows':invalid_ids,
+                  'invalid_date_rows':invalid_dates,
+                  'expiry_date_with_tail_rows':expiry_tails,
+                  'invalid_section_rows':invalid_sections,
+                  'empty_name_rows':[r['cells'][0] for r in rows if not r['cells'][1]],
+                  'duplicate_exact_row_fingerprints':sum(v-1 for v in Counter(row_fps).values() if v>1),
+                  'duplicate_name_count':sum(v-1 for v in Counter(names).values() if v>1),
+                  'data_fingerprint':hashlib.sha256('\n'.join(row_fps).encode()).hexdigest(),
+              }
+
+          lp=fetch(os.environ['LISTED_URL'],os.environ['LISTED_SHA256'],'caserta_listed')
+          ap=fetch(os.environ['APPLICANT_URL'],os.environ['APPLICANT_SHA256'],'caserta_applicants')
+          report={
+              'authority_key':'caserta','reference_date':'2026-08-31',
+              'listed_sha256':os.environ['LISTED_SHA256'],'applicant_sha256':os.environ['APPLICANT_SHA256'],
+              'listed':audit(lp,'listed'),'applicants':audit(ap,'applicants')
+          }
+          OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({k:{kk:vv for kk,vv in v.items() if kk in {'page_count','row_width_counts','header_rows','data_rows','index_sequence_exact','blank_field_counts','status_values','data_fingerprint'}} for k,v in report.items() if isinstance(v,dict)},ensure_ascii=False,indent=2))
+          PY
+      - name: Persist audit checkpoint
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin expansion/caserta-2026-09-12
+          git add tmp/caserta_structural_audit.json
+          if git diff --cached --quiet; then
+            echo 'No audit change to commit.'
+            exit 0
+          fi
+          git commit -m 'Checkpoint Caserta structural audit'
+          git push origin HEAD:expansion/caserta-2026-09-12
