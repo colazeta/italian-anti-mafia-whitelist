@@ -78,6 +78,12 @@ def patch_parser() -> None:
     )
     text = replace_once(
         text,
+        "            and _clean(listing_value) == \"2026-09-17\"\n",
+        "            and _clean(listing_value) in {\"2026-09-17\", \"2026-09-17 00:00:00\"}\n",
+        "ADMG exact XLSX date representation",
+    )
+    text = replace_once(
+        text,
         "    if section_headers != Counter({section: 1 for section in _EXPECTED_SECTIONS}):\n",
         "    name_shift_sha256 = _name_shift_sha256(name_shift_signatures)\n"
         "    if len(name_shift_signatures) != _EXPECTED_LISTED_NAME_SHIFT_ROWS:\n"
