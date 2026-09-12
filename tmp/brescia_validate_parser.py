@@ -70,10 +70,10 @@ def main() -> None:
             cfg("brescia_applicants", "brescia-applicants", "applicant", APPLICANT_URL, APPLICANT_SHA),
         )
 
-        assert listed.diagnostics["sector_rows"] == 3308, listed.diagnostics
-        assert listed.diagnostics["public_records"] == 2032, listed.diagnostics
+        assert listed.diagnostics["sector_rows"] == 3380, listed.diagnostics
+        assert listed.diagnostics["public_records"] == 2071, listed.diagnostics
         assert listed.diagnostics["status_counts"] == {
-            "listed": 1820,
+            "listed": 1859,
             "renewal_update_in_progress": 212,
         }, listed.diagnostics
         assert listed.diagnostics["peer_resolved_date_rows"] == 2, listed.diagnostics
@@ -85,7 +85,7 @@ def main() -> None:
         assert applicants.diagnostics["missing_application_dates"] == 841, applicants.diagnostics
         assert applicants.diagnostics["malformed_application_dates"] == 1, applicants.diagnostics
         assert applicants.diagnostics["duplicate_exact_groups"] == 1, applicants.diagnostics
-        assert len(listed.records) + len(applicants.records) == 3295
+        assert len(listed.records) + len(applicants.records) == 3334
 
         print(
             json.dumps(
