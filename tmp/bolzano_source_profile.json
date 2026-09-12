@@ -1,0 +1,1939 @@
+{
+  "source_sha256": {
+    "listed": "96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04",
+    "applicant": "8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae"
+  },
+  "listed": {
+    "table_count": 10,
+    "table_profiles": [
+      {
+        "section": 1,
+        "rows_total": 309,
+        "data_rows_nonempty": 307,
+        "widths": {
+          "9": 307
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungs-datum",
+          "Gültigkeit der Eintragung bis zum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 326,
+        "shape_anomalies": [
+          {
+            "row": 4,
+            "raw": [
+              "AGRAFOR SRL",
+              "39024 MALLES VENOSTA (BZ)",
+              "",
+              "03054490218",
+              "18/11/2025",
+              "18/11/2026",
+              "18/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "AGRAFOR SRL",
+              "39024 MALLES VENOSTA (BZ)",
+              "",
+              "03054490218",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 6,
+            "raw": [
+              "ALBER TRASPORTI DI ALBER ROLAND & C. SAS",
+              "39010 AVELENGO-HAFLING",
+              "",
+              "02962020216",
+              "14/05/2025",
+              "13/05/2026",
+              "13/05/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALBER TRASPORTI DI ALBER ROLAND & C. SAS",
+              "39010 AVELENGO-HAFLING",
+              "",
+              "02962020216",
+              "14/05/2025",
+              "13/05/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 7,
+            "raw": [
+              "ALLSBAU SAS DI KECI FLAMUR & C",
+              "39100 BOLZANO – BOZEN",
+              "",
+              "03153390210",
+              "19/06/2026",
+              "19/06/2027",
+              "19/06/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALLSBAU SAS DI KECI FLAMUR & C",
+              "39100 BOLZANO – BOZEN",
+              "",
+              "03153390210",
+              "19/06/2026",
+              "19/06/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 8,
+            "raw": [
+              "ALPENBAU SRL",
+              "39030 TERENTO-TERENTEN (BZ)",
+              "",
+              "03007420239",
+              "03/02/2026",
+              "03/02/2027",
+              "03/02/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALPENBAU SRL",
+              "39030 TERENTO-TERENTEN (BZ)",
+              "",
+              "03007420239",
+              "03/02/2026",
+              "03/02/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 9,
+            "raw": [
+              "ALPINTEC SRL",
+              "39010 SAN PANCRAZIO (BZ)",
+              "",
+              "01444520215",
+              "08/01/2026",
+              "08/01/2027",
+              "08/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALPINTEC SRL",
+              "39010 SAN PANCRAZIO (BZ)",
+              "",
+              "01444520215",
+              "08/01/2026",
+              "08/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 13,
+            "raw": [
+              "ARREDO URBANO S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "01750420224",
+              "29/05/2026",
+              "29/05/2027",
+              "29/05/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ARREDO URBANO S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "01750420224",
+              "29/05/2026",
+              "29/05/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 14,
+            "raw": [
+              "ATZWANGER S.P.A.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02227070212",
+              "21/05/2026",
+              "21/05/2027",
+              "21/05/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ATZWANGER S.P.A.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02227070212",
+              "21/05/2026",
+              "21/05/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 16,
+            "raw": [
+              "AUTOTRANSPORTE BURGMANN DES BURGMANN WERNER",
+              "39038 SAN CANDIDO-INNICHEN (BZ)",
+              "",
+              "02568050211",
+              "11/02/2026",
+              "11/02/2027",
+              "11/02/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "AUTOTRANSPORTE BURGMANN DES BURGMANN WERNER",
+              "39038 SAN CANDIDO-INNICHEN (BZ)",
+              "",
+              "02568050211",
+              "11/02/2026",
+              "11/02/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 18,
+            "raw": [
+              "BAU REINALTER GMBH",
+              "39024 MALLES VENOSTA – MALS IM VINSCHGAU (BZ)",
+              "",
+              "02749450215",
+              "24/03/2026",
+              "24/03/2027",
+              "24/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAU REINALTER GMBH",
+              "39024 MALLES VENOSTA – MALS IM VINSCHGAU (BZ)",
+              "",
+              "02749450215",
+              "24/03/2026",
+              "24/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 19,
+            "raw": [
+              "BAUEXPERT SPA",
+              "39031 BRUNICO-BRUNECK (BZ)",
+              "",
+              "01756770218",
+              "25/08/2026",
+              "25/08/2027",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAUEXPERT SPA",
+              "39031 BRUNICO-BRUNECK (BZ)",
+              "",
+              "01756770218",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 20,
+            "raw": [
+              "BAUMAENNER SRL",
+              "39020 CASTELBELLO – CIARDES – KASTELBELL-TSCHARS (BZ)",
+              "",
+              "01363830215",
+              "12/06/2026",
+              "12/06/2027",
+              "12/06/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAUMAENNER SRL",
+              "39020 CASTELBELLO – CIARDES – KASTELBELL-TSCHARS (BZ)",
+              "",
+              "01363830215",
+              "12/06/2026",
+              "12/06/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 22,
+            "raw": [
+              "BAUUNTERNEHMUNG ERHARD & TEDOLDI S.R.L.",
+              "39024 MALLES VENOSTA-MALS IM VINSCHGAU (BZ)",
+              "",
+              "03143330219",
+              "25/08/2026",
+              "25/08/2027",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAUUNTERNEHMUNG ERHARD & TEDOLDI S.R.L.",
+              "39024 MALLES VENOSTA-MALS IM VINSCHGAU (BZ)",
+              "",
+              "03143330219",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 23,
+            "raw": [
+              "BERNARD BAU S.R.L.",
+              "39040 MONTAGNA-MONTAN",
+              "",
+              "01107600213",
+              "14/05/2025",
+              "13/05/2026",
+              "13/05/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BERNARD BAU S.R.L.",
+              "39040 MONTAGNA-MONTAN",
+              "",
+              "01107600213",
+              "14/05/2025",
+              "13/05/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 24,
+            "raw": [
+              "BERTOL REINHOLD",
+              "39040 TERMENO S.S.D.V. TRAMIN A.D.W.",
+              "",
+              "02203770215",
+              "25/08/2025",
+              "25/08/2026",
+              "25/08/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BERTOL REINHOLD",
+              "39040 TERMENO S.S.D.V. TRAMIN A.D.W.",
+              "",
+              "02203770215",
+              "25/08/2025",
+              "25/08/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 25,
+            "raw": [
+              "BETON EISACK S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "00482240215",
+              "27/01/2026",
+              "27/01/2027",
+              "27/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETON EISACK S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "00482240215",
+              "27/01/2026",
+              "27/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 26,
+            "raw": [
+              "BETONEXPERT S.R.L.",
+              "39039 VILLABASSA-NIEDERDORF (BZ)",
+              "",
+              "02922460213",
+              "19/03/2026",
+              "19/03/2027",
+              "19/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETONEXPERT S.R.L.",
+              "39039 VILLABASSA-NIEDERDORF (BZ)",
+              "",
+              "02922460213",
+              "19/03/2026",
+              "19/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 27,
+            "raw": [
+              "BETON LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02618640219",
+              "18/11/2025",
+              "18/11/2026",
+              "18/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETON LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02618640219",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 28,
+            "raw": [
+              "BETTIOL S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "03237650266",
+              "19/06/2026",
+              "19/06/2027",
+              "19/06/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETTIOL S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "03237650266",
+              "19/06/2026",
+              "19/06/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 30,
+            "raw": [
+              "BLASBICHLER BAU SRL",
+              "39040 VELTURNO-FELDTHURNS",
+              "",
+              "00198580219",
+              "26/11/2025",
+              "26/11/2026",
+              "26/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BLASBICHLER BAU SRL",
+              "39040 VELTURNO-FELDTHURNS",
+              "",
+              "00198580219",
+              "26/11/2025",
+              "26/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 31,
+            "raw": [
+              "BM CONDOTTE S.R.L.",
+              "39012 MERANO-MERAN",
+              "",
+              "02959000213",
+              "18/11/2025",
+              "18/11/2026",
+              "18/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BM CONDOTTE S.R.L.",
+              "39012 MERANO-MERAN",
+              "",
+              "02959000213",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 32,
+            "raw": [
+              "BRUNNER EGON",
+              "39020 CASTELBELLO-CIARDES KASTELBELL-TSCHARS",
+              "",
+              "01396240218",
+              "14/01/2026",
+              "14/01/2027",
+              "14/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BRUNNER EGON",
+              "39020 CASTELBELLO-CIARDES KASTELBELL-TSCHARS",
+              "",
+              "01396240218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 33,
+            "raw": [
+              "BRUNNER & LEITER SRL",
+              "39030 VALLE AURINA- AHRNTAL (BZ)",
+              "",
+              "02347430213",
+              "11/03/2026",
+              "11/03/2027",
+              "11/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BRUNNER & LEITER SRL",
+              "39030 VALLE AURINA- AHRNTAL (BZ)",
+              "",
+              "02347430213",
+              "11/03/2026",
+              "11/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 35,
+            "raw": [
+              "BURGMANN KANDIDUS S.N.C.",
+              "39038 SAN CANDIDO-INNICHEN (BZ)",
+              "",
+              "01191140217",
+              "03/08/2026",
+              "03/08/2027",
+              "03/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BURGMANN KANDIDUS S.N.C.",
+              "39038 SAN CANDIDO-INNICHEN (BZ)",
+              "",
+              "01191140217",
+              "03/08/2026",
+              "03/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 39,
+            "raw": [
+              "CARRON BAU S.R.L. – G.M.B.H.",
+              "39040 VARNA-VAHRN (BZ)",
+              "",
+              "02829390216",
+              "11/02/2026",
+              "11/02/2027",
+              "11/02/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "CARRON BAU S.R.L. – G.M.B.H.",
+              "39040 VARNA-VAHRN (BZ)",
+              "",
+              "02829390216",
+              "11/02/2026",
+              "11/02/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 41,
+            "raw": [
+              "CASTELFEDERHOEFL DES JOHANNES UNTERHAUSER",
+              "39040 MONTAGNA SULLA STRADA DEL VINO-MONTAN A.D.W. (BZ)",
+              "",
+              "02314480217",
+              "11/02/2026",
+              "11/02/2027",
+              "11/02/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "CASTELFEDERHOEFL DES JOHANNES UNTERHAUSER",
+              "39040 MONTAGNA SULLA STRADA DEL VINO-MONTAN A.D.W. (BZ)",
+              "",
+              "02314480217",
+              "11/02/2026",
+              "11/02/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 43,
+            "raw": [
+              "C. BRUGGER SRL",
+              "39040 LAION-LAJEN (BZ)",
+              "",
+              "02251460214",
+              "25/08/2026",
+              "25/08/2027",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "C. BRUGGER SRL",
+              "39040 LAION-LAJEN (BZ)",
+              "",
+              "02251460214",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 45,
+            "raw": [
+              "CLARA WALTER FRANZ",
+              "39030 SAN MARTINO IN BADIA ST. MATRIN IN THURN",
+              "",
+              "01291790218",
+              "24/09/2024",
+              "23/09/2025",
+              "23/09/2025",
+              "",
+              ""
+            ],
+            "compact": [
+              "CLARA WALTER FRANZ",
+              "39030 SAN MARTINO IN BADIA ST. MATRIN IN THURN",
+              "",
+              "01291790218",
+              "24/09/2024",
+              "23/09/2025",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 47,
+            "raw": [
+              "COSTRUZIONI REPETTO SRL",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00122680218",
+              "05/01/2026",
+              "05/01/2027",
+              "05/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "COSTRUZIONI REPETTO SRL",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00122680218",
+              "05/01/2026",
+              "05/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 49,
+            "raw": [
+              "DARMAN NIKOLAUS SAS DI PLANKENSTEINER ROSWITHA & C.",
+              "39034 DOBBIACO-TOBLACH",
+              "",
+              "01336280217",
+              "14/05/2025",
+              "13/05/2026",
+              "13/05/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "DARMAN NIKOLAUS SAS DI PLANKENSTEINER ROSWITHA & C.",
+              "39034 DOBBIACO-TOBLACH",
+              "",
+              "01336280217",
+              "14/05/2025",
+              "13/05/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 50,
+            "raw": [
+              "DECARLI TRASPORTI DI DECARLI SAMUEL",
+              "39044 EGNA-NEUMARKT",
+              "",
+              "03201580218",
+              "14/01/2026",
+              "14/01/2027",
+              "14/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "DECARLI TRASPORTI DI DECARLI SAMUEL",
+              "39044 EGNA-NEUMARKT",
+              "",
+              "03201580218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ]
+          }
+        ],
+        "shape_anomaly_count": 288
+      },
+      {
+        "section": 2,
+        "rows_total": 146,
+        "data_rows_nonempty": 144,
+        "widths": {
+          "8": 142,
+          "10": 1,
+          "9": 1
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 52,
+        "shape_anomalies": [
+          {
+            "row": 4,
+            "raw": [
+              "AIRphalt GMBH",
+              "5620 SCHWARZACH (A)-AUSTRIA",
+              "",
+              "ATU 68087508",
+              "23/10/2025",
+              "23/10/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "AIRphalt GMBH",
+              "5620 SCHWARZACH (A)-AUSTRIA",
+              "",
+              "ATU 68087508",
+              "23/10/2025",
+              "23/10/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 5,
+            "raw": [
+              "ALLSBAU SAS DI KECI FLAMUR & C",
+              "39100 BOLZANO – BOZEN",
+              "",
+              "03153390210",
+              "19/06/2026",
+              "19/06/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALLSBAU SAS DI KECI FLAMUR & C",
+              "39100 BOLZANO – BOZEN",
+              "",
+              "03153390210",
+              "19/06/2026",
+              "19/06/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 6,
+            "raw": [
+              "ALPINTEC SRL",
+              "39010 SAN PANCRAZIO (BZ)",
+              "",
+              "01444520215",
+              "08/01/2026",
+              "08/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ALPINTEC SRL",
+              "39010 SAN PANCRAZIO (BZ)",
+              "",
+              "01444520215",
+              "08/01/2026",
+              "08/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 9,
+            "raw": [
+              "ATZWANGER S.P.A.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02227070212",
+              "21/05/2026",
+              "21/05/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "ATZWANGER S.P.A.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02227070212",
+              "21/05/2026",
+              "21/05/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 10,
+            "raw": [
+              "BAU REINALTER GMBH",
+              "39024 MALLES VENOSTA – MALS IM VINSCHGAU (BZ)",
+              "",
+              "02749450215",
+              "24/03/2026",
+              "24/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAU REINALTER GMBH",
+              "39024 MALLES VENOSTA – MALS IM VINSCHGAU (BZ)",
+              "",
+              "02749450215",
+              "24/03/2026",
+              "24/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 11,
+            "raw": [
+              "BAUEXPERT SPA",
+              "39031 BRUNICO-BRUNECK (BZ)",
+              "",
+              "01756770218",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAUEXPERT SPA",
+              "39031 BRUNICO-BRUNECK (BZ)",
+              "",
+              "01756770218",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 13,
+            "raw": [
+              "BAUTECHNIK S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00602610214",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BAUTECHNIK S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00602610214",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 14,
+            "raw": [
+              "BERNARD BAU S.R.L.",
+              "39040 MONTAGNA-MONTAN",
+              "",
+              "01107600213",
+              "14/05/2025",
+              "13/05/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BERNARD BAU S.R.L.",
+              "39040 MONTAGNA-MONTAN",
+              "",
+              "01107600213",
+              "14/05/2025",
+              "13/05/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 15,
+            "raw": [
+              "BERTOL REINHOLD",
+              "39040 TERMENO S.S.D.V. TRAMIN A.D.W.",
+              "",
+              "02203770215",
+              "25/08/2025",
+              "25/08/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BERTOL REINHOLD",
+              "39040 TERMENO S.S.D.V. TRAMIN A.D.W.",
+              "",
+              "02203770215",
+              "25/08/2025",
+              "25/08/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 16,
+            "raw": [
+              "BETON EISACK S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "00482240215",
+              "27/01/2026",
+              "27/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETON EISACK S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "00482240215",
+              "27/01/2026",
+              "27/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 17,
+            "raw": [
+              "BETONEXPERT S.R.L.",
+              "39039 VILLABASSA-NIEDERDORF (BZ)",
+              "",
+              "02922460213",
+              "19/03/2026",
+              "19/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETONEXPERT S.R.L.",
+              "39039 VILLABASSA-NIEDERDORF (BZ)",
+              "",
+              "02922460213",
+              "19/03/2026",
+              "19/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 18,
+            "raw": [
+              "BETONFORM SRL",
+              "39030 GAIS (BZ)",
+              "",
+              "01568940215",
+              "19/12/2025",
+              "19/12/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETONFORM SRL",
+              "39030 GAIS (BZ)",
+              "",
+              "01568940215",
+              "19/12/2025",
+              "19/12/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 19,
+            "raw": [
+              "BETON LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02618640219",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BETON LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02618640219",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 21,
+            "raw": [
+              "BM CONDOTTE S.R.L.",
+              "39012 MERANO-MERAN",
+              "",
+              "02959000213",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "BM CONDOTTE S.R.L.",
+              "39012 MERANO-MERAN",
+              "",
+              "02959000213",
+              "18/11/2025",
+              "18/11/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 22,
+            "raw": [
+              "BRUNNER EGON",
+              "39020 CASTELBELLO-CIARDES KASTELBELL-TSCHARS",
+              "",
+              "01396240218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BRUNNER EGON",
+              "39020 CASTELBELLO-CIARDES KASTELBELL-TSCHARS",
+              "",
+              "01396240218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 23,
+            "raw": [
+              "BRUNNER & LEITER SRL",
+              "39030 VALLE AURINA- AHRNTAL (BZ)",
+              "",
+              "02347430213",
+              "11/03/2026",
+              "11/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "BRUNNER & LEITER SRL",
+              "39030 VALLE AURINA- AHRNTAL (BZ)",
+              "",
+              "02347430213",
+              "11/03/2026",
+              "11/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 27,
+            "raw": [
+              "CARRON BAU S.R.L. – G.M.B.H.",
+              "39040 VARNA-VAHRN (BZ)",
+              "",
+              "02829390216",
+              "11/02/2026",
+              "11/02/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "CARRON BAU S.R.L. – G.M.B.H.",
+              "39040 VARNA-VAHRN (BZ)",
+              "",
+              "02829390216",
+              "11/02/2026",
+              "11/02/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 30,
+            "raw": [
+              "C. BRUGGER SRL",
+              "39040 LAION-LAJEN (BZ)",
+              "",
+              "02251460214",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "C. BRUGGER SRL",
+              "39040 LAION-LAJEN (BZ)",
+              "",
+              "02251460214",
+              "25/08/2026",
+              "25/08/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 32,
+            "raw": [
+              "COSTRUZIONI REPETTO SRL",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00122680218",
+              "05/01/2026",
+              "05/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "COSTRUZIONI REPETTO SRL",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "00122680218",
+              "05/01/2026",
+              "05/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 34,
+            "raw": [
+              "DECARLI TRASPORTI DI DECARLI SAMUEL",
+              "39044 EGNA-NEUMARKT",
+              "",
+              "03201580218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "DECARLI TRASPORTI DI DECARLI SAMUEL",
+              "39044 EGNA-NEUMARKT",
+              "",
+              "03201580218",
+              "14/01/2026",
+              "14/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 35,
+            "raw": [
+              "DOLOMIT RECYCLING SRL",
+              "39039 VILLABASSA-NIEDERDORF",
+              "",
+              "01593170218",
+              "14/02/2025",
+              "13/02/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "DOLOMIT RECYCLING SRL",
+              "39039 VILLABASSA-NIEDERDORF",
+              "",
+              "01593170218",
+              "14/02/2025",
+              "13/02/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 36,
+            "raw": [
+              "DR. ARCH. AMANTIA CLAUDIO SRL",
+              "39020 MARLENGO-MARLING",
+              "",
+              "02523290217",
+              "10/12/2025",
+              "10/12/2026",
+              "",
+              ""
+            ],
+            "compact": [
+              "DR. ARCH. AMANTIA CLAUDIO SRL",
+              "39020 MARLENGO-MARLING",
+              "",
+              "02523290217",
+              "10/12/2025",
+              "10/12/2026",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 38,
+            "raw": [
+              "EDILFERRETTI S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02475680225",
+              "02/07/2026",
+              "02/07/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "EDILFERRETTI S.R.L.",
+              "39100 BOLZANO-BOZEN",
+              "",
+              "02475680225",
+              "02/07/2026",
+              "02/07/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 39,
+            "raw": [
+              "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
+              "39041 BRENNERO-BRENNER (BZ)",
+              "",
+              "00197290216",
+              "06/05/2026",
+              "06/05/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "EDILIZIA WIPPTAL - S.P.A. WIPPTALER BAU AG",
+              "39041 BRENNERO-BRENNER (BZ)",
+              "",
+              "00197290216",
+              "06/05/2026",
+              "06/05/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 40,
+            "raw": [
+              "EUROBETON 2000 SRL",
+              "39012 MERANO-MERAN",
+              "",
+              "02233360219",
+              "30/01/2026",
+              "30/01/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "EUROBETON 2000 SRL",
+              "39012 MERANO-MERAN",
+              "",
+              "02233360219",
+              "30/01/2026",
+              "30/01/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 41,
+            "raw": [
+              "EUROBETON SRL",
+              "39040 SALORNO-SALURN",
+              "",
+              "00120430210",
+              "27/04/2026",
+              "27/04/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "EUROBETON SRL",
+              "39040 SALORNO-SALURN",
+              "",
+              "00120430210",
+              "27/04/2026",
+              "27/04/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 42,
+            "raw": [
+              "FALSERBAU S.R.L.",
+              "39053 CORNEDO ALL’ ISARCO- KARNEID (BZ)",
+              "",
+              "01665690218",
+              "02/07/2026",
+              "02/07/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "FALSERBAU S.R.L.",
+              "39053 CORNEDO ALL’ ISARCO- KARNEID (BZ)",
+              "",
+              "01665690218",
+              "02/07/2026",
+              "02/07/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 43,
+            "raw": [
+              "FELDERER BAU S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "02546120219",
+              "06/05/2026",
+              "06/05/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "FELDERER BAU S.R.L.",
+              "39043 CHIUSA-KLAUSEN (BZ)",
+              "",
+              "02546120219",
+              "06/05/2026",
+              "06/05/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 44,
+            "raw": [
+              "FISCHER & FISCHER SRL",
+              "39020 PARCINES-PARTSCHINGS (BZ)",
+              "",
+              "00129980215",
+              "24/03/2026",
+              "24/03/2027",
+              "",
+              ""
+            ],
+            "compact": [
+              "FISCHER & FISCHER SRL",
+              "39020 PARCINES-PARTSCHINGS (BZ)",
+              "",
+              "00129980215",
+              "24/03/2026",
+              "24/03/2027",
+              "",
+              ""
+            ]
+          },
+          {
+            "row": 46,
+            "raw": [
+              "FULTERER SAS DI FULTERER JAKOB",
+              "39054 RENON-RITTEN",
+              "",
+              "02934990215",
+              "05/12/2024",
+              "04/12/2025",
+              "",
+              ""
+            ],
+            "compact": [
+              "FULTERER SAS DI FULTERER JAKOB",
+              "39054 RENON-RITTEN",
+              "",
+              "02934990215",
+              "05/12/2024",
+              "04/12/2025",
+              "",
+              ""
+            ]
+          }
+        ],
+        "shape_anomaly_count": 92
+      },
+      {
+        "section": 3,
+        "rows_total": 221,
+        "data_rows_nonempty": 219,
+        "widths": {
+          "7": 219
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungs-datum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 4,
+        "rows_total": 160,
+        "data_rows_nonempty": 158,
+        "widths": {
+          "7": 158
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 5,
+        "rows_total": 271,
+        "data_rows_nonempty": 269,
+        "widths": {
+          "7": 269
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungs-datum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 6,
+        "rows_total": 229,
+        "data_rows_nonempty": 226,
+        "widths": {
+          "7": 227
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 1,
+        "shape_anomalies": [
+          {
+            "row": 103,
+            "raw": [
+              "INERTI LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02675950212",
+              "26/11/2025",
+              "26/11/2025",
+              ""
+            ],
+            "compact": [
+              "INERTI LANA S.R.L.",
+              "39011 LANA",
+              "",
+              "02675950212",
+              "26/11/2025",
+              ""
+            ]
+          }
+        ],
+        "shape_anomaly_count": 1
+      },
+      {
+        "section": 7,
+        "rows_total": 23,
+        "data_rows_nonempty": 21,
+        "widths": {
+          "7": 21
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 8,
+        "rows_total": 12,
+        "data_rows_nonempty": 10,
+        "widths": {
+          "7": 10
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 9,
+        "rows_total": 167,
+        "data_rows_nonempty": 165,
+        "widths": {
+          "7": 165
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungsdatum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      },
+      {
+        "section": 10,
+        "rows_total": 189,
+        "data_rows_nonempty": 187,
+        "widths": {
+          "7": 187
+        },
+        "header_1": [
+          "ragione sociale",
+          "sede legale",
+          "sede secondaria con rappresentanza stabile in Italia",
+          "codice fiscale e partita IVA",
+          "data di iscrizione",
+          "data validità iscrizione fino al",
+          "aggiornamento in corso"
+        ],
+        "header_2": [
+          "Firma",
+          "Rechtssitz",
+          "Zweigniederlassung in Italien",
+          "Steuernummer MwST-Nummer",
+          "Eintragungs-datum",
+          "Gültigkeit der Eintragung bis zum",
+          "Neubearbeitung"
+        ],
+        "adjacent_exact_duplicate_cells": 0,
+        "shape_anomalies": [],
+        "shape_anomaly_count": 0
+      }
+    ],
+    "parsed_source_rows": 1325,
+    "section_source_rows": {
+      "1": 19,
+      "2": 52,
+      "3": 219,
+      "4": 158,
+      "5": 269,
+      "6": 225,
+      "7": 21,
+      "8": 10,
+      "9": 165,
+      "10": 187
+    },
+    "semantic_groups_exact": 756,
+    "status_counts_exact_grouping": {
+      "renewal_update_in_progress": 217,
+      "listed": 539
+    },
+    "group_section_multiplicity": {
+      "1": 492,
+      "4": 51,
+      "6": 13,
+      "3": 65,
+      "2": 109,
+      "7": 4,
+      "5": 22
+    },
+    "update_values": {
+      "SI -JA": 3,
+      "SI-JA": 380,
+      "SI-Ja": 5,
+      "": 845,
+      "Si–JA": 1,
+      "Si-ja": 39,
+      "Si-JA": 18,
+      "Si- Ja": 2,
+      "Si - ja": 1,
+      "Si-Ja": 7,
+      "Si -JA": 4,
+      "SI/JA": 4,
+      "SI - JA": 4,
+      "SI- JA": 4,
+      "Si.JA": 1,
+      "SI-ja": 2,
+      "Si_JA": 1,
+      "Si- JA": 1,
+      "SI-jA": 1,
+      "SI--Ja": 1,
+      "SI -Ja": 1
+    },
+    "unreviewed_update_variants": [
+      {
+        "key": [
+          "LAVANDERIE DELL'ALTO ADIGE S.P.A.",
+          "39040 ORA-AUER",
+          "",
+          "01492050214",
+          "04/06/2025",
+          "03/06/2026"
+        ],
+        "updates": [
+          "SI -Ja",
+          "SI--Ja",
+          "SI-Ja",
+          "Si- Ja"
+        ]
+      },
+      {
+        "key": [
+          "VAL BADIA ASFALTI SRL",
+          "39030 MAREBBE-ENNEBERG",
+          "",
+          "02947330219",
+          "17/03/2023",
+          "16/03/2024"
+        ],
+        "updates": [
+          "SI/JA"
+        ]
+      },
+      {
+        "key": [
+          "ZUEBLIN UMWELTTECHNIK GMBH",
+          "D-STUTTGART",
+          "39044 EGNA-NEUMARKT",
+          "02507010219",
+          "15/03/2023",
+          "14/03/2024"
+        ],
+        "updates": [
+          "SI/JA"
+        ]
+      },
+      {
+        "key": [
+          "VANZO METALL SRL",
+          "39028 SILANDRO-SCHLANDERS",
+          "",
+          "02612360210",
+          "30/08/2024",
+          "29/08/2025"
+        ],
+        "updates": [
+          "Si.JA"
+        ]
+      },
+      {
+        "key": [
+          "PIFFER MASSIMO",
+          "39040 SALORNO-SALURN (BZ)",
+          "",
+          "01459620215",
+          "22/07/2024",
+          "21/07/2025"
+        ],
+        "updates": [
+          "SI-JA",
+          "Si_JA"
+        ]
+      }
+    ],
+    "listed_date_bad": [
+      "02/09/20259",
+      "027/07/2026",
+      "03/0/2025",
+      "06/05/206",
+      "12/06/02025",
+      "23/06/25025",
+      "27/06/204",
+      "29/6/2026"
+    ],
+    "expiry_date_bad": [
+      "",
+      "15/012026",
+      "2/8/01/2027",
+      "22/0248769021204/2027",
+      "25/008/2026",
+      "29/0/2026"
+    ],
+    "invalid_identifier_values": {
+      "ATU 31173208": 3,
+      "DITTA ESTERA": 1,
+      "ATU 79717317": 2,
+      "DE 192869039": 1,
+      "FR50751609298": 1,
+      "03120900216 DE 251801321": 2,
+      "DE815237411": 4,
+      "DE811617242": 3,
+      "ATU35452906": 1,
+      "CHE 114.114.053": 1,
+      "FR13 410 508 527 - DITTA ESTERA": 1,
+      "SK36579459": 2,
+      "DE252022401 SOCIETA‘ ESTERA": 2,
+      "0277840216": 1,
+      "ATU22447804": 1,
+      "ATU64511656": 1,
+      "NL815849540B01 DITTA ESTERA": 1,
+      "DE140462045": 1,
+      "ATU65255519 67-230422-7": 1
+    }
+  },
+  "applicant": {
+    "rows_total": 353,
+    "parsed_source_rows": 351,
+    "shape_anomaly_count": 0,
+    "shape_anomalies": [],
+    "submitted_date_bad": [
+      "14/032025"
+    ],
+    "outcome_values": {
+      "": 351
+    },
+    "invalid_identifier_values": {
+      "0325569210": 1,
+      "ATU 68087508": 1,
+      "C.F. ITALIANO (REA) 91066300210": 1,
+      "ATU 50570403": 1,
+      "DITTA ESTERA": 2,
+      "ATU 6368589": 1,
+      "DE811161225 SOCIETA’ ESTERA": 1,
+      "RO 31257455": 1,
+      "SOCIETA‘ ESTERA": 1,
+      "ATU67729425": 1,
+      "ATU32052809": 1,
+      "ATU14343307": 1,
+      "ATU58044244": 1,
+      "0300290212": 1,
+      "ATU844601286": 1,
+      "3938317137": 1,
+      "ATU68154613": 1,
+      "ATU65474202/ 00304579998": 1,
+      "BG205731676/ 94157690218": 1,
+      "ATU 68434946": 1,
+      "ATU 57284423": 1
+    },
+    "exact_duplicate_groups": [],
+    "exact_unique_rows": 351
+  }
+}
