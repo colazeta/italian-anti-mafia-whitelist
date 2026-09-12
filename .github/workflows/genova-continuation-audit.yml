@@ -1,0 +1,44 @@
+name: Genova continuation audit
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-continuation-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Inspect page transitions only
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib,re,tempfile,requests,pdfplumber
+          cfg=json.loads(pathlib.Path('tmp/genova_source_profile.json').read_text())['sources']['applicant']
+          r=requests.get(cfg['resource_url'],timeout=(15,120),headers={'User-Agent':'italian-anti-mafia-whitelist continuation audit/1.0'}); r.raise_for_status()
+          if hashlib.sha256(r.content).hexdigest()!=cfg['sha256']: raise SystemExit('applicant drift')
+          def c(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
+          with tempfile.NamedTemporaryFile(suffix='.pdf') as f:
+            f.write(r.content); f.flush()
+            with pdfplumber.open(f.name) as pdf:
+              for pno in (8,9):
+                p=pdf.pages[pno-1]
+                print(f'=== PAGE {pno} TEXT ===')
+                print(c(p.extract_text() or ''))
+                print(f'=== PAGE {pno} TABLES ===')
+                for tno,t in enumerate(p.extract_tables() or [],1):
+                  print('TABLE',tno)
+                  for rno,row in enumerate(t or [],1): print(rno,[c(x) for x in row])
+          PY
