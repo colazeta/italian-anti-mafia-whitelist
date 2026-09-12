@@ -1,0 +1,152 @@
+name: Genova production materialisation v2
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-production-materialise-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install validation runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Validation runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,dev]'
+      - name: Materialise permanent Genova integration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list'
+          LISTED_URL = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf'
+          APPLICANT_URL = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf'
+          LISTED_SHA = 'baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403'
+          APPLICANT_SHA = '13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7'
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one replacement target, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          cfg_path = Path('data/publication/multi_prefecture_pilot.json')
+          cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
+          if any(s.get('authority_key') == 'genova' for s in cfg['sources']):
+              raise SystemExit('Genova unexpectedly already present in publication config')
+          common = {
+              'authority_key': 'genova',
+              'authority_name': 'Prefettura di Genova',
+              'register_key': 'genova-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-10',
+              'source_page_url': PAGE,
+              'last_source_update': '2026-09-10',
+              'last_source_update_basis': 'dated official listed/applicant resources directly verified 12 September 2026',
+          }
+          cfg['sources'].extend([
+              {**common, 'source_key': 'genova-listed', 'parser': 'genova_listed', 'population_scope': 'listed', 'resource_url': LISTED_URL, 'sha256': LISTED_SHA, 'expected_source_rows': 652, 'notes': 'Byte-pinned 114-page listed-company PDF. The fail-closed parser yields 652 observations: 528 listed and 124 renewal/update in progress. Reviewed source-layout anomalies use exact evidence-backed exceptions only; malformed official identifiers and invalid dates remain raw and are never repaired by inference. Exact evidence is documented in docs/sources/genova-operational-check-2026-09-12.md.'},
+              {**common, 'source_key': 'genova-applicants', 'parser': 'genova_applicants', 'population_scope': 'applicant', 'resource_url': APPLICANT_URL, 'sha256': APPLICANT_SHA, 'expected_source_rows': 110, 'notes': 'Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed split-table identities and incomplete extraction are reconstructed only under byte-pinned geometry-checked evidence; malformed official dates remain raw and uninferred.'},
+          ])
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          replace_once('data/source_registry/verified_primary_pages.csv', 'genova,https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list,2026-09-06,verified\n', f'genova,{PAGE},2026-09-12,verified\n')
+          replace_once('data/source_registry/source_series_inventory.csv', 'genova-applicants,genova,WL-REGIME-L190-2012,applicant,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list,direct_series_page_resolved,2026-09-07,The same official page also exposes a distinct applicant-company attachment.\n', 'genova-applicants,genova,WL-REGIME-L190-2012,applicant,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list,direct_series_page_resolved,2026-09-12,Current official Genova page directly verified 12 September 2026; it separately exposes the applicant PDF dated 10 September 2026. The byte-pinned 20-page attachment yields exactly 110 pending observations; split-table reconstruction and malformed-date handling are documented in docs/sources/genova-operational-check-2026-09-12.md.\n')
+          replace_once('data/source_registry/source_series_inventory.csv', 'genova-listed,genova,WL-REGIME-L190-2012,listed,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list,direct_series_page_resolved,2026-09-07,Official page exposes the registered-company White List attachment.\n', 'genova-listed,genova,WL-REGIME-L190-2012,listed,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list,direct_series_page_resolved,2026-09-12,"Current official Genova page directly verified 12 September 2026; it separately exposes the listed-company PDF dated 10 September 2026. The byte-pinned 114-page attachment yields 652 observations (528 listed; 124 renewal/update in progress); reviewed layout exceptions and raw malformed source values are documented in docs/sources/genova-operational-check-2026-09-12.md."\n')
+
+          replace_once('src/white_list_archive/publishing/public_national_registry.py', 'from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS\n', 'from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS\nfrom white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS\n')
+          replace_once('src/white_list_archive/publishing/public_national_registry.py', '        or CATANIA_PARSERS.get(cfg["parser"])\n', '        or CATANIA_PARSERS.get(cfg["parser"])\n        or GENOVA_PARSERS.get(cfg["parser"])\n')
+
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          if set(coverage) < {'schema_version', 'mode', 'prefectures'} or not isinstance(coverage['prefectures'], list):
+              raise SystemExit(f'unexpected national coverage root keys: {sorted(coverage)}')
+          records = coverage['prefectures']
+          matches = [row for row in records if row.get('authority_key') == 'genova']
+          if len(matches) != 1:
+              raise SystemExit(f'expected one Genova coverage row, found {len(matches)}')
+          row = matches[0]
+          expected = {'official_landing_page': 'https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list', 'source_verified': True, 'current_edition_identified': None, 'capture_implemented': False, 'parser_implemented': False, 'parser_validated': False, 'company_observations_loaded': False, 'public_export_enabled': False, 'coverage_status': 'SOURCE_IDENTIFIED'}
+          for key, value in expected.items():
+              if row.get(key) != value:
+                  raise SystemExit(f'unexpected Genova coverage baseline for {key}: {row.get(key)!r}')
+          row.update({'official_landing_page': PAGE, 'source_verified': True, 'current_edition_identified': True, 'capture_implemented': True, 'parser_implemented': True, 'parser_validated': True, 'company_observations_loaded': True, 'observation_layer': 'public_source_observations', 'canonical_integration_validated': False, 'public_export_enabled': True, 'durable_evidence_verified': False, 'population_scopes_complete': True, 'latest_source_reference_date': '2026-09-10', 'latest_archived_edition': None, 'archived_evidence_storage_status': 'not_documented', 'last_successful_investigation_on': '2026-09-12', 'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'], 'actionable_issue': False, 'coverage_status': 'VALIDATED', 'terminal_reason': None, 'completion_evidence': ['docs/sources/genova-operational-check-2026-09-12.md', 'src/white_list_archive/parsers/genova_tables.py', 'tests/test_genova_parser_semantics.py', 'data/publication/multi_prefecture_pilot.json'], 'known_content_sha256': [LISTED_SHA, APPLICANT_SHA], 'evidence': ['data/source_registry/verified_primary_pages.csv', 'data/source_registry/source_series_inventory.csv', 'data/publication/multi_prefecture_pilot.json', 'docs/sources/genova-operational-check-2026-09-12.md'], 'last_completed_coverage_stage': 'VALIDATED'})
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          replace_once('.github/workflows/public-pages.yml', "      - 'src/white_list_archive/parsers/catania_openxml.py'\n", "      - 'src/white_list_archive/parsers/catania_openxml.py'\n      - 'src/white_list_archive/parsers/genova_tables.py'\n")
+          replace_once('.github/workflows/public-pages.yml', "          assert reg['meta']['record_count'] == 28838\n", "          assert reg['meta']['record_count'] == 29600\n")
+          replace_once('.github/workflows/public-pages.yml', "'caserta','catania'}\n", "'caserta','catania','genova'}\n")
+          replace_once('.github/workflows/public-pages.yml', "'caserta-ordinary','catania-ordinary'\n", "'caserta-ordinary','catania-ordinary','genova-ordinary'\n")
+          replace_once('.github/workflows/public-pages.yml', "          assert reg['meta']['authority_count'] == 29\n", "          assert reg['meta']['authority_count'] == 30\n")
+          replace_once('.github/workflows/public-pages.yml', "          assert reg['meta']['register_count'] == 30\n", "          assert reg['meta']['register_count'] == 31\n")
+          replace_once('.github/workflows/public-pages.yml', "          assert pref['meta']['published_count'] == 29\n", "          assert pref['meta']['published_count'] == 30\n")
+          replace_once('.github/workflows/public-pages.yml', "          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']\n          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2\n", "          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']\n          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2\n          genova = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']\n          assert len(genova) == 1 and genova[0]['mapped'] and genova[0]['published'] and genova[0]['series_count'] == 2\n")
+
+          replace_once('tests/public_portal_browser.cjs', "      assert.ok(labels.includes('White List ordinaria · Prefettura di Catania'));\n", "      assert.ok(labels.includes('White List ordinaria · Prefettura di Catania'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Genova'));\n")
+          replace_once('tests/public_portal_browser.cjs', '      assert.equal(stats.total,28838);\n', '      assert.equal(stats.total,29600);\n')
+          replace_once('tests/public_portal_browser.cjs', "'bolzano-bozen','caserta','catania'].includes(r.authority_key));\n", "'bolzano-bozen','caserta','catania','genova'].includes(r.authority_key));\n")
+          replace_once('tests/public_portal_browser.cjs', "      assert.equal(catania.filter(r=>r.source_fields&&Array.isArray(r.source_fields.listing_date_raw_variants)&&r.source_fields.listing_date_raw_variants.includes('16/072026')&&r.observed_listing_date==='').length,1);\n", "      assert.equal(catania.filter(r=>r.source_fields&&Array.isArray(r.source_fields.listing_date_raw_variants)&&r.source_fields.listing_date_raw_variants.includes('16/072026')&&r.observed_listing_date==='').length,1);\n      const genova=registry.records.filter(r=>r.authority_key==='genova');\n      assert.equal(genova.length,762);\n      assert.equal(genova.filter(r=>r.source_key==='genova-listed').length,652);\n      assert.equal(genova.filter(r=>r.source_key==='genova-applicants').length,110);\n      assert.deepEqual(statusCounts(genova),{listed:528,pending:110,renewal_update_in_progress:124});\n")
+          PY
+          git diff --check
+          git status --short
+      - name: Run full repository test suite
+        run: pytest
+      - name: Build and validate Genova national candidate
+        run: |
+          rm -rf /tmp/genova-production-sources /tmp/genova-registry.json /tmp/genova-registry.csv /tmp/genova-prefectures.json /tmp/genova-prefectures.csv
+          white-list-public-national-build --source-config data/publication/multi_prefecture_pilot.json --verified-pages data/source_registry/verified_primary_pages.csv --source-series data/source_registry/source_series_inventory.csv --authority-aliases data/source_registry/national_index_authority_aliases.csv --work-dir /tmp/genova-production-sources --registry-json /tmp/genova-registry.json --registry-csv /tmp/genova-registry.csv --prefectures-json /tmp/genova-prefectures.json --prefectures-csv /tmp/genova-prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/genova-registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/genova-prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 29600, reg['meta']
+          assert reg['meta']['authority_count'] == 30, reg['meta']
+          assert reg['meta']['register_count'] == 31, reg['meta']
+          assert pref['meta']['published_count'] == 30, pref['meta']
+          assert pref['meta']['mapped_count'] == 39, pref['meta']
+          rows = [r for r in reg['records'] if r['authority_key'] == 'genova']
+          assert len(rows) == 762
+          assert Counter(r['population_scope'] for r in rows) == Counter({'listed': 652, 'applicant': 110})
+          assert Counter(r['source_status'] for r in rows) == Counter({'listed': 528, 'renewal_update_in_progress': 124, 'pending': 110})
+          item = [r for r in pref['prefectures'] if r['authority_key'] == 'genova']
+          assert len(item) == 1 and item[0]['mapped'] and item[0]['published'] and item[0]['series_count'] == 2
+          print(json.dumps({'meta': reg['meta'], 'genova_statuses': Counter(r['source_status'] for r in rows)}, default=dict, indent=2))
+          PY
+      - name: Commit validated permanent integration
+        run: |
+          git status --short
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv src/white_list_archive/publishing/public_national_registry.py tests/public_portal_browser.cjs
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'Integrate Genova public archive'
+          git push origin HEAD:expansion/genova-2026-09-12
