@@ -1,0 +1,2543 @@
+{
+  "authority_key": "genova",
+  "audited_on": "2026-09-12",
+  "sources": {
+    "listed": {
+      "sha256": "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403",
+      "pages": 114,
+      "page_table_count_distribution": {
+        "1": 113,
+        "2": 1
+      },
+      "table_row_count_distribution": {
+        "1": 2,
+        "4": 1,
+        "5": 39,
+        "6": 63,
+        "7": 8,
+        "8": 1,
+        "11": 1
+      },
+      "row_width_distribution": {
+        "5": 1,
+        "8": 628,
+        "9": 25
+      },
+      "nonempty_table_rows": 654,
+      "header_like_rows": 1,
+      "data_like_rows": 653,
+      "pages_with_no_table": [],
+      "page_section_hits": {
+        "1": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VII",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "2": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "3": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "4": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "5": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V"
+        ],
+        "6": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "7": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "8": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "9": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "10": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "11": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "12": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "13": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "14": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "15": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "16": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "17": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "18": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "19": [
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "20": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "21": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "22": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "23": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "24": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "25": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "26": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "27": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "28": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "29": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "30": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "31": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "32": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "33": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "34": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "35": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "36": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "37": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V"
+        ],
+        "38": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "39": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "40": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "41": [
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.X"
+        ],
+        "42": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "43": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "44": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "45": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X",
+          "Sez.V"
+        ],
+        "46": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.VI"
+        ],
+        "47": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "48": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "49": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "50": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "51": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "52": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "53": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "sez. V"
+        ],
+        "54": [
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "55": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "56": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "57": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "58": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "59": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "60": [
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "61": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "62": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VIII"
+        ],
+        "63": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "64": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "65": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "66": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V"
+        ],
+        "67": [
+          "Sez. IX",
+          "Sez. VI",
+          "Sez. VII",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "68": [
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII"
+        ],
+        "69": [
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "70": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "71": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "72": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "73": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "74": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "75": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "76": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. X"
+        ],
+        "77": [
+          "Sez. II",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "78": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "79": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "80": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V"
+        ],
+        "81": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "82": [
+          "Sez. I",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "83": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "84": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "85": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "86": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "87": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "88": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "89": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "90": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "91": [
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "92": [
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "93": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "94": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "95": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "96": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "97": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "98": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "99": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "100": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI"
+        ],
+        "101": [
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VIII"
+        ],
+        "102": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.V"
+        ],
+        "103": [
+          "Sez. I",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "104": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "105": [
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "106": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. X",
+          "Sez.I"
+        ],
+        "107": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "108": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "109": [
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "110": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "111": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "112": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VII",
+          "Sez. X"
+        ],
+        "113": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VII"
+        ],
+        "114": [
+          "Sez. VI"
+        ]
+      },
+      "status_fragment_counts": {
+        "aggiornamento in corso": 1
+      },
+      "date_token_count": 951,
+      "date_token_examples": [
+        [
+          "18/03/2027",
+          18
+        ],
+        [
+          "19/03/2026",
+          15
+        ],
+        [
+          "22/05/2026",
+          13
+        ],
+        [
+          "18/09/2026",
+          13
+        ],
+        [
+          "19/01/2027",
+          12
+        ],
+        [
+          "08/10/2026",
+          11
+        ],
+        [
+          "12/06/2026",
+          11
+        ],
+        [
+          "01/10/2026",
+          10
+        ],
+        [
+          "20/01/2026",
+          9
+        ],
+        [
+          "09/12/2026",
+          9
+        ],
+        [
+          "23/10/2025",
+          9
+        ],
+        [
+          "22/10/2026",
+          9
+        ],
+        [
+          "09/10/2025",
+          9
+        ],
+        [
+          "21/05/2027",
+          9
+        ],
+        [
+          "16/09/2026",
+          9
+        ],
+        [
+          "08/01/2027",
+          8
+        ],
+        [
+          "19/09/2025",
+          8
+        ],
+        [
+          "15/09/2026",
+          8
+        ],
+        [
+          "02/10/2025",
+          8
+        ],
+        [
+          "24/12/2025",
+          7
+        ],
+        [
+          "23/12/2026",
+          7
+        ],
+        [
+          "08/09/2026",
+          7
+        ],
+        [
+          "07/09/2027",
+          7
+        ],
+        [
+          "10/12/2025",
+          7
+        ],
+        [
+          "16/09/2025",
+          7
+        ]
+      ],
+      "samples_by_width": {
+        "8": [
+          {
+            "page": 1,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "Legenda Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti Sez. II - Confezionamento, fornitura e trasporto di calcestruzzo e bitume Sez. III - Noli a freddo di macchinari Sez. IV - Fornitura di ferro lavorato Sez. V - Noli a caldo Sez. VI - Autotrasporto per conto terzi Sez. VII - Guardiani ai cantieri Sez. VIII - Servizi funerari e cimiteriali Sez. IX - Ristorazione, gestione delle mense e catering Sez. X - Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+              "",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "page": 1,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "2PRS SRL",
+              "BUSALLA (GE) VIA SEMINELLA, 50A",
+              "",
+              "02424300990",
+              "Sez. I Sez. III Sez. V",
+              "1 6 / 1 1 / 2 0 2 1",
+              "1 5 / 1 1 / 2 0 2 6",
+              ""
+            ]
+          },
+          {
+            "page": 1,
+            "table": 1,
+            "row": 4,
+            "cells": [
+              "3 R COSTRUZIONI SRL",
+              "GENOVA VIA CHIARAVAGNA, 97 FR",
+              "",
+              "02915040998",
+              "Sez. I Sez. II Sez. III Sez. IV Sez. V",
+              "0 5 / 0 7 / 2 0 2 4",
+              "0 4 / 0 7 / 2 0 2 5",
+              "IN FASE DI RINNOVO"
+            ]
+          },
+          {
+            "page": 1,
+            "table": 1,
+            "row": 5,
+            "cells": [
+              "A & L SERVICE DI KURTI ERBLIND",
+              "G E N O V A VIA G. GALLIANO, 23/2",
+              "",
+              "02444150995",
+              "Sez. X",
+              "23/05/2025",
+              "22/05/2026",
+              ""
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "A.C. ALLESTIMENTI & COSTRUZIONI SRL",
+              "G E N O V A VIA FIESCHI, 9",
+              "",
+              "01141280998",
+              "Sez. X",
+              "",
+              "",
+              ""
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "A.C.G.5 SRL",
+              "GENOVA P.ZZA V. VENETO, 4/1",
+              "",
+              "01608750996",
+              "Sez. III",
+              "24/12/2025",
+              "23/12/2026",
+              ""
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "A.G. SRL",
+              "GENOVA PIAZZA DELLA VITTORIA, 15/23",
+              "",
+              "02200640999",
+              "Sez. II Sez. III Sez. V",
+              "0 9 / 0 1 / 2 0 2 6",
+              "08/01/2027",
+              ""
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 4,
+            "cells": [
+              "A.I.E. DI MERLO LUISA SNC",
+              "B U S A L L A ( G E ) VIA SEMINELLA, 50A",
+              "",
+              "01203300106",
+              "Sez. V",
+              "16/11/2021",
+              "15/11/2026",
+              ""
+            ]
+          }
+        ],
+        "5": [
+          {
+            "page": 47,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "FISIA ITALIMPIANTI SPA",
+              "GENOVA VIA DE MARINI, 1",
+              "",
+              "02340830997",
+              "Sez. X"
+            ]
+          }
+        ],
+        "9": [
+          {
+            "page": 92,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "",
+              "RIMORCHIATORI RIUNITI PORTO DI GENOVA SRL",
+              "GENOVA VIA DE MARINI, 16",
+              "",
+              "02850020104",
+              "Sez. V Sez. X",
+              "19/08/2024",
+              "18/08/2026",
+              "IN FASE DI RINNOVO"
+            ]
+          },
+          {
+            "page": 92,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "",
+              "RIMORCHIATORI SALERNO SRL",
+              "GENOVA VIA DE MARINI, 16",
+              "",
+              "07078880635",
+              "Sez. V",
+              "07/01/2025",
+              "06/01/2027",
+              ""
+            ]
+          },
+          {
+            "page": 92,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "",
+              "RIMORCHIATORI SARDI SRL",
+              "GENOVA VIA DE MARINI, 16",
+              "",
+              "13521100969",
+              "Sez. V",
+              "21/10/2025",
+              "20/10/2026",
+              "IN FASE DI RINNOVO"
+            ]
+          },
+          {
+            "page": 92,
+            "table": 1,
+            "row": 4,
+            "cells": [
+              "",
+              "RISALITI SRL",
+              "CHIAVARI (GE) VIA PARMA, 416",
+              "",
+              "00429630106",
+              "Sez. X",
+              "14/12/2023",
+              "13/12/2026",
+              ""
+            ]
+          },
+          {
+            "page": 92,
+            "table": 1,
+            "row": 5,
+            "cells": [
+              "",
+              "RISTORANTE ALFREDO DI PASSANO FABRIZIO",
+              "R E C CO VIA SAN GIOVANNI BATTISTA, 33R",
+              "",
+              "01848060990",
+              "Sez. IX",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ]
+          },
+          {
+            "page": 92,
+            "table": 1,
+            "row": 6,
+            "cells": [
+              "",
+              "RISTORANTE ROMA SAS DI GHIGLIONE MARIO",
+              "M O N T O GGIO VIA ROMA, 15R",
+              "",
+              "00761310101",
+              "Sez. IX",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ]
+          },
+          {
+            "page": 103,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "",
+              "SPAZIO GENOVA SERVICE SRL",
+              "GENOVA VIA SAN VINCENZO, 1/4",
+              "",
+              "02484760992",
+              "Sez. VI",
+              "16/09/2025",
+              "15/09/2026",
+              "IN FASE DI RINNOVO"
+            ]
+          },
+          {
+            "page": 103,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "",
+              "SPINELLI SRL",
+              "GENOVA VIA SCARSELLINI, 171",
+              "",
+              "02716640103",
+              "Sez. VI",
+              "10/11/2025",
+              "09/11/2026",
+              ""
+            ]
+          }
+        ]
+      },
+      "first_data_rows": [
+        {
+          "page": 1,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Legenda Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti Sez. II - Confezionamento, fornitura e trasporto di calcestruzzo e bitume Sez. III - Noli a freddo di macchinari Sez. IV - Fornitura di ferro lavorato Sez. V - Noli a caldo Sez. VI - Autotrasporto per conto terzi Sez. VII - Guardiani ai cantieri Sez. VIII - Servizi funerari e cimiteriali Sez. IX - Ristorazione, gestione delle mense e catering Sez. X - Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e bonifica e gli altri servizi connessi alla gestione dei rifiuti",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "2PRS SRL",
+            "BUSALLA (GE) VIA SEMINELLA, 50A",
+            "",
+            "02424300990",
+            "Sez. I Sez. III Sez. V",
+            "1 6 / 1 1 / 2 0 2 1",
+            "1 5 / 1 1 / 2 0 2 6",
+            ""
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "3 R COSTRUZIONI SRL",
+            "GENOVA VIA CHIARAVAGNA, 97 FR",
+            "",
+            "02915040998",
+            "Sez. I Sez. II Sez. III Sez. IV Sez. V",
+            "0 5 / 0 7 / 2 0 2 4",
+            "0 4 / 0 7 / 2 0 2 5",
+            "IN FASE DI RINNOVO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "A & L SERVICE DI KURTI ERBLIND",
+            "G E N O V A VIA G. GALLIANO, 23/2",
+            "",
+            "02444150995",
+            "Sez. X",
+            "23/05/2025",
+            "22/05/2026",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "A.C. ALLESTIMENTI & COSTRUZIONI SRL",
+            "G E N O V A VIA FIESCHI, 9",
+            "",
+            "01141280998",
+            "Sez. X",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "A.C.G.5 SRL",
+            "GENOVA P.ZZA V. VENETO, 4/1",
+            "",
+            "01608750996",
+            "Sez. III",
+            "24/12/2025",
+            "23/12/2026",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "A.G. SRL",
+            "GENOVA PIAZZA DELLA VITTORIA, 15/23",
+            "",
+            "02200640999",
+            "Sez. II Sez. III Sez. V",
+            "0 9 / 0 1 / 2 0 2 6",
+            "08/01/2027",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "A.I.E. DI MERLO LUISA SNC",
+            "B U S A L L A ( G E ) VIA SEMINELLA, 50A",
+            "",
+            "01203300106",
+            "Sez. V",
+            "16/11/2021",
+            "15/11/2026",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "A.O.C. SRL",
+            "GENOVA VIA MALTA, 5/9",
+            "",
+            "03614400103",
+            "Sez. X",
+            "18/03/2019",
+            "17/03/2027",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "A2B SERVIZI COOP SOCIALE A RL ONLUS",
+            "C A S A R Z A L I G U R E ( G E ) VIA A. DE GASPERI, 48D",
+            "",
+            "02105850990",
+            "Sez. I Sez. III Sez. V Sez. X",
+            "01/04/2020",
+            "31/03/2027",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "ABACO LOGISTICA INTEGRATA SRL",
+            "GENOVA PIAZZA LERDA, 1",
+            "",
+            "02470230992",
+            "Sez. VI",
+            "01/07/2026",
+            "30/06/2027",
+            ""
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "ABBISSO G & G TRASPORTI S.N.C. DI ABBISSO GIUSEPPE & C",
+            "G E N O V A VIA DELL'ACCIAIO, 78/1",
+            "",
+            "01808840993",
+            "Sez. I Sez. III Sez. V Sez. VI",
+            "",
+            "",
+            ""
+          ]
+        }
+      ],
+      "last_data_rows": [
+        {
+          "page": 113,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "VIGILI DELL'ORDINE SRL",
+            "GENOVA VIA MACAGGI, 18/12",
+            "",
+            "01066360106",
+            "Sez. VI Sez. VII",
+            "09/03/2018",
+            "08/03/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "VILLA COSTRUZIONI EDILI SRL",
+            "GENOVA VIA AYROLI, 26/8",
+            "",
+            "03656470105",
+            "Sez. I Sez. III Sez. V",
+            "3 0 / 0 3 / 2 0 2 2",
+            "29/03/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "VILLA ENRICO",
+            "GENOVA VIA L. CANEPA, 15 A R",
+            "",
+            "03414350102",
+            "Sez. III Sez. V Sez. VI",
+            "0 2 / 1 0 / 2 0 2 5",
+            "0 1/10/2026",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "VIMA SRL DI ING. MASSIMO PINNA",
+            "G E N O V A VIA SAN BARTOLOMEO DEGLI ARMENI, 27A",
+            "",
+            "02349540100",
+            "Sez. III Sez. V",
+            "27/12/2018",
+            "26/12/2026",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "VINACCIERI SRL",
+            "SESTRI LEVANTE VIA PILADE QUEIROLO, 13",
+            "",
+            "03039350990",
+            "Sez. IX",
+            "19/03/2026",
+            "18/03/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "VOLPI LICURGO SRL",
+            "GENOVA VIA PIONIERI E AD AVIATORI D'ITALIA, 60",
+            "",
+            "03198200101",
+            "Sez. VI",
+            "08/05/2026",
+            "07/05/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "WINGECO SRL",
+            "GENOVA VIA B. BOSCO, 57/9",
+            "",
+            "02397230992",
+            "Sez. IV",
+            "29/05/2026",
+            "28/05/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "ZAPPETTINI STEFANO",
+            "MEZZANEGO (GE) LOCALITA' COSTA DEL CANALE, 107B",
+            "",
+            "01935800993",
+            "Sez. III Sez. IV Sez. V",
+            "2 0 / 1 1 / 2 0 1 8",
+            "19/11/2026",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "ZENA 2020 SRLS",
+            "GENOVA LARGO A. SANGUINETI, 45R",
+            "",
+            "02666990995",
+            "Sez. IX",
+            "10/12/2025",
+            "09/12/2026",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "ZENZERO & CANNELLA DI IANNELLO GIUSEPPINA KARIMA",
+            "G E N O V A VIA PASTORINO, 34/21",
+            "",
+            "02392950990",
+            "Sez. IX",
+            "20/01/2026",
+            "19/01/2027",
+            ""
+          ]
+        },
+        {
+          "page": 113,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "ZENZERO & CANNELLA SRLS",
+            "GENOVA VIA G. CASAREGIS, 26/9",
+            "",
+            "03052660994",
+            "Sez. IX",
+            "08/09/2026",
+            "07/09/2027",
+            ""
+          ]
+        },
+        {
+          "page": 114,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "ZINGALI LIGURIA SRL",
+            "GENOVA LUNGOTORRENTE SECCA, 4H",
+            "",
+            "01401420995",
+            "Sez. VI",
+            "06/02/2026",
+            "05/02/2027",
+            ""
+          ]
+        }
+      ]
+    },
+    "applicant": {
+      "sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7",
+      "pages": 20,
+      "page_table_count_distribution": {
+        "1": 19,
+        "2": 1
+      },
+      "table_row_count_distribution": {
+        "3": 1,
+        "5": 6,
+        "6": 14
+      },
+      "row_width_distribution": {
+        "3": 12,
+        "7": 105
+      },
+      "nonempty_table_rows": 117,
+      "header_like_rows": 1,
+      "data_like_rows": 116,
+      "pages_with_no_table": [],
+      "page_section_hits": {
+        "1": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VII",
+          "Sez. VIII",
+          "Sez. X"
+        ],
+        "2": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.V"
+        ],
+        "3": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X",
+          "Sez.VI"
+        ],
+        "4": [
+          "SEZ. I",
+          "Sez. I",
+          "Sez. IV",
+          "Sez. VI"
+        ],
+        "5": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "6": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V"
+        ],
+        "7": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "8": [
+          "SEZ. V",
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.I"
+        ],
+        "9": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "10": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "11": [
+          "SEZ. I",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "12": [
+          "Sez. III",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. X"
+        ],
+        "13": [
+          "SEZ. I",
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. X"
+        ],
+        "14": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez.IX"
+        ],
+        "15": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. IX",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "16": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IX",
+          "Sez. VI",
+          "Sez. X",
+          "Sez.V"
+        ],
+        "17": [
+          "Sez. I",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez.X"
+        ],
+        "18": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "19": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. X"
+        ],
+        "20": [
+          "Sez. I",
+          "Sez. II",
+          "Sez. III",
+          "Sez. IV",
+          "Sez. V",
+          "Sez. VI",
+          "Sez. VII",
+          "Sez. X",
+          "Sez.X"
+        ]
+      },
+      "status_fragment_counts": {
+        "in istruttoria": 102,
+        "istruttoria": 104
+      },
+      "date_token_count": 92,
+      "date_token_examples": [
+        [
+          "05/05/2026",
+          4
+        ],
+        [
+          "11/06/2026",
+          3
+        ],
+        [
+          "06/07/2026",
+          3
+        ],
+        [
+          "27/05/2026",
+          2
+        ],
+        [
+          "05/03/2026",
+          2
+        ],
+        [
+          "16/06/2026",
+          2
+        ],
+        [
+          "13/07/2026",
+          2
+        ],
+        [
+          "22/04/2026",
+          2
+        ],
+        [
+          "29/04/2026",
+          2
+        ],
+        [
+          "10/07/2026",
+          2
+        ],
+        [
+          "28/04/2026",
+          2
+        ],
+        [
+          "02/09/2026",
+          2
+        ],
+        [
+          "22/07/2026",
+          2
+        ],
+        [
+          "17/04/2026",
+          2
+        ],
+        [
+          "08/07/2026",
+          2
+        ],
+        [
+          "23/07/2026",
+          2
+        ],
+        [
+          "26/08/2025",
+          2
+        ],
+        [
+          "24/03/2026",
+          2
+        ],
+        [
+          "25/10/2018",
+          1
+        ],
+        [
+          "19/03/2026",
+          1
+        ],
+        [
+          "09/04/2026",
+          1
+        ],
+        [
+          "29/06/2026",
+          1
+        ],
+        [
+          "21/07/2026",
+          1
+        ],
+        [
+          "02/03/2026",
+          1
+        ],
+        [
+          "06/05/2026",
+          1
+        ]
+      ],
+      "samples_by_width": {
+        "7": [
+          {
+            "page": 1,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "4IT CONSTRUCTIONS",
+              "GENOVA C.SO EUROPA, 893",
+              "",
+              "02259240998",
+              "Sez. X",
+              "25/10/2018",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 1,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "A&L TRASPORTI SRL",
+              "GENOVA VIA ALBISSOLA, 47B",
+              "",
+              "01890500992",
+              "Sez. VI Sez. X",
+              "19/03/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "ADG IMPIANTI SRL",
+              "GENOVA VIA SUPERIORE DEL VEILINO, 30R",
+              "",
+              "02542500992",
+              "Sez. V",
+              "09/04/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "ADL TRASPORTI SRL",
+              "GENOVA VIA DEGLI ARTIGIANI, 65",
+              "",
+              "01557520119",
+              "Sez. VI",
+              "29/06/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "ALB.CONS. SRL",
+              "GENOVA VIA FRANCESCO ROLLA, 21",
+              "",
+              "02377460999",
+              "Sez. I",
+              "27/05/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 4,
+            "cells": [
+              "ALL.FENSTER SRL",
+              "GENOVA VIA G. FRASCHERI, 2R",
+              "",
+              "02338200104",
+              "Sez. III Sez. X",
+              "05/03/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 5,
+            "cells": [
+              "ARIET SAS DI DONATI RINA",
+              "G E N O V A VIA CORSICA, 9/7 E",
+              "",
+              "01594370999",
+              "Sez. III Sez.V Sez. VI Sez. X",
+              "16/06/2026",
+              "in istruttoria"
+            ]
+          },
+          {
+            "page": 2,
+            "table": 1,
+            "row": 6,
+            "cells": [
+              "ASSALINO STEFANO",
+              "via Salino 22 - NE",
+              "",
+              "01125070993",
+              "SEZ I",
+              "11/06/2026",
+              "in istruttoria"
+            ]
+          }
+        ],
+        "3": [
+          {
+            "page": 7,
+            "table": 1,
+            "row": 1,
+            "cells": [
+              "CRESTA & DELFINO SRL",
+              "GENOVA VIA E. FERRI, 32",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 1,
+            "row": 2,
+            "cells": [
+              "CUNEO LUIGI",
+              "MONCONESI (GE) VIA TERRAROSSA COLOMBO 21 SOTT.",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 1,
+            "row": 3,
+            "cells": [
+              "CURZI LUIGI - AUTOTRASPORTI C/TERZI",
+              "VIA PRATO QUARTINO 16, SANT'OLCESE",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 1,
+            "row": 4,
+            "cells": [
+              "DAMA SRL",
+              "GENOVA VIA G. RATTO, 17R",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 1,
+            "row": 5,
+            "cells": [
+              "DASSORI SRL",
+              "GENOVA VIA F. DASSORI, 171",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 1,
+            "row": 6,
+            "cells": [
+              "DE BREEZE SRL",
+              "GENOVA VIA FIESCHI, 6/5",
+              ""
+            ]
+          },
+          {
+            "page": 7,
+            "table": 2,
+            "row": 1,
+            "cells": [
+              "Sez. I Sez. X",
+              "28/04/2026",
+              "IN ISTRUTTORIA"
+            ]
+          },
+          {
+            "page": 7,
+            "table": 2,
+            "row": 2,
+            "cells": [
+              "Sez. VI Sez. X",
+              "05/08/2026",
+              "IN ISTRUTTORIA"
+            ]
+          }
+        ]
+      },
+      "first_data_rows": [
+        {
+          "page": 1,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "4IT CONSTRUCTIONS",
+            "GENOVA C.SO EUROPA, 893",
+            "",
+            "02259240998",
+            "Sez. X",
+            "25/10/2018",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "A&L TRASPORTI SRL",
+            "GENOVA VIA ALBISSOLA, 47B",
+            "",
+            "01890500992",
+            "Sez. VI Sez. X",
+            "19/03/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "ADG IMPIANTI SRL",
+            "GENOVA VIA SUPERIORE DEL VEILINO, 30R",
+            "",
+            "02542500992",
+            "Sez. V",
+            "09/04/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "ADL TRASPORTI SRL",
+            "GENOVA VIA DEGLI ARTIGIANI, 65",
+            "",
+            "01557520119",
+            "Sez. VI",
+            "29/06/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "ALB.CONS. SRL",
+            "GENOVA VIA FRANCESCO ROLLA, 21",
+            "",
+            "02377460999",
+            "Sez. I",
+            "27/05/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "ALL.FENSTER SRL",
+            "GENOVA VIA G. FRASCHERI, 2R",
+            "",
+            "02338200104",
+            "Sez. III Sez. X",
+            "05/03/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "ARIET SAS DI DONATI RINA",
+            "G E N O V A VIA CORSICA, 9/7 E",
+            "",
+            "01594370999",
+            "Sez. III Sez.V Sez. VI Sez. X",
+            "16/06/2026",
+            "in istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "ASSALINO STEFANO",
+            "via Salino 22 - NE",
+            "",
+            "01125070993",
+            "SEZ I",
+            "11/06/2026",
+            "in istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "AUTOTORRI MARCHETTI SRL",
+            "RECCO VIA GIUSTINIANI, 10/1",
+            "",
+            "00946370103",
+            "Sez. V",
+            "05/05/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "AUTOTRASPORTI DI GIUSTO & C. - SOCIETA' IN NOME COLLETTIVO",
+            "COGOLETO (GE) VIA SCHIVA'58/3",
+            "",
+            "02758870105",
+            "Sez,I Sez.VI",
+            "21/07/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "B.G. RISTRUTTURAZIONI ARTIGIANE S.R.L.",
+            "VIA ANTONIO CANTORE 30B/12, GENOVA",
+            "",
+            "01872550999",
+            "Sez. I Sez. III Sez. V",
+            "2 9 / 0 7 / 2 0 2 6",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "BE.ST. EDILIZIA SRL",
+            "GENOVA CORSO GALLIERA, 1A R",
+            "",
+            "02820310999",
+            "Sez. II Sez. V",
+            "02/03/2026",
+            "IN ISTRUTTORIA"
+          ]
+        }
+      ],
+      "last_data_rows": [
+        {
+          "page": 18,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "SEAM SRLS UNIPERSONALE",
+            "GENOVA PIAZZA DELLA VITTORIA, 4/1",
+            "",
+            "02624800997",
+            "Sez. I",
+            "05/05/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 19,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "SERVIZI ATTIVITA' EDILE SOCIETA' CONSORTILE A R.L.",
+            "GENOVA PIAZZA DELLA VITTORIA, 15/22",
+            "",
+            "02610720993",
+            "Sez. II Sez. III Sez. V",
+            "2 8 / 0 8 / 2 0 2 4",
+            "I N I S TRUTTORIA"
+          ]
+        },
+        {
+          "page": 19,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "SOLARI GIUSEPPE & C SAS",
+            "LEIVI (GE) VIA SAN LORENZO, 9C",
+            "",
+            "01929730990",
+            "Sez. I Sez. II Sez. III Sez. V Sez. VI Sez. X",
+            "13/04/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 19,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "STAR SERVICE SRL",
+            "GENOVA VIA DE MARINI, 53",
+            "",
+            "03765460104",
+            "Sez. III",
+            "24/03/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 19,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "SUNRISE SRL",
+            "GENOVA VIA DEGLI ARTIGIANI, 65",
+            "",
+            "01547440113",
+            "Sez. VI",
+            "11/06/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 19,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "TPF. SOC. COOP.",
+            "GENOVA VIA VARESE, 2",
+            "",
+            "03028180994",
+            "Sez. VI",
+            "20/09/2023",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "TRASPORTI CR DI CASTRO CASTRO ZULEY TIZIANA",
+            "GENOVA VIA CASTERRUCCIO, 4/3A",
+            "",
+            "03044710998",
+            "Sez. VI",
+            "04/04/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "TROVATO VINCENZO",
+            "GENOVA VIA BORZOLI, 36/10",
+            "",
+            "015833770993",
+            "Sez. I Sez. II Sez. III Sez. IV Sez. V Sez. VI Sez. VII",
+            "2 9 / 0 5 / 2 0 2 6",
+            "I N I S T R U T T O R IA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "UMBERTO GIORGI GARDEN SRL",
+            "CHIAVARI VIA PARMA, 302",
+            "",
+            "01011060991",
+            "Sez. X",
+            "21/05/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "VIATRON SRL",
+            "GENOVA VIA MARTIRI DELLA LIBERTA', 1/7",
+            "",
+            "03739140105",
+            "Sez. III",
+            "16/04/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "WORK TEAM SRL",
+            "GENOVA VIA G. RATTI 26R",
+            "",
+            "02641430992",
+            "Sez. VI Sez.X",
+            "26/06/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 20,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "ZENA GREEN SRLS",
+            "GENOVA PIAZZA MONTEVERDI, 9",
+            "",
+            "02570070991",
+            "Sez. X",
+            "",
+            ""
+          ]
+        }
+      ]
+    }
+  }
+}
