@@ -1,0 +1,55 @@
+{
+  "authority_key": "genova",
+  "verified_on": "2026-09-12",
+  "landing_url": "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list",
+  "landing_status": 200,
+  "landing_final_url": "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list",
+  "positive_population_evidence": {
+    "listed": "Elenco imprese iscritte in White List al 10/09/2026",
+    "applicant": "Elenco imprese richiedenti l'iscrizione in White List al 10/09/2026"
+  },
+  "sources": {
+    "listed": {
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf",
+      "status": 200,
+      "final_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf",
+      "content_type": "application/pdf",
+      "bytes": 920835,
+      "sha256": "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403",
+      "repeat_fetch_byte_identical": true,
+      "pages": 114,
+      "pdf_metadata": {
+        "/Title": "",
+        "/Author": "dpp1050173",
+        "/Subject": "",
+        "/CreationDate": "D:20260910113647+02'00'",
+        "/ModDate": "D:20260910113647+02'00'",
+        "/Producer": "Microsoft® Excel® per Microsoft 365",
+        "/Creator": "Microsoft® Excel® per Microsoft 365"
+      },
+      "first_page_text_prefix": "Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti\nSez. II - Confezionamento, fornitura e trasporto di calcestruzzo e bitume\nSez. III - Noli a freddo di macchinari\nSez. IV - Fornitura di ferro lavorato\nSez. V - Noli a caldo\nSez. VI - Autotrasporto per conto terzi\nSez. VII - Guardiani ai cantieri\nSez. VIII -  Servizi funerari e cimiteriali\nSez. IX -  Ristorazione, gestione delle mense e catering\nRAGIONE SOCIALE SEDE LEGALE\nSEDE SECONDARIA CON \nRAPPRESENTANZA STABILE IN \nITALIA\nCODICE FISCALE / PARTITA \nIVA SETTORE DI ATTIVITA' DATA ISCRIZIONE DATA SCADENZA AGGIORNAMENTO IN \nCORSO\n2PRS SRL BUSALLA (GE)                                                                                     \nVIA SEMINELLA, 50A 02424300990\nSez. I                                                  ",
+      "last_page_text_prefix": "ZINGALI LIGURIA SRL GENOVA                                                                             \nLUNGOTORRENTE SECCA, 4H 01401420995 Sez. VI 06/02/2026 05/02/2027"
+    },
+    "applicant": {
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf",
+      "status": 200,
+      "final_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf",
+      "content_type": "application/pdf",
+      "bytes": 435460,
+      "sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7",
+      "repeat_fetch_byte_identical": true,
+      "pages": 20,
+      "pdf_metadata": {
+        "/Title": "",
+        "/Author": "dpp1050173",
+        "/Subject": "",
+        "/CreationDate": "D:20260910105451+02'00'",
+        "/ModDate": "D:20260910105451+02'00'",
+        "/Producer": "Microsoft® Excel® per Microsoft 365",
+        "/Creator": "Microsoft® Excel® per Microsoft 365"
+      },
+      "first_page_text_prefix": "Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti\nSez. II - Confezionamento, fornitura e trasporto di calcestruzzo e bitume\nSez. III - Noli a freddo di macchinari\nSez. IV - Fornitura di ferro lavorato\nSez. V - Noli a caldo\nSez. VI - Autotrasporto per conto terzi\nSez. VII - Guardiani ai cantieri\nSez. VIII -  Servizi funerari e cimiteriali\nSez. IX -  Ristorazione, gestione delle mense e catering\nRagione Sociale Sede legale\nSede secondaria con \nrappresentanza stabile in \nItalia \nPartita IVA/                                                               \nCodice fiscale                                                           \nAttività per cui è \nrichiesta l'iscrizione \nData di \npresentazione \ndell'istanza\nEsito\n4IT  CONSTRUCTIONS GENOVA                                    ",
+      "last_page_text_prefix": "TRASPORTI CR DI CASTRO CASTRO \nZULEY TIZIANA\nGENOVA VIA CASTERRUCCIO, 4/3A 03044710998 Sez. VI 04/04/2026 IN ISTRUTTORIA\nTROVATO VINCENZO GENOVA                                                                                    \nVIA BORZOLI, 36/10 015833770993\nSez. I                                                                    \nSez. II                                                         "
+    }
+  }
+}
