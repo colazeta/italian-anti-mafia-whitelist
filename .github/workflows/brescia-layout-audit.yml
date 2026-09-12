@@ -6,6 +6,7 @@ on:
       - expansion/brescia-2026-09-12
     paths:
       - .github/workflows/brescia-layout-audit.yml
+      - tmp/brescia_layout_audit.py
   workflow_dispatch:
 
 permissions:
