@@ -1,0 +1,1631 @@
+{
+  "authority_key": "catania",
+  "reference_date": "2026-09-11",
+  "sources": {
+    "listed": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+      "sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
+      "sheet_rows": 3380,
+      "sheet_columns": 8,
+      "data_rows": 1643,
+      "blank_rows_after_header": 1735,
+      "field_type_counts": {
+        "1": {
+          "str": 1643
+        },
+        "2": {
+          "str": 1641,
+          "blank": 2
+        },
+        "3": {
+          "blank": 1642,
+          "str": 1
+        },
+        "4": {
+          "str": 1563,
+          "float": 22,
+          "int": 47,
+          "blank": 11
+        },
+        "5": {
+          "str": 1603,
+          "int": 29,
+          "blank": 11
+        },
+        "6": {
+          "datetime": 1627,
+          "str": 5,
+          "blank": 11
+        },
+        "7": {
+          "datetime": 137,
+          "formula": 1491,
+          "blank": 14,
+          "str": 1
+        },
+        "8": {
+          "blank": 1286,
+          "str": 356,
+          "datetime": 1
+        }
+      },
+      "missing_required": {
+        "name": 0,
+        "office": 2,
+        "sectors": 11,
+        "identifier": 11,
+        "listing_date": 11,
+        "expiry": 14
+      },
+      "exact_duplicate_groups": 0,
+      "exact_duplicate_rows_beyond_first": 0,
+      "anomalies": [
+        {
+          "row": 79,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "AMBIENTE E NATURA SRL",
+            "RANDAZZO",
+            "",
+            "3,5",
+            "0548029872",
+            "2025-10-27T00:00:00",
+            "=DATE(YEAR(F79)+1,MONTH(F79),DAY(F79))",
+            ""
+          ]
+        },
+        {
+          "row": 100,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "ARTEMIS GROUP SRL",
+            "CATANIA",
+            "",
+            "10",
+            "0592498072",
+            "2024-01-26T00:00:00",
+            "=DATE(YEAR(F100)+1,MONTH(F100),DAY(F100))",
+            "richiesto rinnovo"
+          ]
+        },
+        {
+          "row": 103,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "ASFALTI SERVICE S.R.L.S.",
+            "BIANCAVILLA",
+            "",
+            "1.2",
+            "5932610875",
+            "2026-04-24T00:00:00",
+            "=DATE(YEAR(F103)+1,MONTH(F103),DAY(F103))",
+            ""
+          ]
+        },
+        {
+          "row": 177,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "C&S BUILDING SRLS",
+            "MISTERBIANCO",
+            "",
+            "10",
+            "6141810876",
+            "2026-08-12T00:00:00",
+            "2027-08-12T00:00:00",
+            ""
+          ]
+        },
+        {
+          "row": 254,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "COCO FRANCO MARTINO",
+            "ACI SANT'ANTONIO",
+            "",
+            "3,5",
+            "6160830870",
+            "2026-06-22T00:00:00",
+            "=DATE(YEAR(F254)+1,MONTH(F254),DAY(F254))",
+            ""
+          ]
+        },
+        {
+          "row": 286,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "CONSORZIO IRIDE IMPRESE ITALIA",
+            "TREMESTIERI ETNEO",
+            "",
+            "1",
+            "0559480873",
+            "2024-03-20T00:00:00",
+            "=DATE(YEAR(F286)+1,MONTH(F286),DAY(F286))",
+            "richiesto rinnovo"
+          ]
+        },
+        {
+          "row": 348,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "D.E.M. LAVORI IN QUOTA SRLS",
+            "ZAFFERANA ETNEA",
+            "",
+            "5",
+            "6117850872",
+            "30/07/2026",
+            "2027-07-30T00:00:00",
+            ""
+          ]
+        },
+        {
+          "row": 366,
+          "flags": [
+            "missing_expiry"
+          ],
+          "values": [
+            "DEDEJ YLLI",
+            "PEDARA",
+            "",
+            "9",
+            "05025770875",
+            "2025-10-14T00:00:00",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 397,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "DMV COSTRUZIONI SRL",
+            "PIEDIMONTE ETNEO",
+            "",
+            "1,2,3,5",
+            "058440020874",
+            "2026-08-06T00:00:00",
+            "=DATE(YEAR(F397)+1,MONTH(F397),DAY(F397))",
+            ""
+          ]
+        },
+        {
+          "row": 400,
+          "flags": [
+            "missing_expiry"
+          ],
+          "values": [
+            "DOMUSED SRL",
+            "CATANIA",
+            "",
+            "1,2,3,4,5,6,9",
+            "05966490871",
+            "2025-03-31T00:00:00",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 436,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "ECOSPURGO DI TESTA GIOVANNI",
+            "ACIREALE",
+            "",
+            "10",
+            "4161930872",
+            "2026-04-29T00:00:00",
+            "=DATE(YEAR(F436)+1,MONTH(F436),DAY(F436))",
+            ""
+          ]
+        },
+        {
+          "row": 485,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "EMME TRASPORTI DI MAUGERI LUIGI & C. SAS",
+            "MISTERBIANCO",
+            "",
+            "6",
+            "03798290874",
+            "2025-07-01T00:00:00",
+            "=DATE(YEAR(F485)+1,MONTH(F485),DAY(F485))",
+            "Richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 530,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "F.E.R. FUTURE ENERGY RESOURCES S.R.L.",
+            "CATANIA",
+            "",
+            "4",
+            "6179370876",
+            "2026-05-04T00:00:00",
+            "=DATE(YEAR(F530)+1,MONTH(F530),DAY(F530))",
+            ""
+          ]
+        },
+        {
+          "row": 546,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "FANGARDEN S.R.L.",
+            "ACI SANT'ANTONIO",
+            "",
+            "10",
+            "05713610870",
+            "2025-07-01T00:00:00",
+            "=DATE(YEAR(F546)+1,MONTH(F546),DAY(F546))",
+            "Richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 552,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "FAZIO S.R.L.",
+            "PATERNO'",
+            "",
+            "1,2,3,4,5,10",
+            "0507165872",
+            "2026-04-29T00:00:00",
+            "=DATE(YEAR(F552)+1,MONTH(F552),DAY(F552))",
+            ""
+          ]
+        },
+        {
+          "row": 562,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "FERLITO GROUP S.R.L. SEMPLIFICATA",
+            "PALAGONIA",
+            "",
+            "5",
+            "05815750871",
+            "2025-07-08T00:00:00",
+            "2026-04-16T00:00:00",
+            "ISCRITTA CON DECORRENZA 07/05/2025 CON DECRETO PREFETTIZIO N. 89427 DEL 08/07/2025 EMESSO A SEGUITO ELL’AMMISSIONE DELL’IMPRESA ALLA MISURA DEL CONTROLLO GIUDIZIARIO, EX ART.34 /BIS COMMA 6, DEL D.L.VO 159/2011, DISPOSTO DAL TRIBUNALE DI CATANIA – SEZ. MP CON DECRETO N. 32/2025 DEL 16/04/2025.Rrichiesto rinnovo"
+          ]
+        },
+        {
+          "row": 602,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "FUCILE MARIO",
+            "MILITELLO IN VAL DI CATANIA",
+            "",
+            "3,5,8",
+            "049688190878",
+            "2026-08-06T00:00:00",
+            "=DATE(YEAR(F602)+1,MONTH(F602),DAY(F602))",
+            ""
+          ]
+        },
+        {
+          "row": 627,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "GAMBERA CARMELO PIETRO PAOLO",
+            "SCORDIA",
+            "",
+            "3,5",
+            "0247727087",
+            "2024-07-18T00:00:00",
+            "=DATE(YEAR(F627)+1,MONTH(F627),DAY(F627))",
+            "richiesto rinnovo"
+          ]
+        },
+        {
+          "row": 681,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "GLZ SERVICE SRLS",
+            "S.G.LA PUNTA",
+            "",
+            "1,2",
+            "06026100872",
+            "2026-07-17T00:00:00",
+            "=DATE(YEAR(F681)+1,MONTH(F681),DAY(F681))",
+            "IMPRESA ISCRITTA IN WHITE LIST A SEGUITO DELL'APPLICAZIONE DELLA MISURA DI PREVENZIONE COLLABORATIVA EX ART 94 BIS."
+          ]
+        },
+        {
+          "row": 712,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "HOMEDIL SRLS",
+            "MILITELLO IN VAL DI CATANIA",
+            "",
+            "3.5",
+            "5892830877",
+            "2026-04-24T00:00:00",
+            "=DATE(YEAR(F712)+1,MONTH(F712),DAY(F712))",
+            ""
+          ]
+        },
+        {
+          "row": 735,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "ILS SRL",
+            "GIARRE",
+            "",
+            "6",
+            "0535536875",
+            "2026-03-24T00:00:00",
+            "=DATE(YEAR(F735)+1,MONTH(F735),DAY(F735))",
+            ""
+          ]
+        },
+        {
+          "row": 760,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "INCOGNITO S.R.L.",
+            "BRONTE",
+            "",
+            "1,2,3,5",
+            "04700560875",
+            "2026-02-09T00:00:00",
+            "=DATE(YEAR(F760)+1,MONTH(F760),DAY(F760))",
+            "NI"
+          ]
+        },
+        {
+          "row": 777,
+          "flags": [
+            "missing_office"
+          ],
+          "values": [
+            "IONES LAVORI LOTTO 4 SOCIETA' CONSORTILE A RESPONSABILITA' LIMITATA SANTA VENERINA",
+            "",
+            "",
+            "3,5,6,10",
+            "06231050870",
+            "2026-08-13T00:00:00",
+            "2027-08-13T00:00:00",
+            ""
+          ]
+        },
+        {
+          "row": 803,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "KATANE' TRASPORTI S.R.L.",
+            "CATANIA",
+            "",
+            "6",
+            "0617337087",
+            "2025-12-30T00:00:00",
+            "=DATE(YEAR(F803)+1,MONTH(F803),DAY(F803))",
+            ""
+          ]
+        },
+        {
+          "row": 822,
+          "flags": [
+            "missing_expiry"
+          ],
+          "values": [
+            "LA PROMEC SRL",
+            "CATANIA",
+            "",
+            "1, 3",
+            "06237780876",
+            "2026-09-07T00:00:00",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 828,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "LA SUPREMA SRL",
+            "SAN GIOVANNI LA PUNTA",
+            "",
+            "10",
+            "04760240871",
+            "2025-07-25T00:00:00",
+            "=DATE(YEAR(F828)+1,MONTH(F828),DAY(F828))",
+            "Richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 831,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "LAGECO DI PARISI ADRIANA",
+            "CATANIA",
+            "",
+            "1,2,3,4,5,6,10",
+            "0473731872",
+            "2026-06-09T00:00:00",
+            "=DATE(YEAR(F831)+1,MONTH(F831),DAY(F831))",
+            ""
+          ]
+        },
+        {
+          "row": 853,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "LIRA COSTRUZIONI S.R.L.",
+            "PALAGONIA",
+            "",
+            "3,5,6,10",
+            "05241900876",
+            "2025-06-12T00:00:00",
+            "2026-04-16T00:00:00",
+            "ISCR. CON DECOR. 12/06/2025 CON DEC. PREF.N. 77622 DEL 12/06/2025 EMESSO A SEGUITO DELL’AMMIS. DELL’IMPRESA ALLA MISURA DEL CONTR. GIUD., EX ART.34 /BIS co. 6, DEL D.L.VO 159/2011, DISPOSTO DAL T.d.C – SEZ. MP CON DEC. N. 32/2025 DEL 16/04/2025. RICHIESTO RINNOVO"
+          ]
+        },
+        {
+          "row": 867,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "LUCIA COSTRUZIONI S.R.L.",
+            "SANTA VENERINA",
+            "",
+            "3,5",
+            "0419418875",
+            "2026-02-25T00:00:00",
+            "=DATE(YEAR(F867)+1,MONTH(F867),DAY(F867))",
+            ""
+          ]
+        },
+        {
+          "row": 906,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "MAMMANA CARMELO",
+            "CALTAGIRONE",
+            "",
+            "1,3,5",
+            "5042510874",
+            "2026-05-06T00:00:00",
+            "=DATE(YEAR(F906)+1,MONTH(F906),DAY(F906))",
+            ""
+          ]
+        },
+        {
+          "row": 953,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "MEDIFLORA SRL",
+            "PATERNO'",
+            "",
+            "5",
+            "5160970876",
+            "2026-08-10T00:00:00",
+            "=DATE(YEAR(F953)+1,MONTH(F953),DAY(F953))",
+            ""
+          ]
+        },
+        {
+          "row": 957,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "MEDITERRANEA S.R.L.",
+            "SCORDIA",
+            "",
+            "1",
+            "04007510870",
+            "2025-08-13T00:00:00",
+            "=DATE(YEAR(F957)+1,MONTH(F957),DAY(F957))",
+            "richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 961,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "MERIDIONALI IMPRESE SCARL",
+            "SANTA VENERINA",
+            "",
+            "1,2,3,4,5,10",
+            "05800070871",
+            "2025-07-16T00:00:00",
+            "=DATE(YEAR(F961)+1,MONTH(F961),DAY(F961))",
+            "richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 969,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "META SERVICE SRL",
+            "SAN GIOVANNI LA PUNTA",
+            "",
+            "10",
+            "02567690876",
+            "2025-05-05T00:00:00",
+            "=DATE(YEAR(F969)+1,MONTH(F969),DAY(F969))",
+            "richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 980,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "MGF SRLS",
+            "TREMESTIERI ETNEO",
+            "",
+            "1",
+            "5844920875",
+            "2026-04-24T00:00:00",
+            "=DATE(YEAR(F980)+1,MONTH(F980),DAY(F980))",
+            ""
+          ]
+        },
+        {
+          "row": 1034,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "NEW GENERATION TRASPORTI DI CONSOLI NANCY",
+            "CATANIA",
+            "",
+            "1,2,3,5,6,10",
+            "6065350875",
+            "2026-05-12T00:00:00",
+            "=DATE(YEAR(F1034)+1,MONTH(F1034),DAY(F1034))",
+            ""
+          ]
+        },
+        {
+          "row": 1064,
+          "flags": [
+            "unreviewed_expiry_formula"
+          ],
+          "values": [
+            "NUOVA PONTEGGI S.R.L.S",
+            "CATANIA",
+            "",
+            "3,5",
+            "05642760879",
+            "2026-05-14T00:00:00",
+            "=A1487=DATE(YEAR(F1064)+1,MONTH(F1064),DAY(F1064))",
+            ""
+          ]
+        },
+        {
+          "row": 1078,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "OMNIA CONSULTING TEAM S.R.L.",
+            "CATANIA",
+            "",
+            "10",
+            "6079730872",
+            "2026-04-22T00:00:00",
+            "=DATE(YEAR(F1078)+1,MONTH(F1078),DAY(F1078))",
+            ""
+          ]
+        },
+        {
+          "row": 1082,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "OPERE STRADALI SRL",
+            "ACIREALE",
+            "",
+            "1,2,3,5,6",
+            "4877830879",
+            "2026-04-24T00:00:00",
+            "=DATE(YEAR(F1082)+1,MONTH(F1082),DAY(F1082))",
+            ""
+          ]
+        },
+        {
+          "row": 1154,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "POLISPLEND S.R.L.",
+            "CATANIA",
+            "",
+            "3",
+            "0063390877",
+            "2024-02-16T00:00:00",
+            "=DATE(YEAR(F1154)+1,MONTH(F1154),DAY(F1154))",
+            "richiesto rinnovo"
+          ]
+        },
+        {
+          "row": 1179,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "PROJECT COMPANY ACI S.R.L.",
+            "GRAVINA DI CATANIA",
+            "",
+            "3",
+            "5449780872",
+            "2026-05-05T00:00:00",
+            "=DATE(YEAR(F1179)+1,MONTH(F1179),DAY(F1179))",
+            ""
+          ]
+        },
+        {
+          "row": 1200,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "RA.SE.SERVICES SRLS",
+            "CATANIA",
+            "",
+            "1.6",
+            "5122740870",
+            "2026-04-24T00:00:00",
+            "=DATE(YEAR(F1200)+1,MONTH(F1200),DAY(F1200))",
+            ""
+          ]
+        },
+        {
+          "row": 1202,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "RACITI GROUP SRLS",
+            "GIARRE",
+            "",
+            "3.5",
+            "6129470875",
+            "2026-05-11T00:00:00",
+            "=DATE(YEAR(F1202)+1,MONTH(F1202),DAY(F1202))",
+            ""
+          ]
+        },
+        {
+          "row": 1237,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "RISICATO SRL",
+            "SAN GREGORIO DI CATANIA",
+            "",
+            "3.5",
+            "4503080873",
+            "2026-05-05T00:00:00",
+            "=DATE(YEAR(F1237)+1,MONTH(F1237),DAY(F1237))",
+            ""
+          ]
+        },
+        {
+          "row": 1255,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "RUDICAR SRL",
+            "CATANIA",
+            "",
+            "3",
+            "4052700871",
+            "2026-05-12T00:00:00",
+            "=DATE(YEAR(F1255)+1,MONTH(F1255),DAY(F1255))",
+            ""
+          ]
+        },
+        {
+          "row": 1268,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "S.E.P. COSTRUZIONI SRLS",
+            "PATERNO'",
+            "",
+            "1,2,3,4,5,6",
+            "05053350871",
+            "2025-02-18T00:00:00",
+            "=DATE(YEAR(F1268)+1,MONTH(F1268),DAY(F1268))",
+            "R"
+          ]
+        },
+        {
+          "row": 1330,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SDM SERVICE SOCIETA' COOPERATIVA",
+            "CATANIA",
+            "",
+            "10",
+            "4663220871",
+            "2026-04-27T00:00:00",
+            "=DATE(YEAR(F1330)+1,MONTH(F1330),DAY(F1330))",
+            ""
+          ]
+        },
+        {
+          "row": 1332,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SE.CO EDILIZIA ED IMPIANTI S.R.LS.",
+            "CATANIA",
+            "",
+            "3",
+            "0576990876",
+            "2025-10-13T00:00:00",
+            "=DATE(YEAR(F1332)+1,MONTH(F1332),DAY(F1332))",
+            ""
+          ]
+        },
+        {
+          "row": 1333,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SE.DA COSTRUZIONI S.R.L.",
+            "MANIACE",
+            "",
+            "1.3",
+            "6072260877",
+            "2026-05-05T00:00:00",
+            "=DATE(YEAR(F1333)+1,MONTH(F1333),DAY(F1333))",
+            ""
+          ]
+        },
+        {
+          "row": 1406,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SIN IMPIANTI DI SALVATORE SINATRA",
+            "CALTAGIRONE",
+            "",
+            "3",
+            "6041780872",
+            "2026-04-30T00:00:00",
+            "=DATE(YEAR(F1406)+1,MONTH(F1406),DAY(F1406))",
+            ""
+          ]
+        },
+        {
+          "row": 1422,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SOC. SORELLE E & C SOC. AGRICOLA DELL'ETNA S.S.",
+            "CASTIGLIONE DI SICILIA",
+            "",
+            "9",
+            "0545307871",
+            "2026-03-31T00:00:00",
+            "=DATE(YEAR(F1422)+1,MONTH(F1422),DAY(F1422))",
+            ""
+          ]
+        },
+        {
+          "row": 1436,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "SOLIDBASE ITALIA SRL",
+            "PATERNO'",
+            "",
+            "3,4,5,6",
+            "018399750880",
+            "2026-07-07T00:00:00",
+            "=DATE(YEAR(F1436)+1,MONTH(F1436),DAY(F1436))",
+            ""
+          ]
+        },
+        {
+          "row": 1501,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "TECNO PAV SRLS",
+            "GIARRE",
+            "",
+            "3.5",
+            "6109200870",
+            "2026-05-12T00:00:00",
+            "=DATE(YEAR(F1501)+1,MONTH(F1501),DAY(F1501))",
+            ""
+          ]
+        },
+        {
+          "row": 1516,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "TEDESCO IMPIANTI S.R.L.",
+            "CATANIA",
+            "",
+            "3.5",
+            "4388670871",
+            "2026-09-08T00:00:00",
+            "=DATE(YEAR(F1516)+1,MONTH(F1516),DAY(F1516))",
+            ""
+          ]
+        },
+        {
+          "row": 1529,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "TIRENDI CALCESTRUZZI SRL",
+            "MISTERBIANCO",
+            "",
+            "2,3,5",
+            "03808500874",
+            "2026-03-27T00:00:00",
+            "=DATE(YEAR(F1529)+1,MONTH(F1529),DAY(F1529))",
+            "2026-03-27T00:00:00"
+          ]
+        },
+        {
+          "row": 1531,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "TOMASELLO GROUP SRL",
+            "BELPASSO",
+            "",
+            "1,2,3,4,5,6,10",
+            "04136610872",
+            "2026-07-17T00:00:00",
+            "=DATE(YEAR(F1531)+1,MONTH(F1531),DAY(F1531))",
+            "IMPRESA ISCRITTA IN WHITE LIST A SEGUITO DELL'APPLICAZIONE DELLA MISURA DI PREVENZIONE COLLABORATIVA EX ART 94 BIS."
+          ]
+        },
+        {
+          "row": 1534,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "TORRISI SRL",
+            "ACI SANT'ANTONIO",
+            "",
+            "1",
+            "5115840877",
+            "2026-05-06T00:00:00",
+            "=DATE(YEAR(F1534)+1,MONTH(F1534),DAY(F1534))",
+            ""
+          ]
+        },
+        {
+          "row": 1557,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "TRE ELLE ITALIA 90 SOC. COOP. ARL",
+            "ACI CATENA",
+            "",
+            "8,10",
+            "02616800872",
+            "2025-05-05T00:00:00",
+            "=DATE(YEAR(F1557)+1,MONTH(F1557),DAY(F1557))",
+            "richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 1558,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "TRE SOLI COSTRUZIONI SOCIETA' COOPERATIVA",
+            "BRONTE",
+            "",
+            "1",
+            "6074090876",
+            "2026-04-27T00:00:00",
+            "=DATE(YEAR(F1558)+1,MONTH(F1558),DAY(F1558))",
+            ""
+          ]
+        },
+        {
+          "row": 1586,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "V.I.M.E. DI BONANNO VINCENZO & C. S.A.S.",
+            "RANDAZZO",
+            "",
+            "1,3,5,10",
+            "3598430878",
+            "2026-05-06T00:00:00",
+            "=DATE(YEAR(F1586)+1,MONTH(F1586),DAY(F1586))",
+            ""
+          ]
+        },
+        {
+          "row": 1590,
+          "flags": [
+            "unreviewed_status"
+          ],
+          "values": [
+            "VASTA TRASPORTI S.R.L.",
+            "CALATABIANO",
+            "",
+            "6",
+            "06048650870",
+            "2025-08-04T00:00:00",
+            "=DATE(YEAR(F1590)+1,MONTH(F1590),DAY(F1590))",
+            "richiesta rinnovo"
+          ]
+        },
+        {
+          "row": 1612,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "VIVEREVERDE S.R.L.",
+            "CATANIA",
+            "",
+            "3",
+            "5193680872",
+            "2026-05-14T00:00:00",
+            "=DATE(YEAR(F1612)+1,MONTH(F1612),DAY(F1612))",
+            ""
+          ]
+        },
+        {
+          "row": 1621,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "WORLD OF SERVICES DI NICOTRA GIUSEPPE & C. S.A.S.",
+            "CATANIA",
+            "",
+            "3,4,6,10",
+            "5995870879",
+            "2026-04-27T00:00:00",
+            "=DATE(YEAR(F1621)+1,MONTH(F1621),DAY(F1621))",
+            ""
+          ]
+        },
+        {
+          "row": 1629,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "ZETA SERVICE S.R.L.",
+            "PATERNO'",
+            "",
+            "6",
+            "3937740870",
+            "2026-04-21T00:00:00",
+            "=DATE(YEAR(F1629)+1,MONTH(F1629),DAY(F1629))",
+            ""
+          ]
+        },
+        {
+          "row": 3370,
+          "flags": [
+            "missing_office",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZIONI WHITE LIST",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3371,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ. I",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3372,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ. II",
+            "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3373,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ III",
+            "Noli a freddo di macchinari",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3374,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ IV",
+            "Fornitura di ferro lavorato",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3375,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ V",
+            "Noli a caldo",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3376,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ VI",
+            "Autotrasporto per conto terzi",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3377,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ VII",
+            "Guardiania ai cantieri",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3378,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ VIII",
+            "Servizi funerari e cimiteriali",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3379,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ IX",
+            "Ristorazione, gestione delle mense e catering",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 3380,
+          "flags": [
+            "missing_sectors",
+            "missing_identifier",
+            "missing_listing_date",
+            "missing_expiry"
+          ],
+          "values": [
+            "SEZ X",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        }
+      ],
+      "status_vocab": {
+        "": 1287,
+        "richiesto rinnovo": 300,
+        "Richiesto rinnovo": 37,
+        "rIchiesto rinnovo": 4,
+        "Richiesta rinnovo": 3,
+        "ISCRITTA CON DECORRENZA 07/05/2025 CON DECRETO PREFETTIZIO N. 89427 DEL 08/07/2025 EMESSO A SEGUITO ELL’AMMISSIONE DELL’IMPRESA ALLA MISURA DEL CONTROLLO GIUDIZIARIO, EX ART.34 /BIS COMMA 6, DEL D.L.VO 159/2011, DISPOSTO DAL TRIBUNALE DI CATANIA – SEZ. MP CON DECRETO N. 32/2025 DEL 16/04/2025.Rrichiesto rinnovo": 1,
+        "IMPRESA ISCRITTA IN WHITE LIST A SEGUITO DELL'APPLICAZIONE DELLA MISURA DI PREVENZIONE COLLABORATIVA EX ART 94 BIS.": 2,
+        "NI": 1,
+        "ISCR. CON DECOR. 12/06/2025 CON DEC. PREF.N. 77622 DEL 12/06/2025 EMESSO A SEGUITO DELL’AMMIS. DELL’IMPRESA ALLA MISURA DEL CONTR. GIUD., EX ART.34 /BIS co. 6, DEL D.L.VO 159/2011, DISPOSTO DAL T.d.C – SEZ. MP CON DEC. N. 32/2025 DEL 16/04/2025. RICHIESTO RINNOVO": 1,
+        "richiesta rinnovo": 5,
+        "R": 1,
+        "2026-03-27T00:00:00": 1
+      },
+      "sector_tokens": {
+        "10": 393,
+        "3": 870,
+        "5": 748,
+        "7": 20,
+        "1": 562,
+        "2": 228,
+        "4": 258,
+        "6": 487,
+        "9": 73,
+        "8": 16,
+        "6 10": 1,
+        "34": 1,
+        "610": 1,
+        "69": 1
+      },
+      "expiry_formula_shape_counts": {
+        "=DATE(YEAR(F#)+#,MONTH(F#),DAY(F#))": 1490,
+        "=A#=DATE(YEAR(F#)+#,MONTH(F#),DAY(F#))": 1
+      },
+      "expiry_formula_cached_value_types": {
+        "datetime": 1490,
+        "bool": 1
+      },
+      "anomaly_count_total": 75
+    },
+    "applicants": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+      "sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27",
+      "sheet_rows": 1806,
+      "sheet_columns": 9,
+      "data_rows": 335,
+      "blank_rows_after_header": 1467,
+      "field_type_counts": {
+        "1": {
+          "str": 324,
+          "blank": 11
+        },
+        "2": {
+          "str": 335
+        },
+        "3": {
+          "blank": 325,
+          "str": 10
+        },
+        "4": {
+          "str": 318,
+          "int": 6,
+          "blank": 11
+        },
+        "5": {
+          "str": 324,
+          "blank": 11
+        },
+        "6": {
+          "datetime": 324,
+          "blank": 11
+        },
+        "7": {
+          "blank": 335
+        }
+      },
+      "missing_required": {
+        "name": 11,
+        "office": 0,
+        "sectors": 11,
+        "identifier": 11,
+        "application_date": 11
+      },
+      "exact_duplicate_groups": 0,
+      "exact_duplicate_rows_beyond_first": 0,
+      "anomalies": [
+        {
+          "row": 41,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "BCQUADRO SRLS",
+            "S. M. LICODIA",
+            "",
+            "1, 3, 5",
+            "061411110871",
+            "2025-10-22T00:00:00",
+            ""
+          ]
+        },
+        {
+          "row": 67,
+          "flags": [
+            "identifier_nonstandard"
+          ],
+          "values": [
+            "COCO SALVATORE DOMENICO",
+            "VIAGRANDE",
+            "",
+            "1,3,5",
+            "CCOSVT731C351M",
+            "2026-04-15T00:00:00",
+            ""
+          ]
+        },
+        {
+          "row": 1796,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZIONI WHITE LIST",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1797,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ. I",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1798,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ. II",
+            "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1799,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ III",
+            "Noli a freddo di macchinari",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1800,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ IV",
+            "Fornitura di ferro lavorato",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1801,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ IX",
+            "Ristorazione, gestione delle mense e catering",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1802,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ V",
+            "Noli a caldo",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1803,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ VI",
+            "Autotrasporto per conto terzi",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1804,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ VII",
+            "Guardiania ai cantieri",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1805,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ VIII",
+            "Servizi funerari e cimiteriali",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "row": 1806,
+          "flags": [
+            "missing_name",
+            "missing_sectors",
+            "missing_identifier",
+            "missing_application_date"
+          ],
+          "values": [
+            "",
+            "SEZ X",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti.",
+            "",
+            "",
+            "",
+            ""
+          ]
+        }
+      ],
+      "outcome_vocab": {
+        "": 335
+      },
+      "sector_tokens": {
+        "3": 139,
+        "1": 112,
+        "2": 39,
+        "6": 81,
+        "4": 40,
+        "10": 57,
+        "7": 2,
+        "5": 113,
+        "9": 24,
+        "8": 7
+      },
+      "anomaly_count_total": 13
+    }
+  }
+}
