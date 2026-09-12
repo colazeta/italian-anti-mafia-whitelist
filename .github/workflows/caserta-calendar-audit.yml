@@ -1,0 +1,88 @@
+name: Caserta calendar audit
+
+on:
+  push:
+    branches:
+      - expansion/caserta-2026-09-12
+    paths:
+      - .github/workflows/caserta-calendar-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/caserta-2026-09-12
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Audit calendar validity across byte-pinned sources
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/30/2026-09/elenco-iscritti-31082026_white-list.pdf
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/30/2026-08/elenco_imprese_richiedenti_iscrizione_white_list-al-31.08.2026.pdf
+          LISTED_SHA256: d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a
+          APPLICANT_SHA256: 90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, os, re
+          from datetime import date
+          from pathlib import Path
+          import requests, pdfplumber
+
+          OUT=Path('tmp/caserta_calendar_audit.json'); OUT.parent.mkdir(parents=True,exist_ok=True)
+          UA={'User-Agent':'italian-anti-mafia-whitelist calendar auditor/1.0'}
+          STRICT=re.compile(r'^(\d{2})/(\d{2})/(\d{4})$')
+          PREFIX=re.compile(r'^(\d{2})/(\d{2})/(\d{4})(?:\s+.*)?$')
+          def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\xa0',' ')).strip()
+          def fetch(url,expected,stem):
+              r=requests.get(url,headers=UA,timeout=120); r.raise_for_status()
+              sha=hashlib.sha256(r.content).hexdigest()
+              if sha != expected: raise RuntimeError(f'{stem}: SHA mismatch {sha}')
+              p=Path(f'/tmp/{stem}.pdf'); p.write_bytes(r.content); return p
+          def rows(path):
+              out=[]
+              with pdfplumber.open(path) as pdf:
+                  for pno,page in enumerate(pdf.pages,1):
+                      for table in page.extract_tables() or []:
+                          for row in table or []:
+                              c=[clean(x) for x in row]
+                              if c and c[0].isdigit(): out.append((int(c[0]),pno,c))
+              return out
+          def check(raw,pattern):
+              m=pattern.fullmatch(clean(raw))
+              if not m: return None
+              d,mn,y=map(int,m.groups())
+              try: date(y,mn,d); return True
+              except ValueError: return False
+          lp=fetch(os.environ['LISTED_URL'],os.environ['LISTED_SHA256'],'caserta_listed')
+          ap=fetch(os.environ['APPLICANT_URL'],os.environ['APPLICANT_SHA256'],'caserta_applicants')
+          invalid=[]
+          for idx,pno,c in rows(lp):
+              for field,pos,pat in [('registration',5,STRICT),('expiry',6,PREFIX)]:
+                  verdict=check(c[pos],pat)
+                  if verdict is False: invalid.append({'population':'listed','index':idx,'page':pno,'field':field,'raw':c[pos]})
+          for idx,pno,c in rows(ap):
+              verdict=check(c[6],STRICT)
+              if verdict is False: invalid.append({'population':'applicants','index':idx,'page':pno,'field':'application','raw':c[6]})
+          report={'invalid_calendar_dates':invalid,'count':len(invalid)}
+          OUT.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
+          PY
+      - name: Persist calendar checkpoint
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin expansion/caserta-2026-09-12
+          git add tmp/caserta_calendar_audit.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Checkpoint Caserta calendar audit'
+          git push origin HEAD:expansion/caserta-2026-09-12
