@@ -34,11 +34,71 @@ jobs:
                   raise SystemExit(f'unexpected materialiser indentation: {line!r}')
               lines.append(line[10:] if line else '')
           script='\n'.join(lines)+'\n'
+
           old="if len(cfg['sources'])!=29: raise SystemExit(f'Unexpected baseline source count {len(cfg[\"sources\"])}')"
           new="if len(cfg['sources'])!=53: raise SystemExit(f'Unexpected baseline source count {len(cfg[\"sources\"])}')"
           if script.count(old)!=1:
               raise SystemExit(f'unexpected baseline guard count={script.count(old)}')
           script=script.replace(old,new)
+
+          old_cov="""# National operational coverage: Catania has no existing entry; create one from the
+# fully integrated Caserta schema so no fields are silently omitted.
+p=Path('data/monitoring/national_coverage.json'); cov=json.loads(p.read_text(encoding='utf-8'))
+if any(x['authority_key']=='catania' for x in cov['prefectures']): raise SystemExit('Catania coverage entry already exists')
+anchor=next(x for x in cov['prefectures'] if x['authority_key']=='caserta')
+row=copy.deepcopy(anchor)
+row.update({
+  'authority_key':'catania','prefecture':'Catania','region':'Sicilia','national_index_key':'catania','official_landing_page':page,
+  'latest_source_reference_date':'2026-09-11','last_successful_source_check_at':None,'last_attempted_source_check_at':None,
+  'last_content_change_at':None,'last_successful_investigation_on':'2026-09-12','monitoring_status':'NEVER_CHECKED',
+  'completion_evidence':['docs/sources/catania-operational-check-2026-09-12.md','src/white_list_archive/parsers/catania_openxml.py','tests/test_catania_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+  'known_content_sha256':[listed_sha,applicant_sha],
+  'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/catania-operational-check-2026-09-12.md'],
+})
+idx=next(i for i,x in enumerate(cov['prefectures']) if x['authority_key']=='caserta')+1
+cov['prefectures'].insert(idx,row)
+p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+"""
+          new_cov="""# National operational coverage: reconcile only the exact seeded Catania placeholder.
+p=Path('data/monitoring/national_coverage.json'); cov=json.loads(p.read_text(encoding='utf-8'))
+matches=[(i,x) for i,x in enumerate(cov['prefectures']) if x['authority_key']=='catania']
+if len(matches)!=1: raise SystemExit(f'Unexpected Catania coverage multiplicity: {len(matches)}')
+idx,placeholder=matches[0]
+expected_placeholder={
+  'prefecture':'Catania','region':'Sicilia','national_index_key':'catania',
+  'official_landing_page':'https://prefettura.interno.gov.it/it/prefetture/catania/evidenza/white-list',
+  'source_verified':False,'current_edition_identified':None,'capture_implemented':False,
+  'parser_implemented':False,'parser_validated':False,'company_observations_loaded':False,
+  'observation_layer':None,'public_export_enabled':False,'population_scopes_complete':False,
+  'coverage_status':'SOURCE_IDENTIFIED','completion_evidence':[],'known_content_sha256':[],
+}
+for key,value in expected_placeholder.items():
+  if placeholder.get(key)!=value:
+    raise SystemExit(f'Catania placeholder drift for {key}: {placeholder.get(key)!r} != {value!r}')
+row=copy.deepcopy(placeholder)
+row.update({
+  'official_landing_page':page,'source_verified':True,'current_edition_identified':True,
+  'historical_editions_identified':None,'capture_implemented':True,'parser_implemented':True,
+  'parser_validated':True,'company_observations_loaded':True,'observation_layer':'public_source_observations',
+  'canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,
+  'population_scopes_complete':True,'latest_source_reference_date':'2026-09-11',
+  'latest_archived_edition':None,'archived_evidence_storage_status':'not_documented',
+  'last_successful_source_check_at':None,'last_attempted_source_check_at':None,'last_content_change_at':None,
+  'last_successful_investigation_on':'2026-09-12','monitoring_status':'NEVER_CHECKED',
+  'unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+  'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
+  'completion_evidence':['docs/sources/catania-operational-check-2026-09-12.md','src/white_list_archive/parsers/catania_openxml.py','tests/test_catania_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+  'known_content_sha256':[listed_sha,applicant_sha],
+  'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/catania-operational-check-2026-09-12.md'],
+  'last_completed_coverage_stage':'VALIDATED',
+})
+cov['prefectures'][idx]=row
+p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+"""
+          if script.count(old_cov)!=1:
+              raise SystemExit(f'unexpected Catania coverage materialiser block count={script.count(old_cov)}')
+          script=script.replace(old_cov,new_cov)
+
           compile(script,'<catania-materialiser>','exec')
           exec(compile(script,'<catania-materialiser>','exec'),{'__name__':'__main__'})
           PY
