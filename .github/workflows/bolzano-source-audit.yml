@@ -1,0 +1,184 @@
+name: Bolzano source audit
+
+on:
+  push:
+    branches:
+      - expansion/bolzano-bozen-2026-09-12
+    paths:
+      - .github/workflows/bolzano-source-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/bolzano-bozen-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit dependencies
+        run: python -m pip install --disable-pip-version-check 'pdfplumber>=0.11,<0.12' 'openpyxl>=3.1,<4' 'python-docx>=1.1,<2' requests beautifulsoup4
+      - name: Fetch and audit current official Bolzano sources
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/bolzano/evidenza/white-list
+        run: |
+          python - <<'PY'
+          import hashlib, io, json, os, re
+          from pathlib import Path
+          from urllib.parse import urljoin, urlparse
+
+          import openpyxl
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+          from docx import Document
+
+          landing_url = os.environ['LANDING_URL']
+          headers = {'User-Agent': 'italian-anti-mafia-whitelist/official-source-audit (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+
+          def get(url):
+              r = requests.get(url, headers=headers, timeout=60)
+              r.raise_for_status()
+              return r
+
+          def norm(s):
+              return re.sub(r'\s+', ' ', s or '').strip()
+
+          def links(soup, base):
+              out = []
+              for a in soup.find_all('a', href=True):
+                  text = norm(a.get_text(' ', strip=True))
+                  href = urljoin(base, a['href'])
+                  out.append({'text': text, 'url': href})
+              return out
+
+          landing = get(landing_url)
+          landing_soup = BeautifulSoup(landing.text, 'html.parser')
+          landing_text = norm(landing_soup.get_text(' ', strip=True))
+          required_markers = ['Consultazione Elenco Imprese iscritte', 'Consultazione imprese richiedenti iscrizione']
+          for marker in required_markers:
+              if marker.casefold() not in landing_text.casefold():
+                  raise SystemExit(f'official landing missing positive population marker: {marker!r}')
+
+          page_candidates = {'listed': [], 'applicant': []}
+          for item in links(landing_soup, landing.url):
+              low = item['text'].casefold()
+              if 'consultazione' in low and 'impres' in low and ('iscritt' in low or 'rinnovo' in low) and 'richiedent' not in low:
+                  page_candidates['listed'].append(item)
+              if 'consultazione' in low and 'impres' in low and 'richiedent' in low:
+                  page_candidates['applicant'].append(item)
+          for kind in ('listed', 'applicant'):
+              dedup = {x['url']: x for x in page_candidates[kind]}
+              page_candidates[kind] = list(dedup.values())
+              if len(page_candidates[kind]) != 1:
+                  raise SystemExit(f'expected exactly one {kind} series page from official landing; got {page_candidates[kind]!r}')
+
+          def inspect_pdf(data):
+              out = {'format': 'pdf'}
+              with pdfplumber.open(io.BytesIO(data)) as pdf:
+                  out['pages'] = len(pdf.pages)
+                  out['page_text_lengths'] = []
+                  out['table_counts_per_page'] = []
+                  out['table_rows_per_page'] = []
+                  out['tax_id_hits'] = 0
+                  out['samples'] = []
+                  for pno, page in enumerate(pdf.pages, start=1):
+                      text = page.extract_text(x_tolerance=2, y_tolerance=2) or ''
+                      tables = page.extract_tables() or []
+                      out['page_text_lengths'].append(len(text))
+                      out['table_counts_per_page'].append(len(tables))
+                      out['table_rows_per_page'].append(sum(len(t) for t in tables))
+                      out['tax_id_hits'] += len(re.findall(r'(?<!\d)\d{11}(?!\d)', text))
+                      if pno <= 3 or pno == len(pdf.pages):
+                          out['samples'].append({'page': pno, 'text': text[:2200], 'tables': [[[(c or '')[:180] for c in row] for row in table[:10]] for table in tables[:2]]})
+              return out
+
+          def inspect_xlsx(data):
+              out = {'format': 'xlsx', 'sheets': []}
+              wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True, read_only=True)
+              for ws in wb.worksheets:
+                  rows = list(ws.iter_rows(values_only=True))
+                  nonempty = [r for r in rows if any(v not in (None, '') for v in r)]
+                  out['sheets'].append({'title': ws.title, 'row_count': len(rows), 'nonempty_rows': len(nonempty), 'sample': [[str(v) if v is not None else '' for v in r[:14]] for r in nonempty[:16]]})
+              return out
+
+          def inspect_docx(data):
+              out = {'format': 'docx'}
+              doc = Document(io.BytesIO(data))
+              out['paragraphs'] = [p.text for p in doc.paragraphs[:40]]
+              out['table_count'] = len(doc.tables)
+              out['tables'] = []
+              for ti, table in enumerate(doc.tables[:8]):
+                  out['tables'].append({'index': ti, 'rows': len(table.rows), 'sample': [[c.text[:180] for c in row.cells] for row in table.rows[:14]]})
+              return out
+
+          report = {
+              'landing': {'requested_url': landing_url, 'final_url': landing.url, 'status_code': landing.status_code, 'sha256': hashlib.sha256(landing.content).hexdigest(), 'last_modified': landing.headers.get('last-modified')},
+              'series_pages': {},
+              'attachments': {},
+          }
+
+          for kind in ('listed', 'applicant'):
+              page_ref = page_candidates[kind][0]
+              page = get(page_ref['url'])
+              soup = BeautifulSoup(page.text, 'html.parser')
+              page_text = norm(soup.get_text(' ', strip=True))
+              anchors = links(soup, page.url)
+              downloadable = []
+              for item in anchors:
+                  parsed = urlparse(item['url'])
+                  path = parsed.path.casefold()
+                  low = item['text'].casefold()
+                  if any(path.endswith(ext) for ext in ('.pdf', '.xlsx', '.xls', '.docx', '.doc', '.ods')) or '/media/' in path or '/sites/default/files/' in path or 'allegat' in low:
+                      if item['url'] != page.url:
+                          downloadable.append(item)
+              dedup = {x['url']: x for x in downloadable}
+              downloadable = list(dedup.values())
+              if len(downloadable) != 1:
+                  raise SystemExit(f'expected exactly one downloadable attachment on {kind} page; got {downloadable!r}')
+              item = downloadable[0]
+              first = get(item['url'])
+              second = get(item['url'])
+              sha1 = hashlib.sha256(first.content).hexdigest()
+              sha2 = hashlib.sha256(second.content).hexdigest()
+              if sha1 != sha2:
+                  raise SystemExit(f'{kind} attachment changed across two independent GETs: {sha1} != {sha2}')
+              magic = first.content[:8]
+              if first.content.startswith(b'%PDF'):
+                  inspection = inspect_pdf(first.content)
+                  suffix = '.pdf'
+              elif magic[:4] == b'PK\x03\x04':
+                  try:
+                      inspection = inspect_xlsx(first.content)
+                      suffix = '.xlsx'
+                  except Exception:
+                      inspection = inspect_docx(first.content)
+                      suffix = '.docx'
+              else:
+                  inspection = {'format': 'unknown', 'head_hex': first.content[:64].hex()}
+                  suffix = '.bin'
+              report['series_pages'][kind] = {'label': page_ref['text'], 'requested_url': page_ref['url'], 'final_url': page.url, 'status_code': page.status_code, 'sha256': hashlib.sha256(page.content).hexdigest(), 'last_modified': page.headers.get('last-modified'), 'page_text_head': page_text[:1600]}
+              report['attachments'][kind] = {'label': item['text'], 'url': item['url'], 'final_url': first.url, 'status_code': first.status_code, 'bytes': len(first.content), 'sha256': sha1, 'second_get_sha256': sha2, 'content_type': first.headers.get('content-type', ''), 'content_disposition': first.headers.get('content-disposition', ''), 'last_modified': first.headers.get('last-modified'), 'inspection': inspection}
+              Path(f'/tmp/bolzano-{kind}{suffix}').write_bytes(first.content)
+
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/bolzano_source_audit.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Persist source-audit checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/bolzano_source_audit.json
+          if git diff --cached --quiet; then
+            echo 'No source-audit change to checkpoint.'
+            exit 0
+          fi
+          git commit -m 'Checkpoint Bolzano source audit'
+          git push origin HEAD:expansion/bolzano-bozen-2026-09-12
