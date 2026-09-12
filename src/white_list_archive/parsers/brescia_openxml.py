@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections import Counter, defaultdict
 from datetime import date, datetime
@@ -31,25 +33,29 @@ _EXPECTED_SECTIONS = {
     ),
 }
 _EXPECTED_SECTION_ROW_COUNTS = {
-    "I": 416,
-    "II": 218,
-    "III": 567,
-    "IV": 436,
-    "V": 582,
-    "VI": 457,
-    "VII": 68,
+    "I": 426,
+    "II": 222,
+    "III": 576,
+    "IV": 448,
+    "V": 598,
+    "VI": 467,
+    "VII": 70,
     "VIII": 35,
-    "IX": 79,
-    "X": 450,
+    "IX": 81,
+    "X": 457,
 }
-_EXPECTED_LISTED_SECTOR_ROWS = 3308
+_EXPECTED_LISTED_SECTOR_ROWS = 3380
+_EXPECTED_LISTED_NAME_SHIFT_ROWS = 72
+_EXPECTED_LISTED_NAME_SHIFT_SHA256 = "f6d55887c3f4e45e46217447100e5e896e509c5daa50f603a9ab48a53c5a41c2"
+_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS = 1
+_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256 = "494b0d0d6944b0c006f0a103889004950b190070ee36f2cdfa8d7d9e8c63e610"
 # Two malformed source date tokens have an exact clean repetition for the same
 # name + raw identifier + opposite date in another statutory sector. Those two
 # rows are associated with the unique clean date value from that same source.
 # All other malformed dates remain raw and unnormalised.
 _EXPECTED_PEER_RESOLVED_DATE_ROWS = 2
-_EXPECTED_LISTED_RECORDS = 2032
-_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 1820, "renewal_update_in_progress": 212}
+_EXPECTED_LISTED_RECORDS = 2071
+_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 1859, "renewal_update_in_progress": 212}
 _EXPECTED_APPLICANT_ROWS = 1264
 _EXPECTED_APPLICANT_RECORDS = 1263
 _EXPECTED_APPLICANT_STATUS_COUNTS = {"pending": 1263}
@@ -78,6 +84,20 @@ _REVIEWED_LISTED_MALFORMED_DATES = frozenset(
     }
 )
 _REVIEWED_APPLICANT_MALFORMED_DATES = frozenset({"25/092025"})
+_LISTED_LAYOUT_DATE_RE = re.compile(
+    r"\d{1,2}[./-]\d{1,2}[./-]\d{2,5}|\d{4}-\d{2}-\d{2}(?: 00:00:00)?"
+)
+
+
+def _layout_sha256(signatures: list[list[Any]]) -> str:
+    payload = json.dumps(signatures, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _listed_company_signal(values: list[str]) -> bool:
+    return any(re.fullmatch(r"\d{11}", value) for value in values if value) or any(
+        _LISTED_LAYOUT_DATE_RE.fullmatch(value) for value in values if value
+    )
 
 
 def _validate_cfg(cfg: dict[str, Any], source_key: str) -> None:
@@ -199,6 +219,8 @@ def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], Counter[str], Counte
     section_counts: Counter[str] = Counter()
     rows: list[dict[str, Any]] = []
     structural_shift_rows = 0
+    name_shift_signatures: list[list[Any]] = []
+    non_company_noise_signatures: list[list[Any]] = []
 
     for source_row, raw_row in enumerate(worksheet.iter_rows(values_only=True), start=1):
         raw_values = list(raw_row)
@@ -238,8 +260,34 @@ def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], Counter[str], Counte
         listing_value: Any = raw_values[listing_i] if listing_i < len(raw_values) else ""
         expiry_value: Any = raw_values[expiry_i] if expiry_i < len(raw_values) else ""
 
+        if not name and not _listed_company_signal(values):
+            non_company_noise_signatures.append(
+                [source_row, section, [[index, value] for index, value in enumerate(values) if value]]
+            )
+            continue
+
         if not name:
-            raise RuntimeError(f"Brescia nonempty listed row without company name at row {source_row}: {values!r}")
+            fallback_name = values[0] if values else ""
+            signature = [
+                source_row,
+                section,
+                fallback_name,
+                office,
+                identifier_raw,
+                _clean(listing_value),
+                _clean(expiry_value),
+                update_raw,
+            ]
+            # The byte-pinned 10 September workbook contains a finite audited
+            # class of rows where the company name is in column A while the
+            # labelled name column C is blank. Accept only that exact source
+            # fingerprint; any added, removed or changed row fails below.
+            if not fallback_name or name_i != 2 or (len(values) > 1 and values[1]):
+                raise RuntimeError(
+                    f"Brescia unreviewed listed-name layout at row {source_row}: {values!r}"
+                )
+            name_shift_signatures.append(signature)
+            name = fallback_name
 
         structural_shift = False
         # The audited 10 September source has one row (ADMG SRL) where the missing
@@ -250,7 +298,7 @@ def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], Counter[str], Counte
         if (
             name == "ADMG SRL"
             and identifier_raw == "17/09/2025"
-            and _clean(listing_value) == "2026-09-17"
+            and _clean(listing_value) in {"2026-09-17", "2026-09-17 00:00:00"}
             and not _clean(expiry_value)
         ):
             structural_shift = True
@@ -292,6 +340,28 @@ def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], Counter[str], Counte
         )
         section_counts[section] += 1
 
+    name_shift_sha256 = _layout_sha256(name_shift_signatures)
+    if len(name_shift_signatures) != _EXPECTED_LISTED_NAME_SHIFT_ROWS:
+        raise RuntimeError(
+            f"Brescia reviewed listed-name shift count drift: {len(name_shift_signatures)} "
+            f"!= {_EXPECTED_LISTED_NAME_SHIFT_ROWS}"
+        )
+    if name_shift_sha256 != _EXPECTED_LISTED_NAME_SHIFT_SHA256:
+        raise RuntimeError(
+            f"Brescia reviewed listed-name shift fingerprint drift: {name_shift_sha256} "
+            f"!= {_EXPECTED_LISTED_NAME_SHIFT_SHA256}"
+        )
+    noise_sha256 = _layout_sha256(non_company_noise_signatures)
+    if len(non_company_noise_signatures) != _EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS:
+        raise RuntimeError(
+            f"Brescia reviewed non-company layout-noise count drift: "
+            f"{len(non_company_noise_signatures)} != {_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS}"
+        )
+    if noise_sha256 != _EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256:
+        raise RuntimeError(
+            f"Brescia reviewed non-company layout-noise fingerprint drift: {noise_sha256} "
+            f"!= {_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256}"
+        )
     if section_headers != Counter({section: 1 for section in _EXPECTED_SECTIONS}):
         raise RuntimeError(f"Brescia listed header structure drift: {dict(section_headers)!r}")
     if dict(section_counts) != _EXPECTED_SECTION_ROW_COUNTS:

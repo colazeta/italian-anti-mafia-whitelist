@@ -87,11 +87,20 @@ def test_brescia_listed_groups_exact_identity_across_office_variants_and_preserv
 
     for roman, rows in by_section.items():
         _append_section(ws, roman, rows)
+    # Reproduce one audited source layout anomaly: the company name moves
+    # from labelled column C to column A while the other semantic columns stay put.
+    ws.cell(row=4, column=1).value = "UNICA I SRL"
+    ws.cell(row=4, column=3).value = None
     workbook.save(path)
 
     section_counts = {roman: len(rows) for roman, rows in by_section.items()}
     monkeypatch.setattr(bs, "_EXPECTED_SECTION_ROW_COUNTS", section_counts)
     monkeypatch.setattr(bs, "_EXPECTED_LISTED_SECTOR_ROWS", sum(section_counts.values()))
+    expected_shift = [[4, "I", "UNICA I SRL", "Brescia via I", "00000000001", "2026-01-01 00:00:00", "2027-01-01 00:00:00", ""]]
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NAME_SHIFT_ROWS", 1)
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NAME_SHIFT_SHA256", bs._layout_sha256(expected_shift))
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS", 0)
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256", bs._layout_sha256([]))
     monkeypatch.setattr(bs, "_EXPECTED_PEER_RESOLVED_DATE_ROWS", 0)
     monkeypatch.setattr(bs, "_EXPECTED_LISTED_RECORDS", 12)
     monkeypatch.setattr(bs, "_EXPECTED_LISTED_STATUS_COUNTS", {"listed": 11, "renewal_update_in_progress": 1})
@@ -168,6 +177,10 @@ def test_brescia_unknown_date_typography_and_update_fail_closed(tmp_path: Path, 
     workbook.save(path)
     monkeypatch.setattr(bs, "_EXPECTED_SECTION_ROW_COUNTS", {roman: len(rows) for roman, rows in by_section.items()})
     monkeypatch.setattr(bs, "_EXPECTED_LISTED_SECTOR_ROWS", sum(len(rows) for rows in by_section.values()))
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NAME_SHIFT_ROWS", 0)
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NAME_SHIFT_SHA256", bs._layout_sha256([]))
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NON_COMPANY_NOISE_ROWS", 0)
+    monkeypatch.setattr(bs, "_EXPECTED_LISTED_NON_COMPANY_NOISE_SHA256", bs._layout_sha256([]))
 
     try:
         bs.parse_brescia_listed(path, _cfg("brescia_listed", "brescia-listed", "listed"))
