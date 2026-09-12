@@ -1,0 +1,123 @@
+name: Brescia integration gate
+
+on:
+  push:
+    branches:
+      - expansion/brescia-2026-09-12
+    paths:
+      - .github/workflows/brescia-integration.yml
+      - tmp/brescia_integration.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialise Brescia production candidate
+        run: |
+          python tmp/brescia_integration.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in (
+              "data/source_registry/source_series_inventory.csv",
+              "data/source_registry/verified_primary_pages.csv",
+          ):
+              path = Path(name)
+              path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n"))
+          PY
+          git diff --check
+          git status --short
+      - name: Install full validation runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,storage,database]'
+      - name: Run full repository tests
+        run: python -m pytest -q
+      - name: Validate Brescia national public candidate
+        run: |
+          set +e
+          rc=1
+          for attempt in 1 2; do
+            log="/tmp/brescia-national-build-attempt-${attempt}.log"
+            PYTHONUNBUFFERED=1 white-list-public-national-build \
+              --source-config data/publication/multi_prefecture_pilot.json \
+              --verified-pages data/source_registry/verified_primary_pages.csv \
+              --source-series data/source_registry/source_series_inventory.csv \
+              --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+              --work-dir /tmp/public-national-sources \
+              --registry-json public-site/data/registry.json \
+              --registry-csv public-site/data/registry.csv \
+              --prefectures-json public-site/data/prefectures.json \
+              --prefectures-csv public-site/data/prefectures.csv \
+              2>&1 | tee "$log"
+            rc=${PIPESTATUS[0]}
+            if [ "$rc" -eq 0 ]; then
+              break
+            fi
+            if grep -Eqi 'HTTP Error (403|408|429|5[0-9][0-9])|timed out|timeout|URLError|Temporary failure|Connection reset|Remote end closed connection' "$log"; then
+              echo "Transient source/network failure detected; bounded retry $attempt/2" >&2
+              sleep $((attempt * 5))
+              continue
+            fi
+            echo "Non-transient national build failure; not retrying" >&2
+            break
+          done
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            exit "$rc"
+          fi
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          reg=json.loads(Path('public-site/data/registry.json').read_text())
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==23502, reg['meta']
+          assert reg['meta']['authority_count']==26, reg['meta']
+          assert reg['meta']['register_count']==27, reg['meta']
+          assert pref['meta']['published_count']==26, pref['meta']
+          assert pref['meta']['mapped_count']==37, pref['meta']
+          bs=[r for r in reg['records'] if r['authority_key']=='brescia']
+          assert len(bs)==3334
+          assert sum(r['source_key']=='brescia-listed' for r in bs)==2071
+          assert sum(r['source_key']=='brescia-applicants' for r in bs)==1263
+          assert Counter(r['source_status'] for r in bs)==Counter({'listed':1859,'pending':1263,'renewal_update_in_progress':212})
+          assert sum(r['name']=='EDIL EUROPA S.R.L.' for r in bs)==1
+          print('Brescia national candidate validated:',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['mapped_count'])
+          PY
+      - name: Commit production candidate only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            .github/workflows/public-pages.yml \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/brescia-operational-check-2026-09-12.md \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs
+          git diff --cached --check
+          git commit -m 'Integrate Brescia public archive'
+          git push origin HEAD:expansion/brescia-2026-09-12
