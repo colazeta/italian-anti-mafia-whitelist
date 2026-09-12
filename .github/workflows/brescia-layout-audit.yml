@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -23,4 +23,16 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check openpyxl
-      - run: python tmp/brescia_layout_audit.py
+      - name: Capture exact layout audit
+        run: python tmp/brescia_layout_audit.py > tmp/brescia_layout_audit_output.json
+      - name: Persist audit output on expansion branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/brescia_layout_audit_output.json
+          if git diff --cached --quiet; then
+            echo 'No audit-output change to commit.'
+            exit 0
+          fi
+          git commit -m 'Capture Brescia layout audit output'
+          git push origin HEAD:expansion/brescia-2026-09-12
