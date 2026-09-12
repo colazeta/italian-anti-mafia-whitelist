@@ -22,204 +22,116 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install profile dependencies
-        run: python -m pip install --disable-pip-version-check 'python-docx>=1.1,<2' requests
-      - name: Profile byte-pinned Bolzano DOCX populations
+      - run: python -m pip install --disable-pip-version-check 'python-docx>=1.1,<2' requests
+      - name: Profile byte-pinned Bolzano populations
         run: |
           python - <<'PY'
           import hashlib, io, json, re
           from collections import Counter, defaultdict
           from pathlib import Path
-
           import requests
           from docx import Document
 
           SOURCES = {
-              'listed': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-white-list-da-sez-1-a-sez-10_iscritti-rinnovi.docx', '96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04'),
-              'applicant': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-richiesta-iscrizione-wl.docx', '8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae'),
+            'listed': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-white-list-da-sez-1-a-sez-10_iscritti-rinnovi.docx','96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04'),
+            'applicant': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-richiesta-iscrizione-wl.docx','8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae'),
           }
-          HEADERS = {'User-Agent': 'italian-anti-mafia-whitelist/source-profile (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
-          DATE_RE = re.compile(r'^\d{2}/\d{2}/\d{4}$')
-          STRICT_ID = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
-
-          def clean(v):
-              return re.sub(r'\s+', ' ', v or '').strip()
-
+          H={'User-Agent':'italian-anti-mafia-whitelist/source-profile (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+          DATEISH=re.compile(r'^\d{1,2}/\d{1,2}/\d{2,4}$')
+          STRICT_DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          STRICT_ID=re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          def clean(v): return re.sub(r'\s+',' ',v or '').strip()
           def fetch(kind):
-              url, expected = SOURCES[kind]
-              r = requests.get(url, headers=HEADERS, timeout=60)
-              r.raise_for_status()
-              digest = hashlib.sha256(r.content).hexdigest()
-              if digest != expected:
-                  raise SystemExit(f'{kind} source drift: {digest} != {expected}')
-              return r.content
+            url, expected=SOURCES[kind]; r=requests.get(url,headers=H,timeout=60); r.raise_for_status()
+            got=hashlib.sha256(r.content).hexdigest()
+            if got!=expected: raise SystemExit(f'{kind} source drift: {got} != {expected}')
+            return r.content
+          def vals(row): return [clean(c.text) for c in row.cells]
+          def uniq(seq):
+            out=[]
+            for x in seq:
+              if x and x not in out: out.append(x)
+            return out
 
-          def cells(row):
-              return [clean(c.text) for c in row.cells]
+          doc=Document(io.BytesIO(fetch('listed')))
+          if len(doc.tables)!=10: raise SystemExit(f'listed table count drift: {len(doc.tables)}')
+          listed=[]; anomalies=[]; widths={}; section_counts={}; tail_patterns=Counter()
+          for section,table in enumerate(doc.tables,1):
+            h=vals(table.rows[0])
+            if len(h)<7 or h[0].casefold()!='ragione sociale' or 'sede legale' not in h[1].casefold() or 'codice fiscale' not in h[3].casefold() or 'data di iscrizione' not in h[4].casefold():
+              raise SystemExit(f'section {section} header drift: {h!r}')
+            widths[str(section)]=dict(Counter(len(vals(r)) for r in table.rows[2:] if any(vals(r))))
+            n=0
+            for rn,row in enumerate(table.rows[2:],3):
+              x=vals(row)
+              if not any(x): continue
+              if len(x)<7:
+                anomalies.append({'section':section,'row':rn,'reason':'short_row','raw':x}); continue
+              name,office,secondary,ident=x[:4]
+              tail=uniq(x[4:])
+              dates=[z for z in tail if DATEISH.fullmatch(z)]
+              other=[z for z in tail if not DATEISH.fullmatch(z)]
+              tail_patterns[(len(x),len(tail),len(dates),tuple(other))]+=1
+              if not name or len(dates)!=2:
+                anomalies.append({'section':section,'row':rn,'reason':'semantic_tail_shape','raw':x,'distinct_tail':tail,'date_tokens':dates,'other_tokens':other}); continue
+              listed.append({'section':section,'row':rn,'name':name,'office':office,'secondary':secondary,'identifier_raw':ident,'listed_raw':dates[0],'expiry_raw':dates[1],'update_raw':' | '.join(other)})
+              n+=1
+            section_counts[str(section)]=n
+          groups=defaultdict(list)
+          for r in listed:
+            groups[(r['name'],r['office'],r['secondary'],r['identifier_raw'],r['listed_raw'],r['expiry_raw'])].append(r)
+          duplicate_same_section=[]; group_status=Counter(); unknown_updates=[]; multiplicity=Counter()
+          allowed={'si-ja','sì-ja'}
+          for k,members in groups.items():
+            sections=[r['section'] for r in members]
+            if len(sections)!=len(set(sections)): duplicate_same_section.append({'key':list(k),'sections':sections})
+            multiplicity[len(sections)]+=1
+            upd=uniq([r['update_raw'] for r in members])
+            folded={u.casefold().replace('–','-').replace('—','-').replace(' ','') for u in upd if u}
+            if folded-allowed: unknown_updates.append({'key':list(k),'updates':upd,'folded':sorted(folded)})
+            group_status['renewal_update_in_progress' if folded else 'listed']+=1
 
-          def indexes(header, predicate):
-              return [i for i, value in enumerate(header) if predicate(value.casefold())]
-
-          def project(vals, idxs, label, section, rowno, anomalies):
-              if not idxs:
-                  anomalies.append({'section': section, 'row': rowno, 'field': label, 'reason': 'missing_header_index'})
-                  return ''
-              present = []
-              for i in idxs:
-                  if i < len(vals) and vals[i] and vals[i] not in present:
-                      present.append(vals[i])
-              if len(present) > 1:
-                  anomalies.append({'section': section, 'row': rowno, 'field': label, 'reason': 'merged_cell_disagreement', 'values': present})
-                  return ''
-              return present[0] if present else ''
-
-          listed_doc = Document(io.BytesIO(fetch('listed')))
-          if len(listed_doc.tables) != 10:
-              raise SystemExit(f'listed table-count drift: {len(listed_doc.tables)}')
-
-          listed_rows = []
-          table_profiles = []
-          structural_anomalies = []
-          for ti, table in enumerate(listed_doc.tables, start=1):
-              if len(table.rows) < 3:
-                  raise SystemExit(f'listed section {ti} unexpectedly short')
-              h1 = cells(table.rows[0])
-              h2 = cells(table.rows[1])
-              field_indexes = {
-                  'name': indexes(h1, lambda x: x == 'ragione sociale'),
-                  'office': indexes(h1, lambda x: x == 'sede legale'),
-                  'secondary': indexes(h1, lambda x: x.startswith('sede secondaria')),
-                  'identifier_raw': indexes(h1, lambda x: 'codice fiscale' in x),
-                  'listed_raw': indexes(h1, lambda x: 'data di iscrizione' in x),
-                  'expiry_raw': indexes(h1, lambda x: 'data validità iscrizione' in x),
-                  'update_raw': indexes(h1, lambda x: 'aggiornamento in corso' in x),
-              }
-              if any(not v for v in field_indexes.values()):
-                  raise SystemExit(f'listed section {ti} header mapping drift: {field_indexes!r}; header={h1!r}')
-              widths = Counter()
-              data_count = 0
-              local_anomalies = []
-              for ri, row in enumerate(table.rows[2:], start=3):
-                  vals = cells(row)
-                  widths[len(vals)] += 1
-                  if not any(vals):
-                      continue
-                  data_count += 1
-                  rec = {'section': ti, 'row': ri}
-                  for field, idxs in field_indexes.items():
-                      rec[field] = project(vals, idxs, field, ti, ri, local_anomalies)
-                  if not rec['name'] or not rec['listed_raw'] or not rec['expiry_raw']:
-                      local_anomalies.append({'section': ti, 'row': ri, 'reason': 'incomplete_company_row', 'projected': rec, 'raw': vals})
-                      continue
-                  listed_rows.append(rec)
-              structural_anomalies.extend(local_anomalies)
-              table_profiles.append({'section': ti, 'rows_total': len(table.rows), 'data_rows_nonempty': data_count, 'widths': dict(widths), 'header_1': h1, 'header_2': h2, 'field_indexes': field_indexes, 'projected_company_rows': sum(1 for r in listed_rows if r['section'] == ti), 'anomaly_count': len(local_anomalies), 'anomalies': local_anomalies[:20]})
-
-          listed_date_bad = sorted({r['listed_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['listed_raw'])})
-          expiry_date_bad = sorted({r['expiry_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['expiry_raw'])})
-          update_values = Counter(r['update_raw'] for r in listed_rows)
-          invalid_ids = Counter(r['identifier_raw'] for r in listed_rows if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))
-
-          groups = defaultdict(list)
-          for r in listed_rows:
-              key = (r['name'], r['office'], r['secondary'], r['identifier_raw'], r['listed_raw'], r['expiry_raw'])
-              groups[key].append(r)
-          group_status = Counter()
-          section_multiplicity = Counter()
-          unknown_update_groups = []
-          for key, members in groups.items():
-              sections = [r['section'] for r in members]
-              if len(sections) != len(set(sections)):
-                  raise SystemExit(f'exact listed duplicate inside one section: {key!r}')
-              section_multiplicity[len(sections)] += 1
-              updates = sorted({r['update_raw'] for r in members if r['update_raw']})
-              folded = {u.casefold().replace('–','-').replace('—','-').replace(' ','') for u in updates}
-              unknown = sorted(u for u in folded if u not in {'si-ja','sì-ja'})
-              if unknown:
-                  unknown_update_groups.append({'key': list(key), 'updates': updates, 'folded_unknown': unknown})
-              group_status['renewal_update_in_progress' if folded else 'listed'] += 1
-
-          applicant_doc = Document(io.BytesIO(fetch('applicant')))
-          if len(applicant_doc.tables) != 1:
-              raise SystemExit(f'applicant table-count drift: {len(applicant_doc.tables)}')
-          at = applicant_doc.tables[0]
-          ah = cells(at.rows[0])
-          applicant_indexes = {
-              'name': indexes(ah, lambda x: x == 'ragione sociale'),
-              'office': indexes(ah, lambda x: x == 'sede legale'),
-              'secondary': indexes(ah, lambda x: x.startswith('sede secondaria')),
-              'identifier_raw': indexes(ah, lambda x: 'codice fiscale' in x),
-              'activities_raw': indexes(ah, lambda x: 'attività per cui' in x),
-              'submitted_raw': indexes(ah, lambda x: 'data di presentazione' in x),
-              'outcome_raw': indexes(ah, lambda x: x == 'esito'),
-          }
-          if any(not v for v in applicant_indexes.values()):
-              raise SystemExit(f'applicant header mapping drift: {applicant_indexes!r}; header={ah!r}')
-          applicant_rows = []
-          applicant_anomalies = []
-          for ri, row in enumerate(at.rows[2:], start=3):
-              vals = cells(row)
-              if not any(vals):
-                  continue
-              rec = {'row': ri}
-              for field, idxs in applicant_indexes.items():
-                  rec[field] = project(vals, idxs, field, 'applicant', ri, applicant_anomalies)
-              if not rec['name'] or not rec['submitted_raw']:
-                  applicant_anomalies.append({'row': ri, 'reason': 'incomplete_applicant_row', 'projected': rec, 'raw': vals})
-                  continue
-              applicant_rows.append(rec)
-
-          applicant_date_bad = sorted({r['submitted_raw'] for r in applicant_rows if not DATE_RE.fullmatch(r['submitted_raw'])})
-          applicant_invalid_ids = Counter(r['identifier_raw'] for r in applicant_rows if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))
-          applicant_outcomes = Counter(r['outcome_raw'] for r in applicant_rows)
-          applicant_exact = Counter((r['name'], r['office'], r['secondary'], r['identifier_raw'], r['activities_raw'], r['submitted_raw'], r['outcome_raw']) for r in applicant_rows)
-          exact_dupes = [{'row_key': list(k), 'count': v} for k, v in applicant_exact.items() if v > 1]
-
-          report = {
-              'source_sha256': {k: v[1] for k, v in SOURCES.items()},
-              'listed': {
-                  'table_count': len(listed_doc.tables),
-                  'table_profiles': table_profiles,
-                  'source_row_anomaly_count': len(structural_anomalies),
-                  'source_row_anomalies': structural_anomalies[:50],
-                  'parsed_source_rows': len(listed_rows),
-                  'section_source_rows': dict(Counter(r['section'] for r in listed_rows)),
-                  'semantic_groups_exact': len(groups),
-                  'status_counts_exact_grouping': dict(group_status),
-                  'group_section_multiplicity': dict(section_multiplicity),
-                  'update_values': dict(update_values),
-                  'unreviewed_update_groups': unknown_update_groups[:50],
-                  'listed_date_bad': listed_date_bad,
-                  'expiry_date_bad': expiry_date_bad,
-                  'invalid_identifier_values': dict(invalid_ids),
-              },
-              'applicant': {
-                  'rows_total': len(at.rows),
-                  'header_1': ah,
-                  'header_2': cells(at.rows[1]),
-                  'field_indexes': applicant_indexes,
-                  'parsed_source_rows': len(applicant_rows),
-                  'source_row_anomaly_count': len(applicant_anomalies),
-                  'source_row_anomalies': applicant_anomalies[:50],
-                  'submitted_date_bad': applicant_date_bad,
-                  'outcome_values': dict(applicant_outcomes),
-                  'invalid_identifier_values': dict(applicant_invalid_ids),
-                  'exact_duplicate_groups': exact_dupes,
-                  'exact_unique_rows': len(applicant_exact),
-              },
+          adoc=Document(io.BytesIO(fetch('applicant')))
+          if len(adoc.tables)!=1: raise SystemExit(f'applicant table count drift: {len(adoc.tables)}')
+          at=adoc.tables[0]; ah=vals(at.rows[0])
+          if len(ah)!=7 or ah[0].casefold()!='ragione sociale' or 'data di presentazione' not in ah[5].casefold() or ah[6].casefold()!='esito': raise SystemExit(f'applicant header drift: {ah!r}')
+          applicants=[]; aan=[]
+          for rn,row in enumerate(at.rows[2:],3):
+            x=vals(row)
+            if not any(x): continue
+            if len(x)!=7 or not x[0] or not x[5]: aan.append({'row':rn,'raw':x}); continue
+            applicants.append({'row':rn,'name':x[0],'office':x[1],'secondary':x[2],'identifier_raw':x[3],'activities_raw':x[4],'submitted_raw':x[5],'outcome_raw':x[6]})
+          exact=Counter((r['name'],r['office'],r['secondary'],r['identifier_raw'],r['activities_raw'],r['submitted_raw'],r['outcome_raw']) for r in applicants)
+          report={
+            'source_sha256':{k:v[1] for k,v in SOURCES.items()},
+            'listed':{
+              'table_count':len(doc.tables),'parsed_source_rows':len(listed),'section_source_rows':section_counts,
+              'row_widths_by_section':widths,'semantic_tail_patterns':{repr(k):v for k,v in tail_patterns.items()},
+              'source_row_anomaly_count':len(anomalies),'source_row_anomalies':anomalies[:100],
+              'semantic_groups_exact':len(groups),'same_section_exact_duplicate_count':len(duplicate_same_section),'same_section_exact_duplicates':duplicate_same_section[:30],
+              'status_counts_exact_grouping':dict(group_status),'group_section_multiplicity':dict(multiplicity),
+              'update_values':dict(Counter(r['update_raw'] for r in listed)),'unreviewed_update_group_count':len(unknown_updates),'unreviewed_update_groups':unknown_updates[:50],
+              'listed_date_bad':sorted({r['listed_raw'] for r in listed if not STRICT_DATE.fullmatch(r['listed_raw'])}),
+              'expiry_date_bad':sorted({r['expiry_raw'] for r in listed if not STRICT_DATE.fullmatch(r['expiry_raw'])}),
+              'invalid_identifier_values':dict(Counter(r['identifier_raw'] for r in listed if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))),
+            },
+            'applicant':{
+              'rows_total':len(at.rows),'parsed_source_rows':len(applicants),'source_row_anomaly_count':len(aan),'source_row_anomalies':aan[:50],
+              'submitted_date_bad':sorted({r['submitted_raw'] for r in applicants if not STRICT_DATE.fullmatch(r['submitted_raw'])}),
+              'outcome_values':dict(Counter(r['outcome_raw'] for r in applicants)),
+              'invalid_identifier_values':dict(Counter(r['identifier_raw'] for r in applicants if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))),
+              'exact_duplicate_groups':[{'row_key':list(k),'count':v} for k,v in exact.items() if v>1],
+              'exact_unique_rows':len(exact),
+            }
           }
           Path('tmp').mkdir(exist_ok=True)
-          Path('tmp/bolzano_source_profile.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps(report, ensure_ascii=False, indent=2))
+          Path('tmp/bolzano_source_profile.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
       - name: Persist profile checkpoint
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/bolzano_source_profile.json
-          if git diff --cached --quiet; then
-            echo 'No profile change to checkpoint.'
-            exit 0
-          fi
-          git commit -m 'Checkpoint Bolzano source profile'
+          git commit -m 'Checkpoint Bolzano source profile' || exit 0
           git push origin HEAD:expansion/bolzano-bozen-2026-09-12
