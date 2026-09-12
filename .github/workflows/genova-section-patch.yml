@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install validation runtime
-        run: python -m pip install --disable-pip-version-check -e .[dev] requests pdfplumber
+        run: python -m pip install --disable-pip-version-check -e .[dev,database,storage] requests pdfplumber
       - name: Run repository tests
         run: pytest -q
       - name: Validate frozen Genova sources
