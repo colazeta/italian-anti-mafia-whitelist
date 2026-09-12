@@ -878,6 +878,40 @@
       "sha256": "8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae",
       "expected_source_rows": 351,
       "notes": "Current byte-pinned DOCX applicant publication. One current table yields exactly 351 applicant observations, all represented as pending. The reviewed malformed application token 14/032025 remains raw and uninferred; non-conforming identifiers remain raw. No fuzzy matching or inferred legal status is used. Exact evidence is documented in docs/sources/bolzano-operational-check-2026-09-12.md."
+    },
+    {
+      "authority_key": "caserta",
+      "authority_name": "Prefettura di Caserta",
+      "register_key": "caserta-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/caserta/elenco-white-list",
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "current official Caserta White List landing and separate listed/applicant PDFs directly verified 12 September 2026; both files identify the 31 August 2026 population boundary",
+      "source_key": "caserta-listed",
+      "parser": "caserta_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-09/elenco-iscritti-31082026_white-list.pdf",
+      "sha256": "d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a",
+      "expected_source_rows": 950,
+      "notes": "Current byte-pinned 89-page listed-company PDF. Exactly 950 indexed source rows yield 950 observations: 395 listed, 548 renewal/update in progress and 7 other_or_unknown source conditions. The parser freezes page/table geometry, row sequence, identifier-token distributions, update vocabulary and reviewed malformed source values; malformed dates remain raw and uninferred. No fuzzy matching is used. Exact evidence is documented in docs/sources/caserta-operational-check-2026-09-12.md."
+    },
+    {
+      "authority_key": "caserta",
+      "authority_name": "Prefettura di Caserta",
+      "register_key": "caserta-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/caserta/elenco-white-list",
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "current official Caserta White List landing and separate listed/applicant PDFs directly verified 12 September 2026; both files identify the 31 August 2026 population boundary",
+      "source_key": "caserta-applicants",
+      "parser": "caserta_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-08/elenco_imprese_richiedenti_iscrizione_white_list-al-31.08.2026.pdf",
+      "sha256": "90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5",
+      "expected_source_rows": 1208,
+      "notes": "Current byte-pinned 68-page applicant PDF. Exactly 1,208 indexed source rows yield 1,208 pending observations. Reviewed noncanonical application-date tokens, including the invalid calendar value 28/25/2025, remain raw with no inferred canonical date. Identifier and section parsing is strict and fail-closed; no fuzzy matching is used. Exact evidence is documented in docs/sources/caserta-operational-check-2026-09-12.md."
     }
   ]
 }
