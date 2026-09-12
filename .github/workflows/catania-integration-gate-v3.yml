@@ -1,5 +1,5 @@
 # Transactional Catania integration gate; supersedes temporary v1/v2 attempts.
-# Rerun after denominator-test import correction.
+# Rerun after denominator-test import correction and with full test extras.
 name: Catania integration gate v3
 
 on:
@@ -33,7 +33,7 @@ jobs:
             if [ "$attempt" -eq 3 ]; then exit 1; fi
             sleep $((attempt * 3))
           done
-          python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+          python -m pip install --disable-pip-version-check -e '.[dev,publication,database,storage]'
       - name: Run full repository tests
         run: pytest -q
       - name: Validate Catania national public candidate
