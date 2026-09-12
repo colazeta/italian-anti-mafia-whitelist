@@ -338,8 +338,8 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             activities=row["sections"],
             status="pending",
             outcome_raw=row["outcome_raw"],
-            primary_date=row["application_date"],
-            primary_date_label="Data di presentazione dell'istanza",
+            application_date=row["application_date"],
+            primary_date_label="Data presentazione istanza",
             source_fields={
                 "sections": row["sections"],
                 "secondary_office_raw": row["secondary"],
