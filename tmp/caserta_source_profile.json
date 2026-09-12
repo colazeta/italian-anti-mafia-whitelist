@@ -1,0 +1,2722 @@
+{
+  "authority_key": "caserta",
+  "landing_page": "https://prefettura.interno.gov.it/it/prefetture/caserta/elenco-white-list",
+  "reference_date": "2026-08-31",
+  "sources": {
+    "listed": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-09/elenco-iscritti-31082026_white-list.pdf",
+      "independent_gets": [
+        {
+          "status": 200,
+          "content_type": "application/pdf",
+          "bytes": 2396300
+        },
+        {
+          "status": 200,
+          "content_type": "application/pdf",
+          "bytes": 2396300
+        }
+      ],
+      "sha256": "d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a",
+      "page_count": 89,
+      "tables_per_page": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "nonempty_table_rows": 1039,
+      "row_width_counts": {
+        "9": 1039
+      },
+      "sample_rows": [
+        {
+          "page": 1,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "1",
+            "2 PIU' COSTRUZIONI S.R.L.S.",
+            "Via Ponti Rossi, 111 SAN FELICE A CANCELLO (CE)",
+            "",
+            "04379520614",
+            "18/12/2024",
+            "18/12/2025",
+            "IN AGGIORNAMENTO",
+            "5"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "2",
+            "2B APPALTI S.R.L.S.",
+            "Via U. Maddalena, 53 CASAL DI PRINCIPE (CE)",
+            "",
+            "04752920613",
+            "05/11/2024",
+            "05/11/2025",
+            "in aggiornamento",
+            "1-2-3-4-5"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "3",
+            "2CI SRLS",
+            "CASERTA",
+            "",
+            "04767610613",
+            "22/06/2026",
+            "22/06/2027",
+            "",
+            "3-5"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "4",
+            "3D SERVICE S.R.L.",
+            "Via G.M. Bosco, 49 CASERTA",
+            "",
+            "04136860618",
+            "14/03/2024",
+            "13/03/2025",
+            "In aggiornamento",
+            "1 – 2 – 3 – 4 – 5"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "5",
+            "4 ESSE TRASPORTI E LOGISTICA S.R.L.",
+            "DRAGONI (CE)",
+            "",
+            "02798020612",
+            "14/05/2025",
+            "14/05/2026",
+            "in aggiornamento",
+            "6"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "6",
+            "4C AUTOTRASPORTI S.R.L.",
+            "Via Cantariello, snc AILANO (CE)",
+            "",
+            "04087140614",
+            "12/05/2025",
+            "12/05/2026",
+            "in aggiornamento",
+            "6 - 10"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "7",
+            "A & C SRL",
+            "GIOIA SANNITICA (CE)",
+            "03430130611",
+            "",
+            "04/03/2026",
+            "04/03/2027",
+            "",
+            "1-3-4-5"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "8",
+            "A.C. COSTRUZIONI S.R.L.",
+            "Via Gran Sasso, 1 SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "04218120618",
+            "04/06/2024",
+            "03/06/2025",
+            "In aggiornamento",
+            "3 - 4 - 5"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "9",
+            "A.C. COSTRUZIONI SRLS",
+            "VILLA DI BRIANO (CE)",
+            "",
+            "04640250611",
+            "03/03/2026",
+            "03/03/2027",
+            "",
+            "3"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "10",
+            "A.D. COSTRUZIONI DI D'ADDIO ADOLFO",
+            "VILLA DI BRIANO (CE)",
+            "",
+            "DDDDLF81H09B963S",
+            "11/06/2026",
+            "11/06/2027",
+            "",
+            "1-3-5-"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "11",
+            "A.EM. IMPIANTI S.R.L.S.",
+            "Via Enrico Lauro, 31 GRAZZANISE (CE)",
+            "",
+            "04132230618",
+            "10/04/2024",
+            "09/04/2025",
+            "In aggiornamento",
+            "3"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "12",
+            "A.G. APPALTI SRL",
+            "CASAPESENNA (CE)",
+            "",
+            "04759620612",
+            "12/06/2026",
+            "12/06/2027",
+            "",
+            "3"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "13",
+            "A.G.B. COSTRUZIONI SOCIETA' COOPERATIVA",
+            "Via Gramsci, 7 SAN MARCELLINO (CE)",
+            "",
+            "03850430616",
+            "18/10/2024",
+            "18/10/2025",
+            "In aggiornamento",
+            "5"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "14",
+            "A.M. COSTRUZIONI SRL",
+            "GRICIGNANO DI AVERSA (CE)",
+            "",
+            "04637230618",
+            "21/07/2026",
+            "21/07/2027",
+            "",
+            "2-4-5-10-"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "15",
+            "A.N.C. SRL",
+            "Via Orazio, 4 CASAL DI PRINCIPE (CE)",
+            "",
+            "03207670617",
+            "26/10/2023",
+            "25/10/2024",
+            "In aggiornamento",
+            "1-3-5"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "16",
+            "A.P. COSTRUZIONI S.R.L.",
+            "Via VI Trav.S.Antonio, 18 - CASAPESENNA (CE)",
+            "",
+            "03570030613",
+            "09/05/2024",
+            "08/05/2025",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "17",
+            "A.R. COSTRUTTORI S.R.L.",
+            "Via roma per Cappella Reale, 79 CANCELLO ED ARNONE (CE)",
+            "",
+            "04684650619",
+            "28/08/2024",
+            "28/08/2025",
+            "In aggiornamento",
+            "3"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "18",
+            "A.S.SI. AZIENDA SERVIZI SICUREZZA S.R.L.",
+            "Via Cesare Battisti, 42 CASERTA",
+            "",
+            "03033240619",
+            "29/08/2024",
+            "29/08/2025",
+            "In aggiornamento",
+            "7"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "19",
+            "A.T.S. COSTRUZIONI GENERALI S.R.L.",
+            "Via Paolo Riverso, 37 AVERSA (CE)",
+            "",
+            "06578441211",
+            "12/06/2026",
+            "12/06/2027",
+            "",
+            "3"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "20",
+            "A2 CONSULTING S.R.L.",
+            "Corso Garibaldi, 108 SANTA MARIA CAPUA VETERE (CE)",
+            "",
+            "04236060614",
+            "12/02/2024",
+            "11/02/2025",
+            "In aggiornamento",
+            "10"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "21",
+            "ABC ARENA BUILD CONTRACTOR S.R.L.",
+            "AVERSA (CE)",
+            "",
+            "04589460619",
+            "18/09/2025",
+            "18/09/2026",
+            "",
+            "3"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "22",
+            "ADA RESTAURI S.R.L.",
+            "Via G.B. Vico, 6 SAN MARCELLINO (CE)",
+            "",
+            "03630880619",
+            "05/11/2024",
+            "05/11/2025",
+            "IN AGGIORNAMENTO",
+            "1- 3-5-6-7-10"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "23",
+            "ADRIATICA COSTRUZIONI S.R.L.",
+            "Via Paganini, 5 VILLA DI BRIANO (CE)",
+            "",
+            "04300560614",
+            "27/06/2022",
+            "26/06/2023",
+            "In aggiornamento",
+            "1"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "24",
+            "ADVANCED TRAINING S.R.L.",
+            "Viale Lincoln, 187 CASERTA",
+            "",
+            "04518540614",
+            "06/12/2024",
+            "06/12/2025",
+            "",
+            "10"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "25",
+            "AEDILIA SRL",
+            "Via Modigliani, 90 AVERSA (CE)",
+            "",
+            "04175270612",
+            "02/03/2021",
+            "01/03/2022",
+            "In aggiornamento",
+            "1 - 2 - 3 - 4 - 7"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "26",
+            "AGAVE S.R.L.",
+            "Via E.Fieramosca, 8 CAPUA (CE)",
+            "",
+            "0414550614",
+            "11/06/2026",
+            "11/06/2027",
+            "",
+            "5 - 8"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "27",
+            "AGM NOLEGGIO AUTOGRU' S.R.L.",
+            "Via Santa Maria degli Angeli, 90 CAPODRISE (CE)",
+            "",
+            "04538520612",
+            "18/09/2024",
+            "18/09/2025",
+            "In aggiornamento",
+            "3 - 5 -"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "28",
+            "AGM S.R.L.",
+            "Via Degli Artisti, 16 AVERSA (CE)",
+            "",
+            "04536180617",
+            "28/02/2025",
+            "28/02/2026",
+            "",
+            "2 - 3 - 4 - 5"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "29",
+            "AGM SYSTEM SRL",
+            "MARCIANISE (CE)",
+            "",
+            "04577630611",
+            "09/12/2025",
+            "09/12/2026",
+            "",
+            "1-2-3-4-5-6-8-10"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "30",
+            "AIR S.R.L.",
+            "Via Michelangelo, 15 AVERSA (CE)",
+            "",
+            "04103300614",
+            "06/10/2023",
+            "05/10/2024",
+            "In aggiornamento",
+            "6-10"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "31",
+            "AL.FRA. COSTRUZIONI S.R.L.",
+            "Via Filippo Saporito, 52 AVERSA (CE)",
+            "",
+            "04164500615",
+            "20/02/2023",
+            "19/02/2024",
+            "In aggiornamento",
+            "1 – 2 – 3 – 4 – 5"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "32",
+            "AL.GI. COMMERCIALE S.R.L.",
+            "SESSA AURUNCA (CE)",
+            "",
+            "04228510618",
+            "28/02/2025",
+            "28/02/2026",
+            "IN AGGIORNAMENTO",
+            "3-4-5"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "33",
+            "AL.GIS. S.R.L.",
+            "CAPODRISE (CE)",
+            "",
+            "03047190610",
+            "20/03/2025",
+            "20/03/2026",
+            "in aggiornamento",
+            "3-5-6"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "34",
+            "AL.MA. COSTRUZIONI SNC di De Angeli Maurizio",
+            "Via Cherurbino, 1 CASAL DI PRINCIPE (CE)",
+            "",
+            "02815170614",
+            "17/12/2025",
+            "17/12/2026",
+            "",
+            "5"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "35",
+            "ALARE COSTRUZIONI S.R.L.U",
+            "Via Madonna del Carmine, 49 VAIRANO PATENORA (CE)",
+            "",
+            "03466280611",
+            "25/06/2024",
+            "24/06/2025",
+            "In aggiornamento",
+            "1 - 3 - 5"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "36",
+            "ALBA SOCIETA' COOPERATIVA SOCIALE ONLUS",
+            "Via Massimo Troisi, 8 CASAL DI PRINCIPE (CE)",
+            "",
+            "03834700613",
+            "05/04/2024",
+            "04/04/2025",
+            "In aggiornamento",
+            "9"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "37",
+            "ALEX TRASPORTI S.R.L.",
+            "SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "03125840615",
+            "18/09/2025",
+            "18/09/2026",
+            "",
+            "6 - 10"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "38",
+            "ALFA GROUP COSTRUZIONI S.R.L.",
+            "Via Napoli, 8 VAIRANO PATENORA (CE)",
+            "",
+            "03517830612",
+            "15/12/2022",
+            "14/12/2023",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "39",
+            "ALFRA APPALTI S.R.L.",
+            "Via Saturno, 15 CASAL DI PRINCIPE (CE)",
+            "",
+            "03564200610",
+            "18/10/2024",
+            "18/10/2025",
+            "In aggiornamento",
+            "1 - 3 - 5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "40",
+            "ALFRA VETRI S.R.L.",
+            "Via Quasimodo, 4 CASAPESENNA (NA)",
+            "",
+            "02564820613",
+            "05/03/2026",
+            "05/03/2027",
+            "",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "41",
+            "ALMA S.R.L.",
+            "Via Mastrantuono, 58 MADDALONI (CE)",
+            "",
+            "09321061211",
+            "29/11/2023",
+            "28/11/2024",
+            "In aggiornamento",
+            "1- 2- 3 - 5 - 6"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "42",
+            "ALPA IMPIANTI S.R.L.",
+            "Via Giotto, 45 AVERSA (CE)",
+            "",
+            "03571610611",
+            "03/07/2023",
+            "02/07/2024",
+            "In aggiornamento",
+            "3"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "43",
+            "AMBIENTA S.R.L.",
+            "Via Madonna Delle Grazie, 1 CALVI RISORTA (CE)",
+            "",
+            "03964640613",
+            "22/05/2025",
+            "22/05/2026 fermo restando il permanere dell’Amministraz/ Giudiziaria",
+            "",
+            "10"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "44",
+            "AMODIO COSTRUZIONI S.R.L.S.",
+            "Via Bellini, 3 VILLA DI BRIANO (CE)",
+            "",
+            "01444010522",
+            "22/01/2025",
+            "22/01/2026",
+            "",
+            "3-4-5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "45",
+            "AN.GRI COSTRUZIONI S.R.L.",
+            "Via Caduti sul Lavoro, 38 CASERTA",
+            "",
+            "04705210617",
+            "10/09/2024",
+            "10/09/2025",
+            "",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "46",
+            "ANTEVORTA SOCIETA' COOPERATIVA",
+            "Via Montale, 1 CASAPULLA (CE)",
+            "",
+            "03385020619",
+            "29/08/2024",
+            "29/08/2025",
+            "",
+            "9"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "47",
+            "ANTINCENDIO FAELLA S.R.L.",
+            "Contrada Santa Croce, 1 - TEANO (CE)",
+            "",
+            "02874630615",
+            "05/12/2024",
+            "05/12/2025",
+            "",
+            "5 - 10"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "48",
+            "ANTINOZZI S.R.L.",
+            "Via S.S. Casilina zona PIP, snc - CONCA DELLA CAMPANIA (CE)",
+            "",
+            "02402080788",
+            "16/05/2024",
+            "15/05/2025",
+            "In aggiornamento",
+            "1 - 3 - 4 - 5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "49",
+            "ANTONIO & ANTONIO COSTRUZIONI S.R.L.",
+            "Via Parroco Gagliardi, 131 - CASAL DI PRINCIPE (CE)",
+            "",
+            "03507020612",
+            "18/02/2025",
+            "26/01/2026 data di scadenza del Controllo Giudiziario di cui art/34 bis D/L/159/11",
+            "",
+            "1-2-3-4-5"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 13,
+          "cells": [
+            "50",
+            "APEIRON COOP. SOC.",
+            "PIGNATARO MAGGIORE (CE)",
+            "",
+            "3478010618",
+            "12/11/2025",
+            "12/11/2026",
+            "",
+            "9"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "51",
+            "APPALTI DI BELLO S.R.L.",
+            "Via Mazzini, 15 CASERTA",
+            "",
+            "02964720615",
+            "16/03/2026",
+            "16/03/2027",
+            "",
+            "1 - 3"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "52",
+            "APPALTI GENERALI 2011 S.R.L.",
+            "Via G.Verdi, 32 SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "03740990613",
+            "09/11/2023",
+            "08/11/2024",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "53",
+            "APPALTI S.R.L.",
+            "AVERSA (CE)",
+            "",
+            "04169850619",
+            "28/02/2025",
+            "28/02/2026",
+            "IN AGGIORNAMENTO",
+            "3-5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "54",
+            "APPIA CARRI SRL",
+            "SANTA MARIA A VICO (CE)",
+            "",
+            "04281170615",
+            "13/05/2026",
+            "13/05/2027",
+            "",
+            "3"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "55",
+            "AR.CA. SRL",
+            "Via Nettuno, 1 CASAL DI PRINCIPE (CE)",
+            "",
+            "03207180617",
+            "07/03/2023",
+            "06/03/2024",
+            "In aggiornamento",
+            "1 – 3 – 5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "56",
+            "AR.CO. EDIL S.R.L.",
+            "Via Municipio, 25 RECALE (CE)",
+            "",
+            "2934570611",
+            "27/11/2024",
+            "27/11/2025",
+            "in aggiornamento",
+            "6"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "57",
+            "ARCHEIN RUSSO COSTRUZIONI S.R.L.",
+            "Strada Provinciale 333, snc - SANTA MARIA LA FOSSA (CE)",
+            "",
+            "04557500610",
+            "22/01/2025",
+            "22/01/2026",
+            "IN AGGIORNAMENTO",
+            "3 - 5 - 7"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "58",
+            "ARCOIN S.R.L.",
+            "VILLA DI BRIANO (CE)",
+            "",
+            "04179610615",
+            "14/07/2025",
+            "14/07/2026",
+            "",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "59",
+            "AREA EDILE S.R.L.",
+            "Via Virgilio, 30 GRICIGNANO DI AVERSA (CE)",
+            "",
+            "03057350617",
+            "22/01/2025",
+            "22/01/2026",
+            "",
+            "10"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "60",
+            "ARECO S.R.L.",
+            "Via P. Borsellino, snc PORTICO DI CASERTA (CE)",
+            "",
+            "03193570615",
+            "27/02/2024",
+            "26/02/2025",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "61",
+            "ARGA COSTRUZIONI S.R.L.",
+            "Via L. Vanvitelli, 5 CESA (CE)",
+            "",
+            "04582510618",
+            "18/10/2024",
+            "18/10/2025",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 6,
+          "table": 1,
+          "row": 13,
+          "cells": [
+            "62",
+            "ARPE APPALTI S.R.L.",
+            "Via Arcivescovo Pontillo, 75 - CASAGIOVE (CE)",
+            "",
+            "03803270614",
+            "08/06/2023",
+            "07/06/2024",
+            "In aggiornamento",
+            "3 - 5 - 10"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colonna1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Data di iscrizione",
+            "Data scadenza iscrizione",
+            "Aggiornamento in corso",
+            "Sezione *"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "63",
+            "ARTEMIDE GLOBAL SERVICE S.R.L.",
+            "Via Torre Lupara, snc PASTORANO (CE)",
+            "",
+            "07880310631",
+            "08/09/2025",
+            "08/09/2026 FINO AL TERMINE DELLA MISURA DI CUI ALL'ART 94 BIS",
+            "",
+            "10"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "64",
+            "ARTEMIDE S.R.L.",
+            "Via Pratillo, 11 CAPUA (CE)",
+            "",
+            "02912270614",
+            "27/02/2024",
+            "26/02/2025",
+            "In aggiornamento",
+            "3 - 4 - 5 - 10"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "65",
+            "ASAP TRASPORTI S.R.L.",
+            "Via Vincenzo Gioberti, 2 SAN MARCELLINO (CE)",
+            "",
+            "03673520619",
+            "09/11/2023",
+            "08/11/2024",
+            "In aggiornamento",
+            "6 - 10"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "66",
+            "ASCISTRADE EDILIZIA SPECIALIZZATA DI ASCIONE VINCENZO",
+            "SANT'ARPINO (CE)",
+            "",
+            "SCNVCN70E09G812V",
+            "05/02/2026",
+            "05/02/2027",
+            "",
+            "2"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "67",
+            "ASORED S.R.L.",
+            "Via Variante Sannitica, 25 VALLE DI MADDALONI (CE)",
+            "",
+            "01980310617",
+            "25/06/2024",
+            "24/06/2025",
+            "",
+            "1-3-5-6"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "68",
+            "ASV GROUP SRL",
+            "PARETE (CE)",
+            "",
+            "04581130616",
+            "03/03/2026",
+            "03/03/2027",
+            "",
+            "5"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "69",
+            "ATELCOSTRUZIONI S.R.L.",
+            "Via Jan Palach, 10 SANTA MARIA CAPUA VETERE (CE)",
+            "",
+            "02353530617",
+            "17/01/2024",
+            "16/01/2025",
+            "In aggiornamento",
+            "10"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "70",
+            "ATS S.P.A.",
+            "Via Ficucella, snc MADDALONI (CE)",
+            "",
+            "03775410610",
+            "22/11/2023",
+            "21/11/2024",
+            "In aggiornamento",
+            "6"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "71",
+            "AURA S.R.L.",
+            "Via Galileo Galilei, 8 CASERTA",
+            "",
+            "03795490618",
+            "17/01/2024",
+            "16/01/2025",
+            "In aggiornamento",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "72",
+            "AURELIA SOC. COOP.",
+            "Via Marconi, 21 CASAPESENNA (CE)",
+            "",
+            "0144940616",
+            "07/04/2026",
+            "07/04/2027",
+            "",
+            "3 - 5"
+          ]
+        },
+        {
+          "page": 7,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "73",
+            "AURORA 2020 S.R.L.",
+            "Via Bellini, 22 SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "04465240614",
+            "04/06/2024",
+            "03/06/2025",
+            "IN AGGIORNAMENTO",
+            "3"
+          ]
+        }
+      ],
+      "first_page_text": [
+        {
+          "page": 1,
+          "text": "WHITE LIST - PREFETTURA DI CASERTA\nPrefettura di Caserta - UTG\nELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA ALLA DATA DEL 31/08/20265)\nSede secondaria con\nData scadenza Aggiornamento in\nColonna1 Ragione Sociale Sede Legale rappresentanza stabile Codice Fiscale/P. IVA Data di iscrizione Sezione *\niscrizione corso\nin Italia\nVia Ponti Rossi, 111 SAN\n1 2 PIU' COSTRUZIONI S.R.L.S. 04379520614 18/12/2024 18/12/2025 IN AGGIORNAMENTO 5\nFELICE A CANCELLO (CE)\nVia U. Maddalena, 53\n2 2B APPALTI S.R.L.S. 04752920613 05/11/2024 05/11/2025 in aggiornamento 1-2-3-4-5\nCASAL DI PRINCIPE (CE)\n3 2CI SRLS CASERTA 04767610613 22/06/2026 22/06/2027 3-5\nVia G.M. Bosco, 49\n4 3D SERVICE S.R.L. 04136860618 14/03/2024 13/03/2025 In aggiornamento 1 – 2 – 3 – 4 – 5\nCASERTA\n5 4 ESSE TRASPORTI E LOGISTICA S.R.L. DRAGONI (CE) 02798020612 14/05/2025 14/05/2026 in aggiornamento 6\nVia Cantariello, snc\n6 4C AUTOTRASPORTI S.R.L. 04087140614 12/05/2025 12/05/2026 in aggiornamento 6 - 10\nAILANO (CE)\n7 A & C SRL GIOIA SANNITICA (CE) 03430130611 04/03/2026 04/03/2027 1-3-4-5\nPagina 1 di 89 - Stampato il 01/09/2026"
+        },
+        {
+          "page": 2,
+          "text": "WHITE LIST - PREFETTURA DI CASERTA\nSede secondaria con\nData scadenza Aggiornamento in\nColonna1 Ragione Sociale Sede Legale rappresentanza stabile Codice Fiscale/P. IVA Data di iscrizione Sezione *\niscrizione corso\nin Italia\nVia Gran Sasso, 1 SAN\n8 A.C. COSTRUZIONI S.R.L. 04218120618 04/06/2024 03/06/2025 In aggiornamento 3 - 4 - 5\nCIPRIANO D'AVERSA (CE)\n9 A.C. COSTRUZIONI SRLS VILLA DI BRIANO (CE) 04640250611 03/03/2026 03/03/2027 3\n10 A.D. COSTRUZIONI DI D'ADDIO ADOLFO VILLA DI BRIANO (CE) DDDDLF81H09B963S 11/06/2026 11/06/2027 1-3-5-\nVia Enrico Lauro, 31\n11 A.EM. IMPIANTI S.R.L.S. 04132230618 10/04/2024 09/04/2025 In aggiornamento 3\nGRAZZANISE (CE)\n12 A.G. APPALTI SRL CASAPESENNA (CE) 04759620612 12/06/2026 12/06/2027 3\nVia Gramsci, 7 SAN\n13 A.G.B. COSTRUZIONI SOCIETA' COOPERATIVA 03850430616 18/10/2024 18/10/2025 In aggiornamento 5\nMARCELLINO (CE)\nGRICIGNANO DI AVERSA\n14 A.M. COSTRUZIONI SRL 04637230618 21/07/2026 21/07/2027 2-4-5-10-\n(CE)\nVia Orazio, 4\n15 A.N.C. SRL 03207670617 26/10/2023 25/10/2024 In aggiornamento 1-3-5\nCASAL DI PRINCIPE (CE)\nVia VI Trav.S.Antonio, 18 -\n16 A.P. COSTRUZIONI S.R.L. 03570030613 09/05/2024 08/05/2025 In aggiornamento 3 - 5\nCASAPESENNA (CE)\nVia roma per Cappella\nReale, 79\n17 A.R. COSTRUTTORI S.R.L. 04684650619 28/08/2024 28/08/2025 In aggiornamento 3\nCANCELLO ED ARNONE\n(CE)\nVia Cesare Battisti, 42\n18 A.S.SI. AZIENDA SERVIZI SICUREZZA S.R.L. 03033240619 29/08/2024 29/08/2025 In aggiornamento 7\nCASERTA\nPagina 2 di 89 - Stampato il 01/09/2026"
+        },
+        {
+          "page": 3,
+          "text": "WHITE LIST - PREFETTURA DI CASERTA\nSede secondaria con\nData scadenza Aggiornamento in\nColonna1 Ragione Sociale Sede Legale rappresentanza stabile Codice Fiscale/P. IVA Data di iscrizione Sezione *\niscrizione corso\nin Italia\nVia Paolo Riverso, 37\n19 A.T.S. COSTRUZIONI GENERALI S.R.L. 06578441211 12/06/2026 12/06/2027 3\nAVERSA (CE)\nCorso Garibaldi, 108\n20 A2 CONSULTING S.R.L. SANTA MARIA CAPUA 04236060614 12/02/2024 11/02/2025 In aggiornamento 10\nVETERE (CE)\n21 ABC ARENA BUILD CONTRACTOR S.R.L. AVERSA (CE) 04589460619 18/09/2025 18/09/2026 3\nVia G.B. Vico, 6\n22 ADA RESTAURI S.R.L. 03630880619 05/11/2024 05/11/2025 IN AGGIORNAMENTO 1- 3-5-6-7-10\nSAN MARCELLINO (CE)\nVia Paganini, 5 VILLA\n23 ADRIATICA COSTRUZIONI S.R.L. 04300560614 27/06/2022 26/06/2023 In aggiornamento 1\nDI BRIANO (CE)\nViale Lincoln, 187\n24 ADVANCED TRAINING S.R.L. 04518540614 06/12/2024 06/12/2025 10\nCASERTA\nVia Modigliani, 90\n25 AEDILIA SRL 04175270612 02/03/2021 01/03/2022 In aggiornamento 1 - 2 - 3 - 4 - 7\nAVERSA (CE)\nVia E.Fieramosca, 8\n26 AGAVE S.R.L. 0414550614 11/06/2026 11/06/2027 5 - 8\nCAPUA (CE)\nVia Santa Maria degli\n27 AGM NOLEGGIO AUTOGRU' S.R.L. Angeli, 90 04538520612 18/09/2024 18/09/2025 In aggiornamento 3 - 5 -\nCAPODRISE (CE)\nVia Degli Artisti, 16\n28 AGM S.R.L. 04536180617 28/02/2025 28/02/2026 2 - 3 - 4 - 5\nAVERSA (CE)\nPagina 3 di 89 - Stampato il 01/09/2026"
+        }
+      ]
+    },
+    "applicants": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-08/elenco_imprese_richiedenti_iscrizione_white_list-al-31.08.2026.pdf",
+      "independent_gets": [
+        {
+          "status": 200,
+          "content_type": "application/pdf",
+          "bytes": 2624153
+        },
+        {
+          "status": 200,
+          "content_type": "application/pdf",
+          "bytes": 2624153
+        }
+      ],
+      "sha256": "90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5",
+      "page_count": 68,
+      "tables_per_page": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "nonempty_table_rows": 1276,
+      "row_width_counts": {
+        "8": 1276
+      },
+      "sample_rows": [
+        {
+          "page": 1,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colon na1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Sezioni Attività per cui è richiesta l'iscrizione *",
+            "Data presentazione dell'istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "1",
+            "3 D INGEGNERIA E COSTRUZIONI S.R.L.",
+            "CASERTA",
+            "",
+            "3416970618",
+            "3",
+            "27/06/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "2",
+            "3 F SRL",
+            "CASERTA",
+            "",
+            "04823170610",
+            "3-6-10",
+            "06/05/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "3",
+            "3 M S.R.L.",
+            "ROCCA D'EVANDRO (CE)",
+            "",
+            "02218960611",
+            "4",
+            "21/11/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "4",
+            "3 R TRASPORTI SRL",
+            "SANTA MARIA A VICO (CE)",
+            "",
+            "04295400610",
+            "6",
+            "26/06/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "5",
+            "A&G COSTRUZIONI S.R.L.S.",
+            "VILLA LITERNO (CE)",
+            "",
+            "04630000612",
+            "1 - 5",
+            "29/01/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "6",
+            "A. GOLLUCCIO COSTRUZIONI GENERALI UNIPERSONALE SRLS",
+            "CASERTA",
+            "",
+            "03827870613",
+            "3-5",
+            "21/02/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "7",
+            "A.C. GROUP di CIOFFO ANASTASIA Imp.Indiv.",
+            "VILLA DI BRIANO (CE)",
+            "",
+            "04291590612",
+            "3",
+            "24/01/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "8",
+            "A.D. COSTRUZIONI SRLS",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04716730611",
+            "2-5",
+            "15/03/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "9",
+            "A.D. GROUP SRLS",
+            "SAN MARCELLINO (CE)",
+            "",
+            "0448213616",
+            "6",
+            "",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "10",
+            "A.D.L. COSTRUZIONI SRL",
+            "AVERSA (CE)",
+            "",
+            "04682610615",
+            "4",
+            "02/05/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "11",
+            "A.F. ECOLOGIA S.R.L.",
+            "SAN MARCELLINO (CE)",
+            "",
+            "04631480615",
+            "6",
+            "12/10/2022",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colon na1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Sezioni Attività per cui è richiesta l'iscrizione *",
+            "Data presentazione dell'istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "12",
+            "A.F. GROUP SRL",
+            "SAN MARCELLINO (CE)",
+            "",
+            "04852240615",
+            "1-3-5",
+            "27/05/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "13",
+            "A.F.A. SOCIETY SRL",
+            "CASERTA",
+            "",
+            "3447320619",
+            "1-2-3-4-5-10",
+            "10/01/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "14",
+            "A.G. GROUP SRL",
+            "VILLA LITERNO (CE)",
+            "",
+            "04684810619",
+            "3-5",
+            "21/02/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "15",
+            "A.G. SERRAMENTI DI GOLIA ANTONIO",
+            "CASAPESENNA (CE)",
+            "",
+            "04632060614",
+            "4",
+            "10/08/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "16",
+            "A.M.B. GROUP S.R.L.S.",
+            "TRENTOLA DUCENTA (CE)",
+            "",
+            "04792560619",
+            "1 - 2 - 4",
+            "23/04/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "17",
+            "A.R.C. COSTRUZIONI SRL",
+            "SAN CIPRIANO D'AVERSA",
+            "",
+            "04887990614",
+            "4-5",
+            "17/11/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "18",
+            "A.R.N. GLOBAL SERVICE di Di Foggia Nicola",
+            "GRICIGNANO DI AVERSA (CE)",
+            "",
+            "04340230616",
+            "3 - 5 - 7",
+            "31/07/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "19",
+            "A.S.D.G. COSTRUZIONI S.R.L.",
+            "GRICIGNANO DI AVERSA (CE)",
+            "",
+            "03229840610",
+            "3 - 5 - 7",
+            "25/09/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "20",
+            "A.T.N. COSTRUZIONI SRLS",
+            "SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "04775320619",
+            "1-2-3-4-5",
+            "26/03/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "21",
+            "A2S SRL",
+            "CONCA DELLA CAMPANIA (CE)",
+            "",
+            "04087310613",
+            "'3-4-5",
+            "'23/10/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "22",
+            "ABATIELLO COSTRUZIONI S.R.L.",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "03336020619",
+            "1-2-3-5-6-10",
+            "09/01/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 13,
+          "cells": [
+            "23",
+            "ABBATE ANGELO I.I.",
+            "SAN PRISCO (CE)",
+            "",
+            "03239990611 BBTNGL780D25B963A",
+            "10",
+            "25/03/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 14,
+          "cells": [
+            "24",
+            "AC COSTRUZIONISOC. COOP.",
+            "SAN MARCELLINO (CE)",
+            "",
+            "03349710610",
+            "1",
+            "08/08/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 15,
+          "cells": [
+            "25",
+            "AC COSTRUZIONI DI ZAGARIA GIULIO CESARE",
+            "CASAPESENNA (CE)",
+            "",
+            "03749400614",
+            "3-5",
+            "08/10/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 16,
+          "cells": [
+            "26",
+            "AC COSTRUZIONI S.R.L.S.",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04628940613",
+            "3 - 5",
+            "03/11/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 17,
+          "cells": [
+            "27",
+            "AC COSTRUZIONI SRLS",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04628940613",
+            "1-3-5-10",
+            "13/11/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 18,
+          "cells": [
+            "28",
+            "ACADEMY APPALTI SRLS",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04867500615",
+            "7",
+            "10/04/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 1,
+          "row": 19,
+          "cells": [
+            "29",
+            "ACM COSTRUZIONI E RESTAURI S.R.L.",
+            "SAN NICOLA LA STRADA (CE)",
+            "",
+            "04349420614",
+            "2 - 10",
+            "28/02/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colon na1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Sezioni Attività per cui è richiesta l'iscrizione *",
+            "Data presentazione dell'istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "30",
+            "ACQUA SERVICE SRL",
+            "MARCIANISE (CE)",
+            "",
+            "04109091217",
+            "9",
+            "25/09/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "31",
+            "AD CREATIVE S.R.L.",
+            "TRENTOLA DUCENTA (CE)",
+            "",
+            "04634670618",
+            "3 - 5",
+            "12/12/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "32",
+            "ADA COSTRUZIONI S.R.L.",
+            "SAN MARCELLINO (CE)",
+            "",
+            "04646780611",
+            "1-2-3-4-5-6-10",
+            "12/04/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "33",
+            "ADC GROUP SRL",
+            "DRAGONI (CE)",
+            "",
+            "03900750617",
+            "6",
+            "25/11/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "34",
+            "ADR COSTRUZIONI S.R.L.",
+            "CASAPESENNA (CE)",
+            "",
+            "04786730616",
+            "5",
+            "12/09/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "35",
+            "AEMA S.R.L.",
+            "AVERSA (CE)",
+            "",
+            "04709350617",
+            "1-3-5-6-7-10",
+            "11/11/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "36",
+            "AEMME APPALTI S.R.L.",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04270430616",
+            "1 - 3 - 5",
+            "28/11/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "37",
+            "AG.MA. SRL",
+            "CASERTA",
+            "",
+            "03220910610",
+            "6",
+            "19/06/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "38",
+            "AGAR IMPIANTISTICA SRLS",
+            "CAPUA (CE)",
+            "",
+            "04401310612",
+            "3",
+            "25/07/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "39",
+            "AGB CORPORATION SERVICE DI ANNAGIULIA BATTAGLIA IM",
+            "P IND CAIAZZO (CE)",
+            "",
+            "BTTNGL06H64F839D",
+            "6",
+            "08/05/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "40",
+            "AGOIN SOCIETA CONSORTILE A RESPONSABILITA LIMITATA",
+            "TEVEROLA(CE)",
+            "",
+            "04804460618",
+            "4",
+            "12/02/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 13,
+          "cells": [
+            "41",
+            "AGRI-SERICE DI GAUDELLI SISTO",
+            "ALIFE (CE)",
+            "",
+            "GDLSST77L13G596U",
+            "3",
+            "02/02/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 14,
+          "cells": [
+            "42",
+            "AI FALCHI SAS DI MAGELLANO FRANCESCO & C.",
+            "CAMIGLIANO (CE)",
+            "",
+            "03873760619",
+            "9",
+            "14/08/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 15,
+          "cells": [
+            "43",
+            "ALAIA SERRAMENTI S.R.L.",
+            "CASALUCE (CE)",
+            "",
+            "03764800615",
+            "4",
+            "15/11/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 16,
+          "cells": [
+            "44",
+            "ALPHA3 COSTRUZIONI S.R.L.A.",
+            "GRICIGNANO DI AVERSA (CE)",
+            "",
+            "04704120619",
+            "7 - 10",
+            "24/01/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 17,
+          "cells": [
+            "45",
+            "ALTAIR GROUP S.R.L.",
+            "SUCCIVO (CE)",
+            "",
+            "04181490618",
+            "2 - 6",
+            "08/05/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 18,
+          "cells": [
+            "46",
+            "ALTHEA S.R.L.",
+            "BELLONA (CE)",
+            "",
+            "01984320612",
+            "9",
+            "11/10/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 19,
+          "cells": [
+            "47",
+            "ALU SISTEM SRL",
+            "CAPUA (CE)",
+            "",
+            "046993710617",
+            "4",
+            "07/01/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colon na1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Sezioni Attività per cui è richiesta l'iscrizione *",
+            "Data presentazione dell'istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "48",
+            "AM APPALTI S.R.L.S.",
+            "PARETE (CE)",
+            "",
+            "04614080614",
+            "3 - 5",
+            "04/03/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "49",
+            "AMAT SRL",
+            "SAN CIPRIANO D'AVERSA (CE)",
+            "",
+            "04927860611",
+            "3-5",
+            "09/06/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "50",
+            "AMATO SALVATORE IMP.IND.",
+            "CELLOLE (CE)",
+            "",
+            "MTASVT83C03C034E",
+            "10",
+            "12/02/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "51",
+            "AMBIENTE E GESTIONE DEL VERDE S.R.L.",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04494110614",
+            "3 - 4 - 10",
+            "23/01/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "52",
+            "AMBRA SOC. COOP.",
+            "SANTA MARIA CAPUA VETERE (CE)",
+            "",
+            "4926460611",
+            "8-10",
+            "26/02/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "53",
+            "AMG APPALTI S.R.L.",
+            "PARETE (CE)",
+            "",
+            "07804251218",
+            "1-2-3-4-5",
+            "21/01/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "54",
+            "AMG COSTRUZIONI SRLS",
+            "MARCIANISE (CE)",
+            "",
+            "04903910612",
+            "1",
+            "24/11/2025",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "55",
+            "AMG COSTRUZIONI SRLS",
+            "GRICIGNANO DI AVERSA (CE)",
+            "",
+            "04653060618",
+            "3-4-5-",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "56",
+            "AMMUTINATO COSTRUZIONI SRLS",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "04887590612",
+            "3-4",
+            "'12/06/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "57",
+            "AMODIO COSTRUZIONI SRLS",
+            "VILLA DI BRIANO (CE)",
+            "",
+            "01444010522",
+            "3-4-5",
+            "24/04/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 12,
+          "cells": [
+            "58",
+            "AN.DA. COSTRUZIONI SRL",
+            "CASERTA (CE)",
+            "",
+            "02990450617",
+            "3",
+            "02/10/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 13,
+          "cells": [
+            "59",
+            "AN.GI.CO. SRL",
+            "MARCIANISE (CE)",
+            "",
+            "04858670617",
+            "3",
+            "14/10/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 14,
+          "cells": [
+            "60",
+            "ANPA S.R.L.",
+            "AVERSA (CE)",
+            "",
+            "04497740615",
+            "3 - 5",
+            "17/12/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 15,
+          "cells": [
+            "61",
+            "ANPICA S.R.L.",
+            "CAPODRISE (CE)",
+            "",
+            "04941490619",
+            "1-2-3-4-5-6-7",
+            "20/05/2026",
+            "in istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 16,
+          "cells": [
+            "62",
+            "ANTER EVENTS AND HIGH CERIMONY S.R.L.S.",
+            "CASERTA",
+            "",
+            "04405860612",
+            "9",
+            "11/09/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 17,
+          "cells": [
+            "63",
+            "ANTINCENDIO FAELLA SRL",
+            "TEANO (CE)",
+            "",
+            "02874630615",
+            "5-10",
+            "08/01/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 18,
+          "cells": [
+            "64",
+            "ANTONIO S.R.L.",
+            "MARCIANISE (CE)",
+            "",
+            "04085730614",
+            "10",
+            "20/03/2026",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 1,
+          "row": 19,
+          "cells": [
+            "65",
+            "ANTONIO SCIORIO imp.ind.",
+            "CANCELLO ED ARNONE (CE)",
+            "",
+            "04552780613",
+            "1-2-3-4-5-6-7-8-9-10",
+            "02/09/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 1,
+          "cells": [
+            "Colon na1",
+            "Ragione Sociale",
+            "Sede Legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice Fiscale/P. IVA",
+            "Sezioni Attività per cui è richiesta l'iscrizione *",
+            "Data presentazione dell'istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 2,
+          "cells": [
+            "66",
+            "AP COSTRUZIONI S.R.L.S.",
+            "MADDALONI (CE)",
+            "",
+            "04300760610",
+            "1",
+            "27/01/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 3,
+          "cells": [
+            "67",
+            "APICELLA RAFFAELE IMP.IND.",
+            "CASAL DI PRINCIPE (CE)",
+            "",
+            "02094600612",
+            "1",
+            "27/06/2025",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 4,
+          "cells": [
+            "68",
+            "APPALTI PALMESE S.R.L.S.",
+            "AVERSA (CE)",
+            "",
+            "04647320615",
+            "5",
+            "03/04/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 5,
+          "cells": [
+            "69",
+            "AR COSTRUZIONI SRL",
+            "AVERSA (CE)",
+            "",
+            "04436680617",
+            "1-3-5",
+            "06022026",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 6,
+          "cells": [
+            "70",
+            "AR IMPIANTI DI RAUCCI SRLS",
+            "SPARANISE (CE)",
+            "",
+            "4497510612",
+            "1",
+            "01/07/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 7,
+          "cells": [
+            "71",
+            "ARBITRIO NICOLA SALVATORE Impresa individuale",
+            "TRENTOLA DUCENTA (CE)",
+            "",
+            "RBTNLS62S20A512F 02254020619",
+            "1 - 3 - 5",
+            "07/11/2023",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 8,
+          "cells": [
+            "72",
+            "ARBORIS SRL",
+            "AVERSA (CE)",
+            "",
+            "04884150618",
+            "10",
+            "28/08/2025",
+            "IN istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 9,
+          "cells": [
+            "73",
+            "ARCA CORPORATION SRL",
+            "MARCIANISE (CE)",
+            "",
+            "04938450618",
+            "1-5",
+            "31/03/2026",
+            "IN ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 10,
+          "cells": [
+            "74",
+            "ARCHE' CONSULTING S.R.L.",
+            "TRENTOLA DUCENTA (CE)",
+            "",
+            "04520630619",
+            "1-2-3-4-5-6",
+            "30/01/2024",
+            "In istruttoria"
+          ]
+        },
+        {
+          "page": 5,
+          "table": 1,
+          "row": 11,
+          "cells": [
+            "75",
+            "ARCO S.R.L.",
+            "TRENTOLA DUCENTA (CE)",
+            "",
+            "04721280610",
+            "1-2-3-4-5-6-7",
+            "22/02/2024",
+            "In istruttoria"
+          ]
+        }
+      ],
+      "first_page_text": [
+        {
+          "page": 1,
+          "text": "P r e f e t t u r a\nUfficio Territoriale del Governo di Caserta\nELENCO DELLE IMPRESE RICHIEDENTI L’ISCRIZIONE NELL’ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA\nISTANZE COMPLETE DI TUTTI GLI ALLEGATI RICHIESTI PERVENUTE ALLA DATA DEL 31/08/2026\nA V V I S O\nVista la Ministeriale n.15006/2 Uff. II Ord. Sic. Pub. in data 28 luglio 2014, si richiama l’attenzione dei rappresentanti dei soggetti di cui all’art.83, commi 1 e 2 del Codice antimafia sulla necessità di\ncomunicare alla Prefettura l’avvenuta acquisizione della documentazione antimafia tramite la consultazione anche telematica delle white list (L. 11.8.2014, n. 114)\nSede secondaria con Sezioni Attività per Data\nColon\nRagione Sociale Sede Legale rappresentanza Codice Fiscale/P. IVA cui è richiesta presentazione Esito\nna1\nstabile in Italia l'iscrizione * dell'istanza\n1 3 D INGEGNERIA E COSTRUZIONI S.R.L. CASERTA 3416970618 3 27/06/2024 In istruttoria\n2 3 F SRL CASERTA 04823170610 3-6-10 06/05/2025 In istruttoria\n3 3 M S.R.L. ROCCA D'EVANDRO (CE) 02218960611 4 21/11/2023 In istruttoria\nSANTA MARIA A VICO\n4 3 R TRASPORTI SRL 04295400610 6 26/06/2025 In istruttoria\n(CE)\n5 A&G COSTRUZIONI S.R.L.S. VILLA LITERNO (CE) 04630000612 1 - 5 29/01/2025 In istruttoria\nA. GOLLUCCIO COSTRUZIONI GENERALI UNIPERSONALE\n6 CASERTA 03827870613 3-5 21/02/2025 In istruttoria\nSRLS\n7 A.C. GROUP di CIOFFO ANASTASIA Imp.Indiv. VILLA DI BRIANO (CE) 04291590612 3 24/01/2024 In istruttoria\n8\nA.D. COSTRUZIONI SRLS CASAL DI PRINCIPE (CE) 04716730611 2-5 15/03/2025 In istruttoria\n9 A.D. GROUP SRLS SAN MARCELLINO (CE) 0448213616 6 IN ISTRUTTORIA\n10\nA.D.L. COSTRUZIONI SRL AVERSA (CE) 04682610615 4 02/05/2025 In istruttoria\n11 A.F. ECOLOGIA S.R.L. SAN MARCELLINO (CE) 04631480615 6 12/10/2022 In istruttoria\nFoglio1 1"
+        },
+        {
+          "page": 2,
+          "text": "Sede secondaria con Sezioni Attività per Data\nColon\nRagione Sociale Sede Legale rappresentanza Codice Fiscale/P. IVA cui è richiesta presentazione Esito\nna1\nstabile in Italia l'iscrizione * dell'istanza\n12 A.F. GROUP SRL SAN MARCELLINO (CE) 04852240615 1-3-5 27/05/2025 In istruttoria\n13 A.F.A. SOCIETY SRL CASERTA 3447320619 1-2-3-4-5-10 10/01/2026 IN ISTRUTTORIA\n14\nA.G. GROUP SRL VILLA LITERNO (CE) 04684810619 3-5 21/02/2025 In istruttoria\n15\nA.G. SERRAMENTI DI GOLIA ANTONIO CASAPESENNA (CE) 04632060614 4 10/08/2025 IN istruttoria\n16 A.M.B. GROUP S.R.L.S. TRENTOLA DUCENTA (CE) 04792560619 1 - 2 - 4 23/04/2024 In istruttoria\n17 A.R.C. COSTRUZIONI SRL SAN CIPRIANO D'AVERSA 04887990614 4-5 17/11/2025 IN ISTRUTTORIA\nGRICIGNANO DI AVERSA\n18 A.R.N. GLOBAL SERVICE di Di Foggia Nicola 04340230616 3 - 5 - 7 31/07/2024 In istruttoria\n(CE)\nGRICIGNANO DI AVERSA\n19 A.S.D.G. COSTRUZIONI S.R.L. 03229840610 3 - 5 - 7 25/09/2024 In istruttoria\n(CE)\nSAN CIPRIANO D'AVERSA\n20\nA.T.N. COSTRUZIONI SRLS (CE) 04775320619 1-2-3-4-5 26/03/2025 In istruttoria\nCONCA DELLA CAMPANIA\n21 A2S SRL 04087310613 '3-4-5 '23/10/2025 IN ISTRUTTORIA\n(CE)\n22 ABATIELLO COSTRUZIONI S.R.L. CASAL DI PRINCIPE (CE) 03336020619 1-2-3-5-6-10 09/01/2025 In istruttoria\n03239990611\n23 ABBATE ANGELO I.I. SAN PRISCO (CE) 10 25/03/2025 In istruttoria\nBBTNGL780D25B963A\n24 AC COSTRUZIONISOC. COOP. SAN MARCELLINO (CE) 03349710610 1 08/08/2025 In istruttoria\n25 AC COSTRUZIONI DI ZAGARIA GIULIO CESARE CASAPESENNA (CE) 03749400614 3-5 08/10/2025 IN ISTRUTTORIA\n26 AC COSTRUZIONI S.R.L.S. CASAL DI PRINCIPE (CE) 04628940613 3 - 5 03/11/2023 In istruttoria\n27 AC COSTRUZIONI SRLS CASAL DI PRINCIPE (CE) 04628940613 1-3-5-10 13/11/2025 IN ISTRUTTORIA\n28 ACADEMY APPALTI SRLS CASAL DI PRINCIPE (CE) 04867500615 7 10/04/2025 In istruttoria\nSAN NICOLA LA STRADA\n29 ACM COSTRUZIONI E RESTAURI S.R.L. 04349420614 2 - 10 28/02/2023 In istruttoria\n(CE)\nFoglio1 2"
+        },
+        {
+          "page": 3,
+          "text": "Sede secondaria con Sezioni Attività per Data\nColon\nRagione Sociale Sede Legale rappresentanza Codice Fiscale/P. IVA cui è richiesta presentazione Esito\nna1\nstabile in Italia l'iscrizione * dell'istanza\n30\nACQUA SERVICE SRL MARCIANISE (CE) 04109091217 9 25/09/2025 IN istruttoria\n31 AD CREATIVE S.R.L. TRENTOLA DUCENTA (CE) 04634670618 3 - 5 12/12/2023 In istruttoria\n32 ADA COSTRUZIONI S.R.L. SAN MARCELLINO (CE) 04646780611 1-2-3-4-5-6-10 12/04/2023 In istruttoria\n33 ADC GROUP SRL DRAGONI (CE) 03900750617 6 25/11/2025 IN ISTRUTTORIA\n34 ADR COSTRUZIONI S.R.L. CASAPESENNA (CE) 04786730616 5 12/09/2024 In istruttoria\n35 AEMA S.R.L. AVERSA (CE) 04709350617 1-3-5-6-7-10 11/11/2024 In istruttoria\n36 AEMME APPALTI S.R.L. CASAL DI PRINCIPE (CE) 04270430616 1 - 3 - 5 28/11/2024 In istruttoria\n37\nAG.MA. SRL CASERTA 03220910610 6 19/06/2025 In istruttoria\n38 AGAR IMPIANTISTICA SRLS CAPUA (CE) 04401310612 3 25/07/2025 In istruttoria\n39 AGB CORPORATION SERVICE DI ANNAGIULIA BATTAGLIA IMP IND CAIAZZO (CE) BTTNGL06H64F839D 6 08/05/2026 IN ISTRUTTORIA\n40 AGOIN SOCIETA CONSORTILE A RESPONSABILITA LIMITATA TEVEROLA(CE) 04804460618 4 12/02/2026 IN ISTRUTTORIA\n41 AGRI-SERICE DI GAUDELLI SISTO ALIFE (CE) GDLSST77L13G596U 3 02/02/2026 IN ISTRUTTORIA\n42\nAI FALCHI SAS DI MAGELLANO FRANCESCO & C. CAMIGLIANO (CE) 03873760619 9 14/08/2025 IN istruttoria\n43 ALAIA SERRAMENTI S.R.L. CASALUCE (CE) 03764800615 4 15/11/2024 In istruttoria\nGRICIGNANO DI AVERSA\n44 ALPHA3 COSTRUZIONI S.R.L.A. 04704120619 7 - 10 24/01/2023 In istruttoria\n(CE)\n45 ALTAIR GROUP S.R.L. SUCCIVO (CE) 04181490618 2 - 6 08/05/2024 In istruttoria\n46 ALTHEA S.R.L. BELLONA (CE) 01984320612 9 11/10/2024 In istruttoria\n47 ALU SISTEM SRL CAPUA (CE) 046993710617 4 07/01/2026 IN ISTRUTTORIA\nFoglio1 3"
+        }
+      ]
+    }
+  }
+}
