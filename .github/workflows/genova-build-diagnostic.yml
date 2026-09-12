@@ -1,0 +1,97 @@
+name: Genova national build diagnostic
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-build-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install complete runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Diagnostic runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,dev,storage,database]'
+      - name: Materialise permanent Genova integration in workspace
+        run: |
+          awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
+          test -s /tmp/genova_materialise.py
+          python /tmp/genova_materialise.py
+          git diff --check
+      - name: Capture national build diagnostics
+        shell: bash
+        run: |
+          rm -rf /tmp/genova-production-sources /tmp/genova-registry.json /tmp/genova-registry.csv /tmp/genova-prefectures.json /tmp/genova-prefectures.csv
+          mkdir -p tmp
+          set +e
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/genova-production-sources \
+            --registry-json /tmp/genova-registry.json \
+            --registry-csv /tmp/genova-registry.csv \
+            --prefectures-json /tmp/genova-prefectures.json \
+            --prefectures-csv /tmp/genova-prefectures.csv \
+            >tmp/genova_build_stdout.log 2>tmp/genova_build_stderr.log
+          code=$?
+          set -e
+          printf '%s\n' "$code" > tmp/genova_build_exit_status.txt
+          if [ -f /tmp/genova-registry.json ]; then
+            python - <<'PY' > tmp/genova_build_registry_meta.json
+          import json
+          from pathlib import Path
+          obj=json.loads(Path('/tmp/genova-registry.json').read_text(encoding='utf-8'))
+          print(json.dumps(obj.get('meta', {}), ensure_ascii=False, indent=2, sort_keys=True))
+          PY
+          fi
+          if [ -f /tmp/genova-prefectures.json ]; then
+            python - <<'PY' > tmp/genova_build_prefectures_meta.json
+          import json
+          from pathlib import Path
+          obj=json.loads(Path('/tmp/genova-prefectures.json').read_text(encoding='utf-8'))
+          print(json.dumps(obj.get('meta', {}), ensure_ascii=False, indent=2, sort_keys=True))
+          PY
+          fi
+      - name: Persist diagnostic checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/genova_build_stdout.log tmp/genova_build_stderr.log tmp/genova_build_exit_status.txt
+          test ! -f tmp/genova_build_registry_meta.json || git add tmp/genova_build_registry_meta.json
+          test ! -f tmp/genova_build_prefectures_meta.json || git add tmp/genova_build_prefectures_meta.json
+          git diff --cached --check
+          git commit -m 'Capture Genova national build diagnostics' || exit 0
+          git push origin HEAD:expansion/genova-2026-09-12
+      - name: Surface build outcome
+        run: |
+          code="$(cat tmp/genova_build_exit_status.txt)"
+          if [ "$code" != "0" ]; then
+            echo "Genova national build exited with status $code" >&2
+            exit "$code"
+          fi
