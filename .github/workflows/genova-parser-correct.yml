@@ -14,7 +14,19 @@ jobs:
           ref: expansion/genova-2026-09-12
       - name: Patch parser
         run: |
-          python -c 'from pathlib import Path; p=Path("src/white_list_archive/parsers/genova_tables.py"); s=p.read_text(); old="            primary_date=row[\"application_date\"],\\n            primary_date_label=\"Data di presentazione dell\x27istanza\",\\n"; new="            application_date=row[\"application_date\"],\\n            primary_date_label=\"Data presentazione istanza\",\\n"; assert s.count(old)==1, s.count(old); p.write_text(s.replace(old,new))'
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/white_list_archive/parsers/genova_tables.py')
+          s = p.read_text(encoding='utf-8')
+          a = 'primary_date=row["application_date"],'
+          b = 'application_date=row["application_date"],'
+          c = 'primary_date_label="Data di presentazione dell\'istanza",'
+          d = 'primary_date_label="Data presentazione istanza",'
+          assert s.count(a) == 1, s.count(a)
+          assert s.count(c) == 1, s.count(c)
+          s = s.replace(a, b).replace(c, d)
+          p.write_text(s, encoding='utf-8')
+          PY
           git diff --check
           git diff -- src/white_list_archive/parsers/genova_tables.py
       - name: Commit parser
@@ -25,4 +37,4 @@ jobs:
           test "$(git diff --cached --name-only | wc -l)" -eq 1
           git commit -m 'Fix Genova applicant primary-date binding'
           git push origin HEAD:expansion/genova-2026-09-12
-# trigger 2
+# trigger 3
