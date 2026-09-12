@@ -1,0 +1,194 @@
+{
+  "authority_key": "genova",
+  "audited_on": "2026-09-12",
+  "sources": {
+    "listed": {
+      "unique_section_values": 97,
+      "blank_count": 8,
+      "blanks": [
+        {
+          "page": 5,
+          "table": 1,
+          "row": 1,
+          "name": "ANTICA TRATTORIA ROCCHIN DI BONA VERA E C. SNC",
+          "section_raw": ""
+        },
+        {
+          "page": 30,
+          "table": 1,
+          "row": 1,
+          "name": "DE PASCALE LOREDANA",
+          "section_raw": ""
+        },
+        {
+          "page": 32,
+          "table": 1,
+          "row": 1,
+          "name": "DG TRASPORTI SRL",
+          "section_raw": ""
+        },
+        {
+          "page": 52,
+          "table": 1,
+          "row": 1,
+          "name": "GENOVA INSIEME COOPERATIVA SOCIALE A RL",
+          "section_raw": ""
+        },
+        {
+          "page": 86,
+          "table": 1,
+          "row": 1,
+          "name": "PH FACILITY SRL",
+          "section_raw": ""
+        },
+        {
+          "page": 89,
+          "table": 1,
+          "row": 1,
+          "name": "RA.RO SCAVI E COSTRUZIONI SRL",
+          "section_raw": ""
+        },
+        {
+          "page": 94,
+          "table": 1,
+          "row": 1,
+          "name": "RR SERVICE SRL",
+          "section_raw": ""
+        },
+        {
+          "page": 111,
+          "table": 1,
+          "row": 7,
+          "name": "VALLEVERDE SERVIZI SNC DI ALLUCI FEDERICO & C.",
+          "section_raw": ""
+        }
+      ],
+      "noncanonical_count": 5,
+      "noncanonical": [
+        {
+          "page": 4,
+          "table": 1,
+          "row": 7,
+          "name": "AMICO A. SRL",
+          "section_raw": "Se. V"
+        },
+        {
+          "page": 50,
+          "table": 1,
+          "row": 3,
+          "name": "GC COSTRUZIONI SNC DI GIOVINAZZO SALVATORE & LUCIANO",
+          "section_raw": "Sez. I Sez. II Sez. III Sez.. IV Sez. V Sez. VI Sez. VIII Sez. X"
+        },
+        {
+          "page": 81,
+          "table": 1,
+          "row": 5,
+          "name": "OILMEC SERVICE DI SEMENZA ANDREA",
+          "section_raw": "Sez. I Sez. II Sez. III Sez. IV Sez. V Sex. X"
+        },
+        {
+          "page": 93,
+          "table": 1,
+          "row": 6,
+          "name": "ROTUNDO DOMENICO",
+          "section_raw": "Sez. I Sez II Sez. V"
+        },
+        {
+          "page": 112,
+          "table": 1,
+          "row": 1,
+          "name": "VARONA NICOLA",
+          "section_raw": "Sex. IX Sez. X"
+        }
+      ],
+      "noncanonical_value_counts": {
+        "Se. V": 1,
+        "Sez. I Sez. II Sez. III Sez.. IV Sez. V Sez. VI Sez. VIII Sez. X": 1,
+        "Sez. I Sez. II Sez. III Sez. IV Sez. V Sex. X": 1,
+        "Sez. I Sez II Sez. V": 1,
+        "Sex. IX Sez. X": 1
+      }
+    },
+    "applicant": {
+      "unique_section_values": 46,
+      "blank_count": 2,
+      "blanks": [
+        {
+          "page": 6,
+          "table": 1,
+          "row": 1,
+          "name": "COOPERATIVA ALTA VAL D'AVETO",
+          "section_raw": ""
+        },
+        {
+          "page": 15,
+          "table": 1,
+          "row": 1,
+          "name": "MATERIO SRL",
+          "section_raw": ""
+        }
+      ],
+      "noncanonical_count": 7,
+      "noncanonical": [
+        {
+          "page": 2,
+          "table": 1,
+          "row": 6,
+          "name": "ASSALINO STEFANO",
+          "section_raw": "SEZ I"
+        },
+        {
+          "page": 3,
+          "table": 1,
+          "row": 2,
+          "name": "AUTOTRASPORTI DI GIUSTO & C. - SOCIETA' IN NOME COLLETTIVO",
+          "section_raw": "Sez,I Sez.VI"
+        },
+        {
+          "page": 10,
+          "table": 1,
+          "row": 5,
+          "name": "FERROGGIARO ALESSANDRO",
+          "section_raw": "Sez. I Sez. III Sez. V Sez VI Sez. X"
+        },
+        {
+          "page": 11,
+          "table": 1,
+          "row": 3,
+          "name": "FORZA MOTRICE SRL",
+          "section_raw": "SEZ. I SEZ II"
+        },
+        {
+          "page": 13,
+          "table": 1,
+          "row": 2,
+          "name": "IMPRESA EDILE VALERIANI SRL",
+          "section_raw": "SEZ. I SEZ II SEZ III"
+        },
+        {
+          "page": 17,
+          "table": 1,
+          "row": 1,
+          "name": "R&R S.R.L.SPEDIZIONI INTERNAZIONALI",
+          "section_raw": "SEZ VI"
+        },
+        {
+          "page": 17,
+          "table": 1,
+          "row": 5,
+          "name": "S & C SRL",
+          "section_raw": "Sex. IX"
+        }
+      ],
+      "noncanonical_value_counts": {
+        "SEZ I": 1,
+        "Sez,I Sez.VI": 1,
+        "Sez. I Sez. III Sez. V Sez VI Sez. X": 1,
+        "SEZ. I SEZ II": 1,
+        "SEZ. I SEZ II SEZ III": 1,
+        "SEZ VI": 1,
+        "Sex. IX": 1
+      }
+    }
+  }
+}
