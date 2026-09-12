@@ -17,6 +17,9 @@ _EXPECTED_LISTED_RECORDS = 652
 _EXPECTED_APPLICANT_RECORDS = 110
 _EXPECTED_LISTED_STATUS = {"listed": 528, "renewal_update_in_progress": 124}
 _EXPECTED_SECTIONS = {str(i) for i in range(1, 11)}
+_SECTION = re.compile(r"SEZ\.\s*(X|IX|VIII|VII|VI|V|IV|III|II|I)\b", re.I)
+_CANONICAL_SECTIONS = re.compile(r"^(?:Sez\.\s*(?:X|IX|VIII|VII|VI|V|IV|III|II|I)\s*)+$", re.I)
+_ROMAN_TO_SECTION = {"I": "1", "II": "2", "III": "3", "IV": "4", "V": "5", "VI": "6", "VII": "7", "VIII": "8", "IX": "9", "X": "10"}
 _RENEWAL = "RICHIESTO RINNOVO"
 _REVIEWED_LISTED_LEGEND = (
     "Legenda Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti "
@@ -70,6 +73,31 @@ _REVIEWED_SECTION_FIELDS = {
     ("applicant", "DASSORI SRL", ""): ["9"],
     ("applicant", "DE BREEZE SRL", ""): ["4"],
     ("applicant", "EDILQUADRIFOGLIO SRL", ""): ["3", "4"],
+    # Exact source-layout exceptions already reviewed and validated on the
+    # byte-pinned 10 September 2026 PDFs. Keep these company/raw bindings
+    # narrow: they are not generic typo repair rules.
+    ("listed", "ANTICA TRATTORIA ROCCHIN DI BONA VERA E C. SNC", ""): ["9"],
+    ("listed", "DE PASCALE LOREDANA", ""): ["6"],
+    ("listed", "DG TRASPORTI SRL", ""): ["5", "6"],
+    ("listed", "GENOVA INSIEME COOPERATIVA SOCIALE A RL", ""): ["6", "10"],
+    ("listed", "PH FACILITY SRL", ""): ["6", "10"],
+    ("listed", "RA.RO SCAVI E COSTRUZIONI SRL", ""): ["1", "3", "5"],
+    ("listed", "RR SERVICE SRL", ""): ["2", "3"],
+    ("listed", "VALLEVERDE SERVIZI SNC DI ALLUCI FEDERICO & C.", ""): ["1", "5"],
+    ("listed", "AMICO A. SRL", "Se. V"): ["5"],
+    ("listed", "GC COSTRUZIONI SNC DI GIOVINAZZO SALVATORE & LUCIANO", "Sez. I Sez. II Sez. III Sez.. IV Sez. V Sez. VI Sez. VIII Sez. X"): ["1", "2", "3", "4", "5", "6", "8", "10"],
+    ("listed", "OILMEC SERVICE DI SEMENZA ANDREA", "Sez. I Sez. II Sez. III Sez. IV Sez. V Sex. X"): ["1", "2", "3", "4", "5", "10"],
+    ("listed", "ROTUNDO DOMENICO", "Sez. I Sez II Sez. V"): ["1", "2", "5"],
+    ("listed", "VARONA NICOLA", "Sex. IX Sez. X"): ["9", "10"],
+    ("applicant", "COOPERATIVA ALTA VAL D'AVETO", ""): ["1", "2", "3", "5"],
+    ("applicant", "MATERIO SRL", ""): ["1", "5"],
+    ("applicant", "ASSALINO STEFANO", "SEZ I"): ["1"],
+    ("applicant", "AUTOTRASPORTI DI GIUSTO & C. - SOCIETA' IN NOME COLLETTIVO", "Sez,I Sez.VI"): ["1", "6"],
+    ("applicant", "FERROGGIARO ALESSANDRO", "Sez. I Sez. III Sez. V Sez VI Sez. X"): ["1", "3", "5", "6", "10"],
+    ("applicant", "FORZA MOTRICE SRL", "SEZ. I SEZ II"): ["1", "2"],
+    ("applicant", "IMPRESA EDILE VALERIANI SRL", "SEZ. I SEZ II SEZ III"): ["1", "2", "3"],
+    ("applicant", "R&R S.R.L.SPEDIZIONI INTERNAZIONALI", "SEZ VI"): ["6"],
+    ("applicant", "S & C SRL", "Sex. IX"): ["9"],
 }
 
 _REVIEWED_INVALID_DATE_FIELDS = {
@@ -110,16 +138,18 @@ def _sections(value: str, *, scope: str, name: str) -> list[str]:
     raw = _clean(value)
     reviewed = _REVIEWED_SECTION_FIELDS.get((scope, name, raw))
     if reviewed is not None:
-        return reviewed
-    numbers = re.findall(r"(?<!\d)(10|[1-9])(?!\d)", raw)
+        return list(reviewed)
+    if not _CANONICAL_SECTIONS.fullmatch(raw):
+        raise RuntimeError(f"Genova unreviewed White List section typography for {scope}/{name!r}: {raw!r}")
     out: list[str] = []
-    for number in numbers:
+    for roman in _SECTION.findall(raw):
+        number = _ROMAN_TO_SECTION[roman.upper()]
         if number not in _EXPECTED_SECTIONS:
             raise RuntimeError(f"Genova unexpected section {number!r}")
         if number not in out:
             out.append(number)
-    if raw and not out:
-        raise RuntimeError(f"Genova section drift: {raw!r}")
+    if not out:
+        raise RuntimeError(f"Genova row without a recognised White List section: {raw!r}")
     return out
 
 
