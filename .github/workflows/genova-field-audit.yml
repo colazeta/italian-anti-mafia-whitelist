@@ -1,0 +1,74 @@
+name: Genova date and status field audit
+
+on:
+  push:
+    branches: [expansion/genova-2026-09-12]
+    paths: [.github/workflows/genova-field-audit.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Enumerate date and status field variants
+        run: |
+          python - <<'PY'
+          import collections, hashlib, json, pathlib, re, tempfile, requests, pdfplumber
+          profile=json.loads(pathlib.Path('tmp/genova_source_profile.json').read_text(encoding='utf-8'))
+          session=requests.Session();session.headers.update({'User-Agent':'italian-anti-mafia-whitelist field audit/1.0'})
+          date_re=re.compile(r'^\d{1,2}/\d{1,2}/\d{4}$')
+          def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
+          def compact(v): return re.sub(r'\s+','',clean(v))
+          out={'authority_key':'genova','audited_on':'2026-09-12','sources':{}}
+          with tempfile.TemporaryDirectory(prefix='genova-field-') as td:
+            td=pathlib.Path(td)
+            for scope in ('listed','applicant'):
+              cfg=profile['sources'][scope];r=session.get(cfg['resource_url'],timeout=(15,120));r.raise_for_status()
+              if hashlib.sha256(r.content).hexdigest()!=cfg['sha256']: raise SystemExit(f'{scope} source drift')
+              p=td/f'{scope}.pdf';p.write_bytes(r.content)
+              invalid=[];statuses=collections.Counter();date_blanks=collections.Counter()
+              with pdfplumber.open(p) as pdf:
+                for pno,page in enumerate(pdf.pages,1):
+                  if scope=='applicant' and pno==7: continue
+                  for tno,table in enumerate(page.extract_tables() or [],1):
+                    for rno,row in enumerate(table or [],1):
+                      cells=[clean(x) for x in row]
+                      if not any(cells): continue
+                      fold=' | '.join(cells).casefold()
+                      if any(x in fold for x in ('ragione sociale','codice fiscale','partita iva','data iscrizione','data di presentazione')): continue
+                      if cells and cells[0].casefold().startswith('legenda sez.'): continue
+                      if scope=='listed':
+                        if len(cells)==9 and not cells[0]: cells=cells[1:]
+                        if len(cells)==5 and pno==47:
+                          # reviewed truncated extraction handled elsewhere
+                          continue
+                        if len(cells)!=8: continue
+                        name=cells[0]; fields=[('listing',cells[5]),('expiry',cells[6])];status=cells[7]
+                      else:
+                        if len(cells)!=7: continue
+                        name=cells[0]; fields=[('application',cells[5])];status=cells[6]
+                      statuses[status]+=1
+                      for label,raw in fields:
+                        if not raw: date_blanks[label]+=1
+                        elif not date_re.fullmatch(compact(raw)):
+                          invalid.append({'page':pno,'table':tno,'row':rno,'name':name,'field':label,'raw':raw})
+              out['sources'][scope]={'invalid_date_typography_count':len(invalid),'invalid_date_typography':invalid,'blank_date_counts':dict(date_blanks),'status_value_counts':dict(statuses)}
+          path=pathlib.Path('tmp/genova_field_audit.json');path.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Checkpoint field audit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/genova_field_audit.json
+          if ! git diff --cached --quiet; then git commit -m 'Checkpoint Genova date and status audit'; git push origin HEAD:expansion/genova-2026-09-12; fi
