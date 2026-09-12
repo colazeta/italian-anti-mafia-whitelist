@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import csv
 import json
 from pathlib import Path
 
@@ -29,21 +30,67 @@ pos = next(i for i, line in enumerate(lines) if line.startswith("caserta,")) + 1
 lines.insert(pos, f"catania,{PAGE},2026-09-12,verified")
 p.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-# Two separately evidenced logical source series.
+# Two separately evidenced logical source series. Use the CSV writer rather than
+# string concatenation so punctuation in evidence notes cannot create phantom
+# columns or unnamed DictReader keys.
 p = Path("data/source_registry/source_series_inventory.csv")
-lines = p.read_text(encoding="utf-8").splitlines()
-if any(line.startswith("catania-") for line in lines):
+with p.open("r", encoding="utf-8", newline="") as handle:
+    reader = csv.DictReader(handle)
+    fieldnames = reader.fieldnames
+    series_rows = list(reader)
+expected_fields = [
+    "source_series_key",
+    "authority_key",
+    "regime_code",
+    "population_scope",
+    "sector_scope",
+    "publication_model",
+    "series_url",
+    "resource_resolution_status",
+    "verified_date",
+    "notes",
+]
+if fieldnames != expected_fields:
+    raise SystemExit(f"Source-series schema drift: {fieldnames!r}")
+if any(row.get(None) for row in series_rows):
+    raise SystemExit("Baseline source-series inventory already contains unnamed overflow fields")
+if any(row["source_series_key"].startswith("catania-") for row in series_rows):
     raise SystemExit("Catania source series already present")
-caserta = [i for i, line in enumerate(lines) if line.startswith("caserta-")]
+caserta = [i for i, row in enumerate(series_rows) if row["source_series_key"].startswith("caserta-")]
 if len(caserta) != 2:
     raise SystemExit(f"Expected two Caserta anchor series, got {len(caserta)}")
 new_series = [
-    f"catania-applicants,catania,WL-REGIME-L190-2012,applicant,all,periodic_attachment,{PAGE},landing_page_resolved,2026-09-12,Current official landing page directly verified 12 September 2026 and exposes a dedicated applicant XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 324 pending applicant observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.",
-    f"catania-listed,catania,WL-REGIME-L190-2012,listed,all,periodic_attachment,{PAGE},landing_page_resolved,2026-09-12,Current official landing page directly verified 12 September 2026 and exposes a dedicated registered-company XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 1,632 listed-population observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.",
+    {
+        "source_series_key": "catania-applicants",
+        "authority_key": "catania",
+        "regime_code": "WL-REGIME-L190-2012",
+        "population_scope": "applicant",
+        "sector_scope": "all",
+        "publication_model": "periodic_attachment",
+        "series_url": PAGE,
+        "resource_resolution_status": "landing_page_resolved",
+        "verified_date": "2026-09-12",
+        "notes": "Current official landing page directly verified 12 September 2026 and exposes a dedicated applicant XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 324 pending applicant observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.",
+    },
+    {
+        "source_series_key": "catania-listed",
+        "authority_key": "catania",
+        "regime_code": "WL-REGIME-L190-2012",
+        "population_scope": "listed",
+        "sector_scope": "all",
+        "publication_model": "periodic_attachment",
+        "series_url": PAGE,
+        "resource_resolution_status": "landing_page_resolved",
+        "verified_date": "2026-09-12",
+        "notes": "Current official landing page directly verified 12 September 2026 and exposes a dedicated registered-company XLSX explicitly updated 11 September 2026; the byte-pinned workbook yields 1,632 listed-population observations and is documented in docs/sources/catania-operational-check-2026-09-12.md.",
+    },
 ]
 insert = max(caserta) + 1
-lines[insert:insert] = new_series
-p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+series_rows[insert:insert] = new_series
+with p.open("w", encoding="utf-8", newline="") as handle:
+    writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(series_rows)
 
 replace_once(
     "data/catalog.csv",
