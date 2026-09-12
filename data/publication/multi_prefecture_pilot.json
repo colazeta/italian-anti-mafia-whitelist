@@ -912,6 +912,40 @@
       "sha256": "90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5",
       "expected_source_rows": 1208,
       "notes": "Current byte-pinned 68-page applicant PDF. Exactly 1,208 indexed source rows yield 1,208 pending observations. Reviewed noncanonical application-date tokens, including the invalid calendar value 28/25/2025, remain raw with no inferred canonical date. Identifier and section parsing is strict and fail-closed; no fuzzy matching is used. Exact evidence is documented in docs/sources/caserta-operational-check-2026-09-12.md."
+    },
+    {
+      "source_key": "catania-listed",
+      "parser": "catania_listed",
+      "authority_key": "catania",
+      "authority_name": "Prefettura di Catania",
+      "register_key": "catania-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+      "sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
+      "expected_source_rows": 1632,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dated official resource",
+      "notes": "Source formulas and reviewed malformed strings remain provenance; canonical values are emitted only under explicit fail-closed parser rules documented in the Catania operational check."
+    },
+    {
+      "source_key": "catania-applicants",
+      "parser": "catania_applicants",
+      "authority_key": "catania",
+      "authority_name": "Prefettura di Catania",
+      "register_key": "catania-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+      "sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27",
+      "expected_source_rows": 324,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dated official resource",
+      "notes": "Applicant status is grounded in the separately identified official applicant population; nonstandard identifiers remain raw and are never repaired."
     }
   ]
 }

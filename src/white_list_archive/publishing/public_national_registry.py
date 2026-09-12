@@ -43,6 +43,7 @@ from white_list_archive.parsers.bolzano_docx import (
     parse_bolzano_listed,
 )
 from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
+from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -258,6 +259,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or BRESCIA_PARSERS.get(cfg["parser"])
         or BOLZANO_PARSERS.get(cfg["parser"])
         or CASERTA_PARSERS.get(cfg["parser"])
+        or CATANIA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
