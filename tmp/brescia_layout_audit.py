@@ -37,6 +37,7 @@ def main():
     columns = None
     patterns = Counter()
     anomalies = []
+    anomaly_signatures = []
     headers = []
     for rowno, row in enumerate(ws.iter_rows(values_only=True), start=1):
         vals = [clean(v) for v in row]
@@ -70,6 +71,18 @@ def main():
         patterns[(current_section, pattern)] += 1
         expected_name = vals[name] if name < len(vals) else ""
         if not expected_name:
+            anomaly_signatures.append(
+                [
+                    rowno,
+                    current_section,
+                    vals[0] if vals else "",
+                    vals[office] if office < len(vals) else "",
+                    vals[ident] if ident < len(vals) else "",
+                    vals[listing] if listing < len(vals) else "",
+                    vals[expiry] if expiry < len(vals) else "",
+                    vals[update] if update < len(vals) else "",
+                ]
+            )
             anomalies.append({
                 "row": rowno,
                 "section": current_section,
@@ -77,6 +90,7 @@ def main():
                 "nonempty": nonempty,
                 "before": [[i, vals[i]] for i in range(max(0, name - 3), min(len(vals), update + 4))],
             })
+    canonical = json.dumps(anomaly_signatures, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     out = {
         "headers": headers,
         "pattern_counts": [
@@ -84,6 +98,8 @@ def main():
             for (section, indices), count in patterns.most_common()
         ],
         "expected_name_blank_company_like_count": len(anomalies),
+        "expected_name_blank_company_like_sha256": hashlib.sha256(canonical).hexdigest(),
+        "expected_name_blank_company_like_signatures": anomaly_signatures,
         "expected_name_blank_company_like_rows": anomalies,
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))
