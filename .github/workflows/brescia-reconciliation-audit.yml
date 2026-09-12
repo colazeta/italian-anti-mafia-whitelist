@@ -1,0 +1,175 @@
+name: Brescia reconciliation audit
+
+on:
+  push:
+    branches:
+      - expansion/brescia-2026-09-12
+    paths:
+      - .github/workflows/brescia-reconciliation-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check 'openpyxl>=3.1,<4' requests
+      - name: Reconcile Brescia workbook semantics
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-iscritte-10-settembre-2026.xlsx
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-richiedenti-l-iscrizione-10-settembre-2026.xlsx
+        run: |
+          mkdir -p tmp
+          python - <<'PY'
+          import hashlib, io, json, os, re
+          from collections import Counter, defaultdict
+          from datetime import date, datetime
+          from pathlib import Path
+          import openpyxl, requests
+
+          H={'User-Agent':'italian-anti-mafia-whitelist/reconciliation-audit (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+          SEC_RE=re.compile(r'^\s*sezione\s*(i{1,3}|iv|v|vi{0,3}|ix|x)\s*$',re.I)
+          DMY=re.compile(r'^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$')
+          def clean(v):
+              if v is None:return ''
+              if isinstance(v,datetime):return v.date().isoformat()
+              if isinstance(v,date):return v.isoformat()
+              return re.sub(r'\s+',' ',str(v)).strip()
+          def dnorm(v):
+              raw=clean(v)
+              if not raw:return '',raw,'missing'
+              if re.fullmatch(r'\d{4}-\d{2}-\d{2}',raw):
+                  try:return date.fromisoformat(raw).isoformat(),raw,''
+                  except ValueError:return '',raw,'invalid'
+              m=DMY.fullmatch(raw)
+              if m:
+                  try:return date(int(m[3]),int(m[2]),int(m[1])).isoformat(),raw,''
+                  except ValueError:return '',raw,'invalid'
+              return '',raw,'unreviewed'
+          def fetch(url):
+              a=requests.get(url,headers=H,timeout=60);a.raise_for_status()
+              b=requests.get(url,headers=H,timeout=60);b.raise_for_status()
+              sa=hashlib.sha256(a.content).hexdigest();sb=hashlib.sha256(b.content).hexdigest()
+              if sa!=sb:raise SystemExit(f'byte drift {sa} != {sb}')
+              return a.content,sa
+          def idx(vals, needles):
+              for i,v in enumerate(vals):
+                  f=v.casefold()
+                  if all(n in f for n in needles):return i
+              return None
+
+          data,sha=fetch(os.environ['LISTED_URL'])
+          wb=openpyxl.load_workbook(io.BytesIO(data),data_only=True,read_only=True)
+          rows=[]; headers=[]; section_counts=Counter(); update_examples=defaultdict(list); incomplete=[]
+          section=''; activity=''; cols=None
+          for ws in wb.worksheets:
+              for rn,row in enumerate(ws.iter_rows(values_only=True),1):
+                  vals=[clean(v) for v in row]; non=[v for v in vals if v]
+                  shits=[SEC_RE.fullmatch(v).group(1).upper() for v in non if SEC_RE.fullmatch(v)]
+                  if shits:
+                      if len(set(shits))!=1:raise SystemExit(f'ambiguous section {ws.title}:{rn}:{shits}')
+                      section=shits[0];activity='';cols=None;continue
+                  if section and cols is None and non and not any('ragione sociale' in v.casefold() for v in non):
+                      cand=max(non,key=len)
+                      if not any(x in cand.casefold() for x in ('prefettura','ufficio antimafia','elenco dei fornitori','art.1')):activity=cand
+                  if any('ragione sociale' in v.casefold() for v in vals):
+                      c=(idx(vals,('ragione sociale',)),idx(vals,('sede legale',)),next((i for i,v in enumerate(vals) if 'codice fiscale' in v.casefold() or 'partita iva' in v.casefold()),None),next((i for i,v in enumerate(vals) if 'data iscrizione' in v.casefold() or 'data di iscrizione' in v.casefold()),None),next((i for i,v in enumerate(vals) if 'data scadenza' in v.casefold() or 'data di scadenza' in v.casefold()),None),next((i for i,v in enumerate(vals) if 'aggiornamento' in v.casefold()),None))
+                      if any(x is None for x in c):raise SystemExit(f'header drift {ws.title}:{rn}:{vals}')
+                      cols=c;headers.append({'sheet':ws.title,'row':rn,'section':section,'activity':activity,'columns':list(c)});continue
+                  if cols is None:continue
+                  ni,oi,ii,li,ei,ui=cols
+                  name=vals[ni] if ni<len(vals) else ''
+                  if not name:continue
+                  office=vals[oi] if oi<len(vals) else ''; ident=vals[ii] if ii<len(vals) else ''; update=vals[ui] if ui<len(vals) else ''
+                  ln,lr,le=dnorm(row[li] if li<len(row) else None); en,er,ee=dnorm(row[ei] if ei<len(row) else None)
+                  # obvious title rows are not company candidates
+                  if not ident and not lr and not er and not update:
+                      continue
+                  rec={'sheet':ws.title,'row':rn,'section':section,'activity':activity,'name':name,'office':office,'identifier_raw':ident,'listing':ln,'listing_raw':lr,'listing_error':le,'expiry':en,'expiry_raw':er,'expiry_error':ee,'update_raw':update,'status':'renewal_update_in_progress' if 'aggiornamento' in update.casefold() else 'listed'}
+                  if not section or not activity or not ident or not lr or not er:
+                      incomplete.append(rec)
+                  rows.append(rec);section_counts[section]+=1
+                  if update and update.casefold()!='in fase di aggiornamento l\'iscrizione resta valida anche oltre la scadenza, fino all\'esito definitivo':
+                      update_examples[update].append({'row':rn,'name':name,'section':section})
+
+          by_name=defaultdict(list);by_id=defaultdict(list)
+          for r in rows:
+              by_name[r['name']].append(r)
+              if r['identifier_raw']:by_id[r['identifier_raw']].append(r)
+          anomalies=[]
+          for r in rows:
+              if r['listing_error'] or r['expiry_error'] or not r['identifier_raw']:
+                  anomalies.append({'row':r,'same_name':[x for x in by_name[r['name']] if x['row']!=r['row']][:20],'same_identifier':[x for x in by_id.get(r['identifier_raw'],[]) if x['row']!=r['row']][:20] if r['identifier_raw'] else []})
+
+          # Group on exact name+identifier+canonical/raw dates, intentionally excluding address/status.
+          # This is only an audit candidate; parser acceptance is separately validated.
+          groups=defaultdict(list)
+          for r in rows:
+              key=(r['name'],r['identifier_raw'],r['listing'] or r['listing_raw'],r['expiry'] or r['expiry_raw'])
+              groups[key].append(r)
+          duplicate_same_section=[];office_variants=[];status_conflicts=[]
+          for k,rs in groups.items():
+              sc=Counter(x['section'] for x in rs)
+              if any(c>1 for c in sc.values()):duplicate_same_section.append({'key':k,'sections':dict(sc),'rows':[x['row'] for x in rs]})
+              offices=sorted({x['office'] for x in rs if x['office']})
+              if len(offices)>1:office_variants.append({'key':k,'offices':offices,'sections':sorted({x['section'] for x in rs})})
+              statuses=sorted({x['status'] for x in rs})
+              if len(statuses)>1:status_conflicts.append({'key':k,'statuses':statuses,'updates':sorted({x['update_raw'] for x in rs}),'sections':sorted({x['section'] for x in rs})})
+
+          listed={
+              'sha256':sha,'workbook_sheets':wb.sheetnames,'headers':headers,'source_rows':len(rows),'section_row_counts':dict(section_counts),
+              'raw_status_counts':dict(Counter(r['status'] for r in rows)),'semantic_groups_name_id_dates':len(groups),
+              'group_status_if_any_update':dict(Counter('renewal_update_in_progress' if any(x['status']=='renewal_update_in_progress' for x in rs) else 'listed' for rs in groups.values())),
+              'duplicate_same_section_count':len(duplicate_same_section),'duplicate_same_section_examples':duplicate_same_section[:80],
+              'office_variant_group_count':len(office_variants),'office_variant_examples':office_variants[:60],
+              'status_conflict_group_count':len(status_conflicts),'status_conflict_examples':status_conflicts[:40],
+              'nonstandard_update_values':{k:v[:20] for k,v in update_examples.items()},'incomplete_rows':incomplete,
+              'date_or_identifier_anomalies':anomalies,
+          }
+
+          adata,asha=fetch(os.environ['APPLICANT_URL']);awb=openpyxl.load_workbook(io.BytesIO(adata),data_only=True,read_only=True)
+          app_headers=[];app_rows=[];app_incomplete=[];app_cols_by_sheet={}
+          for ws in awb.worksheets:
+              cols=None
+              for rn,row in enumerate(ws.iter_rows(values_only=True),1):
+                  vals=[clean(v) for v in row];joined=' | '.join(vals).casefold()
+                  if 'ragione sociale' in joined and ('codice fiscale' in joined or 'partita iva' in joined):
+                      ni=idx(vals,('ragione sociale',));oi=next((i for i,v in enumerate(vals) if 'sede' in v.casefold()),None);ii=next((i for i,v in enumerate(vals) if 'codice fiscale' in v.casefold() or 'partita iva' in v.casefold()),None);di=next((i for i,v in enumerate(vals) if 'data' in v.casefold() and any(t in v.casefold() for t in ('istanza','presentazione','richiesta'))),None);ai=next((i for i,v in enumerate(vals) if 'attivit' in v.casefold() or 'settore' in v.casefold()),None)
+                      if di is None:
+                          ds=[i for i,v in enumerate(vals) if 'data' in v.casefold()];di=ds[0] if len(ds)==1 else None
+                      if any(x is None for x in (ni,oi,ii,di)):raise SystemExit(f'applicant header drift {ws.title}:{rn}:{vals}')
+                      cols=(ni,oi,ii,di,ai);app_headers.append({'sheet':ws.title,'row':rn,'columns':[ni,oi,ii,di,ai],'values':vals});continue
+                  if cols is None:continue
+                  ni,oi,ii,di,ai=cols;name=vals[ni] if ni<len(vals) else ''
+                  if not name:continue
+                  ident=vals[ii] if ii<len(vals) else '';office=vals[oi] if oi<len(vals) else '';dn,dr,de=dnorm(row[di] if di<len(row) else None);activity=vals[ai] if ai is not None and ai<len(vals) else ''
+                  if not ident and not dr and not activity:continue
+                  rec={'sheet':ws.title,'row':rn,'name':name,'office':office,'identifier_raw':ident,'application_date':dn,'application_raw':dr,'date_error':de,'activity':activity}
+                  if not ident or not dr:app_incomplete.append(rec)
+                  app_rows.append(rec)
+          agroups=defaultdict(list)
+          for r in app_rows:agroups[(r['name'],r['office'],r['identifier_raw'],r['application_date'] or r['application_raw'],r['activity'])].append(r)
+          applicant={'sha256':asha,'workbook_sheets':awb.sheetnames,'headers':app_headers,'source_rows':len(app_rows),'semantic_groups':len(agroups),'duplicate_group_count':sum(len(v)>1 for v in agroups.values()),'incomplete_rows':app_incomplete,'date_anomalies':[r for r in app_rows if r['date_error']],'activity_nonempty':sum(bool(r['activity']) for r in app_rows),'activity_examples':sorted({r['activity'] for r in app_rows if r['activity']})[:80]}
+
+          out={'verified_on':'2026-09-12','reference_date':'2026-09-10','listed':listed,'applicant':applicant}
+          Path('tmp/brescia-reconciliation-audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2,default=list),encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2,default=list))
+          PY
+      - name: Persist reconciliation checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/brescia-reconciliation-audit.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Checkpoint Brescia reconciliation audit'
+          git push origin HEAD:expansion/brescia-2026-09-12
