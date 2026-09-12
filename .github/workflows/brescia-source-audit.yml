@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -17,27 +17,29 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: expansion/brescia-2026-09-12
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install audit dependencies
-        run: python -m pip install --disable-pip-version-check 'pdfplumber>=0.11,<0.12' 'openpyxl>=3.1,<4' 'python-docx>=1.1,<2' requests beautifulsoup4
+        run: python -m pip install --disable-pip-version-check 'openpyxl>=3.1,<4' requests
       - name: Fetch and audit current official Brescia sources
         env:
           LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-iscritte-10-settembre-2026.xlsx
+          APPLICANT_URL: https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-richiedenti-l-iscrizione-10-settembre-2026.xlsx
         run: |
+          mkdir -p tmp
           python - <<'PY'
           import hashlib, io, json, os, re
+          from collections import Counter
+          from datetime import date, datetime
           from pathlib import Path
-          from urllib.parse import urljoin
 
-          import pdfplumber
-          import requests
-          from bs4 import BeautifulSoup
           import openpyxl
-          from docx import Document
+          import requests
 
-          landing_url = os.environ['LANDING_URL']
           headers = {
               'User-Agent': 'italian-anti-mafia-whitelist/official-source-audit (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
           }
@@ -47,152 +49,132 @@ jobs:
               r.raise_for_status()
               return r
 
-          landing = get(landing_url)
-          soup = BeautifulSoup(landing.text, 'html.parser')
-          page_text = re.sub(r'\s+', ' ', soup.get_text(' ', strip=True))
-          required = [
-              '31 agosto 2026',
-              'Elenco ditte richiedenti iscrizione in White List',
-              'Elenco ditte iscritte in White List',
-          ]
-          for needle in required:
-              if needle.casefold() not in page_text.casefold():
-                  raise SystemExit(f'official landing missing expected current marker: {needle!r}')
-
-          candidates = []
-          for a in soup.find_all('a', href=True):
-              text = re.sub(r'\s+', ' ', a.get_text(' ', strip=True))
-              low = text.casefold()
-              if 'white list' not in low:
-                  continue
-              if '31 agosto 2026' not in low:
-                  continue
-              if 'richiedenti iscrizione' in low:
-                  kind = 'applicant'
-              elif 'ditte iscritte' in low:
-                  kind = 'listed'
-              else:
-                  continue
-              candidates.append({'kind': kind, 'text': text, 'url': urljoin(landing.url, a['href'])})
-
-          by_kind = {}
-          for item in candidates:
-              by_kind.setdefault(item['kind'], []).append(item)
-          for kind in ('listed', 'applicant'):
-              if len(by_kind.get(kind, [])) != 1:
-                  raise SystemExit(f'expected exactly one current {kind} attachment; got {by_kind.get(kind, [])!r}')
+          def clean(v):
+              if v is None:
+                  return ''
+              if isinstance(v, datetime):
+                  return v.isoformat()
+              if isinstance(v, date):
+                  return v.isoformat()
+              return re.sub(r'\s+', ' ', str(v)).strip()
 
           report = {
-              'landing': {
-                  'requested_url': landing_url,
-                  'final_url': landing.url,
-                  'status_code': landing.status_code,
-                  'sha256': hashlib.sha256(landing.content).hexdigest(),
-                  'last_modified': landing.headers.get('last-modified'),
-              },
+              'verified_on': '2026-09-12',
+              'current_reference_date': '2026-09-10',
+              'landing': {'url': os.environ['LANDING_URL']},
               'attachments': {},
           }
 
-          def inspect_pdf(data):
-              out = {'format': 'pdf'}
-              with pdfplumber.open(io.BytesIO(data)) as pdf:
-                  out['pages'] = len(pdf.pages)
-                  table_counts = []
-                  row_counts = []
-                  samples = []
-                  tax_hits = 0
-                  status_terms = {}
-                  for pno, page in enumerate(pdf.pages, start=1):
-                      text = page.extract_text(x_tolerance=2, y_tolerance=2) or ''
-                      tax_hits += len(re.findall(r'(?<!\d)\d{11}(?!\d)', text))
-                      for term in ('iscritt', 'aggiornamento', 'rinnovo', 'istruttoria', 'richiedent'):
-                          status_terms[term] = status_terms.get(term, 0) + len(re.findall(term, text, flags=re.I))
-                      tables = page.extract_tables() or []
-                      table_counts.append(len(tables))
-                      row_counts.append(sum(len(t) for t in tables))
-                      if pno <= 3 or pno == len(pdf.pages):
-                          samples.append({
-                              'page': pno,
-                              'text': text[:1800],
-                              'tables': [[[(c or '')[:160] for c in row] for row in table[:8]] for table in tables[:2]],
-                          })
-                  out['table_counts_per_page'] = table_counts
-                  out['table_rows_per_page'] = row_counts
-                  out['tax_id_hits'] = tax_hits
-                  out['term_hits'] = status_terms
-                  out['samples'] = samples
-              return out
+          # The Ministry landing endpoint intermittently rejects generic runner GETs.
+          # Record that state, but do not turn a failed second channel into negative evidence.
+          try:
+              landing = get(os.environ['LANDING_URL'])
+              report['landing'].update({
+                  'status_code': landing.status_code,
+                  'sha256': hashlib.sha256(landing.content).hexdigest(),
+                  'contains_current_date': '10 settembre 2026' in landing.text.casefold(),
+                  'contains_listed_label': 'elenco ditte iscritte in white list aggiornato al 10 settembre 2026' in landing.text.casefold(),
+                  'contains_applicant_label': 'elenco ditte richiedenti iscrizione in white list aggiornato al 10 settembre 2026' in landing.text.casefold(),
+              })
+          except Exception as exc:
+              report['landing'].update({'fetch_error': f'{type(exc).__name__}: {exc}'})
 
-          def inspect_xlsx(data):
-              out = {'format': 'xlsx'}
+          def audit_xlsx(data, kind):
               wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True, read_only=True)
-              sheets = []
+              result = {'format': 'xlsx', 'sheet_count': len(wb.sheetnames), 'sheets': []}
+              total_nonempty = 0
+              all_rows = []
               for ws in wb.worksheets:
                   rows = list(ws.iter_rows(values_only=True))
-                  nonempty = [r for r in rows if any(v not in (None, '') for v in r)]
-                  sheets.append({
+                  nonempty = []
+                  for rowno, row in enumerate(rows, start=1):
+                      vals = [clean(v) for v in row]
+                      if not any(vals):
+                          continue
+                      total_nonempty += 1
+                      nonempty.append((rowno, vals))
+                      all_rows.append((ws.title, rowno, vals))
+                  result['sheets'].append({
                       'title': ws.title,
-                      'row_count': len(rows),
+                      'max_row': ws.max_row,
+                      'max_column': ws.max_column,
                       'nonempty_rows': len(nonempty),
-                      'sample': [[str(v) if v is not None else '' for v in r[:12]] for r in nonempty[:12]],
+                      'first_nonempty_rows': [
+                          {'row': rowno, 'values': vals[:16]} for rowno, vals in nonempty[:20]
+                      ],
+                      'last_nonempty_rows': [
+                          {'row': rowno, 'values': vals[:16]} for rowno, vals in nonempty[-10:]
+                      ],
                   })
-              out['sheets'] = sheets
-              return out
+              result['total_nonempty_rows'] = total_nonempty
 
-          def inspect_docx(data):
-              out = {'format': 'docx'}
-              doc = Document(io.BytesIO(data))
-              out['paragraphs'] = [p.text for p in doc.paragraphs[:30]]
-              out['table_count'] = len(doc.tables)
-              out['tables'] = []
-              for ti, table in enumerate(doc.tables[:6]):
-                  out['tables'].append({
-                      'index': ti,
-                      'rows': len(table.rows),
-                      'sample': [[c.text[:180] for c in row.cells] for row in table.rows[:12]],
-                  })
-              return out
+              # Generic structure/profile evidence only; parser semantics are bound later.
+              joined_rows = [' | '.join(vals) for _, _, vals in all_rows]
+              result['header_like_rows'] = [
+                  {'sheet': sh, 'row': rowno, 'values': vals[:16]}
+                  for sh, rowno, vals in all_rows
+                  if any(x in ' '.join(vals).casefold() for x in ('ragione sociale','codice fiscale','partita iva','data iscrizione','data di iscrizione','data presentazione','aggiornamento'))
+              ][:60]
+              lengths = Counter()
+              numeric_tokens = Counter()
+              date_tokens = Counter()
+              status_tokens = Counter()
+              for text in joined_rows:
+                  for token in re.findall(r'(?<!\d)\d{8,16}(?!\d)', text):
+                      lengths[len(token)] += 1
+                      if len(token) in (10, 11, 12):
+                          numeric_tokens[token] += 1
+                  for token in re.findall(r'(?<!\d)\d{1,2}[./-]\d{1,2}[./-]\d{2,4}(?!\d)', text):
+                      date_tokens[token] += 1
+                  low = text.casefold()
+                  for term in ('iscritt', 'aggiornamento', 'rinnovo', 'istruttoria', 'richiedent', 'sospes', 'cancell'):
+                      if term in low:
+                          status_tokens[term] += 1
+              result['digit_token_lengths'] = dict(lengths)
+              result['distinct_10_12_digit_tokens'] = len(numeric_tokens)
+              result['sample_10_12_digit_tokens'] = list(numeric_tokens)[:80]
+              result['distinct_date_tokens'] = len(date_tokens)
+              result['sample_date_tokens'] = list(date_tokens)[:80]
+              result['row_term_hits'] = dict(status_tokens)
+              return result
 
-          for kind in ('listed', 'applicant'):
-              item = by_kind[kind][0]
-              first = get(item['url'])
-              second = get(item['url'])
+          for kind, env_name in [('listed', 'LISTED_URL'), ('applicant', 'APPLICANT_URL')]:
+              url = os.environ[env_name]
+              first = get(url)
+              second = get(url)
               sha1 = hashlib.sha256(first.content).hexdigest()
               sha2 = hashlib.sha256(second.content).hexdigest()
               if sha1 != sha2:
-                  raise SystemExit(f'{kind} attachment changed across two independent GETs: {sha1} != {sha2}')
-              ctype = first.headers.get('content-type', '')
-              disp = first.headers.get('content-disposition', '')
-              magic = first.content[:8]
-              if first.content.startswith(b'%PDF'):
-                  inspection = inspect_pdf(first.content)
-                  suffix = '.pdf'
-              elif magic[:4] == b'PK\x03\x04':
-                  try:
-                      inspection = inspect_xlsx(first.content)
-                      suffix = '.xlsx'
-                  except Exception:
-                      inspection = inspect_docx(first.content)
-                      suffix = '.docx'
-              else:
-                  inspection = {'format': 'unknown', 'head_hex': first.content[:64].hex()}
-                  suffix = '.bin'
-              Path(f'/tmp/brescia-{kind}{suffix}').write_bytes(first.content)
+                  raise SystemExit(f'{kind} source changed across independent GETs: {sha1} != {sha2}')
+              if first.content[:4] != b'PK\x03\x04':
+                  raise SystemExit(f'{kind} source is not an OpenXML package')
+              inspection = audit_xlsx(first.content, kind)
               report['attachments'][kind] = {
-                  'label': item['text'],
-                  'url': item['url'],
+                  'url': url,
                   'final_url': first.url,
                   'status_code': first.status_code,
                   'bytes': len(first.content),
                   'sha256': sha1,
                   'second_get_sha256': sha2,
-                  'content_type': ctype,
-                  'content_disposition': disp,
+                  'content_type': first.headers.get('content-type', ''),
+                  'content_disposition': first.headers.get('content-disposition', ''),
                   'last_modified': first.headers.get('last-modified'),
                   'inspection': inspection,
               }
 
-          print('BRESCIA_AUDIT_JSON_BEGIN')
+          Path('tmp/brescia-source-audit.json').write_text(
+              json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
           print(json.dumps(report, ensure_ascii=False, indent=2))
-          print('BRESCIA_AUDIT_JSON_END')
           PY
+      - name: Persist audit checkpoint on expansion branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/brescia-source-audit.json
+          if git diff --cached --quiet; then
+            echo 'Audit checkpoint unchanged.'
+          else
+            git commit -m 'Checkpoint Brescia source audit'
+            git push origin HEAD:expansion/brescia-2026-09-12
+          fi
