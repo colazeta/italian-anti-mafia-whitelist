@@ -7266,5 +7266,57 @@
         ]
       ]
     }
+  ],
+  "expected_name_blank_non_company_count": 1,
+  "expected_name_blank_non_company_sha256": "494b0d0d6944b0c006f0a103889004950b190070ee36f2cdfa8d7d9e8c63e610",
+  "expected_name_blank_non_company_signatures": [
+    [
+      3496,
+      "X",
+      [
+        [
+          7,
+          ","
+        ]
+      ]
+    ]
+  ],
+  "expected_name_blank_non_company_rows": [
+    {
+      "row": 3496,
+      "section": "X",
+      "header_columns": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "nonempty": [
+        [
+          7,
+          ","
+        ]
+      ],
+      "values": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ",",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ]
+    }
   ]
 }

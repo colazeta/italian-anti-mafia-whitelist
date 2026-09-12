@@ -1,7 +1,7 @@
 {
   "expected_name_blank_company_like_count": 72,
   "expected_name_blank_company_like_sha256": "f6d55887c3f4e45e46217447100e5e896e509c5daa50f603a9ab48a53c5a41c2",
-  "rows": [
+  "expected_name_blank_company_like_rows": [
     137,
     138,
     193,
@@ -74,5 +74,10 @@
     3341,
     3391,
     3412
+  ],
+  "expected_name_blank_non_company_count": 1,
+  "expected_name_blank_non_company_sha256": "494b0d0d6944b0c006f0a103889004950b190070ee36f2cdfa8d7d9e8c63e610",
+  "expected_name_blank_non_company_rows": [
+    3496
   ]
 }
