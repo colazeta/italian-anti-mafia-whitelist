@@ -8,6 +8,9 @@ on:
     paths:
       - .github/workflows/caserta-integration.yml
       - tmp/caserta_integration.py
+      - data/catalog.csv
+      - tests/test_source_population_coverage.py
+      - tests/test_source_registry.py
   workflow_dispatch:
 
 permissions:
