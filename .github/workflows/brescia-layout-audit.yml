@@ -35,7 +35,14 @@ jobs:
           summary = {
               'expected_name_blank_company_like_count': source['expected_name_blank_company_like_count'],
               'expected_name_blank_company_like_sha256': source['expected_name_blank_company_like_sha256'],
-              'rows': [item[0] for item in source['expected_name_blank_company_like_signatures']],
+              'expected_name_blank_company_like_rows': [
+                  item[0] for item in source['expected_name_blank_company_like_signatures']
+              ],
+              'expected_name_blank_non_company_count': source['expected_name_blank_non_company_count'],
+              'expected_name_blank_non_company_sha256': source['expected_name_blank_non_company_sha256'],
+              'expected_name_blank_non_company_rows': [
+                  item[0] for item in source['expected_name_blank_non_company_signatures']
+              ],
           }
           Path('tmp/brescia_layout_audit_summary.json').write_text(
               json.dumps(summary, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
