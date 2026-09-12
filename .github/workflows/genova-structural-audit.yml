@@ -1,0 +1,144 @@
+name: Genova structural audit
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-structural-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install bounded audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Audit byte-pinned tables
+        run: |
+          python - <<'PY'
+          import collections
+          import hashlib
+          import json
+          import pathlib
+          import re
+          import tempfile
+          import requests
+          import pdfplumber
+
+          source_profile = json.loads(pathlib.Path('tmp/genova_source_profile.json').read_text(encoding='utf-8'))
+          out = {'authority_key': 'genova', 'audited_on': '2026-09-12', 'sources': {}}
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'italian-anti-mafia-whitelist structural audit/1.0'})
+
+          def clean(value):
+              return re.sub(r'\s+', ' ', (value or '').replace('\u00a0', ' ')).strip()
+
+          with tempfile.TemporaryDirectory(prefix='genova-structural-') as td:
+              td = pathlib.Path(td)
+              for scope in ('listed', 'applicant'):
+                  cfg = source_profile['sources'][scope]
+                  response = session.get(cfg['resource_url'], timeout=(15, 120))
+                  response.raise_for_status()
+                  data = response.content
+                  sha = hashlib.sha256(data).hexdigest()
+                  if sha != cfg['sha256']:
+                      raise SystemExit(f'{scope} source drift: {sha} != {cfg["sha256"]}')
+                  p = td / f'{scope}.pdf'
+                  p.write_bytes(data)
+
+                  widths = collections.Counter()
+                  page_table_counts = collections.Counter()
+                  table_row_counts = collections.Counter()
+                  nonempty_rows = 0
+                  header_rows = 0
+                  exact_rows = []
+                  samples_by_width = collections.defaultdict(list)
+                  pages_with_no_table = []
+                  page_section_hits = {}
+                  status_fragments = collections.Counter()
+                  date_tokens = collections.Counter()
+
+                  with pdfplumber.open(p) as pdf:
+                      if len(pdf.pages) != cfg['pages']:
+                          raise SystemExit(f'{scope} page-count drift')
+                      for page_no, page in enumerate(pdf.pages, 1):
+                          text = page.extract_text() or ''
+                          hits = sorted(set(re.findall(r'Sez\.\s*(?:I{1,3}|IV|V|VI{0,3}|IX|X)\b', text, re.I)))
+                          if hits:
+                              page_section_hits[str(page_no)] = hits
+                          tables = page.extract_tables() or []
+                          page_table_counts[len(tables)] += 1
+                          if not tables:
+                              pages_with_no_table.append(page_no)
+                          for table_no, table in enumerate(tables, 1):
+                              table_row_counts[len(table or [])] += 1
+                              for row_no, row in enumerate(table or [], 1):
+                                  cells = [clean(cell) for cell in row]
+                                  if not any(cells):
+                                      continue
+                                  nonempty_rows += 1
+                                  widths[len(cells)] += 1
+                                  joined = ' | '.join(cells)
+                                  folded = joined.casefold()
+                                  if any(token in folded for token in ('ragione sociale', 'codice fiscale', 'partita iva', 'data iscrizione', 'data di presentazione')):
+                                      header_rows += 1
+                                  else:
+                                      exact_rows.append({'page': page_no, 'table': table_no, 'row': row_no, 'cells': cells})
+                                      if len(samples_by_width[str(len(cells))]) < 8:
+                                          samples_by_width[str(len(cells))].append({'page': page_no, 'table': table_no, 'row': row_no, 'cells': cells})
+                                  for token in ('aggiornamento in corso', 'richiesto rinnovo', 'in istruttoria', 'istruttoria', 'iscritto', 'non iscritto'):
+                                      if token in folded:
+                                          status_fragments[token] += 1
+                                  for token in re.findall(r'\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b', joined):
+                                      date_tokens[token] += 1
+
+                  out['sources'][scope] = {
+                      'sha256': sha,
+                      'pages': cfg['pages'],
+                      'page_table_count_distribution': dict(sorted(page_table_counts.items())),
+                      'table_row_count_distribution': dict(sorted(table_row_counts.items())),
+                      'row_width_distribution': dict(sorted(widths.items())),
+                      'nonempty_table_rows': nonempty_rows,
+                      'header_like_rows': header_rows,
+                      'data_like_rows': len(exact_rows),
+                      'pages_with_no_table': pages_with_no_table,
+                      'page_section_hits': page_section_hits,
+                      'status_fragment_counts': dict(status_fragments),
+                      'date_token_count': sum(date_tokens.values()),
+                      'date_token_examples': date_tokens.most_common(25),
+                      'samples_by_width': dict(samples_by_width),
+                      'first_data_rows': exact_rows[:12],
+                      'last_data_rows': exact_rows[-12:],
+                  }
+
+          path = pathlib.Path('tmp/genova_structural_audit.json')
+          path.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({scope: {
+              'pages': data['pages'],
+              'row_width_distribution': data['row_width_distribution'],
+              'data_like_rows': data['data_like_rows'],
+              'status_fragment_counts': data['status_fragment_counts'],
+          } for scope, data in out['sources'].items()}, ensure_ascii=False, indent=2))
+          PY
+      - name: Checkpoint structural audit
+        run: |
+          test -f tmp/genova_structural_audit.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/genova_structural_audit.json
+          if git diff --cached --quiet; then
+            echo 'No audit change to commit.'
+          else
+            git commit -m 'Checkpoint Genova structural audit'
+            git push origin HEAD:expansion/genova-2026-09-12
+          fi
