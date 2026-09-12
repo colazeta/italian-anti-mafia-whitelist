@@ -8,6 +8,7 @@ on:
       - .github/workflows/brescia-name-shift-fix.yml
       - tmp/brescia_apply_name_shift_fix.py
       - tmp/brescia_apply_audited_row_counts.py
+      - tmp/brescia_validate_parser.py
   workflow_dispatch:
 
 permissions:
