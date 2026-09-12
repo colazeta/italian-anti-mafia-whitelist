@@ -77,6 +77,7 @@ _REVIEWED_EXPIRY_DATE_TYPOGRAPHY = frozenset(
         "1 7 /1 2 /202 6",
         "12/1 2/2026",
         "15/012026",
+        "16/19/2026",
         "2/8/01/2027",
         "22/ 01/2027",
         "22/ 02487690212 04/2027",
@@ -116,6 +117,8 @@ def _validate_cfg(cfg: dict[str, Any], *, source_key: str, population_scope: str
 
 def _strict_source_date(raw: str, *, reviewed_malformed: frozenset[str], label: str) -> str:
     raw = _clean(raw)
+    if raw in reviewed_malformed:
+        return ""
     match = _DATE_DMY.fullmatch(raw)
     if match:
         day, month, year = map(int, match.groups())
@@ -123,8 +126,6 @@ def _strict_source_date(raw: str, *, reviewed_malformed: frozenset[str], label: 
             return date(year, month, day).isoformat()
         except ValueError as exc:
             raise RuntimeError(f"Bolzano unreviewed invalid {label} calendar date: {raw!r}") from exc
-    if raw in reviewed_malformed:
-        return ""
     raise RuntimeError(f"Bolzano unreviewed {label} date typography: {raw!r}")
 
 
