@@ -7,7 +7,7 @@ on:
     paths:
       - .github/workflows/genova-parser-validation.yml
 
-# Re-run the unchanged evidence-pinned assertions after restoring the validated strict Roman section grammar.
+# Validate the restored evidence-backed parser and all reviewed split-row identities.
 permissions:
   contents: write
 
@@ -62,8 +62,8 @@ jobs:
                   sha = hashlib.sha256(r.content).hexdigest()
                   if sha != spec['sha256']:
                       raise SystemExit(f'{scope} source drift: {sha}')
-                  path = td / f'{scope}.pdf'
-                  path.write_bytes(r.content)
+                  source_path = td / f'{scope}.pdf'
+                  source_path.write_bytes(r.content)
                   cfg = {
                       'source_key': spec['source_key'],
                       'authority_key': 'genova',
@@ -76,7 +76,7 @@ jobs:
                       'resource_url': spec['url'],
                       'sha256': spec['sha256'],
                   }
-                  batch = parse_genova_listed(path, cfg) if scope == 'listed' else parse_genova_applicants(path, cfg)
+                  batch = parse_genova_listed(source_path, cfg) if scope == 'listed' else parse_genova_applicants(source_path, cfg)
                   batches[scope] = batch
                   report['sources'][scope] = batch.diagnostics
 
@@ -97,18 +97,29 @@ jobs:
               assert fisia[0]['source_status'] == 'renewal_update_in_progress'
               assert fisia[0]['observed_listing_date'] == '2024-09-06'
               assert fisia[0]['observed_expiry_date'] == '2026-09-05'
+              assert fisia[0]['requested_activities'] == ['Sezione 10']
 
-              p7 = {x['name']: x for x in applicants if x['name'] in {
-                  'CRESTA & DELFINO SRL', 'CUNEO LUIGI', 'CURZI LUIGI - AUTOTRASPORTI C/TERZI',
-                  'DAMA SRL', 'DASSORI SRL', 'DE BREEZE SRL'}}
-              assert len(p7) == 6
-              assert p7['CRESTA & DELFINO SRL']['identifiers'] == ['01345600991']
-              assert p7['DE BREEZE SRL']['application_date'] == '2026-05-19'
-              assert p7['DE BREEZE SRL']['source_fields']['application_date_raw'] == '1 9 / 0 5 / 2 0 2 6'
+              reviewed = {
+                  'CRESTA & DELFINO SRL': ('01345600991', '2026-04-28', ['Sezione 1', 'Sezione 10']),
+                  'CUNEO LUIGI': ('01067080992', '2026-08-05', ['Sezione 6', 'Sezione 10']),
+                  'CURZI LUIGI - AUTOTRASPORTI C/TERZI': ('03185270109', '2026-05-05', ['Sezione 6']),
+                  'DAMA SRL': ('02830520991', '2026-05-07', ['Sezione 1']),
+                  'DASSORI SRL': ('02665830994', '2026-03-05', ['Sezione 1']),
+                  'DE BREEZE SRL': ('03047520998', '2026-05-19', ['Sezione 3', 'Sezione 4', 'Sezione 5']),
+              }
+              by_name = {x['name']: x for x in applicants if x['name'] in reviewed}
+              assert set(by_name) == set(reviewed)
+              for name, (identifier, application_date, activities) in reviewed.items():
+                  record = by_name[name]
+                  assert record['identifiers'] == [identifier], (name, record['identifiers'])
+                  assert record['application_date'] == application_date, (name, record['application_date'])
+                  assert record['requested_activities'] == activities, (name, record['requested_activities'])
+              assert by_name['DE BREEZE SRL']['source_fields']['application_date_raw'] == '1 9 / 0 5 / 2 0 2 6'
 
               edilq = [x for x in applicants if x['name'] == 'EDILQUADRIFOGLIO SRL']
               assert len(edilq) == 1
               assert edilq[0]['identifiers'] == ['01660680990']
+              assert edilq[0]['registered_office'] == 'GENOVA VIA CESAREA, 11/6'
               assert edilq[0]['application_date'] == '2026-07-03'
 
               raw_anomalies = {x['name']: x for x in listed if x['name'] in {'PARODI PAOLO', 'PIROMALLI ANTONINO srl', 'ROSSI ROBERTO', 'TRAVERSO SERGIO'}}
@@ -117,6 +128,15 @@ jobs:
               assert raw_anomalies['PIROMALLI ANTONINO srl']['identifiers'] == []
               assert raw_anomalies['ROSSI ROBERTO']['identifiers'] == []
               assert raw_anomalies['TRAVERSO SERGIO']['identifiers'] == []
+
+              genovarent = [x for x in listed if x['name'] == 'GENOVARENT SRL']
+              assert len(genovarent) == 1
+              assert genovarent[0]['source_fields']['listing_date_raw'] == '26//09/2023'
+              assert genovarent[0]['observed_listing_date'] == ''
+              scaccia = [x for x in applicants if x['name'] == 'LO SCACCIA PENSIERI SRL']
+              assert len(scaccia) == 1
+              assert scaccia[0]['source_fields']['application_date_raw'] == '16/072026'
+              assert scaccia[0]['application_date'] == ''
 
               report['total_records'] = len(listed) + len(applicants)
               report['status_counts'] = dict(Counter(x['source_status'] for x in listed + applicants))
