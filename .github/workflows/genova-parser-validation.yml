@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/genova-parser-validation.yml
 
+# Re-run after reviewed section-typography mappings were checkpointed.
 permissions:
   contents: write
 
