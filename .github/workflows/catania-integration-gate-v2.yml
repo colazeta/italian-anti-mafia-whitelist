@@ -30,9 +30,9 @@ jobs:
           body=source.split(marker,1)[1].split("\n          PY\n",1)[0]
           lines=[]
           for line in body.splitlines():
-              if not line.startswith('          '):
+              if line and not line.startswith('          '):
                   raise SystemExit(f'unexpected materialiser indentation: {line!r}')
-              lines.append(line[10:])
+              lines.append(line[10:] if line else '')
           script='\n'.join(lines)+'\n'
           old="if len(cfg['sources'])!=29: raise SystemExit(f'Unexpected baseline source count {len(cfg[\"sources\"])}')"
           new="if len(cfg['sources'])!=53: raise SystemExit(f'Unexpected baseline source count {len(cfg[\"sources\"])}')"
