@@ -57,48 +57,63 @@ jobs:
           def cells(row):
               return [clean(c.text) for c in row.cells]
 
+          def indexes(header, predicate):
+              return [i for i, value in enumerate(header) if predicate(value.casefold())]
+
+          def project(vals, idxs, label, section, rowno, anomalies):
+              if not idxs:
+                  anomalies.append({'section': section, 'row': rowno, 'field': label, 'reason': 'missing_header_index'})
+                  return ''
+              present = []
+              for i in idxs:
+                  if i < len(vals) and vals[i] and vals[i] not in present:
+                      present.append(vals[i])
+              if len(present) > 1:
+                  anomalies.append({'section': section, 'row': rowno, 'field': label, 'reason': 'merged_cell_disagreement', 'values': present})
+                  return ''
+              return present[0] if present else ''
+
           listed_doc = Document(io.BytesIO(fetch('listed')))
           if len(listed_doc.tables) != 10:
               raise SystemExit(f'listed table-count drift: {len(listed_doc.tables)}')
 
           listed_rows = []
           table_profiles = []
+          structural_anomalies = []
           for ti, table in enumerate(listed_doc.tables, start=1):
               if len(table.rows) < 3:
                   raise SystemExit(f'listed section {ti} unexpectedly short')
               h1 = cells(table.rows[0])
               h2 = cells(table.rows[1])
+              field_indexes = {
+                  'name': indexes(h1, lambda x: x == 'ragione sociale'),
+                  'office': indexes(h1, lambda x: x == 'sede legale'),
+                  'secondary': indexes(h1, lambda x: x.startswith('sede secondaria')),
+                  'identifier_raw': indexes(h1, lambda x: 'codice fiscale' in x),
+                  'listed_raw': indexes(h1, lambda x: 'data di iscrizione' in x),
+                  'expiry_raw': indexes(h1, lambda x: 'data validità iscrizione' in x),
+                  'update_raw': indexes(h1, lambda x: 'aggiornamento in corso' in x),
+              }
+              if any(not v for v in field_indexes.values()):
+                  raise SystemExit(f'listed section {ti} header mapping drift: {field_indexes!r}; header={h1!r}')
               widths = Counter()
-              duplicate_pairs = Counter()
-              anomalies = []
               data_count = 0
+              local_anomalies = []
               for ri, row in enumerate(table.rows[2:], start=3):
                   vals = cells(row)
                   widths[len(vals)] += 1
                   if not any(vals):
                       continue
                   data_count += 1
-                  # Word may repeat horizontally merged cells. Collapse only adjacent exact duplicates
-                  # after recording them; never infer across unequal cells.
-                  compact = []
-                  for value in vals:
-                      if compact and value and value == compact[-1]:
-                          duplicate_pairs[value] += 1
-                          continue
-                      compact.append(value)
-                  # Expected semantic shape: name, office, secondary office, id, listing date,
-                  # expiry date, renewal/update marker. Any other width is retained as an anomaly.
-                  if len(compact) != 7:
-                      anomalies.append({'row': ri, 'raw': vals, 'compact': compact})
+                  rec = {'section': ti, 'row': ri}
+                  for field, idxs in field_indexes.items():
+                      rec[field] = project(vals, idxs, field, ti, ri, local_anomalies)
+                  if not rec['name'] or not rec['listed_raw'] or not rec['expiry_raw']:
+                      local_anomalies.append({'section': ti, 'row': ri, 'reason': 'incomplete_company_row', 'projected': rec, 'raw': vals})
                       continue
-                  name, office, secondary, ident, listed_date, expiry_date, update = compact
-                  listed_rows.append({'section': ti, 'row': ri, 'name': name, 'office': office, 'secondary': secondary, 'identifier_raw': ident, 'listed_raw': listed_date, 'expiry_raw': expiry_date, 'update_raw': update})
-              table_profiles.append({'section': ti, 'rows_total': len(table.rows), 'data_rows_nonempty': data_count, 'widths': dict(widths), 'header_1': h1, 'header_2': h2, 'adjacent_exact_duplicate_cells': sum(duplicate_pairs.values()), 'shape_anomalies': anomalies[:30], 'shape_anomaly_count': len(anomalies)})
-
-          if any(x['shape_anomaly_count'] for x in table_profiles):
-              # Persist the complete profile but fail after writing would prevent checkpointing; instead
-              # include anomaly facts and let the next parser step remain blocked explicitly.
-              pass
+                  listed_rows.append(rec)
+              structural_anomalies.extend(local_anomalies)
+              table_profiles.append({'section': ti, 'rows_total': len(table.rows), 'data_rows_nonempty': data_count, 'widths': dict(widths), 'header_1': h1, 'header_2': h2, 'field_indexes': field_indexes, 'projected_company_rows': sum(1 for r in listed_rows if r['section'] == ti), 'anomaly_count': len(local_anomalies), 'anomalies': local_anomalies[:20]})
 
           listed_date_bad = sorted({r['listed_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['listed_raw'])})
           expiry_date_bad = sorted({r['expiry_raw'] for r in listed_rows if not DATE_RE.fullmatch(r['expiry_raw'])})
@@ -111,35 +126,49 @@ jobs:
               groups[key].append(r)
           group_status = Counter()
           section_multiplicity = Counter()
-          cross_group_update_variants = []
+          unknown_update_groups = []
           for key, members in groups.items():
               sections = [r['section'] for r in members]
               if len(sections) != len(set(sections)):
                   raise SystemExit(f'exact listed duplicate inside one section: {key!r}')
               section_multiplicity[len(sections)] += 1
               updates = sorted({r['update_raw'] for r in members if r['update_raw']})
-              folded = {u.casefold().replace('–','-').replace(' ','') for u in updates}
-              unknown = [u for u in folded if u not in {'si-ja','sì-ja'}]
+              folded = {u.casefold().replace('–','-').replace('—','-').replace(' ','') for u in updates}
+              unknown = sorted(u for u in folded if u not in {'si-ja','sì-ja'})
               if unknown:
-                  cross_group_update_variants.append({'key': key, 'updates': updates})
-              status = 'renewal_update_in_progress' if folded else 'listed'
-              group_status[status] += 1
+                  unknown_update_groups.append({'key': list(key), 'updates': updates, 'folded_unknown': unknown})
+              group_status['renewal_update_in_progress' if folded else 'listed'] += 1
 
           applicant_doc = Document(io.BytesIO(fetch('applicant')))
           if len(applicant_doc.tables) != 1:
               raise SystemExit(f'applicant table-count drift: {len(applicant_doc.tables)}')
           at = applicant_doc.tables[0]
+          ah = cells(at.rows[0])
+          applicant_indexes = {
+              'name': indexes(ah, lambda x: x == 'ragione sociale'),
+              'office': indexes(ah, lambda x: x == 'sede legale'),
+              'secondary': indexes(ah, lambda x: x.startswith('sede secondaria')),
+              'identifier_raw': indexes(ah, lambda x: 'codice fiscale' in x),
+              'activities_raw': indexes(ah, lambda x: 'attività per cui' in x),
+              'submitted_raw': indexes(ah, lambda x: 'data di presentazione' in x),
+              'outcome_raw': indexes(ah, lambda x: x == 'esito'),
+          }
+          if any(not v for v in applicant_indexes.values()):
+              raise SystemExit(f'applicant header mapping drift: {applicant_indexes!r}; header={ah!r}')
           applicant_rows = []
-          applicant_shape_anomalies = []
+          applicant_anomalies = []
           for ri, row in enumerate(at.rows[2:], start=3):
               vals = cells(row)
               if not any(vals):
                   continue
-              if len(vals) != 7:
-                  applicant_shape_anomalies.append({'row': ri, 'raw': vals})
+              rec = {'row': ri}
+              for field, idxs in applicant_indexes.items():
+                  rec[field] = project(vals, idxs, field, 'applicant', ri, applicant_anomalies)
+              if not rec['name'] or not rec['submitted_raw']:
+                  applicant_anomalies.append({'row': ri, 'reason': 'incomplete_applicant_row', 'projected': rec, 'raw': vals})
                   continue
-              name, office, secondary, ident, activities, submitted, outcome = vals
-              applicant_rows.append({'row': ri, 'name': name, 'office': office, 'secondary': secondary, 'identifier_raw': ident, 'activities_raw': activities, 'submitted_raw': submitted, 'outcome_raw': outcome})
+              applicant_rows.append(rec)
+
           applicant_date_bad = sorted({r['submitted_raw'] for r in applicant_rows if not DATE_RE.fullmatch(r['submitted_raw'])})
           applicant_invalid_ids = Counter(r['identifier_raw'] for r in applicant_rows if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))
           applicant_outcomes = Counter(r['outcome_raw'] for r in applicant_rows)
@@ -151,22 +180,27 @@ jobs:
               'listed': {
                   'table_count': len(listed_doc.tables),
                   'table_profiles': table_profiles,
+                  'source_row_anomaly_count': len(structural_anomalies),
+                  'source_row_anomalies': structural_anomalies[:50],
                   'parsed_source_rows': len(listed_rows),
                   'section_source_rows': dict(Counter(r['section'] for r in listed_rows)),
                   'semantic_groups_exact': len(groups),
                   'status_counts_exact_grouping': dict(group_status),
                   'group_section_multiplicity': dict(section_multiplicity),
                   'update_values': dict(update_values),
-                  'unreviewed_update_variants': cross_group_update_variants[:50],
+                  'unreviewed_update_groups': unknown_update_groups[:50],
                   'listed_date_bad': listed_date_bad,
                   'expiry_date_bad': expiry_date_bad,
                   'invalid_identifier_values': dict(invalid_ids),
               },
               'applicant': {
                   'rows_total': len(at.rows),
+                  'header_1': ah,
+                  'header_2': cells(at.rows[1]),
+                  'field_indexes': applicant_indexes,
                   'parsed_source_rows': len(applicant_rows),
-                  'shape_anomaly_count': len(applicant_shape_anomalies),
-                  'shape_anomalies': applicant_shape_anomalies[:30],
+                  'source_row_anomaly_count': len(applicant_anomalies),
+                  'source_row_anomalies': applicant_anomalies[:50],
                   'submitted_date_bad': applicant_date_bad,
                   'outcome_values': dict(applicant_outcomes),
                   'invalid_identifier_values': dict(applicant_invalid_ids),
