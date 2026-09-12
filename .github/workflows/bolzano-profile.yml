@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check 'python-docx>=1.1,<2' requests
-      - name: Profile byte-pinned Bolzano populations from physical cells
+      - name: Profile byte-pinned Bolzano populations
         run: |
           python - <<'PY'
           import hashlib, io, json, re
@@ -46,46 +46,49 @@ jobs:
           def physical(row):
             out=[]
             for tc in row._tr.tc_lst:
-              text=clean(' '.join((n.text or '') for n in tc.iter(qn('w:t'))))
-              span=1; gs=tc.tcPr.find(qn('w:gridSpan')) if tc.tcPr is not None else None
+              text=clean(' '.join((n.text or '') for n in tc.iter(qn('w:t')))); span=1
+              gs=tc.tcPr.find(qn('w:gridSpan')) if tc.tcPr is not None else None
               if gs is not None: span=int(gs.get(qn('w:val')) or '1')
               out.append((text,span))
             return out
-          def just(row): return [x[0] for x in physical(row)]
+          def texts(row): return [x[0] for x in physical(row)]
+          def one_update(values):
+            vals=[]
+            for v in values:
+              if v and v not in vals: vals.append(v)
+            return vals[0] if len(vals)==1 else ('' if not vals else None)
+          def renewal(v): return re.sub(r'[\s_./–—-]+','',v.casefold()) in {'sija','sìja'}
 
           doc=Document(io.BytesIO(fetch('listed')))
           if len(doc.tables)!=10: raise SystemExit(f'listed table count drift {len(doc.tables)}')
-          listed=[]; structural=[]; section_counts={}; span_patterns={}
+          listed=[]; anomalies=[]; section_counts={}; span_patterns={}
           for sec,t in enumerate(doc.tables,1):
-            h=just(t.rows[0])
-            if len(h)!=7 or h[0].casefold()!='ragione sociale' or 'sede legale' not in h[1].casefold() or 'codice fiscale' not in h[3].casefold() or 'data di iscrizione' not in h[4].casefold() or 'data validità iscrizione' not in h[5].casefold() or 'aggiornamento in corso' not in h[6].casefold():
-              raise SystemExit(f'listed physical header drift section {sec}: {h!r}')
+            h=texts(t.rows[0])
+            if len(h)!=7 or h[0].casefold()!='ragione sociale' or 'codice fiscale' not in h[3].casefold() or 'data di iscrizione' not in h[4].casefold() or 'data validità iscrizione' not in h[5].casefold() or 'aggiornamento in corso' not in h[6].casefold(): raise SystemExit(f'listed header drift section {sec}: {h!r}')
             patterns=Counter(); n=0
             for rn,row in enumerate(t.rows[2:],3):
               p=physical(row); x=[z[0] for z in p]
               if not any(x): continue
               patterns[tuple(z[1] for z in p)]+=1
-              if len(x)!=7 or not x[0] or not x[4] or not x[5]:
-                structural.append({'section':sec,'row':rn,'physical':p}); continue
-              listed.append({'section':sec,'row':rn,'name':x[0],'office':x[1],'secondary':x[2],'identifier_raw':x[3],'listed_raw':x[4],'expiry_raw':x[5],'update_raw':x[6]}); n+=1
+              update=one_update(x[6:]) if len(x)>=7 else None
+              if len(x)<7 or not x[0] or not x[4] or not x[5] or update is None:
+                anomalies.append({'section':sec,'row':rn,'physical':p}); continue
+              listed.append({'section':sec,'row':rn,'name':x[0],'office':x[1],'secondary':x[2],'identifier_raw':x[3],'listed_raw':x[4],'expiry_raw':x[5],'update_raw':update}); n+=1
             section_counts[str(sec)]=n; span_patterns[str(sec)]={repr(k):v for k,v in patterns.items()}
           groups=defaultdict(list)
           for r in listed: groups[(r['name'],r['office'],r['secondary'],r['identifier_raw'],r['listed_raw'],r['expiry_raw'])].append(r)
           same=[]; status=Counter(); multiplicity=Counter(); updates=Counter(r['update_raw'] for r in listed)
-          def renewal(v):
-            n=re.sub(r'[\s_./–—-]+','',v.casefold())
-            return n in {'sija','sìja'}
-          unknown=sorted(v for v in updates if v and not renewal(v))
           for k,m in groups.items():
             secs=[r['section'] for r in m]
             if len(secs)!=len(set(secs)): same.append({'key':list(k),'sections':secs})
-            multiplicity[len(secs)]+=1
-            uv={r['update_raw'] for r in m if r['update_raw']}
+            multiplicity[len(secs)]+=1; uv={r['update_raw'] for r in m if r['update_raw']}
             status['renewal_update_in_progress' if uv else 'listed']+=1
-          adoc=Document(io.BytesIO(fetch('applicant')))
-          if len(adoc.tables)!=1: raise SystemExit('applicant table count drift')
-          at=adoc.tables[0]; ah=just(at.rows[0])
-          if len(ah)!=7 or ah[0].casefold()!='ragione sociale' or 'data di presentazione' not in ah[5].casefold() or ah[6].casefold()!='esito': raise SystemExit(f'applicant physical header drift: {ah!r}')
+          unknown=sorted(v for v in updates if v and not renewal(v))
+
+          adoc=Document(io.BytesIO(fetch('applicant'))); at=adoc.tables[0] if len(adoc.tables)==1 else None
+          if at is None: raise SystemExit('applicant table count drift')
+          ah=texts(at.rows[0])
+          if len(ah)!=7 or ah[0].casefold()!='ragione sociale' or 'data di presentazione' not in ah[5].casefold() or ah[6].casefold()!='esito': raise SystemExit(f'applicant header drift: {ah!r}')
           apps=[]; aa=[]; apatterns=Counter()
           for rn,row in enumerate(at.rows[2:],3):
             p=physical(row); x=[z[0] for z in p]
@@ -96,21 +99,18 @@ jobs:
           exact=Counter((r['name'],r['office'],r['secondary'],r['identifier_raw'],r['activities_raw'],r['submitted_raw'],r['outcome_raw']) for r in apps)
           report={'source_sha256':{k:v[1] for k,v in SOURCES.items()},'listed':{
             'table_count':10,'parsed_source_rows':len(listed),'section_source_rows':section_counts,'grid_span_patterns_by_section':span_patterns,
-            'source_row_anomaly_count':len(structural),'source_row_anomalies':structural[:30],
+            'source_row_anomaly_count':len(anomalies),'source_row_anomalies':anomalies[:30],
             'semantic_groups_exact':len(groups),'same_section_exact_duplicate_count':len(same),'same_section_exact_duplicates':same[:30],
             'status_counts_exact_grouping':dict(status),'group_section_multiplicity':dict(multiplicity),'update_values':dict(updates),'unknown_update_values':unknown,
             'listed_date_bad':sorted({r['listed_raw'] for r in listed if not STRICT_DATE.fullmatch(r['listed_raw'])}),
             'expiry_date_bad':sorted({r['expiry_raw'] for r in listed if not STRICT_DATE.fullmatch(r['expiry_raw'])}),
             'invalid_identifier_values':dict(Counter(r['identifier_raw'] for r in listed if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))),
           },'applicant':{
-            'rows_total':len(at.rows),'parsed_source_rows':len(apps),'grid_span_patterns':{repr(k):v for k,v in apatterns.items()},
-            'source_row_anomaly_count':len(aa),'source_row_anomalies':aa[:30],
-            'submitted_date_bad':sorted({r['submitted_raw'] for r in apps if not STRICT_DATE.fullmatch(r['submitted_raw'])}),
-            'outcome_values':dict(Counter(r['outcome_raw'] for r in apps)),
+            'rows_total':len(at.rows),'parsed_source_rows':len(apps),'grid_span_patterns':{repr(k):v for k,v in apatterns.items()},'source_row_anomaly_count':len(aa),'source_row_anomalies':aa[:30],
+            'submitted_date_bad':sorted({r['submitted_raw'] for r in apps if not STRICT_DATE.fullmatch(r['submitted_raw'])}),'outcome_values':dict(Counter(r['outcome_raw'] for r in apps)),
             'invalid_identifier_values':dict(Counter(r['identifier_raw'] for r in apps if r['identifier_raw'] and not STRICT_ID.fullmatch(r['identifier_raw']))),
             'exact_duplicate_groups':[{'row_key':list(k),'count':v} for k,v in exact.items() if v>1], 'exact_unique_rows':len(exact)}}
-          Path('tmp').mkdir(exist_ok=True); Path('tmp/bolzano_source_profile.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          print(json.dumps(report,ensure_ascii=False,indent=2))
+          Path('tmp').mkdir(exist_ok=True); Path('tmp/bolzano_source_profile.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'); print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
       - name: Persist profile checkpoint
         run: |
