@@ -1,0 +1,92 @@
+name: Genova production materialisation v3
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-production-materialise-v3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install complete test runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Validation runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,dev,storage,database]'
+      - name: Materialise permanent Genova integration
+        run: |
+          awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
+          test -s /tmp/genova_materialise.py
+          python /tmp/genova_materialise.py
+          git diff --check
+      - name: Run full repository test suite
+        run: pytest
+      - name: Build and validate Genova national candidate
+        run: |
+          rm -rf /tmp/genova-production-sources /tmp/genova-registry.json /tmp/genova-registry.csv /tmp/genova-prefectures.json /tmp/genova-prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/genova-production-sources \
+            --registry-json /tmp/genova-registry.json \
+            --registry-csv /tmp/genova-registry.csv \
+            --prefectures-json /tmp/genova-prefectures.json \
+            --prefectures-csv /tmp/genova-prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/genova-registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/genova-prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 29600, reg['meta']
+          assert reg['meta']['authority_count'] == 30, reg['meta']
+          assert reg['meta']['register_count'] == 31, reg['meta']
+          assert pref['meta']['published_count'] == 30, pref['meta']
+          assert pref['meta']['mapped_count'] == 39, pref['meta']
+          rows = [r for r in reg['records'] if r['authority_key'] == 'genova']
+          assert len(rows) == 762
+          assert Counter(r['population_scope'] for r in rows) == Counter({'listed': 652, 'applicant': 110})
+          assert Counter(r['source_status'] for r in rows) == Counter({'listed': 528, 'renewal_update_in_progress': 124, 'pending': 110})
+          item = [r for r in pref['prefectures'] if r['authority_key'] == 'genova']
+          assert len(item) == 1 and item[0]['mapped'] and item[0]['published'] and item[0]['series_count'] == 2
+          PY
+      - name: Commit validated permanent integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'Integrate Genova public archive'
+          git push origin HEAD:expansion/genova-2026-09-12
