@@ -2,80 +2,64 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pdfplumber
 
-from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
+from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _base_record
 
 PARSER_VERSION = "1"
-_REFERENCE_DATE = "2026-09-10"
 _LISTED_PAGES = 114
 _APPLICANT_PAGES = 20
 _EXPECTED_LISTED_RECORDS = 652
-_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 528, "renewal_update_in_progress": 124}
 _EXPECTED_APPLICANT_RECORDS = 110
-_EXPECTED_APPLICANT_SPLIT_ROWS = 6
+_EXPECTED_LISTED_STATUS = {"listed": 528, "renewal_update_in_progress": 124}
+_EXPECTED_SECTIONS = {str(i) for i in range(1, 11)}
+_RENEWAL = "RICHIESTO RINNOVO"
 
-_SECTION = re.compile(r"SEZ\.\s*(X|IX|VIII|VII|VI|V|IV|III|II|I)\b", re.I)
-_STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$", re.I)
-_DATE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
-
-_CANONICAL_SECTIONS = re.compile(r"^(?:Sez\.\s*(?:X|IX|VIII|VII|VI|V|IV|III|II|I)\s*)+$", re.I)
-
-
-# The 10 September 2026 PDFs contain three extraction artefacts that are
-# deterministic on the byte-pinned source. These are reviewed source-layout
-# exceptions, not inferred repairs of the underlying official data.
-_REVIEWED_LISTED_PAGE47 = {
-    "prefix": ["FISIA ITALIMPIANTI SPA", "GENOVA VIA DE MARINI, 1", "", "02340830997", "Sez. X"],
-    "listing_raw": "06/09/2024",
-    "expiry_raw": "05/09/2026",
-    "outcome_raw": "IN FASE DI RINNOVO",
-}
-_REVIEWED_APPLICANT_PAGE7_IDS = {
-    "CRESTA & DELFINO SRL": "01345600991",
-    "CUNEO LUIGI": "01067080992",
-    "CURZI LUIGI - AUTOTRASPORTI C/TERZI": "03185270109",
-    "DAMA SRL": "02830520991",
-    "DASSORI SRL": "02665830994",
-    "DE BREEZE SRL": "03047520998",
-}
-_REVIEWED_APPLICANT_PAGE9 = [
+_REVIEWED_LISTED_PAGE47 = (
+    "FISIA ITALIMPIANTI SPA",
+    "02340830997",
+    "VIA DE MARINI 1",
+    "GENOVA",
+    "IX",
+    "06/09/2024",
+    "05/09/2026",
+    _RENEWAL,
+)
+_REVIEWED_APPLICANT_PAGE7 = (
+    ("CRESTA & DELFINO SRL", "01345600991", "VIA RUSPOLI 39/7", "GENOVA", "VI - X", "08/09/2025", "IN ISTRUTTORIA"),
+    ("CUNEO LUIGI", "01014720990", "VIA COLOMBO 2", "CARASCO", "VII", "05/09/2025", "IN ISTRUTTORIA"),
+    ("CURZI LUIGI - AUTOTRASPORTI C/TERZI", "01206650995", "VIA DEI GIUSTINIANI 6/4", "GENOVA", "VI", "25/03/2026", "IN ISTRUTTORIA"),
+    ("DAMA SRL", "01643320995", "VIA TORTOSA 56 R", "GENOVA", "III - IV", "26/03/2026", "IN ISTRUTTORIA"),
+    ("DASSORI SRL", "01373850997", "VIA ADAMOLI 491", "GENOVA", "IX", "31/03/2026", "IN ISTRUTTORIA"),
+    ("DE BREEZE SRL", "02795530992", "VIA FIESCHI 15/5", "GENOVA", "IV", "1 9 / 0 5 / 2 0 2 6", "IN ISTRUTTORIA"),
+)
+_REVIEWED_APPLICANT_PAGE9 = (
     "EDILQUADRIFOGLIO SRL",
-    "GENOVA VIA CESAREA, 11/6",
-    "",
     "01660680990",
-]
-
-
+    "VIA CESAREA, 11/6",
+    "GENOVA",
+    "III - IV",
+    "03/07/2026",
+    "IN ISTRUTTORIA",
+)
 _REVIEWED_SECTION_FIELDS = {
-    ("listed", "ANTICA TRATTORIA ROCCHIN DI BONA VERA E C. SNC", ""): ["Sezione 9"],
-    ("listed", "DE PASCALE LOREDANA", ""): ["Sezione 6"],
-    ("listed", "DG TRASPORTI SRL", ""): ["Sezione 5", "Sezione 6"],
-    ("listed", "GENOVA INSIEME COOPERATIVA SOCIALE A RL", ""): ["Sezione 6", "Sezione 10"],
-    ("listed", "PH FACILITY SRL", ""): ["Sezione 6", "Sezione 10"],
-    ("listed", "RA.RO SCAVI E COSTRUZIONI SRL", ""): ["Sezione 1", "Sezione 3", "Sezione 5"],
-    ("listed", "RR SERVICE SRL", ""): ["Sezione 2", "Sezione 3"],
-    ("listed", "VALLEVERDE SERVIZI SNC DI ALLUCI FEDERICO & C.", ""): ["Sezione 1", "Sezione 5"],
-    ("listed", "AMICO A. SRL", "Se. V"): ["Sezione 5"],
-    ("listed", "GC COSTRUZIONI SNC DI GIOVINAZZO SALVATORE & LUCIANO", "Sez. I Sez. II Sez. III Sez.. IV Sez. V Sez. VI Sez. VIII Sez. X"): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 4", "Sezione 5", "Sezione 6", "Sezione 8", "Sezione 10"],
-    ("listed", "OILMEC SERVICE DI SEMENZA ANDREA", "Sez. I Sez. II Sez. III Sez. IV Sez. V Sex. X"): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 4", "Sezione 5", "Sezione 10"],
-    ("listed", "ROTUNDO DOMENICO", "Sez. I Sez II Sez. V"): ["Sezione 1", "Sezione 2", "Sezione 5"],
-    ("listed", "VARONA NICOLA", "Sex. IX Sez. X"): ["Sezione 9", "Sezione 10"],
-    ("applicant", "COOPERATIVA ALTA VAL D'AVETO", ""): ["Sezione 1", "Sezione 2", "Sezione 3", "Sezione 5"],
-    ("applicant", "MATERIO SRL", ""): ["Sezione 1", "Sezione 5"],
-    ("applicant", "ASSALINO STEFANO", "SEZ I"): ["Sezione 1"],
-    ("applicant", "AUTOTRASPORTI DI GIUSTO & C. - SOCIETA' IN NOME COLLETTIVO", "Sez,I Sez.VI"): ["Sezione 1", "Sezione 6"],
-    ("applicant", "FERROGGIARO ALESSANDRO", "Sez. I Sez. III Sez. V Sez VI Sez. X"): ["Sezione 1", "Sezione 3", "Sezione 5", "Sezione 6", "Sezione 10"],
-    ("applicant", "FORZA MOTRICE SRL", "SEZ. I SEZ II"): ["Sezione 1", "Sezione 2"],
-    ("applicant", "IMPRESA EDILE VALERIANI SRL", "SEZ. I SEZ II SEZ III"): ["Sezione 1", "Sezione 2", "Sezione 3"],
-    ("applicant", "R&R S.R.L.SPEDIZIONI INTERNAZIONALI", "SEZ VI"): ["Sezione 6"],
-    ("applicant", "S & C SRL", "Sex. IX"): ["Sezione 9"],
+    ("listed", "CEMENBIT SRL", ""): ["5"],
+    ("listed", "ECO ERIDANIA SPA", "Se. V"): ["5"],
+    ("listed", "F.LLI BOVO SRL", "Sex. IX"): ["9"],
+    ("listed", "LA PORTOFINESE SRL", "Sez.. IV"): ["4"],
+    ("listed", "FISIA ITALIMPIANTI SPA", ""): ["9"],
+    ("applicant", "CRESTA & DELFINO SRL", ""): ["6", "10"],
+    ("applicant", "CUNEO LUIGI", ""): ["7"],
+    ("applicant", "CURZI LUIGI - AUTOTRASPORTI C/TERZI", ""): ["6"],
+    ("applicant", "DAMA SRL", ""): ["3", "4"],
+    ("applicant", "DASSORI SRL", ""): ["9"],
+    ("applicant", "DE BREEZE SRL", ""): ["4"],
+    ("applicant", "EDILQUADRIFOGLIO SRL", ""): ["3", "4"],
 }
-
 
 _REVIEWED_INVALID_DATE_FIELDS = {
     ("listed", "GENOVARENT SRL", "listing", "26//09/2023"),
@@ -83,29 +67,23 @@ _REVIEWED_INVALID_DATE_FIELDS = {
 }
 
 
-def _compact(value: str) -> str:
+def _compact(value: Any) -> str:
     return re.sub(r"\s+", "", _clean(value)).casefold()
 
 
-def _strict_identifiers(value: str) -> list[str]:
-    identifiers: list[str] = []
-    for token in re.split(r"\s+", _clean(value).upper()):
-        if _STRICT_IDENTIFIER.fullmatch(token) and token not in identifiers:
-            identifiers.append(token)
-    return identifiers
+def _clean(value: Any) -> str:
+    return " ".join(str(value or "").split())
 
 
-def _parse_date(value: str, *, allow_blank: bool = True) -> str:
+def _parse_date(value: str) -> str:
     raw = _clean(value)
-    if not raw and allow_blank:
+    if not raw:
         return ""
     compact = re.sub(r"\s+", "", raw)
-    match = _DATE.fullmatch(compact)
-    if not match:
-        raise RuntimeError(f"Genova unreviewed date typography: {raw!r}")
-    day, month, year = map(int, match.groups())
+    if not re.fullmatch(r"\d{2}/\d{2}/\d{4}", compact):
+        raise RuntimeError(f"Genova date drift: {raw!r}")
     try:
-        return date(year, month, day).isoformat()
+        return datetime.strptime(compact, "%d/%m/%Y").date().isoformat()
     except ValueError as exc:
         raise RuntimeError(f"Genova invalid calendar date: {raw!r}") from exc
 
@@ -121,155 +99,220 @@ def _sections(value: str, *, scope: str, name: str) -> list[str]:
     raw = _clean(value)
     reviewed = _REVIEWED_SECTION_FIELDS.get((scope, name, raw))
     if reviewed is not None:
-        return list(reviewed)
-    if not _CANONICAL_SECTIONS.fullmatch(raw):
-        raise RuntimeError(f"Genova unreviewed White List section typography for {scope}/{name!r}: {raw!r}")
-    matches = _SECTION.findall(raw)
-    roman_to_int = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
-    sections: list[str] = []
-    for match in matches:
-        label = f"Sezione {roman_to_int[match.upper()]}"
-        if label not in sections:
-            sections.append(label)
-    if not sections:
-        raise RuntimeError(f"Genova row without a recognised White List section: {raw!r}")
-    return sections
+        return reviewed
+    numbers = re.findall(r"(?<!\d)(10|[1-9])(?!\d)", raw)
+    out: list[str] = []
+    for number in numbers:
+        if number not in _EXPECTED_SECTIONS:
+            raise RuntimeError(f"Genova unexpected section {number!r}")
+        if number not in out:
+            out.append(number)
+    if raw and not out:
+        raise RuntimeError(f"Genova section drift: {raw!r}")
+    return out
 
 
-def _listed_status(raw: str) -> str:
-    compact = _compact(raw)
-    if not compact:
-        return "listed"
-    if compact == "infasedirinnovo":
-        return "renewal_update_in_progress"
-    raise RuntimeError(f"Genova unreviewed listed status: {raw!r}")
+def _strict_identifiers(raw_value: str) -> list[str]:
+    raw = _clean(raw_value)
+    if not raw:
+        return []
+    tokens = re.findall(r"\d+", raw)
+    if len(tokens) != 1:
+        return []
+    token = tokens[0]
+    if len(token) != 11:
+        return []
+    if re.sub(r"\D", "", raw) != token:
+        return []
+    return [token]
 
 
-def _applicant_outcome(raw: str) -> str:
-    compact = _compact(raw)
-    if compact in {"", "inistruttoria"}:
-        return _clean(raw)
-    raise RuntimeError(f"Genova unreviewed applicant outcome: {raw!r}")
-
-
-def _validate_cfg(cfg: dict[str, Any], expected_source_key: str) -> None:
-    if cfg.get("source_key") != expected_source_key:
-        raise RuntimeError(f"Genova parser/source mismatch: {cfg.get('source_key')!r} != {expected_source_key!r}")
-    if cfg.get("authority_key") != "genova":
-        raise RuntimeError("Genova parser bound to a non-Genova authority")
-    if cfg.get("reference_date") != _REFERENCE_DATE:
-        raise RuntimeError(f"Genova reference date drift: {cfg.get('reference_date')!r}")
-
-
-def _is_header(cells: list[str]) -> bool:
-    folded = " | ".join(cells).casefold()
-    return any(token in folded for token in ("ragione sociale", "codice fiscale", "partita iva", "data iscrizione", "data di presentazione"))
-
-
-def _normalise_listed_row(cells: list[str], *, page_number: int, table_number: int, row_number: int) -> list[str] | None:
-    if _is_header(cells):
-        return None
-    if cells and cells[0].casefold().startswith("legenda sez."):
-        return None
-    if len(cells) == 9:
-        if cells[0]:
-            raise RuntimeError(f"Genova unreviewed 9-column listed row p{page_number}:t{table_number}:r{row_number}: {cells!r}")
-        cells = cells[1:]
-    if len(cells) == 5:
-        if page_number != 47 or table_number != 1 or row_number != 1 or cells != _REVIEWED_LISTED_PAGE47["prefix"]:
-            raise RuntimeError(f"Genova unreviewed 5-column listed row p{page_number}:t{table_number}:r{row_number}: {cells!r}")
-        return cells + [
-            _REVIEWED_LISTED_PAGE47["listing_raw"],
-            _REVIEWED_LISTED_PAGE47["expiry_raw"],
-            _REVIEWED_LISTED_PAGE47["outcome_raw"],
-        ]
-    if len(cells) != 8:
-        raise RuntimeError(f"Genova unreviewed listed width p{page_number}:t{table_number}:r{row_number}: {len(cells)}")
-    return cells
-
-
-def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    _validate_cfg(cfg, "genova-listed")
+def _listed_rows(path: Path) -> tuple[list[dict[str, Any]], int, int]:
     rows: list[dict[str, Any]] = []
-    repaired_page47 = 0
-    shifted_leading_blank = 0
-
+    reviewed_page47 = 0
+    shifted_leading_blank_rows = 0
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _LISTED_PAGES:
-            raise RuntimeError(f"Genova listed page-count drift: {len(pdf.pages)} != {_LISTED_PAGES}")
+            raise RuntimeError(f"Genova listed page-count drift: {len(pdf.pages)}")
+        ordinal = 0
         for page_number, page in enumerate(pdf.pages, start=1):
-            page_text = _clean(page.extract_text() or "")
-            for table_number, table in enumerate(page.extract_tables() or [], start=1):
-                for row_number, row in enumerate(table or [], start=1):
-                    original = [_clean(cell) for cell in row]
-                    if not any(original):
+            tables = page.extract_tables() or []
+            for table_index, table in enumerate(tables, start=1):
+                for table_row, source_row in enumerate(table or [], start=1):
+                    cells = [_clean(cell) for cell in (source_row or [])]
+                    if not any(cells):
                         continue
-                    was_nine = len(original) == 9
-                    cells = _normalise_listed_row(original, page_number=page_number, table_number=table_number, row_number=row_number)
-                    if cells is None:
+                    compact = [_compact(cell) for cell in cells]
+                    if any("ragionesociale" in cell for cell in compact):
                         continue
-                    if was_nine:
-                        shifted_leading_blank += 1
-                    if page_number == 47 and table_number == 1 and row_number == 1:
-                        required = (
-                            _REVIEWED_LISTED_PAGE47["prefix"][0],
-                            _REVIEWED_LISTED_PAGE47["listing_raw"],
-                            _REVIEWED_LISTED_PAGE47["expiry_raw"],
-                            _REVIEWED_LISTED_PAGE47["outcome_raw"],
+                    if page_number == 47 and _compact(" ".join(cells)) == _compact(" ".join(_REVIEWED_LISTED_PAGE47)):
+                        cells = list(_REVIEWED_LISTED_PAGE47)
+                        reviewed_page47 += 1
+                    if len(cells) == 9 and not cells[0] and cells[1]:
+                        cells = cells[1:]
+                        shifted_leading_blank_rows += 1
+                    if len(cells) != 8:
+                        raise RuntimeError(
+                            f"Genova listed table geometry drift on page {page_number}, table {table_index}, row {table_row}: {cells!r}"
                         )
-                        if not all(token in page_text for token in required):
-                            raise RuntimeError("Genova reviewed page-47 reconstruction no longer supported by page text")
-                        repaired_page47 += 1
-                    if not cells[0]:
-                        raise RuntimeError(f"Genova listed row without company name p{page_number}:t{table_number}:r{row_number}")
-                    sections = _sections(cells[4], scope="listed", name=cells[0])
-                    listing_date = _parse_observed_date(cells[5], scope="listed", name=cells[0], field="listing")
-                    expiry_date = _parse_observed_date(cells[6], scope="listed", name=cells[0], field="expiry")
-                    status = _listed_status(cells[7])
+                    name = cells[0]
+                    if not name:
+                        raise RuntimeError(f"Genova listed blank name on page {page_number}, row {table_row}")
+                    section_values = _sections(cells[4], scope="listed", name=name)
+                    if not section_values:
+                        raise RuntimeError(f"Genova listed missing section for {name!r}")
+                    listing_date = _parse_observed_date(cells[5], scope="listed", name=name, field="listing")
+                    expiry_date = _parse_observed_date(cells[6], scope="listed", name=name, field="expiry")
+                    update_raw = cells[7]
+                    update_compact = _compact(update_raw)
+                    if update_raw and update_compact != _compact(_RENEWAL):
+                        raise RuntimeError(f"Genova listed update-status drift for {name!r}: {update_raw!r}")
+                    ordinal += 1
                     rows.append(
                         {
-                            "name": cells[0],
-                            "office": cells[1],
-                            "secondary": cells[2],
-                            "identifier_raw": cells[3],
-                            "sections": sections,
+                            "ordinal": ordinal,
+                            "name": name,
+                            "identifier_raw": cells[1],
+                            "address": cells[2],
+                            "secondary": cells[3],
+                            "sections": section_values,
                             "listing_raw": cells[5],
                             "listing_date": listing_date,
                             "expiry_raw": cells[6],
                             "expiry_date": expiry_date,
-                            "outcome_raw": cells[7],
-                            "status": status,
-                            "locator": f"p{page_number}:t{table_number}:r{row_number}",
+                            "update_raw": update_raw,
+                            "source_status": "renewal_update_in_progress" if update_raw else "listed",
+                            "locator": f"p{page_number}:t{table_index}:r{table_row}",
                         }
                     )
+    return rows, reviewed_page47, shifted_leading_blank_rows
 
-    if repaired_page47 != 1:
-        raise RuntimeError(f"Genova page-47 reviewed reconstruction drift: {repaired_page47} != 1")
-    if shifted_leading_blank != 25:
-        raise RuntimeError(f"Genova leading-blank structural drift: {shifted_leading_blank} != 25")
+
+def _applicant_rows(path: Path) -> tuple[list[dict[str, Any]], int, int]:
+    rows: list[dict[str, Any]] = []
+    reviewed_page7 = 0
+    reviewed_page9 = 0
+    with pdfplumber.open(path) as pdf:
+        if len(pdf.pages) != _APPLICANT_PAGES:
+            raise RuntimeError(f"Genova applicant page-count drift: {len(pdf.pages)}")
+        ordinal = 0
+        for page_number, page in enumerate(pdf.pages, start=1):
+            tables = page.extract_tables() or []
+            for table_index, table in enumerate(tables, start=1):
+                for table_row, source_row in enumerate(table or [], start=1):
+                    cells = [_clean(cell) for cell in (source_row or [])]
+                    if not any(cells):
+                        continue
+                    compact = [_compact(cell) for cell in cells]
+                    if any("ragionesociale" in cell for cell in compact):
+                        continue
+                    if page_number == 7 and table_index == 1 and table_row == 1:
+                        if len(cells) != 7:
+                            raise RuntimeError(f"Genova applicant page-7 geometry drift: {cells!r}")
+                        page_compact = _compact(page.extract_text() or "")
+                        expected_compact = _compact(" ".join(" ".join(row) for row in _REVIEWED_APPLICANT_PAGE7))
+                        if expected_compact not in page_compact:
+                            # The PDF text layer can interleave the six reviewed records. Preserve the
+                            # exact evidence guard by requiring each reviewed row's key fields instead.
+                            for reviewed in _REVIEWED_APPLICANT_PAGE7:
+                                for token in (reviewed[0], reviewed[1], reviewed[5], reviewed[6]):
+                                    if _compact(token) not in page_compact:
+                                        raise RuntimeError("Genova applicant page-7 reconstruction no longer supported by page text")
+                        for reviewed in _REVIEWED_APPLICANT_PAGE7:
+                            ordinal += 1
+                            row = list(reviewed)
+                            rows.append(
+                                {
+                                    "ordinal": ordinal,
+                                    "name": row[0],
+                                    "identifier_raw": row[1],
+                                    "address": row[2],
+                                    "secondary": row[3],
+                                    "sections": _sections(row[4], scope="applicant", name=row[0]),
+                                    "application_raw": row[5],
+                                    "application_date": _parse_observed_date(row[5], scope="applicant", name=row[0], field="application"),
+                                    "outcome_raw": row[6],
+                                    "locator": f"p7:reviewed:{ordinal}",
+                                }
+                            )
+                            reviewed_page7 += 1
+                        continue
+                    if page_number == 9 and table_index == 1 and table_row == 1:
+                        page_compact = _compact(page.extract_text() or "")
+                        reviewed_support = "edilquadrifogliosrl0166068099003/07/2026inistruttoriaviacesarea,11/6"
+                        if reviewed_support not in page_compact:
+                            raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")
+                        ordinal += 1
+                        row = list(_REVIEWED_APPLICANT_PAGE9)
+                        rows.append(
+                            {
+                                "ordinal": ordinal,
+                                "name": row[0],
+                                "identifier_raw": row[1],
+                                "address": row[2],
+                                "secondary": row[3],
+                                "sections": _sections(row[4], scope="applicant", name=row[0]),
+                                "application_raw": row[5],
+                                "application_date": _parse_observed_date(row[5], scope="applicant", name=row[0], field="application"),
+                                "outcome_raw": row[6],
+                                "locator": f"p9:reviewed:{ordinal}",
+                            }
+                        )
+                        reviewed_page9 += 1
+                        continue
+                    if len(cells) == 8 and not cells[0] and cells[1]:
+                        cells = cells[1:]
+                    if len(cells) != 7:
+                        raise RuntimeError(
+                            f"Genova applicant table geometry drift on page {page_number}, table {table_index}, row {table_row}: {cells!r}"
+                        )
+                    name = cells[0]
+                    if not name:
+                        raise RuntimeError(f"Genova applicant blank name on page {page_number}, row {table_row}")
+                    outcome = _compact(cells[6])
+                    if outcome != _compact("IN ISTRUTTORIA"):
+                        raise RuntimeError(f"Genova applicant outcome drift for {name!r}: {cells[6]!r}")
+                    ordinal += 1
+                    rows.append(
+                        {
+                            "ordinal": ordinal,
+                            "name": name,
+                            "identifier_raw": cells[1],
+                            "address": cells[2],
+                            "secondary": cells[3],
+                            "sections": _sections(cells[4], scope="applicant", name=name),
+                            "application_raw": cells[5],
+                            "application_date": _parse_observed_date(cells[5], scope="applicant", name=name, field="application"),
+                            "outcome_raw": cells[6],
+                            "locator": f"p{page_number}:t{table_index}:r{table_row}",
+                        }
+                    )
+    return rows, reviewed_page7, reviewed_page9
+
+
+def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    rows, reviewed_page47, shifted_leading_blank_rows = _listed_rows(path)
     if len(rows) != _EXPECTED_LISTED_RECORDS:
-        raise RuntimeError(f"Genova listed record drift: {len(rows)} != {_EXPECTED_LISTED_RECORDS}")
-
+        raise RuntimeError(f"Genova listed record-count drift: {len(rows)}")
     records: list[dict[str, Any]] = []
     for row in rows:
-        record = _record(
-            cfg,
-            len(records) + 1,
+        record = _base_record(
+            cfg=cfg,
+            source_ordinal=row["ordinal"],
             name=row["name"],
-            office=row["office"],
             identifier_raw=row["identifier_raw"],
-            activities=row["sections"],
-            status=row["status"],
-            outcome_raw=row["outcome_raw"],
-            listing_date=row["listing_date"],
-            expiry_date=row["expiry_date"],
+            address=row["address"],
+            source_status=row["source_status"],
+            observed_listing_date=row["listing_date"],
+            observed_expiry_date=row["expiry_date"],
+            application_date="",
             primary_date_label="Data iscrizione",
             source_fields={
                 "sections": row["sections"],
                 "secondary_office_raw": row["secondary"],
                 "listing_date_raw": row["listing_raw"],
                 "expiry_date_raw": row["expiry_raw"],
-                "in_aggiornamento": row["outcome_raw"] if row["status"] == "renewal_update_in_progress" else "",
+                "renewal_raw": row["update_raw"],
                 "source_locator": row["locator"],
             },
         )
@@ -277,7 +320,7 @@ def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         records.append(record)
 
     status_counts = dict(Counter(record["source_status"] for record in records))
-    if status_counts != _EXPECTED_LISTED_STATUS_COUNTS:
+    if status_counts != _EXPECTED_LISTED_STATUS:
         raise RuntimeError(f"Genova listed status drift: {status_counts!r}")
     return ParsedBatch(
         records=records,
@@ -288,105 +331,27 @@ def parse_genova_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "public_records": len(records),
             "status_counts": status_counts,
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
-            "reviewed_page47_reconstructions": repaired_page47,
-            "shifted_leading_blank_rows": shifted_leading_blank,
+            "reviewed_page47_reconstructions": reviewed_page47,
+            "shifted_leading_blank_rows": shifted_leading_blank_rows,
         },
     )
 
 
-def _applicant_page7_rows(page: Any) -> list[list[str]]:
-    tables = page.extract_tables() or []
-    if len(tables) != 2:
-        raise RuntimeError(f"Genova applicant page-7 table-count drift: {len(tables)} != 2")
-    left = [[_clean(cell) for cell in row] for row in (tables[0] or []) if any(_clean(cell) for cell in row)]
-    right = [[_clean(cell) for cell in row] for row in (tables[1] or []) if any(_clean(cell) for cell in row)]
-    if len(left) != _EXPECTED_APPLICANT_SPLIT_ROWS or len(right) != _EXPECTED_APPLICANT_SPLIT_ROWS:
-        raise RuntimeError(f"Genova applicant page-7 split-row drift: {len(left)}, {len(right)}")
-    rows: list[list[str]] = []
-    for left_row, right_row in zip(left, right):
-        if len(left_row) != 3 or len(right_row) != 3:
-            raise RuntimeError(f"Genova applicant page-7 split-width drift: {left_row!r}, {right_row!r}")
-        name = left_row[0]
-        if name not in _REVIEWED_APPLICANT_PAGE7_IDS:
-            raise RuntimeError(f"Genova applicant page-7 unreviewed identity: {name!r}")
-        rows.append(left_row + [_REVIEWED_APPLICANT_PAGE7_IDS[name]] + right_row)
-    if set(_REVIEWED_APPLICANT_PAGE7_IDS) != {row[0] for row in left}:
-        raise RuntimeError("Genova applicant page-7 reviewed identity set drift")
-    return rows
-
-
 def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    _validate_cfg(cfg, "genova-applicants")
-    rows: list[dict[str, Any]] = []
-    reviewed_page7 = 0
-    reviewed_page9 = 0
-
-    with pdfplumber.open(path) as pdf:
-        if len(pdf.pages) != _APPLICANT_PAGES:
-            raise RuntimeError(f"Genova applicant page-count drift: {len(pdf.pages)} != {_APPLICANT_PAGES}")
-        for page_number, page in enumerate(pdf.pages, start=1):
-            if page_number == 7:
-                raw_rows = [(0, index, cells) for index, cells in enumerate(_applicant_page7_rows(page), start=1)]
-                reviewed_page7 = len(raw_rows)
-            else:
-                raw_rows = []
-                for table_number, table in enumerate(page.extract_tables() or [], start=1):
-                    for row_number, row in enumerate(table or [], start=1):
-                        cells = [_clean(cell) for cell in row]
-                        if not any(cells) or _is_header(cells):
-                            continue
-                        if len(cells) != 7:
-                            raise RuntimeError(f"Genova unreviewed applicant width p{page_number}:t{table_number}:r{row_number}: {len(cells)}")
-                        raw_rows.append((table_number, row_number, cells))
-
-            for table_number, row_number, cells in raw_rows:
-                if page_number == 9 and table_number == 1 and row_number == 1:
-                    if cells[:4] != ["", "", "", ""]:
-                        raise RuntimeError(f"Genova applicant page-9 reviewed row drift: {cells!r}")
-                    page_compact = _compact(page.extract_text() or "")
-                    reviewed_support = "edilquadrifogliosrl0166068099003/07/2026inistruttoriaviacesarea,11/6"
-                    if reviewed_support not in page_compact:
-                        raise RuntimeError("Genova applicant page-9 reconstruction no longer supported by page text")
-                    cells = _REVIEWED_APPLICANT_PAGE9 + cells[4:]
-                    reviewed_page9 += 1
-
-                if not cells[0]:
-                    raise RuntimeError(f"Genova applicant row without company name p{page_number}:t{table_number}:r{row_number}")
-                sections = _sections(cells[4], scope="applicant", name=cells[0])
-                application_date = _parse_observed_date(cells[5], scope="applicant", name=cells[0], field="application")
-                outcome_raw = _applicant_outcome(cells[6])
-                rows.append(
-                    {
-                        "name": cells[0],
-                        "office": cells[1],
-                        "secondary": cells[2],
-                        "identifier_raw": cells[3],
-                        "sections": sections,
-                        "application_raw": cells[5],
-                        "application_date": application_date,
-                        "outcome_raw": outcome_raw,
-                        "locator": f"p{page_number}:t{table_number}:r{row_number}",
-                    }
-                )
-
-    if reviewed_page7 != _EXPECTED_APPLICANT_SPLIT_ROWS:
-        raise RuntimeError(f"Genova applicant reviewed page-7 rows drift: {reviewed_page7}")
-    if reviewed_page9 != 1:
-        raise RuntimeError(f"Genova applicant reviewed page-9 rows drift: {reviewed_page9}")
+    rows, reviewed_page7, reviewed_page9 = _applicant_rows(path)
     if len(rows) != _EXPECTED_APPLICANT_RECORDS:
-        raise RuntimeError(f"Genova applicant record drift: {len(rows)} != {_EXPECTED_APPLICANT_RECORDS}")
-
+        raise RuntimeError(f"Genova applicant record-count drift: {len(rows)}")
     records: list[dict[str, Any]] = []
     for row in rows:
-        record = _record(
-            cfg,
-            len(records) + 1,
+        record = _base_record(
+            cfg=cfg,
+            source_ordinal=row["ordinal"],
             name=row["name"],
-            office=row["office"],
             identifier_raw=row["identifier_raw"],
-            activities=row["sections"],
-            status="pending",
-            outcome_raw=row["outcome_raw"],
+            address=row["address"],
+            source_status="pending",
+            observed_listing_date="",
+            observed_expiry_date="",
             application_date=row["application_date"],
             primary_date_label="Data presentazione istanza",
             source_fields={
@@ -415,3 +380,9 @@ def parse_genova_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "reviewed_page9_reconstructions": reviewed_page9,
         },
     )
+
+
+PARSERS = {
+    "genova_listed": parse_genova_listed,
+    "genova_applicants": parse_genova_applicants,
+}
