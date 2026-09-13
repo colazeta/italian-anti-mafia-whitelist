@@ -22,30 +22,51 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Execute the reviewed Foggia transaction specification
+      - name: Execute reviewed Foggia transaction with durable failure diagnostic
         run: |
           python -m pip install --quiet PyYAML
           python - <<'PY'
           from pathlib import Path
           import subprocess
+          import traceback
           import yaml
 
-          path = Path('.github/workflows/foggia-production-materialise.yml')
-          spec = yaml.safe_load(path.read_text(encoding='utf-8'))
-          steps = spec['jobs']['materialise']['steps']
-          run_steps = [step for step in steps if 'run' in step]
-          expected = [
-              'Install complete test runtime',
-              'Materialise permanent Foggia integration',
-              'Run full repository test suite',
-              'Build and validate Foggia national candidate',
-              'Commit validated permanent integration',
-          ]
-          names = [step.get('name') for step in run_steps]
-          if names != expected:
-              raise SystemExit(f'Foggia transaction step drift: {names!r}')
-          for step in run_steps:
-              print(f"::group::{step['name']}", flush=True)
-              subprocess.run(step['run'], shell=True, executable='/bin/bash', check=True)
-              print('::endgroup::', flush=True)
+          diagnostic = Path('tmp/foggia_gate_failure.txt')
+          diagnostic.unlink(missing_ok=True)
+          try:
+              path = Path('.github/workflows/foggia-production-materialise.yml')
+              spec = yaml.safe_load(path.read_text(encoding='utf-8'))
+              steps = spec['jobs']['materialise']['steps']
+              run_steps = [step for step in steps if 'run' in step]
+              expected = [
+                  'Install complete test runtime',
+                  'Materialise permanent Foggia integration',
+                  'Run full repository test suite',
+                  'Build and validate Foggia national candidate',
+                  'Commit validated permanent integration',
+              ]
+              names = [step.get('name') for step in run_steps]
+              if names != expected:
+                  raise RuntimeError(f'Foggia transaction step drift: {names!r}')
+              for step in run_steps:
+                  result = subprocess.run(
+                      step['run'], shell=True, executable='/bin/bash', text=True,
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                  )
+                  print(f"::group::{step['name']}")
+                  print(result.stdout)
+                  print('::endgroup::')
+                  if result.returncode:
+                      raise RuntimeError(
+                          f"step={step['name']!r} returncode={result.returncode}\nOUTPUT:\n{result.stdout[-30000:]}"
+                      )
+          except BaseException:
+              diagnostic.parent.mkdir(parents=True, exist_ok=True)
+              diagnostic.write_text(traceback.format_exc(), encoding='utf-8')
+              subprocess.run(['git','config','user.name','github-actions[bot]'], check=True)
+              subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'], check=True)
+              subprocess.run(['git','add',str(diagnostic)], check=True)
+              subprocess.run(['git','commit','-m','Record Foggia integration gate failure'], check=True)
+              subprocess.run(['git','push','origin','HEAD:expansion/foggia-2026-09-13'], check=True)
+              raise
           PY
