@@ -1,0 +1,135 @@
+name: Napoli source audit
+
+on:
+  push:
+    branches:
+      - 'expansion/napoli-2026-09-13'
+    paths:
+      - '.github/workflows/napoli-source-audit.yml'
+      - 'docs/sources/napoli-operational-check-2026-09-13.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PDF inspection runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Repeat-fetch and inspect current official Napoli publications
+        shell: bash
+        run: |
+          set -u
+          mkdir -p tmp/napoli_source_audit
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          sources = {
+              "listed": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf",
+              "applicants": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf",
+          }
+          out = Path("tmp/napoli_source_audit/source_urls.json")
+          out.write_text(json.dumps(sources, indent=2) + "\n", encoding="utf-8")
+          PY
+
+          for source in listed applicants; do
+            url="$(python -c "import json; print(json.load(open('tmp/napoli_source_audit/source_urls.json'))['$source'])")"
+            : > "tmp/napoli_source_audit/${source}.fetch.log"
+            for attempt in 1 2; do
+              target="tmp/napoli_source_audit/${source}.${attempt}.pdf"
+              if curl --fail --location --silent --show-error \
+                --retry 2 --retry-all-errors --connect-timeout 20 --max-time 150 \
+                --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
+                --output "$target" "$url" 2>>"tmp/napoli_source_audit/${source}.fetch.log"; then
+                printf '%s\n' "attempt_${attempt}=success" >> "tmp/napoli_source_audit/${source}.fetch.log"
+              else
+                code=$?
+                rm -f "$target"
+                printf '%s\n' "attempt_${attempt}=failed curl_exit=${code}" >> "tmp/napoli_source_audit/${source}.fetch.log"
+              fi
+            done
+          done
+
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import subprocess
+
+          root = Path("tmp/napoli_source_audit")
+          urls = json.loads((root / "source_urls.json").read_text(encoding="utf-8"))
+          report = {"prefecture": "Napoli", "source_reference_date": "2026-09-11", "sources": {}, "capture_gate": True}
+
+          for name, url in urls.items():
+              item = {"url": url, "attempts": []}
+              payloads = []
+              for attempt in (1, 2):
+                  path = root / f"{name}.{attempt}.pdf"
+                  if not path.exists():
+                      item["attempts"].append({"attempt": attempt, "ok": False})
+                      continue
+                  data = path.read_bytes()
+                  valid_pdf = data.startswith(b"%PDF-")
+                  sha = hashlib.sha256(data).hexdigest()
+                  item["attempts"].append({
+                      "attempt": attempt,
+                      "ok": valid_pdf,
+                      "bytes": len(data),
+                      "sha256": sha,
+                      "pdf_header": data[:8].decode("latin-1", errors="replace"),
+                  })
+                  if valid_pdf:
+                      payloads.append((path, data, sha))
+
+              item["repeat_fetch_complete"] = len(payloads) == 2
+              item["byte_identical"] = len(payloads) == 2 and payloads[0][1] == payloads[1][1]
+              if item["byte_identical"]:
+                  canonical = payloads[0][0]
+                  item["sha256"] = payloads[0][2]
+                  item["bytes"] = len(payloads[0][1])
+                  info = subprocess.run(["pdfinfo", str(canonical)], check=False, text=True, capture_output=True)
+                  item["pdfinfo_exit"] = info.returncode
+                  for line in info.stdout.splitlines():
+                      if line.startswith("Pages:"):
+                          item["pages"] = int(line.split(":", 1)[1].strip())
+                  text_path = root / f"{name}.layout.txt"
+                  text = subprocess.run(["pdftotext", "-layout", str(canonical), str(text_path)], check=False, text=True, capture_output=True)
+                  item["pdftotext_exit"] = text.returncode
+                  if text.returncode == 0 and text_path.exists():
+                      body = text_path.read_text(encoding="utf-8", errors="replace")
+                      nonempty = [ln.rstrip() for ln in body.splitlines() if ln.strip()]
+                      item["layout_text_chars"] = len(body)
+                      item["layout_nonempty_lines"] = len(nonempty)
+                      item["first_nonempty_lines"] = nonempty[:40]
+                      item["last_nonempty_lines"] = nonempty[-20:]
+                  else:
+                      item["extraction_error"] = text.stderr[-2000:]
+              else:
+                  report["capture_gate"] = False
+
+              if not item.get("pages") or item.get("pdfinfo_exit") != 0 or item.get("pdftotext_exit") != 0:
+                  report["capture_gate"] = False
+              report["sources"][name] = item
+
+          (root / "report.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Upload reviewable Napoli source audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: napoli-source-audit
+          path: |
+            tmp/napoli_source_audit/report.json
+            tmp/napoli_source_audit/*.fetch.log
+            tmp/napoli_source_audit/*.layout.txt
+          if-no-files-found: error
