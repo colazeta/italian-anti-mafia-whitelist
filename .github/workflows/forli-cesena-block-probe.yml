@@ -1,0 +1,149 @@
+name: Forli-Cesena block probe
+
+on:
+  push:
+    branches:
+      - expansion/forli-cesena-2026-09-13
+    paths:
+      - .github/workflows/forli-cesena-block-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forli-cesena-block-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/forli-cesena-2026-09-13
+          fetch-depth: 0
+
+      - name: Install parser runtime
+        run: python -m pip install --quiet 'pdfplumber>=0.11,<0.12'
+
+      - name: Fetch pinned official PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/forli_probe tmp
+          url='https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf'
+          landing='https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list'
+          expected='f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468'
+          curl -L -sS --fail --connect-timeout 20 --max-time 120 --retry 3 --retry-delay 2 --retry-all-errors \
+            -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' \
+            -H 'Accept: application/pdf,application/octet-stream;q=0.9,*/*;q=0.8' -H "Referer: $landing" \
+            -o /tmp/forli_probe/source.pdf "$url"
+          actual=$(sha256sum /tmp/forli_probe/source.pdf | awk '{print $1}')
+          test "$actual" = "$expected"
+
+      - name: Probe logical record blocks with pdfplumber layout text
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json, re
+          from collections import Counter
+          from pathlib import Path
+          import pdfplumber
+
+          START = re.compile(r'^\s*(\d{11})\s+(.+?)\s*$')
+          STATUS = re.compile(r'\b(IN\s+AGGIORNAMENTO|AVVIO\s+ISTRUTTORIA)\b', re.I)
+          PROVV = re.compile(r'Provv\.\s*n\.\s*(.*?)\s+del\s*(.*?)\s+Scadenza\s*(.*?)(?:\s{2,}|$)', re.I)
+          DATE = re.compile(r'\b(\d{2}/\d{2}/\d{4})\b')
+          SECTION = re.compile(r'\b(?:VIII|VII|III|VI|IV|IX|II|V|X|I)\b')
+          src = Path('/tmp/forli_probe/source.pdf')
+          out = Path('tmp/forli_cesena_block_probe.txt')
+
+          pages = []
+          with pdfplumber.open(src) as pdf:
+              for page in pdf.pages:
+                  text = page.extract_text(layout=True, x_tolerance=1, y_tolerance=3) or ''
+                  pages.append(text)
+          text = '\n'.join(pages)
+          lines = text.splitlines()
+          starts = [(i, m.group(1), m.group(2).strip()) for i, line in enumerate(lines) if (m := START.match(line))]
+          blocks = []
+          for pos, (line_no, identifier, first_name) in enumerate(starts):
+              end = starts[pos + 1][0] if pos + 1 < len(starts) else len(lines)
+              raw = lines[line_no:end]
+              # Stop trailing page/document legends from being treated as record body only by preserving
+              # raw text; semantic assertions below require exactly one source status pattern at most.
+              body = '\n'.join(raw)
+              status_tokens = [m.group(1).upper().replace('  ', ' ') for m in STATUS.finditer(body)]
+              provv_lines = [line.strip() for line in raw if 'Provv.' in line and 'Scadenza' in line]
+              section_lines = [line.strip() for line in raw if re.search(r'Sezion', line, re.I)]
+              blocks.append({
+                  'id': identifier,
+                  'name': first_name,
+                  'status_tokens': status_tokens,
+                  'provv_lines': provv_lines,
+                  'section_lines': section_lines,
+                  'lines': [line.rstrip() for line in raw if line.strip()],
+              })
+
+          status_counts = Counter()
+          anomalies = []
+          for idx, block in enumerate(blocks, 1):
+              tokens = block['status_tokens']
+              if len(tokens) > 1:
+                  anomalies.append((idx, 'multiple_status_tokens', block))
+              explicit = tokens[0] if tokens else ''
+              if explicit == 'AVVIO ISTRUTTORIA':
+                  status = 'pending'
+              elif explicit == 'IN AGGIORNAMENTO':
+                  status = 'renewal_update_in_progress'
+              else:
+                  status = 'listed'
+              status_counts[status] += 1
+              if len(block['provv_lines']) != 1:
+                  anomalies.append((idx, f"provv_lines={len(block['provv_lines'])}", block))
+              if len(block['section_lines']) != 1:
+                  anomalies.append((idx, f"section_lines={len(block['section_lines'])}", block))
+
+          id_counts = Counter(b['id'] for b in blocks)
+          duplicate_ids = {k:v for k,v in id_counts.items() if v > 1}
+          page_start_counts = []
+          for page_text in pages:
+              page_start_counts.append(sum(bool(START.match(line)) for line in page_text.splitlines()))
+
+          lines_out = [
+              f'pages={len(pages)}',
+              f'layout_record_starts={len(starts)}',
+              f'unique_record_ids={len(id_counts)}',
+              'duplicate_record_ids=' + json.dumps(duplicate_ids, sort_keys=True),
+              'status_counts=' + json.dumps(dict(status_counts), sort_keys=True),
+              'page_record_starts=' + json.dumps(page_start_counts),
+              f'anomaly_count={len(anomalies)}',
+              f'blocks_with_one_provv={sum(len(b["provv_lines"]) == 1 for b in blocks)}',
+              f'blocks_with_one_section_line={sum(len(b["section_lines"]) == 1 for b in blocks)}',
+              '',
+              '--- first 12 blocks ---',
+          ]
+          for idx, block in enumerate(blocks[:12], 1):
+              lines_out.append(f'BLOCK {idx}: ' + json.dumps(block, ensure_ascii=False))
+          lines_out.append('')
+          lines_out.append('--- anomalies (first 60) ---')
+          for idx, reason, block in anomalies[:60]:
+              lines_out.append(f'ANOMALY {idx} {reason}: ' + json.dumps(block, ensure_ascii=False))
+          out.write_text('\n'.join(lines_out) + '\n', encoding='utf-8')
+          print(out.read_text(encoding='utf-8'))
+          PY
+
+      - name: Commit probe checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/forli_cesena_block_probe.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Checkpoint Forli-Cesena logical block probe'
+          git push origin HEAD:expansion/forli-cesena-2026-09-13
