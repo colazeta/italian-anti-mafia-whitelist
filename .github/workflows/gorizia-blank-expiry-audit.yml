@@ -1,0 +1,72 @@
+name: Gorizia blank expiry audit
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+    paths:
+      - .github/workflows/gorizia-blank-expiry-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/gorizia-2026-09-13
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check python-docx requests
+      - name: Audit exact physical rows against approved bytes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import time
+          from pathlib import Path
+          import requests
+          from docx import Document
+          from docx.oxml.ns import qn
+
+          url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx'
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          expected_sha = '680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d'
+          headers = {'User-Agent':'Mozilla/5.0 whitelist-archive-gorizia-blank-audit/1.0','Referer':landing,'Connection':'close'}
+          bodies=[]
+          for attempt in range(2):
+              r=requests.get(url,headers=headers,timeout=(20,90),allow_redirects=True)
+              r.raise_for_status()
+              body=r.content
+              digest=hashlib.sha256(body).hexdigest()
+              if digest != expected_sha:
+                  raise RuntimeError(f'approved-byte drift: {digest} != {expected_sha}')
+              bodies.append(body)
+              if attempt == 0: time.sleep(2)
+          if bodies[0] != bodies[1]:
+              raise RuntimeError('repeat-fetch byte drift')
+          path=Path('/tmp/gorizia.docx'); path.write_bytes(bodies[0])
+          doc=Document(path)
+          def clean(s): return ' '.join(str(s or '').replace('\xa0',' ').split())
+          def cell(tc): return clean(' '.join(node.text or '' for node in tc.iter(qn('w:t'))))
+          blank=[]
+          for section,table in enumerate(doc.tables,start=1):
+              for rownum,row in enumerate(table.rows[1:],start=2):
+                  cells=[cell(tc) for tc in row._tr.tc_lst]
+                  if not any(cells): continue
+                  if len(cells) != 7:
+                      raise RuntimeError(f'physical-column drift s{section} r{rownum}: {len(cells)}')
+                  name,office,secondary,identifier,listing,expiry,update=cells
+                  if not expiry:
+                      blank.append({'section':section,'row':rownum,'name':name,'office':office,'secondary':secondary,'identifier_raw':identifier,'listing_raw':listing,'update_raw':update})
+          unique=[]
+          seen=set()
+          for item in blank:
+              sig=(item['name'],item['office'],item['identifier_raw'],item['listing_raw'])
+              if sig not in seen:
+                  seen.add(sig); unique.append(sig)
+          print(json.dumps({'sha256':expected_sha,'blank_sector_rows':blank,'unique_signatures':[list(x) for x in unique],'unique_count':len(unique)},ensure_ascii=False,indent=2))
+          PY
