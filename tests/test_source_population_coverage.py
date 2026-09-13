@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 40
-    assert report["register_scope_count"] == 41
-    assert report["complete_register_scope_count"] == 39
+    assert report["verified_authority_count"] == 41
+    assert report["register_scope_count"] == 42
+    assert report["complete_register_scope_count"] == 40
     assert report["incomplete_register_scope_count"] == 2
 
     by_scope = {}
@@ -52,6 +52,15 @@ def test_combined_series_satisfies_both_targets_without_duplication():
     ]
     assert {row["coverage_status"] for row in ancona} == {"COVERED_COMBINED_SERIES"}
     assert all(row["covering_series_keys"] == ["ancona-combined"] for row in ancona)
+
+    forli = [
+        row
+        for row in report["rows"]
+        if row["authority_key"] == "forli-cesena"
+        and row["regime_code"] == "WL-REGIME-L190-2012"
+    ]
+    assert {row["coverage_status"] for row in forli} == {"COVERED_COMBINED_SERIES"}
+    assert all(row["covering_series_keys"] == ["forli-cesena-combined"] for row in forli)
 
 
 def test_separate_series_and_unresolved_gaps_are_distinguished():
