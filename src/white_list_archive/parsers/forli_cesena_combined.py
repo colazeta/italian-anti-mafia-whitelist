@@ -129,6 +129,14 @@ def _status_from_block(text: str) -> tuple[str, str]:
     return "listed", ""
 
 
+def _status_date(value: str) -> str:
+    raw = re.sub(r"^(?:DAL|AL)\s+", "", _clean(value), flags=re.I)
+    parsed = _iso_date(raw)
+    if value and not parsed:
+        raise RuntimeError(f"Forli-Cesena malformed standalone status date: {value!r}")
+    return parsed
+
+
 def _parse_record_block(
     page_number: int,
     page_record_number: int,
@@ -190,22 +198,27 @@ def _parse_record_block(
 
     name, cid_artifact_reconciled = _clean_name(identifier_raw, name_raw)
     office = _clean(" ".join(part for part in (street, locality) if part))
-    source_locator = f"p{page_number}:b{page_record_number}"
+    status_date_raw = status_date_lines[0] if status_date_lines else ""
+    status_date = _status_date(status_date_raw) if status_date_raw else ""
     source_fields: dict[str, Any] = {
         "sections": sections,
-        "address_detail": street,
-        "locality": locality,
-        "source_locator": source_locator,
-        "transcription_text": " | ".join(_clean(line) for line in lines),
+        "provvedimento": _clean(provv_lines[0]),
+        "requested_activities_source": _clean(section_lines[0]),
+        "outcome": {
+            "status": status,
+            "observed_listing_date": "",
+            "observed_expiry_date": expiry_date,
+            "renewal_requested": status == "renewal_update_in_progress",
+            "update_in_progress": status == "renewal_update_in_progress",
+            "dates": (
+                [{"raw_value": status_date_raw, "date": status_date, "parenthesized": False}]
+                if status_date_raw
+                else []
+            ),
+        },
     }
-    if explicit_status:
-        source_fields["status_marker"] = explicit_status
-    if registration_number:
-        source_fields["registration_number"] = registration_number
-    if decision_date:
-        source_fields["decision_date"] = decision_date
-    if expiry_date:
-        source_fields["expiration_date"] = expiry_date
+    if status == "renewal_update_in_progress":
+        source_fields["in_aggiornamento"] = status_date_raw or explicit_status
 
     record = _record(
         cfg,
@@ -226,6 +239,7 @@ def _parse_record_block(
         "cid_artifact_reconciled": cid_artifact_reconciled,
         "has_status_date": bool(status_date_lines),
         "has_dated_provvedimento": bool(decision_date and expiry_date),
+        "registration_number": registration_number,
     }
     return record, diagnostics
 
