@@ -27,7 +27,6 @@ jobs:
           python - <<'PY'
           from __future__ import annotations
           import hashlib
-          from collections import Counter
           from pathlib import Path
           import requests
           from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
@@ -95,3 +94,4 @@ jobs:
           print('applicants',applicants.diagnostics)
           print('total_public_records',len(listed.records)+len(applicants.records))
           PY
+# Rerun marker: raw-identity key positions fixed in f64475611998489ac09a6361af858424b73bb6ae.
