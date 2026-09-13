@@ -1,0 +1,3712 @@
+{
+  "authority_key": "foggia",
+  "sources": {
+    "listed": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf",
+      "sha256": "313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a",
+      "reference_date": "2026-09-08",
+      "size_bytes": 937245,
+      "page_count": 44,
+      "empty_text_pages": [],
+      "per_page": [
+        {
+          "page": 1,
+          "text_chars": 3351,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 32,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 53
+        },
+        {
+          "page": 2,
+          "text_chars": 3260,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 54
+        },
+        {
+          "page": 3,
+          "text_chars": 3245,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 4,
+          "text_chars": 3134,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 54
+        },
+        {
+          "page": 5,
+          "text_chars": 3496,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 32,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 55
+        },
+        {
+          "page": 6,
+          "text_chars": 3286,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 56
+        },
+        {
+          "page": 7,
+          "text_chars": 2851,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 24,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 53
+        },
+        {
+          "page": 8,
+          "text_chars": 1158,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 11,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 18
+        },
+        {
+          "page": 9,
+          "text_chars": 3258,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 54
+        },
+        {
+          "page": 10,
+          "text_chars": 3107,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 52
+        },
+        {
+          "page": 11,
+          "text_chars": 2592,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 19,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 46
+        },
+        {
+          "page": 12,
+          "text_chars": 3349,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 32,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 13,
+          "text_chars": 3068,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 52
+        },
+        {
+          "page": 14,
+          "text_chars": 3176,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 50
+        },
+        {
+          "page": 15,
+          "text_chars": 3165,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 52
+        },
+        {
+          "page": 16,
+          "text_chars": 3567,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 34,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 53
+        },
+        {
+          "page": 17,
+          "text_chars": 3232,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 18,
+          "text_chars": 3070,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 24,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 19,
+          "text_chars": 911,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 8,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 15
+        },
+        {
+          "page": 20,
+          "text_chars": 3075,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 60
+        },
+        {
+          "page": 21,
+          "text_chars": 2848,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 26,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 53
+        },
+        {
+          "page": 22,
+          "text_chars": 2069,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 39
+        },
+        {
+          "page": 23,
+          "text_chars": 3477,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 34,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 59
+        },
+        {
+          "page": 24,
+          "text_chars": 3116,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 59
+        },
+        {
+          "page": 25,
+          "text_chars": 3245,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 26,
+          "text_chars": 3395,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 32,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 27,
+          "text_chars": 3389,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 32,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 56
+        },
+        {
+          "page": 28,
+          "text_chars": 3245,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 30,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 29,
+          "text_chars": 3217,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 25,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 56
+        },
+        {
+          "page": 30,
+          "text_chars": 2613,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 31,
+          "text_chars": 855,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 8,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 15
+        },
+        {
+          "page": 32,
+          "text_chars": 2804,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 26,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 54
+        },
+        {
+          "page": 33,
+          "text_chars": 3080,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 26,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 34,
+          "text_chars": 3154,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 35,
+          "text_chars": 3135,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 29,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 36,
+          "text_chars": 2400,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 22,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 48
+        },
+        {
+          "page": 37,
+          "text_chars": 2682,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 24,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 49
+        },
+        {
+          "page": 38,
+          "text_chars": 2379,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 13,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 50
+        },
+        {
+          "page": 39,
+          "text_chars": 2083,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 12,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 46
+        },
+        {
+          "page": 40,
+          "text_chars": 3150,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 27,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 59
+        },
+        {
+          "page": 41,
+          "text_chars": 3144,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 24,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 55
+        },
+        {
+          "page": 42,
+          "text_chars": 3276,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 28,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 59
+        },
+        {
+          "page": 43,
+          "text_chars": 3250,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 28,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 44,
+          "text_chars": 2954,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 25,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        }
+      ],
+      "sections": [
+        {
+          "page": 1,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 2,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 3,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 4,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 5,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 6,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 7,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 8,
+          "roman": "I",
+          "label": "Estrazione, fornitura e trasporto di terra e materiali inerti"
+        },
+        {
+          "page": 9,
+          "roman": "II",
+          "label": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume"
+        },
+        {
+          "page": 10,
+          "roman": "II",
+          "label": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume"
+        },
+        {
+          "page": 11,
+          "roman": "II",
+          "label": "Confezionamento, fornitura e trasporto di calcestruzzo e bitume"
+        },
+        {
+          "page": 12,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 13,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 14,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 15,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 16,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 17,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 18,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 19,
+          "roman": "III",
+          "label": "Noli a freddo di macchinari"
+        },
+        {
+          "page": 20,
+          "roman": "IV",
+          "label": "Fornitura di ferro lavorato"
+        },
+        {
+          "page": 21,
+          "roman": "IV",
+          "label": "Fornitura di ferro lavorato"
+        },
+        {
+          "page": 22,
+          "roman": "IV",
+          "label": "Fornitura di ferro lavorato"
+        },
+        {
+          "page": 23,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 24,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 25,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 26,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 27,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 28,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 29,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 30,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 31,
+          "roman": "V",
+          "label": "Noli a caldo"
+        },
+        {
+          "page": 32,
+          "roman": "VI",
+          "label": "Autotrasporto per conto terzi"
+        },
+        {
+          "page": 33,
+          "roman": "VI",
+          "label": "Autotrasporto per conto terzi"
+        },
+        {
+          "page": 34,
+          "roman": "VI",
+          "label": "Autotrasporto per conto terzi"
+        },
+        {
+          "page": 35,
+          "roman": "VI",
+          "label": "Autotrasporto per conto terzi"
+        },
+        {
+          "page": 36,
+          "roman": "VI",
+          "label": "Autotrasporto per conto terzi"
+        },
+        {
+          "page": 37,
+          "roman": "VII",
+          "label": "Guardiania dei cantieri"
+        },
+        {
+          "page": 38,
+          "roman": "VII",
+          "label": "Servizi funerari e cimiteriali"
+        },
+        {
+          "page": 39,
+          "roman": "IX",
+          "label": "Gestione delle mense e catering"
+        },
+        {
+          "page": 40,
+          "roman": "X",
+          "label": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e tranfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di"
+        },
+        {
+          "page": 41,
+          "roman": "X",
+          "label": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e tranfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di"
+        },
+        {
+          "page": 42,
+          "roman": "X",
+          "label": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e tranfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di"
+        },
+        {
+          "page": 43,
+          "roman": "X",
+          "label": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e tranfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di"
+        },
+        {
+          "page": 44,
+          "roman": "X",
+          "label": "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e tranfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di"
+        }
+      ],
+      "status_token_counts": {
+        "IN CORSO": 775,
+        "ACCOLTA": 5
+      },
+      "identifier_mentions": 961,
+      "distinct_identifier_values": 331,
+      "identifier_examples": [
+        {
+          "page": 1,
+          "raw": "C.F. 03019630718",
+          "value": "03019630718"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03359970716",
+          "value": "03359970716"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03156420717",
+          "value": "03156420717"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03200120719",
+          "value": "03200120719"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01108620715",
+          "value": "01108620715"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03949430718",
+          "value": "03949430718"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03639530710",
+          "value": "03639530710"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03713920712",
+          "value": "03713920712"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02181880713",
+          "value": "02181880713"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02298240710",
+          "value": "02298240710"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 00380240713",
+          "value": "00380240713"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03064490711",
+          "value": "03064490711"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 00132220716",
+          "value": "00132220716"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 00436120711",
+          "value": "00436120711"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01934280718",
+          "value": "01934280718"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 00347840712",
+          "value": "00347840712"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01949810715",
+          "value": "01949810715"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01006570715",
+          "value": "01006570715"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02016830719",
+          "value": "02016830719"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02026200713",
+          "value": "02026200713"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03224680714",
+          "value": "03224680714"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03772650713",
+          "value": "03772650713"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03537590717",
+          "value": "03537590717"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01860750718",
+          "value": "01860750718"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03924700713",
+          "value": "03924700713"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03089860716",
+          "value": "03089860716"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03296840717",
+          "value": "03296840717"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03442640714",
+          "value": "03442640714"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03389110713",
+          "value": "03389110713"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 01919120715",
+          "value": "01919120715"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 01943750719",
+          "value": "01943750719"
+        },
+        {
+          "page": 2,
+          "raw": "PIETRAMONTECORVINO",
+          "value": "ETRAMONTECORVINO"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 02183770714",
+          "value": "02183770714"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 01010240719",
+          "value": "01010240719"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03858250719",
+          "value": "03858250719"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03880510718",
+          "value": "03880510718"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03687770713",
+          "value": "03687770713"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03926080718",
+          "value": "03926080718"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 01138100712",
+          "value": "01138100712"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 04052920719",
+          "value": "04052920719"
+        }
+      ],
+      "date_mentions": 1916,
+      "date_examples": [
+        {
+          "page": 1,
+          "value": "14.11.2025"
+        },
+        {
+          "page": 1,
+          "value": "14.11.2026"
+        },
+        {
+          "page": 1,
+          "value": "01.03.2023"
+        },
+        {
+          "page": 1,
+          "value": "01.03.2024"
+        },
+        {
+          "page": 1,
+          "value": "08.09.2025"
+        },
+        {
+          "page": 1,
+          "value": "08.09.2026"
+        },
+        {
+          "page": 1,
+          "value": "01/04/2016"
+        },
+        {
+          "page": 1,
+          "value": "13/04/2019"
+        },
+        {
+          "page": 1,
+          "value": "11.09.2024"
+        },
+        {
+          "page": 1,
+          "value": "11.09.2025"
+        },
+        {
+          "page": 1,
+          "value": "20.03.2025"
+        },
+        {
+          "page": 1,
+          "value": "20.03.2026"
+        },
+        {
+          "page": 1,
+          "value": "16/03/2022"
+        },
+        {
+          "page": 1,
+          "value": "16/03/2023"
+        },
+        {
+          "page": 1,
+          "value": "17/03/2015"
+        },
+        {
+          "page": 1,
+          "value": "10.07.2020"
+        },
+        {
+          "page": 1,
+          "value": "11/09/2015"
+        },
+        {
+          "page": 1,
+          "value": "09/07/2019"
+        },
+        {
+          "page": 1,
+          "value": "15/09/2015"
+        },
+        {
+          "page": 1,
+          "value": "10.07.2020"
+        },
+        {
+          "page": 1,
+          "value": "31/03/2017"
+        },
+        {
+          "page": 1,
+          "value": "14.12.2020"
+        },
+        {
+          "page": 1,
+          "value": "31/03/2017"
+        },
+        {
+          "page": 1,
+          "value": "31/10/2020"
+        },
+        {
+          "page": 1,
+          "value": "11/09/2015"
+        },
+        {
+          "page": 1,
+          "value": "10/04/2018"
+        },
+        {
+          "page": 1,
+          "value": "31/03/2017"
+        },
+        {
+          "page": 1,
+          "value": "31/10/2020"
+        },
+        {
+          "page": 1,
+          "value": "12.09.2024"
+        },
+        {
+          "page": 1,
+          "value": "12.09.2025"
+        },
+        {
+          "page": 1,
+          "value": "04.04.2024"
+        },
+        {
+          "page": 1,
+          "value": "04.04.2025"
+        },
+        {
+          "page": 1,
+          "value": "17/12/2015"
+        },
+        {
+          "page": 1,
+          "value": "28/09/2018"
+        },
+        {
+          "page": 1,
+          "value": "03.07.2019"
+        },
+        {
+          "page": 1,
+          "value": "03.07.2020"
+        },
+        {
+          "page": 1,
+          "value": "22.09.2023"
+        },
+        {
+          "page": 1,
+          "value": "22.09.2024"
+        },
+        {
+          "page": 1,
+          "value": "19.01.2023"
+        },
+        {
+          "page": 1,
+          "value": "19.01.2024"
+        }
+      ],
+      "table_rows_nonempty": 1119,
+      "candidate_observation_rows": 942,
+      "candidate_row_examples": [
+        {
+          "page": 1,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "BASANISI S.R.L.",
+            "CARPINO VIA PADRE PIO 117",
+            "",
+            "C.F. 03019630718",
+            "14.11.2025",
+            "14.11.2026",
+            ""
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "EDIL COSTRUZIONI S.R.L.",
+            "STORNARELLA VIA DELLE ATTIVITA’ PRODUTTIVE",
+            "",
+            "P.I. 03359970716",
+            "01.03.2023",
+            "01.03.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "CURCI VINCENZO & C S.N.C.",
+            "ORTA NOVA VIA SANDRO PERTINI 20",
+            "",
+            "P.I. 03156420717",
+            "08.09.2025",
+            "08.09.2026",
+            ""
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "DCF.ECO.TRANS.DE.CO. S.R.L.",
+            "LUCERA S.P. 109 KM. 28 CONTRADA MONTARATRO",
+            "",
+            "P.I. 03200120719",
+            "01/04/2016",
+            "13/04/2019",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "SALICE CALCESTRUZZI S.R.L.",
+            "FOGGIA VIA ASCOLI KM. 4",
+            "",
+            "P.I. 01108620715",
+            "11.09.2024",
+            "11.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "CASTELLANO TRASPORTI S.R.L.",
+            "ASCOLI SATRIANO LOCALITà SAN CARLO 20",
+            "",
+            "P.I. 03949430718",
+            "20.03.2025",
+            "20.03.2026",
+            ""
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "DE CRISTOFARO S.R.L.",
+            "LUCERA S.P. 109 KM. 28 SNC CONTRADA MONTARATRO",
+            "",
+            "P.I. 03639530710",
+            "16/03/2022",
+            "16/03/2023",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "GLOB.SER – SOCIETA’ COOPERATIVA",
+            "FOGGIA VIA GRIECO 32 C/O STUDIO ORLANDO",
+            "",
+            "P.I. 03713920712",
+            "17/03/2015",
+            "10.07.2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 13,
+          "cells": [
+            "PINTO MASSIMO S.R.L.",
+            "LUCERA S.P. 116 KM. 9,800",
+            "",
+            "P.I. 02181880713",
+            "11/09/2015",
+            "09/07/2019",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 14,
+          "cells": [
+            "CO.BIT. S.R.L.",
+            "LUCERA S.S. 17 KM. 325,100",
+            "",
+            "P.I. 02298240710",
+            "15/09/2015",
+            "10.07.2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 15,
+          "cells": [
+            "COSPES S.R.L.",
+            "FOGGIA VIA ASCOLI KM. 4 BORGO CERVARO SN",
+            "",
+            "P.I. 00380240713",
+            "31/03/2017",
+            "14.12.2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 16,
+          "cells": [
+            "INERTI RAMUNDO S.R.L.",
+            "FOGGIA VIA ASCOLI KM. 4",
+            "",
+            "P.I. 03064490711",
+            "31/03/2017",
+            "31/10/2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 17,
+          "cells": [
+            "SICILF S.R.L.",
+            "FOGGIA VIA ASCOLI KM. 4",
+            "",
+            "P.I. 00132220716",
+            "11/09/2015",
+            "10/04/2018",
+            "In corso"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 18,
+          "cells": [
+            "ES.CAL S.R.L.",
+            "MANFREDONIA S.S. PER LE MATINE KM. 3",
+            "",
+            "P.I. 00436120711",
+            "31/03/2017",
+            "31/10/2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 19,
+          "cells": [
+            "EDIL SANOR S.R.L.",
+            "FOGGIA VIALE I. D’ADDEDDA 45",
+            "",
+            "P.I. 01934280718",
+            "12.09.2024",
+            "12.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 20,
+          "cells": [
+            "GUIDI COSTRUZIONI S.R.L.",
+            "CANDELA LOCALITA’ PISCIOLI 28",
+            "",
+            "P.I. 00347840712",
+            "04.04.2024",
+            "04.04.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 21,
+          "cells": [
+            "SPECAL S.N.C.",
+            "ROCCHETTA SANT’ANTONIO VIA CAPPELLA 18",
+            "",
+            "P.I. 01949810715",
+            "17/12/2015",
+            "28/09/2018",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 22,
+          "cells": [
+            "SOCIETA’ COOPERATIVA NUOVA SAN MICHELE",
+            "FOGGIA VIA ZARA 93",
+            "",
+            "P.I. 01006570715",
+            "03.07.2019",
+            "03.07.2020",
+            "In corso"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 23,
+          "cells": [
+            "VI.ME.FRA MARMI S.R.L.",
+            "APRICENA S.S. 89 KM. 12,200",
+            "",
+            "P.I. 02016830719",
+            "22.09.2023",
+            "22.09.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 24,
+          "cells": [
+            "BETONCIFALDI S.R.L.",
+            "CERIGNOLA VIA TAORMINA 37",
+            "",
+            "P.I. 02026200713",
+            "19.01.2023",
+            "19.01.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 25,
+          "cells": [
+            "COSTRUZIONI NORMANNO S.R.L.",
+            "FOGGIA VIA DEL SALICE FRAZIONE SEGEZIA",
+            "",
+            "P.I. 03224680714",
+            "12.09.2024",
+            "12.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 26,
+          "cells": [
+            "ANTONIO FERRARA S.R.L.",
+            "ALBERONA STRADALE LUCERA 66",
+            "",
+            "P.I. 03772650713",
+            "11.09.2024",
+            "11.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 27,
+          "cells": [
+            "COSPES CALCESTRUZZI S.R.L.",
+            "FOGGIA S.P. FOGGIA-ASCOLI SATRIANO KM. 0,700",
+            "",
+            "P.I. 03537590717",
+            "23/02/2016",
+            "10.09.2021",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 28,
+          "cells": [
+            "CONGLOBIX di DI LASCIA NOBILE SPA",
+            "FOGGIA VIALE DEGLI AVIATORI KM. 2,800",
+            "",
+            "P.I. 01860750718",
+            "04/03/2016",
+            "12.05.2021",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 29,
+          "cells": [
+            "SICES S.R.L.",
+            "FOGGIA VIA PASQUALE MIONE 39/I",
+            "",
+            "P.I. 03924700713",
+            "28.11.2023",
+            "28.11.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 30,
+          "cells": [
+            "ICG S.R.L.",
+            "LUCERA VIA GIOVANNI XXIII 30",
+            "",
+            "P.I. 03089860716",
+            "02/03/2016",
+            "10.07.2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 31,
+          "cells": [
+            "INERTI APRICENA S.R.L.",
+            "APRICENA LOCALITA’ VALLONE DELL’ELCE",
+            "",
+            "P.I. 03296840717",
+            "11/04/2016",
+            "16.03.2021",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 32,
+          "cells": [
+            "IMPRESA GIANNETTA S.R.L.",
+            "CERIGNOLA VIA PAVONI 12",
+            "",
+            "P.I. 03442640714",
+            "08/06/2016",
+            "13.12.2020",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "CO.GE.MAR. s.r.l.",
+            "CAGNANO VARANO C.DA POZZO NUOVO",
+            "",
+            "P.I. 03389110713",
+            "15.04.2026",
+            "15.04.2027",
+            ""
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "CAROPRESE DONATO",
+            "FOGGIA PIAZZA D. SCARAMELLA 13",
+            "",
+            "P.I. 01919120715",
+            "21/06/2016",
+            "21/06/2017",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "CAROPRESE GIUSEPPE",
+            "FOGGIA VIALE SPAGNA 19",
+            "",
+            "P.I. 01943750719",
+            "21/06/2016",
+            "21/06/2017",
+            "In corso"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "IMPRESA EDILE SAUCHELLI BONAVENTURA PASQUALE",
+            "PIETRAMONTECORVINO VIA DEI CICLAMINI 5",
+            "",
+            "P.I. 02183770714",
+            "01.03.2023",
+            "01.03.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "IMPRESA DI COSTRUZIONI CIUFFREDA GEOM. ANTONIO",
+            "FOGGIA CORSO GIANNONE 149",
+            "",
+            "P.I. 01010240719",
+            "01/07/2016",
+            "01/07/2017",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "GENERAL IMPRESA S.R.L.",
+            "APRICENA VIA SACCO E VANZETTI 16",
+            "",
+            "P.I. 03858250719",
+            "31/08/2016",
+            "28/05/2019",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "FRANCESCO RUSSO S.R.L.",
+            "LUCERA VIA A. MORO 40",
+            "",
+            "P.I. 03880510718",
+            "31/08/2016",
+            "10.07.2020",
+            "IN CORSO"
+          ]
+        }
+      ],
+      "table_row_tail_examples": [
+        {
+          "page": 44,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "IMPRESA RANA S.R.L. UNIPERSONALE",
+            "FOGGIA VIA BARI KM. 2+500",
+            "",
+            "P.I. 04369880713",
+            "04.07.2023",
+            "04.07.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "CONSORZIO STABILE BUILDING S.C. A R.L.",
+            "LUCERA (FG) S.S. 17 KM.325,100 SN",
+            "",
+            "P.I. 03949740710",
+            "22.08.2023",
+            "22.08.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "SEVER METAL SRL",
+            "TORREMAGGIORE (FG) VIA REINELLA C.N.",
+            "",
+            "P.I. 03982540712",
+            "17.12.2025",
+            "17.12.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "DITTA MARUOTTI GIUSEPPE",
+            "CANDELA (FG) LOC. FONTANA FALCO 2",
+            "",
+            "P.I. 01827690718",
+            "28.11.2023",
+            "28.11.2024",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "DE.RE.CO. SRL",
+            "FOGGIA VIALE MICHELANGELO 187",
+            "",
+            "P.I. 04006600714",
+            "04.04.2024",
+            "04.04.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "CONS. ECO. SERVIZI PER LA GESTIONE E LO SVILUPPO D’IMPRESA SRL",
+            "CERIGNOLA (FG) VIALE ROOSEVELT 22",
+            "",
+            "P.I. 04109860710",
+            "05.03.2021",
+            "05.03.2022",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "RECUPERI GERVASIO S.R.L.",
+            "ORTA NOVA VIA S. D’ACQUISTO 16",
+            "",
+            "P.I. 04033910714",
+            "29.05.2024",
+            "29.05.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 13,
+          "cells": [
+            "COS.TEC. SRL",
+            "MATTINATA (FG) VIA PAPA GIOVANNI XXIII 18",
+            "",
+            "P.I. 03273810717",
+            "24.07.2024",
+            "24.07.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 14,
+          "cells": [
+            "DITTA P.F.T. PALLADINO FABRIZIO",
+            "SAN GIOVANNI ROTONDO (FG) C.DA PIANO c.n.",
+            "",
+            "P.I. 02251230716",
+            "24.07.2024",
+            "24.07.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 15,
+          "cells": [
+            "AZIENDA MERIDIONALE SERVIZI AMBIENTALI SRL (A.M.S.A.)",
+            "DELICETO (FG) VICO III FONTANELLE 22",
+            "",
+            "P.I. 03612240717",
+            "11.09.2024",
+            "11.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 16,
+          "cells": [
+            "OLTRE COSTRUZIONI SUD SRL",
+            "FOGGIA VIA CASTELLUCCIO DEI SAURI N. 68",
+            "",
+            "P.I. 04471230716",
+            "12.09.2024",
+            "12.09.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 17,
+          "cells": [
+            "AURORA SPES – SOC. COOPERATIVA",
+            "SAN MARCO LA CATOLA (FG) VIA I VICO COLLE 4",
+            "",
+            "P.I. 03909090718",
+            "15.10.2024",
+            "15.10.2025",
+            "IN CORSO"
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 18,
+          "cells": [
+            "NEWCOM SRL",
+            "ORTA NOVA (FG) VIA S. D’ACQUISTO 16",
+            "",
+            "P.I. 04326010719",
+            "08.09.2025",
+            "08.09.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 19,
+          "cells": [
+            "EDILFOREST I MONTANARI SRL",
+            "CAGNANO VARANO VIA TOMMASO FIORE 1",
+            "",
+            "P.I. 04355910714",
+            "08.09.2025",
+            "08.09.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 20,
+          "cells": [
+            "F.LLI LEONE DI LEONE MICHELE & C. S.N.C",
+            "SAN GIOVANNI ROTONDO (FG) VIA COSTA C.N.",
+            "",
+            "P.I. 01755670716",
+            "08.09.2025",
+            "08.09.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 21,
+          "cells": [
+            "ECOLOGICA REALI SITI SRL",
+            "CERIGNOLA VIA GARIBALDI 7",
+            "",
+            "P.I. 04356080715",
+            "14.11.2025",
+            "14.11.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 22,
+          "cells": [
+            "FI.MA S.R.L.",
+            "FOGGIA VIA P. NENNI 12",
+            "",
+            "P.I. 03108620711",
+            "14.11.2025",
+            "14.11.2026",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 23,
+          "cells": [
+            "DITTA PALUMBO VINCENZO",
+            "SANT’AGATA DI PUGLIA (FG) VIA BORGO II LE GRAZIE 11",
+            "",
+            "P.I. 01485100711",
+            "23.02.2026",
+            "23.02.2027",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 24,
+          "cells": [
+            "CAMPANELLA COSTRUZIONI SRL",
+            "BOVINO VIA ROMA 8",
+            "",
+            "P.I. 04463200719",
+            "23.02.2026",
+            "23.02.2027",
+            ""
+          ]
+        },
+        {
+          "page": 44,
+          "table": 0,
+          "row": 25,
+          "cells": [
+            "DITTA BORGIA ANTONIO DI BORGIA MASSIMO",
+            "TROIA (FG) VIA SAN GIROLAMO 108",
+            "",
+            "P.I. 03322720719",
+            "03.06.2026",
+            "03.06.2027",
+            ""
+          ]
+        }
+      ]
+    },
+    "applicants": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/elenco_delle_imprese_richiedenti_iscrizione_elenco_fornitori_agg_10-09-2026.pdf",
+      "sha256": "d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5",
+      "reference_date": "2026-09-10",
+      "size_bytes": 816622,
+      "page_count": 46,
+      "empty_text_pages": [],
+      "per_page": [
+        {
+          "page": 1,
+          "text_chars": 3369,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 2,
+          "text_chars": 2855,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 12,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 50
+        },
+        {
+          "page": 3,
+          "text_chars": 3426,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 4,
+          "text_chars": 3508,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 65
+        },
+        {
+          "page": 5,
+          "text_chars": 3048,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 55
+        },
+        {
+          "page": 6,
+          "text_chars": 3268,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 7,
+          "text_chars": 3183,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 12,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 56
+        },
+        {
+          "page": 8,
+          "text_chars": 3566,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 63
+        },
+        {
+          "page": 9,
+          "text_chars": 3344,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 10,
+          "text_chars": 3316,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 60
+        },
+        {
+          "page": 11,
+          "text_chars": 3248,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 60
+        },
+        {
+          "page": 12,
+          "text_chars": 3368,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 64
+        },
+        {
+          "page": 13,
+          "text_chars": 3577,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 65
+        },
+        {
+          "page": 14,
+          "text_chars": 3488,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 64
+        },
+        {
+          "page": 15,
+          "text_chars": 3545,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 66
+        },
+        {
+          "page": 16,
+          "text_chars": 3626,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 67
+        },
+        {
+          "page": 17,
+          "text_chars": 3495,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 18,
+          "text_chars": 3430,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 65
+        },
+        {
+          "page": 19,
+          "text_chars": 3219,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 55
+        },
+        {
+          "page": 20,
+          "text_chars": 3454,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 16,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 21,
+          "text_chars": 3635,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 19,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 63
+        },
+        {
+          "page": 22,
+          "text_chars": 3571,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 69
+        },
+        {
+          "page": 23,
+          "text_chars": 3508,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 24,
+          "text_chars": 3574,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 23,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 71
+        },
+        {
+          "page": 25,
+          "text_chars": 3121,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 61
+        },
+        {
+          "page": 26,
+          "text_chars": 3630,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 20,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 68
+        },
+        {
+          "page": 27,
+          "text_chars": 3469,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 64
+        },
+        {
+          "page": 28,
+          "text_chars": 3517,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 71
+        },
+        {
+          "page": 29,
+          "text_chars": 3374,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 66
+        },
+        {
+          "page": 30,
+          "text_chars": 3133,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 57
+        },
+        {
+          "page": 31,
+          "text_chars": 3261,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 61
+        },
+        {
+          "page": 32,
+          "text_chars": 3562,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 23,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 71
+        },
+        {
+          "page": 33,
+          "text_chars": 3802,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 22,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 70
+        },
+        {
+          "page": 34,
+          "text_chars": 3500,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 68
+        },
+        {
+          "page": 35,
+          "text_chars": 3427,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 17,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 63
+        },
+        {
+          "page": 36,
+          "text_chars": 3466,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 63
+        },
+        {
+          "page": 37,
+          "text_chars": 3476,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 20,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 64
+        },
+        {
+          "page": 38,
+          "text_chars": 3571,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 69
+        },
+        {
+          "page": 39,
+          "text_chars": 3197,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 65
+        },
+        {
+          "page": 40,
+          "text_chars": 3367,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 15,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 63
+        },
+        {
+          "page": 41,
+          "text_chars": 3441,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 14,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 62
+        },
+        {
+          "page": 42,
+          "text_chars": 3774,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 19,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 67
+        },
+        {
+          "page": 43,
+          "text_chars": 3671,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 21,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 69
+        },
+        {
+          "page": 44,
+          "text_chars": 3694,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 24,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 70
+        },
+        {
+          "page": 45,
+          "text_chars": 3474,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 23,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 58
+        },
+        {
+          "page": 46,
+          "text_chars": 2811,
+          "table_count": 1,
+          "table_shapes": [
+            {
+              "table": 0,
+              "rows": 18,
+              "max_cols": 7
+            }
+          ],
+          "line_count": 32
+        }
+      ],
+      "sections": [],
+      "status_token_counts": {
+        "ISTRUTTORIA": 637,
+        "ACCOLTA": 131
+      },
+      "identifier_mentions": 650,
+      "distinct_identifier_values": 639,
+      "identifier_examples": [
+        {
+          "page": 1,
+          "raw": "P.I. 02411810712",
+          "value": "02411810712"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 01807120710",
+          "value": "01807120710"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03046090712",
+          "value": "03046090712"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03230860714",
+          "value": "03230860714"
+        },
+        {
+          "page": 1,
+          "raw": "P.I.01431370715",
+          "value": "01431370715"
+        },
+        {
+          "page": 1,
+          "raw": "PIETRAMONTECORVINO",
+          "value": "ETRAMONTECORVINO"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02300940711",
+          "value": "02300940711"
+        },
+        {
+          "page": 1,
+          "raw": "P.I.03264770714",
+          "value": "03264770714"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03763930710",
+          "value": "03763930710"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02299350716",
+          "value": "02299350716"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 02292900715",
+          "value": "02292900715"
+        },
+        {
+          "page": 1,
+          "raw": "P.I. 03896780719",
+          "value": "03896780719"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03597630716",
+          "value": "03597630716"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03977190713",
+          "value": "03977190713"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 01553540715",
+          "value": "01553540715"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03419740711",
+          "value": "03419740711"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 04095320711",
+          "value": "04095320711"
+        },
+        {
+          "page": 2,
+          "raw": "P.I.03487580718",
+          "value": "03487580718"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03776890711",
+          "value": "03776890711"
+        },
+        {
+          "page": 2,
+          "raw": "P.I. 03888340712",
+          "value": "03888340712"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03056140712",
+          "value": "03056140712"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03758520716",
+          "value": "03758520716"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 04115460711",
+          "value": "04115460711"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03751850714",
+          "value": "03751850714"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03675950715",
+          "value": "03675950715"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 02332970710",
+          "value": "02332970710"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03038390716",
+          "value": "03038390716"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 04028900712",
+          "value": "04028900712"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 03954360719",
+          "value": "03954360719"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 04049030713",
+          "value": "04049030713"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 01043820719",
+          "value": "01043820719"
+        },
+        {
+          "page": 3,
+          "raw": "P.I. 01396820712",
+          "value": "01396820712"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 03287520716",
+          "value": "03287520716"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 02312110717",
+          "value": "02312110717"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 00389400714",
+          "value": "00389400714"
+        },
+        {
+          "page": 4,
+          "raw": "C.F. CRSMHL82E30I158K",
+          "value": "CRSMHL82E30I158K"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 04064090717",
+          "value": "04064090717"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 00193650710",
+          "value": "00193650710"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 03308950710",
+          "value": "03308950710"
+        },
+        {
+          "page": 4,
+          "raw": "P.I. 03884140710",
+          "value": "03884140710"
+        }
+      ],
+      "date_mentions": 683,
+      "date_examples": [
+        {
+          "page": 1,
+          "value": "10/09/2026"
+        },
+        {
+          "page": 1,
+          "value": "08/07/2015"
+        },
+        {
+          "page": 1,
+          "value": "27/11/2015"
+        },
+        {
+          "page": 1,
+          "value": "12/05/2016"
+        },
+        {
+          "page": 1,
+          "value": "12/05/2016"
+        },
+        {
+          "page": 1,
+          "value": "16/05/2016"
+        },
+        {
+          "page": 1,
+          "value": "23/05/2016"
+        },
+        {
+          "page": 1,
+          "value": "23/08/2016"
+        },
+        {
+          "page": 1,
+          "value": "05/10/2016"
+        },
+        {
+          "page": 1,
+          "value": "07/10/2016"
+        },
+        {
+          "page": 1,
+          "value": "14/11/2016"
+        },
+        {
+          "page": 1,
+          "value": "18/11/2016"
+        },
+        {
+          "page": 2,
+          "value": "10/09/2026"
+        },
+        {
+          "page": 2,
+          "value": "14/12/2016"
+        },
+        {
+          "page": 2,
+          "value": "31/01/2017"
+        },
+        {
+          "page": 2,
+          "value": "01/02/2017"
+        },
+        {
+          "page": 2,
+          "value": "26/04/2017"
+        },
+        {
+          "page": 2,
+          "value": "22/05/2017"
+        },
+        {
+          "page": 2,
+          "value": "25/05/2017"
+        },
+        {
+          "page": 2,
+          "value": "07/06/2017"
+        },
+        {
+          "page": 2,
+          "value": "12/06/2017"
+        },
+        {
+          "page": 3,
+          "value": "10/09/2026"
+        },
+        {
+          "page": 3,
+          "value": "13/06/2017"
+        },
+        {
+          "page": 3,
+          "value": "30/06/2017"
+        },
+        {
+          "page": 3,
+          "value": "06/07/2017"
+        },
+        {
+          "page": 3,
+          "value": "19/07/2017"
+        },
+        {
+          "page": 3,
+          "value": "25/07/2017"
+        },
+        {
+          "page": 3,
+          "value": "31/07/2017"
+        },
+        {
+          "page": 3,
+          "value": "10/08/2017"
+        },
+        {
+          "page": 3,
+          "value": "01/09/2017"
+        },
+        {
+          "page": 3,
+          "value": "08/09/2017"
+        },
+        {
+          "page": 3,
+          "value": "27/09/2017"
+        },
+        {
+          "page": 3,
+          "value": "25/10/2017"
+        },
+        {
+          "page": 3,
+          "value": "26/10/2017"
+        },
+        {
+          "page": 4,
+          "value": "10/09/2026"
+        },
+        {
+          "page": 4,
+          "value": "08/11/2017"
+        },
+        {
+          "page": 4,
+          "value": "14/11/2017"
+        },
+        {
+          "page": 4,
+          "value": "20/11/2017"
+        },
+        {
+          "page": 4,
+          "value": "29/11/2017"
+        },
+        {
+          "page": 4,
+          "value": "05/12/2017"
+        }
+      ],
+      "table_rows_nonempty": 821,
+      "candidate_observation_rows": 636,
+      "candidate_row_examples": [
+        {
+          "page": 1,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "AUTOTRASPORTI RUSSO DI RUSSO LEONARDO & C. S.A.S.",
+            "MANFREDONIA VIA E. GIUSTINO 49",
+            "",
+            "P.I. 02411810712",
+            "autotrasporti per conto terzi.",
+            "08/07/2015",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "RUSSO ANTONIO",
+            "MANFREDONIA VIA DEGLI EUCALIPTI 28/A",
+            "",
+            "P.I. 01807120710",
+            "estrazione, fornitura e trasporto di calcestruzzo e di bitume; noli a caldo; autotrasporti per conto terzi.",
+            "27/11/2015",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "EDIL SCAVI S.R.L.",
+            "CERIGNOLA (FG) VIA DEI CALZOLAI N. 1 ZONA P.A.P.",
+            "",
+            "P.I. 03046090712",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti; noli a freddo di macchinari; noli a caldo.",
+            "12/05/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "I.M.T.E.S. s.r.l.",
+            "CERIGNOLA Via S. Giuseppe n. 44",
+            "",
+            "P.I. 03230860714",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti; noli a freddo di macchinari.",
+            "12/05/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "F.LLI GERNONE DI GERNONE GERVASIO & C. S.N.C.",
+            "SAN SEVERO (FG) VIA MENTANA N. 10",
+            "",
+            "P.I.01431370715",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti.",
+            "16/05/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "DITTA PAPA ANTONIO",
+            "PIETRAMONTECORVINO (FG) CONTRADA CHIAIA C.N.",
+            "",
+            "P.I. 02300940711",
+            "noli a freddo di macchinari; noli a caldo.",
+            "23/05/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "DTG GLOBAL ENERGY S.R.L.",
+            "VOLTURINO (FG) LOCALITA’ CARIGNANI",
+            "",
+            "P.I.03264770714",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gesti Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; noli a freddo di macchinari;fornitura di ferro lavorato; noli a caldo; autotrasporti per conto terzi; guardiania di cantieri.",
+            "23/08/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "SIMA ECOLOGIA S.R.L.",
+            "SAN PAOLO CIVITATE (FG) VIA MANZONI CN",
+            "",
+            "P.I. 03763930710",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gesti autotrasporti per conto terzi;",
+            "05/10/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 13,
+          "cells": [
+            "GRENIA SOCIETA’ COOPERATIVA SOCIALE",
+            "LUCERA (FG) S.P. 109 KM. 28+800",
+            "",
+            "P.I. 02299350716",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gesti autotrasporti per conto terzi; guardiania di cantieri",
+            "07/10/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 14,
+          "cells": [
+            "DECORTECNICA DI ROBERTO DI GENOVA S.N.C.",
+            "SAN SEVERO (FG) VIALE SAN BERNARDINO 1-3",
+            "",
+            "P.I. 02292900715",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; fornitura di ferro lavorato; guardiania ai cantieri.",
+            "14/11/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 1,
+          "table": 0,
+          "row": 15,
+          "cells": [
+            "STRADE PER L’ITALIA S.R.L.",
+            "FOGGIA VIA TITO SERRA 20",
+            "",
+            "P.I. 03896780719",
+            "Noli a freddo di macchinari; noli a caldo;",
+            "18/11/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "EDILBONAVITA S.R.L.",
+            "CERIGNOLA (FG) VIA PANTNELLA KM. 0.800",
+            "",
+            "P.I. 03597630716",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione; Estrazione, fornitura e trasporto di terra e materiali inerti; Noli a freddo di macchinari; noli a caldo; autotrasporti per conto terzi: Guardiania ai cantieri.",
+            "14/12/2016",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "T.M.R. INGEGNERIA & COSTRUZIONI S.R.L.",
+            "FOGGIA VIA NAPOLI 14",
+            "",
+            "P.I. 03977190713",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti; Noli a freddo di macchinari; fornitura di ferro lavorato..",
+            "31/01/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "CEL ELETTROMECCANICA S.R.L.",
+            "FOGGIA VIA DI TRESSANTI 1 TRAV. VILL. ARTIGIANI",
+            "",
+            "P.I. 01553540715",
+            "Noli a freddo di macchinari; noli a caldo;",
+            "01/02/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "GEMAS S.R.L.",
+            "FOGGIA S.S. 16 ZONA ASI",
+            "",
+            "P.I. 03419740711",
+            "Noli a freddo di macchinari;",
+            "26/04/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "CILENTI CONSTRUCTIONS S.A.S. DI CILENTI GIOVANNI & C.",
+            "ALBERONA (FG) CONTRADA TUORO 4",
+            "",
+            "P.I. 04095320711",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; Noli a freddo di macchinari; Fornitura di ferro lavorato; noli a caldo; autotrasporti per conto terzi; guardiania ai cantieri.",
+            "22/05/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "LA MACCHIA GROUP S.R.L.",
+            "ZAPPONETA (FG) S.P. 66 PER TRINITAPOLI",
+            "",
+            "P.I.03487580718",
+            "Fornitura di ferro lavorato.",
+            "25/05/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "EDILITIA NOVA S.R.L.",
+            "FOGGIA VIA LIBERA 18",
+            "",
+            "P.I. 03776890711",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Estrazione, fornitura e trasporto di terra e materiali inerti; guardiania ai cantieri.",
+            "07/06/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 2,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "COLUCCI SPA (EX GENERAL SERVICE GROUP S.R.L.)",
+            "FOGGIA VIA PIAVE 34/I",
+            "",
+            "P.I. 03888340712",
+            "Noli a freddo di macchinari; Fornitura di ferro lavorato; noli a caldo; autotrasporti per conto terzi;",
+            "12/06/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "VULCANO SOCIETA’ COOP. A R.L.",
+            "CERIGNOLA (FG) VIA ADAMELLO 2",
+            "",
+            "P.I. 03056140712",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Estrazione, fornitura e trasporto di terra e materiali inerti; Noli a freddo di macchinari;",
+            "13/06/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "DAUNIA DRILLING di LAZZARO ANNALISA",
+            "LUCERA (FG) VIA MANZONI 18",
+            "",
+            "P.I. 03758520716",
+            "NOLI A FREDDO DI MACCHINARI",
+            "30/06/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "GENERAL COSTRUZIONI IMPIANTI SRL",
+            "FOGGIA VIA NICOLA DE DOMINICIS 20",
+            "",
+            "P.I. 04115460711",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; Noli a freddo di macchinari; Fornitura di ferro lavorato; noli a caldo; autotrasporti per conto terzi; guardiania ai cantieri.",
+            "06/07/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "ULISSE TRASPORTI SOCIETA’ COOPERATIVA",
+            "FOGGIA VIA TROIA 77",
+            "",
+            "P.I. 03751850714",
+            "AUTOTRASPORTI PER CONTO TERZI",
+            "19/07/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "SMADF SRL",
+            "LUCERA (FG) LOC. VALLE CRUSTE S.S. 17 KM. 319,20",
+            "",
+            "P.I. 03675950715",
+            "Trasporto di materiale a discarica per conto terzi;",
+            "25/07/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "NOVELLI S.R.L.",
+            "CERIGNOLA (FG) VIA MANFREDONIA ZONA IND. LOTTI DA 26 A 32",
+            "",
+            "P.I. 02332970710",
+            "trasporto, anche transfrontaliero, e smaltimento di rifiuti per conto terzi;",
+            "31/07/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "FABBRI S.R.L.",
+            "FOGGIA VIA DI S. GIULIANO 23",
+            "",
+            "P.I. 03038390716",
+            "Noli a freddo di macchinari;",
+            "10/08/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "EREDI BOZZA GIUSEPPE DI BOZZA MARCELLO GIUSEPPE & C. S.A.S.",
+            "LUCERA (FG) VIA FIORELLI 4",
+            "",
+            "P.I. 04028900712",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti;",
+            "01/09/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 13,
+          "cells": [
+            "EREDI MARANO SRL",
+            "ROCCHETTA SANT’ANTONIO (FG) CORSO P. UMBERTO 18",
+            "",
+            "P.I. 03954360719",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; Noli a freddo di macchinari; noli a caldo;",
+            "08/09/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 14,
+          "cells": [
+            "SECURITY AGENCY S.R.L.",
+            "FOGGIA VIA CARIGLIA 22",
+            "",
+            "P.I. 04049030713",
+            "guardiania ai cantieri.",
+            "27/09/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 15,
+          "cells": [
+            "AUGELLI CAVE SRL",
+            "APRICENA (FG) S.S. 89 GARNANICA KM. 8",
+            "",
+            "P.I. 01043820719",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti;",
+            "25/10/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 3,
+          "table": 0,
+          "row": 16,
+          "cells": [
+            "IMMOBILIARE GIOVANNI PANUNZIO DI MICHELE PANUNZIO & C. S.A.S.",
+            "FOGGIA VIA CARONA 88",
+            "",
+            "P.I. 01396820712",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Fornitura di ferro lavorato; autotrasporti per conto terzi; guardiania ai cantieri.",
+            "26/10/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "G.M.G. SRL UNIPERSONALE",
+            "FOGGIA S.S. 89 KM. 14",
+            "",
+            "P.I. 03287520716",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti;",
+            "08/11/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "SIDECO SRL",
+            "FOGGIA VIALE CANDELARO 29",
+            "",
+            "P.I. 02312110717",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione Estrazione, fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e di bitume; Noli a freddo di macchinari; noli a caldo; autotrasporti per conto terzi;",
+            "14/11/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "S.M.I.A. SOCIETA’ MACCHINE INDUSTRIALI E ATTREZZATURE DI CAVALIERE GIOVANNI ANTONIO & C. SNC",
+            "FOGGIA VIA A. ALFONZO M. DEL LIGUORI 11",
+            "",
+            "P.I. 00389400714",
+            "Noli a freddo di macchinari.",
+            "20/11/2017",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 4,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "DITTA CURSIO MICHELE",
+            "SAN SEVERO VIA GIUSEPPE GIUSTI 244",
+            "",
+            "C.F. CRSMHL82E30I158K",
+            "confezionamento, fornitura e trasporto di calcestruzzo e di bitume; autotrasporti per conto terzi",
+            "29/11/2017",
+            "ISTRUTTORIA"
+          ]
+        }
+      ],
+      "table_row_tail_examples": [
+        {
+          "page": 45,
+          "table": 0,
+          "row": 22,
+          "cells": [
+            "BUONCRISTIANO TERMOIDRAULICA S.R.L.",
+            "SAN NICANDRO GARGANICO, VIA ADRIATICO 9",
+            "",
+            "P.I. 04387730718",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione.",
+            "17.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 45,
+          "table": 0,
+          "row": 23,
+          "cells": [
+            "SQ17 S.R.L.",
+            "CASALVECCHIO DI PUGLIA VIA ALDO MORO, 15",
+            "",
+            "P.I. 04465290718",
+            "autotrasporti per conto terzi.",
+            "18.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 0,
+          "cells": [
+            "Prefettura di Foggia - Ufficio Territoriale del Governo",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 1,
+          "cells": [
+            "ELENCO DELLE IMPRESE RICHIEDENTI L'ISCRIZIONE NELL'ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVI DI INFILTRAZIONE MAFIOSA",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 2,
+          "cells": [
+            "AGGIORNATO AL 10/09/2026",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 4,
+          "cells": [
+            "Ragione Sociale",
+            "Sede legale",
+            "Sede secondaria con rappresentanza stabile in Italia",
+            "Codice fiscale/Partita IVA",
+            "Attività per cui è richiesta l’iscrizione",
+            "Data presentazione dell’istanza",
+            "Esito"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 5,
+          "cells": [
+            "PEGASO MULTISERVICE SOCIETA' COOPERATIVA",
+            "SAN SEVERO, VIA MARTIRI DI CEFALONIA",
+            "",
+            "P.I. 03068130719",
+            "Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto di terzi, di trattamento e di smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione.",
+            "21.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 6,
+          "cells": [
+            "RADICI S.R.L.",
+            "SAN GIOVANNI ROTONDO, CORSO UMBERTO I 36",
+            "",
+            "P.I. 04595710718",
+            "Ristorazione, gestione delle mense e catering",
+            "22.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 7,
+          "cells": [
+            "ITALDISTRIBUZIONE SRL",
+            "CARAPELLE, VIA GEREMIA DEL GROSSO",
+            "",
+            "P.I. 04594690713",
+            "autotrasporti per conto terzi",
+            "23.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 8,
+          "cells": [
+            "MOSCATELLI ANTONIO",
+            "SAN SEVERO, VIA CHECCHIA RISPOLI 209",
+            "",
+            "P.I. 03397320718",
+            "Autotrasporti per conto terzi",
+            "26.06.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 9,
+          "cells": [
+            "ARIEL S.R.L.S",
+            "VIESTE, VIA SANTA MARIA DI MERINO 28",
+            "",
+            "P.I. 04296450713",
+            "ristorazione, gestione delle mense e catering",
+            "29.6.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 10,
+          "cells": [
+            "CAMPING VILLAGE BAI DEGLI ARANCI S.R.L.",
+            "VIESTE, VIA LUNGOMARE EUROPA, 48",
+            "",
+            "P.I. 00590160719",
+            "ristorazione, gestione delle mense e catering",
+            "01.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 11,
+          "cells": [
+            "FRAMA COSTRUZIONI - S.R.L.",
+            "SAN SEVERO, VIA MARIO DE MATTEIS 28",
+            "",
+            "P.I. 04431690710",
+            "Fornitura di ferro lavorato",
+            "02.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 12,
+          "cells": [
+            "S.I.M. SOCIETA' PER L'IMPIANTISTICA E I MONTAGGI S.R.L.",
+            "MANFREDONIA, STRADA STATALE 159 LOC. COPPA DEL FASCIONE (PARCO INDUSTRIALE SOPIM)",
+            "",
+            "P.I. 03163740719",
+            "Fornitura di ferro lavorato",
+            "07.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 13,
+          "cells": [
+            "LEGGIERI MARMI APRICENA DI LEGGIERI ANTONIO & C. S.A.S.",
+            "APRICENA, STRADA STATALE GARGANICA KM 11",
+            "",
+            "P.I. 00124960717",
+            "Estrazione, fornitura e trasporto di terra e materiali inerti",
+            "21.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 14,
+          "cells": [
+            "HELIOS S.R.L.",
+            "FOGGIA, CORSO BENEDETTO CAIROLI 37",
+            "",
+            "P.I. 04395880711",
+            "Noli a freddo di macchinari; noli a caldo",
+            "21.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 15,
+          "cells": [
+            "STRUTTURA SRL",
+            "FOGGIA, CORSO BENEDETTO CAIROLI 37",
+            "",
+            "P.I. 04571210717",
+            "Noli a freddo di macchinari; noli a caldo",
+            "21.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 16,
+          "cells": [
+            "CORDONE LUIGI - impresa individuale",
+            "TORREMAGGIORE, VIA VILLA FRANCA 130/A",
+            "",
+            "P.I. 00399430719",
+            "Autotrasporto conto terzi",
+            "24.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 17,
+          "cells": [
+            "COSTRUZIONI GREEN 2.0 SRL",
+            "TORREMAGGIORE, VIA L. EINAUDI 1/A",
+            "",
+            "P.I. 04663830713",
+            "Estrazione fornitura e trasporto di terra e materiali inerti; confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+            "24.07.2026",
+            "ISTRUTTORIA"
+          ]
+        },
+        {
+          "page": 46,
+          "table": 0,
+          "row": 18,
+          "cells": [
+            "AEDIFICO - S.R.L.",
+            "ACCADIA, VIA ROMA 52/B",
+            "",
+            "P.I. 02398460713",
+            "Confezionamento, fornitura e trasporto di calcestruzzo e bitume",
+            "25.07.2026",
+            "ISTRUTTORIA"
+          ]
+        }
+      ]
+    }
+  }
+}
