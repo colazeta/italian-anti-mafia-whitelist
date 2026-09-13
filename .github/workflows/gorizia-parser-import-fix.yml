@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Apply evidence-bound blank-expiry correction
+      - name: Apply evidence-bound parser corrections
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -38,6 +38,13 @@ jobs:
               text = text.replace(old_sig, new_sig, 1)
           elif new_sig not in text:
               raise RuntimeError('reviewed PEVERE source signature is neither old nor exact source form')
+
+          old_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
+          new_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    numeric_match = re.fullmatch(r"(\\d{1,2})[./](\\d{1,2})[./](\\d{4})", value)\n    if numeric_match:\n        try:\n            return date(\n                int(numeric_match.group(3)),\n                int(numeric_match.group(2)),\n                int(numeric_match.group(1)),\n            ).isoformat()\n        except ValueError as exc:\n            raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
+          if old_dates in text:
+              text = text.replace(old_dates, new_dates, 1)
+          elif new_dates not in text:
+              raise RuntimeError('numeric-date parser block drift')
 
           old = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
           new = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}"\n        )\n'''
@@ -111,5 +118,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/white_list_archive/parsers/gorizia_tables.py
           git diff --cached --quiet && exit 0
-          git commit -m 'Reconcile Gorizia blank expiry evidence'
+          git commit -m 'Reconcile Gorizia parser evidence'
           git push origin HEAD:expansion/gorizia-2026-09-13
