@@ -17,35 +17,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply reviewed ordinal-date support
+      - name: Apply reviewed split-digit date support
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("src/white_list_archive/parsers/gorizia_tables.py")
-          text = path.read_text(encoding="utf-8")
-          old = 're.fullmatch(r"(\\d{1,2})\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)'
-          new = 're.fullmatch(r"(\\d{1,2})°?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)'
-          if new in text:
-              print("Ordinal-date support already present.")
-          elif old in text:
-              path.write_text(text.replace(old, new, 1), encoding="utf-8")
-          else:
-              raise RuntimeError("Expected Gorizia Italian-word date parser expression not found")
+          parser = Path("src/white_list_archive/parsers/gorizia_tables.py")
+          text = parser.read_text(encoding="utf-8")
+          marker = '_REVIEWED_MALFORMED_DATES = frozenset({"10.12.202", "14 agosto 204"})\n'
+          mapping = '_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}\n'
+          if mapping not in text:
+              if marker not in text:
+                  raise RuntimeError("Expected reviewed-malformed-date marker not found")
+              text = text.replace(marker, marker + mapping, 1)
+
+          old = '    if value in _REVIEWED_MALFORMED_DATES:\n        return ""\n'
+          new = old + '    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n'
+          if 'if value in _REVIEWED_SPLIT_DIGIT_DATES:' not in text:
+              if old not in text:
+                  raise RuntimeError("Expected strict-date malformed-value guard not found")
+              text = text.replace(old, new, 1)
+          parser.write_text(text, encoding="utf-8")
+
+          doc = Path("docs/sources/gorizia-operational-check-2026-09-13.md")
+          doc_text = doc.read_text(encoding="utf-8")
+          anchor = "Support for the optional ordinal marker was added explicitly after the parser correctly failed closed on that previously unreviewed form; accepting it is source-supported date parsing, not a relaxation of validation."
+          note = (
+              " The physical OOXML extraction also exposes one reviewed split-run typography, `2 1 aprile 2026`, for MOVITUB di Giovanni Veneruso & C. SAS. "
+              "The same source cell's logical text is `21 aprile 2026`, and another source occurrence for the same company/identifier also reads `21 aprile 2026`. "
+              "The parser therefore maps only this exact reviewed physical lexeme to `2026-04-21`, while preserving the raw source value and keeping the exact physical registration grouping unchanged; no generic whitespace/date repair is enabled."
+          )
+          if note.strip() not in doc_text:
+              if anchor not in doc_text:
+                  raise RuntimeError("Expected Gorizia date-review documentation anchor not found")
+              doc_text = doc_text.replace(anchor, anchor + note, 1)
+              doc.write_text(doc_text, encoding="utf-8")
           PY
 
-      - name: Commit parser fix
+      - name: Commit reviewed parser fix
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/white_list_archive/parsers/gorizia_tables.py
+          git add src/white_list_archive/parsers/gorizia_tables.py docs/sources/gorizia-operational-check-2026-09-13.md
           if git diff --cached --quiet; then
             echo "No parser change to checkpoint."
             exit 0
           fi
-          git commit -m "Handle reviewed ordinal date typography in Gorizia source"
+          git commit -m "Handle reviewed split-run date in Gorizia source"
           git push
