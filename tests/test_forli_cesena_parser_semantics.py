@@ -93,6 +93,27 @@ def test_del_status_date_is_preserved_and_normalised() -> None:
     ]
 
 
+def test_il_status_date_is_preserved_and_normalised() -> None:
+    record = _parse(
+        "01234567890",
+        "IL DATE TEST SRL",
+        "strict_11_digit",
+        [
+            "  01234567890 IL DATE TEST SRL",
+            "          VIA TEST 10                          Provv. n.   del        Scadenza       IN AGGIORNAMENTO",
+            "                                                                                     IL 29/04/2026",
+            "          MODIGLIANA (FC) 47015",
+            "                                                 Sezioni.: I II III IV V VI VII VIII IX X",
+        ],
+    )
+    assert record["source_status"] == "renewal_update_in_progress"
+    assert record["registered_office"] == "VIA TEST 10 MODIGLIANA (FC) 47015"
+    assert record["source_fields"]["in_aggiornamento"] == "IL 29/04/2026"
+    assert record["source_fields"]["outcome"]["dates"] == [
+        {"raw_value": "IL 29/04/2026", "date": "2026-04-29", "parenthesized": False}
+    ]
+
+
 def test_pending_row_does_not_fabricate_provvedimento_dates() -> None:
     record = _parse(
         "04597520404",
