@@ -1,4 +1,4 @@
-name: Gorizia applicant parser fix
+name: Gorizia parser invariant probe
 
 on:
   push:
@@ -9,10 +9,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  fix:
+  probe:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,70 +21,98 @@ jobs:
         with:
           ref: expansion/gorizia-2026-09-13
 
-      - name: Bind exact applicant identifiers inside PDF words
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Audit exact parser grouping and blank-expiry evidence
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import json
+          import re
+          from collections import Counter, defaultdict
           from pathlib import Path
 
-          path = Path('src/white_list_archive/parsers/gorizia_tables.py')
-          text = path.read_text(encoding='utf-8')
+          listed = json.loads(Path('tmp/gorizia_listed_tables.json').read_text(encoding='utf-8'))
 
-          old = '''    identifier_anchors: list[dict[str, Any]] = []
-    for word in words:
-        text = _clean(word["text"])
-        if re.fullmatch(r"\\d{11}", text):
-            identifier_anchors.append(word)
-    observed_identifiers = [_clean(item["text"]) for item in identifier_anchors]
-    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS:
-        raise RuntimeError(f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}")
-'''
-          new = '''    identifier_anchors: list[dict[str, Any]] = []
-    identifier_occurrences: Counter[str] = Counter()
-    for word in words:
-        text = _clean(word["text"])
-        matches = [identifier for identifier in _EXPECTED_APPLICANT_IDENTIFIERS if identifier in text]
-        if len(matches) > 1:
-            raise RuntimeError(f"Gorizia ambiguous applicant identifier word: {text!r}")
-        if matches:
-            identifier = matches[0]
-            identifier_occurrences[identifier] += 1
-            identifier_anchors.append({**word, "identifier": identifier})
-    observed_identifiers = [item["identifier"] for item in identifier_anchors]
-    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS or any(
-        identifier_occurrences[identifier] != 1 for identifier in _EXPECTED_APPLICANT_IDENTIFIERS
-    ):
-        raise RuntimeError(
-            f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}; "
-            f"occurrences={dict(identifier_occurrences)!r}"
-        )
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected exactly one old applicant anchor block, found {text.count(old)}')
-          text = text.replace(old, new, 1)
+          def clean(value):
+              return re.sub(r'\s+', ' ', value or '').strip()
 
-          old_name = '        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and _clean(item["text"]) != observed_identifiers[index]]\n'
-          new_name = '        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and item is not anchor]\n'
-          if text.count(old_name) != 1:
-              raise SystemExit(f'expected exactly one old applicant name filter, found {text.count(old_name)}')
-          text = text.replace(old_name, new_name, 1)
+          sector_rows = []
+          for table in listed:
+              section = int(table['table'])
+              for item in table['rows'][1:]:
+                  values = [clean(v) for v in item['physical_cells']]
+                  if not any(values):
+                      continue
+                  if len(values) != 7:
+                      raise RuntimeError(f"section {section} row {item['row']} physical width drift: {values!r}")
+                  name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
+                  sector_rows.append({
+                      'section': section,
+                      'source_row': item['row'],
+                      'name': name,
+                      'office': office,
+                      'secondary': secondary,
+                      'identifier_raw': identifier_raw,
+                      'listing_raw': listing_raw,
+                      'expiry_raw': expiry_raw,
+                      'update_raw': update_raw,
+                  })
 
-          path.write_text(text, encoding='utf-8')
+          grouped = defaultdict(list)
+          for row in sector_rows:
+              key = (
+                  row['name'], row['office'], row['secondary'], row['identifier_raw'],
+                  row['listing_raw'], row['expiry_raw'],
+              )
+              grouped[key].append(row)
+
+          status_counts = Counter()
+          for members in grouped.values():
+              status_counts['renewal_update_in_progress' if any(m['update_raw'] for m in members) else 'listed'] += 1
+
+          blank_rows = [row for row in sector_rows if not row['expiry_raw']]
+          by_sig = defaultdict(list)
+          for row in blank_rows:
+              sig = (row['name'], row['office'], row['identifier_raw'], row['listing_raw'])
+              by_sig[sig].append(row)
+
+          blank_signatures = []
+          for sig, members in by_sig.items():
+              blank_signatures.append({
+                  'name': sig[0],
+                  'office': sig[1],
+                  'identifier_raw': sig[2],
+                  'listing_raw': sig[3],
+                  'sections': sorted({m['section'] for m in members}),
+                  'source_rows': sorted([[m['section'], m['source_row']] for m in members]),
+              })
+
+          mixed_updates = []
+          for key, members in grouped.items():
+              updates = sorted({m['update_raw'] for m in members})
+              if len(updates) > 1:
+                  mixed_updates.append({
+                      'name': key[0],
+                      'identifier_raw': key[3],
+                      'listing_raw': key[4],
+                      'expiry_raw': key[5],
+                      'update_values': updates,
+                      'sections': sorted({m['section'] for m in members}),
+                  })
+
+          print(json.dumps({
+              'sector_rows': len(sector_rows),
+              'parser_registration_groups': len(grouped),
+              'parser_status_counts': dict(status_counts),
+              'blank_sector_row_count': len(blank_rows),
+              'blank_unique_signature_count': len(blank_signatures),
+              'blank_signatures': blank_signatures,
+              'mixed_update_group_count': len(mixed_updates),
+              'mixed_update_groups': mixed_updates,
+          }, ensure_ascii=False, indent=2))
           PY
-          git diff --check
-          git diff -- src/white_list_archive/parsers/gorizia_tables.py
-
-      - name: Commit production parser fix
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/white_list_archive/parsers/gorizia_tables.py
-          if git diff --cached --quiet; then
-            echo "No parser change to checkpoint."
-            exit 0
-          fi
-          git commit -m "Bind Gorizia applicant identifier anchors"
-          git push origin HEAD:expansion/gorizia-2026-09-13
