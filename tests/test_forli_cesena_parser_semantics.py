@@ -73,6 +73,26 @@ def test_renewal_row_follows_explicit_current_status() -> None:
     ]
 
 
+def test_del_status_date_is_preserved_and_normalised() -> None:
+    record = _parse(
+        "01234567890",
+        "DEL DATE TEST SRL",
+        "strict_11_digit",
+        [
+            "  01234567890 DEL DATE TEST SRL",
+            "          VIA TEST 9                           Provv. n.   del        Scadenza       IN AGGIORNAMENTO",
+            "                                                                                     DEL 09/07/2026",
+            "          GATTEO (FC)",
+            "                                                 Sezioni.: I II III IV V VI VII VIII IX X",
+        ],
+    )
+    assert record["source_status"] == "renewal_update_in_progress"
+    assert record["source_fields"]["in_aggiornamento"] == "DEL 09/07/2026"
+    assert record["source_fields"]["outcome"]["dates"] == [
+        {"raw_value": "DEL 09/07/2026", "date": "2026-07-09", "parenthesized": False}
+    ]
+
+
 def test_pending_row_does_not_fabricate_provvedimento_dates() -> None:
     record = _parse(
         "04597520404",
