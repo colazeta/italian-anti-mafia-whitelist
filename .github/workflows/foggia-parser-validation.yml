@@ -78,8 +78,9 @@ jobs:
           assert set(luisi[0]['source_fields']['name_variants'])=={'In corso','LUISI COSTRUZIONI DI LUISI CARMINE'}
           assert luisi[0]['source_fields']['reviewed_name_reconciliation']=='reviewed_source_name_column_inconsistency'
 
-          pasqua=[r for r in listed.records if r['name']=='IMPRESA PASQUA SRL']
+          pasqua=[r for r in listed.records if '03926080718' in r['identifiers']]
           assert len(pasqua)==2,pasqua
+          assert {r['name'] for r in pasqua}=={'IMPRESA PASQUA S.R.L.'},pasqua
           assert {r['observed_expiry_date'] for r in pasqua}=={'2025-09-09','2026-09-09'},pasqua
 
           duplicated_applicant_ids={
@@ -96,4 +97,4 @@ jobs:
           print('applicants',applicants.diagnostics)
           print('total_public_records',len(listed.records)+len(applicants.records))
           PY
-# Rerun marker: reviewed Foggia applicant identifier anomalies are 621 strict, 6 raw-only and 1 source-empty.
+# Rerun marker: PASQUA is asserted by the reviewed strict identifier, preserving source punctuation in the name.
