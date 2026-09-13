@@ -100,6 +100,14 @@ _ITALIAN_MONTHS = {
 }
 _REVIEWED_MALFORMED_DATES = frozenset({"10.12.202", "14 agosto 204"})
 _REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}
+_REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
+    (
+        "“ MAROLLI COSTRUZIONI SRL”",
+        "MONFALCONE (GO) Viale San Marco, 13/B",
+        "C.F./P.I. 01218760310",
+        "29 dicembre 2022",
+    ),
+})
 
 
 def _physical_cells(row: Any) -> list[str]:
@@ -185,6 +193,7 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     sector_rows: list[dict[str, Any]] = []
     section_counts: Counter[int] = Counter()
     update_values: Counter[str] = Counter()
+    blank_expiry_rows = 0
     for section, table in enumerate(document.tables, start=1):
         if not table.rows:
             raise RuntimeError(f"Gorizia listed section {section} has no header")
@@ -196,10 +205,17 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             if len(values) != 7:
                 raise RuntimeError(f"Gorizia listed row-shape drift in section {section}, row {source_row}: {values!r}")
             name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
-            if not name or not listing_raw or not expiry_raw:
+            if not name or not listing_raw:
                 raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
+            reviewed_blank_expiry = (name, office, identifier_raw, listing_raw) in _REVIEWED_BLANK_EXPIRY_ROWS
+            if not expiry_raw:
+                if not reviewed_blank_expiry:
+                    raise RuntimeError(
+                        f"Gorizia unreviewed blank listed expiry in section {section}, row {source_row}: {values!r}"
+                    )
+                blank_expiry_rows += 1
             listing_date = _strict_source_date(listing_raw, label="listing")
-            expiry_date = _strict_source_date(expiry_raw, label="expiry")
+            expiry_date = _strict_source_date(expiry_raw, label="expiry", allow_blank=reviewed_blank_expiry)
             section_counts[section] += 1
             update_values[update_raw] += 1
             sector_rows.append(
@@ -218,6 +234,8 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 }
             )
 
+    if blank_expiry_rows != 1:
+        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 1")
     if dict(section_counts) != _EXPECTED_SECTION_ROWS:
         raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
     if len(sector_rows) != _EXPECTED_LISTED_SECTOR_ROWS:
@@ -281,6 +299,7 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         records=records,
         diagnostics={
             "sector_rows": len(sector_rows),
+            "blank_expiry_rows": blank_expiry_rows,
             "section_rows": dict(section_counts),
             "public_records": len(records),
             "status_counts": dict(status_counts),
