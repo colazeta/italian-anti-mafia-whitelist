@@ -6,6 +6,7 @@ on:
       - expansion/gorizia-2026-09-13
   workflow_dispatch:
 
+# Temporary branch-only validator; remove before opening the production PR.
 permissions:
   contents: write
 
