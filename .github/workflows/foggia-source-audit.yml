@@ -28,7 +28,7 @@ jobs:
         run: |
           python - <<'PY'
           from __future__ import annotations
-          import hashlib, io, json, re, zipfile
+          import hashlib, io, json, zipfile
           from pathlib import Path
           from urllib.parse import urljoin
           import requests
@@ -41,6 +41,9 @@ jobs:
           }
           UA = 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-audit/1.0)'
 
+          def norm(value: str) -> str:
+              return ' '.join((value or '').split())
+
           def get(url: str) -> requests.Response:
               r = requests.get(url, headers={'User-Agent': UA, 'Accept': '*/*'}, timeout=45)
               r.raise_for_status()
@@ -49,20 +52,52 @@ jobs:
           landing = get(LANDING)
           soup = BeautifulSoup(landing.text, 'html.parser')
           anchors = []
+          expected_cf = [x.casefold() for x in EXPECTED.values()]
           for a in soup.find_all('a', href=True):
-              text = ' '.join(a.get_text(' ', strip=True).split())
-              anchors.append({'text': text, 'url': urljoin(LANDING, a['href'])})
+              own = norm(a.get_text(' ', strip=True))
+              contexts = []
+              tr = a.find_parent('tr')
+              if tr is not None:
+                  contexts.append(norm(tr.get_text(' ', strip=True)))
+              cur = a
+              for _ in range(5):
+                  cur = cur.parent
+                  if cur is None:
+                      break
+                  text = norm(cur.get_text(' ', strip=True))
+                  if text and len(text) <= 1600:
+                      contexts.append(text)
+                  if any(label in text.casefold() for label in expected_cf):
+                      break
+              context = max(contexts, key=lambda x: (any(label in x.casefold() for label in expected_cf), len(x)), default=own)
+              anchors.append({'text': own, 'context': context, 'url': urljoin(LANDING, a['href'])})
 
           matched = {}
           for pop, label in EXPECTED.items():
-              exact = [x for x in anchors if x['text'].casefold() == label.casefold()]
-              if len(exact) != 1:
-                  contains = [x for x in anchors if label.casefold() in x['text'].casefold()]
-                  if len(contains) == 1:
-                      exact = contains
-              if len(exact) != 1:
-                  raise SystemExit(f'fail-closed: expected exactly one {pop} attachment labelled {label!r}; found {exact!r}')
-              matched[pop] = exact[0]
+              label_cf = label.casefold()
+              by_url = {}
+              for item in anchors:
+                  signal = f"{item['text']} {item['context']}".casefold()
+                  if label_cf in signal:
+                      by_url[item['url']] = item
+              candidates = list(by_url.values())
+              if len(candidates) != 1:
+                  interesting = [
+                      x for x in anchors
+                      if any(token in f"{x['text']} {x['context']} {x['url']}".casefold()
+                             for token in ('elenco', 'fornitor', 'richiedent', '.pdf', '.xlsx', '.docx', '/files/', '/media/'))
+                  ]
+                  raise SystemExit(
+                      f'fail-closed: expected exactly one {pop} attachment for {label!r}; '
+                      f'candidates={candidates!r}; interesting={interesting[:40]!r}'
+                  )
+              item = candidates[0]
+              matched[pop] = {
+                  'text': label,
+                  'url': item['url'],
+                  'html_anchor_text': item['text'],
+                  'html_context': item['context'],
+              }
 
           def profile_bytes(raw: bytes) -> dict:
               p = {'size_bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
@@ -138,6 +173,8 @@ jobs:
               prof.update({
                   'population': pop,
                   'official_link_label': item['text'],
+                  'html_anchor_text': item['html_anchor_text'],
+                  'html_context': item['html_context'],
                   'url': item['url'],
                   'http_status_first': first.status_code,
                   'http_status_second': second.status_code,
