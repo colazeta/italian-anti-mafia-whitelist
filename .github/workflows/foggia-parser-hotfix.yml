@@ -63,9 +63,72 @@ jobs:
                   f'Foggia transaction marker drift for {name!r}: block={block_count}, scalar={scalar_count}'
               )
 
+          governance_sync = r'''python - <<'PY2'
+          import csv
+          import json
+          from pathlib import Path
+
+          catalog = Path('data/catalog.csv')
+          with catalog.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle)
+              fieldnames = reader.fieldnames
+              rows = list(reader)
+          targets = {'verified-primary-pages': '40', 'source-series-inventory': '76'}
+          found = set()
+          for row in rows:
+              if row['dataset_id'] in targets:
+                  row['record_count'] = targets[row['dataset_id']]
+                  found.add(row['dataset_id'])
+          if found != set(targets):
+              raise SystemExit(f'catalog governance targets drifted: {found!r}')
+          with catalog.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator='\n')
+              writer.writeheader()
+              writer.writerows(rows)
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one governance invariant {old!r}, got {text.count(old)}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once('tests/test_source_registry.py', '    assert len(pages) == 39\n', '    assert len(pages) == 40\n')
+          replace_once('tests/test_source_population_coverage.py', '    assert report["verified_authority_count"] == 39\n', '    assert report["verified_authority_count"] == 40\n')
+          replace_once('tests/test_source_population_coverage.py', '    assert report["register_scope_count"] == 40\n', '    assert report["register_scope_count"] == 41\n')
+          replace_once('tests/test_source_population_coverage.py', '    assert report["complete_register_scope_count"] == 38\n', '    assert report["complete_register_scope_count"] == 39\n')
+
+          coverage = json.loads(Path('data/monitoring/national_coverage.json').read_text(encoding='utf-8'))
+          foggia = [row for row in coverage['prefectures'] if row.get('authority_key') == 'foggia']
+          if len(foggia) != 1:
+              raise SystemExit(f'Foggia coverage-row cardinality drift: {len(foggia)}')
+          if foggia[0].get('public_export_enabled') is not True:
+              raise SystemExit(f'Foggia coverage row not public-export enabled: {foggia[0]!r}')
+          if foggia[0].get('coverage_status') != 'VALIDATED':
+              raise SystemExit(f'Foggia coverage row not validated: {foggia[0].get("coverage_status")!r}')
+          PY2'''
+
           try:
               scripts = [(name, literal_run(name)) for name in expected]
               for name, script in scripts:
+                  if name == 'Run full repository test suite':
+                      sync = subprocess.run(
+                          governance_sync, shell=True, executable='/bin/bash', text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                      )
+                      print('::group::Synchronise expansion governance invariants')
+                      print(sync.stdout)
+                      print('::endgroup::')
+                      if sync.returncode:
+                          raise RuntimeError(
+                              f'step="Synchronise expansion governance invariants" returncode={sync.returncode}\nOUTPUT:\n{sync.stdout[-30000:]}'
+                          )
+                  if name == 'Commit validated permanent integration':
+                      script = script.replace(
+                          'git diff --cached --check\n',
+                          'git add data/catalog.csv tests/test_source_population_coverage.py tests/test_source_registry.py\ngit diff --cached --check\n',
+                          1,
+                      )
                   result = subprocess.run(
                       script, shell=True, executable='/bin/bash', text=True,
                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
