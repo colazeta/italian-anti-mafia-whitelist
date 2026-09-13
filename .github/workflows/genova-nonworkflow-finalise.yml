@@ -1,0 +1,71 @@
+name: Genova non-workflow production finalisation
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-nonworkflow-finalise.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+          fetch-depth: 0
+      - name: Materialise validated Genova production state
+        run: |
+          awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
+          test -s /tmp/genova_materialise.py
+          python /tmp/genova_materialise.py
+          python tmp/genova_public_adapter_patch.py
+          git restore -- .github/workflows/public-pages.yml
+          git diff --check
+      - name: Remove temporary Genova diagnostics outside workflows
+        shell: bash
+        run: |
+          shopt -s nullglob
+          tmp_files=(tmp/genova_*)
+          if [ "${#tmp_files[@]}" -gt 0 ]; then
+            git rm -f -- "${tmp_files[@]}"
+          fi
+      - name: Enforce non-workflow diff scope
+        run: |
+          python - <<'PY'
+          import subprocess
+          allowed = {
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'data/source_registry/verified_primary_pages.csv',
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'tests/public_portal_browser.cjs',
+          }
+          changed = [x for x in subprocess.check_output(['git','diff','--name-only'], text=True).splitlines() if x]
+          bad = [p for p in changed if p not in allowed and not p.startswith('tmp/genova_')]
+          if bad:
+              raise SystemExit(f'unrelated changes: {bad}')
+          missing = sorted(p for p in allowed if p not in changed)
+          if missing:
+              raise SystemExit(f'expected permanent changes missing: {missing}')
+          PY
+          git add data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs
+          git add -u tmp
+          git diff --cached --check
+      - name: Commit non-workflow production state
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate validated Genova public data'
+          git push origin HEAD:expansion/genova-2026-09-12
