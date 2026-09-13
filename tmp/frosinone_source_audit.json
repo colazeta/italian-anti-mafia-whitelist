@@ -1,0 +1,66 @@
+{
+  "authority_key": "frosinone",
+  "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+  "source_reference_date": "2026-09-02",
+  "capture_gate": "verified",
+  "sources": {
+    "listed": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+      "first": {
+        "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+        "ok": true,
+        "status_code": 200,
+        "final_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+        "content_type": "application/pdf",
+        "bytes": 1230003,
+        "sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+        "pdf_magic": true,
+        "pages": 91
+      },
+      "second": {
+        "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+        "ok": true,
+        "status_code": 200,
+        "final_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+        "content_type": "application/pdf",
+        "bytes": 1230003,
+        "sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+        "pdf_magic": true,
+        "pages": 91
+      },
+      "repeat_fetch_byte_identical": true,
+      "verified_sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+      "verified_bytes": 1230003,
+      "verified_pages": 91
+    },
+    "applicants": {
+      "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+      "first": {
+        "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+        "ok": true,
+        "status_code": 200,
+        "final_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+        "content_type": "application/pdf",
+        "bytes": 775657,
+        "sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+        "pdf_magic": true,
+        "pages": 37
+      },
+      "second": {
+        "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+        "ok": true,
+        "status_code": 200,
+        "final_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+        "content_type": "application/pdf",
+        "bytes": 775657,
+        "sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+        "pdf_magic": true,
+        "pages": 37
+      },
+      "repeat_fetch_byte_identical": true,
+      "verified_sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+      "verified_bytes": 775657,
+      "verified_pages": 37
+    }
+  }
+}
