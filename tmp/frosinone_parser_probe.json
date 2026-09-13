@@ -1,0 +1,95 @@
+{
+  "production_expected_fragment_rows": 42,
+  "probe_fragment_rows": 44,
+  "probe_completed": true,
+  "listed": {
+    "parser": "frosinone_listed",
+    "parser_version": "1",
+    "source_rows": 761,
+    "public_records": 761,
+    "status_counts": {
+      "renewal_update_in_progress": 232,
+      "listed": 529
+    },
+    "identifier_coverage": 737,
+    "raw_identifier_only": 24,
+    "administrative_rows_excluded": 5,
+    "continuation_fragments_joined": 44,
+    "reviewed_malformed_dates": 8,
+    "blank_sections": 3
+  },
+  "applicants": {
+    "parser": "frosinone_applicants",
+    "parser_version": "1",
+    "source_rows": 475,
+    "public_records": 475,
+    "status_counts": {
+      "pending": 475
+    },
+    "outcome_counts": {
+      "ISTRUTTORIA IN CORSO": 466,
+      "ISTRUTTORIA PIN CORSO": 1,
+      "ISTRUITTORIA IN CORSO": 1,
+      "": 4,
+      "ISTRUZIONI IN CORSO": 1,
+      "ISTRUTTORIA IN CORSA": 1,
+      "ISTRUTTORIA IN CORSO.": 1
+    },
+    "identifier_coverage": 473,
+    "raw_identifier_only": 2,
+    "continuation_fragments_joined": 5,
+    "reviewed_identity_continuations": 1,
+    "reviewed_malformed_dates": 2,
+    "blank_sections": 0
+  },
+  "combined_public_records": 1236,
+  "combined_status_counts": {
+    "renewal_update_in_progress": 232,
+    "listed": 529,
+    "pending": 475
+  },
+  "blank_outcome_count": 4,
+  "pagliaroli": [
+    {
+      "identifiers": [
+        "03332660608",
+        "PGLLNZ94D01I838U"
+      ],
+      "fragments": [
+        {
+          "source_locator": "p29:t1:r1",
+          "cells": [
+            "",
+            "",
+            "",
+            "PGLLNZ94D01I838U",
+            "",
+            "",
+            ""
+          ],
+          "before": [
+            "PAGLIAROLI LORENZO – IMPRESA INDIVIDUALE",
+            "Veroli(FR) Contrada Stero Mancini 33",
+            "",
+            "03332660608 C.F.",
+            "III – V -",
+            "28/04/2026",
+            "ISTRUTTORIA IN CORSO"
+          ]
+        }
+      ]
+    }
+  ],
+  "draghetto": [
+    {
+      "raw": "06/08/2025s",
+      "parsed": ""
+    }
+  ],
+  "joy": [
+    {
+      "raw": "13/05/206",
+      "parsed": ""
+    }
+  ]
+}
