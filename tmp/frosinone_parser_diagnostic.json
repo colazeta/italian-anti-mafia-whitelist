@@ -5,8 +5,279 @@
     "listed": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
     "applicants": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8"
   },
-  "parser_completed": false,
-  "error_type": "RuntimeError",
-  "error": "Frosinone listed fragment-row drift: 44 != 42",
-  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 71, in <module>\n  File \"/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/frosinone_tables.py\", line 200, in parse_frosinone_listed\n    raise RuntimeError(f\"Frosinone listed fragment-row drift: {fragment_rows} != {_EXPECTED_LISTED_FRAGMENT_ROWS}\")\nRuntimeError: Frosinone listed fragment-row drift: 44 != 42\n"
+  "parser_completed": true,
+  "listed": {
+    "parser": "frosinone_listed",
+    "parser_version": "1",
+    "source_rows": 761,
+    "public_records": 761,
+    "status_counts": {
+      "renewal_update_in_progress": 232,
+      "listed": 529
+    },
+    "identifier_coverage": 737,
+    "raw_identifier_only": 24,
+    "administrative_rows_excluded": 5,
+    "continuation_fragments_joined": 44,
+    "reviewed_malformed_dates": 8,
+    "blank_sections": 3
+  },
+  "applicants": {
+    "parser": "frosinone_applicants",
+    "parser_version": "1",
+    "source_rows": 475,
+    "public_records": 475,
+    "status_counts": {
+      "pending": 475
+    },
+    "outcome_counts": {
+      "ISTRUTTORIA IN CORSO": 466,
+      "ISTRUTTORIA PIN CORSO": 1,
+      "ISTRUITTORIA IN CORSO": 1,
+      "": 4,
+      "ISTRUZIONI IN CORSO": 1,
+      "ISTRUTTORIA IN CORSA": 1,
+      "ISTRUTTORIA IN CORSO.": 1
+    },
+    "identifier_coverage": 473,
+    "raw_identifier_only": 2,
+    "continuation_fragments_joined": 5,
+    "reviewed_identity_continuations": 1,
+    "reviewed_malformed_dates": 2,
+    "blank_sections": 0
+  },
+  "combined_public_records": 1236,
+  "combined_status_counts": {
+    "renewal_update_in_progress": 232,
+    "listed": 529,
+    "pending": 475
+  },
+  "malformed_listed_records": [
+    {
+      "name": "F.M.D. S.R.L.S.",
+      "listing_date_raw": "30/07/*2026",
+      "expiry_date_raw": "29/07/2027",
+      "observed_listing_date": "",
+      "observed_expiry_date": "2027-07-29"
+    },
+    {
+      "name": "IMPRESA INDIVIDUALE – CANTAGALLO VINCENZO",
+      "listing_date_raw": "28/08/2023",
+      "expiry_date_raw": "27/0/2024",
+      "observed_listing_date": "2023-08-28",
+      "observed_expiry_date": ""
+    },
+    {
+      "name": "T. PHARM S.R.L.",
+      "listing_date_raw": "25/02/2026",
+      "expiry_date_raw": "224/02/2027",
+      "observed_listing_date": "2026-02-25",
+      "observed_expiry_date": ""
+    },
+    {
+      "name": "ARKEN.IT S.R.L.",
+      "listing_date_raw": "25/02/2026",
+      "expiry_date_raw": "24/02/20270",
+      "observed_listing_date": "2026-02-25",
+      "observed_expiry_date": ""
+    },
+    {
+      "name": "SAN PAOLO DELLA CROCE SOCIETA’ COOPERATIVA SOCIALE ETS",
+      "listing_date_raw": "12/15/2025",
+      "expiry_date_raw": "11/15/2026",
+      "observed_listing_date": "",
+      "observed_expiry_date": ""
+    },
+    {
+      "name": "DI COLELLA MAICOL IMPRESA INDIVIDUALE",
+      "listing_date_raw": "15/02/2024",
+      "expiry_date_raw": "14/02/2025CO S.MO",
+      "observed_listing_date": "2024-02-15",
+      "observed_expiry_date": ""
+    },
+    {
+      "name": "L.D.R. PAANDAA HOUSE di De Rose Luigi Antonio",
+      "listing_date_raw": "1 6 / 1 0/2025",
+      "expiry_date_raw": "15/10/2026",
+      "observed_listing_date": "",
+      "observed_expiry_date": "2026-10-15"
+    }
+  ],
+  "draghetto": [
+    {
+      "record_locator": "frosinone-applicants:2026-09-02:141",
+      "source_key": "frosinone-applicants",
+      "authority_key": "frosinone",
+      "authority_name": "Prefettura di Frosinone",
+      "register_key": "frosinone-white-list",
+      "register_name": "White List - Prefettura di Frosinone",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-02",
+      "source_row_ordinal": 141,
+      "name": "DRAGHETTO S.R.L.",
+      "registered_office": "Fontechiari(FR) Via Gizzi, 2",
+      "secondary_office": "",
+      "identifier_field_raw": "01632260608",
+      "identifiers": [
+        "01632260608"
+      ],
+      "requested_activities": [
+        "I – II – V – VI – X -"
+      ],
+      "requested_activities_raw": "I – II – V – VI – X -",
+      "source_status": "pending",
+      "outcome_raw": "ISTRUTTORIA IN CORSO",
+      "application_date": "",
+      "observed_listing_date": "",
+      "decision_date": "",
+      "registration_date": "",
+      "observed_expiry_date": "",
+      "primary_date": "",
+      "primary_date_label": "Data presentazione istanza",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+      "capture_sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+      "source_fields": {
+        "source_locator": "p12:t1:r4",
+        "continuation_fragments": [],
+        "identifier_raw": "01632260608",
+        "sections_raw": "I – II – V – VI – X -",
+        "application_date_raw": "06/08/2025s",
+        "outcome_raw": "ISTRUTTORIA IN CORSO"
+      }
+    }
+  ],
+  "joy": [
+    {
+      "record_locator": "frosinone-applicants:2026-09-02:277",
+      "source_key": "frosinone-applicants",
+      "authority_key": "frosinone",
+      "authority_name": "Prefettura di Frosinone",
+      "register_key": "frosinone-white-list",
+      "register_name": "White List - Prefettura di Frosinone",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-02",
+      "source_row_ordinal": 277,
+      "name": "JOY S.R.L.",
+      "registered_office": "Ceccano(FR) Via Gaeta 268",
+      "secondary_office": "",
+      "identifier_field_raw": "02971080607",
+      "identifiers": [
+        "02971080607"
+      ],
+      "requested_activities": [
+        "I -"
+      ],
+      "requested_activities_raw": "I -",
+      "source_status": "pending",
+      "outcome_raw": "ISTRUTTORIA IN CORSO",
+      "application_date": "",
+      "observed_listing_date": "",
+      "decision_date": "",
+      "registration_date": "",
+      "observed_expiry_date": "",
+      "primary_date": "",
+      "primary_date_label": "Data presentazione istanza",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+      "capture_sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+      "source_fields": {
+        "source_locator": "p22:t1:r8",
+        "continuation_fragments": [],
+        "identifier_raw": "02971080607",
+        "sections_raw": "I -",
+        "application_date_raw": "13/05/206",
+        "outcome_raw": "ISTRUTTORIA IN CORSO"
+      }
+    }
+  ],
+  "pagliaroli": [
+    {
+      "record_locator": "frosinone-applicants:2026-09-02:362",
+      "source_key": "frosinone-applicants",
+      "authority_key": "frosinone",
+      "authority_name": "Prefettura di Frosinone",
+      "register_key": "frosinone-white-list",
+      "register_name": "White List - Prefettura di Frosinone",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-02",
+      "source_row_ordinal": 362,
+      "name": "PAGLIAROLI LORENZO – IMPRESA INDIVIDUALE",
+      "registered_office": "Veroli(FR) Contrada Stero Mancini 33",
+      "secondary_office": "",
+      "identifier_field_raw": "03332660608 C.F. PGLLNZ94D01I838U",
+      "identifiers": [
+        "03332660608",
+        "PGLLNZ94D01I838U"
+      ],
+      "requested_activities": [
+        "III – V -"
+      ],
+      "requested_activities_raw": "III – V -",
+      "source_status": "pending",
+      "outcome_raw": "ISTRUTTORIA IN CORSO",
+      "application_date": "2026-04-28",
+      "observed_listing_date": "",
+      "decision_date": "",
+      "registration_date": "",
+      "observed_expiry_date": "",
+      "primary_date": "2026-04-28",
+      "primary_date_label": "Data presentazione istanza",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+      "capture_sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+      "source_fields": {
+        "source_locator": "p28:t2:r3",
+        "continuation_fragments": [
+          {
+            "source_locator": "p29:t1:r1",
+            "cells": [
+              "",
+              "",
+              "",
+              "PGLLNZ94D01I838U",
+              "",
+              "",
+              ""
+            ],
+            "before": [
+              "PAGLIAROLI LORENZO – IMPRESA INDIVIDUALE",
+              "Veroli(FR) Contrada Stero Mancini 33",
+              "",
+              "03332660608 C.F.",
+              "III – V -",
+              "28/04/2026",
+              "ISTRUTTORIA IN CORSO"
+            ]
+          }
+        ],
+        "identifier_raw": "03332660608 C.F. PGLLNZ94D01I838U",
+        "sections_raw": "III – V -",
+        "application_date_raw": "28/04/2026",
+        "outcome_raw": "ISTRUTTORIA IN CORSO"
+      }
+    }
+  ],
+  "blank_outcome": [
+    {
+      "name": "EDIL TIMBERING 2001 S.R.L.",
+      "source_locator": "p13:t2:r7",
+      "source_status": "pending"
+    },
+    {
+      "name": "GEODES S.R.L.",
+      "source_locator": "p20:t1:r1",
+      "source_status": "pending"
+    },
+    {
+      "name": "HD SERVICE S.R.L.",
+      "source_locator": "p21:t1:r6",
+      "source_status": "pending"
+    },
+    {
+      "name": "N.C.C. PROFESSIONAL RENT SOCIETA’ COOPERATIVA A R.L.",
+      "source_locator": "p27:t1:r3",
+      "source_status": "pending"
+    }
+  ]
 }
