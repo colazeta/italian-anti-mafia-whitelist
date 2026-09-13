@@ -1,0 +1,97 @@
+name: Foggia parser validation
+
+on:
+  push:
+    branches:
+      - expansion/foggia-2026-09-13
+    paths:
+      - .github/workflows/foggia-parser-validation.yml
+      - src/white_list_archive/parsers/foggia_tables.py
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/foggia-2026-09-13
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser runtime
+        run: pip install -e . requests pdfplumber
+      - name: Parse exact official editions and assert frozen semantics
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          from collections import Counter
+          from pathlib import Path
+          import requests
+          from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
+
+          LANDING='https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list'
+          specs={
+            'listed':{
+              'url':'https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf',
+              'sha':'313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a',
+              'source_key':'foggia-listed','reference_date':'2026-09-08','population_scope':'listed',
+            },
+            'applicants':{
+              'url':'https://prefettura.interno.gov.it/sites/default/files/43/2026-09/elenco_delle_imprese_richiedenti_iscrizione_elenco_fornitori_agg_10-09-2026.pdf',
+              'sha':'d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5',
+              'source_key':'foggia-applicants','reference_date':'2026-09-10','population_scope':'applicant',
+            },
+          }
+          def acquire(kind):
+            s=specs[kind]
+            r=requests.get(s['url'],headers={'User-Agent':'Mozilla/5.0 (compatible; whitelist-parser-validation/1.0)'},timeout=60)
+            r.raise_for_status()
+            got=hashlib.sha256(r.content).hexdigest()
+            assert got==s['sha'],(kind,got)
+            p=Path('/tmp')/f'foggia-{kind}.pdf';p.write_bytes(r.content)
+            cfg={
+              'source_key':s['source_key'],'authority_key':'foggia','authority_name':'Prefettura di Foggia',
+              'register_key':'foggia-white-list','register_name':'White List - Prefettura di Foggia',
+              'population_scope':s['population_scope'],'reference_date':s['reference_date'],
+              'source_page_url':LANDING,'resource_url':s['url'],'sha256':s['sha'],
+            }
+            return p,cfg
+          lp,lc=acquire('listed'); ap,ac=acquire('applicants')
+          listed=parse_foggia_listed(lp,lc)
+          applicants=parse_foggia_applicants(ap,ac)
+          assert len(listed.records)==330,listed.diagnostics
+          assert listed.diagnostics['sector_rows']==942,listed.diagnostics
+          assert listed.diagnostics['status_counts']=={'listed':85,'renewal_update_in_progress':245},listed.diagnostics
+          assert listed.diagnostics['raw_date_groups']==2,listed.diagnostics
+          assert listed.diagnostics['reviewed_name_reconciliations']==3,listed.diagnostics
+          assert len(applicants.records)==628,applicants.diagnostics
+          assert applicants.diagnostics['status_counts']=={'pending':628},applicants.diagnostics
+          assert applicants.diagnostics['identifier_coverage']==621,applicants.diagnostics
+          assert applicants.diagnostics['raw_identifier_only']==7,applicants.diagnostics
+
+          luisi=[r for r in listed.records if '03570730717' in r['identifiers']]
+          assert len(luisi)==1,luisi
+          assert luisi[0]['name']=='LUISI COSTRUZIONI DI LUISI CARMINE',luisi[0]
+          assert set(luisi[0]['source_fields']['name_variants'])=={'In corso','LUISI COSTRUZIONI DI LUISI CARMINE'}
+          assert luisi[0]['source_fields']['reviewed_name_reconciliation']=='reviewed_source_name_column_inconsistency'
+
+          pasqua=[r for r in listed.records if r['name']=='IMPRESA PASQUA SRL']
+          assert len(pasqua)==2,pasqua
+          assert {r['observed_expiry_date'] for r in pasqua}=={'2025-09-09','2026-09-09'},pasqua
+
+          duplicated_applicant_ids={
+            '03954360719','04330360712','03775260718','04387300710','04364940710','02348000718'
+          }
+          for ident in duplicated_applicant_ids:
+            rows=[r for r in applicants.records if ident in r['identifiers']]
+            assert len(rows)==2,(ident,rows)
+          assert sum(not r['identifiers'] for r in applicants.records)==7
+          assert all(r['outcome_raw']=='ISTRUTTORIA' and r['source_status']=='pending' for r in applicants.records)
+          print('FOGGIA_PARSER_OK')
+          print('listed',listed.diagnostics)
+          print('applicants',applicants.diagnostics)
+          print('total_public_records',len(listed.records)+len(applicants.records))
+          PY
