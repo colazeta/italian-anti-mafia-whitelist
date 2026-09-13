@@ -1,0 +1,60 @@
+name: Gorizia header audit
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+    paths:
+      - .github/workflows/gorizia-header-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check python-docx requests
+      - name: Audit physical header rows from pinned source
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          import requests
+          from docx import Document
+          from docx.oxml.ns import qn
+
+          url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx'
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          expected = '680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d'
+          r = requests.get(url, headers={'User-Agent':'Mozilla/5.0 whitelist-archive-header-audit/1.0','Referer':landing,'Connection':'close'}, timeout=(20,90))
+          r.raise_for_status()
+          digest = hashlib.sha256(r.content).hexdigest()
+          if digest != expected:
+              raise SystemExit(f'approved-byte drift: {digest} != {expected}')
+          path = Path('tmp/gorizia-listed-header-audit.docx')
+          path.write_bytes(r.content)
+          doc = Document(path)
+          def clean(v): return re.sub(r'\s+', ' ', (v or '').replace('\xa0',' ')).strip()
+          def cells(row): return [clean(' '.join((node.text or '') for node in tc.iter(qn('w:t')))) for tc in row._tr.tc_lst]
+          headers = {str(i): cells(table.rows[0]) for i, table in enumerate(doc.tables, start=1)}
+          out = {'sha256': digest, 'bytes': len(r.content), 'table_count': len(doc.tables), 'headers': headers}
+          Path('tmp/gorizia_header_audit.json').write_text(json.dumps(out, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+          print(json.dumps(out, ensure_ascii=False, indent=2))
+          PY
+      - name: Checkpoint audit
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tmp/gorizia_header_audit.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Checkpoint Gorizia header audit'
+          git push
