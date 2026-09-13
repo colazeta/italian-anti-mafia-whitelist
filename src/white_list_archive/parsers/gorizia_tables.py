@@ -51,6 +51,8 @@ _EXPECTED_APPLICANT_NAMES = [
     "SVILUPPO SOLARE SRL",
     "T-RECYCLE SRL",
 ]
+# Row geometry in the approved PDF binds 14.04.2026 to FMGDUE SRL;
+# the following SI.ECO applicant row has no date. Keep this sequence fail-closed.
 _EXPECTED_APPLICANT_DATES = [
     "",
     "24.06.2025",
@@ -93,220 +95,206 @@ _REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
     ),
     (
         "PEVERE LOGISTICA SRL",
-        "GORIZIA Via Gregorcic snc",
-        "00546290313",
+        "MONFALCONE (GO) Via Timavo, 63",
+        "C.F./P.I. 01282120315",
         "30 luglio 2026",
     ),
 })
 
 
-def _physical_cells(row: Any) -> list[str]:
-    return [
-        _clean(" ".join((node.text or "") for node in tc.iter(qn("w:t"))))
-        for tc in row._tr.tc_lst
-    ]
+def _clean(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "").replace("\xa0", " ")).strip()
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _validate_cfg(cfg: dict[str, Any], *, source_key: str, population_scope: str, sha256: str) -> None:
     if cfg.get("source_key") != source_key:
-        raise RuntimeError(f"Gorizia parser/source mismatch: {cfg.get('source_key')!r} != {source_key!r}")
-    if cfg.get("authority_key") != "gorizia":
-        raise RuntimeError("Gorizia parser bound to a non-Gorizia authority")
+        raise RuntimeError(f"Gorizia source-key drift: {cfg.get('source_key')!r} != {source_key!r}")
     if cfg.get("population_scope") != population_scope:
-        raise RuntimeError(f"Gorizia population-scope drift: {cfg.get('population_scope')!r}")
-    if cfg.get("reference_date") != _REFERENCE_DATE:
-        raise RuntimeError(f"Gorizia reference date drift: {cfg.get('reference_date')!r}")
+        raise RuntimeError(
+            f"Gorizia population-scope drift for {source_key}: {cfg.get('population_scope')!r} != {population_scope!r}"
+        )
     if cfg.get("sha256") != sha256:
-        raise RuntimeError(f"Gorizia approved-byte digest drift: {cfg.get('sha256')!r}")
+        raise RuntimeError(f"Gorizia configured SHA-256 drift for {source_key}: {cfg.get('sha256')!r} != {sha256!r}")
+    if cfg.get("reference_date") != _REFERENCE_DATE:
+        raise RuntimeError(
+            f"Gorizia reference-date drift for {source_key}: {cfg.get('reference_date')!r} != {_REFERENCE_DATE!r}"
+        )
 
 
-def _strict_source_date(raw: str, *, label: str, allow_blank: bool = False) -> str:
+def _normalise_italian_date(raw: str) -> str | None:
     value = _clean(raw)
     if not value:
-        if allow_blank:
-            return ""
-        raise RuntimeError(f"Gorizia unexpected blank {label} date")
+        return None
     if value in _REVIEWED_MALFORMED_DATES:
-        return ""
+        return None
     if value in _REVIEWED_SPLIT_DIGIT_DATES:
         return _REVIEWED_SPLIT_DIGIT_DATES[value]
-    match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", value)
-    if match:
-        day, month, year = map(int, match.groups())
-    else:
-        match = re.fullmatch(r"(\d{1,2})°?\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", value)
-        if not match:
-            raise RuntimeError(f"Gorizia unreviewed {label} date typography: {value!r}")
-        day = int(match.group(1))
-        month_name = match.group(2).casefold()
-        if month_name not in _ITALIAN_MONTHS:
-            raise RuntimeError(f"Gorizia unreviewed {label} month: {value!r}")
-        month = _ITALIAN_MONTHS[month_name]
-        year = int(match.group(3))
-    try:
-        return date(year, month, day).isoformat()
-    except ValueError as exc:
-        raise RuntimeError(f"Gorizia unreviewed invalid {label} calendar date: {value!r}") from exc
+    match = re.fullmatch(r"(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", value)
+    if not match:
+        raise RuntimeError(f"Gorizia unexpected date lexeme: {value!r}")
+    month = _ITALIAN_MONTHS.get(match.group(2).lower())
+    if not month:
+        raise RuntimeError(f"Gorizia unknown Italian month: {match.group(2)!r}")
+    parsed = date(int(match.group(3)), month, int(match.group(1)))
+    return parsed.isoformat()
 
 
-def _strict_identifiers(raw: str) -> list[str]:
-    value = _clean(raw).upper()
-    matches: list[str] = []
-    for token in re.findall(r"(?<![A-Z0-9])[A-Z0-9]{11,16}(?![A-Z0-9])", value):
-        if token.isdigit() and len(token) == 11 and token not in matches:
-            matches.append(token)
-        elif len(token) == 16 and token.isalnum() and any(ch.isalpha() for ch in token) and token not in matches:
-            matches.append(token)
-    return matches
+def _docx_cell_text(cell: Any) -> str:
+    values: list[str] = []
+    for paragraph in cell.paragraphs:
+        text = _clean(paragraph.text)
+        if text:
+            values.append(text)
+    return _clean(" ".join(values))
 
 
-def _clean(value: str) -> str:
-    return re.sub(r"\s+", " ", (value or "").replace("\xa0", " ")).strip()
+def _header_signature(row: Any) -> str:
+    return " | ".join(_docx_cell_text(cell) for cell in row.cells)
 
 
-def _source_status(update_values: list[str]) -> str:
-    return "renewal_update_in_progress" if any(_clean(value) for value in update_values) else "listed"
-
-
-def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    _validate_cfg(cfg, source_key="gorizia-listed", population_scope="listed", sha256=_LISTED_SHA256)
+def _listed_table_rows(path: Path) -> tuple[list[dict[str, Any]], dict[int, int]]:
     document = Document(path)
     if len(document.tables) != 10:
-        raise RuntimeError(f"Gorizia listed table-count drift: {len(document.tables)} != 10")
+        raise RuntimeError(f"Gorizia listed publisher-shape drift: {len(document.tables)} tables != 10")
 
-    expected_headers = [
-        "Ragione Sociale",
-        "Sede legale",
-        "Sede secondaria con rappresentanza stabile in Italia",
-        "Codice fiscale/Partita IVA",
-        "Data d’ iscrizione",
-        "Data scadenza iscrizione",
-        "Aggiornamento in corso",
-    ]
-    sector_rows: list[dict[str, Any]] = []
-    section_counts: Counter[int] = Counter()
-    update_values: Counter[str] = Counter()
-    blank_expiry_rows = 0
-    for section, table in enumerate(document.tables, start=1):
+    rows: list[dict[str, Any]] = []
+    section_counts: defaultdict[int, int] = defaultdict(int)
+    expected_headers = {
+        "DITTA | SEDE LEGALE | C.F./P.I. | SETTORE ATTIVITA' (cfr. elenco da 1 a 10 a fondo pagina) | Data d’ iscrizione | Scadenza | NOTE/AGGIORNAMENTO",
+        "DITTA | SEDE LEGALE | C.F./P.I. | SETTORE ATTIVITA' (cfr. elenco da 1 a 10 a fondo pagina) | Data d ’ iscrizione | Scadenza | NOTE/AGGIORNAMENTO",
+        "DITTA | SEDE LEGALE | C.F./P.I. | SETTORE ATTIVITA' (cfr. elenco da 1 a 10 a fondo pagina) | Data di iscrizione | Scadenza | NOTE/AGGIORNAMENTO",
+    }
+    for table_index, table in enumerate(document.tables, start=1):
         if not table.rows:
-            raise RuntimeError(f"Gorizia listed section {section} has no header")
-        header = _physical_cells(table.rows[0])
-        expected_header = list(expected_headers)
-        if section in {3, 4}:
-            expected_header[4] = "Data d ’ iscrizione"
-        elif section >= 5:
-            expected_header[4] = "Data di iscrizione"
-        if header != expected_header:
-            raise RuntimeError(f"Gorizia listed header drift in section {section}: {header!r}")
-        for source_row, row in enumerate(table.rows[1:], start=2):
-            values = _physical_cells(row)
-            if not any(values):
+            raise RuntimeError(f"Gorizia listed empty table: {table_index}")
+        header = _header_signature(table.rows[0])
+        if header not in expected_headers:
+            raise RuntimeError(f"Gorizia listed header drift in table {table_index}: {header!r}")
+        for row_index, row in enumerate(table.rows[1:], start=2):
+            cells = [_docx_cell_text(cell) for cell in row.cells]
+            if not any(cells):
                 continue
-            if len(values) != 7:
-                raise RuntimeError(f"Gorizia listed row-shape drift in section {section}, row {source_row}: {values!r}")
-            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
-            if not name or not listing_raw:
-                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
-            reviewed_blank_expiry = (name, office, identifier_raw, listing_raw) in _REVIEWED_BLANK_EXPIRY_ROWS
-            if not expiry_raw:
-                if not reviewed_blank_expiry:
-                    raise RuntimeError(
-                        f"Gorizia unreviewed blank listed expiry in section {section}, row {source_row}: {values!r}"
-                    )
-                blank_expiry_rows += 1
-            listing_date = _strict_source_date(listing_raw, label="listing")
-            expiry_date = _strict_source_date(expiry_raw, label="expiry", allow_blank=reviewed_blank_expiry)
-            section_counts[section] += 1
-            update_values[update_raw] += 1
-            sector_rows.append(
+            if len(cells) != 7:
+                raise RuntimeError(f"Gorizia listed column drift in table {table_index} row {row_index}: {len(cells)} != 7")
+            name, address, identifier, sectors_raw, listing_raw, expiry_raw, update_raw = cells
+            sectors = [int(value) for value in re.findall(r"(?<!\d)(10|[1-9])(?!\d)", sectors_raw)]
+            if not sectors:
+                raise RuntimeError(
+                    f"Gorizia listed sector parse drift in table {table_index} row {row_index}: {sectors_raw!r}"
+                )
+            for sector in sectors:
+                section_counts[sector] += 1
+            rows.append(
                 {
-                    "section": section,
-                    "source_row": source_row,
+                    "table": table_index,
+                    "row": row_index,
                     "name": name,
-                    "office": office,
-                    "secondary": secondary,
-                    "identifier_raw": identifier_raw,
+                    "address": address,
+                    "identifier_raw": identifier,
+                    "sectors_raw": sectors_raw,
+                    "sectors": sectors,
                     "listing_raw": listing_raw,
-                    "listing_date": listing_date,
                     "expiry_raw": expiry_raw,
-                    "expiry_date": expiry_date,
                     "update_raw": update_raw,
                 }
             )
 
-    if blank_expiry_rows != 2:
-        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 2")
-    if dict(section_counts) != _EXPECTED_SECTION_ROWS:
-        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
-    if len(sector_rows) != _EXPECTED_LISTED_SECTOR_ROWS:
-        raise RuntimeError(f"Gorizia listed sector-row drift: {len(sector_rows)} != {_EXPECTED_LISTED_SECTOR_ROWS}")
+    if len(rows) != _EXPECTED_LISTED_REGISTRATIONS:
+        raise RuntimeError(f"Gorizia listed public-record drift: {len(rows)} != {_EXPECTED_LISTED_REGISTRATIONS}")
+    if sum(section_counts.values()) != _EXPECTED_LISTED_SECTOR_ROWS:
+        raise RuntimeError(
+            f"Gorizia listed sector-row drift: {sum(section_counts.values())} != {_EXPECTED_LISTED_SECTOR_ROWS}"
+        )
+    if dict(sorted(section_counts.items())) != _EXPECTED_SECTION_ROWS:
+        raise RuntimeError(f"Gorizia listed section-count drift: {dict(sorted(section_counts.items()))!r}")
+    return rows, dict(sorted(section_counts.items()))
+
+
+def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+    _validate_cfg(cfg, source_key="gorizia-listed", population_scope="listed", sha256=_LISTED_SHA256)
+    if _sha256(path) != _LISTED_SHA256:
+        raise RuntimeError("Gorizia listed source bytes drift from approved SHA-256")
+
+    source_rows, section_counts = _listed_table_rows(path)
+    update_values = Counter(row["update_raw"] for row in source_rows for _ in row["sectors"])
     if dict(update_values) != _EXPECTED_UPDATE_VALUES:
         raise RuntimeError(f"Gorizia listed update-value drift: {dict(update_values)!r}")
 
-    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
-    for row in sector_rows:
-        key = (
-            row["name"],
-            row["office"],
-            row["secondary"],
-            row["identifier_raw"],
-            row["listing_raw"],
-            row["expiry_raw"],
-        )
-        grouped[key].append(row)
-    if len(grouped) != _EXPECTED_LISTED_REGISTRATIONS:
-        raise RuntimeError(f"Gorizia listed registration-group drift: {len(grouped)} != {_EXPECTED_LISTED_REGISTRATIONS}")
-
     records: list[dict[str, Any]] = []
     status_counts: Counter[str] = Counter()
-    for index, (key, rows) in enumerate(grouped.items(), start=1):
-        name, office, secondary, identifier_raw, listing_raw, expiry_raw = key
-        identifiers = _strict_identifiers(identifier_raw)
-        updates = [row["update_raw"] for row in rows if row["update_raw"]]
-        source_status = _source_status(updates)
-        status_counts[source_status] += 1
-        sections = sorted({row["section"] for row in rows})
-        source_rows = [f"table-{row['section']}:row-{row['source_row']}" for row in rows]
-        record = {
-            "authority_key": cfg["authority_key"],
-            "authority_name": cfg["authority_name"],
-            "register_key": cfg["register_key"],
-            "register_name": cfg["register_name"],
-            "source_key": cfg["source_key"],
-            "population_scope": cfg["population_scope"],
-            "source_page_url": cfg["source_page_url"],
-            "resource_url": cfg["resource_url"],
-            "reference_date": cfg["reference_date"],
-            "name": name,
-            "address": office,
-            "secondary_address": secondary,
-            "identifiers": identifiers,
-            "identifier_raw": identifier_raw,
-            "listing_date": rows[0]["listing_date"],
-            "listing_date_raw": listing_raw,
-            "expiry_date": rows[0]["expiry_date"],
-            "expiry_date_raw": expiry_raw,
-            "source_status": source_status,
-            "source_status_raw": " | ".join(dict.fromkeys(updates)),
-            "sector_memberships": sections,
-            "source_rows": source_rows,
-            "record_locator": f"gorizia-listed-{index:04d}",
-        }
-        records.append(record)
+    blank_expiry_rows = 0
+    for source_row in source_rows:
+        listing_raw = source_row["listing_raw"]
+        expiry_raw = source_row["expiry_raw"]
+        if not expiry_raw:
+            blank_signature = (
+                source_row["name"],
+                source_row["address"],
+                source_row["identifier_raw"],
+                source_row["listing_raw"],
+            )
+            if blank_signature not in _REVIEWED_BLANK_EXPIRY_ROWS:
+                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {blank_signature!r}")
+            blank_expiry_rows += 1
+        listing_date = _normalise_italian_date(listing_raw)
+        expiry_date = _normalise_italian_date(expiry_raw)
+        source_status = "renewal_update_in_progress" if source_row["update_raw"] == "IN AGGIORNAMENTO" else "listed"
+        for sector_index, sector in enumerate(source_row["sectors"], start=1):
+            identifier_match = re.search(r"(?<!\d)(\d{11})(?!\d)", source_row["identifier_raw"])
+            identifiers = [identifier_match.group(1)] if identifier_match else []
+            record_locator = f"gorizia-listed:t{source_row['table']}:r{source_row['row']}:s{sector_index}"
+            records.append(
+                {
+                    "authority_key": cfg["authority_key"],
+                    "authority_name": cfg["authority_name"],
+                    "register_key": cfg["register_key"],
+                    "register_name": cfg["register_name"],
+                    "source_key": cfg["source_key"],
+                    "population_scope": cfg["population_scope"],
+                    "source_page_url": cfg["source_page_url"],
+                    "resource_url": cfg["resource_url"],
+                    "reference_date": cfg["reference_date"],
+                    "name": source_row["name"],
+                    "address": source_row["address"],
+                    "identifiers": identifiers,
+                    "activity_sectors": [str(sector)],
+                    "listing_date_raw": listing_raw,
+                    "listing_date": listing_date,
+                    "expiry_date_raw": expiry_raw,
+                    "expiry_date": expiry_date,
+                    "source_status": source_status,
+                    "source_status_raw": source_row["update_raw"],
+                    "record_locator": record_locator,
+                }
+            )
+            status_counts[source_status] += 1
 
-    expected_status_counts = {"listed": 86, "renewal_update_in_progress": 31}
-    if dict(status_counts) != expected_status_counts:
-        raise RuntimeError(f"Gorizia listed status drift: {dict(status_counts)!r}")
+    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):
+        raise RuntimeError(
+            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"
+        )
+    if len(records) != _EXPECTED_LISTED_SECTOR_ROWS:
+        raise RuntimeError(f"Gorizia listed output record drift: {len(records)} != {_EXPECTED_LISTED_SECTOR_ROWS}")
     if len({record["record_locator"] for record in records}) != len(records):
         raise RuntimeError("Gorizia listed record locator collision")
 
     return ParsedBatch(
         records=records,
         diagnostics={
-            "sector_rows": len(sector_rows),
+            "sector_rows": len(records),
             "blank_expiry_rows": blank_expiry_rows,
-            "section_rows": dict(section_counts),
-            "public_records": len(records),
+            "section_rows": section_counts,
+            "public_records": len(source_rows),
             "status_counts": dict(status_counts),
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
             "update_values": dict(update_values),
@@ -316,15 +304,14 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
 def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_cfg(cfg, source_key="gorizia-applicants", population_scope="applicant", sha256=_APPLICANT_SHA256)
-    rows: list[dict[str, Any]] = []
+    if _sha256(path) != _APPLICANT_SHA256:
+        raise RuntimeError("Gorizia applicant source bytes drift from approved SHA-256")
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != 2:
             raise RuntimeError(f"Gorizia applicant page-count drift: {len(pdf.pages)} != 2")
         words: list[dict[str, Any]] = []
-        page_offsets: dict[int, float] = {}
         cumulative = 0.0
         for page_number, page in enumerate(pdf.pages, start=1):
-            page_offsets[page_number] = cumulative
             for word in page.extract_words(use_text_flow=True, keep_blank_chars=False):
                 words.append(
                     {
@@ -409,20 +396,22 @@ def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 "reference_date": cfg["reference_date"],
                 "name": row["name"],
                 "address": "",
-                "secondary_address": "",
                 "identifiers": [row["identifier"]],
-                "identifier_raw": row["identifier"],
-                "listing_date": _strict_source_date(row["date_raw"], label="applicant", allow_blank=True),
+                "activity_sectors": [],
                 "listing_date_raw": row["date_raw"],
-                "expiry_date": "",
+                "listing_date": None,
                 "expiry_date_raw": "",
+                "expiry_date": None,
                 "source_status": "pending",
-                "source_status_raw": "richiedente iscrizione",
-                "sector_memberships": [],
-                "source_rows": [f"page-{row['page']}:anchor-{row['identifier']}"],
-                "record_locator": f"gorizia-applicant-{index:04d}",
+                "source_status_raw": "",
+                "record_locator": f"gorizia-applicants:p{row['page']}:r{index}",
             }
         )
+
+    if len(records) != len(_EXPECTED_APPLICANT_IDENTIFIERS):
+        raise RuntimeError(f"Gorizia applicant record-count drift: {len(records)} != 10")
+    if len({record["record_locator"] for record in records}) != len(records):
+        raise RuntimeError("Gorizia applicant record locator collision")
 
     return ParsedBatch(
         records=records,
@@ -430,6 +419,5 @@ def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "public_records": len(records),
             "status_counts": {"pending": len(records)},
             "identifier_coverage": len(records),
-            "pages": 2,
         },
     )
