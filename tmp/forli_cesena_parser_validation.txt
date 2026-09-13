@@ -1,7 +1,7 @@
 parser_gate=FAILED
 Traceback (most recent call last):
   File "<stdin>", line 24, in <module>
-  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 275, in parse_forli_cesena_combined
+  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 274, in parse_forli_cesena_combined
     record, diag = _parse_record_block(
                    ~~~~~~~~~~~~~~~~~~~^
         page_number,
@@ -11,14 +11,9 @@ Traceback (most recent call last):
         ^^^^^^^^
     )
     ^
-  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 167, in _parse_record_block
-    street, registration_number, decision_date, expiry_date = _parse_provvedimento(
-                                                              ~~~~~~~~~~~~~~~~~~~~^
-        provv_lines[0], explicit_status
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 186, in _parse_record_block
+    raise RuntimeError(
+        f"Forli-Cesena p{page_number}:b{page_record_number} locality layout drift: {locality_candidates!r}"
     )
-    ^
-  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 116, in _parse_provvedimento
-    raise RuntimeError("Forli-Cesena applicant row unexpectedly carries populated provvedimento fields")
-RuntimeError: Forli-Cesena applicant row unexpectedly carries populated provvedimento fields
+RuntimeError: Forli-Cesena p28:b8 locality layout drift: ['DEL 09/07/2026', 'GATTEO (FC)']
 
