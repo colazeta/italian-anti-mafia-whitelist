@@ -1,0 +1,74 @@
+name: Gorizia date lexeme audit
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check python-docx requests
+      - name: Enumerate non-standard date lexemes from pinned listed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json, re
+          from collections import Counter
+          from pathlib import Path
+          import requests
+          from docx import Document
+          from docx.oxml.ns import qn
+
+          url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx'
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          expected = '680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d'
+          r = requests.get(url, headers={'User-Agent':'Mozilla/5.0 whitelist-archive-date-audit/1.0','Referer':landing,'Connection':'close'}, timeout=(20,90))
+          r.raise_for_status()
+          digest = hashlib.sha256(r.content).hexdigest()
+          if digest != expected:
+              raise SystemExit(f'approved-byte drift: {digest} != {expected}')
+          path = Path('/tmp/gorizia-listed.docx')
+          path.write_bytes(r.content)
+          doc = Document(path)
+          def clean(v): return re.sub(r'\s+', ' ', (v or '').replace('\xa0',' ')).strip()
+          def cells(row): return [clean(' '.join((node.text or '') for node in tc.iter(qn('w:t')))) for tc in row._tr.tc_lst]
+          dotted = re.compile(r'^\d{1,2}[./]\d{1,2}[./]\d{4}$')
+          words = re.compile(r'^\d{1,2}°?\s+[A-Za-zÀ-ÿ]+\s+\d{4}$')
+          reviewed = {'10.12.202','Dal 10.12.202','14 agosto 204','2 1 aprile 2026','14 luglio 2 027'}
+          counts = Counter()
+          occurrences = []
+          for section, table in enumerate(doc.tables, start=1):
+              for source_row, row in enumerate(table.rows[1:], start=2):
+                  vals = cells(row)
+                  if not any(vals) or len(vals) != 7:
+                      continue
+                  for label, value in [('listing', vals[4]), ('expiry', vals[5])]:
+                      if not value:
+                          continue
+                      if dotted.fullmatch(value) or words.fullmatch(value) or value in reviewed:
+                          continue
+                      counts[(label, value)] += 1
+                      occurrences.append({'section':section,'row':source_row,'label':label,'value':value,'name':vals[0]})
+          report = {
+              'sha256': digest,
+              'bytes': len(r.content),
+              'unreviewed_lexeme_counts': [
+                  {'label': k[0], 'value': k[1], 'count': v} for k,v in sorted(counts.items())
+              ],
+              'occurrences': occurrences,
+          }
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          if not counts:
+              print('No unreviewed date lexemes remain.')
+          PY
