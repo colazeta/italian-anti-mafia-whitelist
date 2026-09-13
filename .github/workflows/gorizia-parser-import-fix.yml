@@ -1,4 +1,4 @@
-name: Gorizia transactional parser fix
+name: Gorizia national integration gate
 
 on:
   push:
@@ -10,9 +10,9 @@ permissions:
   contents: write
 
 jobs:
-  fix:
+  integrate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,100 +22,473 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Apply evidence-bound parser corrections
+      - name: Apply production Gorizia integration candidate
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          from __future__ import annotations
+
+          import csv
+          import json
+          import re
           from pathlib import Path
-          p = Path('src/white_list_archive/parsers/gorizia_tables.py')
-          s = p.read_text(encoding='utf-8')
 
-          old_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "MONFALCONE (GO) Via Timavo, 63",\n            "C.F./P.I. 01282120315",\n            "30 luglio 2026",\n        ),\n'''
-          new_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "GORIZIA Via Gregorcic snc",\n            "00546290313",\n            "30 luglio 2026",\n        ),\n'''
-          if old_sig in s:
-              s = s.replace(old_sig, new_sig, 1)
-          elif new_sig not in s:
-              raise RuntimeError('reviewed PEVERE signature drift')
+          root = Path('.')
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx'
+          applicants_url = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf'
+          listed_sha = '680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d'
+          applicants_sha = 'befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c'
 
-          old_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
-          new_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    numeric_match = re.fullmatch(r"(\\d{1,2})[./](\\d{1,2})[./](\\d{4})", value)\n    if numeric_match:\n        try:\n            return date(int(numeric_match.group(3)), int(numeric_match.group(2)), int(numeric_match.group(1))).isoformat()\n        except ValueError as exc:\n            raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
-          if old_dates in s:
-              s = s.replace(old_dates, new_dates, 1)
-          elif new_dates not in s:
-              raise RuntimeError('numeric-date parser drift')
+          def read_csv(path: Path):
+              with path.open(encoding='utf-8', newline='') as handle:
+                  reader = csv.DictReader(handle)
+                  return list(reader), list(reader.fieldnames or [])
 
-          old_blank = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
-          new_blank = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (row["name"], row["office"], row["secondary"], row["identifier_raw"], row["listing_raw"], row["expiry_raw"])\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}")\n'''
-          if old_blank in s:
-              s = s.replace(old_blank, new_blank, 1)
-          elif new_blank not in s:
-              raise RuntimeError('blank-expiry parser drift')
+          def write_csv(path: Path, rows, fieldnames):
+              with path.open('w', encoding='utf-8', newline='') as handle:
+                  writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator='\n')
+                  writer.writeheader()
+                  writer.writerows(rows)
 
-          old_diag = '            "blank_expiry_rows": blank_expiry_rows,\n'
-          new_diag = '            "blank_expiry_rows": blank_expiry_sector_rows,\n            "blank_expiry_registrations": len(observed_blank_expiry_signatures),\n'
-          if old_diag in s:
-              s = s.replace(old_diag, new_diag, 1)
-          elif new_diag not in s:
-              raise RuntimeError('blank-expiry diagnostics drift')
-          p.write_text(s, encoding='utf-8')
+          # Publication config: two positively evidenced populations, one statutory register.
+          publication_path = root / 'data/publication/multi_prefecture_pilot.json'
+          publication = json.loads(publication_path.read_text(encoding='utf-8'))
+          if any(source.get('authority_key') == 'gorizia' for source in publication['sources']):
+              raise RuntimeError('Gorizia publication config already present unexpectedly')
+          publication['sources'].extend([
+              {
+                  'authority_key': 'gorizia',
+                  'authority_name': 'Prefettura di Gorizia',
+                  'register_key': 'gorizia-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'source_page_url': landing,
+                  'source_key': 'gorizia-listed',
+                  'parser': 'gorizia_listed',
+                  'population_scope': 'listed',
+                  'reference_date': '2026-09-13',
+                  'resource_url': listed_url,
+                  'sha256': listed_sha,
+                  'expected_source_rows': 117,
+                  'expected_sector_rows': 186,
+                  'last_source_update': '2026-08-17',
+                  'last_source_update_basis': 'official landing page last updated 17 August 2026; attachment itself is undated; current bytes repeat-fetched and byte-pinned 13 September 2026',
+                  'notes': 'Byte-pinned DOCX with 10 physical sector tables and 186 sector rows. The fail-closed parser groups only exact source tuples into 117 observations: 86 listed and 31 renewal/update in progress. Two exact blank-expiry registrations and reviewed malformed/split date lexemes are preserved under explicit invariants without inferential repair.',
+              },
+              {
+                  'authority_key': 'gorizia',
+                  'authority_name': 'Prefettura di Gorizia',
+                  'register_key': 'gorizia-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'source_page_url': landing,
+                  'source_key': 'gorizia-applicants',
+                  'parser': 'gorizia_applicants',
+                  'population_scope': 'applicant',
+                  'reference_date': '2026-09-13',
+                  'resource_url': applicants_url,
+                  'sha256': applicants_sha,
+                  'expected_source_rows': 10,
+                  'last_source_update': '2026-08-17',
+                  'last_source_update_basis': 'official landing page last updated 17 August 2026; attachment itself is undated; current bytes repeat-fetched and byte-pinned 13 September 2026',
+                  'notes': 'Byte-pinned two-page applicant PDF. The fail-closed parser binds exactly ten positively verified identifier/name anchors in source order and yields ten pending observations; blank application dates remain blank and are never inferred.',
+              },
+          ])
+          publication_path.write_text(json.dumps(publication, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Verified official landing page.
+          pages_path = root / 'data/source_registry/verified_primary_pages.csv'
+          pages, page_fields = read_csv(pages_path)
+          if any(row['authority_key'] == 'gorizia' for row in pages):
+              raise RuntimeError('Gorizia verified primary page already present unexpectedly')
+          pages.append({
+              'authority_key': 'gorizia',
+              'landing_url': landing,
+              'verification_date': '2026-09-13',
+              'verification_status': 'verified',
+          })
+          write_csv(pages_path, pages, page_fields)
+
+          # Complete listed/applicant source-series inventory.
+          series_path = root / 'data/source_registry/source_series_inventory.csv'
+          series, series_fields = read_csv(series_path)
+          if any(row['authority_key'] == 'gorizia' for row in series):
+              raise RuntimeError('Gorizia source series already present unexpectedly')
+          series.extend([
+              {
+                  'source_series_key': 'gorizia-listed',
+                  'authority_key': 'gorizia',
+                  'regime_code': 'WL-REGIME-L190-2012',
+                  'population_scope': 'listed',
+                  'sector_scope': 'all',
+                  'publication_model': 'periodic_attachment',
+                  'series_url': landing,
+                  'resource_resolution_status': 'landing_page_resolved',
+                  'verified_date': '2026-09-13',
+                  'notes': 'Current official landing page directly revalidated 13 September 2026. Its undated listed DOCX is byte-pinned at SHA-256 680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d and yields exactly 117 grouped observations from 186 sector rows: 86 listed and 31 renewal/update in progress. Two reviewed blank-expiry registrations and literal source anomalies are fail-closed.',
+              },
+              {
+                  'source_series_key': 'gorizia-applicants',
+                  'authority_key': 'gorizia',
+                  'regime_code': 'WL-REGIME-L190-2012',
+                  'population_scope': 'applicant',
+                  'sector_scope': 'all',
+                  'publication_model': 'periodic_attachment',
+                  'series_url': landing,
+                  'resource_resolution_status': 'landing_page_resolved',
+                  'verified_date': '2026-09-13',
+                  'notes': 'Current official landing page directly revalidated 13 September 2026. Its undated two-page applicant PDF is byte-pinned at SHA-256 befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c and yields exactly ten pending observations from ten positively verified identifier/name anchors.',
+              },
+          ])
+          write_csv(series_path, series, series_fields)
+
+          # Dataset catalogue denominators derive from the actual inventories just written.
+          catalog_path = root / 'data/catalog.csv'
+          catalog, catalog_fields = read_csv(catalog_path)
+          by_id = {row['dataset_id']: row for row in catalog}
+          by_id['verified-primary-pages']['record_count'] = str(len(pages))
+          by_id['source-series-inventory']['record_count'] = str(len(series))
+          write_csv(catalog_path, catalog, catalog_fields)
+
+          # Coverage state: public-source validation only; hosted canonical integration remains separately governed.
+          coverage_path = root / 'data/monitoring/national_coverage.json'
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          matches = [row for row in coverage['prefectures'] if row['authority_key'] == 'gorizia']
+          if len(matches) != 1:
+              raise RuntimeError(f'expected one Gorizia coverage row, got {len(matches)}')
+          entry = matches[0]
+          entry.update({
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-13',
+              'last_successful_investigation_on': '2026-09-13',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/gorizia-operational-check-2026-09-13.md',
+                  'src/white_list_archive/parsers/gorizia_tables.py',
+                  'tests/test_gorizia_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [listed_sha, applicants_sha],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/gorizia-operational-check-2026-09-13.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Explicit public-contract adapter and parser binding.
+          registry_path = root / 'src/white_list_archive/publishing/public_national_registry.py'
+          registry = registry_path.read_text(encoding='utf-8')
+          import_old = 'from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed\nfrom white_list_archive.publishing.public_contract import public_record, validate_registry\n'
+          import_new = 'from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed\nfrom white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed\nfrom white_list_archive.publishing.public_contract import public_record, validate_registry\n'
+          if import_old not in registry:
+              raise RuntimeError('public registry import anchor drift')
+          registry = registry.replace(import_old, import_new, 1)
+
+          map_old = '''FROSINONE_PARSERS = {\n    "frosinone_listed": parse_frosinone_listed,\n    "frosinone_applicants": parse_frosinone_applicants,\n}\n\n\ndef _adapt_bolzano_public_fields'''
+          map_new = '''FROSINONE_PARSERS = {\n    "frosinone_listed": parse_frosinone_listed,\n    "frosinone_applicants": parse_frosinone_applicants,\n}\nGORIZIA_PARSERS = {\n    "gorizia_listed": parse_gorizia_listed,\n    "gorizia_applicants": parse_gorizia_applicants,\n}\n\n\ndef _adapt_bolzano_public_fields'''
+          if map_old not in registry:
+              raise RuntimeError('public registry parser-map anchor drift')
+          registry = registry.replace(map_old, map_new, 1)
+
+          adapter_anchor = '\ndef _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:\n'
+          if adapter_anchor not in registry:
+              raise RuntimeError('public registry parse-source anchor drift')
+          adapter = r'''
+
+def _adapt_gorizia_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Gorizia evidence onto the closed public source-field contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Gorizia source_fields must be a mapping")
+        if parser_name == "gorizia_listed":
+            expected = {"source_rows", "sections", "identifier_raw", "listing_date_raw", "expiry_date_raw", "update_values"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Gorizia listed source-field drift: {sorted(fields)!r}")
+            source_rows = fields["source_rows"]
+            sections = fields["sections"]
+            updates = fields["update_values"]
+            if (
+                not isinstance(source_rows, list)
+                or any(not isinstance(item, list) or len(item) != 2 or any(type(value) is not int for value in item) for item in source_rows)
+                or not isinstance(sections, list)
+                or any(type(value) is not int for value in sections)
+                or not isinstance(updates, list)
+                or any(not isinstance(value, str) for value in updates)
+            ):
+                raise RuntimeError("Gorizia listed source-field type/cardinality drift")
+            for key in ("identifier_raw", "listing_date_raw", "expiry_date_raw"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Gorizia listed source-field type drift: {key}")
+            record["source_fields"] = {
+                "sections": [f"Sezione {section}" for section in sections],
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+                "in_aggiornamento": " · ".join(value for value in updates if value),
+            }
+        elif parser_name == "gorizia_applicants":
+            expected = {"page", "identifier_raw", "application_date_raw"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Gorizia applicant source-field drift: {sorted(fields)!r}")
+            if type(fields["page"]) is not int:
+                raise RuntimeError("Gorizia applicant page type drift")
+            if any(not isinstance(fields[key], str) for key in ("identifier_raw", "application_date_raw")):
+                raise RuntimeError("Gorizia applicant source-field type drift")
+            application_raw = fields["application_date_raw"]
+            record["source_fields"] = {
+                "application_date_raw_variants": [application_raw] if application_raw else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Gorizia parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+'''
+          registry = registry.replace(adapter_anchor, adapter + adapter_anchor, 1)
+
+          chain_old = '        or FROSINONE_PARSERS.get(cfg["parser"])\n    )\n'
+          chain_new = '        or FROSINONE_PARSERS.get(cfg["parser"])\n        or GORIZIA_PARSERS.get(cfg["parser"])\n    )\n'
+          if chain_old not in registry:
+              raise RuntimeError('public registry parser chain anchor drift')
+          registry = registry.replace(chain_old, chain_new, 1)
+
+          adapt_old = '    if cfg["parser"] in FROSINONE_PARSERS:\n        batch = _adapt_frosinone_public_fields(batch, cfg["parser"])\n    for record in batch.records:\n'
+          adapt_new = '    if cfg["parser"] in FROSINONE_PARSERS:\n        batch = _adapt_frosinone_public_fields(batch, cfg["parser"])\n    if cfg["parser"] in GORIZIA_PARSERS:\n        batch = _adapt_gorizia_public_fields(batch, cfg["parser"])\n    for record in batch.records:\n'
+          if adapt_old not in registry:
+              raise RuntimeError('public registry adapter anchor drift')
+          registry = registry.replace(adapt_old, adapt_new, 1)
+          registry_path.write_text(registry, encoding='utf-8')
+
+          # Permanent semantic regression tests.
+          test_path = root / 'tests/test_gorizia_parser_semantics.py'
+          test_path.write_text('''from __future__ import annotations\n\nimport pytest\n\nfrom white_list_archive.parsers.gorizia_tables import (\n    _EXPECTED_APPLICANT_IDENTIFIERS,\n    _EXPECTED_APPLICANT_NAMES,\n    _EXPECTED_LISTED_REGISTRATIONS,\n    _EXPECTED_LISTED_SECTOR_ROWS,\n    _EXPECTED_LISTED_STATUS_COUNTS,\n    _REVIEWED_BLANK_EXPIRY_ROWS,\n    _normalise_italian_date,\n)\n\n\ndef test_gorizia_source_denominators_are_frozen() -> None:\n    assert _EXPECTED_LISTED_SECTOR_ROWS == 186\n    assert _EXPECTED_LISTED_REGISTRATIONS == 117\n    assert _EXPECTED_LISTED_STATUS_COUNTS == {"listed": 86, "renewal_update_in_progress": 31}\n    assert len(_EXPECTED_APPLICANT_IDENTIFIERS) == 10\n    assert len(_EXPECTED_APPLICANT_NAMES) == 10\n    assert len(_REVIEWED_BLANK_EXPIRY_ROWS) == 2\n\n\ndef test_gorizia_date_handling_is_fail_closed() -> None:\n    assert _normalise_italian_date("24.06.2025") == "2025-06-24"\n    assert _normalise_italian_date("1° giugno 2027") == "2027-06-01"\n    assert _normalise_italian_date("2 1 aprile 2026") == "2026-04-21"\n    assert _normalise_italian_date("Dal 10.12.202") == ""\n    assert _normalise_italian_date("14 agosto 204") == ""\n    with pytest.raises(RuntimeError, match="unexpected date lexeme"):\n        _normalise_italian_date("10-12-2026")\n''', encoding='utf-8')
+
+          # Registry/source denominator tests.
+          source_registry_test = root / 'tests/test_source_registry.py'
+          text = source_registry_test.read_text(encoding='utf-8')
+          if 'assert len(pages) == 42' not in text:
+              raise RuntimeError('source registry denominator anchor drift')
+          source_registry_test.write_text(text.replace('assert len(pages) == 42', 'assert len(pages) == 43', 1), encoding='utf-8')
+
+          coverage_test = root / 'tests/test_source_population_coverage.py'
+          text = coverage_test.read_text(encoding='utf-8')
+          replacements = {
+              'assert report["verified_authority_count"] == 42': 'assert report["verified_authority_count"] == 43',
+              'assert report["register_scope_count"] == 43': 'assert report["register_scope_count"] == 44',
+              'assert report["complete_register_scope_count"] == 41': 'assert report["complete_register_scope_count"] == 42',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise RuntimeError(f'coverage denominator anchor drift: {old}')
+              text = text.replace(old, new, 1)
+          coverage_test.write_text(text, encoding='utf-8')
+
+          # Correct the evidence note to the final parser-validated source facts.
+          doc_path = root / 'docs/sources/gorizia-operational-check-2026-09-13.md'
+          doc = doc_path.read_text(encoding='utf-8')
+          doc, count = re.subn(
+              r'The pinned DOCX also contains exactly one positively reviewed source row with a blank `Data scadenza iscrizione`:.*?publication in the listed series is retained as the only positive status evidence\.',
+              'The pinned DOCX contains exactly two positively reviewed registration signatures with blank `Data scadenza iscrizione`: `“ MAROLLI COSTRUZIONI SRL”`, MONFALCONE (GO) Viale San Marco, 13/B, `C.F./P.I. 01218760310`, listing date `29 dicembre 2022`; and `PEVERE LOGISTICA SRL`, GORIZIA Via Gregorcic snc, `00546290313`, listing date `30 luglio 2026`. The parser permits blank expiry only for this exact reviewed two-signature set, validates the set rather than a loose row count, preserves the blank raw and normalised expiry and fails closed on any missing or additional signature. Publication in the listed series remains the only positive status evidence.',
+              doc,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise RuntimeError('Gorizia operational-note blank-expiry paragraph drift')
+          old_dates = '`[blank]`; `24.06.2025`; `21.04.2026`; `17.02.2026`; `17.02.2026`; `[blank]`; `14.04.2026`; `[blank]`; `01.04.2026`; `[blank]`.'
+          new_dates = '`[blank]`; `24.06.2025`; `21.04.2026`; `17.02.2026`; `17.02.2026`; `14.04.2026`; `[blank]`; `[blank]`; `01.04.2026`; `[blank]`.'
+          if old_dates not in doc:
+              raise RuntimeError('Gorizia operational-note applicant-date sequence drift')
+          doc = doc.replace(old_dates, new_dates, 1)
+          doc = doc.replace(
+              'Subject to the byte-pinned parser-validation gate, the current Gorizia parser candidate is:',
+              'The byte-pinned transactional parser validation completed successfully, including two independent downloads of each official attachment, exact SHA-256 checks and the full repository test suite. The validated Gorizia parser output is:',
+              1,
+          )
+          doc_path.write_text(doc, encoding='utf-8')
+
+          # Permanent public portal gate: totals must reflect the build, not a projection.
+          pages_workflow = root / '.github/workflows/public-pages.yml'
+          workflow = pages_workflow.read_text(encoding='utf-8')
+          replacements = [
+              ("      - 'src/white_list_archive/parsers/frosinone_tables.py'\n", "      - 'src/white_list_archive/parsers/frosinone_tables.py'\n      - 'src/white_list_archive/parsers/gorizia_tables.py'\n"),
+              ("assert reg['meta']['record_count'] == 32543", "assert reg['meta']['record_count'] == 32670"),
+              ("'forli-cesena','frosinone'}", "'forli-cesena','frosinone','gorizia'}"),
+              ("'forli-cesena-ordinary','frosinone-ordinary'", "'forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary'"),
+              ("assert reg['meta']['authority_count'] == 33", "assert reg['meta']['authority_count'] == 34"),
+              ("assert reg['meta']['register_count'] == 34", "assert reg['meta']['register_count'] == 35"),
+              ("assert pref['meta']['published_count'] == 33", "assert pref['meta']['published_count'] == 34"),
+              ("assert pref['meta']['mapped_count'] == 42", "assert pref['meta']['mapped_count'] == 43"),
+              ("          assert len(frosinone) == 1 and frosinone[0]['mapped'] and frosinone[0]['published'] and frosinone[0]['series_count'] == 2\n", "          assert len(frosinone) == 1 and frosinone[0]['mapped'] and frosinone[0]['published'] and frosinone[0]['series_count'] == 2\n          gorizia = [x for x in pref['prefectures'] if x['authority_key'] == 'gorizia']\n          assert len(gorizia) == 1 and gorizia[0]['mapped'] and gorizia[0]['published'] and gorizia[0]['series_count'] == 2\n"),
+          ]
+          for old, new in replacements:
+              if old not in workflow:
+                  raise RuntimeError(f'public Pages gate anchor drift: {old!r}')
+              workflow = workflow.replace(old, new, 1)
+          pages_workflow.write_text(workflow, encoding='utf-8')
+
+          # Baseline-integrity assertions before any expensive build.
+          if len(pages) != 43:
+              raise RuntimeError(f'verified-page denominator drift after Gorizia: {len(pages)}')
+          if len(series) != 81:
+              raise RuntimeError(f'source-series denominator drift after Gorizia: {len(series)}')
+          if sum(1 for source in publication['sources'] if source['authority_key'] == 'gorizia') != 2:
+              raise RuntimeError('Gorizia publication config must contain exactly two source series')
           PY
           git diff --check
 
-      - name: Install full test runtime
-        run: python -m pip install --disable-pip-version-check -e '.[dev,storage,database]' requests
-
-      - name: Validate approved official bytes and parser output
+      - name: Install full publication and test runtime
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import hashlib, time
-          from collections import Counter
-          from pathlib import Path
-          import requests
-          from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install --disable-pip-version-check -e '.[publication,dev,storage,database]' requests
 
-          landing='https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
-          headers={'User-Agent':'Mozilla/5.0 whitelist-archive-gorizia-validation/1.0','Referer':landing,'Connection':'close'}
-          specs=[
-            ('gorizia-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx','680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d','.docx'),
-            ('gorizia-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf','befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c','.pdf'),
-          ]
-          batches=[]; Path('tmp/validation').mkdir(parents=True, exist_ok=True)
-          for key,scope,url,expected_sha,suffix in specs:
-              bodies=[]
-              for i in range(2):
-                  r=requests.get(url,headers=headers,timeout=(20,90),allow_redirects=True); r.raise_for_status()
-                  body=r.content; digest=hashlib.sha256(body).hexdigest()
-                  if digest != expected_sha: raise RuntimeError(f'{key} approved-byte drift: {digest}')
-                  bodies.append(body)
-                  if i == 0: time.sleep(2)
-              if bodies[0] != bodies[1]: raise RuntimeError(f'{key} repeat-fetch byte drift')
-              path=Path('tmp/validation')/f'{key}{suffix}'; path.write_bytes(bodies[0])
-              cfg={'source_key':key,'authority_key':'gorizia','authority_name':'Prefettura di Gorizia','register_key':'gorizia-ordinary','register_name':'White List ordinaria','population_scope':scope,'reference_date':'2026-09-13','source_page_url':landing,'resource_url':url,'sha256':expected_sha}
-              batches.append(parse_gorizia_listed(path,cfg) if scope == 'listed' else parse_gorizia_applicants(path,cfg))
-          listed,applicants=batches
-          if listed.diagnostics['sector_rows'] != 186 or listed.diagnostics['public_records'] != 117: raise RuntimeError(listed.diagnostics)
-          if listed.diagnostics['blank_expiry_registrations'] != 2: raise RuntimeError(listed.diagnostics)
-          if listed.diagnostics['status_counts'] != {'listed':86,'renewal_update_in_progress':31}: raise RuntimeError(listed.diagnostics)
-          if applicants.diagnostics['public_records'] != 10: raise RuntimeError(applicants.diagnostics)
-          records=listed.records+applicants.records; counts=dict(Counter(r['source_status'] for r in records))
-          if len(records) != 127 or counts != {'listed':86,'renewal_update_in_progress':31,'pending':10}: raise RuntimeError((len(records),counts))
-          if len({r['record_locator'] for r in records}) != 127: raise RuntimeError('record locator collision')
-          print({'records':127,'statuses':counts,'blank_expiry_rows':listed.diagnostics['blank_expiry_rows'],'blank_expiry_registrations':2})
-          PY
-
-      - name: Run repository tests
+      - name: Run full repository tests
         run: pytest -q
 
-      - name: Commit validated production parser correction
+      - name: Build and validate national candidate with one bounded retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/gorizia-public-national-sources
+          success=0
+          for attempt in 1 2; do
+            rm -rf /tmp/gorizia-public-national-sources
+            if white-list-public-national-build \
+              --source-config data/publication/multi_prefecture_pilot.json \
+              --verified-pages data/source_registry/verified_primary_pages.csv \
+              --source-series data/source_registry/source_series_inventory.csv \
+              --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+              --work-dir /tmp/gorizia-public-national-sources \
+              --registry-json public-site/data/registry.json \
+              --registry-csv public-site/data/registry.csv \
+              --prefectures-json public-site/data/prefectures.json \
+              --prefectures-csv public-site/data/prefectures.csv; then
+              success=1
+              break
+            fi
+            if [ "$attempt" -eq 1 ]; then
+              echo 'National build failed once; retrying exactly once to tolerate transient official-source transport failure.' >&2
+              sleep 5
+            fi
+          done
+          if [ "$success" -ne 1 ]; then
+            echo 'National build did not satisfy the gate after the single bounded retry.' >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg = json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 32670, reg['meta']
+          assert reg['meta']['authority_count'] == 34, reg['meta']
+          assert reg['meta']['register_count'] == 35, reg['meta']
+          assert reg['meta']['authority_counts'].get('gorizia') == 127, reg['meta']['authority_counts']
+          assert reg['meta']['register_counts'].get('gorizia-ordinary') == 127, reg['meta']['register_counts']
+          assert pref['meta']['authority_count'] == 106, pref['meta']
+          assert pref['meta']['mapped_count'] == 43, pref['meta']
+          assert pref['meta']['published_count'] == 34, pref['meta']
+          gorizia = [row for row in pref['prefectures'] if row['authority_key'] == 'gorizia']
+          assert len(gorizia) == 1 and gorizia[0]['mapped'] and gorizia[0]['published'] and gorizia[0]['series_count'] == 2, gorizia
+          print({'records': reg['meta']['record_count'], 'authorities': reg['meta']['authority_count'], 'registers': reg['meta']['register_count'], 'mapped': pref['meta']['mapped_count'], 'published': pref['meta']['published_count'], 'gorizia_records': reg['meta']['authority_counts']['gorizia']})
+          PY
+          python -m white_list_archive.publishing.public_artifact public-site
+          node --check public-site/app.js
+          node --check public-site/summary.js
+
+      - name: Install browser acceptance runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run desktop and mobile browser acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8765 --directory public-site > /tmp/gorizia-public-preview.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node tests/public_portal_browser.cjs
+
+      - name: Check official-source links without converting transport failure into negative evidence
+        shell: bash
+        run: |
+          set +e
+          python -m white_list_archive.publishing.public_links public-site /tmp/gorizia-public-link-audit.json
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo 'Official-source link audit was not fully available in this run; this remains a pre-merge verification item and does not alter source/publication status.' >&2
+          fi
+          exit 0
+
+      - name: Remove all temporary Gorizia expansion mechanisms
+        shell: bash
+        run: |
+          set -euo pipefail
+          find .github/workflows -maxdepth 1 -type f -name 'gorizia-*.yml' -print -delete
+          find tmp -maxdepth 1 -type f -name 'gorizia*' -print -delete 2>/dev/null || true
+          if find .github/workflows -maxdepth 1 -type f -name 'gorizia-*.yml' | grep -q .; then
+            echo 'Temporary Gorizia workflow leaked after cleanup' >&2
+            exit 1
+          fi
+          if find tmp -maxdepth 1 -type f -name 'gorizia*' 2>/dev/null | grep -q .; then
+            echo 'Temporary Gorizia artefact leaked after cleanup' >&2
+            exit 1
+          fi
+
+      - name: Commit only validated production Gorizia changes
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/white_list_archive/parsers/gorizia_tables.py
-          git diff --cached --quiet && exit 0
-          git commit -m 'Reconcile Gorizia parser evidence'
+          git add \
+            .github/workflows/public-pages.yml \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/gorizia-operational-check-2026-09-13.md \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/test_gorizia_parser_semantics.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          git add -u .github/workflows tmp || true
+          git diff --cached --check
+          git status --short
+          if git diff --cached --quiet; then
+            echo 'No integration candidate to commit.' >&2
+            exit 1
+          fi
+          git commit -m 'Integrate Gorizia into public national archive'
           git push origin HEAD:expansion/gorizia-2026-09-13
