@@ -1,0 +1,151 @@
+name: Gorizia parser validation
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install parser runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev]'
+
+      - name: Validate byte-pinned Gorizia parsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import time
+          from collections import Counter
+          from pathlib import Path
+
+          import requests
+
+          from white_list_archive.parsers.gorizia_tables import (
+              parse_gorizia_applicants,
+              parse_gorizia_listed,
+          )
+
+          landing = "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list"
+          configs = [
+              {
+                  "source_key": "gorizia-listed",
+                  "parser": "gorizia_listed",
+                  "authority_key": "gorizia",
+                  "authority_name": "Prefettura di Gorizia",
+                  "register_key": "gorizia-ordinary",
+                  "register_name": "White List ordinaria",
+                  "population_scope": "listed",
+                  "reference_date": "2026-09-13",
+                  "source_page_url": landing,
+                  "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx",
+                  "sha256": "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d",
+                  "expected_source_rows": 117,
+                  "expected_sector_rows": 186,
+              },
+              {
+                  "source_key": "gorizia-applicants",
+                  "parser": "gorizia_applicants",
+                  "authority_key": "gorizia",
+                  "authority_name": "Prefettura di Gorizia",
+                  "register_key": "gorizia-ordinary",
+                  "register_name": "White List ordinaria",
+                  "population_scope": "applicant",
+                  "reference_date": "2026-09-13",
+                  "source_page_url": landing,
+                  "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
+                  "sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c",
+                  "expected_source_rows": 10,
+              },
+          ]
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-parser-validation/1.0",
+              "Referer": landing,
+              "Connection": "close",
+          }
+
+          report = {"authority_key": "gorizia", "reference_date_basis": "archive capture date for undated current attachments", "sources": {}}
+          all_records = []
+          for cfg in configs:
+              parser = parse_gorizia_listed if cfg["population_scope"] == "listed" else parse_gorizia_applicants
+              captures = []
+              for attempt in range(2):
+                  response = requests.get(cfg["resource_url"], headers=headers, timeout=(20, 90), allow_redirects=True)
+                  response.raise_for_status()
+                  body = response.content
+                  digest = hashlib.sha256(body).hexdigest()
+                  captures.append({"bytes": len(body), "sha256": digest})
+                  if digest != cfg["sha256"]:
+                      raise RuntimeError(f"{cfg['source_key']} approved-byte drift: {digest} != {cfg['sha256']}")
+                  if attempt == 0:
+                      time.sleep(2)
+              if captures[0] != captures[1]:
+                  raise RuntimeError(f"{cfg['source_key']} repeat-fetch byte drift: {captures!r}")
+              suffix = ".docx" if cfg["population_scope"] == "listed" else ".pdf"
+              path = Path("tmp") / f"{cfg['source_key']}{suffix}"
+              path.write_bytes(body)
+              batch = parser(path, cfg)
+              if batch.diagnostics["public_records"] != cfg["expected_source_rows"]:
+                  raise RuntimeError(f"{cfg['source_key']} public-record drift: {batch.diagnostics!r}")
+              if cfg.get("expected_sector_rows") is not None and batch.diagnostics.get("sector_rows") != cfg["expected_sector_rows"]:
+                  raise RuntimeError(f"{cfg['source_key']} sector-row drift: {batch.diagnostics!r}")
+              report["sources"][cfg["source_key"]] = {
+                  "captures": captures,
+                  "diagnostics": batch.diagnostics,
+                  "records": len(batch.records),
+                  "status_counts": dict(Counter(record["source_status"] for record in batch.records)),
+                  "identifier_coverage": sum(bool(record["identifiers"]) for record in batch.records),
+              }
+              all_records.extend(batch.records)
+
+          status_counts = dict(Counter(record["source_status"] for record in all_records))
+          expected_status_counts = {"listed": 86, "renewal_update_in_progress": 31, "pending": 10}
+          if len(all_records) != 127 or status_counts != expected_status_counts:
+              raise RuntimeError(f"Gorizia combined parser drift: records={len(all_records)}, statuses={status_counts!r}")
+          if len({record["record_locator"] for record in all_records}) != 127:
+              raise RuntimeError("Gorizia record locator collision")
+          report["combined"] = {
+              "records": len(all_records),
+              "status_counts": status_counts,
+              "identifier_coverage": sum(bool(record["identifiers"]) for record in all_records),
+          }
+          Path("tmp/gorizia_parser_validation.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint parser validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/gorizia_parser_validation.json
+          if git diff --cached --quiet; then
+            echo "No parser-validation change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Gorizia parser validation"
+          git push
