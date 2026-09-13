@@ -1,19 +1,9 @@
 parser_gate=FAILED
 Traceback (most recent call last):
   File "<stdin>", line 24, in <module>
-  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 282, in parse_forli_cesena_combined
-    record, diag = _parse_record_block(
-                   ~~~~~~~~~~~~~~~~~~~^
-        page_number,
-        ^^^^^^^^^^^^
-    ...<6 lines>...
-        ordinal,
-        ^^^^^^^^
-    )
-    ^
-  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 194, in _parse_record_block
+  File "/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/forli_cesena_combined.py", line 317, in parse_forli_cesena_combined
     raise RuntimeError(
-        f"Forli-Cesena p{page_number}:b{page_record_number} locality layout drift: {locality_candidates!r}"
+        f"Forli-Cesena standalone-status-date drift: {status_date_rows} != {_EXPECTED_STATUS_DATE_ROWS}"
     )
-RuntimeError: Forli-Cesena p51:b3 locality layout drift: ['DA 24/06/2026', 'SAVIGNANO SUL RUBICONE (FC)']
+RuntimeError: Forli-Cesena standalone-status-date drift: 320 != 319
 
