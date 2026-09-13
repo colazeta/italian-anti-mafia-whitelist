@@ -55,7 +55,7 @@ jobs:
                   "pages": 37,
               },
           }
-          headers = {
+          request_headers = {
               "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-layout-audit/1.0",
               "Accept": "application/pdf,*/*;q=0.8",
               "Referer": landing,
@@ -65,7 +65,7 @@ jobs:
               return re.sub(r"\s+", " ", value or "").strip()
 
           def download(key, cfg):
-              response = requests.get(cfg["url"], headers=headers, timeout=(20, 120))
+              response = requests.get(cfg["url"], headers=request_headers, timeout=(20, 120))
               response.raise_for_status()
               body = response.content
               digest = hashlib.sha256(body).hexdigest()
@@ -84,7 +84,7 @@ jobs:
               last_column_values = Counter()
               pages_without_tables = []
               candidate_rows = 0
-              headers = 0
+              header_rows = 0
               page_rows = []
               unusual_width_examples = []
 
@@ -110,7 +110,7 @@ jobs:
                                   or ("ragione sociale" in joined and "codice fiscale" in joined)
                               )
                               if is_header:
-                                  headers += 1
+                                  header_rows += 1
                                   continue
                               if len(row) == 7 and row[0]:
                                   candidate_rows += 1
@@ -131,7 +131,7 @@ jobs:
                   "table_count_by_page": dict(sorted(table_counts.items())),
                   "pages_without_tables": pages_without_tables,
                   "row_width_counts": dict(sorted(width_counts.items())),
-                  "header_rows": headers,
+                  "header_rows": header_rows,
                   "candidate_width7_nonheader_rows": candidate_rows,
                   "nonempty_rows_by_page_min": min(page_rows) if page_rows else 0,
                   "nonempty_rows_by_page_max": max(page_rows) if page_rows else 0,
