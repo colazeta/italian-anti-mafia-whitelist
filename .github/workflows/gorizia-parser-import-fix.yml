@@ -32,13 +32,12 @@ jobs:
           path = Path('src/white_list_archive/parsers/gorizia_tables.py')
           text = path.read_text(encoding='utf-8')
 
-          old_address = '            "MONFALCONE (GO) Via Timavo, 63",\n'
-          new_address = '            "GORIZIA Via Gregorcic snc",\n'
-          context = '''        (\n            "PEVERE LOGISTICA SRL",\n            "MONFALCONE (GO) Via Timavo, 63",\n            "C.F./P.I. 01282120315",\n            "30 luglio 2026",\n        ),\n'''
-          if context in text:
-              text = text.replace(old_address, new_address, 1)
-          elif '            "GORIZIA Via Gregorcic snc",\n' not in text:
-              raise RuntimeError('reviewed PEVERE source signature not found')
+          old_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "MONFALCONE (GO) Via Timavo, 63",\n            "C.F./P.I. 01282120315",\n            "30 luglio 2026",\n        ),\n'''
+          new_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "GORIZIA Via Gregorcic snc",\n            "00546290313",\n            "30 luglio 2026",\n        ),\n'''
+          if old_sig in text:
+              text = text.replace(old_sig, new_sig, 1)
+          elif new_sig not in text:
+              raise RuntimeError('reviewed PEVERE source signature is neither old nor exact source form')
 
           old = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
           new = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}"\n        )\n'''
