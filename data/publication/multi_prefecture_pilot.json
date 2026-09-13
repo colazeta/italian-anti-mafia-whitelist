@@ -980,6 +980,41 @@
       "sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7",
       "expected_source_rows": 110,
       "notes": "Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed split-table identities and incomplete extraction are reconstructed only under byte-pinned geometry-checked evidence; malformed official dates remain raw and uninferred."
+    },
+    {
+      "authority_key": "foggia",
+      "authority_name": "Prefettura di Foggia",
+      "register_key": "foggia-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list",
+      "source_key": "foggia-listed",
+      "parser": "foggia_listed",
+      "population_scope": "listed",
+      "reference_date": "2026-09-08",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf",
+      "sha256": "313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a",
+      "expected_sector_rows": 942,
+      "expected_source_rows": 330,
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "dated official resource directly revalidated 13 September 2026",
+      "notes": "Byte-pinned 44-page listed-company PDF. The fail-closed parser groups 942 statutory-section rows into 330 source-backed observations: 85 listed and 245 renewal/update in progress. Three exact source name-layout reconciliations are evidence-backed; malformed dates and identifiers are never repaired by inference."
+    },
+    {
+      "authority_key": "foggia",
+      "authority_name": "Prefettura di Foggia",
+      "register_key": "foggia-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list",
+      "source_key": "foggia-applicants",
+      "parser": "foggia_applicants",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-10",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/elenco_delle_imprese_richiedenti_iscrizione_elenco_fornitori_agg_10-09-2026.pdf",
+      "sha256": "d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5",
+      "expected_source_rows": 628,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dated official resource directly revalidated 13 September 2026",
+      "notes": "Byte-pinned 46-page applicant PDF. The fail-closed parser yields exactly 628 pending observations. Identifier coverage is frozen at 621 strict identifiers, six raw-only identifiers and one empty source identifier; source values are preserved without inference."
     }
   ]
 }
