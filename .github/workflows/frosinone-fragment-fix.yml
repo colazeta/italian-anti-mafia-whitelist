@@ -33,14 +33,6 @@ jobs:
               raise RuntimeError(f'expected exactly one production fragment invariant, found {text.count(old)}')
           parser.write_text(text.replace(old, new), encoding='utf-8')
 
-          validation = Path('.github/workflows/frosinone-parser-validation.yml')
-          text = validation.read_text(encoding='utf-8')
-          old = 'assert listed.diagnostics["continuation_fragments_joined"] == 42'
-          new = 'assert listed.diagnostics["continuation_fragments_joined"] == 44'
-          if text.count(old) != 1:
-              raise RuntimeError(f'expected exactly one validation fragment assertion, found {text.count(old)}')
-          validation.write_text(text.replace(old, new), encoding='utf-8')
-
           doc = Path('docs/sources/frosinone-operational-check-2026-09-13.md')
           text = doc.read_text(encoding='utf-8')
           marker = 'The next gate is a full-document layout/status audit over these exact hashes.'
@@ -61,7 +53,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/white_list_archive/parsers/frosinone_tables.py .github/workflows/frosinone-parser-validation.yml docs/sources/frosinone-operational-check-2026-09-13.md
+          git add src/white_list_archive/parsers/frosinone_tables.py docs/sources/frosinone-operational-check-2026-09-13.md
           git diff --cached --check
           git diff --cached --stat
           git commit -m "Promote verified Frosinone fragment invariant"
