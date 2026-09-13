@@ -28,78 +28,80 @@ jobs:
           text = parser.read_text(encoding="utf-8")
 
           date_mapping = '_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}\n'
-          blank_rule = '''_REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
-              (
-                  "“ MAROLLI COSTRUZIONI SRL”",
-                  "MONFALCONE (GO) Viale San Marco, 13/B",
-                  "C.F./P.I. 01218760310",
-                  "29 dicembre 2022",
-              ),
-          })
-'''
+          blank_rule = (
+              '_REVIEWED_BLANK_EXPIRY_ROWS = frozenset({\n'
+              '    (\n'
+              '        "“ MAROLLI COSTRUZIONI SRL”",\n'
+              '        "MONFALCONE (GO) Viale San Marco, 13/B",\n'
+              '        "C.F./P.I. 01218760310",\n'
+              '        "29 dicembre 2022",\n'
+              '    ),\n'
+              '})\n'
+          )
           if blank_rule not in text:
               if date_mapping not in text:
                   raise RuntimeError("Expected reviewed split-digit date mapping not found")
               text = text.replace(date_mapping, date_mapping + blank_rule, 1)
 
-          old_loop = '''    sector_rows: list[dict[str, Any]] = []
-    section_counts: Counter[int] = Counter()
-    update_values: Counter[str] = Counter()
-'''
-          new_loop = '''    sector_rows: list[dict[str, Any]] = []
-    section_counts: Counter[int] = Counter()
-    update_values: Counter[str] = Counter()
-    blank_expiry_rows = 0
-'''
+          old_loop = (
+              '    sector_rows: list[dict[str, Any]] = []\n'
+              '    section_counts: Counter[int] = Counter()\n'
+              '    update_values: Counter[str] = Counter()\n'
+          )
+          new_loop = old_loop + '    blank_expiry_rows = 0\n'
           if new_loop not in text:
               if old_loop not in text:
                   raise RuntimeError("Expected listed-loop setup not found")
               text = text.replace(old_loop, new_loop, 1)
 
-          old_validation = '''            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
-            if not name or not listing_raw or not expiry_raw:
-                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
-            listing_date = _strict_source_date(listing_raw, label="listing")
-            expiry_date = _strict_source_date(expiry_raw, label="expiry")
-'''
-          new_validation = '''            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
-            if not name or not listing_raw:
-                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
-            reviewed_blank_expiry = (name, office, identifier_raw, listing_raw) in _REVIEWED_BLANK_EXPIRY_ROWS
-            if not expiry_raw:
-                if not reviewed_blank_expiry:
-                    raise RuntimeError(
-                        f"Gorizia unreviewed blank listed expiry in section {section}, row {source_row}: {values!r}"
-                    )
-                blank_expiry_rows += 1
-            listing_date = _strict_source_date(listing_raw, label="listing")
-            expiry_date = _strict_source_date(expiry_raw, label="expiry", allow_blank=reviewed_blank_expiry)
-'''
+          old_validation = (
+              '            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values\n'
+              '            if not name or not listing_raw or not expiry_raw:\n'
+              '                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")\n'
+              '            listing_date = _strict_source_date(listing_raw, label="listing")\n'
+              '            expiry_date = _strict_source_date(expiry_raw, label="expiry")\n'
+          )
+          new_validation = (
+              '            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values\n'
+              '            if not name or not listing_raw:\n'
+              '                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")\n'
+              '            reviewed_blank_expiry = (name, office, identifier_raw, listing_raw) in _REVIEWED_BLANK_EXPIRY_ROWS\n'
+              '            if not expiry_raw:\n'
+              '                if not reviewed_blank_expiry:\n'
+              '                    raise RuntimeError(\n'
+              '                        f"Gorizia unreviewed blank listed expiry in section {section}, row {source_row}: {values!r}"\n'
+              '                    )\n'
+              '                blank_expiry_rows += 1\n'
+              '            listing_date = _strict_source_date(listing_raw, label="listing")\n'
+              '            expiry_date = _strict_source_date(expiry_raw, label="expiry", allow_blank=reviewed_blank_expiry)\n'
+          )
           if new_validation not in text:
               if old_validation not in text:
                   raise RuntimeError("Expected listed row validation block not found")
               text = text.replace(old_validation, new_validation, 1)
 
-          old_guard = '''    if dict(section_counts) != _EXPECTED_SECTION_ROWS:
-        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
-'''
-          new_guard = '''    if blank_expiry_rows != 1:
-        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 1")
-    if dict(section_counts) != _EXPECTED_SECTION_ROWS:
-        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
-'''
+          old_guard = (
+              '    if dict(section_counts) != _EXPECTED_SECTION_ROWS:\n'
+              '        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")\n'
+          )
+          new_guard = (
+              '    if blank_expiry_rows != 1:\n'
+              '        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 1")\n'
+          ) + old_guard
           if new_guard not in text:
               if old_guard not in text:
                   raise RuntimeError("Expected listed structural guard not found")
               text = text.replace(old_guard, new_guard, 1)
 
-          old_diag = '''            "sector_rows": len(sector_rows),
-            "section_rows": dict(section_counts),
-'''
-          new_diag = '''            "sector_rows": len(sector_rows),
-            "blank_expiry_rows": blank_expiry_rows,
-            "section_rows": dict(section_counts),
-'''
+          old_diag = (
+              '            "sector_rows": len(sector_rows),\n'
+              '            "section_rows": dict(section_counts),\n'
+          )
+          new_diag = (
+              '            "sector_rows": len(sector_rows),\n'
+              '            "blank_expiry_rows": blank_expiry_rows,\n'
+              '            "section_rows": dict(section_counts),\n'
+          )
           if new_diag not in text:
               if old_diag not in text:
                   raise RuntimeError("Expected listed diagnostics block not found")
