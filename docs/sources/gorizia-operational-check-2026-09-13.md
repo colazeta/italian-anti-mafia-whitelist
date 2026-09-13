@@ -2,7 +2,7 @@
 
 ## Scope
 
-This checkpoint records positive current-source evidence for the Prefettura di Gorizia and freezes the current official source bytes. It does **not** yet approve a production parser, final observation counts, population completeness, national integration or public export.
+This checkpoint records positive current-source evidence for the Prefettura di Gorizia, freezes the current official source bytes, and documents the conservative parser candidate now implemented on the expansion branch. National integration and public export are not yet approved.
 
 ## Official publication surface
 
@@ -12,7 +12,7 @@ This checkpoint records positive current-source evidence for the Prefettura di G
   - applicants, labelled `Ditte per cui è in corso la richiesta di iscrizione alla WhiteList`: `https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf`
   - listed companies, labelled `Elenco delle Ditte della provincia di Gorizia iscritte alla White List`: `https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx`
 - The applicant publication is a PDF and the listed publication is a DOCX. The official page therefore provides positive evidence for both logical populations; neither population is inferred from filename construction or search-engine absence.
-- The exact reference date carried by each document has **not yet been established**. The August 2026 URL paths and the landing-page update timestamp are provenance signals, not substitutes for a document-level source date.
+- The attachments do not provide a safely established document-level reference date. The parser candidate therefore uses **2026-09-13 as the archive capture/verification date**, not as a claimed publication date. The August 2026 URL paths and the landing-page update timestamp remain provenance signals only.
 
 ## Frozen capture
 
@@ -29,48 +29,25 @@ The two exact official resources were each fetched twice independently by the so
 
 Any later source failure must be recorded as a retrieval failure. It must **not** be converted into `NOT_PUBLISHED`, a missing applicant population, a legal-status claim, or an assertion of completeness. Any later byte change must be treated as source drift and re-audited before parsing.
 
-## Document structure audit
+## Document structure and parser contract
 
 ### Listed DOCX
 
-The frozen listed source contains **10 sector tables**. Their non-header row counts are:
+The frozen listed source contains **10 sector tables**, with non-header row counts `26, 13, 25, 14, 32, 38, 0, 1, 10, 27`, for **186 sector rows**. Every source row has seven physical OOXML cells matching the publication schema: Ragione Sociale; Sede legale; Sede secondaria con rappresentanza stabile in Italia; Codice fiscale/Partita IVA; Data d’iscrizione; Data scadenza iscrizione; Aggiornamento in corso.
 
-`26, 13, 25, 14, 32, 38, 0, 1, 10, 27`
+Because the same registration is repeated across sector tables, 186 is not a company-observation count. The implemented parser groups only exact cleaned `(name, office, secondary office, identifier_raw, listing_raw, expiry_raw)` tuples, aggregates sector memberships and update evidence, and performs no fuzzy spelling, address, identifier or date merge. This conservative contract yields a **candidate 117 listed-registration observations** from all 186 source rows. The candidate status split is **86 `listed` and 31 `renewal_update_in_progress`**. These counts remain subject to the current byte-pinned parser-validation gate before national integration.
 
-for a total of **186 sector rows**. Every source row has seven physical OOXML cells matching the publication schema:
+The `Aggiornamento in corso` column is not binary. Across sector rows the raw lexemes are blank 138; `IN AGGIORNAMENTO` 41; `21 gennaio 2026` 1; `25 settembre 2026` 3; `30 luglio 2027` 1; and `“` 2. The parser treats a nonblank value in this explicitly labelled source column as positive update evidence and preserves the raw value; it does not reinterpret the publisher's date or ditto typography into a different legal meaning.
 
-1. Ragione Sociale
-2. Sede legale
-3. Sede secondaria con rappresentanza stabile in Italia
-4. Codice fiscale/Partita IVA
-5. Data d’iscrizione
-6. Data scadenza iscrizione
-7. Aggiornamento in corso
-
-The publication repeats the same registration across multiple sector tables, so **186 is not a company-observation count**. A semantic probe found 119 exact registration groups before deciding the final production grouping contract. It also found 104 identity groups when registration dates/status are ignored. These figures are diagnostic only: they are deliberately not promoted as public record counts because the source contains genuine multiple-registration histories and editorial variants that must not be collapsed by aggressive normalisation.
-
-The `Aggiornamento in corso` column is not binary. Across sector rows the raw lexemes are:
-
-- blank: 138
-- `IN AGGIORNAMENTO`: 41
-- `21 gennaio 2026`: 1
-- `25 settembre 2026`: 3
-- `30 luglio 2027`: 1
-- `“`: 2
-
-The dates and punctuation are retained as source evidence. Production status logic must be based on the column semantics and explicit fail-closed invariants, not on silently rewriting these values.
-
-Identifier and date anomalies are also preserved raw. Examples observed in the frozen source include `00001092420312`, `001370303018`, `0237978303`, listing-date lexemes such as `10.12.202` and `14 agosto 204`, and company-name/identifier variants such as `EQUIPE SRL` / `EQUPE SRL`. No spelling, identifier or date correction is authorised by this audit.
+Identifier and date anomalies are preserved raw. Reviewed malformed date lexemes include `10.12.202` and `14 agosto 204`; they are not silently repaired into normalized dates. The source also contains the valid Italian ordinal typography **`1° giugno 2027`**. Support for the optional ordinal marker was added explicitly after the parser correctly failed closed on that previously unreviewed form; accepting it is source-supported date parsing, not a relaxation of validation. Other examples retained raw include `00001092420312`, `001370303018`, `0237978303` and company-name variants such as `EQUIPE SRL` / `EQUPE SRL`.
 
 ### Applicant PDF
 
-The frozen applicant source is a two-page table publication. It positively exposes **10 distinct 11-digit identifier anchors** in source order:
+The frozen applicant source is a two-page table publication. Coordinate and table-structure probes positively establish **10 distinct 11-digit identifier anchors** in source order:
 
 `01270500315`, `01262160318`, `01190800316`, `01270740317`, `00407990316`, `01268270319`, `00557360310`, `01040110312`, `01170510315`, `01195820319`.
 
-The corresponding visible company names are ITALTRCH SRL, METAL X SRL, L’ANTICA RICETTA SRLS, EL.NET SOLUTION SRL, C.M.T. SRL, FMGDUE SRL, SI.ECO:SICUREZZA ED ECOLOGIA SRL, SULTAN SRL, SVILUPPO SOLARE SRL and T-RECYCLE SRL.
-
-The extraction is structurally fragmented at the page break: the SULTAN record crosses pages, and page-one/page-two table extraction does not expose an identical logical width. Therefore **10 is currently an anchor count, not yet an approved parser record count**. A coordinate-aware reconstruction must prove that every identifier and field fragment is attached to exactly one record without inventing missing values. Blank application dates must remain blank.
+The corresponding source names are ITALTRCH SRL, METAL X SRL, `“L’ANTICA RICETTA SRLS”`, EL.NET SOLUTION SRL, C.M.T. SRL, FMGDUE SRL, SI.ECO:SICUREZZA ED ECOLOGIA SRL, SULTAN SRL, SVILUPPO SOLARE SRL and T-RECYCLE SRL. The publication crosses a page boundary at the SULTAN record. The implemented parser reconstructs records from the 11-digit anchors and source row boundaries, requires exactly seven anchors on page 1 and three on page 2, and preserves blank application dates as blank. The candidate applicant population is therefore **10 `pending` observations**, again subject to the byte-pinned parser-validation gate.
 
 ## Gate state
 
@@ -80,10 +57,11 @@ At this checkpoint:
 - current listed publication resource: **identified and byte-frozen**;
 - current applicant publication resource: **identified and byte-frozen**;
 - repeat-fetch byte identity: **verified** for both resources;
-- exact document reference dates: **not yet asserted**;
-- `population_scopes_complete`: **not yet asserted** pending parser-level document review;
-- parser family: **not yet bound for production**;
-- final observation counts: **not yet asserted**;
+- document-level publication dates: **not asserted**; archive capture/verification date is 2026-09-13;
+- parser family: **implemented on the expansion branch with fail-closed structural invariants**;
+- candidate observations: **127 total** = 117 listed-series observations + 10 applicant observations;
+- candidate statuses: **86 `listed` / 31 `renewal_update_in_progress` / 10 `pending`**;
+- `population_scopes_complete`: **not yet promoted to canonical status until parser validation and national integration gates succeed**;
 - public export: **not approved**.
 
-The next gate is a coordinate-aware applicant reconstruction plus a conservative listed-registration grouping contract. Only after both populations can be reproduced from the frozen bytes with explicit invariants should parser implementation, company-observation loading and national integration begin.
+The next gate is the current byte-pinned parser validation plus ordinary CI. If both succeed, the workstream can proceed to permanent semantic tests and transactional national integration. No national totals or live coverage increase should be asserted before that gate passes.
