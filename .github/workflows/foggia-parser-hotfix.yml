@@ -1,4 +1,4 @@
-name: Foggia registered production gate
+name: Foggia production finaliser
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  materialise:
+  finalise:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -22,182 +22,130 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Execute reviewed literal Foggia transaction with durable diagnostics
+      - name: Install validation runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Validation runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,dev,storage,database]'
+      - name: Raise permanent Foggia publication gates
         run: |
           python - <<'PY'
           from pathlib import Path
-          import subprocess
-          import traceback
 
-          diagnostic = Path('tmp/foggia_gate_failure.txt')
-          diagnostic.unlink(missing_ok=True)
-          transaction = Path('.github/workflows/foggia-production-materialise.yml').read_text(encoding='utf-8')
-          expected = [
-              'Install complete test runtime',
-              'Materialise permanent Foggia integration',
-              'Run full repository test suite',
-              'Build and validate Foggia national candidate',
-              'Commit validated permanent integration',
-          ]
-
-          def literal_run(name: str) -> str:
-              block_marker = f'      - name: {name}\n        run: |\n'
-              scalar_marker = f'      - name: {name}\n        run: '
-              block_count = transaction.count(block_marker)
-              scalar_count = transaction.count(scalar_marker) - block_count
-              if block_count == 1 and scalar_count == 0:
-                  tail = transaction.split(block_marker, 1)[1]
-                  boundary = tail.find('\n      - name: ')
-                  block = tail if boundary < 0 else tail[:boundary]
-                  out = []
-                  for line in block.splitlines():
-                      out.append(line[10:] if line.startswith('          ') else line)
-                  return '\n'.join(out).rstrip() + '\n'
-              if block_count == 0 and scalar_count == 1:
-                  tail = transaction.split(scalar_marker, 1)[1]
-                  command = tail.split('\n', 1)[0].strip()
-                  if not command:
-                      raise RuntimeError(f'empty scalar transaction step: {name!r}')
-                  return command + '\n'
-              raise RuntimeError(
-                  f'Foggia transaction marker drift for {name!r}: block={block_count}, scalar={scalar_count}'
-              )
-
-          governance_sync = r'''python - <<'PY2'
-          import csv
-          import json
-          from pathlib import Path
-
-          catalog = Path('data/catalog.csv')
-          with catalog.open(encoding='utf-8', newline='') as handle:
-              reader = csv.DictReader(handle)
-              fieldnames = reader.fieldnames
-              rows = list(reader)
-          targets = {'verified-primary-pages': '40', 'source-series-inventory': '76'}
-          found = set()
-          for row in rows:
-              if row['dataset_id'] in targets:
-                  row['record_count'] = targets[row['dataset_id']]
-                  found.add(row['dataset_id'])
-          if found != set(targets):
-              raise SystemExit(f'catalog governance targets drifted: {found!r}')
-          with catalog.open('w', encoding='utf-8', newline='') as handle:
-              writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator='\n')
-              writer.writeheader()
-              writer.writerows(rows)
-
-          def replace_once(path, old, new):
+          def replace_once(path: str, old: str, new: str) -> None:
               p = Path(path)
               text = p.read_text(encoding='utf-8')
-              if text.count(old) != 1:
-                  raise SystemExit(f'{path}: expected exactly one governance invariant {old!r}, got {text.count(old)}')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one replacement target, found {count}: {old!r}')
               p.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          replace_once('tests/test_source_registry.py', '    assert len(pages) == 39\n', '    assert len(pages) == 40\n')
-          replace_once('tests/test_source_population_coverage.py', '    assert report["verified_authority_count"] == 39\n', '    assert report["verified_authority_count"] == 40\n')
-          replace_once('tests/test_source_population_coverage.py', '    assert report["register_scope_count"] == 40\n', '    assert report["register_scope_count"] == 41\n')
-          replace_once('tests/test_source_population_coverage.py', '    assert report["complete_register_scope_count"] == 38\n', '    assert report["complete_register_scope_count"] == 39\n')
+          pages = '.github/workflows/public-pages.yml'
+          replace_once(pages, "      - 'src/white_list_archive/parsers/genova_tables.py'\n", "      - 'src/white_list_archive/parsers/genova_tables.py'\n      - 'src/white_list_archive/parsers/foggia_tables.py'\n")
+          replace_once(pages, "          assert reg['meta']['record_count'] == 29600\n", "          assert reg['meta']['record_count'] == 30558\n")
+          replace_once(pages, "'caserta','catania','genova'}\n", "'caserta','catania','genova','foggia'}\n")
+          replace_once(pages, "'caserta-ordinary','catania-ordinary','genova-ordinary'\n", "'caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary'\n")
+          replace_once(pages, "          assert reg['meta']['authority_count'] == 30\n", "          assert reg['meta']['authority_count'] == 31\n")
+          replace_once(pages, "          assert reg['meta']['register_count'] == 31\n", "          assert reg['meta']['register_count'] == 32\n")
+          replace_once(pages, "          assert pref['meta']['published_count'] == 30\n", "          assert pref['meta']['published_count'] == 31\n")
+          replace_once(pages, "          assert pref['meta']['mapped_count'] == 39\n", "          assert pref['meta']['mapped_count'] == 40\n")
+          replace_once(
+              pages,
+              "          genova = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']\n          assert len(genova) == 1 and genova[0]['mapped'] and genova[0]['published'] and genova[0]['series_count'] == 2\n",
+              "          genova = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']\n          assert len(genova) == 1 and genova[0]['mapped'] and genova[0]['published'] and genova[0]['series_count'] == 2\n          foggia = [x for x in pref['prefectures'] if x['authority_key'] == 'foggia']\n          assert len(foggia) == 1 and foggia[0]['mapped'] and foggia[0]['published'] and foggia[0]['series_count'] == 2\n",
+          )
 
-          coverage_path = Path('data/monitoring/national_coverage.json')
-          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
-          foggia_rows = [row for row in coverage['prefectures'] if row.get('authority_key') == 'foggia']
-          if len(foggia_rows) != 1:
-              raise SystemExit(f'Foggia coverage-row cardinality drift: {len(foggia_rows)}')
-          foggia = foggia_rows[0]
-          baseline = {
-              'coverage_status': 'SOURCE_IDENTIFIED',
-              'source_verified': False,
-              'current_edition_identified': None,
-              'capture_implemented': False,
-              'parser_implemented': False,
-              'parser_validated': False,
-              'company_observations_loaded': False,
-              'public_export_enabled': False,
-              'population_scopes_complete': False,
-              'known_content_sha256': [],
-          }
-          drift = {key: (foggia.get(key), value) for key, value in baseline.items() if foggia.get(key) != value}
-          if drift:
-              raise SystemExit(f'Foggia source-identified baseline drift before validated advancement: {drift!r}')
-          foggia.update({
-              'official_landing_page': 'https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list',
-              'source_verified': True,
-              'current_edition_identified': True,
-              'capture_implemented': True,
-              'parser_implemented': True,
-              'parser_validated': True,
-              'company_observations_loaded': True,
-              'observation_layer': 'public_source_observations',
-              'canonical_integration_validated': False,
-              'public_export_enabled': True,
-              'durable_evidence_verified': False,
-              'population_scopes_complete': True,
-              'latest_source_reference_date': '2026-09-10',
-              'last_successful_investigation_on': '2026-09-13',
-              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
-              'actionable_issue': False,
-              'coverage_status': 'VALIDATED',
-              'terminal_reason': None,
-              'completion_evidence': [
-                  'docs/sources/foggia-operational-check-2026-09-13.md',
-                  'src/white_list_archive/parsers/foggia_tables.py',
-                  'tests/test_foggia_parser_semantics.py',
-                  'data/publication/multi_prefecture_pilot.json',
-              ],
-              'known_content_sha256': [
-                  '313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a',
-                  'd76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5',
-              ],
-              'evidence': [
-                  'data/source_registry/verified_primary_pages.csv',
-                  'data/source_registry/source_series_inventory.csv',
-                  'data/publication/multi_prefecture_pilot.json',
-                  'docs/sources/foggia-operational-check-2026-09-13.md',
-              ],
-              'last_completed_coverage_stage': 'VALIDATED',
-          })
-          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          PY2'''
-
-          try:
-              scripts = [(name, literal_run(name)) for name in expected]
-              for name, script in scripts:
-                  if name == 'Run full repository test suite':
-                      sync = subprocess.run(
-                          governance_sync, shell=True, executable='/bin/bash', text=True,
-                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                      )
-                      print('::group::Synchronise expansion governance invariants')
-                      print(sync.stdout)
-                      print('::endgroup::')
-                      if sync.returncode:
-                          raise RuntimeError(
-                              f'step="Synchronise expansion governance invariants" returncode={sync.returncode}\nOUTPUT:\n{sync.stdout[-30000:]}'
-                          )
-                  if name == 'Commit validated permanent integration':
-                      script = script.replace(
-                          'git diff --cached --check\n',
-                          'git add data/catalog.csv tests/test_source_population_coverage.py tests/test_source_registry.py\ngit diff --cached --check\n',
-                          1,
-                      )
-                  result = subprocess.run(
-                      script, shell=True, executable='/bin/bash', text=True,
-                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                  )
-                  print(f'::group::{name}')
-                  print(result.stdout)
-                  print('::endgroup::')
-                  if result.returncode:
-                      raise RuntimeError(
-                          f'step={name!r} returncode={result.returncode}\nOUTPUT:\n{result.stdout[-30000:]}'
-                      )
-          except BaseException:
-              diagnostic.parent.mkdir(parents=True, exist_ok=True)
-              diagnostic.write_text(traceback.format_exc(), encoding='utf-8')
-              subprocess.run(['git','config','user.name','github-actions[bot]'], check=True)
-              subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'], check=True)
-              subprocess.run(['git','add',str(diagnostic)], check=True)
-              subprocess.run(['git','commit','-m','Record Foggia integration gate failure'], check=True)
-              subprocess.run(['git','push','origin','HEAD:expansion/foggia-2026-09-13'], check=True)
-              raise
+          browser = 'tests/public_portal_browser.cjs'
+          replace_once(browser, "      assert.ok(labels.includes('White List ordinaria · Prefettura di Genova'));\n", "      assert.ok(labels.includes('White List ordinaria · Prefettura di Genova'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Foggia'));\n")
+          replace_once(browser, '      assert.equal(stats.total,29600);\n', '      assert.equal(stats.total,30558);\n')
+          replace_once(browser, "'caserta','catania','genova'].includes(r.authority_key));\n", "'caserta','catania','genova','foggia'].includes(r.authority_key));\n")
+          replace_once(
+              browser,
+              "      const genova=registry.records.filter(r=>r.authority_key==='genova');\n      assert.equal(genova.length,762);\n      assert.equal(genova.filter(r=>r.source_key==='genova-listed').length,652);\n      assert.equal(genova.filter(r=>r.source_key==='genova-applicants').length,110);\n      assert.deepEqual(statusCounts(genova),{listed:528,pending:110,renewal_update_in_progress:124});\n",
+              "      const genova=registry.records.filter(r=>r.authority_key==='genova');\n      assert.equal(genova.length,762);\n      assert.equal(genova.filter(r=>r.source_key==='genova-listed').length,652);\n      assert.equal(genova.filter(r=>r.source_key==='genova-applicants').length,110);\n      assert.deepEqual(statusCounts(genova),{listed:528,pending:110,renewal_update_in_progress:124});\n      const foggia=registry.records.filter(r=>r.authority_key==='foggia');\n      assert.equal(foggia.length,958);\n      assert.equal(foggia.filter(r=>r.source_key==='foggia-listed').length,330);\n      assert.equal(foggia.filter(r=>r.source_key==='foggia-applicants').length,628);\n      assert.deepEqual(statusCounts(foggia),{listed:85,pending:628,renewal_update_in_progress:245});\n",
+          )
           PY
+          git diff --check
+      - name: Validate repository and national candidate
+        run: |
+          pytest
+          rm -rf /tmp/foggia-final-sources /tmp/foggia-registry.json /tmp/foggia-registry.csv /tmp/foggia-prefectures.json /tmp/foggia-prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/foggia-final-sources \
+            --registry-json /tmp/foggia-registry.json \
+            --registry-csv /tmp/foggia-registry.csv \
+            --prefectures-json /tmp/foggia-prefectures.json \
+            --prefectures-csv /tmp/foggia-prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/foggia-registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/foggia-prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 30558
+          assert reg['meta']['authority_count'] == 31
+          assert reg['meta']['register_count'] == 32
+          assert pref['meta']['published_count'] == 31
+          assert pref['meta']['mapped_count'] == 40
+          rows = [r for r in reg['records'] if r['authority_key'] == 'foggia']
+          assert len(rows) == 958
+          assert Counter(r['source_status'] for r in rows) == Counter({'listed': 85, 'renewal_update_in_progress': 245, 'pending': 628})
+          item = [x for x in pref['prefectures'] if x['authority_key'] == 'foggia']
+          assert len(item) == 1 and item[0]['mapped'] and item[0]['published'] and item[0]['series_count'] == 2
+          PY
+      - name: Remove expansion-only mechanisms and commit production-only branch
+        run: |
+          rm -f .github/workflows/foggia-*.yml
+          rm -f tmp/foggia_*
+          git diff --check
+          if find .github/workflows -maxdepth 1 -type f -name 'foggia-*' | grep -q .; then
+            echo 'Foggia temporary workflow remains' >&2
+            exit 1
+          fi
+          if find tmp -maxdepth 1 -type f -name 'foggia_*' | grep -q .; then
+            echo 'Foggia temporary artifact remains' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Finalise production-only Foggia integration'
+          allowed=$(cat <<'EOF'
+.github/workflows/public-pages.yml
+data/catalog.csv
+data/monitoring/national_coverage.json
+data/publication/multi_prefecture_pilot.json
+data/source_registry/source_series_inventory.csv
+data/source_registry/verified_primary_pages.csv
+docs/sources/foggia-operational-check-2026-09-13.md
+src/white_list_archive/parsers/foggia_tables.py
+src/white_list_archive/publishing/public_national_registry.py
+tests/public_portal_browser.cjs
+tests/test_foggia_parser_semantics.py
+tests/test_source_population_coverage.py
+tests/test_source_registry.py
+EOF
+          )
+          actual=$(git diff --name-only origin/main...HEAD | sort)
+          expected=$(printf '%s\n' "$allowed" | sort)
+          if [ "$actual" != "$expected" ]; then
+            echo 'Production-only file set mismatch' >&2
+            echo '--- expected'; printf '%s\n' "$expected"
+            echo '--- actual'; printf '%s\n' "$actual"
+            exit 1
+          fi
+          git push origin HEAD:expansion/foggia-2026-09-13
