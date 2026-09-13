@@ -1,0 +1,2996 @@
+{
+  "authority_key": "gorizia",
+  "grouping_contract": "exact cleaned (name, office, secondary, identifier_raw, listing_raw, expiry_raw); aggregate sectors and update values; no fuzzy merge",
+  "sector_rows": 186,
+  "registration_groups": 117,
+  "status_counts": {
+    "renewal_update_in_progress": 31,
+    "listed": 86
+  },
+  "multi_sector_groups": 31,
+  "single_sector_groups": 86,
+  "source_row_coverage": 186,
+  "update_set_counts": {
+    "": 86,
+    " | IN AGGIORNAMENTO": 1,
+    " | “": 1,
+    "21 gennaio 2026": 1,
+    "25 settembre 2026": 3,
+    "30 luglio 2027": 1,
+    "IN AGGIORNAMENTO": 23,
+    "“": 1
+  },
+  "update_conflict_group_count": 2,
+  "update_conflict_groups": [
+    {
+      "name": "“ADRIATICA SRL”",
+      "identifier_raw": "C.F./P.I. 01202780316",
+      "listing_raw": "29 agosto 2023",
+      "expiry_raw": "19 marzo 2027",
+      "sections": [
+        2,
+        3,
+        4,
+        5,
+        10
+      ],
+      "update_values": [
+        "",
+        "“"
+      ],
+      "source_rows": [
+        [
+          2,
+          6
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          10,
+          27
+        ]
+      ]
+    },
+    {
+      "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+      "identifier_raw": "01102760319",
+      "listing_raw": "19 luglio 2023",
+      "expiry_raw": "4 ottobre 2025",
+      "sections": [
+        5,
+        6,
+        10
+      ],
+      "update_values": [
+        "",
+        "IN AGGIORNAMENTO"
+      ],
+      "source_rows": [
+        [
+          5,
+          4
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          10,
+          6
+        ]
+      ]
+    }
+  ],
+  "near_collision_count": 7,
+  "near_collisions": [
+    {
+      "identifier_raw": "00434220315",
+      "listing_raw": "6 giugno 2023",
+      "expiry_raw": "27 novembre 2026",
+      "names": [
+        "“ADRIASTRADE S.r.L . (unipersonale)",
+        "“ADRIASTRADE S.r.L . ” ( unipersonale)",
+        "“ADRIASTRADE S.r.L . ” (unipersonale)"
+      ],
+      "offices": [
+        "MONFALCONE (GO) via Grota del Diau Zot n . snc , Zona industriale Lisert"
+      ],
+      "records": 3
+    },
+    {
+      "identifier_raw": "00147080311",
+      "listing_raw": "30 settembre 2022",
+      "expiry_raw": "20 aprile 2027",
+      "names": [
+        "“ S.A.L.I.T . srl ”"
+      ],
+      "offices": [
+        "MEDEA (GO) Strada Provinciale, 6, km . 5",
+        "MEDEA (GO) Strada Statale, 6, km . 5"
+      ],
+      "records": 2
+    },
+    {
+      "identifier_raw": "C.F . 00219820321 P.I . 00131760316",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "23 gennaio 2026",
+      "names": [
+        "“CALCESTRUZZI TRIESTE SRL” So cietà a responsabilità limitata",
+        "“CALCESTRUZZI TRIESTE SRL” Società a responsabilità limitata”",
+        "“CALCESTRUZZI TRIESTE Società a responsabilità limitata”"
+      ],
+      "offices": [
+        "ROMANS d’ISONZO (GO) Via Palmanova s.n."
+      ],
+      "records": 3
+    },
+    {
+      "identifier_raw": "C.F./P.I. 00539760314",
+      "listing_raw": "23 ottobre 2023",
+      "expiry_raw": "29 ottobre 2025",
+      "names": [
+        "PAUL TRANSIT S. R . L . di Bruseghin Antonio &. C.”",
+        "“ PAUL TRANSIT S. R . L . di Bruseghin Antonio &. C.”",
+        "“ PAUL TRANSIT S. R . L . ” di Bruseghin Antonio &. C.”"
+      ],
+      "offices": [
+        "SAN PIER D’ISONZO (GO) via Soleschiano, n. 2 2"
+      ],
+      "records": 3
+    },
+    {
+      "identifier_raw": "00162760318",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "19 marzo 2027",
+      "names": [
+        "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP"
+      ],
+      "offices": [
+        "RONCHI dei LEGIONARI (GO) (GO), via Joze Srebernic , n . 17",
+        "RONCHI dei LEGIONARI (GO), via Joze Srebernic , n . 17"
+      ],
+      "records": 2
+    },
+    {
+      "identifier_raw": "C.F/P.I. 001370303018",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "20 gennaio 2027",
+      "names": [
+        "“ S.I.O.S. S . Srl ”",
+        "“S.I.O.S. . S . .R.L. ”"
+      ],
+      "offices": [
+        "RONCHI dei LEGIONARI (GO), via dell’Industria, n . 14/16"
+      ],
+      "records": 2
+    },
+    {
+      "identifier_raw": "C.F./P.I. 00171390313",
+      "listing_raw": "21 marzo 2023",
+      "expiry_raw": "9 dicembre 2026",
+      "names": [
+        "“COSPER S.R.L.”"
+      ],
+      "offices": [
+        "TURRIACO (GO) Via XXV Aprile, n. 49",
+        "TURRIACO Via XXV Aprile, n. 49"
+      ],
+      "records": 2
+    }
+  ],
+  "records": [
+    {
+      "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+      "office": "RONCHI dei LEGIONARI (GO) (GO), via Joze Srebernic , n . 17",
+      "secondary": "",
+      "identifier_raw": "00162760318",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "31 luglio 2024",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "21 gennaio 2026"
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“ADRIASTRADE S.r.L . ” ( unipersonale)",
+      "office": "MONFALCONE (GO) via Grota del Diau Zot n . snc , Zona industriale Lisert",
+      "secondary": "",
+      "identifier_raw": "00434220315",
+      "listing_raw": "6 giugno 2023",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        5,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          3
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          10,
+          24
+        ]
+      ]
+    },
+    {
+      "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+      "office": "MONFALCONE (GO), via Grota del Diau Zot n . snc",
+      "secondary": "",
+      "identifier_raw": "01102760319",
+      "listing_raw": "19 luglio 2023",
+      "expiry_raw": "19 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        2,
+        3
+      ],
+      "source_rows": [
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "“ S.A.L.I.T . srl ”",
+      "office": "MEDEA (GO) Strada Statale, 6, km . 5",
+      "secondary": "",
+      "identifier_raw": "00147080311",
+      "listing_raw": "30 settembre 2022",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          1,
+          5
+        ],
+        [
+          5,
+          30
+        ],
+        [
+          6,
+          37
+        ]
+      ]
+    },
+    {
+      "name": "“UNION BETON SRL”",
+      "office": "SAN CANZIAN D’ISONZO (GO) Via del Frantoio 1, Fraz . Pieris",
+      "secondary": "",
+      "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+      "listing_raw": "12 luglio 2021",
+      "expiry_raw": "4 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        3,
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          6
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          10
+        ],
+        [
+          10,
+          16
+        ]
+      ]
+    },
+    {
+      "name": "“CALCESTRUZZI TRIESTE SRL” So cietà a responsabilità limitata",
+      "office": "ROMANS d’ISONZO (GO) Via Palmanova s.n.",
+      "secondary": "",
+      "identifier_raw": "C.F . 00219820321 P.I . 00131760316",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "23 gennaio 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "“BUFFON GIANLUIGI Impresa Individuale”",
+      "office": "MOSSA (GO) Via Ciascilut , n . 33/A",
+      "secondary": "",
+      "identifier_raw": "P.I . 00558660312",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "14 luglio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        5,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          8
+        ],
+        [
+          5,
+          9
+        ],
+        [
+          10,
+          11
+        ]
+      ]
+    },
+    {
+      "name": "“ANTONINO AUTOTRASPORTI S.R.L.U.”",
+      "office": "MARIANO DEL FRIULI (GO) Via Fermi, n . 16",
+      "secondary": "",
+      "identifier_raw": "C.F . 01132140318 P.I . 01132140318",
+      "listing_raw": "6 giugno 2023",
+      "expiry_raw": "2 agosto 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          9
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          5,
+          12
+        ],
+        [
+          6,
+          13
+        ],
+        [
+          10,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "“GRANULATI CALCAREI REDIPUGLIA S.R.L.”",
+      "office": "RONCHI DEI LEGIONARI (GO), via Monte Sei Busi, n . 102",
+      "secondary": "",
+      "identifier_raw": "C.F. 03163830262 P.I. 00523050318",
+      "listing_raw": "22 marzo 2023",
+      "expiry_raw": "5 agosto 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          10
+        ]
+      ]
+    },
+    {
+      "name": "“UNION BETON SRL”",
+      "office": "SAN CANZIAN D’ISONZO (GO) Via del Frantoio 1, Fraz . Pieris",
+      "secondary": "",
+      "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+      "listing_raw": "12 luglio 2021",
+      "expiry_raw": "2 agosto 2024",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        1,
+        5
+      ],
+      "source_rows": [
+        [
+          1,
+          11
+        ],
+        [
+          5,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "“MARINARO TRASPORTI SRL”",
+      "office": "MONFALCONE (GO) via Timavo, n.69/8",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01098250317",
+      "listing_raw": "18 settembre 2019",
+      "expiry_raw": "1 aprile 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        3,
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          1,
+          12
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          5,
+          14
+        ],
+        [
+          6,
+          15
+        ]
+      ]
+    },
+    {
+      "name": "“SCAVI SERGIO SGUBIN SRL ”",
+      "office": "CORMONS (GO) Piazza XXIV Maggio, n . 14",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00001092420312",
+      "listing_raw": "22 agosto 2018",
+      "expiry_raw": "6 febbraio 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+      "office": "RONCHI dei LEGIONARI (GO), via Joze Srebernic , n . 17",
+      "secondary": "",
+      "identifier_raw": "00162760318",
+      "listing_raw": "20 febbraio 2022",
+      "expiry_raw": "19 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          14
+        ]
+      ]
+    },
+    {
+      "name": "“COSTRUZIONI ISONZO SRL CO.IS”",
+      "office": "SAN PIER D’ISONZO (GO) via Soleschiano, n. 20",
+      "secondary": "",
+      "identifier_raw": "C.F. 01879820270 P.I. 00391310315",
+      "listing_raw": "27 giugno 2023",
+      "expiry_raw": "10 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        2,
+        3,
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          15
+        ],
+        [
+          2,
+          12
+        ],
+        [
+          3,
+          20
+        ],
+        [
+          5,
+          21
+        ],
+        [
+          6,
+          25
+        ],
+        [
+          10,
+          15
+        ]
+      ]
+    },
+    {
+      "name": "“ PAUL TRANSIT S. R . L . ” di Bruseghin Antonio &. C.”",
+      "office": "SAN PIER D’ISONZO (GO) via Soleschiano, n. 2 2",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00539760314",
+      "listing_raw": "23 ottobre 2023",
+      "expiry_raw": "29 ottobre 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          16
+        ]
+      ]
+    },
+    {
+      "name": "“CIRCOSTA ANTONIO”",
+      "office": "GRADISCA D’ISONZO Via G. Galilei, 10",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00521370312",
+      "listing_raw": "13 febbraio 2023",
+      "expiry_raw": "30 luglio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        2,
+        3
+      ],
+      "source_rows": [
+        [
+          1,
+          17
+        ],
+        [
+          2,
+          11
+        ],
+        [
+          3,
+          19
+        ]
+      ]
+    },
+    {
+      "name": "“CIRCOSTA SCAVI DI DAMIANO CIRCOSTA “ Impresa individuale",
+      "office": "MOSSA Via XXIV Maggio, 26",
+      "secondary": "",
+      "identifier_raw": "CRCDMN88L26I872S",
+      "listing_raw": "17 giugno 2024",
+      "expiry_raw": "1° giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        2,
+        3,
+        5
+      ],
+      "source_rows": [
+        [
+          1,
+          18
+        ],
+        [
+          2,
+          14
+        ],
+        [
+          3,
+          24
+        ],
+        [
+          5,
+          24
+        ]
+      ]
+    },
+    {
+      "name": "“G.M. SCAVI E MINISCAVI DI GRUDINA MORRIS”",
+      "office": "DOLEGNA DEL COLLIO (GO) Via Mernico, 6",
+      "secondary": "",
+      "identifier_raw": "GRDMRS73E24C758E 01047580319",
+      "listing_raw": "2 AGOSTO 2024",
+      "expiry_raw": "28 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        3,
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          1,
+          19
+        ],
+        [
+          3,
+          22
+        ],
+        [
+          5,
+          27
+        ],
+        [
+          6,
+          29
+        ]
+      ]
+    },
+    {
+      "name": "GMR Srl",
+      "office": "MONFALCONE (GO) Via Galvani, 18",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 02113610303",
+      "listing_raw": "9 settembre 2024",
+      "expiry_raw": "2 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          20
+        ],
+        [
+          3,
+          23
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          5,
+          25
+        ],
+        [
+          6,
+          31
+        ],
+        [
+          10,
+          21
+        ]
+      ]
+    },
+    {
+      "name": "LTM INTERNATIONAL SRL",
+      "office": "MONFALCONE (GO) Via Roma, 50",
+      "secondary": "",
+      "identifier_raw": "CF/P.I. 01152830319",
+      "listing_raw": "12 settembre 2024",
+      "expiry_raw": "12 settembre 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          21
+        ]
+      ]
+    },
+    {
+      "name": "MALIC MARINO SCAVI Ditta Individuale",
+      "office": "SAVOGNA D’ISONZO (GO) Via Malnisce , 3/C",
+      "secondary": "",
+      "identifier_raw": "MLCMRN67M07E098B",
+      "listing_raw": "23 gennaio 2025",
+      "expiry_raw": "9 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        5,
+        10
+      ],
+      "source_rows": [
+        [
+          1,
+          22
+        ],
+        [
+          5,
+          29
+        ],
+        [
+          10,
+          26
+        ]
+      ]
+    },
+    {
+      "name": "FRATELLI VLASHI SRL semplificata",
+      "office": "RONCHI DEI LEGIONARI (GO)",
+      "secondary": "",
+      "identifier_raw": "CF/P.I. 01248190314",
+      "listing_raw": "9 dicembre 2025",
+      "expiry_raw": "9 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          23
+        ]
+      ]
+    },
+    {
+      "name": "MOVITUB di Giovanni Veneruso & C. SAS",
+      "office": "MONFALCONE (GO) Via C. Cosulich, 5",
+      "secondary": "",
+      "identifier_raw": "CF/PI 00461950313",
+      "listing_raw": "2 1 aprile 2026",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          24
+        ]
+      ]
+    },
+    {
+      "name": "MILANESE MARCO Impresa Individuale",
+      "office": "CAPRIVA DEL FRIULI (GO) Via Aquileia, 3",
+      "secondary": "",
+      "identifier_raw": "PI 00447820317 CF MLNMRC67M24E098Z",
+      "listing_raw": "21 aprile 2026",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          25
+        ]
+      ]
+    },
+    {
+      "name": "LTM INTERNATIONAL SRL",
+      "office": "MONFALCONE (GO) Via Roma, 50",
+      "secondary": "",
+      "identifier_raw": "CF/P.I. 01152830319",
+      "listing_raw": "12 settembre 2024",
+      "expiry_raw": "10 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1,
+        6
+      ],
+      "source_rows": [
+        [
+          1,
+          26
+        ],
+        [
+          6,
+          30
+        ],
+        [
+          6,
+          39
+        ]
+      ]
+    },
+    {
+      "name": "CRE SERVICES SRL",
+      "office": "MONFALCONE (GO) Via dei Canneti 3",
+      "secondary": "",
+      "identifier_raw": "CF/PI 01208700318",
+      "listing_raw": "9 giugno 2026",
+      "expiry_raw": "9 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        1
+      ],
+      "source_rows": [
+        [
+          1,
+          27
+        ]
+      ]
+    },
+    {
+      "name": "“ADRIASTRADE S.r.L . ” (unipersonale)",
+      "office": "MONFALCONE (GO) via Grota del Diau Zot n . snc , Zona industriale Lisert",
+      "secondary": "",
+      "identifier_raw": "00434220315",
+      "listing_raw": "6 giugno 2023",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        2
+      ],
+      "source_rows": [
+        [
+          2,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“UNION BETON SRL”",
+      "office": "SAN CANZIAN D’ISONZO (GO) Via del Frantoio 1, Fraz . Pieris",
+      "secondary": "",
+      "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+      "listing_raw": "12 luglio 2021",
+      "expiry_raw": "2 agosto 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        2
+      ],
+      "source_rows": [
+        [
+          2,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "“ADRIATICA SRL”",
+      "office": "GRADO (GO) Via Andromeda, 29",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01202780316",
+      "listing_raw": "29 agosto 2023",
+      "expiry_raw": "19 marzo 2027",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "",
+        "“"
+      ],
+      "sections": [
+        2,
+        3,
+        4,
+        5,
+        10
+      ],
+      "source_rows": [
+        [
+          2,
+          6
+        ],
+        [
+          3,
+          16
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          5,
+          17
+        ],
+        [
+          10,
+          27
+        ]
+      ]
+    },
+    {
+      "name": "“ PAUL TRANSIT S. R . L . di Bruseghin Antonio &. C.”",
+      "office": "SAN PIER D’ISONZO (GO) via Soleschiano, n. 2 2",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00539760314",
+      "listing_raw": "23 ottobre 2023",
+      "expiry_raw": "29 ottobre 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        2,
+        3,
+        5
+      ],
+      "source_rows": [
+        [
+          2,
+          7
+        ],
+        [
+          3,
+          18
+        ],
+        [
+          5,
+          18
+        ]
+      ]
+    },
+    {
+      "name": "“FRIULANA ASFALTI SRL”",
+      "office": "GRADISCA D’ISONZO (GO) Via Palmanova, n. 35",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01193700315",
+      "listing_raw": "21 ottobre 2022",
+      "expiry_raw": "1° luglio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        2
+      ],
+      "source_rows": [
+        [
+          2,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "“ MAROLLI COSTRUZIONI SRL”",
+      "office": "MONFALCONE (GO) Viale San Marco, 13/B",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01218760310",
+      "listing_raw": "29 dicembre 2022",
+      "expiry_raw": "",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        2
+      ],
+      "source_rows": [
+        [
+          2,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "“LUCIANI ANDREA”",
+      "office": "GORIZIA Via Brigata Sassari, n, 77/C",
+      "secondary": "",
+      "identifier_raw": "P.I. 01199630318 C.F .LCNNDR 82D20E098X",
+      "listing_raw": "18 gennaio 2023",
+      "expiry_raw": "18 gennaio 2024",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        2,
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          2,
+          10
+        ],
+        [
+          5,
+          19
+        ],
+        [
+          6,
+          22
+        ]
+      ]
+    },
+    {
+      "name": "GMR Srl",
+      "office": "MONFALCONE (GO) Via Galvani, 18",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 02113610303",
+      "listing_raw": "9 settembre 2024",
+      "expiry_raw": "9 settembre 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        2
+      ],
+      "source_rows": [
+        [
+          2,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "“ADRIASTRADE S.r.L . (unipersonale)",
+      "office": "MONFALCONE (GO) via Grota del Diau Zot n . snc , Zona industriale Lisert",
+      "secondary": "",
+      "identifier_raw": "00434220315",
+      "listing_raw": "6 giugno 2023",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+      "office": "RONCHI dei LEGIONARI (GO) (GO), via Joze Srebernic , n . 17",
+      "secondary": "",
+      "identifier_raw": "00162760318",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "19 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "“S.I.O.S. . S . .R.L. ”",
+      "office": "RONCHI dei LEGIONARI (GO), via dell’Industria, n . 14/16",
+      "secondary": "",
+      "identifier_raw": "C.F/P.I. 001370303018",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "20 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "“LIEBHERR ITALIA SPA”",
+      "office": "MONFALCONE (GO), via Chico Mendes, n . 17",
+      "secondary": "",
+      "identifier_raw": "C.F . 00368610317",
+      "listing_raw": "24 gennaio 2024",
+      "expiry_raw": "23.01.2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "“TRANS EST SRL”",
+      "office": "MONFALCONE (GO) via Terme Romane, n . 15",
+      "secondary": "",
+      "identifier_raw": "00133290312",
+      "listing_raw": "19 ottobre 2015",
+      "expiry_raw": "24 giugno 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        3,
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          3,
+          8
+        ],
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          10,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "“OFF . ne S . LENARDON di LENARDON SILVANO”",
+      "office": "MONFALCONE (GO), via Chico Mendes, n . 9",
+      "secondary": "",
+      "identifier_raw": "01133160315",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "18 dicembre 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "“SSG S.R.L.”",
+      "office": "VILLESSE (GO) Via Aquileia, n . 8",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 02834150308",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "23 luglio 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        3,
+        4,
+        5
+      ],
+      "source_rows": [
+        [
+          3,
+          12
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          5,
+          15
+        ]
+      ]
+    },
+    {
+      "name": "“LINEA ISONTINA DI CIRCOSTA SALVATORE E C . S.N.C.”",
+      "office": "VILLESSE (GO) Via Monte Santo, n . 60",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I . 01115320317",
+      "listing_raw": "29 dicembre 2022",
+      "expiry_raw": "10 maggio 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "25 settembre 2026"
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "“SCA MONTAGGI S.R.L. ”",
+      "office": "RONCHI DEI LEGIONARI (GO) via Redipuglia, n . 33",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01111200315",
+      "listing_raw": "6 febbraio 2024",
+      "expiry_raw": "18 giugno 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          14
+        ]
+      ]
+    },
+    {
+      "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+      "office": "RONCHI dei LEGIONARI (GO), via Joze Srebernic , n . 17",
+      "secondary": "",
+      "identifier_raw": "00162760318",
+      "listing_raw": "10 febbraio 2022",
+      "expiry_raw": "10 febbraio 2023",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          15
+        ]
+      ]
+    },
+    {
+      "name": "REVAS TECNOLOGIES SRL",
+      "office": "GORIZIA Via IX Agosto, 11",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 0237978303",
+      "listing_raw": "11 marzo 2022",
+      "expiry_raw": "11 marzo 2023",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3,
+        4
+      ],
+      "source_rows": [
+        [
+          3,
+          17
+        ],
+        [
+          4,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "“GORIZIANE E&C SPA”",
+      "office": "VILLESSE (GO)",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01211200314",
+      "listing_raw": "21 febbraio 2024",
+      "expiry_raw": "8 luglio 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          21
+        ]
+      ]
+    },
+    {
+      "name": "MAROLLI SRL",
+      "office": "MONFALCONE (GO) Viale S. Marco 13/b",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01189860313",
+      "listing_raw": "Dal 10.12.202",
+      "expiry_raw": "10.12.2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        3
+      ],
+      "source_rows": [
+        [
+          3,
+          25
+        ]
+      ]
+    },
+    {
+      "name": "EQUIPE SRL",
+      "office": "GORIZIA Via dei Campi 34",
+      "secondary": "",
+      "identifier_raw": "00520370313",
+      "listing_raw": "14 agosto 204",
+      "expiry_raw": "19 giugno 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        3,
+        4
+      ],
+      "source_rows": [
+        [
+          3,
+          26
+        ],
+        [
+          4,
+          15
+        ]
+      ]
+    },
+    {
+      "name": "“TABAJ S.N.C . DI TABAJ BARBARA&C. ”",
+      "office": "GORIZIA Via A Gregorcic n . 24",
+      "secondary": "",
+      "identifier_raw": "01185650312",
+      "listing_raw": "5 aprile 2018",
+      "expiry_raw": "25 settembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“TABAJ S.R.L.”",
+      "office": "GORIZIA Via Gregorcic n . 24",
+      "secondary": "",
+      "identifier_raw": "C.F/PI 01185660311",
+      "listing_raw": "3 settembre 2018",
+      "expiry_raw": "6 agosto 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "ISOL.ME.CAR. SRL",
+      "office": "MONFALCONE (GO) Via dei Bagni Nuova, 5",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00434080313",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "30 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "MARIO MUCCI SRL",
+      "office": "GORIZIA Via Gregorcic , 20/2",
+      "secondary": "",
+      "identifier_raw": "CF/PI 00439720319",
+      "listing_raw": "5 agosto 2025",
+      "expiry_raw": "5 agosto 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "ANNAS SRL",
+      "office": "MONFALCONE Via San Marco, 6",
+      "secondary": "",
+      "identifier_raw": "CF/PI 001170690315",
+      "listing_raw": "8 agosto 2025",
+      "expiry_raw": "8 agosto 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          10
+        ]
+      ]
+    },
+    {
+      "name": "JONONI SRL",
+      "office": "MONFALCONE (GO) Via Romana, 110",
+      "secondary": "",
+      "identifier_raw": "CF/P.I. 0118470317",
+      "listing_raw": "20 marzo 2026",
+      "expiry_raw": "20 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          11
+        ]
+      ]
+    },
+    {
+      "name": "EL NET SOLUTION SRL",
+      "office": "RONCHI DEI LEGIONARI (GO) Via Roma, 37",
+      "secondary": "",
+      "identifier_raw": "CF/PI 01270740317",
+      "listing_raw": "21 aprile 2026",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          12
+        ]
+      ]
+    },
+    {
+      "name": "C.M.T. S.R.L.",
+      "office": "STARANZANO (GO) Via Agazzi, 3",
+      "secondary": "",
+      "identifier_raw": "00407990316",
+      "listing_raw": "30 giugno 2026",
+      "expiry_raw": "30 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "SEA SRL",
+      "office": "GORIZIA Via Diaz, 14",
+      "secondary": "",
+      "identifier_raw": "01229060312",
+      "listing_raw": "30 luglio 2026",
+      "expiry_raw": "30 luglio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        4
+      ],
+      "source_rows": [
+        [
+          4,
+          14
+        ]
+      ]
+    },
+    {
+      "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+      "office": "RONCHI dei LEGIONARI (GO), via Joze Srebernic , n . 17",
+      "secondary": "",
+      "identifier_raw": "00162760318",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "19 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+      "office": "MONFALCONE (GO), via Grota del Diau Zot n . snc",
+      "secondary": "",
+      "identifier_raw": "01102760319",
+      "listing_raw": "19 luglio 2023",
+      "expiry_raw": "4 ottobre 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "",
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          5,
+          4
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          10,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "“ELIFRIULIA S.P.A.”",
+      "office": "RONCHI dei LEGIONARI (GO), piazzetta Luigi Coloatto, n . 1",
+      "secondary": "",
+      "identifier_raw": "C.F . 00068620319",
+      "listing_raw": "5 luglio 2023",
+      "expiry_raw": "2 agosto 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "“CALCESTRUZZI TRIESTE Società a responsabilità limitata”",
+      "office": "ROMANS d’ISONZO (GO) Via Palmanova s.n.",
+      "secondary": "",
+      "identifier_raw": "C.F . 00219820321 P.I . 00131760316",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "23 gennaio 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "“ S.I.O.S. S . Srl ”",
+      "office": "RONCHI dei LEGIONARI (GO), via dell’Industria, n . 14/16",
+      "secondary": "",
+      "identifier_raw": "C.F/P.I. 001370303018",
+      "listing_raw": "31 luglio 2023",
+      "expiry_raw": "20 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          10
+        ]
+      ]
+    },
+    {
+      "name": "“OFF.ne S . LENARDON di LENARDON SILVANO”",
+      "office": "MONFALCONE (GO), via Chico Mendes, n . 9",
+      "secondary": "",
+      "identifier_raw": "C.F.01133160315",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "18 dicembre 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          11
+        ]
+      ]
+    },
+    {
+      "name": "“LINEA ISONTINA DI CIRCOSTA SALVATORE E C . S.N.C.”",
+      "office": "VILLESSE (GO) Via Monte Santo, n . 60",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01115320317",
+      "listing_raw": "29 dicembre 2023",
+      "expiry_raw": "29 dicembre 2024",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "25 settembre 2026"
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          16
+        ]
+      ]
+    },
+    {
+      "name": "“COSPER S.R.L.”",
+      "office": "TURRIACO Via XXV Aprile, n. 49",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00171390313",
+      "listing_raw": "21 marzo 2023",
+      "expiry_raw": "9 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          5,
+          20
+        ],
+        [
+          6,
+          24
+        ]
+      ]
+    },
+    {
+      "name": "EQUPE SRL",
+      "office": "GORIZIA Via dei Campi, 34",
+      "secondary": "",
+      "identifier_raw": "C.F./ P.I 00520370313",
+      "listing_raw": "14 agosto 2023",
+      "expiry_raw": "19 giugno 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        5,
+        6
+      ],
+      "source_rows": [
+        [
+          5,
+          22
+        ],
+        [
+          6,
+          27
+        ]
+      ]
+    },
+    {
+      "name": "“SCA MONTAGGI S.R.L.”",
+      "office": "RONCHI DEI LEGIONARI (GO) via Redipuglia, n.33",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I.",
+      "listing_raw": "6 febbraio 2024",
+      "expiry_raw": "18 giugno 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          23
+        ]
+      ]
+    },
+    {
+      "name": "TECNOCOOP SOC. COOP",
+      "office": "GORIZIA Via R e ssel 13",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00439730318",
+      "listing_raw": "4 aprile 2025",
+      "expiry_raw": "3 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          26
+        ]
+      ]
+    },
+    {
+      "name": "ALLIANCE ASE SRL",
+      "office": "GORIZIA via Malta, 6",
+      "secondary": "",
+      "identifier_raw": "01276780317",
+      "listing_raw": "5 AGOSTO 2025",
+      "expiry_raw": "5 AGOSTO 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          28
+        ]
+      ]
+    },
+    {
+      "name": "“NORD EST LOGISTICA Srl ””",
+      "office": "GORIZIA Via Morelli, n . 14",
+      "secondary": "",
+      "identifier_raw": "01119770319",
+      "listing_raw": "29 settembre 2022",
+      "expiry_raw": "19 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5,
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          5,
+          31
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          10,
+          22
+        ]
+      ]
+    },
+    {
+      "name": "MOVITUB di Giovanni Veneruso & C. SAS",
+      "office": "MONFALCONE (GO) Via C. Cosulich, 5",
+      "secondary": "",
+      "identifier_raw": "CF/PI 00461950313",
+      "listing_raw": "21 aprile 2026",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          32
+        ]
+      ]
+    },
+    {
+      "name": "GORIZIANE E&C S.P.A.",
+      "office": "VILLESSE (GO) Via Aquileia 7",
+      "secondary": "",
+      "identifier_raw": "01211200314",
+      "listing_raw": "8 luglio 2025",
+      "expiry_raw": "8 luglio 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        5
+      ],
+      "source_rows": [
+        [
+          5,
+          33
+        ]
+      ]
+    },
+    {
+      "name": "“RICICLO SYSTEM S.R.L.”",
+      "office": "GORIZIA Piazza del Municipio, n . 8",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01117310316",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "31 gennaio 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          6,
+          2
+        ],
+        [
+          10,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "“ S.A.L.I.T . srl ”",
+      "office": "MEDEA (GO) Strada Provinciale, 6, km . 5",
+      "secondary": "",
+      "identifier_raw": "00147080311",
+      "listing_raw": "30 settembre 2022",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "“AUTOTRASPORTI EREDI DI MAREGA LUCIO DI MAREGA PAOLO & C . S.N.C.",
+      "office": "CORMONS (GO) Piazzale Garibaldi, 8/1",
+      "secondary": "",
+      "identifier_raw": "00485340319",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "25 settembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "“PEVERE TRASPORTI E SPEDIZIONI srl ”",
+      "office": "MONFALCONE (GO) via Blaserna , n . 4",
+      "secondary": "",
+      "identifier_raw": "00430600312",
+      "listing_raw": "15 aprile 2021",
+      "expiry_raw": "30 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "“PASSADORE FLAVIO” DITTA INDIVIDUALE",
+      "office": "MONFALCONE (GO), via Petrarca n . 16",
+      "secondary": "",
+      "identifier_raw": "004632003311",
+      "listing_raw": "29 maggio 2015",
+      "expiry_raw": "6 agosto 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "“FENICE ECOLOGIA SRL”",
+      "office": "GRADISCA D’ISONZO (GO) Via dell’Industria, n . 6",
+      "secondary": "",
+      "identifier_raw": "001119570313",
+      "listing_raw": "29 settembre 2022",
+      "expiry_raw": "2 agosto 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "“BUFFON GIANLUIGI Impresa Individuale”",
+      "office": "MOSSA (GO) Via Ciascilut , n . 33/A",
+      "secondary": "",
+      "identifier_raw": "P.I . 00558660312",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "14 luglio 2 027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          12
+        ]
+      ]
+    },
+    {
+      "name": "“SIMAN di DIEGO FIORE”",
+      "office": "GORIZIA Via del Cotonificio, n . 32",
+      "secondary": "",
+      "identifier_raw": "C.F. FRIDGI54C31E098D",
+      "listing_raw": "21 giugno 2022",
+      "expiry_raw": "21 giugno 2023",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          6,
+          14
+        ],
+        [
+          10,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "“CALCESTRUZZI TRIESTE SRL” Società a responsabilità limitata”",
+      "office": "ROMANS d’ISONZO (GO) Via Palmanova s.n.",
+      "secondary": "",
+      "identifier_raw": "C.F . 00219820321 P.I . 00131760316",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "23 gennaio 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          6,
+          16
+        ],
+        [
+          10,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "“UNIONSPED S.R.L.”",
+      "office": "SAVOGNA D’ISONZO (GO)",
+      "secondary": "",
+      "identifier_raw": "C.F/P.I. 01091650315",
+      "listing_raw": "3 maggio 2023",
+      "expiry_raw": "23 ottobre 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          17
+        ]
+      ]
+    },
+    {
+      "name": "PAUL TRANSIT S. R . L . di Bruseghin Antonio &. C.”",
+      "office": "SAN PIER D’ISONZO (GO) via Soleschiano, n. 2 2",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00539760314",
+      "listing_raw": "23 ottobre 2023",
+      "expiry_raw": "29 ottobre 2025",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          18
+        ]
+      ]
+    },
+    {
+      "name": "“AUTOTRASPORTI TAVANO & C.”",
+      "office": "GORIZIA, via Locchi, n. 2",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01019930310",
+      "listing_raw": "21 ottobre 2022",
+      "expiry_raw": "21 ottobre 202 3",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          19
+        ]
+      ]
+    },
+    {
+      "name": "“ZANINI ADRIANO DI BOLZICO DANIELA”",
+      "office": "GORIZIA Via A. Volta, n. 19",
+      "secondary": "",
+      "identifier_raw": "P.I. 00454530312 C.F. BLZDNL44P70B309R",
+      "listing_raw": "21 ottobre 2022",
+      "expiry_raw": "21 ottobre 2023",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          20
+        ]
+      ]
+    },
+    {
+      "name": "“IL CAMMINO Società Cooperativa Sociale”",
+      "office": "GORIZIA Via Vittorio Veneto, 174",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00349680314",
+      "listing_raw": "29 maggio 2023",
+      "expiry_raw": "17 febbraio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6,
+        9
+      ],
+      "source_rows": [
+        [
+          6,
+          21
+        ],
+        [
+          9,
+          5
+        ]
+      ]
+    },
+    {
+      "name": "“THIEL –Società Cooperativa Sociale – Onlus”",
+      "office": "GORIZIA Viale XXIV Maggio 5",
+      "secondary": "",
+      "identifier_raw": "C.F/P.I. 01023280314",
+      "listing_raw": "3 marzo 2023",
+      "expiry_raw": "26 settembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          23
+        ]
+      ]
+    },
+    {
+      "name": "“CONTEA SOCIETA’COOPERATIVA SOCIALE ONLUS",
+      "office": "GORIZIA Viale XXIV Maggio n. 5",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00549490316",
+      "listing_raw": "21 marzo 2023",
+      "expiry_raw": "12 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          26
+        ]
+      ]
+    },
+    {
+      "name": "“SCA MONTAGGI S.R.L. ”",
+      "office": "RONCHI DEI LEGIONARI (GO) via Redipuglia, n . 33",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01111200315",
+      "listing_raw": "6 febbraio 2024",
+      "expiry_raw": "18 gennaio 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          28
+        ]
+      ]
+    },
+    {
+      "name": "MATTIA WINKLER SPA",
+      "office": "GORIZIA Via Terza Armata, 187",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I.",
+      "listing_raw": "20 marzo 2025",
+      "expiry_raw": "20 marzo 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "IN AGGIORNAMENTO"
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          32
+        ]
+      ]
+    },
+    {
+      "name": "“ECO STUDIO SRL UNIPERSONALE",
+      "office": "VILLESSE (GO) 31, cap. 34070 Zona Industriale",
+      "secondary": "",
+      "identifier_raw": "00519450316",
+      "listing_raw": "14 marzo 2022",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6,
+        10
+      ],
+      "source_rows": [
+        [
+          6,
+          33
+        ],
+        [
+          10,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“GIANESINI ERMINIO SRL”",
+      "office": "GORIZIA Via del San Daniele, 26",
+      "secondary": "",
+      "identifier_raw": "00135790319",
+      "listing_raw": "23 ottobre 2025",
+      "expiry_raw": "26 ottobre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          34
+        ]
+      ]
+    },
+    {
+      "name": "ZANINI ADRIANO DI BOLZICCO DANIELA",
+      "office": "GORIZIA Via A. Volta, n. 19",
+      "secondary": "",
+      "identifier_raw": "CF/P.IVA BLZDNL44P70B309R IT00454530312",
+      "listing_raw": "7 OTTOBRE 2025",
+      "expiry_raw": "7 OTTOBRE 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          35
+        ]
+      ]
+    },
+    {
+      "name": "AUTOTRASPORTO DI MAROCCO ROBERTO & C. SNC",
+      "office": "GRADO (GO) Via Abruzzo n. 5",
+      "secondary": "",
+      "identifier_raw": "CF/P.IVA 00543190318",
+      "listing_raw": "10 dicembre 2025",
+      "expiry_raw": "10 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          36
+        ]
+      ]
+    },
+    {
+      "name": "PEVERE LOGISTICA SRL",
+      "office": "GORIZIA Via Gregorcic snc",
+      "secondary": "",
+      "identifier_raw": "00546290313",
+      "listing_raw": "30 luglio 2026",
+      "expiry_raw": "",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "30 luglio 2027"
+      ],
+      "sections": [
+        6
+      ],
+      "source_rows": [
+        [
+          6,
+          38
+        ]
+      ]
+    },
+    {
+      "name": "“Premiata Impresa Remigio Preschern S.r.l.",
+      "office": "GRADISCA D’ISONZO (GO) Via Aquileia, n. 13",
+      "secondary": "",
+      "identifier_raw": "00382220317",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "4 luglio 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        8
+      ],
+      "source_rows": [
+        [
+          8,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“CO.SE.MA . CORMONS”",
+      "office": "Via E . Fermi , n . 8 CORMONS (GO)",
+      "secondary": "",
+      "identifier_raw": "00368570313",
+      "listing_raw": "21 novembre 2023",
+      "expiry_raw": "12 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          2
+        ]
+      ]
+    },
+    {
+      "name": "“ IL MOSAICO CONSORZIO DI COOPERATIVE SOCIALI – SOCIET A’ COOPERATIVA SOCIALE”",
+      "office": "GORIZIA Viale XXIV Maggio, 5",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00496150319",
+      "listing_raw": "23 maggio 2023",
+      "expiry_raw": "3 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "“LA CISILE SOCIETA’ COOPERATIVA SOCIALE ONLUS”",
+      "office": "Viale XXIV Maggio , 5",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00422680314",
+      "listing_raw": "24 maggio 2023",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "“CANZONERI CHIARA” Ditta individuale",
+      "office": "GORIZIA Via Rastello, n. 62",
+      "secondary": "",
+      "identifier_raw": "01182220317",
+      "listing_raw": "18 giugno 2024",
+      "expiry_raw": "18 novembre 2026",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "“"
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          6
+        ]
+      ]
+    },
+    {
+      "name": "“FAST EAT ITALY S.R.L.”",
+      "office": "MONFALCONE (GO) Via Colombo, 6",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01135950317",
+      "listing_raw": "21 luglio 2023",
+      "expiry_raw": "11 agosto 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          7
+        ]
+      ]
+    },
+    {
+      "name": "LCM CETERING SRL",
+      "office": "SAN LORENZO ISONTINO (GO) Via Tommaseo, 94",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01276330311",
+      "listing_raw": "17 novembre 2025",
+      "expiry_raw": "17 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "L’ATELIER DEI SAPORI DI GAIA BORELLI",
+      "office": "TURRIACO (GO) Via Primo Maggio, 17",
+      "secondary": "",
+      "identifier_raw": "P.I. 01280480318 C.F. BRLGAI00C55F3560",
+      "listing_raw": "20 gennaio 2026",
+      "expiry_raw": "20 gennaio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "L?OCA GOLOSA SAS di De Luca Valentina & C.",
+      "office": "GORIZIA Corso Italia, 201",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01168120317",
+      "listing_raw": "19 marzo 2026",
+      "expiry_raw": "19 marzo 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          10
+        ]
+      ]
+    },
+    {
+      "name": "L’ANTICA RICETTA SRL",
+      "office": "CORMONS (GO) Via Piave, 31",
+      "secondary": "",
+      "identifier_raw": "P.I. 01190800316",
+      "listing_raw": "3 giugno 2026",
+      "expiry_raw": "3 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        9
+      ],
+      "source_rows": [
+        [
+          9,
+          11
+        ]
+      ]
+    },
+    {
+      "name": "“SPERAE SRL”",
+      "office": "GORIZIA Via del Cotonificio, n. 32",
+      "secondary": "",
+      "identifier_raw": "00460840317",
+      "listing_raw": "13 marzo 2024",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          3
+        ]
+      ]
+    },
+    {
+      "name": "“HIDRA-TECH S.A.S.”",
+      "office": "SAN CANZIAN D’ISONZO (GO) Via Corpo Volontari Liberazione, n. 6",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01046920318",
+      "listing_raw": "21 ottobre 2022",
+      "expiry_raw": "1° giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          10
+        ]
+      ]
+    },
+    {
+      "name": "“AUTOTRASPORTI EREDI DI MAREGA LUCIO DI MAREGA PAOLO & C . S.N.C.",
+      "office": "CORMONS (GO) Piazzale Garibaldi, 8/1",
+      "secondary": "",
+      "identifier_raw": "00485340319",
+      "listing_raw": "2 maggio 2023",
+      "expiry_raw": "2 maggio 2024",
+      "status": "renewal_update_in_progress",
+      "update_values": [
+        "25 settembre 2026"
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          12
+        ]
+      ]
+    },
+    {
+      "name": "“COSPER S.R.L.”",
+      "office": "TURRIACO (GO) Via XXV Aprile, n. 49",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00171390313",
+      "listing_raw": "21 marzo 2023",
+      "expiry_raw": "9 dicembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          13
+        ]
+      ]
+    },
+    {
+      "name": "“ECO STUDIO SRL”",
+      "office": "VILLESSE (GO) Via Trieste, 31 Zona industriale",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 00519450316",
+      "listing_raw": "30 maggio 2023",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          14
+        ]
+      ]
+    },
+    {
+      "name": "“TRE DI SGUBIN F. & C. S.N.C.”",
+      "office": "MONFALCONE Via dei Pucino, 16",
+      "secondary": "",
+      "identifier_raw": "C.F. 00421790312",
+      "listing_raw": "21 agosto 2023",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          17
+        ]
+      ]
+    },
+    {
+      "name": "“ISONTINA AMBIENTE SRL”",
+      "office": "GORIZIA Via Brigata Pavia, 140",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01123290312",
+      "listing_raw": "10 gennaio 2024",
+      "expiry_raw": "24 febbraio 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          18
+        ]
+      ]
+    },
+    {
+      "name": "“ BRAJIK S.R.L. ”",
+      "office": "GORIZIA Via Rastello, n. 66",
+      "secondary": "",
+      "identifier_raw": "01257430312",
+      "listing_raw": "2 agosto 2024",
+      "expiry_raw": "2 agosto 2025",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          19
+        ]
+      ]
+    },
+    {
+      "name": "“CENTRO RECUPERO METALLI D’ADDATO srl ”",
+      "office": "GORIZIA via IV Novembre snc",
+      "secondary": "",
+      "identifier_raw": "01151560313",
+      "listing_raw": "2 agosto 2024",
+      "expiry_raw": "20 aprile 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          20
+        ]
+      ]
+    },
+    {
+      "name": "MALIC MARINO SCAVI Ditta Individuale",
+      "office": "SAVOGNA D’ISONZO (GO) Via Malnisce , 3/C",
+      "secondary": "",
+      "identifier_raw": "MLCMRN67M07E098B",
+      "listing_raw": "23 gennaio 2025",
+      "expiry_raw": "23 gennaio 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          23
+        ]
+      ]
+    },
+    {
+      "name": "NEW AMBIENTE SRL",
+      "office": "MONFALCONE (GO) Via Romana, 50",
+      "secondary": "",
+      "identifier_raw": "C.F./P.I. 01154120313",
+      "listing_raw": "27 novembre 2025",
+      "expiry_raw": "27 novembre 2026",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          25
+        ]
+      ]
+    },
+    {
+      "name": "SI ECO SICUREZZA ED ECOLOGIA SRL",
+      "office": "FARRA D’ISONZO (GO) Via dei Conventi, 21",
+      "secondary": "",
+      "identifier_raw": "CF/PI",
+      "listing_raw": "30 giugno 2026",
+      "expiry_raw": "30 giugno 2027",
+      "status": "listed",
+      "update_values": [
+        ""
+      ],
+      "sections": [
+        10
+      ],
+      "source_rows": [
+        [
+          10,
+          28
+        ]
+      ]
+    }
+  ]
+}
