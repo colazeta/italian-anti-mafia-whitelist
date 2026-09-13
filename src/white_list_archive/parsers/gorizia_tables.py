@@ -57,8 +57,8 @@ _EXPECTED_APPLICANT_DATES = [
     "21.04.2026",
     "17.02.2026",
     "17.02.2026",
-    "",
     "14.04.2026",
+    "",
     "",
     "01.04.2026",
     "",
@@ -365,7 +365,13 @@ def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         segment = [word for word in words if current_top - 4 <= float(word["global_top"]) < next_top - 4]
         segment_sorted = sorted(segment, key=lambda item: (float(item["global_top"]), float(item["x0"])))
         name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and item is not anchor]
-        name = _clean(" ".join(_clean(item["text"]) for item in name_words))
+        name_candidate = _clean(" ".join(_clean(item["text"]) for item in name_words))
+        expected_name = _EXPECTED_APPLICANT_NAMES[index]
+        if name_candidate.count(expected_name) != 1:
+            raise RuntimeError(
+                f"Gorizia applicant expected-name anchor drift for {expected_name!r}: {name_candidate!r}"
+            )
+        name = expected_name
         date_candidates = [
             _clean(item["text"])
             for item in segment_sorted
