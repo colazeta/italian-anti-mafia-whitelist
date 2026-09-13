@@ -1,0 +1,316 @@
+name: Forli-Cesena national integration
+
+on:
+  push:
+    branches:
+      - expansion/forli-cesena-2026-09-13
+    paths:
+      - .github/workflows/forli-cesena-national-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forli-cesena-national-integration
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/forli-cesena-2026-09-13
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install validation runtime
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Publication runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication]'
+
+      - name: Materialise Forli-Cesena production candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import json
+          from pathlib import Path
+
+          ROOT = Path('.')
+          sha = 'f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468'
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list'
+          resource = 'https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf'
+
+          validation = (ROOT / 'tmp/forli_cesena_parser_validation.txt').read_text(encoding='utf-8')
+          required = [
+              'parser_gate=VALIDATED', 'records=749', 'dated_provvedimento_rows=600',
+              'status_date_rows=320', 'public_contract_records=749', 'fabricated_identifier_rows=0',
+              f'official_sha256={sha}',
+          ]
+          missing = [item for item in required if item not in validation]
+          if missing:
+              raise RuntimeError(f'Forli-Cesena parser checkpoint missing invariants: {missing!r}')
+
+          # Publication config: exactly one combined, byte-pinned current source.
+          pub_path = ROOT / 'data/publication/multi_prefecture_pilot.json'
+          pub = json.loads(pub_path.read_text(encoding='utf-8'))
+          existing = [row for row in pub['sources'] if row.get('authority_key') == 'forli-cesena']
+          if existing:
+              raise RuntimeError(f'Forli-Cesena publication config unexpectedly pre-exists: {existing!r}')
+          pub['sources'].append({
+              'authority_key': 'forli-cesena',
+              'authority_name': 'Prefettura di Forlì-Cesena',
+              'register_key': 'forli-cesena-ordinary',
+              'register_name': 'White List ordinaria',
+              'source_page_url': landing,
+              'source_key': 'forli-cesena-combined',
+              'parser': 'forli_cesena_combined',
+              'population_scope': 'listed_and_applicant',
+              'reference_date': '2026-09-11',
+              'resource_url': resource,
+              'sha256': sha,
+              'expected_source_rows': 749,
+              'last_source_update': '2026-09-11',
+              'last_source_update_basis': 'dated official resource directly repeat-fetched and byte-verified 13 September 2026',
+              'notes': 'Byte-pinned 69-page combined publication. The fail-closed parser yields exactly 749 source observations: 401 listed, 204 renewal/update in progress and 144 pending/avvio istruttoria. Two exact duplicate identifiers remain distinct observations; one 10-digit identifier and one blank foreign-company identifier remain raw and uninferred; the malformed source status date DAL 11/04/20226 is preserved raw without repair.',
+          })
+          pub_path.write_text(json.dumps(pub, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Promote only the existing SOURCE_IDENTIFIED coverage row, never add a competing row.
+          cov_path = ROOT / 'data/monitoring/national_coverage.json'
+          cov = json.loads(cov_path.read_text(encoding='utf-8'))
+          rows = [row for row in cov['prefectures'] if row.get('authority_key') == 'forli-cesena']
+          if len(rows) != 1:
+              raise RuntimeError(f'Forli-Cesena coverage cardinality drift: {len(rows)}')
+          row = rows[0]
+          baseline = {
+              'source_verified': False,
+              'current_edition_identified': None,
+              'capture_implemented': False,
+              'parser_implemented': False,
+              'parser_validated': False,
+              'company_observations_loaded': False,
+              'observation_layer': None,
+              'canonical_integration_validated': False,
+              'public_export_enabled': False,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': False,
+              'coverage_status': 'SOURCE_IDENTIFIED',
+              'known_content_sha256': [],
+          }
+          drift = {key: (row.get(key), value) for key, value in baseline.items() if row.get(key) != value}
+          if drift:
+              raise RuntimeError(f'Forli-Cesena baseline coverage drift: {drift!r}')
+          row.update({
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-11',
+              'last_successful_investigation_on': '2026-09-13',
+              'monitoring_status': 'NEVER_CHECKED',
+              'unresolved_issue': [
+                  'Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'
+              ],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/forli-cesena-operational-check-2026-09-13.md',
+                  'src/white_list_archive/parsers/forli_cesena_combined.py',
+                  'tests/test_forli_cesena_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [sha],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/forli-cesena-operational-check-2026-09-13.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          cov_path.write_text(json.dumps(cov, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          def read_csv(path: Path):
+              with path.open(encoding='utf-8', newline='') as handle:
+                  reader = csv.DictReader(handle)
+                  return reader.fieldnames, list(reader)
+
+          def write_csv(path: Path, fields, rows):
+              with path.open('w', encoding='utf-8', newline='') as handle:
+                  writer = csv.DictWriter(handle, fieldnames=fields, lineterminator='\n')
+                  writer.writeheader(); writer.writerows(rows)
+
+          pages_path = ROOT / 'data/source_registry/verified_primary_pages.csv'
+          fields, pages = read_csv(pages_path)
+          if len(pages) != 40 or any(r['authority_key'] == 'forli-cesena' for r in pages):
+              raise RuntimeError('Forli-Cesena verified-page precondition drift')
+          pages.append({'authority_key':'forli-cesena','landing_url':landing,'verification_date':'2026-09-13','verification_status':'verified'})
+          write_csv(pages_path, fields, pages)
+
+          series_path = ROOT / 'data/source_registry/source_series_inventory.csv'
+          fields, series = read_csv(series_path)
+          if len(series) != 76 or any(r['authority_key'] == 'forli-cesena' for r in series):
+              raise RuntimeError('Forli-Cesena source-series precondition drift')
+          series.append({
+              'source_series_key':'forli-cesena-combined','authority_key':'forli-cesena',
+              'regime_code':'WL-REGIME-L190-2012','population_scope':'listed_and_applicant','sector_scope':'all',
+              'publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved',
+              'verified_date':'2026-09-13',
+              'notes':'Current official landing page directly revalidated 13 September 2026 and exposes one combined White List attachment dated 11 September 2026. Repeat fetches are byte-identical (SHA-256 ' + sha + '); the 69-page source yields 749 observations spanning listed, renewal/update-in-progress and avvio-istruttoria/pending states with fail-closed anomaly handling documented in docs/sources/forli-cesena-operational-check-2026-09-13.md.'
+          })
+          write_csv(series_path, fields, series)
+
+          catalog_path = ROOT / 'data/catalog.csv'
+          fields, catalog = read_csv(catalog_path)
+          targets = {'verified-primary-pages':'41','source-series-inventory':'77'}
+          seen = set()
+          for r in catalog:
+              if r['dataset_id'] in targets:
+                  expected_old = {'verified-primary-pages':'40','source-series-inventory':'76'}[r['dataset_id']]
+                  if r['record_count'] != expected_old:
+                      raise RuntimeError(f"Catalog denominator drift for {r['dataset_id']}: {r['record_count']!r}")
+                  r['record_count'] = targets[r['dataset_id']]; seen.add(r['dataset_id'])
+          if seen != set(targets):
+              raise RuntimeError(f'Catalog dataset rows missing: {set(targets)-seen!r}')
+          write_csv(catalog_path, fields, catalog)
+
+          # Wire the already public-contract-validated parser into the national builder.
+          builder_path = ROOT / 'src/white_list_archive/publishing/public_national_registry.py'
+          builder = builder_path.read_text(encoding='utf-8')
+          if 'forli_cesena_combined' in builder:
+              raise RuntimeError('Forli-Cesena parser unexpectedly already wired into national builder')
+          import_anchor = 'from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed\n'
+          if builder.count(import_anchor) != 1:
+              raise RuntimeError('Foggia import anchor drift')
+          builder = builder.replace(import_anchor, import_anchor + 'from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined\n')
+          map_anchor = 'FOGGIA_PARSERS = {\n    "foggia_listed": parse_foggia_listed,\n    "foggia_applicants": parse_foggia_applicants,\n}\n'
+          if builder.count(map_anchor) != 1:
+              raise RuntimeError('Foggia parser-map anchor drift')
+          builder = builder.replace(map_anchor, map_anchor + 'FORLI_CESENA_PARSERS = {"forli_cesena_combined": parse_forli_cesena_combined}\n')
+          chain_anchor = '        or FOGGIA_PARSERS.get(cfg["parser"])\n'
+          if builder.count(chain_anchor) != 1:
+              raise RuntimeError('Foggia dispatch anchor drift')
+          builder = builder.replace(chain_anchor, chain_anchor + '        or FORLI_CESENA_PARSERS.get(cfg["parser"])\n')
+          builder_path.write_text(builder, encoding='utf-8')
+
+          # Synchronise governance tests with the evidence-backed expansion.
+          p = ROOT / 'tests/test_source_registry.py'
+          text = p.read_text(encoding='utf-8')
+          if text.count('assert len(pages) == 40') != 1:
+              raise RuntimeError('Verified-page test denominator drift')
+          p.write_text(text.replace('assert len(pages) == 40', 'assert len(pages) == 41'), encoding='utf-8')
+
+          p = ROOT / 'tests/test_source_population_coverage.py'
+          text = p.read_text(encoding='utf-8')
+          for old, new in [
+              ('assert report["verified_authority_count"] == 40','assert report["verified_authority_count"] == 41'),
+              ('assert report["register_scope_count"] == 41','assert report["register_scope_count"] == 42'),
+              ('assert report["complete_register_scope_count"] == 39','assert report["complete_register_scope_count"] == 40'),
+          ]:
+              if text.count(old) != 1:
+                  raise RuntimeError(f'Population coverage denominator anchor drift: {old}')
+              text = text.replace(old, new)
+          ancona_anchor = '    assert all(row["covering_series_keys"] == ["ancona-combined"] for row in ancona)\n'
+          if text.count(ancona_anchor) != 1:
+              raise RuntimeError('Combined-series semantic test anchor drift')
+          text = text.replace(ancona_anchor, ancona_anchor + '\n    forli = [\n        row\n        for row in report["rows"]\n        if row["authority_key"] == "forli-cesena"\n        and row["regime_code"] == "WL-REGIME-L190-2012"\n    ]\n    assert {row["coverage_status"] for row in forli} == {"COVERED_COMBINED_SERIES"}\n    assert all(row["covering_series_keys"] == ["forli-cesena-combined"] for row in forli)\n')
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Run full repository test suite
+        run: pytest -q
+
+      - name: Build and validate Forli-Cesena national candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/public-national-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json /tmp/forli_registry.json \
+            --registry-csv /tmp/forli_registry.csv \
+            --prefectures-json /tmp/forli_prefectures.json \
+            --prefectures-csv /tmp/forli_prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/forli_registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('/tmp/forli_prefectures.json').read_text(encoding='utf-8'))
+          records=reg['records']
+          forli=[r for r in records if r['authority_key']=='forli-cesena']
+          assert len(forli)==749, len(forli)
+          assert reg['meta']['record_count']==31307, reg['meta']
+          assert reg['meta']['authority_count']==32, reg['meta']
+          assert reg['meta']['register_count']==33, reg['meta']
+          assert pref['meta']['published_count']==32, pref['meta']
+          assert pref['meta']['mapped_count']==41, pref['meta']
+          directory=[x for x in pref['prefectures'] if x['authority_key']=='forli-cesena']
+          assert len(directory)==1 and directory[0]['mapped'] and directory[0]['published'] and directory[0]['series_count']==1, directory
+          status={}
+          for r in forli: status[r['source_status']]=status.get(r['source_status'],0)+1
+          assert status=={'listed':401,'renewal_update_in_progress':204,'pending':144}, status
+          assert sum(bool(r['identifiers']) for r in forli)==747
+          report=Path('tmp/forli_cesena_national_gate.txt')
+          report.write_text('\n'.join([
+              'national_gate=VALIDATED',
+              'records=31307','authority_count=32','register_count=33','published_count=32','mapped_count=41',
+              'forli_cesena_records=749',
+              'forli_cesena_status_counts='+json.dumps(status,sort_keys=True),
+              'forli_cesena_identifier_rows=747',
+          ])+'\n',encoding='utf-8')
+          print(report.read_text(encoding='utf-8'))
+          PY
+
+      - name: Commit validated Forli-Cesena production candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/verified_primary_pages.csv \
+            data/source_registry/source_series_inventory.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/test_source_registry.py \
+            tests/test_source_population_coverage.py \
+            tmp/forli_cesena_national_gate.txt
+          git diff --cached --check
+          git commit -m 'Integrate validated Forli-Cesena public data'
+          git fetch origin expansion/forli-cesena-2026-09-13
+          git rebase origin/expansion/forli-cesena-2026-09-13
+          git push origin HEAD:expansion/forli-cesena-2026-09-13
