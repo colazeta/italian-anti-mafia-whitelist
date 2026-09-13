@@ -1,0 +1,78 @@
+name: Forli-Cesena source audit
+
+on:
+  push:
+    branches:
+      - expansion/forli-cesena-2026-09-13
+    paths:
+      - .github/workflows/forli-cesena-source-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forli-cesena-source-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/forli-cesena-2026-09-13
+          fetch-depth: 0
+      - name: Fetch official PDF twice and inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf'
+          mkdir -p tmp /tmp/forli_audit
+          for n in a b; do
+            curl --fail --location --silent --show-error \
+              --retry 4 --retry-delay 2 --retry-all-errors \
+              -A 'Mozilla/5.0 white-list-source-audit/1.0' \
+              "$url" -o "/tmp/forli_audit/source_${n}.pdf"
+          done
+          sha_a=$(sha256sum /tmp/forli_audit/source_a.pdf | awk '{print $1}')
+          sha_b=$(sha256sum /tmp/forli_audit/source_b.pdf | awk '{print $1}')
+          test "$sha_a" = "$sha_b"
+          cmp -s /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source_b.pdf
+          bytes=$(stat -c '%s' /tmp/forli_audit/source_a.pdf)
+          pages=$(pdfinfo /tmp/forli_audit/source_a.pdf | awk '/^Pages:/ {print $2}')
+          pdftotext -layout /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source.txt
+          avvio=$(grep -Eio 'AVVIO[[:space:]]+ISTRUTTORIA' /tmp/forli_audit/source.txt | wc -l | tr -d ' ')
+          aggiornamento=$(grep -Eio 'IN[[:space:]]+AGGIORNAMENTO' /tmp/forli_audit/source.txt | wc -l | tr -d ' ')
+          ids=$(grep -Eo '(^|[^0-9])[0-9]{11}([^0-9]|$)' /tmp/forli_audit/source.txt | grep -Eo '[0-9]{11}' | sort -u | wc -l | tr -d ' ')
+          cat > tmp/forli_cesena_source_audit.txt <<EOF
+          authority_key=forli-cesena
+          fetched_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          official_landing=https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list
+          official_pdf=$url
+          edition_date=2026-09-11
+          sha256_a=$sha_a
+          sha256_b=$sha_b
+          byte_identical=true
+          bytes=$bytes
+          pages=$pages
+          avvio_istruttoria_occurrences=$avvio
+          in_aggiornamento_occurrences=$aggiornamento
+          unique_11_digit_tokens=$ids
+          combined_population_markers=true
+          EOF
+          printf '\n--- first 90 text lines ---\n' >> tmp/forli_cesena_source_audit.txt
+          sed -n '1,90p' /tmp/forli_audit/source.txt >> tmp/forli_cesena_source_audit.txt
+      - name: Commit audit checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/forli_cesena_source_audit.txt
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'Checkpoint Forli-Cesena official source audit'
+          git push origin HEAD:expansion/forli-cesena-2026-09-13
