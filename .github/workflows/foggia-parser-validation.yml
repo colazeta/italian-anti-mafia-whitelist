@@ -69,7 +69,8 @@ jobs:
           assert len(applicants.records)==628,applicants.diagnostics
           assert applicants.diagnostics['status_counts']=={'pending':628},applicants.diagnostics
           assert applicants.diagnostics['identifier_coverage']==621,applicants.diagnostics
-          assert applicants.diagnostics['raw_identifier_only']==7,applicants.diagnostics
+          assert applicants.diagnostics['raw_identifier_only']==6,applicants.diagnostics
+          assert applicants.diagnostics['empty_identifier']==1,applicants.diagnostics
 
           luisi=[r for r in listed.records if '03570730717' in r['identifiers']]
           assert len(luisi)==1,luisi
@@ -88,10 +89,11 @@ jobs:
             rows=[r for r in applicants.records if ident in r['identifiers']]
             assert len(rows)==2,(ident,rows)
           assert sum(not r['identifiers'] for r in applicants.records)==7
+          assert sum(not r['identifier_field_raw'] for r in applicants.records)==1
           assert all(r['outcome_raw']=='ISTRUTTORIA' and r['source_status']=='pending' for r in applicants.records)
           print('FOGGIA_PARSER_OK')
           print('listed',listed.diagnostics)
           print('applicants',applicants.diagnostics)
           print('total_public_records',len(listed.records)+len(applicants.records))
           PY
-# Rerun marker: raw-identity key positions fixed in f64475611998489ac09a6361af858424b73bb6ae.
+# Rerun marker: reviewed Foggia applicant identifier anomalies are 621 strict, 6 raw-only and 1 source-empty.
