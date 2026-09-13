@@ -2,10 +2,8 @@ name: Gorizia transactional parser fix
 
 on:
   push:
-    branches:
-      - expansion/gorizia-2026-09-13
-    paths:
-      - .github/workflows/gorizia-parser-import-fix.yml
+    branches: [expansion/gorizia-2026-09-13]
+    paths: [.github/workflows/gorizia-parser-import-fix.yml]
   workflow_dispatch:
 
 permissions:
@@ -25,48 +23,50 @@ jobs:
           python-version: '3.12'
 
       - name: Apply evidence-bound parser corrections
+        shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          path = Path('src/white_list_archive/parsers/gorizia_tables.py')
-          text = path.read_text(encoding='utf-8')
+          p = Path('src/white_list_archive/parsers/gorizia_tables.py')
+          s = p.read_text(encoding='utf-8')
 
           old_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "MONFALCONE (GO) Via Timavo, 63",\n            "C.F./P.I. 01282120315",\n            "30 luglio 2026",\n        ),\n'''
           new_sig = '''        (\n            "PEVERE LOGISTICA SRL",\n            "GORIZIA Via Gregorcic snc",\n            "00546290313",\n            "30 luglio 2026",\n        ),\n'''
-          if old_sig in text:
-              text = text.replace(old_sig, new_sig, 1)
-          elif new_sig not in text:
-              raise RuntimeError('reviewed PEVERE source signature is neither old nor exact source form')
+          if old_sig in s:
+              s = s.replace(old_sig, new_sig, 1)
+          elif new_sig not in s:
+              raise RuntimeError('reviewed PEVERE signature drift')
 
           old_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
-          new_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    numeric_match = re.fullmatch(r"(\\d{1,2})[./](\\d{1,2})[./](\\d{4})", value)\n    if numeric_match:\n        try:\n            return date(\n                int(numeric_match.group(3)),\n                int(numeric_match.group(2)),\n                int(numeric_match.group(1)),\n            ).isoformat()\n        except ValueError as exc:\n            raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
-          if old_dates in text:
-              text = text.replace(old_dates, new_dates, 1)
-          elif new_dates not in text:
-              raise RuntimeError('numeric-date parser block drift')
+          new_dates = '''    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n    numeric_match = re.fullmatch(r"(\\d{1,2})[./](\\d{1,2})[./](\\d{4})", value)\n    if numeric_match:\n        try:\n            return date(int(numeric_match.group(3)), int(numeric_match.group(2)), int(numeric_match.group(1))).isoformat()\n        except ValueError as exc:\n            raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc\n    match = re.fullmatch(r"(\\d{1,2})(?:°)?\\s+([A-Za-zÀ-ÿ]+)\\s+(\\d{4})", value)\n'''
+          if old_dates in s:
+              s = s.replace(old_dates, new_dates, 1)
+          elif new_dates not in s:
+              raise RuntimeError('numeric-date parser drift')
 
-          old = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
-          new = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}"\n        )\n'''
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise RuntimeError('blank-expiry parser block drift')
+          old_blank = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
+          new_blank = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (row["name"], row["office"], row["secondary"], row["identifier_raw"], row["listing_raw"], row["expiry_raw"])\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}")\n'''
+          if old_blank in s:
+              s = s.replace(old_blank, new_blank, 1)
+          elif new_blank not in s:
+              raise RuntimeError('blank-expiry parser drift')
 
           old_diag = '            "blank_expiry_rows": blank_expiry_rows,\n'
           new_diag = '            "blank_expiry_rows": blank_expiry_sector_rows,\n            "blank_expiry_registrations": len(observed_blank_expiry_signatures),\n'
-          if old_diag in text:
-              text = text.replace(old_diag, new_diag, 1)
-          elif new_diag not in text:
-              raise RuntimeError('blank-expiry diagnostic drift')
-          path.write_text(text, encoding='utf-8')
+          if old_diag in s:
+              s = s.replace(old_diag, new_diag, 1)
+          elif new_diag not in s:
+              raise RuntimeError('blank-expiry diagnostics drift')
+          p.write_text(s, encoding='utf-8')
           PY
           git diff --check
 
-      - name: Install validation runtime
-        run: python -m pip install --disable-pip-version-check -e '.[dev]' requests
+      - name: Install full test runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev,storage,database]' requests
 
       - name: Validate approved official bytes and parser output
+        shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -82,8 +82,7 @@ jobs:
             ('gorizia-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx','680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d','.docx'),
             ('gorizia-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf','befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c','.pdf'),
           ]
-          batches=[]
-          Path('tmp/validation').mkdir(parents=True,exist_ok=True)
+          batches=[]; Path('tmp/validation').mkdir(parents=True, exist_ok=True)
           for key,scope,url,expected_sha,suffix in specs:
               bodies=[]
               for i in range(2):
@@ -93,16 +92,15 @@ jobs:
                   bodies.append(body)
                   if i == 0: time.sleep(2)
               if bodies[0] != bodies[1]: raise RuntimeError(f'{key} repeat-fetch byte drift')
-              p=Path('tmp/validation')/f'{key}{suffix}'; p.write_bytes(bodies[0])
+              path=Path('tmp/validation')/f'{key}{suffix}'; path.write_bytes(bodies[0])
               cfg={'source_key':key,'authority_key':'gorizia','authority_name':'Prefettura di Gorizia','register_key':'gorizia-ordinary','register_name':'White List ordinaria','population_scope':scope,'reference_date':'2026-09-13','source_page_url':landing,'resource_url':url,'sha256':expected_sha}
-              batches.append(parse_gorizia_listed(p,cfg) if scope == 'listed' else parse_gorizia_applicants(p,cfg))
+              batches.append(parse_gorizia_listed(path,cfg) if scope == 'listed' else parse_gorizia_applicants(path,cfg))
           listed,applicants=batches
           if listed.diagnostics['sector_rows'] != 186 or listed.diagnostics['public_records'] != 117: raise RuntimeError(listed.diagnostics)
           if listed.diagnostics['blank_expiry_registrations'] != 2: raise RuntimeError(listed.diagnostics)
           if listed.diagnostics['status_counts'] != {'listed':86,'renewal_update_in_progress':31}: raise RuntimeError(listed.diagnostics)
           if applicants.diagnostics['public_records'] != 10: raise RuntimeError(applicants.diagnostics)
-          records=listed.records+applicants.records
-          counts=dict(Counter(r['source_status'] for r in records))
+          records=listed.records+applicants.records; counts=dict(Counter(r['source_status'] for r in records))
           if len(records) != 127 or counts != {'listed':86,'renewal_update_in_progress':31,'pending':10}: raise RuntimeError((len(records),counts))
           if len({r['record_locator'] for r in records}) != 127: raise RuntimeError('record locator collision')
           print({'records':127,'statuses':counts,'blank_expiry_rows':listed.diagnostics['blank_expiry_rows'],'blank_expiry_registrations':2})
@@ -112,6 +110,7 @@ jobs:
         run: pytest -q
 
       - name: Commit validated production parser correction
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
