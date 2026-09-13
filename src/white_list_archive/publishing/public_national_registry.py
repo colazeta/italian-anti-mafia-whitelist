@@ -45,12 +45,17 @@ from white_list_archive.parsers.bolzano_docx import (
 from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
 from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
 from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
+from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
 BOLZANO_PARSERS = {
     "bolzano_listed": parse_bolzano_listed,
     "bolzano_applicants": parse_bolzano_applicants,
+}
+FOGGIA_PARSERS = {
+    "foggia_listed": parse_foggia_listed,
+    "foggia_applicants": parse_foggia_applicants,
 }
 
 
@@ -233,6 +238,59 @@ def _adapt_cosenza(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     return ParsedBatch(records, diagnostics)
 
 
+
+def _adapt_foggia_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Foggia parser evidence onto the closed public contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Foggia source_fields must be a mapping")
+        if parser_name == "foggia_listed":
+            expected = {
+                "name_variants", "registered_office_variants", "secondary_office_variants",
+                "identifier_raw_variants", "sections", "section_heading_raw_variants",
+                "listing_date_raw_variants", "expiry_date_raw_variants", "outcome_raw_variants",
+                "source_locators", "reviewed_name_reconciliation",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Foggia listed source-field drift: {sorted(fields)!r}")
+            list_keys = (
+                "name_variants", "registered_office_variants", "secondary_office_variants",
+                "identifier_raw_variants", "sections", "section_heading_raw_variants",
+                "listing_date_raw_variants", "expiry_date_raw_variants", "outcome_raw_variants",
+                "source_locators",
+            )
+            for key in list_keys:
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Foggia listed source-field type drift: {key}")
+            if not isinstance(fields["reviewed_name_reconciliation"], str):
+                raise RuntimeError("Foggia listed reconciliation type drift")
+            record["source_fields"] = {
+                "registered_office_variants": list(fields["registered_office_variants"]),
+                "secondary_office_variants": list(fields["secondary_office_variants"]),
+                "sections": list(fields["sections"]),
+                "listing_date_raw_variants": list(fields["listing_date_raw_variants"]),
+                "expiry_date_raw_variants": list(fields["expiry_date_raw_variants"]),
+            }
+        elif parser_name == "foggia_applicants":
+            expected = {"requested_activities_source", "application_date_raw", "source_locator"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Foggia applicant source-field drift: {sorted(fields)!r}")
+            if any(not isinstance(fields[key], str) for key in expected):
+                raise RuntimeError("Foggia applicant source-field type drift")
+            application_raw = fields["application_date_raw"]
+            record["source_fields"] = {
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": [application_raw] if application_raw else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Foggia parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -262,6 +320,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or CASERTA_PARSERS.get(cfg["parser"])
         or CATANIA_PARSERS.get(cfg["parser"])
         or GENOVA_PARSERS.get(cfg["parser"])
+        or FOGGIA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -270,6 +329,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_bolzano_public_fields(batch, cfg["parser"])
     if cfg["parser"] in GENOVA_PARSERS:
         batch = _adapt_genova_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in FOGGIA_PARSERS:
+        batch = _adapt_foggia_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "1"
