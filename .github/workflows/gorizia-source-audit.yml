@@ -1,9 +1,6 @@
 name: Gorizia source audit
 
 on:
-  push:
-    branches:
-      - expansion/gorizia-2026-09-13
   workflow_dispatch:
 
 permissions:
