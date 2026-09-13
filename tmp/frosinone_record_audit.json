@@ -4,16 +4,16 @@
   "listed": {
     "records": 763,
     "status_counts": {
-      "renewal_update_in_progress": 231,
+      "renewal_update_in_progress": 232,
       "listed": 527,
-      "listed_note": 5
+      "listed_note": 4
     },
     "strict_identifier_cardinality": {
       "0": 26,
       "1": 708,
       "2": 29
     },
-    "records_with_continuations": 25,
+    "records_with_continuations": 40,
     "administrative_rows": [
       {
         "page": 4,
@@ -81,11 +81,76 @@
         ]
       }
     ],
-    "unresolved_named_rows": [
+    "boundary_fragments": [
+      {
+        "page": 2,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "3 n. 30-39",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 19/10/2020"
+        ],
+        "before_name": "Navarra s.p.a.",
+        "after_name": "Navarra s.p.a."
+      },
+      {
+        "page": 5,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Lazio(FR) Localita’ San Cesario snc",
+          "",
+          "",
+          "",
+          "",
+          "corso per richiesta a permanere del 04/05/2026"
+        ],
+        "before_name": "INFRAGEST S.R.L.",
+        "after_name": "INFRAGEST S.R.L."
+      },
+      {
+        "page": 6,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 14/06/2023"
+        ],
+        "before_name": "EUROSERVIZI 2000 S.R.L.",
+        "after_name": "EUROSERVIZI 2000 S.R.L."
+      },
+      {
+        "page": 7,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Via Decorato n. 8",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "MA.VA.TER S.R.L.",
+        "after_name": "MA.VA.TER S.R.L."
+      },
       {
         "page": 8,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L. UNIPERSONALE",
           "Milazzo, n. 3",
           "",
@@ -93,12 +158,47 @@
           "",
           "VII-X",
           "corso per richiesta a permanere del 01/06/2026"
-        ]
+        ],
+        "before_name": "GEDIL COSTRUZIONI",
+        "after_name": "GEDIL COSTRUZIONI S.R.L. UNIPERSONALE"
+      },
+      {
+        "page": 9,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "07/05/2026"
+        ],
+        "before_name": "SABELLICO S.R.L.",
+        "after_name": "SABELLICO S.R.L."
+      },
+      {
+        "page": 11,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "R) Via Madonnelle n. 201",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 09/02/2026"
+        ],
+        "before_name": "ECO SCAVI S.R.L.",
+        "after_name": "ECO SCAVI S.R.L."
       },
       {
         "page": 12,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "ITALCOSTRUZIONI S.R.L.",
           "Valle Amaseno n. 11",
           "",
@@ -106,12 +206,31 @@
           "",
           "VII-X",
           ""
-        ]
+        ],
+        "before_name": "G.L.A.",
+        "after_name": "G.L.A. ITALCOSTRUZIONI S.R.L."
+      },
+      {
+        "page": 14,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "78,400.",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "INTERMODALTRASP ORTI S.R.L.",
+        "after_name": "INTERMODALTRASP ORTI S.R.L."
       },
       {
         "page": 15,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L.S.",
           "Via Fabrateria Vetus, snc",
           "",
@@ -119,12 +238,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "EURO TRASPORTI",
+        "after_name": "EURO TRASPORTI S.R.L.S."
       },
       {
         "page": 19,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "FRANCO VIGLIANTI S.R.L.",
           "Viale della Repubblica n.26",
           "",
@@ -132,12 +254,63 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "COSTRUZIONI",
+        "after_name": "COSTRUZIONI FRANCO VIGLIANTI S.R.L."
+      },
+      {
+        "page": 20,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Circonvallazio ne Cerano snc",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "LANZI COSTRUZIONI S.R.L.",
+        "after_name": "LANZI COSTRUZIONI S.R.L."
+      },
+      {
+        "page": 22,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Via Prenestina, 347",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "EN. EC. AM. S.R.L.",
+        "after_name": "EN. EC. AM. S.R.L."
+      },
+      {
+        "page": 23,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Casilina Nord, 256",
+          "",
+          "",
+          "",
+          "",
+          "corso per richiesta a permanere del 18/05/2026"
+        ],
+        "before_name": "CIOCE ASFALTI S.R.L.",
+        "after_name": "CIOCE ASFALTI S.R.L."
       },
       {
         "page": 24,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "CATERINA & C.",
           "",
           "",
@@ -145,12 +318,31 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "COSTRUZIONI GENERALI S.A.S. DI D’ALESSANDRO",
+        "after_name": "COSTRUZIONI GENERALI S.A.S. DI D’ALESSANDRO CATERINA & C."
+      },
+      {
+        "page": 25,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "08/01/2025"
+        ],
+        "before_name": "ROTONDI CANTIERI S.R.L.",
+        "after_name": "ROTONDI CANTIERI S.R.L."
       },
       {
         "page": 27,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L.",
           "Sopra, n. 5",
           "",
@@ -158,12 +350,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "S.E.A. COSTRUZIONI",
+        "after_name": "S.E.A. COSTRUZIONI S.R.L."
       },
       {
         "page": 30,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "s.r.l.",
           "Via Rotondi n. 20",
           "",
@@ -171,12 +366,111 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "Soc. Appalti 2012",
+        "after_name": "Soc. Appalti 2012 s.r.l."
+      },
+      {
+        "page": 31,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Localita’ Cangiano",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "GIS ROMA SRL",
+        "after_name": "GIS ROMA SRL"
+      },
+      {
+        "page": 32,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          ") Via Piana, 15/A",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "GE.FI. S.R.L.",
+        "after_name": "GE.FI. S.R.L."
+      },
+      {
+        "page": 32,
+        "table": 1,
+        "row": 9,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "corso per richiesta a"
+        ],
+        "before_name": "EDIL VALLE S.R.L.",
+        "after_name": "EDIL VALLE S.R.L."
+      },
+      {
+        "page": 32,
+        "table": 1,
+        "row": 10,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "permanere del"
+        ],
+        "before_name": "EDIL VALLE S.R.L.",
+        "after_name": "EDIL VALLE S.R.L."
+      },
+      {
+        "page": 32,
+        "table": 1,
+        "row": 11,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "02/07/2024"
+        ],
+        "before_name": "EDIL VALLE S.R.L.",
+        "after_name": "EDIL VALLE S.R.L."
+      },
+      {
+        "page": 33,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Amaseno, 37",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "MINUTILLO S.R.L.",
+        "after_name": "MINUTILLO S.R.L."
       },
       {
         "page": 36,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L.S.",
           "Gavignano, n. 10",
           "",
@@ -184,12 +478,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "NOBILI SEGNALETICA",
+        "after_name": "NOBILI SEGNALETICA S.R.L.S."
       },
       {
         "page": 39,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L.",
           "Via Casilina, 249",
           "",
@@ -197,12 +494,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "CLEAN SYSTEM",
+        "after_name": "CLEAN SYSTEM S.R.L."
       },
       {
         "page": 40,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "C. S.N.C.",
           "",
           "",
@@ -210,12 +510,63 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "C.I.S.E. COSTRUZIONI IDRAULICHE STRADALI EDILI DI PIZZUTI GAETANO E",
+        "after_name": "C.I.S.E. COSTRUZIONI IDRAULICHE STRADALI EDILI DI PIZZUTI GAETANO E C. S.N.C."
+      },
+      {
+        "page": 42,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Nicola, n. 102",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 19/03/2025"
+        ],
+        "before_name": "DASA S.R.L.",
+        "after_name": "DASA S.R.L."
+      },
+      {
+        "page": 43,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "alla soc.ta’ S.r.l. c. f. 03192460602; la Mitas ecc… in data 01/03/2023 e’ stata cancellata dal registro imprese di Frosinone"
+        ],
+        "before_name": "MITAS ENDUSTRI SANAYI TICARET A.S.R.l.",
+        "after_name": "MITAS ENDUSTRI SANAYI TICARET A.S.R.l."
+      },
+      {
+        "page": 44,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Via San Bartolomeo n. 21",
+          "",
+          "",
+          "",
+          "",
+          "corso per richiesta a permanere del 02/07/2022"
+        ],
+        "before_name": "PICANO S.R.L.",
+        "after_name": "PICANO S.R.L."
       },
       {
         "page": 45,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "Impresa Individuale",
           "",
           "",
@@ -223,12 +574,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "Piccinilli Angelo –",
+        "after_name": "Piccinilli Angelo – Impresa Individuale"
       },
       {
         "page": 46,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "SERVICE S.R.L.",
           "Provinciale n. 33",
           "",
@@ -236,12 +590,15 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "MA.DA. TRANS",
+        "after_name": "MA.DA. TRANS SERVICE S.R.L."
       },
       {
         "page": 48,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "S.R.L. ARTIGIANA",
           "Giovanni Campano(FR) Via La Lucca, 62",
           "",
@@ -249,12 +606,79 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "CO.GE.MA. 76",
+        "after_name": "CO.GE.MA. 76 S.R.L. ARTIGIANA"
+      },
+      {
+        "page": 50,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Bartoli, 45",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "S.R.L.",
+        "after_name": "S.R.L."
+      },
+      {
+        "page": 56,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Via A. Manzoni n. 34",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 19/05/2025"
+        ],
+        "before_name": "CAVE ROYAL GROUP S.R.L.",
+        "after_name": "CAVE ROYAL GROUP S.R.L."
+      },
+      {
+        "page": 57,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "03/10/2025"
+        ],
+        "before_name": "18A S.R.L.",
+        "after_name": "18A S.R.L."
+      },
+      {
+        "page": 58,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "13/12/2023"
+        ],
+        "before_name": "ENERFUEL S.R.L.",
+        "after_name": "ENERFUEL S.R.L."
       },
       {
         "page": 59,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "SOCIALE",
           "99/4",
           "",
@@ -262,12 +686,47 @@
           "",
           "",
           "17/08/2022"
-        ]
+        ],
+        "before_name": "MONTANO SOCIETA’ COOPERATIVA",
+        "after_name": "MONTANO SOCIETA’ COOPERATIVA SOCIALE"
+      },
+      {
+        "page": 70,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "81/C",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "LA FONTANA SERVICE S.R.L.",
+        "after_name": "LA FONTANA SERVICE S.R.L."
+      },
+      {
+        "page": 73,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Sud, snc",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 20/03/2025"
+        ],
+        "before_name": "CB COSTRUZIONI S.R.L.S.",
+        "after_name": "CB COSTRUZIONI S.R.L.S."
       },
       {
         "page": 81,
+        "table": 1,
         "row": 1,
-        "cells": [
+        "fragment": [
           "MICHELANGELO & FIGLI S.N.C.",
           "",
           "",
@@ -275,12 +734,30 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "AUTOTRASPORTI E CASA DI SPEDIZIONI DI FONTANA AMERICO-",
+        "after_name": "AUTOTRASPORTI E CASA DI SPEDIZIONI DI FONTANA AMERICO- MICHELANGELO & FIGLI S.N.C."
+      },
+      {
+        "page": 83,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "Sant’Angelo n. 5/C",
+          "",
+          "",
+          "",
+          "",
+          "permanere del 06/08/2026"
+        ],
+        "before_name": "DA.MB TRASPORTI E SOCCORSI S.R.L.",
+        "after_name": "DA.MB TRASPORTI E SOCCORSI S.R.L."
       }
     ],
-    "orphan_continuations": [],
+    "blank_name_identity_rows": [],
+    "unresolved_rows": [],
     "other_note_values": {
-      "Aggiornamento in": 1,
       "Con atto notarile in data 21/12/2022 le quote sociali della Soc.ta’ Mitas Endustri Sanayi Ticaret Anonimi Sirketi son state cedute alla soc.ta’ S.r.l. c. f. 03192460602; la Mitas ecc… in data 01/03/2023 e’ stata cancellata dal registro imprese di Frosinone": 1,
       "LA SOCIETA’ HA TRASFERITO LA SEDE LEGALE A ROMA IL 12/01/2024": 1,
       "Aggiornamento in corso per richiesta a": 1,
@@ -348,52 +825,79 @@
       {
         "page": 16,
         "row": 1,
-        "name": "IMPRESA INDIVIDUALE"
+        "name": "IMPRESA INDIVIDUALE",
+        "identifier_raw": "40O",
+        "continuations": []
       },
       {
         "page": 20,
         "row": 6,
-        "name": "GRANDE COSTRUZIONI S.R.L."
+        "name": "GRANDE COSTRUZIONI S.R.L.",
+        "identifier_raw": "C.F.02570040606",
+        "continuations": []
       },
       {
         "page": 21,
         "row": 1,
-        "name": "INDIVIDUALE"
+        "name": "INDIVIDUALE",
+        "identifier_raw": "38U",
+        "continuations": []
       },
       {
         "page": 54,
         "row": 8,
-        "name": "TETI TRIVELLAZIONI S.R.L."
+        "name": "TETI TRIVELLAZIONI S.R.L.",
+        "identifier_raw": "C.F.02746320601",
+        "continuations": []
       },
       {
         "page": 85,
         "row": 1,
-        "name": "MOVIMENTO TERRA & EDILIZIA DI VISCA DAVIDE"
+        "name": "MOVIMENTO TERRA & EDILIZIA DI VISCA DAVIDE",
+        "identifier_raw": "02906550609",
+        "continuations": []
       }
     ]
   },
   "applicants": {
-    "records": 477,
+    "records": 475,
     "outcome_counts": {
       "ISTRUTTORIA IN CORSO": 466,
       "ISTRUTTORIA PIN CORSO": 1,
-      "": 6,
       "ISTRUITTORIA IN CORSO": 1,
+      "": 4,
       "ISTRUZIONI IN CORSO": 1,
       "ISTRUTTORIA IN CORSA": 1,
       "ISTRUTTORIA IN CORSO.": 1
     },
     "strict_identifier_cardinality": {
-      "0": 4,
+      "0": 2,
       "1": 470,
       "2": 3
     },
-    "ignored_nonempty_blank_name_rows": [
+    "records_with_continuations": 4,
+    "boundary_fragments": [
+      {
+        "page": 6,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "INDIVIDUALE",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "C.A. IMPIANTI DI CALUPPI ALESSANDRO – IMPRESA",
+        "after_name": "C.A. IMPIANTI DI CALUPPI ALESSANDRO – IMPRESA INDIVIDUALE"
+      },
       {
         "page": 7,
         "table": 2,
         "row": 1,
-        "cells": [
+        "fragment": [
           "",
           "Reali 8",
           "",
@@ -401,8 +905,44 @@
           "",
           "",
           ""
-        ]
+        ],
+        "before_name": "C.G. COSTRUZIONI GENERALI S.R.L.S.",
+        "after_name": "C.G. COSTRUZIONI GENERALI S.R.L.S."
       },
+      {
+        "page": 14,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "S.R.L.",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "before_name": "EDIL TRASPORTI TOSTI",
+        "after_name": "EDIL TRASPORTI TOSTI S.R.L."
+      },
+      {
+        "page": 33,
+        "table": 1,
+        "row": 1,
+        "fragment": [
+          "",
+          "snc",
+          "",
+          "",
+          "VI – X -",
+          "",
+          ""
+        ],
+        "before_name": "SI.DO. APPALTI S.R.L.",
+        "after_name": "SI.DO. APPALTI S.R.L."
+      }
+    ],
+    "blank_name_identity_rows": [
       {
         "page": 29,
         "table": 1,
@@ -415,29 +955,18 @@
           "",
           "",
           ""
-        ]
-      },
-      {
-        "page": 33,
-        "table": 1,
-        "row": 1,
-        "cells": [
-          "",
-          "snc",
-          "",
-          "",
-          "VI – X -",
-          "",
-          ""
-        ]
+        ],
+        "previous_name": "PAGLIAROLI LORENZO – IMPRESA INDIVIDUALE"
       }
     ],
+    "unresolved_rows": [],
     "malformed_application_dates": [
       {
         "page": 12,
         "table": 1,
         "row": 4,
         "name": "DRAGHETTO S.R.L.",
+        "identifier_raw": "01632260608",
         "value": "06/08/2025s"
       },
       {
@@ -445,97 +974,59 @@
         "table": 1,
         "row": 8,
         "name": "JOY S.R.L.",
+        "identifier_raw": "02971080607",
         "value": "13/05/206"
       }
     ],
     "blank_application_dates": [
       {
-        "page": 6,
-        "table": 1,
-        "row": 1,
-        "name": "INDIVIDUALE"
-      },
-      {
-        "page": 13,
-        "table": 2,
-        "row": 7,
-        "name": "EDIL TIMBERING 2001 S.R.L."
-      },
-      {
-        "page": 14,
-        "table": 1,
-        "row": 1,
-        "name": "S.R.L."
-      },
-      {
-        "page": 27,
-        "table": 1,
-        "row": 3,
-        "name": "N.C.C. PROFESSIONAL RENT SOCIETA’ COOPERATIVA A R.L."
-      }
-    ],
-    "blank_sections": [
-      {
-        "page": 6,
-        "table": 1,
-        "row": 1,
-        "name": "INDIVIDUALE"
-      },
-      {
-        "page": 14,
-        "table": 1,
-        "row": 1,
-        "name": "S.R.L."
-      }
-    ],
-    "blank_outcomes": [
-      {
-        "page": 6,
-        "table": 1,
-        "row": 1,
-        "name": "INDIVIDUALE",
-        "application_date": "",
-        "identifier_raw": ""
-      },
-      {
         "page": 13,
         "table": 2,
         "row": 7,
         "name": "EDIL TIMBERING 2001 S.R.L.",
-        "application_date": "",
         "identifier_raw": "02167090600"
-      },
-      {
-        "page": 14,
-        "table": 1,
-        "row": 1,
-        "name": "S.R.L.",
-        "application_date": "",
-        "identifier_raw": ""
-      },
-      {
-        "page": 20,
-        "table": 1,
-        "row": 1,
-        "name": "GEODES S.R.L.",
-        "application_date": "18/05/2026",
-        "identifier_raw": "02414770608"
-      },
-      {
-        "page": 21,
-        "table": 1,
-        "row": 6,
-        "name": "HD SERVICE S.R.L.",
-        "application_date": "30/04/2022",
-        "identifier_raw": "08147091212"
       },
       {
         "page": 27,
         "table": 1,
         "row": 3,
         "name": "N.C.C. PROFESSIONAL RENT SOCIETA’ COOPERATIVA A R.L.",
-        "application_date": "",
         "identifier_raw": "03095870600"
+      }
+    ],
+    "blank_sections": [],
+    "blank_outcomes": [
+      {
+        "page": 13,
+        "table": 2,
+        "row": 7,
+        "name": "EDIL TIMBERING 2001 S.R.L.",
+        "identifier_raw": "02167090600",
+        "application_date": ""
+      },
+      {
+        "page": 20,
+        "table": 1,
+        "row": 1,
+        "name": "GEODES S.R.L.",
+        "identifier_raw": "02414770608",
+        "application_date": "18/05/2026"
+      },
+      {
+        "page": 21,
+        "table": 1,
+        "row": 6,
+        "name": "HD SERVICE S.R.L.",
+        "identifier_raw": "08147091212",
+        "application_date": "30/04/2022"
+      },
+      {
+        "page": 27,
+        "table": 1,
+        "row": 3,
+        "name": "N.C.C. PROFESSIONAL RENT SOCIETA’ COOPERATIVA A R.L.",
+        "identifier_raw": "03095870600",
+        "application_date": ""
       }
     ]
   }
