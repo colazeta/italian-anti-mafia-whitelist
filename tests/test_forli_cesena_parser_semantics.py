@@ -114,6 +114,26 @@ def test_il_status_date_is_preserved_and_normalised() -> None:
     ]
 
 
+def test_da_status_date_is_preserved_and_normalised() -> None:
+    record = _parse(
+        "01234567890",
+        "DA DATE TEST SRL",
+        "strict_11_digit",
+        [
+            "  01234567890 DA DATE TEST SRL",
+            "          VIA TEST 12                          Provv. n.   del        Scadenza       IN AGGIORNAMENTO",
+            "                                                                                     DA 24/06/2026",
+            "          FORLI' (FC)",
+            "                                                 Sezioni.: I II III IV V VI VII VIII IX X",
+        ],
+    )
+    assert record["source_status"] == "renewal_update_in_progress"
+    assert record["source_fields"]["in_aggiornamento"] == "DA 24/06/2026"
+    assert record["source_fields"]["outcome"]["dates"] == [
+        {"raw_value": "DA 24/06/2026", "date": "2026-06-24", "parenthesized": False}
+    ]
+
+
 def test_malformed_status_date_is_preserved_without_repair() -> None:
     record = _parse(
         "01234567890",
