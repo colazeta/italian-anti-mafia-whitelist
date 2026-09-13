@@ -99,6 +99,7 @@ _ITALIAN_MONTHS = {
     "dicembre": 12,
 }
 _REVIEWED_MALFORMED_DATES = frozenset({"10.12.202", "14 agosto 204"})
+_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}
 
 
 def _physical_cells(row: Any) -> list[str]:
@@ -129,6 +130,8 @@ def _strict_source_date(raw: str, *, label: str, allow_blank: bool = False) -> s
         raise RuntimeError(f"Gorizia unexpected blank {label} date")
     if value in _REVIEWED_MALFORMED_DATES:
         return ""
+    if value in _REVIEWED_SPLIT_DIGIT_DATES:
+        return _REVIEWED_SPLIT_DIGIT_DATES[value]
     match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", value)
     if match:
         day, month, year = map(int, match.groups())
