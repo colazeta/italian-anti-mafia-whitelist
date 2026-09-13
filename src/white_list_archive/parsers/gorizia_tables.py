@@ -79,7 +79,10 @@ _ITALIAN_MONTHS = {
     "dicembre": 12,
 }
 _REVIEWED_MALFORMED_DATES = frozenset({"10.12.202", "Dal 10.12.202", "14 agosto 204"})
-_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}
+_REVIEWED_SPLIT_DIGIT_DATES = {
+    "2 1 aprile 2026": "2026-04-21",
+    "14 luglio 2 027": "2027-07-14",
+}
 _REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
     (
         "“ MAROLLI COSTRUZIONI SRL”",
