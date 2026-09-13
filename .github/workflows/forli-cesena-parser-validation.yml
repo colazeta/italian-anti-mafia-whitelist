@@ -141,11 +141,11 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin expansion/forli-cesena-2026-09-13
-          git rebase origin/expansion/forli-cesena-2026-09-13
           git add tmp/forli_cesena_parser_validation.txt || true
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'Checkpoint Forli-Cesena parser validation'
+          git fetch origin expansion/forli-cesena-2026-09-13
+          git rebase origin/expansion/forli-cesena-2026-09-13
           git push origin HEAD:expansion/forli-cesena-2026-09-13
 
       - name: Enforce parser validation gate
