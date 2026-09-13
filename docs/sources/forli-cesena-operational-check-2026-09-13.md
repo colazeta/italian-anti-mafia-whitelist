@@ -2,7 +2,7 @@
 
 ## Scope
 
-This note records the evidence and parser-preparation checkpoint for national expansion. It is **not** publication approval and does not yet mark Forlì-Cesena as publicly integrated.
+This note freezes the official-source, byte-capture and parser-validation evidence used for the Forlì-Cesena national-expansion candidate. Publication approval still requires the national integration, repository and public-portal gates.
 
 ## Current official publication surface
 
@@ -10,14 +10,14 @@ Official Prefettura landing page:
 
 - https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list
 
-The current page was verified on 2026-09-13. It exposes one current attachment labelled **“White list dell'11 settembre 2026”** (473.63 KB) and reports a page update timestamp of **11 September 2026, 13:22**.
+The page was verified on 2026-09-13. It exposes one current attachment labelled **“White list dell'11 settembre 2026”** (473.63 KB) and reports a page update timestamp of **11 September 2026, 13:22**.
 
-Current official attachment identified from that page:
+Current official attachment:
 
 - https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf
 - stated edition date: 2026-09-11
 
-The publication itself provides the semantics needed for the two non-default current-state markers: `AVVIO ISTRUTTORIA` is the application/instruction-stage population and `IN AGGIORNAMENTO` is the renewal/update population. Rows without either current-state marker retain populated enrolment provvedimento/expiry fields and are treated as listed only after structural parser validation.
+The publication itself provides the semantics needed for the two non-default current-state markers: `AVVIO ISTRUTTORIA` is the application/instruction-stage population and `IN AGGIORNAMENTO` is the renewal/update population. Rows without either current-state marker retain populated enrolment provvedimento/expiry fields and are treated as listed only after structural validation.
 
 ## Content-addressed capture
 
@@ -28,60 +28,73 @@ The branch-local source audit fetched the exact official PDF twice from the Pref
 - SHA-256 fetch B: `f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468`
 - byte identity: `true`
 
-A subsequent layout-preserving extraction from those pinned bytes established:
+A layout-preserving extraction from those pinned bytes established:
 
 - 69 pages;
 - layout-text SHA-256 `69df0461a19e6aae14aecfd2ff4d69ae328f9122c00231c4566427daae745d03`;
-- the PDF has no extractable ruled tables under `pdfplumber.extract_tables()`, so a table-family parser is not appropriate for this edition.
+- no extractable ruled tables under `pdfplumber.extract_tables()`, so a table-family parser is not appropriate for this edition.
 
 ## Row and population reconciliation
 
-A positioned logical-block audit reconciled the whole pinned edition to **749 source observations** with no remaining structural anomaly under the reviewed block boundaries:
+The full-source parser validation reconciles the pinned edition to exactly **749 source observations**:
 
-- 401 rows with no explicit current-state marker and populated listed/provvedimento semantics;
-- 204 rows explicitly marked `IN AGGIORNAMENTO`;
-- 144 rows explicitly marked `AVVIO ISTRUTTORIA`;
-- 747 rows begin with a strict 11-digit identifier;
-- one source row contains the 10-digit token `0543034730` for `V8 TRASPORTI & LOGISTICA SRL`; it must remain raw and must not be padded or repaired into a canonical identifier;
-- one foreign source row, `GRUPPO IDRODEMOLIZIONI SRL - SOCIETA' ESTERA`, has no numeric identifier; no identifier may be fabricated;
-- strict identifiers `03690740406` and `04581460260` each occur in two distinct source observations with different current-state evidence and therefore must not be deduplicated by identifier alone;
-- all 749 blocks carry one `Provv. ... Scadenza ...` source line and one `Sezioni.: I II III IV V VI VII VIII IX X` line;
+- 401 `listed` observations;
+- 204 observations explicitly marked `IN AGGIORNAMENTO`, mapped to `renewal_update_in_progress`;
+- 144 observations explicitly marked `AVVIO ISTRUTTORIA`, mapped to `pending`;
+- 747 observations contain a strict 11-digit identifier;
+- one source row contains the 10-digit token `0543034730` for `V8 TRASPORTI & LOGISTICA SRL`; it remains raw and is not padded or repaired into a canonical identifier;
+- one foreign source row, `GRUPPO IDRODEMOLIZIONI SRL - SOCIETA' ESTERA`, has no numeric identifier; no identifier is fabricated;
+- strict identifiers `03690740406` and `04581460260` each occur in two distinct source observations and remain separate observations;
+- all 749 logical blocks carry one `Provv. ... Scadenza ...` source line and one `Sezioni.: I II III IV V VI VII VIII IX X` line;
 - 600 observations carry both a decision/provvedimento date and an expiry date;
-- 314 observations carry a separate current-status date line (`DAL`, `AL` or an unprefixed date);
-- one `pdfplumber` layout extraction emits `(cid:9)` before the AQUAMET name for identifier `02161921008`; only this exact reviewed extraction artefact is eligible for a localised reconciliation. Broad `(cid:...)` stripping is prohibited.
+- **320** observations carry a separate current-status date line. Audited source forms include bare dates and the prefixes `DAL`, `DA`, `AL`, `DEL` and `IL`;
+- the exact malformed source value `DAL 11/04/20226` is preserved raw, with no inferred or repaired normalised date;
+- one `pdfplumber` layout extraction emits `(cid:9)` before the AQUAMET name for identifier `02161921008`; only this exact reviewed extraction artefact is reconciled. Broad `(cid:...)` stripping remains prohibited.
 
-These denominators independently reconcile the legend-aware status counts in the extracted document: 145 occurrences of `AVVIO ISTRUTTORIA` include one legend occurrence, leaving 144 records, while `IN AGGIORNAMENTO` occurs on 204 records.
+The status denominator also reconciles the document legend: 145 textual occurrences of `AVVIO ISTRUTTORIA` include one legend occurrence, leaving 144 record-level pending observations; `IN AGGIORNAMENTO` occurs on 204 records.
 
 ## Population treatment
 
-The official surface is treated as a **single combined publication**, not as an invented listed series plus an applicant series. The parser mapping is evidence-backed and fail-closed:
+The official surface is treated as a **single combined publication**, not as an invented listed series plus an applicant series. The mapping is evidence-backed and fail-closed:
 
 - explicit `AVVIO ISTRUTTORIA` → `pending`;
 - explicit `IN AGGIORNAMENTO` → `renewal_update_in_progress`;
 - no explicit current-state marker + complete listed provvedimento/date structure → `listed`;
-- any unknown status marker, changed structure, asymmetric dates, unreviewed identifier shape or changed denominator must fail validation rather than being inferred or repaired.
+- unknown status markers, changed block structure, asymmetric provvedimento dates, unreviewed identifier shapes or changed audited denominators fail validation rather than being inferred or repaired.
 
-The parser preserves the raw 10-digit/blank identifiers without promoting them to canonical identifiers and preserves the two duplicate strict identifiers as separate observations.
+Addresses are cleaned and joined conservatively from source text only. The parser does not geocode or infer missing address components.
 
-## Parser checkpoint
+## Parser validation checkpoint
 
-A permanent candidate parser now exists at `src/white_list_archive/parsers/forli_cesena_combined.py`, with permanent semantic tests in `tests/test_forli_cesena_parser_semantics.py`. It is designed against the byte-pinned 11 September edition and asserts the 69-page / 749-observation / 401+204+144 denominators, the reviewed identifier exceptions, duplicate-identifier evidence, provvedimento-date denominator and the single reviewed AQUAMET extraction artefact. Its source-specific fields are constrained to the existing public-record contract rather than widening that contract.
+The permanent parser is `src/white_list_archive/parsers/forli_cesena_combined.py`, with semantic tests in `tests/test_forli_cesena_parser_semantics.py`.
 
-The independent full-source parser-validation workflow is still the gate for changing canonical coverage. Until it succeeds on the exact pinned PDF, do not set `parser_validated`, `observations_loaded`, `population_scopes_complete` or `public_export_enabled`.
+The independent full-source parser-validation gate completed successfully against the exact pinned PDF. The frozen invariants are:
 
-## Canonical state constraints
+- `parser_gate=VALIDATED`;
+- 69 pages;
+- 749 public-contract-valid records;
+- statuses `401 listed / 204 renewal_update_in_progress / 144 pending`;
+- identifier kinds `747 strict_11_digit / 1 reviewed_10_digit_source_exception / 1 reviewed_blank_identifier_foreign_exception`;
+- duplicate strict identifiers exactly `03690740406` ×2 and `04581460260` ×2;
+- 600 dated provvedimento rows;
+- 320 standalone current-status date rows;
+- one reviewed AQUAMET CID extraction artefact;
+- `fabricated_identifier_rows=0`.
+
+The parser is byte-edition-specific and keeps the reviewed irregular identifier/date values raw where the source itself is irregular. Its source-specific fields fit the existing public-record contract; validation does not widen that contract.
+
+## Canonical-state constraints
 
 At this checkpoint:
 
-- the current PDF is content-addressed and repeat-fetch verified;
-- row/population denominators are reconciled to 749 observations;
-- parser implementation and permanent semantic invariants exist;
-- canonical coverage remains unchanged while full-source parser validation is pending;
-- no national/public integration is yet justified;
-- no inferred `NOT_PUBLISHED`, fabricated applicant series, identifier repair or identifier-level deduplication is permitted.
+- source identification, repeatable byte capture and full-source parser validation are complete;
+- the single combined population is defensibly complete for the published 11 September edition;
+- canonical/public integration is not considered complete until the national materialisation and full repository/public-registry gates pass;
+- canonical hosted-database integration and independently durable evidence remain separate governance work under the existing infrastructure issue and are not inferred from public-source validation;
+- no inferred `NOT_PUBLISHED`, fabricated applicant series, identifier repair, date repair or identifier-level deduplication is permitted.
 
 ## Next gate
 
-Resume `expansion/forli-cesena-2026-09-13` and inspect the full-source parser-validation result. If it validates the exact pinned PDF and the public-field contract for all 749 observations, freeze that result in this note, then bind the parser/source configuration and perform the canonical/national materialisation with the complete repository test suite and public-registry build. If it fails, preserve the exact failure and correct only the evidence-backed parser/layout assumption on this same branch.
+Resume `expansion/forli-cesena-2026-09-13` and complete the transactional national materialisation from this validated source/parser state. The candidate must pass the full repository suite and national public-registry build before any production files are committed. Only after those gates pass should the permanent Pages/browser expectations be updated, temporary expansion workflows and `tmp/forli_cesena_*` artefacts be removed, the branch be audited as production-only and a PR be opened.
 
 A failed later fetch remains an execution limitation, not evidence of non-publication or incompleteness.
