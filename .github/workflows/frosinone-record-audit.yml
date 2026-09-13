@@ -57,7 +57,7 @@ jobs:
               },
           }
           REQUEST_HEADERS = {
-              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-record-audit/1.0",
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-record-audit/2.0",
               "Accept": "application/pdf,*/*;q=0.8",
               "Referer": LANDING,
           }
@@ -80,7 +80,7 @@ jobs:
               path.write_bytes(body)
               return path
 
-          def header_row(row):
+          def is_header(row):
               folded = " | ".join(row).casefold()
               return (
                   ("denominaz" in folded and "codice fiscale" in folded)
@@ -97,9 +97,9 @@ jobs:
               m = DATE.fullmatch(value)
               if not m:
                   return "malformed"
-              d, mth, y = map(int, m.groups())
+              d, month, y = map(int, m.groups())
               try:
-                  date(y, mth, d)
+                  date(y, month, d)
               except ValueError:
                   return "malformed"
               return "valid"
@@ -109,11 +109,32 @@ jobs:
                   raise RuntimeError(f"listed row width below seven: {len(row)}: {row!r}")
               return row[:6] + [clean(" ".join(value for value in row[6:] if value))]
 
+          def append_fragment(record, cells, *, page, table, row):
+              before = list(record["cells"])
+              for index, value in enumerate(cells):
+                  if value:
+                      record["cells"][index] = clean(f"{record['cells'][index]} {value}")
+              event = {
+                  "page": page,
+                  "table": table,
+                  "row": row,
+                  "fragment": cells,
+                  "before_name": before[0],
+                  "after_name": record["cells"][0],
+              }
+              record["continuations"].append(event)
+              return event
+
+          # Listed population: the source uses seven semantic columns, with two
+          # pages whose extraction geometry adds trailing split cells. Collapse
+          # every row to the six fixed fields plus joined NOTE cells, then join
+          # only rows that carry no independent identifier/date evidence.
           listed_path = download("listed", SOURCES["listed"])
           listed_records = []
           listed_admin_rows = []
-          listed_unresolved_named_rows = []
-          listed_orphan_continuations = []
+          listed_boundary_fragments = []
+          listed_blank_name_identity_rows = []
+          listed_unresolved_rows = []
           with pdfplumber.open(listed_path) as pdf:
               if len(pdf.pages) != SOURCES["listed"]["pages"]:
                   raise RuntimeError("listed page-count drift")
@@ -124,47 +145,45 @@ jobs:
                       raise RuntimeError(f"listed p{page_number}: expected one table, got {len(tables)}")
                   for row_number, raw in enumerate(tables[0] or [], 1):
                       raw_row = [clean(cell) for cell in (raw or [])]
-                      if not any(raw_row) or header_row(raw_row):
+                      if not any(raw_row) or is_header(raw_row):
                           continue
-                      row = semantic_listed(raw_row)
-                      nonblank = [value for value in row if value]
-                      if not row[0] and len(nonblank) == 1 and ADMIN_ONLY.fullmatch(nonblank[0]):
-                          listed_admin_rows.append({"page": page_number, "row": row_number, "cells": row})
+                      cells = semantic_listed(raw_row)
+                      nonblank = [value for value in cells if value]
+                      if not cells[0] and len(nonblank) == 1 and ADMIN_ONLY.fullmatch(nonblank[0]):
+                          listed_admin_rows.append({"page": page_number, "row": row_number, "cells": cells})
                           continue
-                      new_company = bool(row[0] and (row[2] or YEAR.search(row[3]) or YEAR.search(row[4])))
-                      if new_company:
+                      independent_evidence = bool(cells[2] or YEAR.search(cells[3]) or YEAR.search(cells[4]))
+                      if cells[0] and independent_evidence:
                           current = {
                               "page": page_number,
                               "row": row_number,
-                              "cells": row,
+                              "cells": cells,
                               "continuations": [],
                           }
                           listed_records.append(current)
                           continue
-                      if row[0]:
-                          listed_unresolved_named_rows.append({"page": page_number, "row": row_number, "cells": row})
+                      if not cells[0] and independent_evidence:
+                          listed_blank_name_identity_rows.append({
+                              "page": page_number, "row": row_number, "cells": cells,
+                              "previous_name": current["cells"][0] if current else None,
+                          })
                           current = None
                           continue
-                      if any(row):
-                          if current is None:
-                              listed_orphan_continuations.append({"page": page_number, "row": row_number, "cells": row})
-                              continue
-                          current["continuations"].append({"page": page_number, "row": row_number, "cells": row})
-                          for index, value in enumerate(row):
-                              if value:
-                                  current["cells"][index] = clean(f"{current['cells'][index]} {value}")
+                      if current is not None and any(cells):
+                          listed_boundary_fragments.append(
+                              append_fragment(current, cells, page=page_number, table=1, row=row_number)
+                          )
+                          continue
+                      listed_unresolved_rows.append({"page": page_number, "row": row_number, "cells": cells})
 
           listed_statuses = Counter()
           listed_other_notes = Counter()
           listed_identifier_cardinality = Counter()
           listed_malformed_dates = []
           listed_blank_sections = []
-          listed_continuation_records = 0
           for record in listed_records:
-              row = record["cells"]
-              if record["continuations"]:
-                  listed_continuation_records += 1
-              note = clean(row[6])
+              cells = record["cells"]
+              note = clean(cells[6])
               folded = note.casefold()
               if not note:
                   status = "listed"
@@ -174,34 +193,72 @@ jobs:
                   status = "listed_note"
                   listed_other_notes[note] += 1
               listed_statuses[status] += 1
-              listed_identifier_cardinality[len(strict_ids(row[2]))] += 1
-              for label, raw_date in (("listing", row[3]), ("expiry", row[4])):
+              listed_identifier_cardinality[len(strict_ids(cells[2]))] += 1
+              for label, raw_date in (("listing", cells[3]), ("expiry", cells[4])):
                   if date_state(raw_date) == "malformed":
                       listed_malformed_dates.append({
                           "page": record["page"], "row": record["row"], "field": label,
-                          "value": raw_date, "name": row[0],
+                          "value": raw_date, "name": cells[0],
                       })
-              if not row[5]:
-                  listed_blank_sections.append({"page": record["page"], "row": record["row"], "name": row[0]})
+              if not cells[5]:
+                  listed_blank_sections.append({
+                      "page": record["page"], "row": record["row"], "name": cells[0],
+                      "identifier_raw": cells[2], "continuations": record["continuations"],
+                  })
 
+          # Applicant population: a company row is anchored by a nonblank legal
+          # name plus identifier/application-date/outcome evidence. Other table
+          # rows are joined to the immediately preceding company only when they
+          # carry no independent date/outcome evidence; blank-name rows carrying
+          # independent identifiers remain explicit review items.
           applicant_path = download("applicants", SOURCES["applicants"])
           applicant_records = []
-          applicant_ignored = []
+          applicant_boundary_fragments = []
+          applicant_blank_name_identity_rows = []
+          applicant_unresolved_rows = []
           with pdfplumber.open(applicant_path) as pdf:
               if len(pdf.pages) != SOURCES["applicants"]["pages"]:
                   raise RuntimeError("applicant page-count drift")
+              current = None
               for page_number, page in enumerate(pdf.pages, 1):
                   for table_number, table in enumerate(page.extract_tables() or [], 1):
                       for row_number, raw in enumerate(table or [], 1):
-                          row = [clean(cell) for cell in (raw or [])]
-                          if not any(row) or header_row(row):
+                          cells = [clean(cell) for cell in (raw or [])]
+                          if not any(cells) or is_header(cells):
                               continue
-                          if len(row) != 7:
-                              raise RuntimeError(f"applicant p{page_number}:t{table_number}:r{row_number} width drift: {len(row)}")
-                          if row[0]:
-                              applicant_records.append({"page": page_number, "table": table_number, "row": row_number, "cells": row})
-                          else:
-                              applicant_ignored.append({"page": page_number, "table": table_number, "row": row_number, "cells": row})
+                          if len(cells) != 7:
+                              raise RuntimeError(
+                                  f"applicant p{page_number}:t{table_number}:r{row_number} width drift: {len(cells)}"
+                              )
+                          independent_evidence = bool(cells[3] or cells[5] or cells[6])
+                          if cells[0] and independent_evidence:
+                              current = {
+                                  "page": page_number,
+                                  "table": table_number,
+                                  "row": row_number,
+                                  "cells": cells,
+                                  "continuations": [],
+                              }
+                              applicant_records.append(current)
+                              continue
+                          if not cells[0] and independent_evidence:
+                              applicant_blank_name_identity_rows.append({
+                                  "page": page_number, "table": table_number, "row": row_number,
+                                  "cells": cells,
+                                  "previous_name": current["cells"][0] if current else None,
+                              })
+                              current = None
+                              continue
+                          if current is not None and any(cells):
+                              applicant_boundary_fragments.append(
+                                  append_fragment(
+                                      current, cells, page=page_number, table=table_number, row=row_number
+                                  )
+                              )
+                              continue
+                          applicant_unresolved_rows.append({
+                              "page": page_number, "table": table_number, "row": row_number, "cells": cells
+                          })
 
           applicant_outcomes = Counter(clean(item["cells"][6]) for item in applicant_records)
           applicant_identifier_cardinality = Counter(len(strict_ids(item["cells"][3])) for item in applicant_records)
@@ -210,17 +267,20 @@ jobs:
           applicant_blank_sections = []
           applicant_blank_outcomes = []
           for item in applicant_records:
-              row = item["cells"]
-              state = date_state(row[5])
-              locator = {"page": item["page"], "table": item["table"], "row": item["row"], "name": row[0]}
+              cells = item["cells"]
+              state = date_state(cells[5])
+              locator = {
+                  "page": item["page"], "table": item["table"], "row": item["row"],
+                  "name": cells[0], "identifier_raw": cells[3],
+              }
               if state == "malformed":
-                  applicant_malformed_dates.append({**locator, "value": row[5]})
+                  applicant_malformed_dates.append({**locator, "value": cells[5]})
               elif state == "blank":
                   applicant_blank_dates.append(locator)
-              if not row[4]:
-                  applicant_blank_sections.append(locator)
-              if not row[6]:
-                  applicant_blank_outcomes.append({**locator, "application_date": row[5], "identifier_raw": row[3]})
+              if not cells[4]:
+                  applicant_blank_sections.append({**locator, "continuations": item["continuations"]})
+              if not cells[6]:
+                  applicant_blank_outcomes.append({**locator, "application_date": cells[5]})
 
           report = {
               "authority_key": "frosinone",
@@ -229,10 +289,11 @@ jobs:
                   "records": len(listed_records),
                   "status_counts": dict(listed_statuses),
                   "strict_identifier_cardinality": {str(k): v for k, v in sorted(listed_identifier_cardinality.items())},
-                  "records_with_continuations": listed_continuation_records,
+                  "records_with_continuations": sum(bool(item["continuations"]) for item in listed_records),
                   "administrative_rows": listed_admin_rows,
-                  "unresolved_named_rows": listed_unresolved_named_rows,
-                  "orphan_continuations": listed_orphan_continuations,
+                  "boundary_fragments": listed_boundary_fragments,
+                  "blank_name_identity_rows": listed_blank_name_identity_rows,
+                  "unresolved_rows": listed_unresolved_rows,
                   "other_note_values": dict(listed_other_notes),
                   "malformed_dates": listed_malformed_dates,
                   "blank_sections": listed_blank_sections,
@@ -241,7 +302,10 @@ jobs:
                   "records": len(applicant_records),
                   "outcome_counts": dict(applicant_outcomes),
                   "strict_identifier_cardinality": {str(k): v for k, v in sorted(applicant_identifier_cardinality.items())},
-                  "ignored_nonempty_blank_name_rows": applicant_ignored,
+                  "records_with_continuations": sum(bool(item["continuations"]) for item in applicant_records),
+                  "boundary_fragments": applicant_boundary_fragments,
+                  "blank_name_identity_rows": applicant_blank_name_identity_rows,
+                  "unresolved_rows": applicant_unresolved_rows,
                   "malformed_application_dates": applicant_malformed_dates,
                   "blank_application_dates": applicant_blank_dates,
                   "blank_sections": applicant_blank_sections,
