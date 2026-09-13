@@ -1,4 +1,4 @@
-name: Foggia parser hotfix
+name: Foggia registered production gate
 
 on:
   push:
@@ -11,39 +11,41 @@ permissions:
   contents: write
 
 jobs:
-  fix:
+  materialise:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/foggia-2026-09-13
           fetch-depth: 0
-      - name: Apply evidence-backed identifier diagnostics fix
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Execute the reviewed Foggia transaction specification
         run: |
+          python -m pip install --quiet PyYAML
           python - <<'PY'
           from pathlib import Path
-          p=Path('src/white_list_archive/parsers/foggia_tables.py')
-          s=p.read_text()
-          old='_EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS = 7\n'
-          new='_EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS = 6\n_EXPECTED_APPLICANT_EMPTY_IDENTIFIER_ROWS = 1\n'
-          if s.count(old)!=1: raise SystemExit(f'fail-closed constant replacement count={s.count(old)}')
-          s=s.replace(old,new)
-          old2='''    raw_identifier_only = sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records)\n    if identifier_coverage != _EXPECTED_APPLICANT_STRICT_IDENTIFIER_ROWS or raw_identifier_only != _EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS:\n        raise RuntimeError(\n            "Foggia applicant identifier-coverage drift: "\n            f"strict={identifier_coverage}, raw_only={raw_identifier_only}"\n        )\n'''
-          new2='''    raw_identifier_only = sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records)\n    empty_identifier = sum(not record["identifier_field_raw"] for record in records)\n    if (\n        identifier_coverage != _EXPECTED_APPLICANT_STRICT_IDENTIFIER_ROWS\n        or raw_identifier_only != _EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS\n        or empty_identifier != _EXPECTED_APPLICANT_EMPTY_IDENTIFIER_ROWS\n    ):\n        raise RuntimeError(\n            "Foggia applicant identifier-coverage drift: "\n            f"strict={identifier_coverage}, raw_only={raw_identifier_only}, empty={empty_identifier}"\n        )\n'''
-          if s.count(old2)!=1: raise SystemExit(f'fail-closed diagnostic replacement count={s.count(old2)}')
-          s=s.replace(old2,new2)
-          old3='''            "raw_identifier_only": raw_identifier_only,\n'''
-          new3='''            "raw_identifier_only": raw_identifier_only,\n            "empty_identifier": empty_identifier,\n'''
-          if s.count(old3)!=1: raise SystemExit(f'fail-closed output replacement count={s.count(old3)}')
-          s=s.replace(old3,new3)
-          p.write_text(s)
+          import subprocess
+          import yaml
+
+          path = Path('.github/workflows/foggia-production-materialise.yml')
+          spec = yaml.safe_load(path.read_text(encoding='utf-8'))
+          steps = spec['jobs']['materialise']['steps']
+          run_steps = [step for step in steps if 'run' in step]
+          expected = [
+              'Install complete test runtime',
+              'Materialise permanent Foggia integration',
+              'Run full repository test suite',
+              'Build and validate Foggia national candidate',
+              'Commit validated permanent integration',
+          ]
+          names = [step.get('name') for step in run_steps]
+          if names != expected:
+              raise SystemExit(f'Foggia transaction step drift: {names!r}')
+          for step in run_steps:
+              print(f"::group::{step['name']}", flush=True)
+              subprocess.run(step['run'], shell=True, executable='/bin/bash', check=True)
+              print('::endgroup::', flush=True)
           PY
-          git diff --check
-          python -m py_compile src/white_list_archive/parsers/foggia_tables.py
-      - name: Commit parser fix
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/foggia_tables.py
-          git commit -m 'Freeze Foggia applicant identifier anomalies'
-          git push origin HEAD:expansion/foggia-2026-09-13
