@@ -1032,6 +1032,40 @@
       "last_source_update": "2026-09-11",
       "last_source_update_basis": "dated official resource directly repeat-fetched and byte-verified 13 September 2026",
       "notes": "Byte-pinned 69-page combined publication. The fail-closed parser yields exactly 749 source observations: 401 listed, 204 renewal/update in progress and 144 pending/avvio istruttoria. Two exact duplicate identifiers remain distinct observations; one 10-digit identifier and one blank foreign-company identifier remain raw and uninferred; the malformed source status date DAL 11/04/20226 is preserved raw without repair."
+    },
+    {
+      "authority_key": "frosinone",
+      "authority_name": "Prefettura di Frosinone",
+      "register_key": "frosinone-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+      "source_key": "frosinone-listed",
+      "parser": "frosinone_listed",
+      "population_scope": "listed",
+      "reference_date": "2026-09-02",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+      "sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+      "expected_source_rows": 761,
+      "last_source_update": "2026-09-02",
+      "last_source_update_basis": "dated official resource directly revalidated and byte-pinned 13 September 2026",
+      "notes": "Byte-pinned 91-page listed-company PDF. The fail-closed parser yields exactly 761 observations: 529 listed and 232 renewal/update in progress. Forty-four continuation row fragments attach to 40 logical records; eight reviewed malformed official dates remain raw and uninferred."
+    },
+    {
+      "authority_key": "frosinone",
+      "authority_name": "Prefettura di Frosinone",
+      "register_key": "frosinone-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list",
+      "source_key": "frosinone-applicants",
+      "parser": "frosinone_applicants",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-02",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+      "sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+      "expected_source_rows": 475,
+      "last_source_update": "2026-09-02",
+      "last_source_update_basis": "dated official resource directly revalidated and byte-pinned 13 September 2026",
+      "notes": "Byte-pinned 37-page applicant PDF. The fail-closed parser yields exactly 475 pending observations. Five continuation fragments, two reviewed malformed dates and four blank outcome cells are preserved under explicit invariants without inferred repair."
     }
   ]
 }

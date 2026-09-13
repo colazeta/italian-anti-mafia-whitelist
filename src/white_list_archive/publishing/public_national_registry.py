@@ -47,6 +47,7 @@ from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSER
 from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
 from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
 from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined
+from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -59,6 +60,10 @@ FOGGIA_PARSERS = {
     "foggia_applicants": parse_foggia_applicants,
 }
 FORLI_CESENA_PARSERS = {"forli_cesena_combined": parse_forli_cesena_combined}
+FROSINONE_PARSERS = {
+    "frosinone_listed": parse_frosinone_listed,
+    "frosinone_applicants": parse_frosinone_applicants,
+}
 
 
 def _adapt_bolzano_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
@@ -293,6 +298,71 @@ def _adapt_foggia_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedB
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+
+def _adapt_frosinone_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Frosinone evidence onto the closed public source-field contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Frosinone source_fields must be a mapping")
+        if parser_name == "frosinone_listed":
+            expected = {
+                "source_locator", "continuation_fragments", "identifier_raw",
+                "listing_date_raw", "expiry_date_raw", "sections_raw", "note_raw",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Frosinone listed source-field drift: {sorted(fields)!r}")
+            scalar_keys = ("source_locator", "identifier_raw", "listing_date_raw", "expiry_date_raw", "sections_raw", "note_raw")
+            if any(not isinstance(fields[key], str) for key in scalar_keys):
+                raise RuntimeError("Frosinone listed source-field type drift")
+            fragments = fields["continuation_fragments"]
+            if not isinstance(fragments, list):
+                raise RuntimeError("Frosinone listed continuation-fragment type drift")
+            for fragment in fragments:
+                if not isinstance(fragment, dict) or set(fragment) != {"source_locator", "cells", "before"}:
+                    raise RuntimeError("Frosinone listed continuation-fragment shape drift")
+                if not isinstance(fragment["source_locator"], str):
+                    raise RuntimeError("Frosinone listed continuation locator type drift")
+                for key in ("cells", "before"):
+                    if not isinstance(fragment[key], list) or len(fragment[key]) != 7 or any(not isinstance(value, str) for value in fragment[key]):
+                        raise RuntimeError(f"Frosinone listed continuation {key} drift")
+            record["source_fields"] = {
+                "sections": [fields["sections_raw"]] if fields["sections_raw"] else [],
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        elif parser_name == "frosinone_applicants":
+            expected = {
+                "source_locator", "continuation_fragments", "identifier_raw",
+                "sections_raw", "application_date_raw", "outcome_raw",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Frosinone applicant source-field drift: {sorted(fields)!r}")
+            scalar_keys = ("source_locator", "identifier_raw", "sections_raw", "application_date_raw", "outcome_raw")
+            if any(not isinstance(fields[key], str) for key in scalar_keys):
+                raise RuntimeError("Frosinone applicant source-field type drift")
+            fragments = fields["continuation_fragments"]
+            if not isinstance(fragments, list):
+                raise RuntimeError("Frosinone applicant continuation-fragment type drift")
+            for fragment in fragments:
+                if not isinstance(fragment, dict) or set(fragment) != {"source_locator", "cells", "before"}:
+                    raise RuntimeError("Frosinone applicant continuation-fragment shape drift")
+                if not isinstance(fragment["source_locator"], str):
+                    raise RuntimeError("Frosinone applicant continuation locator type drift")
+                for key in ("cells", "before"):
+                    if not isinstance(fragment[key], list) or len(fragment[key]) != 7 or any(not isinstance(value, str) for value in fragment[key]):
+                        raise RuntimeError(f"Frosinone applicant continuation {key} drift")
+            record["source_fields"] = {
+                "sections": [fields["sections_raw"]] if fields["sections_raw"] else [],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Frosinone parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -324,6 +394,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or GENOVA_PARSERS.get(cfg["parser"])
         or FOGGIA_PARSERS.get(cfg["parser"])
         or FORLI_CESENA_PARSERS.get(cfg["parser"])
+        or FROSINONE_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -334,6 +405,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_genova_public_fields(batch, cfg["parser"])
     if cfg["parser"] in FOGGIA_PARSERS:
         batch = _adapt_foggia_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in FROSINONE_PARSERS:
+        batch = _adapt_frosinone_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "1"
