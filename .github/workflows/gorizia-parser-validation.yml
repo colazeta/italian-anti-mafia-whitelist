@@ -62,6 +62,7 @@ jobs:
                   "sha256": "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d",
                   "expected_source_rows": 117,
                   "expected_sector_rows": 186,
+                  "expected_blank_expiry_rows": 1,
               },
               {
                   "source_key": "gorizia-applicants",
@@ -109,6 +110,8 @@ jobs:
                   raise RuntimeError(f"{cfg['source_key']} public-record drift: {batch.diagnostics!r}")
               if cfg.get("expected_sector_rows") is not None and batch.diagnostics.get("sector_rows") != cfg["expected_sector_rows"]:
                   raise RuntimeError(f"{cfg['source_key']} sector-row drift: {batch.diagnostics!r}")
+              if cfg.get("expected_blank_expiry_rows") is not None and batch.diagnostics.get("blank_expiry_rows") != cfg["expected_blank_expiry_rows"]:
+                  raise RuntimeError(f"{cfg['source_key']} reviewed blank-expiry drift: {batch.diagnostics!r}")
               report["sources"][cfg["source_key"]] = {
                   "captures": captures,
                   "diagnostics": batch.diagnostics,
