@@ -1,0 +1,43 @@
+name: Gorizia parser import fix
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+    paths:
+      - .github/workflows/gorizia-parser-import-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/gorizia-2026-09-13
+      - name: Replace invalid ParsedBatch import exactly once
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/white_list_archive/parsers/gorizia_tables.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'from .base import ParsedBatch\n'
+          new = 'from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one legacy import, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- src/white_list_archive/parsers/gorizia_tables.py
+      - name: Commit parser import fix
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/white_list_archive/parsers/gorizia_tables.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix Gorizia parser runtime import'
+          git push origin HEAD:expansion/gorizia-2026-09-13
