@@ -1,0 +1,45 @@
+name: Foggia parser hotfix
+
+on:
+  push:
+    branches:
+      - expansion/foggia-2026-09-13
+    paths:
+      - .github/workflows/foggia-parser-hotfix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/foggia-2026-09-13
+          fetch-depth: 0
+      - name: Apply exact reviewed key-position fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/white_list_archive/parsers/foggia_tables.py')
+          s=p.read_text()
+          old='''        public_status = _public_status(key[4])\n        listing_date = key[2].removeprefix("ISO::") if key[2].startswith("ISO::") else ""\n        expiry_date = key[3].removeprefix("ISO::") if key[3].startswith("ISO::") else ""\n        outcome_raw = ""\n        if public_status == "renewal_update_in_progress":\n            outcome_raw = "IN CORSO"\n        elif key[4] == "listed_note":\n            outcome_raw = group["outcome_raw_variants"][0]\n'''
+          new='''        group_status = key[-1]\n        listing_key = key[-3]\n        expiry_key = key[-2]\n        public_status = _public_status(group_status)\n        listing_date = listing_key.removeprefix("ISO::") if listing_key.startswith("ISO::") else ""\n        expiry_date = expiry_key.removeprefix("ISO::") if expiry_key.startswith("ISO::") else ""\n        outcome_raw = ""\n        if public_status == "renewal_update_in_progress":\n            outcome_raw = "IN CORSO"\n        elif group_status == "listed_note":\n            outcome_raw = group["outcome_raw_variants"][0]\n'''
+          if s.count(old)!=1: raise SystemExit(f'fail-closed primary replacement count={s.count(old)}')
+          s=s.replace(old,new)
+          old2='''            "raw_date_groups": sum(not key[2].startswith("ISO::") or not key[3].startswith("ISO::") for key in groups),\n'''
+          new2='''            "raw_date_groups": sum(not key[-3].startswith("ISO::") or not key[-2].startswith("ISO::") for key in groups),\n'''
+          if s.count(old2)!=1: raise SystemExit(f'fail-closed diagnostic replacement count={s.count(old2)}')
+          s=s.replace(old2,new2)
+          p.write_text(s)
+          PY
+          git diff --check
+          python -m py_compile src/white_list_archive/parsers/foggia_tables.py
+      - name: Commit parser fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/foggia_tables.py
+          git commit -m 'Fix Foggia raw-identity grouping keys'
+          git push origin HEAD:expansion/foggia-2026-09-13
