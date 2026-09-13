@@ -61,7 +61,6 @@ jobs:
             data/source_registry/verified_primary_pages.csv \
             src/white_list_archive/publishing/public_national_registry.py \
             tests/public_portal_browser.cjs
-          git add -u tmp
           git diff --cached --check
       - name: Commit non-workflow production state
         run: |
