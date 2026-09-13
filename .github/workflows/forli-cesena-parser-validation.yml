@@ -92,7 +92,7 @@ jobs:
               }
               assert batch.diagnostics['duplicate_strict_identifiers'] == {'03690740406': 2, '04581460260': 2}
               assert batch.diagnostics['dated_provvedimento_rows'] == 600
-              assert batch.diagnostics['status_date_rows'] == 317
+              assert batch.diagnostics['status_date_rows'] == 318
               assert batch.diagnostics['reviewed_cid_artifact_rows'] == 1
               assert sum(bool(record['identifiers']) for record in records) == 747
 
@@ -113,7 +113,7 @@ jobs:
                   'identifier_kind_counts=' + json.dumps(batch.diagnostics['identifier_kind_counts'], sort_keys=True),
                   'duplicate_strict_identifiers=' + json.dumps(batch.diagnostics['duplicate_strict_identifiers'], sort_keys=True),
                   'dated_provvedimento_rows=600',
-                  'status_date_rows=317',
+                  'status_date_rows=318',
                   'reviewed_cid_artifact_rows=1',
                   'public_contract_records=749',
                   'fabricated_identifier_rows=0',

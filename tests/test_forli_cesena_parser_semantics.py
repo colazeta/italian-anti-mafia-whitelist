@@ -114,6 +114,26 @@ def test_il_status_date_is_preserved_and_normalised() -> None:
     ]
 
 
+def test_malformed_status_date_is_preserved_without_repair() -> None:
+    record = _parse(
+        "01234567890",
+        "MALFORMED DATE TEST SRL",
+        "strict_11_digit",
+        [
+            "  01234567890 MALFORMED DATE TEST SRL",
+            "          VIA TEST 11                          Provv. n.   del        Scadenza       IN AGGIORNAMENTO",
+            "                                                                                     DAL 11/04/20226",
+            "          CESENATICO (FC)",
+            "                                                 Sezioni.: I II III IV V VI VII VIII IX X",
+        ],
+    )
+    assert record["source_status"] == "renewal_update_in_progress"
+    assert record["source_fields"]["in_aggiornamento"] == "DAL 11/04/20226"
+    assert record["source_fields"]["outcome"]["dates"] == [
+        {"raw_value": "DAL 11/04/20226", "date": "", "parenthesized": False}
+    ]
+
+
 def test_pending_row_does_not_fabricate_provvedimento_dates() -> None:
     record = _parse(
         "04597520404",

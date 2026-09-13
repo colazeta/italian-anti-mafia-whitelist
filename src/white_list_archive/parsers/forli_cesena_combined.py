@@ -27,7 +27,7 @@ _EXPECTED_ID_KIND_COUNTS = {
 }
 _EXPECTED_DUPLICATE_STRICT_IDS = {"03690740406": 2, "04581460260": 2}
 _EXPECTED_DATED_PROVVEDIMENTO_ROWS = 600
-_EXPECTED_STATUS_DATE_ROWS = 317
+_EXPECTED_STATUS_DATE_ROWS = 318
 _EXPECTED_CID_ARTIFACT_ROWS = 1
 _EXPECTED_SECTIONS = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
 
@@ -46,6 +46,7 @@ _PAGE_FOOTER = re.compile(r"^venerd[iì]\s+11\s+settembre\s+2026\s+Pagina\s+\d+\
 _REVIEWED_CID_ARTIFACT = {
     ("02161921008", "(cid:9)AQUAMET S.R.L. (EX AQUAMET SPA)"): "AQUAMET S.R.L. (EX AQUAMET SPA)",
 }
+_REVIEWED_MALFORMED_STATUS_DATES = {"DAL 11/04/20226"}
 
 
 def _validate_cfg(cfg: dict[str, Any]) -> None:
@@ -128,8 +129,15 @@ def _status_from_block(text: str) -> tuple[str, str]:
     return "listed", ""
 
 
+def _is_status_date(value: str) -> bool:
+    return bool(_STATUS_DATE.fullmatch(value)) or value in _REVIEWED_MALFORMED_STATUS_DATES
+
+
 def _status_date(value: str) -> str:
-    raw = re.sub(r"^(?:DAL|AL|DEL|IL)\s+", "", _clean(value), flags=re.I)
+    cleaned = _clean(value)
+    if cleaned in _REVIEWED_MALFORMED_STATUS_DATES:
+        return ""
+    raw = re.sub(r"^(?:DAL|AL|DEL|IL)\s+", "", cleaned, flags=re.I)
     parsed = _iso_date(raw)
     if value and not parsed:
         raise RuntimeError(f"Forli-Cesena malformed standalone status date: {value!r}")
@@ -174,7 +182,7 @@ def _parse_record_block(
         cleaned = _clean(line)
         if line == provv_lines[0] or line == section_lines[0] or _PAGE_FOOTER.fullmatch(cleaned):
             continue
-        if _STATUS_DATE.fullmatch(cleaned):
+        if _is_status_date(cleaned):
             status_date_lines.append(cleaned)
             continue
         locality_candidates.append(cleaned)
