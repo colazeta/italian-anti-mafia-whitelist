@@ -31,6 +31,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils
+          python -m pip install --quiet 'pdfplumber>=0.11,<0.12'
           command -v pdfinfo
           command -v pdftotext
 
@@ -86,7 +87,7 @@ jobs:
               echo "layout_text_sha256=$text_sha" >> "$report"
               echo "layout_text_lines=$(wc -l < /tmp/forli_audit/source.txt | tr -d ' ')" >> "$report"
 
-              for label in 'AVVIO ISTRUTTORIA' RINNOVO AGGIORNAMENTO ISCRITTA; do
+              for label in 'AVVIO ISTRUTTORIA' 'IN AGGIORNAMENTO' RINNOVO AGGIORNAMENTO ISCRITTA; do
                 key=$(echo "$label" | tr '[:upper:] ' '[:lower:]_')
                 count=$(grep -Eio "$label" /tmp/forli_audit/source.txt 2>/dev/null | wc -l | tr -d ' ' || true)
                 echo "${key}_occurrences=${count:-0}" >> "$report"
@@ -97,7 +98,7 @@ jobs:
               echo 'capture_gate=BYTE_IDENTICAL_PINNED_AND_TEXT_EXTRACTED' >> "$report"
 
               printf '\n--- status-bearing lines (first 240) ---\n' >> "$report"
-              grep -Ein -m 240 'AVVIO[[:space:]]+ISTRUTTORIA|RINNOVO|AGGIORNAMENTO|ISCRITTA' /tmp/forli_audit/source.txt >> "$report" || true
+              grep -Ein -m 240 'AVVIO[[:space:]]+ISTRUTTORIA|IN[[:space:]]+AGGIORNAMENTO|RINNOVO|AGGIORNAMENTO|ISCRITTA' /tmp/forli_audit/source.txt >> "$report" || true
               printf '\n--- first 180 layout text lines ---\n' >> "$report"
               sed -n '1,180p' /tmp/forli_audit/source.txt >> "$report"
             elif test "$identical" != true; then
@@ -110,13 +111,88 @@ jobs:
           fi
           cat "$report"
 
+      - name: Audit pdfplumber table geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import json, re
+          from collections import Counter
+          from pathlib import Path
+          import pdfplumber
+
+          source = Path('/tmp/forli_audit/source_a.pdf')
+          out = Path('tmp/forli_cesena_table_audit.txt')
+          if not source.exists():
+              out.write_text('table_gate=SOURCE_UNAVAILABLE\n', encoding='utf-8')
+              raise SystemExit(0)
+
+          def clean(v):
+              return ' '.join(str(v or '').replace('\n', ' ').split())
+
+          rows = []
+          page_summaries = []
+          headers = Counter()
+          widths = Counter()
+          table_counts = []
+          status_cells = Counter()
+          with pdfplumber.open(source) as pdf:
+              for page in pdf.pages:
+                  tables = page.extract_tables()
+                  table_counts.append(len(tables))
+                  page_summary = {'page': page.page_number, 'tables': len(tables), 'shapes': []}
+                  for ti, table in enumerate(tables, 1):
+                      cleaned = [[clean(c) for c in row] for row in table if row]
+                      if not cleaned:
+                          continue
+                      widths.update(len(r) for r in cleaned)
+                      header = tuple(c.casefold() for c in cleaned[0])
+                      headers[header] += 1
+                      page_summary['shapes'].append([len(cleaned), max(len(r) for r in cleaned)])
+                      for ri, row in enumerate(cleaned):
+                          joined = ' | '.join(row)
+                          if re.search(r'AVVIO\s+ISTRUTTORIA|IN\s+AGGIORNAMENTO|RINNOVO|ISCRITT', joined, re.I):
+                              status_cells[joined[-240:]] += 1
+                          if ri > 0 and any(row):
+                              rows.append((page.page_number, ti, ri, row))
+                  page_summaries.append(page_summary)
+
+          lines = []
+          lines.append('pages=' + str(len(table_counts)))
+          lines.append('table_counts_by_page=' + json.dumps(table_counts))
+          lines.append('row_width_counts=' + json.dumps(dict(widths), sort_keys=True))
+          lines.append('candidate_data_rows=' + str(len(rows)))
+          lines.append('header_signatures=' + str(len(headers)))
+          for header, count in headers.most_common(20):
+              lines.append(f'header[{count}]=' + json.dumps(header, ensure_ascii=False))
+          lines.append('page_summaries=' + json.dumps(page_summaries, ensure_ascii=False))
+          lines.append('\n--- first 40 extracted data rows ---')
+          for page, ti, ri, row in rows[:40]:
+              lines.append(f'p{page}:t{ti}:r{ri}=' + json.dumps(row, ensure_ascii=False))
+          lines.append('\n--- rows around status signals (first 80) ---')
+          emitted = 0
+          for page, ti, ri, row in rows:
+              joined = ' | '.join(row)
+              if re.search(r'AVVIO\s+ISTRUTTORIA|IN\s+AGGIORNAMENTO|RINNOVO|ISCRITT', joined, re.I):
+                  lines.append(f'p{page}:t{ti}:r{ri}=' + json.dumps(row, ensure_ascii=False))
+                  emitted += 1
+                  if emitted >= 80:
+                      break
+          lines.append('\n--- status-bearing cell signatures ---')
+          for value, count in status_cells.most_common(30):
+              lines.append(f'{count}x {value}')
+          out.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          cat tmp/forli_cesena_table_audit.txt
+
       - name: Commit audit checkpoint
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/forli_cesena_source_audit.txt
+          git add tmp/forli_cesena_source_audit.txt tmp/forli_cesena_table_audit.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Checkpoint Forli-Cesena layout and status audit'
+          git commit -m 'Checkpoint Forli-Cesena table geometry audit'
           git push origin HEAD:expansion/forli-cesena-2026-09-13
