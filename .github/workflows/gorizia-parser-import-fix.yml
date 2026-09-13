@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           python tmp/gorizia_national_integration.py
+          python tmp/gorizia_browser_gate_fix.py
           git diff --check
 
       - name: Prepare runner package sources
@@ -171,6 +172,7 @@ jobs:
             data/source_registry/verified_primary_pages.csv \
             docs/sources/gorizia-operational-check-2026-09-13.md \
             src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
             tests/test_gorizia_parser_semantics.py \
             tests/test_source_population_coverage.py \
             tests/test_source_registry.py
