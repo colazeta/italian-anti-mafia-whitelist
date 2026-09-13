@@ -98,14 +98,65 @@ jobs:
           replace_once('tests/test_source_population_coverage.py', '    assert report["register_scope_count"] == 40\n', '    assert report["register_scope_count"] == 41\n')
           replace_once('tests/test_source_population_coverage.py', '    assert report["complete_register_scope_count"] == 38\n', '    assert report["complete_register_scope_count"] == 39\n')
 
-          coverage = json.loads(Path('data/monitoring/national_coverage.json').read_text(encoding='utf-8'))
-          foggia = [row for row in coverage['prefectures'] if row.get('authority_key') == 'foggia']
-          if len(foggia) != 1:
-              raise SystemExit(f'Foggia coverage-row cardinality drift: {len(foggia)}')
-          if foggia[0].get('public_export_enabled') is not True:
-              raise SystemExit(f'Foggia coverage row not public-export enabled: {foggia[0]!r}')
-          if foggia[0].get('coverage_status') != 'VALIDATED':
-              raise SystemExit(f'Foggia coverage row not validated: {foggia[0].get("coverage_status")!r}')
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          foggia_rows = [row for row in coverage['prefectures'] if row.get('authority_key') == 'foggia']
+          if len(foggia_rows) != 1:
+              raise SystemExit(f'Foggia coverage-row cardinality drift: {len(foggia_rows)}')
+          foggia = foggia_rows[0]
+          baseline = {
+              'coverage_status': 'SOURCE_IDENTIFIED',
+              'source_verified': False,
+              'current_edition_identified': None,
+              'capture_implemented': False,
+              'parser_implemented': False,
+              'parser_validated': False,
+              'company_observations_loaded': False,
+              'public_export_enabled': False,
+              'population_scopes_complete': False,
+              'known_content_sha256': [],
+          }
+          drift = {key: (foggia.get(key), value) for key, value in baseline.items() if foggia.get(key) != value}
+          if drift:
+              raise SystemExit(f'Foggia source-identified baseline drift before validated advancement: {drift!r}')
+          foggia.update({
+              'official_landing_page': 'https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list',
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-10',
+              'last_successful_investigation_on': '2026-09-13',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/foggia-operational-check-2026-09-13.md',
+                  'src/white_list_archive/parsers/foggia_tables.py',
+                  'tests/test_foggia_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [
+                  '313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a',
+                  'd76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5',
+              ],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/foggia-operational-check-2026-09-13.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY2'''
 
           try:
