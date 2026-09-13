@@ -1,4 +1,5 @@
 name: Genova production materialisation v4
+# Retriggered after the byte-identical materialisation path produced a successful national build diagnostic.
 
 on:
   push:
