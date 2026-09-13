@@ -1,0 +1,775 @@
+{
+  "authority_key": "gorizia",
+  "listed": {
+    "section_rows": {
+      "1": 26,
+      "2": 13,
+      "3": 25,
+      "4": 14,
+      "5": 32,
+      "6": 38,
+      "7": 0,
+      "8": 1,
+      "9": 10,
+      "10": 27
+    },
+    "sector_rows": 186,
+    "rows_without_name": [],
+    "rows_without_identifier": [],
+    "update_lexemes": {
+      "": 138,
+      "21 gennaio 2026": 1,
+      "25 settembre 2026": 3,
+      "30 luglio 2027": 1,
+      "IN AGGIORNAMENTO": 41,
+      "“": 2
+    },
+    "identifier_shapes": {
+      "2x11_digit": 25,
+      "contains_11_digit": 139,
+      "fiscal_code_16": 8,
+      "other_digits_0": 3,
+      "other_digits_10": 3,
+      "other_digits_12": 5,
+      "other_digits_14": 1,
+      "other_digits_7": 2
+    },
+    "exact_registration_groups": 119,
+    "exact_registration_status_counts": {
+      "renewal_update_in_progress": 31,
+      "listed": 88
+    },
+    "identity_groups": 104,
+    "identity_status_counts": {
+      "renewal_update_in_progress": 29,
+      "listed": 75
+    },
+    "repeated_exact_group_count": 31,
+    "repeated_exact_groups": [
+      {
+        "name": "GMR Srl",
+        "identifier_raw": "C.F./P.I. 02113610303",
+        "listing_raw": "9 settembre 2024",
+        "expiry_raw": "2 gennaio 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          3,
+          4,
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“ANTONINO AUTOTRASPORTI S.R.L.U.”",
+        "identifier_raw": "C.F . 01132140318 P.I . 01132140318",
+        "listing_raw": "6 giugno 2023",
+        "expiry_raw": "2 agosto 2025",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“COSTRUZIONI ISONZO SRL CO.IS”",
+        "identifier_raw": "C.F. 01879820270 P.I. 00391310315",
+        "listing_raw": "27 giugno 2023",
+        "expiry_raw": "10 dicembre 2026",
+        "update_raw": "",
+        "sections": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“UNION BETON SRL”",
+        "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+        "listing_raw": "12 luglio 2021",
+        "expiry_raw": "4 novembre 2026",
+        "update_raw": "",
+        "sections": [
+          1,
+          3,
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“ADRIATICA SRL”",
+        "identifier_raw": "C.F./P.I. 01202780316",
+        "listing_raw": "29 agosto 2023",
+        "expiry_raw": "19 marzo 2027",
+        "update_raw": "",
+        "sections": [
+          2,
+          3,
+          4,
+          10
+        ]
+      },
+      {
+        "name": "“CIRCOSTA SCAVI DI DAMIANO CIRCOSTA “ Impresa individuale",
+        "identifier_raw": "CRCDMN88L26I872S",
+        "listing_raw": "17 giugno 2024",
+        "expiry_raw": "1° giugno 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          2,
+          3,
+          5
+        ]
+      },
+      {
+        "name": "“G.M. SCAVI E MINISCAVI DI GRUDINA MORRIS”",
+        "identifier_raw": "GRDMRS73E24C758E 01047580319",
+        "listing_raw": "2 AGOSTO 2024",
+        "expiry_raw": "28 gennaio 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          3,
+          5,
+          6
+        ]
+      },
+      {
+        "name": "“MARINARO TRASPORTI SRL”",
+        "identifier_raw": "C.F./P.I. 01098250317",
+        "listing_raw": "18 settembre 2019",
+        "expiry_raw": "1 aprile 2026",
+        "update_raw": "",
+        "sections": [
+          1,
+          3,
+          5,
+          6
+        ]
+      },
+      {
+        "name": "“TRANS EST SRL”",
+        "identifier_raw": "00133290312",
+        "listing_raw": "19 ottobre 2015",
+        "expiry_raw": "24 giugno 2026",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          3,
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "LTM INTERNATIONAL SRL",
+        "identifier_raw": "CF/P.I. 01152830319",
+        "listing_raw": "12 settembre 2024",
+        "expiry_raw": "10 aprile 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          6,
+          6
+        ]
+      },
+      {
+        "name": "MALIC MARINO SCAVI Ditta Individuale",
+        "identifier_raw": "MLCMRN67M07E098B",
+        "listing_raw": "23 gennaio 2025",
+        "expiry_raw": "9 marzo 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          5,
+          10
+        ]
+      },
+      {
+        "name": "“ PAUL TRANSIT S. R . L . di Bruseghin Antonio &. C.”",
+        "identifier_raw": "C.F./P.I. 00539760314",
+        "listing_raw": "23 ottobre 2023",
+        "expiry_raw": "29 ottobre 2025",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          2,
+          3,
+          5
+        ]
+      },
+      {
+        "name": "“ S.A.L.I.T . srl ”",
+        "identifier_raw": "00147080311",
+        "listing_raw": "30 settembre 2022",
+        "expiry_raw": "20 aprile 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          5,
+          6
+        ]
+      },
+      {
+        "name": "“ADRIASTRADE S.r.L . ” ( unipersonale)",
+        "identifier_raw": "00434220315",
+        "listing_raw": "6 giugno 2023",
+        "expiry_raw": "27 novembre 2026",
+        "update_raw": "",
+        "sections": [
+          1,
+          5,
+          10
+        ]
+      },
+      {
+        "name": "“BUFFON GIANLUIGI Impresa Individuale”",
+        "identifier_raw": "P.I . 00558660312",
+        "listing_raw": "2 maggio 2023",
+        "expiry_raw": "14 luglio 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          5,
+          10
+        ]
+      },
+      {
+        "name": "“CIRCOSTA ANTONIO”",
+        "identifier_raw": "C.F./P.I. 00521370312",
+        "listing_raw": "13 febbraio 2023",
+        "expiry_raw": "30 luglio 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+        "identifier_raw": "01102760319",
+        "listing_raw": "19 luglio 2023",
+        "expiry_raw": "19 gennaio 2027",
+        "update_raw": "",
+        "sections": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "name": "“LUCIANI ANDREA”",
+        "identifier_raw": "P.I. 01199630318 C.F .LCNNDR 82D20E098X",
+        "listing_raw": "18 gennaio 2023",
+        "expiry_raw": "18 gennaio 2024",
+        "update_raw": "",
+        "sections": [
+          2,
+          5,
+          6
+        ]
+      },
+      {
+        "name": "“NORD EST LOGISTICA Srl ””",
+        "identifier_raw": "01119770319",
+        "listing_raw": "29 settembre 2022",
+        "expiry_raw": "19 marzo 2027",
+        "update_raw": "",
+        "sections": [
+          5,
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“SSG S.R.L.”",
+        "identifier_raw": "C.F./P.I. 02834150308",
+        "listing_raw": "2 maggio 2023",
+        "expiry_raw": "23 luglio 2026",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "name": "EQUIPE SRL",
+        "identifier_raw": "00520370313",
+        "listing_raw": "14 agosto 204",
+        "expiry_raw": "19 giugno 2026",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          3,
+          4
+        ]
+      },
+      {
+        "name": "EQUPE SRL",
+        "identifier_raw": "C.F./ P.I 00520370313",
+        "listing_raw": "14 agosto 2023",
+        "expiry_raw": "19 giugno 2026",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          5,
+          6
+        ]
+      },
+      {
+        "name": "REVAS TECNOLOGIES SRL",
+        "identifier_raw": "C.F./P.I. 0237978303",
+        "listing_raw": "11 marzo 2022",
+        "expiry_raw": "11 marzo 2023",
+        "update_raw": "",
+        "sections": [
+          3,
+          4
+        ]
+      },
+      {
+        "name": "“CALCESTRUZZI TRIESTE SRL” Società a responsabilità limitata”",
+        "identifier_raw": "C.F . 00219820321 P.I . 00131760316",
+        "listing_raw": "21 novembre 2023",
+        "expiry_raw": "23 gennaio 2026",
+        "update_raw": "",
+        "sections": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+        "identifier_raw": "01102760319",
+        "listing_raw": "19 luglio 2023",
+        "expiry_raw": "4 ottobre 2025",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“COSPER S.R.L.”",
+        "identifier_raw": "C.F./P.I. 00171390313",
+        "listing_raw": "21 marzo 2023",
+        "expiry_raw": "9 dicembre 2026",
+        "update_raw": "",
+        "sections": [
+          5,
+          6
+        ]
+      },
+      {
+        "name": "“ECO STUDIO SRL UNIPERSONALE",
+        "identifier_raw": "00519450316",
+        "listing_raw": "14 marzo 2022",
+        "expiry_raw": "27 novembre 2026",
+        "update_raw": "",
+        "sections": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“IL CAMMINO Società Cooperativa Sociale”",
+        "identifier_raw": "C.F./P.I. 00349680314",
+        "listing_raw": "29 maggio 2023",
+        "expiry_raw": "17 febbraio 2027",
+        "update_raw": "",
+        "sections": [
+          6,
+          9
+        ]
+      },
+      {
+        "name": "“RICICLO SYSTEM S.R.L.”",
+        "identifier_raw": "C.F./P.I. 01117310316",
+        "listing_raw": "21 novembre 2023",
+        "expiry_raw": "31 gennaio 2026",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“SIMAN di DIEGO FIORE”",
+        "identifier_raw": "C.F. FRIDGI54C31E098D",
+        "listing_raw": "21 giugno 2022",
+        "expiry_raw": "21 giugno 2023",
+        "update_raw": "",
+        "sections": [
+          6,
+          10
+        ]
+      },
+      {
+        "name": "“UNION BETON SRL”",
+        "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+        "listing_raw": "12 luglio 2021",
+        "expiry_raw": "2 agosto 2024",
+        "update_raw": "IN AGGIORNAMENTO",
+        "sections": [
+          1,
+          5
+        ]
+      }
+    ],
+    "identities_with_different_registration_count": 12,
+    "identities_with_different_registration": [
+      {
+        "name": "“UNION BETON SRL”",
+        "identifier_raw": "C.F. 01286990302 P.I. 00465570315",
+        "row_count": 8,
+        "sections": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          10
+        ],
+        "registrations": [
+          [
+            "12 luglio 2021",
+            "2 agosto 2024",
+            "IN AGGIORNAMENTO"
+          ],
+          [
+            "12 luglio 2021",
+            "2 agosto 2025",
+            "IN AGGIORNAMENTO"
+          ],
+          [
+            "12 luglio 2021",
+            "4 novembre 2026",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "GMR Srl",
+        "identifier_raw": "C.F./P.I. 02113610303",
+        "row_count": 7,
+        "sections": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          10
+        ],
+        "registrations": [
+          [
+            "9 settembre 2024",
+            "2 gennaio 2027",
+            ""
+          ],
+          [
+            "9 settembre 2024",
+            "9 settembre 2025",
+            "IN AGGIORNAMENTO"
+          ]
+        ]
+      },
+      {
+        "name": "“COLETTO LOGISTICA E TRASPORTI SRL” (unipersonale)",
+        "identifier_raw": "01102760319",
+        "row_count": 6,
+        "sections": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          10
+        ],
+        "registrations": [
+          [
+            "19 luglio 2023",
+            "19 gennaio 2027",
+            ""
+          ],
+          [
+            "19 luglio 2023",
+            "4 ottobre 2025",
+            ""
+          ],
+          [
+            "19 luglio 2023",
+            "4 ottobre 2025",
+            "IN AGGIORNAMENTO"
+          ]
+        ]
+      },
+      {
+        "name": "“ADRIATICA SRL”",
+        "identifier_raw": "C.F./P.I. 01202780316",
+        "row_count": 5,
+        "sections": [
+          2,
+          3,
+          4,
+          5,
+          10
+        ],
+        "registrations": [
+          [
+            "29 agosto 2023",
+            "19 marzo 2027",
+            ""
+          ],
+          [
+            "29 agosto 2023",
+            "19 marzo 2027",
+            "“"
+          ]
+        ]
+      },
+      {
+        "name": "LTM INTERNATIONAL SRL",
+        "identifier_raw": "CF/P.I. 01152830319",
+        "row_count": 4,
+        "sections": [
+          1,
+          6
+        ],
+        "registrations": [
+          [
+            "12 settembre 2024",
+            "10 aprile 2027",
+            ""
+          ],
+          [
+            "12 settembre 2024",
+            "12 settembre 2025",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "MALIC MARINO SCAVI Ditta Individuale",
+        "identifier_raw": "MLCMRN67M07E098B",
+        "row_count": 4,
+        "sections": [
+          1,
+          5,
+          10
+        ],
+        "registrations": [
+          [
+            "23 gennaio 2025",
+            "23 gennaio 2026",
+            ""
+          ],
+          [
+            "23 gennaio 2025",
+            "9 marzo 2027",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "“BUFFON GIANLUIGI Impresa Individuale”",
+        "identifier_raw": "P.I . 00558660312",
+        "row_count": 4,
+        "sections": [
+          1,
+          5,
+          6,
+          10
+        ],
+        "registrations": [
+          [
+            "2 maggio 2023",
+            "14 luglio 2 027",
+            ""
+          ],
+          [
+            "2 maggio 2023",
+            "14 luglio 2027",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+        "identifier_raw": "00162760318",
+        "row_count": 3,
+        "sections": [
+          1,
+          3,
+          5
+        ],
+        "registrations": [
+          [
+            "10 febbraio 2022",
+            "10 febbraio 2023",
+            ""
+          ],
+          [
+            "20 febbraio 2022",
+            "19 marzo 2027",
+            ""
+          ],
+          [
+            "31 luglio 2023",
+            "19 marzo 2027",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "MOVITUB di Giovanni Veneruso & C. SAS",
+        "identifier_raw": "CF/PI 00461950313",
+        "row_count": 2,
+        "sections": [
+          1,
+          5
+        ],
+        "registrations": [
+          [
+            "2 1 aprile 2026",
+            "20 aprile 2027",
+            ""
+          ],
+          [
+            "21 aprile 2026",
+            "20 aprile 2027",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "“AUTOTRASPORTI EREDI DI MAREGA LUCIO DI MAREGA PAOLO & C . S.N.C.",
+        "identifier_raw": "00485340319",
+        "row_count": 2,
+        "sections": [
+          6,
+          10
+        ],
+        "registrations": [
+          [
+            "2 maggio 2023",
+            "2 maggio 2024",
+            "25 settembre 2026"
+          ],
+          [
+            "2 maggio 2023",
+            "25 settembre 2026",
+            ""
+          ]
+        ]
+      },
+      {
+        "name": "“I.C. I . IMPIANTI CIVILI E INDUSTRIALI Soc . Coop . A.r.l .” Detta anche ICI COOP",
+        "identifier_raw": "00162760318",
+        "row_count": 2,
+        "sections": [
+          1,
+          3
+        ],
+        "registrations": [
+          [
+            "31 luglio 2023",
+            "19 marzo 2027",
+            ""
+          ],
+          [
+            "31 luglio 2023",
+            "31 luglio 2024",
+            "21 gennaio 2026"
+          ]
+        ]
+      },
+      {
+        "name": "“SCA MONTAGGI S.R.L. ”",
+        "identifier_raw": "C.F./P.I. 01111200315",
+        "row_count": 2,
+        "sections": [
+          3,
+          6
+        ],
+        "registrations": [
+          [
+            "6 febbraio 2024",
+            "18 gennaio 2026",
+            "IN AGGIORNAMENTO"
+          ],
+          [
+            "6 febbraio 2024",
+            "18 giugno 2026",
+            "IN AGGIORNAMENTO"
+          ]
+        ]
+      }
+    ],
+    "unique_listing_lexemes": 75,
+    "unique_expiry_lexemes": 69
+  },
+  "applicants": {
+    "table_count": 2,
+    "nonblank_extraction_rows": 48,
+    "identifier_occurrences": [
+      "01270500315",
+      "01262160318",
+      "01190800316",
+      "01270740317",
+      "00407990316",
+      "01268270319",
+      "00557360310",
+      "01040110312",
+      "01170510315",
+      "01195820319"
+    ],
+    "unique_identifiers": [
+      "00407990316",
+      "00557360310",
+      "01040110312",
+      "01170510315",
+      "01190800316",
+      "01195820319",
+      "01262160318",
+      "01268270319",
+      "01270500315",
+      "01270740317"
+    ],
+    "date_occurrences": [
+      "24.06.2025",
+      "21.04.2026",
+      "17.02.2026",
+      "17.02.2026",
+      "14.04.2026",
+      "01.04.2026"
+    ],
+    "unique_dates": [
+      "01.04.2026",
+      "14.04.2026",
+      "17.02.2026",
+      "21.04.2026",
+      "24.06.2025"
+    ],
+    "name_candidates": [
+      "ITALTRCH SRL",
+      "METAL X SRL",
+      "“L’ANTICA RICETTA SRLS”",
+      "EL.NET SOLUTION SRL",
+      "C.M.T. SRL",
+      "FMGDUE SRL",
+      "SRL",
+      "SULTAN SRL",
+      "SVILUPPO SOLARE SRL",
+      "T-RECYCLE SRL"
+    ]
+  }
+}
