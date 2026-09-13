@@ -30,6 +30,7 @@ _EXPECTED_UPDATE_VALUES = {
     "“": 2,
 }
 _EXPECTED_HEADERS = {
+    "Ragione Sociale | Sede legale | Sede secondaria con rappresentanza stabile in Italia | Codice fiscale/Partita IVA | Data d’iscrizione | Data scadenza iscrizione | Aggiornamento in corso",
     "Ragione Sociale | Sede legale | Sede secondaria con rappresentanza stabile in Italia | Codice fiscale/Partita IVA | Data d’ iscrizione | Data scadenza iscrizione | Aggiornamento in corso",
     "Ragione Sociale | Sede legale | Sede secondaria con rappresentanza stabile in Italia | Codice fiscale/Partita IVA | Data d ’ iscrizione | Data scadenza iscrizione | Aggiornamento in corso",
     "Ragione Sociale | Sede legale | Sede secondaria con rappresentanza stabile in Italia | Codice fiscale/Partita IVA | Data di iscrizione | Data scadenza iscrizione | Aggiornamento in corso",
