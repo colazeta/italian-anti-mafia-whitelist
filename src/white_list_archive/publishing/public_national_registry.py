@@ -46,6 +46,7 @@ from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
 from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
 from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
 from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
+from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -57,6 +58,7 @@ FOGGIA_PARSERS = {
     "foggia_listed": parse_foggia_listed,
     "foggia_applicants": parse_foggia_applicants,
 }
+FORLI_CESENA_PARSERS = {"forli_cesena_combined": parse_forli_cesena_combined}
 
 
 def _adapt_bolzano_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
@@ -321,6 +323,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or CATANIA_PARSERS.get(cfg["parser"])
         or GENOVA_PARSERS.get(cfg["parser"])
         or FOGGIA_PARSERS.get(cfg["parser"])
+        or FORLI_CESENA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")

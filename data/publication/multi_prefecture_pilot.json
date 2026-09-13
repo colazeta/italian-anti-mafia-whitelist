@@ -1015,6 +1015,23 @@
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "dated official resource directly revalidated 13 September 2026",
       "notes": "Byte-pinned 46-page applicant PDF. The fail-closed parser yields exactly 628 pending observations. Identifier coverage is frozen at 621 strict identifiers, six raw-only identifiers and one empty source identifier; source values are preserved without inference."
+    },
+    {
+      "authority_key": "forli-cesena",
+      "authority_name": "Prefettura di Forlì-Cesena",
+      "register_key": "forli-cesena-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list",
+      "source_key": "forli-cesena-combined",
+      "parser": "forli_cesena_combined",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-11",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf",
+      "sha256": "f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468",
+      "expected_source_rows": 749,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dated official resource directly repeat-fetched and byte-verified 13 September 2026",
+      "notes": "Byte-pinned 69-page combined publication. The fail-closed parser yields exactly 749 source observations: 401 listed, 204 renewal/update in progress and 144 pending/avvio istruttoria. Two exact duplicate identifiers remain distinct observations; one 10-digit identifier and one blank foreign-company identifier remain raw and uninferred; the malformed source status date DAL 11/04/20226 is preserved raw without repair."
     }
   ]
 }
