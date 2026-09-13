@@ -10,7 +10,7 @@ import pdfplumber
 from docx import Document
 from docx.oxml.ns import qn
 
-from .base import ParsedBatch
+from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch
 
 _LISTED_SHA256 = "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d"
 _APPLICANT_SHA256 = "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c"
