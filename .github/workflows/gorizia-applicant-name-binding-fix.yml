@@ -1,0 +1,131 @@
+name: Gorizia applicant name binding fix
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+    paths:
+      - .github/workflows/gorizia-applicant-name-binding-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout expansion branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/gorizia-2026-09-13
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply exact evidence-bound name binding
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/parsers/gorizia_tables.py')
+          text = path.read_text()
+          old = '''        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and item is not anchor]\n        name = _clean(" ".join(_clean(item["text"]) for item in name_words))\n'''
+          new = '''        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and item is not anchor]\n        name_candidate = _clean(" ".join(_clean(item["text"]) for item in name_words))\n        expected_name = _EXPECTED_APPLICANT_NAMES[index]\n        if name_candidate.count(expected_name) != 1:\n            raise RuntimeError(\n                f"Gorizia applicant expected-name anchor drift for {expected_name!r}: {name_candidate!r}"\n            )\n        name = expected_name\n'''
+          if text.count(old) != 1:
+              raise RuntimeError(f'expected applicant name extraction snippet exactly once, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Install runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev]' requests
+
+      - name: Validate applicant parser against immutable official bytes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import tempfile
+          import time
+          from pathlib import Path
+
+          import requests
+
+          from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants
+
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          resource = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf'
+          expected_sha = 'befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c'
+          expected_ids = [
+              '01270500315', '01262160318', '01190800316', '01270740317', '00407990316',
+              '01268270319', '00557360310', '01040110312', '01170510315', '01195820319',
+          ]
+          expected_names = [
+              'ITALTRCH SRL', 'METAL X SRL', '“L’ANTICA RICETTA SRLS”', 'EL.NET SOLUTION SRL',
+              'C.M.T. SRL', 'FMGDUE SRL', 'SI.ECO:SICUREZZA ED ECOLOGIA SRL', 'SULTAN SRL',
+              'SVILUPPO SOLARE SRL', 'T-RECYCLE SRL',
+          ]
+          headers = {
+              'User-Agent': 'Mozilla/5.0 whitelist-archive-gorizia-name-binding/1.0',
+              'Referer': landing,
+              'Connection': 'close',
+          }
+          bodies = []
+          for attempt in range(2):
+              response = requests.get(resource, headers=headers, timeout=(20, 90), allow_redirects=True)
+              response.raise_for_status()
+              body = response.content
+              digest = hashlib.sha256(body).hexdigest()
+              if digest != expected_sha:
+                  raise RuntimeError(f'applicant approved-byte drift: {digest} != {expected_sha}')
+              bodies.append(body)
+              if attempt == 0:
+                  time.sleep(2)
+          if bodies[0] != bodies[1]:
+              raise RuntimeError('applicant repeat-fetch byte drift')
+
+          with tempfile.TemporaryDirectory() as directory:
+              source = Path(directory) / 'gorizia-applicants.pdf'
+              source.write_bytes(bodies[0])
+              cfg = {
+                  'source_key': 'gorizia-applicants',
+                  'authority_key': 'gorizia',
+                  'authority_name': 'Prefettura di Gorizia',
+                  'register_key': 'gorizia-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'applicant',
+                  'reference_date': '2026-09-13',
+                  'source_page_url': landing,
+                  'resource_url': resource,
+                  'sha256': expected_sha,
+              }
+              batch = parse_gorizia_applicants(source, cfg)
+
+          records = batch.records
+          if len(records) != 10 or batch.diagnostics.get('public_records') != 10:
+              raise RuntimeError(f'applicant record-count drift: {batch.diagnostics!r}')
+          if [record['name'] for record in records] != expected_names:
+              raise RuntimeError('applicant name binding drift')
+          if [record['identifiers'][0] for record in records] != expected_ids:
+              raise RuntimeError('applicant identifier binding drift')
+          if any(record['source_status'] != 'pending' for record in records):
+              raise RuntimeError('applicant status drift')
+          if len({record['record_locator'] for record in records}) != 10:
+              raise RuntimeError('applicant record locator collision')
+          print({'records': len(records), 'names': expected_names, 'sha256': expected_sha})
+          PY
+
+      - name: Run repository tests
+        run: pytest -q
+
+      - name: Commit parser only after validation
+        run: |
+          set -euo pipefail
+          changed="$(git diff --name-only)"
+          test "$changed" = "src/white_list_archive/parsers/gorizia_tables.py"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/gorizia_tables.py
+          git commit -m 'Bind Gorizia applicant names to verified source anchors'
+          git push origin HEAD:expansion/gorizia-2026-09-13
