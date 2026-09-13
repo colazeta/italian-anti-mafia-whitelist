@@ -1,0 +1,122 @@
+name: Foggia grouping audit
+
+on:
+  push:
+    branches:
+      - expansion/foggia-2026-09-13
+    paths:
+      - .github/workflows/foggia-grouping-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/foggia-2026-09-13
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests pdfplumber
+      - name: Freeze reviewed observation grouping
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import collections, datetime, hashlib, io, json, re
+          from pathlib import Path
+          import requests, pdfplumber
+
+          URL='https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf'
+          SHA='313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a'
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-grouping-audit/1.0)'
+          strict_id=re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})(?![A-Za-z0-9])')
+          date_re=re.compile(r'^\s*(\d{1,2})[./](\d{1,2})[./](\d{4})\s*$')
+          year=re.compile(r'20\d{2}')
+          section_re=re.compile(r'\bSezione\s+([IVX]+)\s*[:.-]?\s*([^\n]*)',re.I)
+          def clean(v): return ' '.join((v or '').replace('\xa0',' ').split())
+          def ids(v): return list(dict.fromkeys(x.upper() for x in strict_id.findall(clean(v))))
+          def iso(v):
+            m=date_re.fullmatch(clean(v))
+            if not m:return ''
+            d,mo,y=map(int,m.groups())
+            try:return datetime.date(y,mo,d).isoformat()
+            except ValueError:return ''
+          def date_key(v):
+            p=iso(v); return f'ISO::{p}' if p else f'RAW::{clean(v)}'
+          def status(raw):
+            c=re.sub(r'\s+','',clean(raw)).casefold()
+            if not c:return 'listed'
+            if c in {'incorso','iincorso'}:return 'renewal_update_in_progress'
+            # All other nonblank values in this official listed-company source are legal/administrative notes.
+            return 'listed_note'
+          r=requests.get(URL,headers={'User-Agent':UA},timeout=60);r.raise_for_status()
+          if hashlib.sha256(r.content).hexdigest()!=SHA:raise SystemExit('hash drift')
+          rows=[]
+          with pdfplumber.open(io.BytesIO(r.content)) as pdf:
+            if len(pdf.pages)!=44:raise SystemExit(f'page drift {len(pdf.pages)}')
+            for pno,page in enumerate(pdf.pages,1):
+              text=page.extract_text() or ''
+              sm=section_re.search(text)
+              section={'roman':sm.group(1).upper(),'label':clean(sm.group(2))} if sm else None
+              for ti,t in enumerate(page.extract_tables() or [],1):
+                for ri,row in enumerate(t or [],1):
+                  c=[clean(x) for x in (row or [])]
+                  if len(c)!=7 or not c[0] or not c[3] or not (year.search(c[4]) or year.search(c[5])):continue
+                  if 'ragione sociale' in ' '.join(c).casefold():continue
+                  rows.append({'page':pno,'table':ti,'row':ri,'cells':c,'section':section})
+          if len(rows)!=942:raise SystemExit(f'sector row drift {len(rows)}')
+          raw_status=collections.Counter(clean(r['cells'][6]) for r in rows)
+          class_status=collections.Counter(status(r['cells'][6]) for r in rows)
+          bad_listing=collections.Counter(clean(r['cells'][4]) for r in rows if not iso(r['cells'][4]))
+          bad_expiry=collections.Counter(clean(r['cells'][5]) for r in rows if not iso(r['cells'][5]))
+          groups=collections.OrderedDict()
+          for r in rows:
+            c=r['cells']; iv=ids(c[3]); st=status(c[6])
+            if len(iv)==1:
+              key=('id',iv[0],date_key(c[4]),date_key(c[5]),st)
+            else:
+              key=('raw',clean(c[0]),clean(c[3]),date_key(c[4]),date_key(c[5]),st)
+            g=groups.setdefault(key,{'rows':[],'names':[],'offices':[],'secondary':[],'identifiers_raw':[],'sections':[],'outcomes_raw':[],'listing_raw':[],'expiry_raw':[]})
+            g['rows'].append({'page':r['page'],'table':r['table'],'row':r['row']})
+            for field,val in (
+              ('names',c[0]),('offices',c[1]),('secondary',c[2]),('identifiers_raw',c[3]),('outcomes_raw',c[6]),('listing_raw',c[4]),('expiry_raw',c[5])):
+              if val not in g[field]:g[field].append(val)
+            sec=r['section']
+            if sec:
+              token=f"Sezione {sec['roman']} - {sec['label']}"
+              if token not in g['sections']:g['sections'].append(token)
+          group_status=collections.Counter(k[-1] for k in groups)
+          mult_name=[]
+          mult_outcome=[]
+          for key,g in groups.items():
+            if len(g['names'])>1:mult_name.append({'key':key,'names':g['names'],'rows':g['rows']})
+            if len(g['outcomes_raw'])>1:mult_outcome.append({'key':key,'outcomes_raw':g['outcomes_raw'],'rows':g['rows']})
+          out={
+            'authority_key':'foggia','listed_sha256':SHA,'sector_rows':len(rows),
+            'raw_status_counts':dict(raw_status),'row_status_class_counts':dict(class_status),
+            'unparsed_listing_raw_counts':dict(bad_listing),'unparsed_expiry_raw_counts':dict(bad_expiry),
+            'public_observation_groups':len(groups),'group_status_class_counts':dict(group_status),
+            'groups_with_multiple_name_variants':mult_name,
+            'groups_with_multiple_outcome_variants':mult_outcome,
+            'groups_with_raw_identifier_key':sum(k[0]=='raw' for k in groups),
+            'groups_with_raw_date_key':sum(any(str(part).startswith('RAW::') for part in k) for k in groups),
+            'group_examples':[{'key':list(k),**v} for k,v in list(groups.items())[:15]],
+          }
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/foggia_grouping_audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps({k:out[k] for k in ('sector_rows','raw_status_counts','row_status_class_counts','unparsed_listing_raw_counts','unparsed_expiry_raw_counts','public_observation_groups','group_status_class_counts','groups_with_raw_identifier_key','groups_with_raw_date_key')},ensure_ascii=False,indent=2))
+          print('MULTI_NAME_GROUPS',json.dumps(mult_name,ensure_ascii=False,indent=2))
+          print('MULTI_OUTCOME_GROUPS',json.dumps(mult_outcome,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit grouping checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/foggia_grouping_audit.json
+          git commit -m 'Checkpoint Foggia grouping semantics'
+          git push origin HEAD:expansion/foggia-2026-09-13
