@@ -1,0 +1,171 @@
+name: Gorizia layout audit
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests python-docx pdfplumber pypdf
+
+      - name: Inspect frozen official documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import re
+          from pathlib import Path
+
+          import pdfplumber
+          import requests
+          from docx import Document
+          from docx.oxml.ns import qn
+          from pypdf import PdfReader
+
+          landing = "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list"
+          listed_url = "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx"
+          applicants_url = "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf"
+          listed_sha = "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d"
+          applicants_sha = "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c"
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-layout-audit/1.0",
+              "Referer": landing,
+              "Connection": "close",
+          }
+
+          def get(url: str, expected_sha: str) -> bytes:
+              response = requests.get(url, headers=headers, timeout=(20, 90), allow_redirects=True)
+              response.raise_for_status()
+              body = response.content
+              got = hashlib.sha256(body).hexdigest()
+              if got != expected_sha:
+                  raise RuntimeError(f"approved-byte digest drift for {url}: {got} != {expected_sha}")
+              return body
+
+          def clean(value: str | None) -> str:
+              return re.sub(r"\s+", " ", value or "").strip()
+
+          listed_bytes = get(listed_url, listed_sha)
+          applicants_bytes = get(applicants_url, applicants_sha)
+
+          listed_path = Path("tmp/gorizia-listed.docx")
+          listed_path.write_bytes(listed_bytes)
+          doc = Document(listed_path)
+
+          listed_tables = []
+          for table_index, table in enumerate(doc.tables, start=1):
+              rows = []
+              for row_index, row in enumerate(table.rows, start=1):
+                  physical = []
+                  for tc in row._tr.tc_lst:
+                      text = clean(" ".join((node.text or "") for node in tc.iter(qn("w:t"))))
+                      physical.append(text)
+                  rows.append({
+                      "row": row_index,
+                      "logical_cells": [clean(cell.text) for cell in row.cells],
+                      "physical_cells": physical,
+                  })
+              listed_tables.append({"table": table_index, "rows": rows})
+
+          listed_paragraphs = [clean(p.text) for p in doc.paragraphs if clean(p.text)]
+          listed_dates = sorted(set(re.findall(
+              r"\b(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{4})\b",
+              "\n".join(listed_paragraphs + [" | ".join(r["logical_cells"]) for t in listed_tables for r in t["rows"]]),
+              flags=re.IGNORECASE,
+          )))
+
+          applicant_reader = PdfReader(io.BytesIO(applicants_bytes), strict=False)
+          applicant_text_pages = [page.extract_text() or "" for page in applicant_reader.pages]
+          applicant_tables = []
+          with pdfplumber.open(io.BytesIO(applicants_bytes)) as pdf:
+              for page_number, page in enumerate(pdf.pages, start=1):
+                  tables = page.extract_tables() or []
+                  for table_index, table in enumerate(tables, start=1):
+                      applicant_tables.append({
+                          "page": page_number,
+                          "table": table_index,
+                          "rows": [[clean(cell) for cell in row] for row in table if row],
+                      })
+
+          applicant_dates = sorted(set(re.findall(
+              r"\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b",
+              "\n".join(applicant_text_pages),
+          )))
+
+          summary = {
+              "authority_key": "gorizia",
+              "capture_sha256": {"listed": listed_sha, "applicants": applicants_sha},
+              "listed": {
+                  "paragraph_count": len(doc.paragraphs),
+                  "nonblank_paragraph_count": len(listed_paragraphs),
+                  "paragraphs": listed_paragraphs,
+                  "table_count": len(doc.tables),
+                  "table_row_counts": [len(t.rows) for t in doc.tables],
+                  "table_physical_widths": [sorted(set(len(r["physical_cells"]) for r in item["rows"])) for item in listed_tables],
+                  "date_lexemes": listed_dates,
+              },
+              "applicants": {
+                  "pages": len(applicant_reader.pages),
+                  "text_pages": applicant_text_pages,
+                  "table_count": len(applicant_tables),
+                  "table_row_counts": [len(item["rows"]) for item in applicant_tables],
+                  "table_widths": [sorted(set(len(row) for row in item["rows"])) for item in applicant_tables],
+                  "date_lexemes": applicant_dates,
+              },
+          }
+
+          Path("tmp/gorizia_layout_summary.json").write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          Path("tmp/gorizia_listed_tables.json").write_text(
+              json.dumps(listed_tables, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          Path("tmp/gorizia_applicant_tables.json").write_text(
+              json.dumps(applicant_tables, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          print(json.dumps({
+              "listed_table_count": len(doc.tables),
+              "listed_table_row_counts": [len(t.rows) for t in doc.tables],
+              "applicant_table_count": len(applicant_tables),
+              "applicant_table_row_counts": [len(item["rows"]) for item in applicant_tables],
+              "listed_date_lexeme_count": len(listed_dates),
+              "applicant_date_lexemes": applicant_dates,
+          }, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint layout audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/gorizia_layout_summary.json tmp/gorizia_listed_tables.json tmp/gorizia_applicant_tables.json
+          if git diff --cached --quiet; then
+            echo "No layout-audit change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Gorizia document layout audit"
+          git push
