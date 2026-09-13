@@ -36,8 +36,14 @@ jobs:
 
           LANDING = 'https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list'
           EXPECTED = {
-              'listed': 'Elenco fornitori aggiornato al 03/08/26',
-              'applicants': 'Elenco imprese richiedenti aggiornato al 03/08/26',
+              'listed': {
+                  'label': 'White list - Elenco imprese iscritte - Aggiornato al 08-09-2026',
+                  'reference_date': '2026-09-08',
+              },
+              'applicants': {
+                  'label': "White list - Elenco imprese richiedenti l'iscrizione - Aggiornato al 10/09/2026",
+                  'reference_date': '2026-09-10',
+              },
           }
           UA = 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-audit/1.0)'
 
@@ -52,7 +58,7 @@ jobs:
           landing = get(LANDING)
           soup = BeautifulSoup(landing.text, 'html.parser')
           anchors = []
-          expected_cf = [x.casefold() for x in EXPECTED.values()]
+          expected_cf = [x['label'].casefold() for x in EXPECTED.values()]
           for a in soup.find_all('a', href=True):
               own = norm(a.get_text(' ', strip=True))
               contexts = []
@@ -73,7 +79,8 @@ jobs:
               anchors.append({'text': own, 'context': context, 'url': urljoin(LANDING, a['href'])})
 
           matched = {}
-          for pop, label in EXPECTED.items():
+          for pop, expected in EXPECTED.items():
+              label = expected['label']
               label_cf = label.casefold()
               by_url = {}
               for item in anchors:
@@ -94,6 +101,7 @@ jobs:
               item = candidates[0]
               matched[pop] = {
                   'text': label,
+                  'reference_date': expected['reference_date'],
                   'url': item['url'],
                   'html_anchor_text': item['text'],
                   'html_context': item['context'],
@@ -161,7 +169,6 @@ jobs:
               'landing_page': LANDING,
               'landing_http_status': landing.status_code,
               'landing_sha256': hashlib.sha256(landing.content).hexdigest(),
-              'expected_reference_date': '2026-08-03',
               'sources': {},
           }
           for pop, item in matched.items():
@@ -173,6 +180,7 @@ jobs:
               prof.update({
                   'population': pop,
                   'official_link_label': item['text'],
+                  'reference_date': item['reference_date'],
                   'html_anchor_text': item['html_anchor_text'],
                   'html_context': item['html_context'],
                   'url': item['url'],
