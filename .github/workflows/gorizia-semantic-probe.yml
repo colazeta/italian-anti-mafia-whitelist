@@ -1,0 +1,221 @@
+name: Gorizia semantic probe
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Derive compact semantic invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import re
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          listed = json.loads(Path("tmp/gorizia_listed_tables.json").read_text(encoding="utf-8"))
+          applicants = json.loads(Path("tmp/gorizia_applicant_tables.json").read_text(encoding="utf-8"))
+
+          def clean(value: str | None) -> str:
+              return re.sub(r"\s+", " ", value or "").strip()
+
+          sector_rows = []
+          section_counts = {}
+          update_counts = Counter()
+          identifier_shapes = Counter()
+          rows_without_name = []
+          rows_without_identifier = []
+          listing_dates = Counter()
+          expiry_dates = Counter()
+
+          for table in listed:
+              section = int(table["table"])
+              rows = table["rows"]
+              header = rows[0]["logical_cells"]
+              expected = [
+                  "Ragione Sociale", "Sede legale", "Sede secondaria con rappresentanza stabile in Italia",
+                  "Codice fiscale/Partita IVA", "Data d’iscrizione", "Data scadenza iscrizione", "Aggiornamento in corso"
+              ]
+              if len(header) != 7:
+                  raise RuntimeError(f"section {section} header width drift: {header!r}")
+              body = []
+              for item in rows[1:]:
+                  values = [clean(v) for v in item["logical_cells"]]
+                  if not any(values):
+                      continue
+                  if len(values) != 7:
+                      raise RuntimeError(f"section {section} row {item['row']} width drift: {values!r}")
+                  body.append((item["row"], values))
+              section_counts[str(section)] = len(body)
+              for source_row, values in body:
+                  name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
+                  if not name:
+                      rows_without_name.append([section, source_row, values])
+                  if not identifier_raw:
+                      rows_without_identifier.append([section, source_row, name])
+                  digits = re.sub(r"\D", "", identifier_raw)
+                  if not identifier_raw:
+                      shape = "blank"
+                  elif re.fullmatch(r"[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]", identifier_raw.replace(" ", "").upper()):
+                      shape = "fiscal_code_16"
+                  else:
+                      runs11 = re.findall(r"(?<!\d)\d{11}(?!\d)", identifier_raw)
+                      if len(runs11) >= 2:
+                          shape = f"{len(runs11)}x11_digit"
+                      elif len(runs11) == 1:
+                          shape = "contains_11_digit"
+                      else:
+                          shape = f"other_digits_{len(digits)}"
+                  identifier_shapes[shape] += 1
+                  update_counts[update_raw] += 1
+                  listing_dates[listing_raw] += 1
+                  expiry_dates[expiry_raw] += 1
+                  sector_rows.append({
+                      "section": section, "source_row": source_row, "name": name, "office": office,
+                      "secondary": secondary, "identifier_raw": identifier_raw,
+                      "listing_raw": listing_raw, "expiry_raw": expiry_raw, "update_raw": update_raw,
+                  })
+
+          exact_groups = defaultdict(list)
+          identity_groups = defaultdict(list)
+          for row in sector_rows:
+              exact_key = (
+                  row["name"], row["office"], row["secondary"], row["identifier_raw"],
+                  row["listing_raw"], row["expiry_raw"], row["update_raw"],
+              )
+              exact_groups[exact_key].append(row)
+              identity_key = (row["name"], row["office"], row["secondary"], row["identifier_raw"])
+              identity_groups[identity_key].append(row)
+
+          exact_group_status = Counter("renewal_update_in_progress" if key[-1] else "listed" for key in exact_groups)
+          identity_status = Counter(
+              "renewal_update_in_progress" if any(member["update_raw"] for member in members) else "listed"
+              for members in identity_groups.values()
+          )
+
+          repeated_exact = sorted(
+              [
+                  {
+                      "name": key[0], "identifier_raw": key[3], "listing_raw": key[4],
+                      "expiry_raw": key[5], "update_raw": key[6],
+                      "sections": [m["section"] for m in members],
+                  }
+                  for key, members in exact_groups.items() if len(members) > 1
+              ],
+              key=lambda x: (-len(x["sections"]), x["name"]),
+          )
+          repeated_identity_with_different_registration = sorted(
+              [
+                  {
+                      "name": key[0], "identifier_raw": key[3],
+                      "row_count": len(members),
+                      "sections": sorted({m["section"] for m in members}),
+                      "registrations": sorted({(m["listing_raw"], m["expiry_raw"], m["update_raw"]) for m in members}),
+                  }
+                  for key, members in identity_groups.items()
+                  if len({(m["listing_raw"], m["expiry_raw"], m["update_raw"]) for m in members}) > 1
+              ],
+              key=lambda x: (-x["row_count"], x["name"]),
+          )
+
+          # Applicant extraction is fragmented. Summarise positive anchor-bearing rows and all nonblank values
+          # without inferring records from blank-line structure.
+          applicant_nonblank_rows = []
+          applicant_identifiers = []
+          applicant_dates = []
+          applicant_name_candidates = []
+          known_name_tokens = ("SRL", "S.R.L", "SOCIETA", "SOCIETÀ", "COOP", "IMPRESA")
+          for table in applicants:
+              for index, row in enumerate(table["rows"], start=1):
+                  values = [clean(v) for v in row]
+                  nonblank = [v for v in values if v]
+                  if not nonblank:
+                      continue
+                  applicant_nonblank_rows.append({"page": table["page"], "row": index, "values": values})
+                  for value in values:
+                      applicant_identifiers.extend(re.findall(r"(?<!\d)\d{11}(?!\d)", value))
+                      applicant_dates.extend(re.findall(r"\b\d{2}\.\d{2}\.\d{4}\b", value))
+                      folded = value.upper()
+                      if any(token in folded for token in known_name_tokens) and not any(
+                          marker in folded for marker in ("ELENCO", "RAGIONE SOCIALE", "SERVIZI", "ATTIVITÀ", "ATTIVITA")
+                      ):
+                          applicant_name_candidates.append(value)
+
+          report = {
+              "authority_key": "gorizia",
+              "listed": {
+                  "section_rows": section_counts,
+                  "sector_rows": len(sector_rows),
+                  "rows_without_name": rows_without_name,
+                  "rows_without_identifier": rows_without_identifier,
+                  "update_lexemes": dict(sorted(update_counts.items())),
+                  "identifier_shapes": dict(sorted(identifier_shapes.items())),
+                  "exact_registration_groups": len(exact_groups),
+                  "exact_registration_status_counts": dict(exact_group_status),
+                  "identity_groups": len(identity_groups),
+                  "identity_status_counts": dict(identity_status),
+                  "repeated_exact_group_count": len(repeated_exact),
+                  "repeated_exact_groups": repeated_exact,
+                  "identities_with_different_registration_count": len(repeated_identity_with_different_registration),
+                  "identities_with_different_registration": repeated_identity_with_different_registration,
+                  "unique_listing_lexemes": len(listing_dates),
+                  "unique_expiry_lexemes": len(expiry_dates),
+              },
+              "applicants": {
+                  "table_count": len(applicants),
+                  "nonblank_extraction_rows": len(applicant_nonblank_rows),
+                  "identifier_occurrences": applicant_identifiers,
+                  "unique_identifiers": sorted(set(applicant_identifiers)),
+                  "date_occurrences": applicant_dates,
+                  "unique_dates": sorted(set(applicant_dates)),
+                  "name_candidates": applicant_name_candidates,
+              },
+          }
+          Path("tmp/gorizia_semantic_probe.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          print(json.dumps({
+              "listed_sector_rows": len(sector_rows),
+              "listed_exact_registration_groups": len(exact_groups),
+              "listed_identity_groups": len(identity_groups),
+              "listed_exact_status_counts": dict(exact_group_status),
+              "listed_identity_status_counts": dict(identity_status),
+              "applicant_unique_identifiers": sorted(set(applicant_identifiers)),
+              "applicant_name_candidates": applicant_name_candidates,
+          }, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint semantic probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/gorizia_semantic_probe.json
+          if git diff --cached --quiet; then
+            echo "No semantic-probe change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Gorizia semantic probe"
+          git push
