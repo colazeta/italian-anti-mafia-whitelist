@@ -1,0 +1,75 @@
+name: Foggia LUISI layout audit
+
+on:
+  push:
+    branches:
+      - expansion/foggia-2026-09-13
+    paths:
+      - .github/workflows/foggia-luisi-layout-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/foggia-2026-09-13
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests pdfplumber
+      - name: Inspect pinned source around LUISI
+        run: |
+          python - <<'PY'
+          import hashlib, io, json
+          from pathlib import Path
+          import requests, pdfplumber
+          url='https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf'
+          expected='313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a'
+          r=requests.get(url,headers={'User-Agent':'Mozilla/5.0'},timeout=60); r.raise_for_status()
+          if hashlib.sha256(r.content).hexdigest()!=expected: raise SystemExit('hash drift')
+          out={'source_url':url,'sha256':expected,'matches':[]}
+          with pdfplumber.open(io.BytesIO(r.content)) as pdf:
+            for pno,page in enumerate(pdf.pages,1):
+              text=page.extract_text(x_tolerance=2,y_tolerance=3) or ''
+              tables=page.extract_tables() or []
+              selected=[]
+              for ti,t in enumerate(tables,1):
+                for ri,row in enumerate(t or [],1):
+                  cells=[' '.join((c or '').replace('\xa0',' ').split()) for c in (row or [])]
+                  joined=' | '.join(cells)
+                  if 'LUISI' in joined.upper() or ('IN CORSO' in joined.upper() and '11.06.2025' in joined):
+                    selected.append({'table':ti,'row':ri,'cells':cells})
+              if 'LUISI' not in text.upper() and not selected:
+                continue
+              lines=text.splitlines()
+              hit_indexes=[i for i,x in enumerate(lines) if 'LUISI' in x.upper() or ('IN CORSO' in x.upper() and '11.06.2025' in x)]
+              around=[]
+              for idx in hit_indexes:
+                around.append([{'index':i,'text':lines[i]} for i in range(max(0,idx-5),min(len(lines),idx+6))])
+              words=page.extract_words(x_tolerance=1,y_tolerance=2,use_text_flow=False) or []
+              key_words=[w for w in words if 'LUISI' in (w.get('text') or '').upper()]
+              bands=[]
+              for kw in key_words:
+                top=float(kw['top'])-35; bottom=float(kw['bottom'])+35
+                near=[{k:w[k] for k in ('text','x0','x1','top','bottom')} for w in words if float(w['bottom'])>=top and float(w['top'])<=bottom]
+                bands.append({'keyword':kw,'near_words':near})
+              out['matches'].append({'page':pno,'selected_table_rows':selected,'text_contexts':around,'word_bands':bands})
+          pages=sorted({x['page'] for x in out['matches']})
+          if pages!=[7,18,30]: raise SystemExit(f'reviewed LUISI pages drifted: {pages}')
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/foggia_luisi_layout_audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Commit checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/foggia_luisi_layout_audit.json
+          git commit -m 'Checkpoint Foggia LUISI layout evidence'
+          git push origin HEAD:expansion/foggia-2026-09-13
