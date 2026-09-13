@@ -25,16 +25,26 @@ jobs:
           ref: expansion/forli-cesena-2026-09-13
           fetch-depth: 0
 
+      - name: Install PDF inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          command -v pdfinfo
+          command -v pdftotext
+
       - name: Fetch official PDF twice and checkpoint exact outcome
         shell: bash
         run: |
           set -u
           landing='https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list'
           url='https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf'
+          expected_sha='f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468'
           mkdir -p tmp /tmp/forli_audit
           report='tmp/forli_cesena_source_audit.txt'
           : > "$report"
-          printf '%s\n' 'authority_key=forli-cesena' "fetched_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "official_landing=$landing" "official_pdf=$url" 'edition_date=2026-09-11' >> "$report"
+          printf '%s\n' 'authority_key=forli-cesena' "fetched_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "official_landing=$landing" "official_pdf=$url" 'edition_date=2026-09-11' "expected_sha256=$expected_sha" >> "$report"
 
           landing_code=$(curl -L -sS --connect-timeout 20 --max-time 90 --retry 2 --retry-delay 2 --retry-all-errors \
             -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' \
@@ -64,24 +74,36 @@ jobs:
             sha_a=$(sha256sum /tmp/forli_audit/source_a.pdf | awk '{print $1}')
             sha_b=$(sha256sum /tmp/forli_audit/source_b.pdf | awk '{print $1}')
             identical=false; cmp -s /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source_b.pdf && identical=true
-            echo "sha256_a=$sha_a" >> "$report"; echo "sha256_b=$sha_b" >> "$report"; echo "byte_identical=$identical" >> "$report"
+            pinned=false; test "$sha_a" = "$expected_sha" && test "$sha_b" = "$expected_sha" && pinned=true
+            echo "sha256_a=$sha_a" >> "$report"; echo "sha256_b=$sha_b" >> "$report"; echo "byte_identical=$identical" >> "$report"; echo "matches_pinned_sha=$pinned" >> "$report"
             echo "bytes=$(stat -c '%s' /tmp/forli_audit/source_a.pdf)" >> "$report"
-            if test "$identical" = true && command -v pdfinfo >/dev/null && command -v pdftotext >/dev/null; then
-              echo "pages=$(pdfinfo /tmp/forli_audit/source_a.pdf | awk '/^Pages:/ {print $2}')" >> "$report"
+
+            if test "$identical" = true && test "$pinned" = true; then
+              pages=$(pdfinfo /tmp/forli_audit/source_a.pdf | awk '/^Pages:/ {print $2}')
+              echo "pages=$pages" >> "$report"
               pdftotext -layout /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source.txt
+              text_sha=$(sha256sum /tmp/forli_audit/source.txt | awk '{print $1}')
+              echo "layout_text_sha256=$text_sha" >> "$report"
+              echo "layout_text_lines=$(wc -l < /tmp/forli_audit/source.txt | tr -d ' ')" >> "$report"
+
               for label in 'AVVIO ISTRUTTORIA' RINNOVO AGGIORNAMENTO ISCRITTA; do
                 key=$(echo "$label" | tr '[:upper:] ' '[:lower:]_')
                 count=$(grep -Eio "$label" /tmp/forli_audit/source.txt 2>/dev/null | wc -l | tr -d ' ' || true)
                 echo "${key}_occurrences=${count:-0}" >> "$report"
               done
+
               ids=$(grep -Eo '(^|[^0-9])[0-9]{11}([^0-9]|$)' /tmp/forli_audit/source.txt 2>/dev/null | grep -Eo '[0-9]{11}' | sort -u | wc -l | tr -d ' ' || true)
               echo "unique_11_digit_tokens=${ids:-0}" >> "$report"
-              echo 'capture_gate=BYTE_IDENTICAL_AND_TEXT_EXTRACTED' >> "$report"
-              printf '\n--- first 120 text lines ---\n' >> "$report"; sed -n '1,120p' /tmp/forli_audit/source.txt >> "$report"
-            elif test "$identical" = true; then
-              echo 'capture_gate=BYTE_IDENTICAL_PDF_TEXT_TOOLS_UNAVAILABLE' >> "$report"
-            else
+              echo 'capture_gate=BYTE_IDENTICAL_PINNED_AND_TEXT_EXTRACTED' >> "$report"
+
+              printf '\n--- status-bearing lines (first 240) ---\n' >> "$report"
+              grep -Ein -m 240 'AVVIO[[:space:]]+ISTRUTTORIA|RINNOVO|AGGIORNAMENTO|ISCRITTA' /tmp/forli_audit/source.txt >> "$report" || true
+              printf '\n--- first 180 layout text lines ---\n' >> "$report"
+              sed -n '1,180p' /tmp/forli_audit/source.txt >> "$report"
+            elif test "$identical" != true; then
               echo 'capture_gate=PDF_FETCHED_BYTES_DIFFER' >> "$report"
+            else
+              echo 'capture_gate=PINNED_SHA_MISMATCH' >> "$report"
             fi
           else
             echo 'capture_gate=OFFICIAL_PDF_FETCH_UNAVAILABLE_FROM_GITHUB_RUNNER' >> "$report"
@@ -96,5 +118,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/forli_cesena_source_audit.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Checkpoint Forli-Cesena official source audit'
+          git commit -m 'Checkpoint Forli-Cesena layout and status audit'
           git push origin HEAD:expansion/forli-cesena-2026-09-13
