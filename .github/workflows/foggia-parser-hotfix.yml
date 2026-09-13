@@ -41,20 +41,27 @@ jobs:
           ]
 
           def literal_run(name: str) -> str:
-              marker = f'      - name: {name}\n        run: |\n'
-              if transaction.count(marker) != 1:
-                  raise RuntimeError(f'Foggia transaction marker drift for {name!r}: {transaction.count(marker)}')
-              tail = transaction.split(marker, 1)[1]
-              boundary = tail.find('\n      - name: ')
-              block = tail if boundary < 0 else tail[:boundary]
-              lines = block.splitlines()
-              out = []
-              for line in lines:
-                  if line.startswith('          '):
-                      out.append(line[10:])
-                  else:
-                      out.append(line)
-              return '\n'.join(out).rstrip() + '\n'
+              block_marker = f'      - name: {name}\n        run: |\n'
+              scalar_marker = f'      - name: {name}\n        run: '
+              block_count = transaction.count(block_marker)
+              scalar_count = transaction.count(scalar_marker) - block_count
+              if block_count == 1 and scalar_count == 0:
+                  tail = transaction.split(block_marker, 1)[1]
+                  boundary = tail.find('\n      - name: ')
+                  block = tail if boundary < 0 else tail[:boundary]
+                  out = []
+                  for line in block.splitlines():
+                      out.append(line[10:] if line.startswith('          ') else line)
+                  return '\n'.join(out).rstrip() + '\n'
+              if block_count == 0 and scalar_count == 1:
+                  tail = transaction.split(scalar_marker, 1)[1]
+                  command = tail.split('\n', 1)[0].strip()
+                  if not command:
+                      raise RuntimeError(f'empty scalar transaction step: {name!r}')
+                  return command + '\n'
+              raise RuntimeError(
+                  f'Foggia transaction marker drift for {name!r}: block={block_count}, scalar={scalar_count}'
+              )
 
           try:
               scripts = [(name, literal_run(name)) for name in expected]
