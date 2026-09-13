@@ -1,4 +1,146 @@
 Traceback (most recent call last):
-  File "<stdin>", line 33, in <module>
-  File "<stdin>", line 19, in literal_run
-RuntimeError: Foggia transaction marker drift for 'Run full repository test suite': 0
+  File "<stdin>", line 50, in <module>
+RuntimeError: step='Run full repository test suite' returncode=1
+OUTPUT:
+........................................................................ [ 21%]
+........................................................................ [ 43%]
+........................................................................ [ 65%]
+.................F...................................................... [ 86%]
+.....F........F.....F.......................                             [100%]
+=================================== FAILURES ===================================
+_ test_national_ledger_matches_existing_authorities_and_preserves_public_boundary _
+
+ledger = {'schema_version': 1, 'mode': 'EXPANSION_MODE', 'seeded_at': '2026-09-08T16:50:00Z', 'seed_commit': '00a9e82a26d07ae08bc86a8008467870630fc7f9', ...}
+
+    def test_national_ledger_matches_existing_authorities_and_preserves_public_boundary(ledger):
+        with (ROOT / "data/source_registry/territorial_authorities.csv").open() as f:
+            keys = {r["authority_key"] for r in csv.DictReader(f)}
+        validate(ledger, keys)
+        assert len(keys) == 106
+>       assert {r["authority_key"] for r in ledger["prefectures"] if r["public_export_enabled"]} == ledger_public_authorities()
+E       AssertionError: assert {'agrigento',...-piceno', ...} == {'agrigento',...-piceno', ...}
+E         
+E         Extra items in the right set:
+E         'foggia'
+E         
+E         Full diff:
+E           {
+E               'agrigento',
+E               'alessandria',
+E               'ancona',
+E               'aosta',
+E               'arezzo',
+E               'ascoli-piceno',
+E               'asti',
+E               'avellino',
+E               'bari',
+E               'barletta-andria-trani',
+E               'belluno',
+E               'benevento',
+E               'bergamo',
+E               'biella',
+E               'bologna',
+E               'bolzano-bozen',
+E               'brescia',
+E               'brindisi',
+E               'cagliari',
+E               'caltanissetta',
+E               'campobasso',
+E               'caserta',
+E               'catania',
+E               'cosenza',
+E               'crotone',
+E         -     'foggia',
+E               'genova',
+E               'parma',
+E               'pesaro-e-urbino',
+E               'pistoia',
+E               'udine',
+E           }
+
+tests/test_operations.py:33: AssertionError
+_________________ test_declared_csv_record_counts_are_current __________________
+
+    def test_declared_csv_record_counts_are_current():
+        for row in _catalog_rows():
+            declared = row["record_count"].strip()
+            if row["format"] != "csv" or not declared:
+                continue
+            path = ROOT / row["path"]
+            with path.open(encoding="utf-8", newline="") as handle:
+                actual = sum(1 for _ in csv.DictReader(handle))
+>           assert actual == int(declared), (
+                f"Catalog count for {row['dataset_id']} is {declared}, actual CSV rows are {actual}. "
+                "Update the data and catalog together."
+            )
+E           AssertionError: Catalog count for verified-primary-pages is 39, actual CSV rows are 40. Update the data and catalog together.
+E           assert 40 == 39
+E            +  where 39 = int('39')
+
+tests/test_repository_governance.py:81: AssertionError
+_______ test_every_verified_scope_accounts_for_both_logical_populations ________
+
+    def test_every_verified_scope_accounts_for_both_logical_populations():
+        report = _report()
+>       assert report["verified_authority_count"] == 39
+E       assert 40 == 39
+
+tests/test_source_population_coverage.py:21: AssertionError
+___________ test_verified_primary_pages_reference_seeded_authorities ___________
+
+    def test_verified_primary_pages_reference_seeded_authorities():
+        authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
+        pages = _read_csv("verified_primary_pages.csv")
+>       assert len(pages) == 39
+E       AssertionError: assert 40 == 39
+E        +  where 40 = len([{'authority_key': 'agrigento', 'landing_url': 'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/whi.../ascoli-piceno/elenco-iscritti-white-list', 'verification_date': '2026-09-10', 'verification_status': 'verified'}, ...])
+
+tests/test_source_registry.py:37: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_operations.py::test_national_ledger_matches_existing_authorities_and_preserves_public_boundary - AssertionError: assert {'agrigento',...-piceno', ...} == {'agrigento',...-piceno', ...}
+  
+  Extra items in the right set:
+  'foggia'
+  
+  Full diff:
+    {
+        'agrigento',
+        'alessandria',
+        'ancona',
+        'aosta',
+        'arezzo',
+        'ascoli-piceno',
+        'asti',
+        'avellino',
+        'bari',
+        'barletta-andria-trani',
+        'belluno',
+        'benevento',
+        'bergamo',
+        'biella',
+        'bologna',
+        'bolzano-bozen',
+        'brescia',
+        'brindisi',
+        'cagliari',
+        'caltanissetta',
+        'campobasso',
+        'caserta',
+        'catania',
+        'cosenza',
+        'crotone',
+  -     'foggia',
+        'genova',
+        'parma',
+        'pesaro-e-urbino',
+        'pistoia',
+        'udine',
+    }
+FAILED tests/test_repository_governance.py::test_declared_csv_record_counts_are_current - AssertionError: Catalog count for verified-primary-pages is 39, actual CSV rows are 40. Update the data and catalog together.
+assert 40 == 39
+ +  where 39 = int('39')
+FAILED tests/test_source_population_coverage.py::test_every_verified_scope_accounts_for_both_logical_populations - assert 40 == 39
+FAILED tests/test_source_registry.py::test_verified_primary_pages_reference_seeded_authorities - AssertionError: assert 40 == 39
+ +  where 40 = len([{'authority_key': 'agrigento', 'landing_url': 'https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/whi.../ascoli-piceno/elenco-iscritti-white-list', 'verification_date': '2026-09-10', 'verification_status': 'verified'}, ...])
+4 failed, 328 passed in 3.27s
+
