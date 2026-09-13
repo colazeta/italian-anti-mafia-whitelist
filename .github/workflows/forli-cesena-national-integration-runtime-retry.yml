@@ -6,6 +6,9 @@ on:
       - expansion/forli-cesena-2026-09-13
     paths:
       - .github/workflows/forli-cesena-national-integration-runtime-retry.yml
+      - .github/workflows/forli-cesena-national-integration.yml
+      - src/white_list_archive/parsers/forli_cesena_combined.py
+      - tests/test_forli_cesena_parser_semantics.py
   workflow_dispatch:
 
 permissions:
