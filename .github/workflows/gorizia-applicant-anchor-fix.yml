@@ -1,6 +1,11 @@
 name: Gorizia applicant anchor fix
 
 on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+    paths:
+      - .github/workflows/gorizia-applicant-anchor-fix.yml
   pull_request:
     branches:
       - main
@@ -10,7 +15,7 @@ permissions:
 
 jobs:
   fix:
-    if: github.event.pull_request.head.ref == 'expansion/gorizia-2026-09-13'
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'expansion/gorizia-2026-09-13'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
