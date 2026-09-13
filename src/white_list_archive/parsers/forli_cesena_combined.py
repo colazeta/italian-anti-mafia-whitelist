@@ -329,6 +329,7 @@ def parse_forli_cesena_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "parser_version": PARSER_VERSION,
             "pages": _EXPECTED_PAGES,
             "records": len(records),
+            "public_records": len(records),
             "status_counts": dict(statuses),
             "identifier_kind_counts": dict(id_kinds),
             "duplicate_strict_identifiers": duplicates,
