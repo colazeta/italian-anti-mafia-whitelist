@@ -336,13 +336,24 @@ def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             cumulative += float(page.height)
 
     identifier_anchors: list[dict[str, Any]] = []
+    identifier_occurrences: Counter[str] = Counter()
     for word in words:
         text = _clean(word["text"])
-        if re.fullmatch(r"\d{11}", text):
-            identifier_anchors.append(word)
-    observed_identifiers = [_clean(item["text"]) for item in identifier_anchors]
-    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS:
-        raise RuntimeError(f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}")
+        matches = [identifier for identifier in _EXPECTED_APPLICANT_IDENTIFIERS if identifier in text]
+        if len(matches) > 1:
+            raise RuntimeError(f"Gorizia ambiguous applicant identifier word: {text!r}")
+        if matches:
+            identifier = matches[0]
+            identifier_occurrences[identifier] += 1
+            identifier_anchors.append({**word, "identifier": identifier})
+    observed_identifiers = [item["identifier"] for item in identifier_anchors]
+    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS or any(
+        identifier_occurrences[identifier] != 1 for identifier in _EXPECTED_APPLICANT_IDENTIFIERS
+    ):
+        raise RuntimeError(
+            f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}; "
+            f"occurrences={dict(identifier_occurrences)!r}"
+        )
 
     for index, anchor in enumerate(identifier_anchors):
         current_top = float(anchor["global_top"])
@@ -353,7 +364,7 @@ def parse_gorizia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         )
         segment = [word for word in words if current_top - 4 <= float(word["global_top"]) < next_top - 4]
         segment_sorted = sorted(segment, key=lambda item: (float(item["global_top"]), float(item["x0"])))
-        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and _clean(item["text"]) != observed_identifiers[index]]
+        name_words = [item for item in segment_sorted if float(item["x0"]) < 225 and item is not anchor]
         name = _clean(" ".join(_clean(item["text"]) for item in name_words))
         date_candidates = [
             _clean(item["text"])
