@@ -3,7 +3,7 @@
   "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list",
   "landing_page_last_update": "2026-08-17T12:37:00+02:00",
   "source_reference_date": null,
-  "capture_gate": "verified",
+  "capture_gate": "not_verified",
   "sources": {
     "listed": {
       "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx",
@@ -58,19 +58,13 @@
       "second": {
         "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
         "format": "pdf",
-        "ok": true,
-        "status_code": 200,
-        "final_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
-        "content_type": "application/pdf",
-        "bytes": 143930,
-        "sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c",
-        "pdf_magic": true,
-        "pages": 2
+        "ok": false,
+        "error": "ReadTimeout: HTTPSConnectionPool(host='prefettura.interno.gov.it', port=443): Read timed out. (read timeout=20)"
       },
-      "repeat_fetch_byte_identical": true,
-      "verified_sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c",
-      "verified_bytes": 143930,
-      "verified_pages": 2,
+      "repeat_fetch_byte_identical": false,
+      "verified_sha256": null,
+      "verified_bytes": null,
+      "verified_pages": null,
       "verified_docx_entries": null
     }
   }
