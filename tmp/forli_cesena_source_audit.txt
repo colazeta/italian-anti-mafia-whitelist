@@ -1,8 +1,9 @@
 authority_key=forli-cesena
-fetched_utc=2026-09-13T06:08:26Z
+fetched_utc=2026-09-13T07:04:55Z
 official_landing=https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list
 official_pdf=https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf
 edition_date=2026-09-11
+expected_sha256=f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468
 landing_http_code=200
 fetch_a_http_code=200
 fetch_a_bytes=485001
@@ -15,5 +16,438 @@ valid_pdf_b=true
 sha256_a=f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468
 sha256_b=f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468
 byte_identical=true
+matches_pinned_sha=true
 bytes=485001
-capture_gate=BYTE_IDENTICAL_PDF_TEXT_TOOLS_UNAVAILABLE
+pages=69
+layout_text_sha256=69df0461a19e6aae14aecfd2ff4d69ae328f9122c00231c4566427daae745d03
+layout_text_lines=4358
+avvio_istruttoria_occurrences=145
+rinnovo_occurrences=1
+aggiornamento_occurrences=205
+iscritta_occurrences=0
+unique_11_digit_tokens=745
+capture_gate=BYTE_IDENTICAL_PINNED_AND_TEXT_EXTRACTED
+
+--- status-bearing lines (first 240) ---
+17:                                                                                                                                       AVVIO ISTRUTTORIA = richiesta di iscrizione
+18:                                                                                                                                       AGGIORNAMENTO = richiesta di rinnovo dell'iscrizione
+21:              VIA LUIGI GALVANI, 17/B                                          Provv. n.     90542/2024 del          11/11/2024           Scadenza 10/11/2025        IN AGGIORNAMENTO
+31:              VIA CESARE TERRANOVA, 60                                         Provv. n.     97511/2024 del          04/12/2024           Scadenza 03/12/2025        IN AGGIORNAMENTO
+36:              VIA T. TASSO 20                                                  Provv. n.                      del                         Scadenza                   AVVIO ISTRUTTORIA
+42:              VIA ANTICO ACQUEDOTTO, 36                                        Provv. n.     49342/2025 del          18/06/2025           Scadenza 17/06/2026        IN AGGIORNAMENTO
+48:              VIA GUGLIELMO URBINI, 81                                         Provv. n.     52518/2025 del          30/06/2025           Scadenza 29/06/2026        IN AGGIORNAMENTO
+67:              VIA XX SETTEMBRE, 26                                          Provv. n.     43466/2025 del        29/05/2025        Scadenza 28/05/2026   IN AGGIORNAMENTO
+73:              VIA FIRENZE , 75                                              Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+94:              VIA P. TOGLIATTI, 10                                          Provv. n.     35748 /2025 del       05/05/2025        Scadenza 04/05/2026   IN AGGIORNAMENTO
+100:              VIA MASIERA I°, 3501                                          Provv. n.     52655/2025 del        30/06/2025        Scadenza 29/06/2026   IN AGGIORNAMENTO
+111:              VIA ADRIANO OLIVETTI 42                                       Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+122:              VIA IDA SANGIORGI, 346                                        Provv. n.     82546 /2024 del       14/10/2024        Scadenza 13/10/2025    IN AGGIORNAMENTO
+161:              VIA BELLARIA, 40                                  Provv. n.                     del                      Scadenza               AVVIO ISTRUTTORIA
+191:              VIA D. GUERRAZZI, 39                                Provv. n.                    del                      Scadenza              IN AGGIORNAMENTO
+217:              VIA MACCANONE, 1003                                 Provv. n.     38939 /2025 del       15/05/2025        Scadenza 14/05/2026   IN AGGIORNAMENTO
+223:              VIALE DELL'APPENNINO, 48                            Provv. n.     70363/2025 del        04/09/2025        Scadenza 03/09/2026   IN AGGIORNAMENTO
+229:              VIA PARTISANI, 8                                    Provv. n.     59893/2025 del        24/07/2025        Scadenza 23/07/2026   IN AGGIORNAMENTO
+235:              VIA D.G. VERITA' 33                                 Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+265:              VIA GIUSEPPE GARIBALDI 27                               Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+271:              VIA CALCINARO, 1458                                     Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+277:              VIA NAZIONALE 21/A                                      Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+302:              VIA DELL'ACQUA 33                                       Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+308:              VIALE BOLOGNA 266/G                                     Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+323:              VIA N. COPERNICO, 40/42                                    Provv. n.     17087 /2025 del       05/03/2025        Scadenza 04/03/2026   IN AGGIORNAMENTO
+349:              VIA EMILIA LEVANTE 3761                                    Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+360:              STRADA GRAFFIETO 1088                                      Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+385:              VIA P. GOBETTI, 6/A                                       Provv. n.     77202/2025 del        29/09/2025        Scadenza 28/09/2026   IN AGGIORNAMENTO
+406:              VIA STRADA TEODORANO MONTECAVALLO, 4/B                    Provv. n.     98881/2024 del        09/12/2024        Scadenza 08/12/2025    IN AGGIORNAMENTO
+426:              VIA R. COMANDINI, 361                                     Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+432:              LOCALITA' PONTE LARCIANO N. 103/A                         Provv. n.     35767 /2025 del       05/05/2025        Scadenza 04/05/2026   IN AGGIORNAMENTO
+442:              VIA PADRE PIETRO LEONI, 35                             Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+453:              VIA MONTE FIORINO, 64                                  Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+459:              VIA ROMEO GALLI, 4                                     Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+470:              VIA TAVOLICCI, 11                                      Provv. n.     43460/2025 del        29/05/2025        Scadenza 28/05/2026   IN AGGIORNAMENTO
+481:              VIA STRADELLA SANT'ANDREA, 680                         Provv. n.     54603 /2025 del       07/07/2025        Scadenza 06/07/2026   IN AGGIORNAMENTO
+487:              VIA DELLE PRIMULE, 6 INT. 1                            Provv. n.     70102 /2025 del       03/09/2025        Scadenza 02/09/2026   IN AGGIORNAMENTO
+498:              VIA DEL CANALE, 93                                     Provv. n.     38919 /2025 del       15/05/2025        Scadenza 14/05/2026   IN AGGIORNAMENTO
+538:              VIA GEROLAMO CARDANO, 4/A                                 Provv. n.     13083/2025 del     19/02/2025        Scadenza 18/02/2026   IN AGGIORNAMENTO
+549:              VIA L. DA VINCI N. 19/P                                   Provv. n.     34317/2025 del     29/04/2025        Scadenza 28/04/2026   IN AGGIORNAMENTO
+599:              VIA LUIGI GALVANI, 17/B                                      Provv. n.     23812/2025 del     25/03/2025        Scadenza 24/03/2026    IN AGGIORNAMENTO
+610:              VIA SOBB. F. COMANDINI, 127                                  Provv. n.     20998/2025 del     17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+621:              VIA GRAMADORA, 19                                            Provv. n.     17063 /2025 del    05/03/2025        Scadenza 04/03/2026    IN AGGIORNAMENTO
+636:              VIA E. FERRARI 110                                  Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+657:              VIA CIVINELLI N. 945                                Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+663:              VIA CASE MISSIROLI, 170                             Provv. n.     81239/2025 del        13/10/2025        Scadenza 12/10/2026    IN AGGIORNAMENTO
+674:              VIA PIERO GOBETTI, 6/A                              Provv. n.     77209/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+680:              VIA DON G. ROSSETTI, 5                              Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+700:              VIA BALZELLA 41/D                          Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+706:              VIA C. ARMELLINI, 62                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+712:              VIA PROVINCIALE MUSANO, 3828               Provv. n.     63133/2025 del        05/08/2025        Scadenza 04/08/2026    IN AGGIORNAMENTO
+718:              VIA EMILIA, 1442                           Provv. n.     43464/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+724:              VIA CELLAIMO, 2791                         Provv. n.     10520 /2025 del       12/02/2025        Scadenza 11/02/2026    IN AGGIORNAMENTO
+730:              VIA ASSANO, 1351                           Provv. n.     102940/2024 del       23/12/2024        Scadenza 22/12/2025    IN AGGIORNAMENTO
+760:              VIA CAMERANO, 9                                 Provv. n.     70297/2025 del         04/09/2025        Scadenza 03/09/2026    IN AGGIORNAMENTO
+786:              VIA AURELIO SALVADORI 14/2                      Provv. n.     71449/2026 del         28/08/2026        Scadenza 27/08/2027     AVVIO ISTRUTTORIA
+802:              VIA CIVORIO-ROCCA,47 B                          Provv. n.     70328/2025 del         04/09/2025        Scadenza 03/09/2026    IN AGGIORNAMENTO
+827:              VIA DELLA FORESTA 7                                          Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+833:              VIA TARTARELLI EZIO, 50                                      Provv. n.     78099/2025 del        02/10/2025        Scadenza 01/10/2026    IN AGGIORNAMENTO
+844:              VIA EMILIA 2842                                              Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+850:              VIA CAVINA 16                                                Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+856:              VIA DISMANO 3835                                             Provv. n.                    del                      Scadenza               IN AGGIORNAMENTO
+862:              VIA SALTARELLI, 102                                          Provv. n.     13060 /2025 del       19/02/2025        Scadenza 18/02/2026    IN AGGIORNAMENTO
+868:              VIA COPERNICO, 107                                           Provv. n.     71358/2024 del        05/09/2024        Scadenza 04/09/2025     IN AGGIORNAMENTO
+873:              VIA SANTA RITA DA CASCIA, 119                                Provv. n.     21243/2025 del        17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+879:              VIA ANTOLINA, 273                                            Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+894:              VIA FORESE ROVERETI, 214                                    Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+930:              VIA CONSOLARE, 52/A/1                                       Provv. n.     38964 /2025 del        15/05/2025        Scadenza 14/05/2026    IN AGGIORNAMENTO
+941:              VICOLO MONTESI, 8                                           Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+971:              VIA AUGUSTO RIGHI, 1/E                         Provv. n.     71666/2025 del        10/09/2025        Scadenza 09/09/2026    IN AGGIORNAMENTO
+977:              VIA VARANO COSTA NUOVA N. 17                   Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+983:              VIA PAUL HARRIS, 31/33, FRAZ. CELLA            Provv. n.     49363/2025 del        18/06/2025        Scadenza 17/06/2026    IN AGGIORNAMENTO
+1023:              VIA MAIANINO AUSAVECCHIA 186                   Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1029:              VIA LELIO BASSO, 335                           Provv. n.     82682/2025 del        17/10/2025        Scadenza 16/10/2026    IN AGGIORNAMENTO
+1040:              VIA B. PARTISANI 9                             Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1046:              VIA LEONARDO DA VINCI 24                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1057:              VIA DISMANO, 4538                              Provv. n.     102797/2024 del       23/12/2024        Scadenza 22/12/2025    IN AGGIORNAMENTO
+1063:              VIA GIOVANNI BORELLI 8                         Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1083:              VIA BORGHINA, 8/A                                      Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1099:              VIA SERRA, 6                                           Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1105:              VIALE EUROPA, 596                                      Provv. n.     43426/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+1116:              VIA MAGELLANO, 2/B                                     Provv. n.     1864 /2025     del    09/01/2025        Scadenza 08/01/2026    IN AGGIORNAMENTO
+1122:              VIA PADRE VICINIO DA SARSINA, 42                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1147:              VIA FIUME RONCO, 1                                       Provv. n.     10609/2025 del        12/02/2025        Scadenza 11/02/2026    IN AGGIORNAMENTO
+1153:              VIA SANGEMINI, 109                                       Provv. n.     43469/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+1159:              VIA MAGELLANO, 44                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1175:              VIA LUIGI GALVANI, 17/B                                  Provv. n.     90653 /2024 del       11/11/2024        Scadenza 10/11/2025     IN AGGIORNAMENTO
+1180:              VIA DEL MARE 515                                         Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1186:              VIA FOSSALTA, 3443                                       Provv. n.     34329/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1192:              VIA EMILIA, 2700                                         Provv. n.     17051 /2025 del       05/03/2025        Scadenza 04/03/2026    IN AGGIORNAMENTO
+1207:              CORSO ARMANDO DIAZ, 192                                   Provv. n.     76439/2023 del     02/10/2023        Scadenza 30/09/2024     IN AGGIORNAMENTO
+1222:              VIA PALAZZINA, 9                                          Provv. n.     52672/2025 del     30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+1233:              VIA RUFFIO, 4025                                          Provv. n.     34405 /2025 del    29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1259:              PIAZZALE SON PASQUIO BORGHI, 180                          Provv. n.     27962 /2025 del    07/04/2025        Scadenza 06/04/2026    IN AGGIORNAMENTO
+1269:              VIA PONTESCOLLE,420                               Provv. n.     70069 /2025 del        03/09/2025        Scadenza 02/09/2026    IN AGGIORNAMENTO
+1275:              PIAZZA FRATELLI ROSSELLI 13                       Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1286:              VIA PERTICARA 61                                  Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1297:              VIA SANT'ANDREA, 1291                             Provv. n.     61721 /2025 del        30/07/2025        Scadenza 29/07/2026    IN AGGIORNAMENTO
+1303:              VIA DELL' ORTO 73                                 Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1309:              VIA ALDO CAPITINI, 5                              Provv. n.     21284/2025 del         17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+1325:              VIA C. ZOTTI, 7                                   Provv. n.     63143/2025 del         05/08/2025        Scadenza 04/08/2026    IN AGGIORNAMENTO
+1335:              VIA DELLE CONTESE, 1                       Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1356:              VIA FORESE SAMBUCO, 70                     Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1362:              VIA R. SCHUMAN, 13                         Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1368:              VIA S. MASTAGUERRA, 54                     Provv. n.     38857/2025 del         14/05/2025        Scadenza 13/05/2026    IN AGGIORNAMENTO
+1389:              VIA SAN PIETRO IN ARCO, 2                  Provv. n.     35699 /2025 del        05/05/2025        Scadenza 04/05/2026    IN AGGIORNAMENTO
+1399:              CORSO GARIBALDI 252                                           Provv. n.     57548/2024 del        12/07/2024        Scadenza 11/07/2025     IN AGGIORNAMENTO
+1404:              VIA PAGANELLO 225                                             Provv. n.     88251/2025 del        05/11/2025        Scadenza 04/11/2026    IN AGGIORNAMENTO
+1415:              VIA MARIANA,2779                                              Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1436:              VIA SAVIO, 16                                                 Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1447:              VIA GIUSEPPE MAZZINI 32                                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1453:              VIA EUCLIDE 8/A                                               Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1463:              VIA CARTESIO, 27                                          Provv. n.     27868/2025 del         07/04/2025        Scadenza 06/04/2026    IN AGGIORNAMENTO
+1474:              VIA LUIGI GALVANI, 17/B                                   Provv. n.     34123/2025 del         29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1480:              VIA VIOLETTO,150                                          Provv. n.     13080/2025 del         19/02/2025        Scadenza 18/02/2026    IN AGGIORNAMENTO
+1486:              VIA GIORGIO AMENDOLA, 11                                  Provv. n.     34303/2025 del         29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1497:              VIA GRAMADORA, 19                                         Provv. n.     34088/2025 del         29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1503:              VIA ALDO MORO, 12/C                                       Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1528:              VIA D. GINO SARAGONI, 15              Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1539:              VIA DEL SANGIOVESE 6                  Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1545:              VIA OSSI, 59                          Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1551:              VIA SECCHIA 33                        Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+1562:              VIA BALZELLA, 64                      Provv. n.     67629/2025 del         25/08/2025        Scadenza 24/08/2026    IN AGGIORNAMENTO
+1568:              VIA PRATI, 1731                       Provv. n.     71678/2025 del         10/09/2025        Scadenza 09/09/2026    IN AGGIORNAMENTO
+1579:              VIA PANTANO, 43                       Provv. n.     35707 /2025 del        05/05/2025        Scadenza 04/05/2026    IN AGGIORNAMENTO
+1594:              VIA VOLPE, 1348                                           Provv. n.                    del                      Scadenza                IN AGGIORNAMENTO
+1629:              VIA LIVIO CARLONI , 6                                     Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1640:              VIA COPERNICO, 107                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1665:              VIA SERACHIEDA, 1/C                                         Provv. n.     43430/2025 del     29/05/2025        Scadenza 28/05/2026     IN AGGIORNAMENTO
+1670:              VIA UGO LA MALFA, 65                                        Provv. n.     78113/2025 del     02/10/2025        Scadenza 01/10/2026    IN AGGIORNAMENTO
+1676:              VIA SALVO D'ACQUISTO, 9                                     Provv. n.     43442/2025 del     29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+1707:              VIA XXX APRILE, 85/B                                        Provv. n.     61724 /2025 del    30/07/2025        Scadenza 29/07/2026    IN AGGIORNAMENTO
+1727:              VIA CARLO ZOTTI SNC                                         Provv. n.     39383/2024 del        13/05/2024        Scadenza 12/05/2025    IN AGGIORNAMENTO
+1733:              VIA NICOLA SACCO, 19                                        Provv. n.     18909/2025 del        11/03/2025        Scadenza 10/03/2026    IN AGGIORNAMENTO
+1739:              VIA CHIESA PIEVESESTINA, 1083                               Provv. n.     70303/2025 del        04/09/2025        Scadenza 03/09/2026    IN AGGIORNAMENTO
+1745:              LOC.CA' DI PASQUETTA                                        Provv. n.     34418/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1756:              VIA MARGHERITA HACK , 23                                    Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1762:              VIA BOURGES, 2                                              Provv. n.     43462/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+1802:              VIA CASTELLACCIO, 16                                     Provv. n.     83273/2023 del     28/10/2024        Scadenza 27/10/2025     IN AGGIORNAMENTO
+1817:              VIA DEI MELOGRANI 1                                      Provv. n.     63156/2025 del     05/08/2025        Scadenza 04/08/2026    IN AGGIORNAMENTO
+1828:              VIA EMILIANA, 26                                         Provv. n.     54577 /2025 del    07/07/2025        Scadenza 06/07/2026    IN AGGIORNAMENTO
+1834:              VIA R. RUFFILLI, 5                                       Provv. n.     27863/2025 del     07/04/2025        Scadenza 06/04/2026    IN AGGIORNAMENTO
+1859:              VIA PALAZZINA, 1                               Provv. n.     18893 /2025 del       11/03/2025        Scadenza 10/03/2026    IN AGGIORNAMENTO
+1870:              VIALE DELLE NAZIONI, 67                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1881:              VIA SAN CRISPINO, 87/89                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1892:              PIAZZA MATTEOTTI 15                            Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1907:              VIA S. PAOLO, 780                                            Provv. n.     78104/2025 del        02/10/2025        Scadenza 01/10/2026    IN AGGIORNAMENTO
+1913:              VIA ANDREA COSTA , 27                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1929:              VIALE VITTORIO VENETO, 92                                    Provv. n.     27898/2025 del        07/04/2025        Scadenza 06/04/2026    IN AGGIORNAMENTO
+1935:              VIA INNOCENZO GOLFARELLI, 96                                 Provv. n.     34333/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+1946:              VIA MARIO PERSIANI , 9                                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+1952:              VIA DEI ROTTAMAI, 51                                         Provv. n.     38869/2025 del        14/05/2025        Scadenza 13/05/2026    IN AGGIORNAMENTO
+1963:              VIA CLAUDIO MONTEVERDI 31                                    Provv. n.     77145 /2025 del       29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+1978:              VIA SAN GIORGIO, 2371                                     Provv. n.     43577/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+1984:              VIA TRO' MELDOLA N. 953, FRAZIONE FRATTA TERME            Provv. n.     78096/2025 del        02/10/2025        Scadenza 01/10/2026    IN AGGIORNAMENTO
+1990:              VIA UGO LA MALFA, 94                                      Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2001:              VIA MONDA, 46/A                                           Provv. n.     35726 /2025 del       05/05/2025        Scadenza 04/05/2026    IN AGGIORNAMENTO
+2017:              VIA BRUSI 237                                             Provv. n.     61709 /2025 del       30/07/2025        Scadenza 29/07/2026    IN AGGIORNAMENTO
+2037:              VIA SCARPELLINO 195                                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2053:              VIA FIUMICINO, 340                                        Provv. n.     70312/2025 del        04/09/2025        Scadenza 03/09/2026    IN AGGIORNAMENTO
+2064:              VIA BORELLO N. 131                                        Provv. n.     38962 /2025 del       15/05/2025        Scadenza 14/05/2026    IN AGGIORNAMENTO
+2090:              VIA LAZZARETTO, 11                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2100:              VIA BALITRONA, 12                                    Provv. n.     27893/2025 del        07/04/2025        Scadenza 06/04/2026    IN AGGIORNAMENTO
+2121:              VIA A . FORTIS, 11                                   Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2127:              VIA SACCO E VANZETTI, 70/A                           Provv. n.                    del                      Scadenza               IN AGGIORNAMENTO
+2133:              VIALE BOLOGNA 96                                     Provv. n.     70054 /2025 del       03/09/2025        Scadenza 02/09/2026    IN AGGIORNAMENTO
+2144:              VIA VERDI, 95                                        Provv. n.     102849/2024 del       23/12/2024        Scadenza 22/12/2025     IN AGGIORNAMENTO
+2178:              VIA DELLA PACE, 1                        Provv. n.     35750 /2025 del       05/05/2025        Scadenza 04/05/2026    IN AGGIORNAMENTO
+2184:              VIA PABLO NERUDA, 40                     Provv. n.     77217/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+2190:              VIA LEONARDO DA VINCI, 24                Provv. n.     77175/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+2196:              VIA SASSO DI MONTEVECCHIO 301            Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2212:              VIA BORA PIAVOLA 6911                    Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2227:              VIA WILLIAM D'ALTRI, 102                                      Provv. n.     10517/2025 del        12/02/2025        Scadenza 11/02/2026    IN AGGIORNAMENTO
+2232:                                                                            Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2238:              VIA L. GALVANI, 28/D                                          Provv. n.     34152/2025 del        29/04/2025        Scadenza 28/04/2026     IN AGGIORNAMENTO
+2243:              VIA PONTE FANTELLA, 11                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2254:              VIALE TICINO 36                                               Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2270:              VIA ALTIERO SPINELLI, 60                                      Provv. n.     77227/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+2281:              VIA CANAPINO, 533                                             Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2291:              VIA XXX APRILE, 65                                           Provv. n.     77154/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+2302:              VIA BARTOLOMEO VANZETTI, 1                                   Provv. n.     23831 /2025 del       25/03/2025        Scadenza 24/03/2026    IN AGGIORNAMENTO
+2308:              VIA TORTONA, 137                                             Provv. n.     43584/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+2314:              PIAZZA DEL POPOLO, 24                                        Provv. n.     13089 /2025 del       19/02/2025        Scadenza 18/02/2026    IN AGGIORNAMENTO
+2320:              VIA CASETTO, 30/2 FRAZ. RULLATO                              Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2325:              VIA EUROPA, 654                                              Provv. n.     16164/2025 del        03/03/2025        Scadenza 02/03/2026    IN AGGIORNAMENTO
+2331:              VIA DEL CASTELLO N. 55, FRAZIONE SORRIVOLI                   Provv. n.     43542/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+2337:              VIALE ROMA, 153                                              Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2343:              VIA PROV.LE MUSANO, 1645                                     Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2349:              VIA RUBICONE DESTRA, 1700                                    Provv. n.     70051/2025 del        03/09/2025        Scadenza 02/09/2026    IN AGGIORNAMENTO
+2364:              VIA PIO TURRONI, 235                                       Provv. n.     102902/2024 del       23/12/2024        Scadenza 22/12/2025    IN AGGIORNAMENTO
+2385:              VIA IV NOVEMBRE, 27/C                                      Provv. n.     34421/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+2391:              VIA PALAZZONE N. 10/D, FRAZIONE FIUMANA                    Provv. n.     52576/2025 del        30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+2402:              VIA RUBICONE DX 1 TRATTO 3200                              Provv. n.                    del                      Scadenza                IN AGGIORNAMENTO
+2407:              VIA PIERO MARONCELLI , 472                                 Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2413:              VIA SELO, 14-16                                            Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2428:              VIA MARCELLO MALPIGHI, 17                Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2459:              VIA THOMAS ALVA EDISON 30                Provv. n.     77181/2025 del        29/09/2025        Scadenza 28/09/2026    IN AGGIORNAMENTO
+2465:              VIA DECIO RAGGI, 411/E                   Provv. n.     63194/2025 del        05/08/2025        Scadenza 04/08/2026    IN AGGIORNAMENTO
+2471:              MEDRI RENZO                              Provv. n.     102906/2024 del       23/12/2024        Scadenza 22/12/2025    IN AGGIORNAMENTO
+2477:              VIA ANTONIO MASETTI, 50                  Provv. n.     21011 /2025 del       17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+2487:              VIA LARGA SANT'ANDREA, 700                              Provv. n.     34179/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+2508:              VIA DRAGONI 114                                         Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2519:              VIA VIGNOLA N. 1                                        Provv. n.     43533/2025 del        29/05/2025        Scadenza 28/05/2026    IN AGGIORNAMENTO
+2535:              PIAZZA MATTEOTTI, 11/C                                  Provv. n.     49358/2025 del        18/06/2025        Scadenza 17/06/2026    IN AGGIORNAMENTO
+2550:              VIA FRANCESCO BARACCA 51                                 Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2576:              VIA PITAGORA, 551                                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2597:              VIA CADUTI D'UNGHERIA 8/10                               Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2612:              VIA G. URBINI 50 INT. 4                      Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2638:              VIA FONDE, 335                               Provv. n.     102856/2024 del       23/12/2024        Scadenza 22/12/2025    IN AGGIORNAMENTO
+2644:              VIA MONTE DEL POZZO 2                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2665:              VIA ANTONIO CARINI, 16                       Provv. n.     34326/2025 del        29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+2700:              VIA FILIPPO TURATI, 895                                      Provv. n.     49328/2025 del         18/06/2025        Scadenza 17/06/2026    IN AGGIORNAMENTO
+2706:              VIALE GUGLIELMO OBERDAN 310                                  Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2712:              VIA MALATESTA , 6                                            Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2723:              VIA BIDENTE, 153                                             Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2748:              VIA EMILIA 2780/S.4                                         Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2754:              VIA P. TOGLIATTI, 1597                                      Provv. n.     49368/2025 del         18/06/2025        Scadenza 17/06/2026    IN AGGIORNAMENTO
+2770:              VIA MULINO DI BORELLO 216 - CESENA (FC) 47521               Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2776:              VIA TOMBA, 14/B                                             Provv. n.     67639/2025 del         25/08/2025        Scadenza 24/08/2026    IN AGGIORNAMENTO
+2821:              VIA BARBOTTO, 4632                        Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2827:              VIA LUIGI GALVANI, 17/B                   Provv. n.     90558/2024 del        11/11/2024        Scadenza 10/11/2025     IN AGGIORNAMENTO
+2832:              VIA MENTANA, 27                           Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2843:              VIA GANDHI, 2                             Provv. n.     52525/2025 del        30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+2849:              VIA DE GASPERI, 5                         Provv. n.     38917/2025 del        15/05/2025        Scadenza 14/05/2026    IN AGGIORNAMENTO
+2864:              VIA LOCCHI, 5/A-B                         Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2870:              VIA NAZIONALE, 35/A                       Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2876:              VIA S ALLENDE, 14                         Provv. n.     52582/2025 del        30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+2897:              VIA VIRGILIO 10                           Provv. n.     49355/2025 del        18/06/2025        Scadenza 17/06/2026    IN AGGIORNAMENTO
+2908:              VIA BATTICCE, 18                          Provv. n.                    del                      Scadenza                AVVIO ISTRUTTORIA
+2927:              VIA DON GIOVANNI POLLINI, 57                               Provv. n.     21241/2025 del         17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+2943:              VIA GINO VENDEMINI, 49                                     Provv. n.     21166 /2025 del        17/03/2025        Scadenza 16/03/2026    IN AGGIORNAMENTO
+2949:              VIA CORNACCHIARA, 170/A                                    Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2955:              VIA GIOVANNI XXIII, 684                                    Provv. n.     52580/2025 del         30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+2961:              VIA EUROPA 15                                              Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2967:              VIA DEI GALLI BOI 18                                       Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2978:              VIA CAVOUR 5                                               Provv. n.                     del                      Scadenza                AVVIO ISTRUTTORIA
+2998:              PIAZZALE PIERO SRAFFA, 45                          Provv. n.     28903/2025 del         09/04/2025        Scadenza 08/04/2026    IN AGGIORNAMENTO
+3009:              VIA PORTA PIA, 95                                  Provv. n.     34322/2025 del         29/04/2025        Scadenza 28/04/2026    IN AGGIORNAMENTO
+3015:              VIA MONDA, 36/B                                    Provv. n.     78106/2025 del         02/10/2025        Scadenza 01/10/2026    IN AGGIORNAMENTO
+3021:              VIA GIOVANNI XXIII, 680/C                          Provv. n.     52506/2025 del         30/06/2025        Scadenza 29/06/2026    IN AGGIORNAMENTO
+
+--- first 180 layout text lines ---
+                                                                                                      SEZIONI:
+                                                                                                        Sez. I - Estrazione, fornitura e trasporto di terra e materiali inerti
+                                                                                                      Sez. II - Confezionamento, fornitura e trasporto di calcestruzzo e di bitume
+                                                                                                      Sez. III - Noli a freddo di macchinari
+                                                                                                      Sez. IV - Fornitura di ferro lavorato
+                                                                                                      Sez. V - Noli a caldo
+                                                                                                      Sez. VI - Autotrasporto per conto di terzi
+
+
+Prefettura di Forlì – Cesena                                                                          Sez. VII - Guardiania dei cantieri
+                                                                                                      Sez. VIII - Servizi funerari e cimiteriali
+                                                                                                      Sez. IX - Ristorazione, gestione delle mense e catering
+                                                                                                      Sez. X - Servizi anbientali, comprese le attività di raccolta, di trasporto nazionale
+    Ufficio Territoriale del Governo                                                                  transfrontaliero, anche per conto di terzi
+
+
+                                                                                                                                       AVVIO ISTRUTTORIA = richiesta di iscrizione
+                                                                                                                                       AGGIORNAMENTO = richiesta di rinnovo dell'iscrizione
+Società iscritte n elle Wh ite List p rovin ciali d i Forlì-Cesen a - a 11/09/2026
+02161921008   AQUAMET S.R.L. (EX AQUAMET SPA)
+              VIA LUIGI GALVANI, 17/B                                          Provv. n.     90542/2024 del          11/11/2024           Scadenza 10/11/2025        IN AGGIORNAMENTO
+              FORLI' (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+03275390403   3 B AUTOTRASPORTI DI BUCCI EZIO & FIGLI S.N.C.
+              VIA P. NENNI, 35                                                 Provv. n.     23508/2026 del          20/03/2026           Scadenza 19/03/2027
+              MERCATO SARACENO (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+04193530401   3D AUTOTRASPORTI DI DANEV DONTCHO DIMITROV E FIGLIO SNC
+              VIA CESARE TERRANOVA, 60                                         Provv. n.     97511/2024 del          04/12/2024           Scadenza 03/12/2025        IN AGGIORNAMENTO
+              CESENA (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+04597520404   A.G. TRASPORTI DI ALESSI GIACOMO - IMPRESA INDIVIDUALE
+              VIA T. TASSO 20                                                  Provv. n.                      del                         Scadenza                   AVVIO ISTRUTTORIA
+                                                                                                                                                                         08/01/2026
+              GAMBETTOLA - FC
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+03784080404   A.S.S.O. S.R.L.
+              VIA ANTICO ACQUEDOTTO, 36                                        Provv. n.     49342/2025 del          18/06/2025           Scadenza 17/06/2026        IN AGGIORNAMENTO
+                                                                                                                                                                         DAL 13/05/2026
+              FORLI' (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+04578280408   A.T. TRASPORTI S.R.L.
+              VIA GUGLIELMO URBINI, 81                                         Provv. n.     52518/2025 del          30/06/2025           Scadenza 29/06/2026        IN AGGIORNAMENTO
+                                                                                                                                                                         DAL 02/04/2026
+              CESENA (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+04343170405   A.T.F. SOCIETA' COOPERATIVA
+              VIALE ITALIA, 47                                                 Provv. n.     66705 /2026 del         11/08/2026           Scadenza 10/08/2027
+              FORLIÌ (FC)
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+04547120404   ABBONDANZA MAICOL - IMPRESA INDIVIDUALE
+              VIA ADRIANO BENINI, 243                                          Provv. n.       39244          del    08/05/2026           Scadenza 07/05/2027
+              CESENA - FC
+                                                                               Sezioni.: I       II     III         IV   V        VI      VII   VIII    IX    X
+
+
+
+venerdì 11 settembre 2026                                                                                                                                           Pagina 1 di 69
+04111370401   ACQUACHETA SOCIETA' COOPERATIVA SOCIALE
+              VIA XX SETTEMBRE, 26                                          Provv. n.     43466/2025 del        29/05/2025        Scadenza 28/05/2026   IN AGGIORNAMENTO
+                                                                                                                                                            DAL 16/04/2026
+              TREDOZIO (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+04155620406   AD MAJORA - SOCIETA' COOPERATIVA SOCIALE O.N.L.U.S.
+              VIA FIRENZE , 75                                              Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+                                                                                                                                                            AL 17/08/2026
+              FORLI' (FC) - 47121
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+01597020401   ADRIAJET SRL
+              VIA I° MAGGIO, 29                                             Provv. n.     17060/2026 del        03/03/2026        Scadenza 02/03/2027
+              CESENATICO (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+04145290401   ADRIATICA PONTEGGI S.R.L.
+              VIA EMILIA LEVANTE                                            Provv. n.     88257/2025 del        05/11/2025        Scadenza 04/11/2026
+              CESENA
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+04360780409   ADRIATICO SERVIZI SRL
+              VIALE DEI PINI N. 19, LOC. SPINELLO                           Provv. n.     82015 /2025 del       15/10/2025        Scadenza 14/10/2026
+              SANTA SOFIA (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+02435550401   AGNOLETTI DENIS - IMPRESA INDIVIDUALE
+              VIA P. TOGLIATTI, 10                                          Provv. n.     35748 /2025 del       05/05/2025        Scadenza 04/05/2026   IN AGGIORNAMENTO
+                                                                                                                                                            DAL 02/04/2026
+              CIVITELLA DI ROMAGNA (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+02618660407   AGRI SERVICE S.N.C. DI CINI PAOLO & C.
+              VIA MASIERA I°, 3501                                          Provv. n.     52655/2025 del        30/06/2025        Scadenza 29/06/2026   IN AGGIORNAMENTO
+                                                                                                                                                            DAL 18/03/2026
+              CESENA
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+04686600406   AGRIBIDENTE SRL
+              VIA DELL'ARTIGIANO 50/52                                      Provv. n.     43257 /2026 del       21/05/2026        Scadenza 20/05/2027
+              MELDOLA
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+04292510403   AGRIMEC S.N.C. DI BRUNDU MATTEO E GENTILI STEFANO
+              VIA ADRIANO OLIVETTI 42                                       Provv. n.                    del                      Scadenza               AVVIO ISTRUTTORIA
+                                                                                                                                                           DAL 24/04/2026
+              CESENA (FC) 47522
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+03273740401   AGRIVERDE DI PRATIFFI ANTONELLO E C. SOCIETA' AGRICOLA S.S.
+              VIA BARBOTTO 3077                                             Provv. n.     52568/2026 del        22/06/2026        Scadenza 21/06/2027
+              CESENA (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+03326200403   AIDORU ASSOCIAZIONE APS
+              VIA IDA SANGIORGI, 346                                        Provv. n.     82546 /2024 del       14/10/2024        Scadenza 13/10/2025    IN AGGIORNAMENTO
+              CESENA (FC)
+                                                                            Sezioni.: I       II   III         IV   V        VI   VII   VIII   IX   X
+
+
+
+
+venerdì 11 settembre 2026                                                                                                                               Pagina 2 di 69
+04647250408   AIDORU SOCIETA' COOPERATIVA
+              VIA IDA SANGIORGI, 346                            Provv. n.     10259/2026 del         11/02/2026        Scadenza 10/02/2027
+              CESENA (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+03862870403   ALBA COSTRUZIONI S.R.L.
+              VIA P. NENNI,50                                   Provv. n.     74977/2026 del         11/09/2026        Scadenza 10/09/2027
+              MERCATO SARACENO (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+02696220405   ALB-EDIL SRL
+              VIA SAN VITTORE, 2111                             Provv. n.     88308/2025 del         05/11/2025        Scadenza 04/11/2026
+              CESENA (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+03424510406   ALESSANDRINI DAVIDE - IMPRESA INDIVIDUALE
+              VIA NILDE IOTTI, 9 INT. 14                        Provv. n.     41122/2026 del         14/05/2026        Scadenza 13/05/2027
+              MERCATO SARACENO (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+03141920409   ALESSANDRINI MARZIA & C. S.A.S.
+              VIA EMILIA LEVANTE, 2223                          Provv. n.       39260         del    08/05/2026        Scadenza 07/05/2027
+              CESENA (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+03165580402   ALIAS DI CUGINO MICHELINO & C. S.N.C.
+              VIA VECLEZIO, 72/A                                Provv. n.     88277/2025 del         05/11/2025        Scadenza 04/11/2026
+              FORLI' (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+04578750400   ALIVA S.R.L.
+              VIA BELLARIA, 40                                  Provv. n.                     del                      Scadenza               AVVIO ISTRUTTORIA
+                                                                                                                                                DAL 13/08/2026
+              SAN MAURO PASCOLI (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+04500510401   ALMA STEEL SERVICE ORGANIZATION - ASSO SRL
+              VIA TORRE IN SAN CARLO, 475                       Provv. n.     50023 /2026 del        15/06/2026        Scadenza 14/06/2027
+              CESENA (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+03456610405   ALPI GIANLUCA - IMPRESA INDIVIDUALE
+              VIA XX SETTEMBRE, 27                              Provv. n.     36440/2026 del         30/04/2026        Scadenza 29/04/2027
+              MODIGLIANA (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
+02162700401   ALTIERI TRASPORTI SRL
+              VIA FONDE, 335 LOC. SANTA CROCE                   Provv. n.     10268/2026 del         11/02/2026        Scadenza 10/02/2027
+              BERTINORO (FC)
+                                                                Sezioni.: I       II    III         IV   V        VI   VII   VIII   IX   X
+
