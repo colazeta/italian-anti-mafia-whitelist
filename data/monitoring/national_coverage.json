@@ -1680,36 +1680,50 @@
       "prefecture": "Genova",
       "region": "Liguria",
       "national_index_key": "genova",
-      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/genova/evidenza/white-list",
+      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list",
       "source_verified": true,
-      "current_edition_identified": null,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": null,
+      "latest_source_reference_date": "2026-09-10",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
       "last_attempted_source_check_at": null,
       "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-06",
+      "last_successful_investigation_on": "2026-09-12",
       "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [],
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/genova-operational-check-2026-09-12.md",
+        "src/white_list_archive/parsers/genova_tables.py",
+        "tests/test_genova_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403",
+        "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7"
+      ],
       "evidence": [
-        "data/source_registry/verified_primary_pages.csv"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/genova-operational-check-2026-09-12.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "gorizia",
