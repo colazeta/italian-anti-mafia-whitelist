@@ -1,0 +1,73 @@
+name: Gorizia applicant anchor fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.pull_request.head.ref == 'expansion/gorizia-2026-09-13'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/gorizia-2026-09-13
+      - name: Bind exact expected identifiers inside PDF words
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/parsers/gorizia_tables.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    identifier_anchors: list[dict[str, Any]] = []
+    for word in words:
+        text = _clean(word["text"])
+        if re.fullmatch(r"\\d{11}", text):
+            identifier_anchors.append(word)
+    observed_identifiers = [_clean(item["text"]) for item in identifier_anchors]
+    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS:
+        raise RuntimeError(f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}")
+'''
+          new = '''    identifier_anchors: list[dict[str, Any]] = []
+    identifier_occurrences: Counter[str] = Counter()
+    for word in words:
+        text = _clean(word["text"])
+        matches = [identifier for identifier in _EXPECTED_APPLICANT_IDENTIFIERS if identifier in text]
+        if len(matches) > 1:
+            raise RuntimeError(f"Gorizia ambiguous applicant identifier word: {text!r}")
+        if matches:
+            identifier = matches[0]
+            identifier_occurrences[identifier] += 1
+            identifier_anchors.append({**word, "identifier": identifier})
+    observed_identifiers = [item["identifier"] for item in identifier_anchors]
+    if observed_identifiers != _EXPECTED_APPLICANT_IDENTIFIERS or any(
+        identifier_occurrences[identifier] != 1 for identifier in _EXPECTED_APPLICANT_IDENTIFIERS
+    ):
+        raise RuntimeError(
+            f"Gorizia applicant identifier-anchor drift: {observed_identifiers!r}; "
+            f"occurrences={dict(identifier_occurrences)!r}"
+        )
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one applicant anchor block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- src/white_list_archive/parsers/gorizia_tables.py
+      - name: Commit exact applicant anchor binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/white_list_archive/parsers/gorizia_tables.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'Bind Gorizia applicant identifier anchors'
+          git push origin HEAD:expansion/gorizia-2026-09-13
