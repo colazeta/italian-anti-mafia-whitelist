@@ -268,13 +268,16 @@ def parse_foggia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         name, reconciliation = _representative_name(group, key)
         if reconciliation:
             reconciliation_count += 1
-        public_status = _public_status(key[4])
-        listing_date = key[2].removeprefix("ISO::") if key[2].startswith("ISO::") else ""
-        expiry_date = key[3].removeprefix("ISO::") if key[3].startswith("ISO::") else ""
+        group_status = key[-1]
+        listing_key = key[-3]
+        expiry_key = key[-2]
+        public_status = _public_status(group_status)
+        listing_date = listing_key.removeprefix("ISO::") if listing_key.startswith("ISO::") else ""
+        expiry_date = expiry_key.removeprefix("ISO::") if expiry_key.startswith("ISO::") else ""
         outcome_raw = ""
         if public_status == "renewal_update_in_progress":
             outcome_raw = "IN CORSO"
-        elif key[4] == "listed_note":
+        elif group_status == "listed_note":
             outcome_raw = group["outcome_raw_variants"][0]
         record = _record(
             cfg,
@@ -319,7 +322,7 @@ def parse_foggia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "status_counts": status_counts,
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
             "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
-            "raw_date_groups": sum(not key[2].startswith("ISO::") or not key[3].startswith("ISO::") for key in groups),
+            "raw_date_groups": sum(not key[-3].startswith("ISO::") or not key[-2].startswith("ISO::") for key in groups),
             "reviewed_name_reconciliations": reconciliation_count,
         },
     )
