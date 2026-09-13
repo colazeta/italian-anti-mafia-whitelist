@@ -1,0 +1,156 @@
+name: Foggia semantic audit
+
+on:
+  push:
+    branches:
+      - expansion/foggia-2026-09-13
+    paths:
+      - .github/workflows/foggia-semantic-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/foggia-2026-09-13
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests pdfplumber
+      - name: Audit logical rows and identity consistency
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import collections, hashlib, io, json, re
+          from pathlib import Path
+          import requests, pdfplumber
+
+          SOURCES={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf','313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/43/2026-09/elenco_delle_imprese_richiedenti_iscrizione_elenco_fornitori_agg_10-09-2026.pdf','d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5'),
+          }
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-semantic-audit/1.0)'
+          STRICT_ID=re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})(?![A-Za-z0-9])')
+          DATE=re.compile(r'^\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})\s*$')
+          YEAR=re.compile(r'20\d{2}')
+          SECTION=re.compile(r'\bSezione\s+([IVX]+)\s*[:.-]?\s*([^\n]*)',re.I)
+          def clean(x): return ' '.join((x or '').replace('\xa0',' ').split())
+          def strict_ids(x):
+            vals=[]
+            for m in STRICT_ID.finditer(clean(x)):
+              v=m.group(0).upper()
+              if v not in vals: vals.append(v)
+            return vals
+          def source_date(x):
+            v=clean(x); m=DATE.fullmatch(v)
+            if not m: return ''
+            d,mo,y=map(int,m.groups())
+            import datetime
+            try: return datetime.date(y,mo,d).isoformat()
+            except ValueError: return ''
+          def fetch(url,sha):
+            r=requests.get(url,headers={'User-Agent':UA},timeout=60); r.raise_for_status()
+            if hashlib.sha256(r.content).hexdigest()!=sha: raise SystemExit('hash drift '+url)
+            return r.content
+          def rows_for(raw):
+            pages=[]
+            with pdfplumber.open(io.BytesIO(raw)) as pdf:
+              for pno,page in enumerate(pdf.pages,1):
+                text=page.extract_text() or ''
+                sm=SECTION.search(text)
+                section={'roman':sm.group(1).upper(),'label':clean(sm.group(2))} if sm else None
+                tables=page.find_tables()
+                extracted=[]
+                for ti,t in enumerate(tables):
+                  for ri,row in enumerate(t.extract() or []):
+                    c=[clean(v) for v in row]
+                    if any(c): extracted.append({'page':pno,'table':ti,'row':ri,'cells':c,'section':section})
+                pages.append({'page':pno,'section':section,'table_count':len(tables),'rows':extracted})
+            return pages
+          raw={k:fetch(*v) for k,v in SOURCES.items()}
+          pages={k:rows_for(v) for k,v in raw.items()}
+
+          out={'authority_key':'foggia'}
+          # Listed: source layout is seven columns; identify company rows from identity+date columns, then audit grouping.
+          lc=[]; page_counts=[]; admin=[]
+          for pg in pages['listed']:
+            cand=[]
+            for r in pg['rows']:
+              c=r['cells']
+              if len(c)==7 and clean(c[0]) and clean(c[3]) and (YEAR.search(c[4] or '') or YEAR.search(c[5] or '')):
+                cand.append(r)
+              elif len(c)!=7 or any(c): admin.append({'page':r['page'],'row':r['row'],'cells':c})
+            lc.extend(cand); page_counts.append(len(cand))
+          groups={}
+          unkeyed=[]
+          for r in lc:
+            c=r['cells']; ids=strict_ids(c[3])
+            if ids: key=('id',*sorted(ids))
+            elif clean(c[3]): key=('rawid',clean(c[3]).casefold(),clean(c[0]).casefold())
+            else: key=('name',clean(c[0]).casefold())
+            g=groups.setdefault(key,[]); g.append(r)
+          conflicts=[]; group_summary=[]
+          for key,rs in groups.items():
+            variants=lambda idx: sorted({clean(r['cells'][idx]) for r in rs if clean(r['cells'][idx])})
+            sections=[]
+            for r in rs:
+              s=r['section']
+              token=(s or {}).get('roman','')+'|'+(s or {}).get('label','')
+              if token not in sections: sections.append(token)
+            item={'key':list(key),'rows':len(rs),'names':variants(0),'offices':variants(1),'secondary_offices':variants(2),'identifier_raw':variants(3),'listing_raw':variants(4),'expiry_raw':variants(5),'update_raw':variants(6),'sections':sections}
+            group_summary.append(item)
+            if any(len(item[f])>1 for f in ('names','listing_raw','expiry_raw','update_raw')): conflicts.append(item)
+          status=collections.Counter(clean(r['cells'][6]) for r in lc)
+          bad_dates=[]
+          for r in lc:
+            for idx,label in ((4,'listing'),(5,'expiry')):
+              rawv=clean(r['cells'][idx])
+              if rawv and not source_date(rawv): bad_dates.append({'page':r['page'],'row':r['row'],'field':label,'raw':rawv,'name':r['cells'][0]})
+          widths=collections.Counter(len(r['cells']) for pg in pages['listed'] for r in pg['rows'])
+          out['listed']={'page_counts':page_counts,'sector_rows':len(lc),'identity_groups':len(groups),'status_raw_counts':dict(status),'bad_dates':bad_dates,'conflict_identity_groups':len(conflicts),'conflicts':conflicts[:100],'group_examples':group_summary[:20],'row_width_counts':dict(widths),'pages_without_single_table':[pg['page'] for pg in pages['listed'] if pg['table_count']!=1]}
+
+          # Applicant rows: seven-column rows with an explicit application date/year and an outcome.
+          ac=[]; apage=[]
+          for pg in pages['applicants']:
+            cand=[]
+            for r in pg['rows']:
+              c=r['cells']
+              if len(c)==7 and clean(c[0]) and (YEAR.search(c[5] or '')) and clean(c[6]): cand.append(r)
+            ac.extend(cand); apage.append(len(cand))
+          ast=collections.Counter(clean(r['cells'][6]) for r in ac)
+          abad=[]; aid_missing=[]; activity_empty=[]
+          aid_groups=collections.defaultdict(list)
+          for r in ac:
+            c=r['cells']; d=source_date(c[5])
+            if not d: abad.append({'page':r['page'],'row':r['row'],'raw':clean(c[5]),'name':c[0]})
+            ids=strict_ids(c[3])
+            if not ids: aid_missing.append({'page':r['page'],'row':r['row'],'name':c[0],'identifier_raw':c[3]})
+            else:
+              for ident in ids: aid_groups[ident].append({'page':r['page'],'row':r['row'],'name':c[0],'outcome':c[6]})
+            if not clean(c[4]): activity_empty.append({'page':r['page'],'row':r['row'],'name':c[0]})
+          dup_ids={k:v for k,v in aid_groups.items() if len(v)>1}
+          awidths=collections.Counter(len(r['cells']) for pg in pages['applicants'] for r in pg['rows'])
+          out['applicants']={'page_counts':apage,'rows':len(ac),'outcome_raw_counts':dict(ast),'bad_dates':abad,'missing_strict_identifier':aid_missing,'empty_activity':activity_empty,'duplicate_identifier_groups':dup_ids,'row_width_counts':dict(awidths),'pages_without_single_table':[pg['page'] for pg in pages['applicants'] if pg['table_count']!=1],'examples':[{'page':r['page'],'row':r['row'],'cells':r['cells']} for r in ac[:15]]}
+          listed_ids={i for r in lc for i in strict_ids(r['cells'][3])}
+          applicant_ids={i for r in ac for i in strict_ids(r['cells'][3])}
+          out['cross_population']={'listed_strict_ids':len(listed_ids),'applicant_strict_ids':len(applicant_ids),'overlap_ids':len(listed_ids & applicant_ids),'overlap_examples':sorted(listed_ids & applicant_ids)[:50]}
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/foggia_semantic_audit.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps({
+            'listed':{k:out['listed'][k] for k in ('page_counts','sector_rows','identity_groups','status_raw_counts','bad_dates','conflict_identity_groups','row_width_counts','pages_without_single_table')},
+            'applicants':{k:out['applicants'][k] for k in ('page_counts','rows','outcome_raw_counts','bad_dates','missing_strict_identifier','empty_activity','duplicate_identifier_groups','row_width_counts','pages_without_single_table')},
+            'cross_population':out['cross_population']},ensure_ascii=False,indent=2))
+          PY
+      - name: Commit semantic checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/foggia_semantic_audit.json
+          git commit -m 'Checkpoint Foggia semantic row audit'
+          git push origin HEAD:expansion/foggia-2026-09-13
