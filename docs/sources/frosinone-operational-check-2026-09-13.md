@@ -50,6 +50,8 @@ At this checkpoint:
 - record counts: **not yet asserted**;
 - public export: **not approved**.
 
-The next gate is a full-document layout/status audit over these exact hashes. Source irregularities, malformed values and duplicate-looking rows must remain evidence, not prompts for inferential repair.
+A subsequent full-document parser probe independently confirmed 761 listed records and 475 applicant records. The listed extraction contains 44 continuation row fragments attached to 40 logical company records; this distinction is frozen explicitly so the fail-closed parser guards the publisher shape without conflating fragment rows with affected records.
+
+The next gate is parser validation against these exact hashes. Source irregularities, malformed values and duplicate-looking rows must remain evidence, not prompts for inferential repair.
 
 A failed fetch in a later capture attempt must be recorded as an external retrieval failure and must not be converted into `NOT_PUBLISHED`, a missing applicant population, or any other negative publication claim.
