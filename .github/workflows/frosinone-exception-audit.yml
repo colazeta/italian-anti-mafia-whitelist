@@ -1,0 +1,172 @@
+name: Frosinone exception audit
+
+on:
+  push:
+    branches:
+      - expansion/frosinone-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Audit reviewed exceptions and final row boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, re
+          from collections import Counter
+          from datetime import date
+          from pathlib import Path
+          import pdfplumber, requests
+
+          LANDING = "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list"
+          SOURCES = {
+              "listed": ("https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf", "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71", 91),
+              "applicants": ("https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf", "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8", 37),
+          }
+          HEADERS = {"User-Agent":"Mozilla/5.0 whitelist-archive-exception-audit/1.0","Accept":"application/pdf,*/*;q=0.8","Referer":LANDING}
+          STRICT_ID = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})(?![A-Za-z0-9])")
+          DATE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+          YEAR = re.compile(r"20\d{2}")
+          ADMIN_ONLY = re.compile(r"^(?:n\.?\s*)?\d+$", re.I)
+
+          def clean(v): return re.sub(r"\s+", " ", v or "").strip()
+          def ids(v): return list(dict.fromkeys(m.group(0).upper() for m in STRICT_ID.finditer(clean(v))))
+          def is_header(row):
+              f=" | ".join(row).casefold()
+              return ("denominaz" in f and "codice fiscale" in f) or ("ragione sociale" in f and "codice fiscale" in f)
+          def valid_date(v):
+              m=DATE.fullmatch(clean(v))
+              if not m: return False
+              d,mo,y=map(int,m.groups())
+              try: date(y,mo,d); return True
+              except ValueError: return False
+          def get_pdf(key):
+              url, expected, pages = SOURCES[key]
+              r=requests.get(url,headers=HEADERS,timeout=(20,120)); r.raise_for_status()
+              body=r.content; digest=hashlib.sha256(body).hexdigest()
+              if digest != expected: raise RuntimeError(f"{key} SHA drift: {digest}")
+              p=Path(f"tmp/frosinone_{key}.pdf"); p.write_bytes(body)
+              return p,pages
+          def merge(record,cells,loc):
+              for i,v in enumerate(cells):
+                  if v: record["cells"][i]=clean(f"{record['cells'][i]} {v}")
+              record["fragments"].append({"loc":loc,"cells":cells})
+          def listed_semantic(row):
+              if len(row)<7: raise RuntimeError(f"listed width {len(row)}")
+              return row[:6]+[clean(" ".join(v for v in row[6:] if v))]
+
+          lp,lpages=get_pdf("listed")
+          listed=[]; listed_admin=[]; listed_missing_name=[]; listed_orphan=[]
+          with pdfplumber.open(lp) as pdf:
+              if len(pdf.pages)!=lpages: raise RuntimeError("listed page drift")
+              cur=None
+              for pno,page in enumerate(pdf.pages,1):
+                  tables=page.extract_tables() or []
+                  if len(tables)!=1: raise RuntimeError(f"listed p{pno} table drift {len(tables)}")
+                  for rno,raw in enumerate(tables[0] or [],1):
+                      row=[clean(x) for x in (raw or [])]
+                      if not any(row) or is_header(row): continue
+                      c=listed_semantic(row); non=[x for x in c if x]
+                      if not c[0] and len(non)==1 and ADMIN_ONLY.fullmatch(non[0]):
+                          listed_admin.append({"loc":f"p{pno}:r{rno}","cells":c}); continue
+                      independent=bool(ids(c[2]) or YEAR.search(c[3]) or YEAR.search(c[4]))
+                      if c[0] and independent:
+                          cur={"loc":f"p{pno}:r{rno}","cells":c,"fragments":[]}; listed.append(cur); continue
+                      if not c[0] and independent:
+                          listed_missing_name.append({"loc":f"p{pno}:r{rno}","cells":c,"previous":cur["cells"][0] if cur else None}); cur=None; continue
+                      if cur is not None:
+                          merge(cur,c,f"p{pno}:r{rno}"); continue
+                      listed_orphan.append({"loc":f"p{pno}:r{rno}","cells":c})
+
+          lst_status=Counter(); lst_notes=[]; lst_zero=[]; lst_multi=[]; lst_bad_dates=[]; lst_blank_sections=[]
+          for rec in listed:
+              c=rec["cells"]; note=clean(c[6]); f=note.casefold()
+              if not note: st="listed"
+              elif "aggiornamento in corso" in f and "permanere" in f: st="renewal_update_in_progress"
+              else: st="listed_note"; lst_notes.append({"loc":rec["loc"],"name":c[0],"note":note,"fragments":rec["fragments"]})
+              lst_status[st]+=1
+              found=ids(c[2])
+              if not found: lst_zero.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[2]})
+              if len(found)>1: lst_multi.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[2],"identifiers":found})
+              for label,raw in (("listing",c[3]),("expiry",c[4])):
+                  if raw and not valid_date(raw): lst_bad_dates.append({"loc":rec["loc"],"name":c[0],"field":label,"raw":raw})
+              if not c[5]: lst_blank_sections.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[2]})
+
+          ap,apages=get_pdf("applicants")
+          apps=[]; app_reviewed=[]; app_missing_name=[]; app_orphan=[]
+          REVIEWED={(29,1,1):"PAGLIAROLI LORENZO – IMPRESA INDIVIDUALE"}
+          with pdfplumber.open(ap) as pdf:
+              if len(pdf.pages)!=apages: raise RuntimeError("applicant page drift")
+              cur=None
+              for pno,page in enumerate(pdf.pages,1):
+                  for tno,table in enumerate(page.extract_tables() or [],1):
+                      for rno,raw in enumerate(table or [],1):
+                          c=[clean(x) for x in (raw or [])]
+                          if not any(c) or is_header(c): continue
+                          if len(c)!=7: raise RuntimeError(f"applicant p{pno}:t{tno}:r{rno} width {len(c)}")
+                          independent=bool(c[3] or c[5] or c[6])
+                          if c[0] and independent:
+                              cur={"loc":f"p{pno}:t{tno}:r{rno}","cells":c,"fragments":[]}; apps.append(cur); continue
+                          if not c[0] and independent:
+                              key=(pno,tno,rno); expected=REVIEWED.get(key)
+                              if expected is not None:
+                                  if cur is None or cur["cells"][0]!=expected:
+                                      raise RuntimeError(f"reviewed applicant continuation drift {key}: {cur and cur['cells'][0]!r}")
+                                  merge(cur,c,f"p{pno}:t{tno}:r{rno}")
+                                  app_reviewed.append({"loc":f"p{pno}:t{tno}:r{rno}","previous":expected,"cells":c}); continue
+                              app_missing_name.append({"loc":f"p{pno}:t{tno}:r{rno}","cells":c,"previous":cur["cells"][0] if cur else None}); cur=None; continue
+                          if cur is not None:
+                              merge(cur,c,f"p{pno}:t{tno}:r{rno}"); continue
+                          app_orphan.append({"loc":f"p{pno}:t{tno}:r{rno}","cells":c})
+
+          app_outcomes=Counter(); app_nonstandard=[]; app_zero=[]; app_multi=[]; app_bad_dates=[]; app_blank_dates=[]; app_blank_sections=[]
+          reviewed_outcomes={"ISTRUTTORIA IN CORSO","ISTRUTTORIA PIN CORSO","ISTRUITTORIA IN CORSO","ISTRUZIONI IN CORSO","ISTRUTTORIA IN CORSA","ISTRUTTORIA IN CORSO.",""}
+          for rec in apps:
+              c=rec["cells"]; out=clean(c[6]); app_outcomes[out]+=1
+              if out not in reviewed_outcomes: app_nonstandard.append({"loc":rec["loc"],"name":c[0],"outcome":out})
+              found=ids(c[3])
+              if not found: app_zero.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[3]})
+              if len(found)>1: app_multi.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[3],"identifiers":found})
+              if c[5] and not valid_date(c[5]): app_bad_dates.append({"loc":rec["loc"],"name":c[0],"raw":c[5]})
+              if not c[5]: app_blank_dates.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[3],"outcome":out})
+              if not c[4]: app_blank_sections.append({"loc":rec["loc"],"name":c[0],"identifier_raw":c[3]})
+
+          report={
+              "authority_key":"frosinone","source_reference_date":"2026-09-02",
+              "listed":{"records":len(listed),"status_counts":dict(lst_status),"administrative_rows":listed_admin,"missing_name_identity_rows":listed_missing_name,"orphan_rows":listed_orphan,"listed_note_records":lst_notes,"zero_strict_identifier_records":lst_zero,"multi_strict_identifier_records":lst_multi,"malformed_dates":lst_bad_dates,"blank_sections":lst_blank_sections,"records_with_fragments":sum(bool(r['fragments']) for r in listed)},
+              "applicants":{"records":len(apps),"outcome_counts":dict(app_outcomes),"reviewed_identity_continuations":app_reviewed,"missing_name_identity_rows":app_missing_name,"orphan_rows":app_orphan,"unreviewed_outcome_records":app_nonstandard,"zero_strict_identifier_records":app_zero,"multi_strict_identifier_records":app_multi,"malformed_application_dates":app_bad_dates,"blank_application_dates":app_blank_dates,"blank_sections":app_blank_sections,"records_with_fragments":sum(bool(r['fragments']) for r in apps)}
+          }
+          Path("tmp/frosinone_exception_audit.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
+          print(json.dumps(report,indent=2,ensure_ascii=False))
+          PY
+      - name: Checkpoint exception audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tmp/frosinone_listed.pdf tmp/frosinone_applicants.pdf
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/frosinone_exception_audit.json
+          if git diff --cached --quiet; then
+            echo "No exception-audit change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Frosinone exception audit"
+          git push
