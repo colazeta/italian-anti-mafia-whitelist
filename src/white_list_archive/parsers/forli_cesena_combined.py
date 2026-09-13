@@ -27,7 +27,7 @@ _EXPECTED_ID_KIND_COUNTS = {
 }
 _EXPECTED_DUPLICATE_STRICT_IDS = {"03690740406": 2, "04581460260": 2}
 _EXPECTED_DATED_PROVVEDIMENTO_ROWS = 600
-_EXPECTED_STATUS_DATE_ROWS = 314
+_EXPECTED_STATUS_DATE_ROWS = 316
 _EXPECTED_CID_ARTIFACT_ROWS = 1
 _EXPECTED_SECTIONS = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
 
@@ -39,7 +39,7 @@ _PROVVEDIMENTO = re.compile(
     r"^Provv\.\s*n\.\s*(?P<number>.*?)\s+del\s*(?P<decision>.*?)\s+Scadenza\s*(?P<expiry>.*?)\s*$",
     re.I,
 )
-_STATUS_DATE = re.compile(r"^(?:DAL\s+|AL\s+)?\d{2}/\d{2}/\d{4}$", re.I)
+_STATUS_DATE = re.compile(r"^(?:(?:DAL|AL|DEL)\s+)?\d{2}/\d{2}/\d{4}$", re.I)
 _SECTION_LINE = re.compile(r"^Sezioni?\.?:\s*(?P<sections>.+?)\s*$", re.I)
 _PAGE_FOOTER = re.compile(r"^venerd[iì]\s+11\s+settembre\s+2026\s+Pagina\s+\d+\s+di\s+69$", re.I)
 
@@ -129,7 +129,7 @@ def _status_from_block(text: str) -> tuple[str, str]:
 
 
 def _status_date(value: str) -> str:
-    raw = re.sub(r"^(?:DAL|AL)\s+", "", _clean(value), flags=re.I)
+    raw = re.sub(r"^(?:DAL|AL|DEL)\s+", "", _clean(value), flags=re.I)
     parsed = _iso_date(raw)
     if value and not parsed:
         raise RuntimeError(f"Forli-Cesena malformed standalone status date: {value!r}")
