@@ -43,7 +43,7 @@ jobs:
           actual=$(sha256sum /tmp/forli_probe/source.pdf | awk '{print $1}')
           test "$actual" = "$expected"
 
-      - name: Probe logical record blocks with pdfplumber layout text
+      - name: Probe reviewed logical record blocks
         shell: bash
         run: |
           set -euo pipefail
@@ -54,44 +54,62 @@ jobs:
           from pathlib import Path
           import pdfplumber
 
-          START = re.compile(r'^\s*(\d{11})\s+(.+?)\s*$')
+          NORMAL_START = re.compile(r'^\s*(\d{11})\s+(.+?)\s*$')
+          TEN_DIGIT_EXCEPTION = re.compile(r'^\s*(0543034730)\s+(V8 TRASPORTI\s*&\s*LOGISTICA\s+SRL)\s*$')
+          FOREIGN_EXCEPTION = re.compile(r'^\s*(GRUPPO IDRODEMOLIZIONI SRL - SOCIETA[\'’] ESTERA)\s*$')
           STATUS = re.compile(r'\b(IN\s+AGGIORNAMENTO|AVVIO\s+ISTRUTTORIA)\b', re.I)
-          PROVV = re.compile(r'Provv\.\s*n\.\s*(.*?)\s+del\s*(.*?)\s+Scadenza\s*(.*?)(?:\s{2,}|$)', re.I)
           DATE = re.compile(r'\b(\d{2}/\d{2}/\d{4})\b')
-          SECTION = re.compile(r'\b(?:VIII|VII|III|VI|IV|IX|II|V|X|I)\b')
+          SECTION_TOKEN = re.compile(r'\b(VIII|VII|III|VI|IV|IX|II|V|X|I)\b')
           src = Path('/tmp/forli_probe/source.pdf')
           out = Path('tmp/forli_cesena_block_probe.txt')
 
-          pages = []
+          def record_start(line: str):
+              if m := NORMAL_START.match(line):
+                  return m.group(1), m.group(2).strip(), 'strict_11_digit'
+              if m := TEN_DIGIT_EXCEPTION.match(line):
+                  return m.group(1), m.group(2).strip(), 'reviewed_10_digit_source_exception'
+              if m := FOREIGN_EXCEPTION.match(line):
+                  return '', m.group(1).strip(), 'reviewed_blank_identifier_foreign_exception'
+              return None
+
+          pages: list[str] = []
+          blocks: list[dict] = []
           with pdfplumber.open(src) as pdf:
-              for page in pdf.pages:
+              for page_number, page in enumerate(pdf.pages, 1):
                   text = page.extract_text(layout=True, x_tolerance=1, y_tolerance=3) or ''
                   pages.append(text)
-          text = '\n'.join(pages)
-          lines = text.splitlines()
-          starts = [(i, m.group(1), m.group(2).strip()) for i, line in enumerate(lines) if (m := START.match(line))]
-          blocks = []
-          for pos, (line_no, identifier, first_name) in enumerate(starts):
-              end = starts[pos + 1][0] if pos + 1 < len(starts) else len(lines)
-              raw = lines[line_no:end]
-              # Stop trailing page/document legends from being treated as record body only by preserving
-              # raw text; semantic assertions below require exactly one source status pattern at most.
-              body = '\n'.join(raw)
-              status_tokens = [m.group(1).upper().replace('  ', ' ') for m in STATUS.finditer(body)]
-              provv_lines = [line.strip() for line in raw if 'Provv.' in line and 'Scadenza' in line]
-              section_lines = [line.strip() for line in raw if re.search(r'Sezion', line, re.I)]
-              blocks.append({
-                  'id': identifier,
-                  'name': first_name,
-                  'status_tokens': status_tokens,
-                  'provv_lines': provv_lines,
-                  'section_lines': section_lines,
-                  'lines': [line.rstrip() for line in raw if line.strip()],
-              })
+                  page_lines = text.splitlines()
+                  starts = [(i, *start) for i, line in enumerate(page_lines) if (start := record_start(line))]
+                  for pos, (line_no, identifier, name, id_kind) in enumerate(starts):
+                      end = starts[pos + 1][0] if pos + 1 < len(starts) else len(page_lines)
+                      raw = [line.rstrip() for line in page_lines[line_no:end]]
+                      nonblank = [line for line in raw if line.strip()]
+                      body = '\n'.join(nonblank)
+                      status_tokens = [re.sub(r'\s+', ' ', m.group(1).upper()) for m in STATUS.finditer(body)]
+                      provv_lines = [line.strip() for line in nonblank if 'Provv.' in line and 'Scadenza' in line]
+                      section_lines = [line.strip() for line in nonblank if re.search(r'Sezion', line, re.I)]
+                      blocks.append({
+                          'page': page_number,
+                          'id': identifier,
+                          'id_kind': id_kind,
+                          'name': name,
+                          'status_tokens': status_tokens,
+                          'provv_lines': provv_lines,
+                          'section_lines': section_lines,
+                          'lines': nonblank,
+                      })
 
           status_counts = Counter()
+          id_kind_counts = Counter()
+          section_signatures = Counter()
+          status_note_shapes = Counter()
           anomalies = []
+          decision_date_presence = Counter()
+          expiry_date_presence = Counter()
+          cid_names = []
+
           for idx, block in enumerate(blocks, 1):
+              id_kind_counts[block['id_kind']] += 1
               tokens = block['status_tokens']
               if len(tokens) > 1:
                   anomalies.append((idx, 'multiple_status_tokens', block))
@@ -103,36 +121,83 @@ jobs:
               else:
                   status = 'listed'
               status_counts[status] += 1
+
               if len(block['provv_lines']) != 1:
                   anomalies.append((idx, f"provv_lines={len(block['provv_lines'])}", block))
               if len(block['section_lines']) != 1:
                   anomalies.append((idx, f"section_lines={len(block['section_lines'])}", block))
 
-          id_counts = Counter(b['id'] for b in blocks)
+              if block['section_lines']:
+                  tail = re.split(r'Sezion(?:i)?\.?\s*:', block['section_lines'][0], maxsplit=1, flags=re.I)
+                  tokens_roman = tuple(SECTION_TOKEN.findall(tail[-1]))
+                  section_signatures[tokens_roman] += 1
+
+              if block['provv_lines']:
+                  dates = DATE.findall(block['provv_lines'][0])
+                  decision_date_presence[len(dates) >= 1] += 1
+                  expiry_date_presence[len(dates) >= 2] += 1
+                  provv_line = block['provv_lines'][0]
+              else:
+                  provv_line = ''
+
+              extra = []
+              for line in block['lines'][1:]:
+                  stripped = line.strip()
+                  if not stripped or stripped == provv_line or re.search(r'Sezion', stripped, re.I):
+                      continue
+                  if DATE.search(stripped) and ('Provv.' not in stripped):
+                      if re.fullmatch(r'(?:DAL\s+|AL\s+)?\d{2}/\d{2}/\d{4}', re.sub(r'\s+', ' ', stripped), re.I):
+                          extra.append(re.sub(r'\s+', ' ', stripped).upper())
+              for value in extra:
+                  shape = 'DAL_DATE' if value.startswith('DAL ') else 'AL_DATE' if value.startswith('AL ') else 'BARE_DATE'
+                  status_note_shapes[shape] += 1
+              if len(extra) > 1:
+                  anomalies.append((idx, f'multiple_status_date_lines={extra!r}', block))
+
+              if '(cid:' in block['name']:
+                  cid_names.append((idx, block['id'], block['name']))
+
+          strict_ids = [b['id'] for b in blocks if b['id_kind'] == 'strict_11_digit']
+          id_counts = Counter(strict_ids)
           duplicate_ids = {k:v for k,v in id_counts.items() if v > 1}
-          page_start_counts = []
-          for page_text in pages:
-              page_start_counts.append(sum(bool(START.match(line)) for line in page_text.splitlines()))
+          duplicate_blocks = [b for b in blocks if b['id'] in duplicate_ids]
+          page_record_counts = Counter(b['page'] for b in blocks)
 
           lines_out = [
               f'pages={len(pages)}',
-              f'layout_record_starts={len(starts)}',
-              f'unique_record_ids={len(id_counts)}',
-              'duplicate_record_ids=' + json.dumps(duplicate_ids, sort_keys=True),
+              f'reviewed_record_blocks={len(blocks)}',
+              'id_kind_counts=' + json.dumps(dict(id_kind_counts), sort_keys=True),
+              f'unique_strict_11_digit_ids={len(id_counts)}',
+              'duplicate_strict_ids=' + json.dumps(duplicate_ids, sort_keys=True),
               'status_counts=' + json.dumps(dict(status_counts), sort_keys=True),
-              'page_record_starts=' + json.dumps(page_start_counts),
+              'section_signature_counts=' + json.dumps({" ".join(k): v for k,v in section_signatures.items()}, sort_keys=True),
+              'status_date_line_shapes=' + json.dumps(dict(status_note_shapes), sort_keys=True),
+              'decision_date_presence=' + json.dumps({str(k):v for k,v in decision_date_presence.items()}, sort_keys=True),
+              'expiry_date_presence=' + json.dumps({str(k):v for k,v in expiry_date_presence.items()}, sort_keys=True),
+              'page_record_counts=' + json.dumps([page_record_counts[p] for p in range(1, len(pages)+1)]),
+              f'cid_name_count={len(cid_names)}',
               f'anomaly_count={len(anomalies)}',
               f'blocks_with_one_provv={sum(len(b["provv_lines"]) == 1 for b in blocks)}',
               f'blocks_with_one_section_line={sum(len(b["section_lines"]) == 1 for b in blocks)}',
               '',
-              '--- first 12 blocks ---',
+              '--- reviewed identifier exceptions ---',
           ]
-          for idx, block in enumerate(blocks[:12], 1):
-              lines_out.append(f'BLOCK {idx}: ' + json.dumps(block, ensure_ascii=False))
+          for block in blocks:
+              if block['id_kind'] != 'strict_11_digit':
+                  lines_out.append(json.dumps(block, ensure_ascii=False))
           lines_out.append('')
-          lines_out.append('--- anomalies (first 60) ---')
-          for idx, reason, block in anomalies[:60]:
+          lines_out.append('--- duplicate strict identifiers ---')
+          for block in duplicate_blocks:
+              lines_out.append(json.dumps(block, ensure_ascii=False))
+          lines_out.append('')
+          lines_out.append('--- cid-bearing names ---')
+          for item in cid_names:
+              lines_out.append(json.dumps(item, ensure_ascii=False))
+          lines_out.append('')
+          lines_out.append('--- anomalies (first 80) ---')
+          for idx, reason, block in anomalies[:80]:
               lines_out.append(f'ANOMALY {idx} {reason}: ' + json.dumps(block, ensure_ascii=False))
+
           out.write_text('\n'.join(lines_out) + '\n', encoding='utf-8')
           print(out.read_text(encoding='utf-8'))
           PY
@@ -145,5 +210,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/forli_cesena_block_probe.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Checkpoint Forli-Cesena logical block probe'
+          git commit -m 'Checkpoint Forli-Cesena reviewed block probe'
           git push origin HEAD:expansion/forli-cesena-2026-09-13
