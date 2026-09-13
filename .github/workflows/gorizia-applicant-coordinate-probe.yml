@@ -1,0 +1,174 @@
+name: Gorizia applicant coordinate probe
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install probe runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+
+      - name: Inspect applicant coordinates on frozen bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import re
+          from pathlib import Path
+
+          import pdfplumber
+          import requests
+
+          URL = "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf"
+          SHA256 = "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c"
+          EXPECTED_IDS = [
+              "01270500315", "01262160318", "01190800316", "01270740317", "00407990316",
+              "01268270319", "00557360310", "01040110312", "01170510315", "01195820319",
+          ]
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-coordinate-probe/1.0",
+              "Referer": "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list",
+              "Connection": "close",
+          }
+
+          response = requests.get(URL, headers=headers, timeout=(20, 90), allow_redirects=True)
+          response.raise_for_status()
+          body = response.content
+          got = hashlib.sha256(body).hexdigest()
+          if got != SHA256:
+              raise RuntimeError(f"Gorizia applicant approved-byte drift: {got} != {SHA256}")
+
+          def line_groups(words: list[dict]) -> list[dict]:
+              groups: list[list[dict]] = []
+              for word in sorted(words, key=lambda item: (round(float(item["top"]), 1), float(item["x0"]))):
+                  top = float(word["top"])
+                  placed = False
+                  for group in reversed(groups[-4:]):
+                      if abs(top - sum(float(w["top"]) for w in group) / len(group)) <= 2.0:
+                          group.append(word)
+                          placed = True
+                          break
+                  if not placed:
+                      groups.append([word])
+              lines = []
+              for group in groups:
+                  group.sort(key=lambda item: float(item["x0"]))
+                  lines.append({
+                      "top": round(sum(float(w["top"]) for w in group) / len(group), 2),
+                      "bottom": round(max(float(w["bottom"]) for w in group), 2),
+                      "x0": round(min(float(w["x0"]) for w in group), 2),
+                      "x1": round(max(float(w["x1"]) for w in group), 2),
+                      "text": " ".join(str(w["text"]) for w in group),
+                      "words": [
+                          {
+                              "text": str(w["text"]),
+                              "x0": round(float(w["x0"]), 2),
+                              "x1": round(float(w["x1"]), 2),
+                          }
+                          for w in group
+                      ],
+                  })
+              return lines
+
+          pages = []
+          observed_ids: list[str] = []
+          anchor_contexts = []
+          with pdfplumber.open(io.BytesIO(body)) as pdf:
+              if len(pdf.pages) != 2:
+                  raise RuntimeError(f"Gorizia applicant page-count drift: {len(pdf.pages)} != 2")
+              for page_number, page in enumerate(pdf.pages, start=1):
+                  words = page.extract_words(x_tolerance=2, y_tolerance=2, keep_blank_chars=False, use_text_flow=False)
+                  lines = line_groups(words)
+                  for index, line in enumerate(lines):
+                      ids = re.findall(r"(?<!\d)\d{11}(?!\d)", line["text"])
+                      if not ids:
+                          continue
+                      for identifier in ids:
+                          observed_ids.append(identifier)
+                          lo = max(0, index - 7)
+                          hi = min(len(lines), index + 8)
+                          anchor_contexts.append({
+                              "identifier": identifier,
+                              "page": page_number,
+                              "anchor_line": index + 1,
+                              "anchor_top": line["top"],
+                              "context": [
+                                  {
+                                      "line": context_index + 1,
+                                      "top": lines[context_index]["top"],
+                                      "text": lines[context_index]["text"],
+                                      "words": lines[context_index]["words"],
+                                  }
+                                  for context_index in range(lo, hi)
+                              ],
+                          })
+                  pages.append({
+                      "page": page_number,
+                      "width": round(float(page.width), 2),
+                      "height": round(float(page.height), 2),
+                      "line_count": len(lines),
+                      "lines": lines,
+                  })
+
+          if observed_ids != EXPECTED_IDS:
+              raise RuntimeError(f"Gorizia applicant identifier-order drift: {observed_ids!r} != {EXPECTED_IDS!r}")
+
+          report = {
+              "authority_key": "gorizia",
+              "source_sha256": SHA256,
+              "expected_identifier_order": EXPECTED_IDS,
+              "observed_identifier_order": observed_ids,
+              "identifier_anchor_count": len(observed_ids),
+              "pages": pages,
+              "anchor_contexts": anchor_contexts,
+          }
+          Path("tmp/gorizia_applicant_coordinate_probe.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "identifier_anchor_count": len(observed_ids),
+              "observed_identifier_order": observed_ids,
+              "page_line_counts": [page["line_count"] for page in pages],
+              "anchor_tops": [
+                  [item["identifier"], item["page"], item["anchor_top"]]
+                  for item in anchor_contexts
+              ],
+          }, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint coordinate probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/gorizia_applicant_coordinate_probe.json
+          if git diff --cached --quiet; then
+            echo "No coordinate-probe change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Gorizia applicant coordinate probe"
+          git push
