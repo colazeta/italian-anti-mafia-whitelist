@@ -9,6 +9,7 @@ from typing import Any
 
 import pdfplumber
 from docx import Document
+from docx.oxml.ns import qn
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
@@ -158,17 +159,16 @@ def _normalise_italian_date(raw: str) -> str:
         raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc
 
 
-def _docx_cell_text(cell: Any) -> str:
-    values: list[str] = []
-    for paragraph in cell.paragraphs:
-        text = _clean(paragraph.text)
-        if text:
-            values.append(text)
-    return _clean(" ".join(values))
+def _physical_cell_text(tc: Any) -> str:
+    return _clean(" ".join(node.text or "" for node in tc.iter(qn("w:t"))))
+
+
+def _physical_row_cells(row: Any) -> list[str]:
+    return [_physical_cell_text(tc) for tc in row._tr.tc_lst]
 
 
 def _header_signature(row: Any) -> str:
-    return " | ".join(_docx_cell_text(cell) for cell in row.cells)
+    return " | ".join(_physical_row_cells(row))
 
 
 def _listed_sector_rows(path: Path) -> tuple[list[dict[str, Any]], dict[int, int]]:
@@ -185,7 +185,7 @@ def _listed_sector_rows(path: Path) -> tuple[list[dict[str, Any]], dict[int, int
         if header not in _EXPECTED_HEADERS:
             raise RuntimeError(f"Gorizia listed header drift in table {table_index}: {header!r}")
         for row_index, row in enumerate(table.rows[1:], start=2):
-            cells = [_docx_cell_text(cell) for cell in row.cells]
+            cells = _physical_row_cells(row)
             if not any(cells):
                 continue
             if len(cells) != 7:
