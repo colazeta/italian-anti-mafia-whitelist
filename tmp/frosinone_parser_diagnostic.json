@@ -1,0 +1,12 @@
+{
+  "authority_key": "frosinone",
+  "source_reference_date": "2026-09-02",
+  "capture_sha256": {
+    "listed": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+    "applicants": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8"
+  },
+  "parser_completed": false,
+  "error_type": "RuntimeError",
+  "error": "Frosinone listed fragment-row drift: 44 != 42",
+  "traceback": "Traceback (most recent call last):\n  File \"<stdin>\", line 71, in <module>\n  File \"/home/runner/work/italian-anti-mafia-whitelist/italian-anti-mafia-whitelist/src/white_list_archive/parsers/frosinone_tables.py\", line 200, in parse_frosinone_listed\n    raise RuntimeError(f\"Frosinone listed fragment-row drift: {fragment_rows} != {_EXPECTED_LISTED_FRAGMENT_ROWS}\")\nRuntimeError: Frosinone listed fragment-row drift: 44 != 42\n"
+}
