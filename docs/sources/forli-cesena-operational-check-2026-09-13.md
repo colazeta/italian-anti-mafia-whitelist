@@ -2,7 +2,7 @@
 
 ## Scope
 
-This note records source reconnaissance for the next national-expansion candidate. It is **not** publication approval and does not mark Forlì-Cesena as validated, captured or complete.
+This note records source reconnaissance for the next national-expansion candidate. It is **not** publication approval and does not yet mark Forlì-Cesena as parser-validated, complete or publicly integrated.
 
 ## Current official publication surface
 
@@ -17,7 +17,18 @@ Current official attachment identified from that page:
 - https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf
 - stated edition date: 2026-09-11
 
-A live semantic PDF extraction during the same check exposed 69 pages. The document positively contains multiple official state labels, including `ISCRITTA`, `RINNOVO`, `AGGIORNAMENTO` and `AVVIO ISTRUTTORIA`. This is positive evidence that the current attachment is not merely a clean list of enrolled firms: it also carries records in an instruction/application-stage state.
+A live semantic PDF extraction during the initial reconnaissance exposed 69 pages. The document positively contains multiple official state labels, including `ISCRITTA`, `RINNOVO`, `AGGIORNAMENTO` and `AVVIO ISTRUTTORIA`. This is positive evidence that the current attachment is not merely a clean list of enrolled firms: it also carries records in an instruction/application-stage state.
+
+## Content-addressed capture
+
+The branch-local source audit subsequently fetched the exact official PDF twice from the Prefettura endpoint through the GitHub runner. Both responses were HTTP 200, valid PDF files and byte-identical:
+
+- byte size: `485001`
+- SHA-256 fetch A: `f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468`
+- SHA-256 fetch B: `f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468`
+- byte identity: `true`
+
+This is sufficient to freeze the current edition's raw-byte identity. The first capture runner did not have the PDF text utilities needed for a layout-preserving extraction, so row semantics, page count from the captured bytes and parser binding remain separate gates rather than being inferred from the successful byte capture.
 
 ## Population treatment
 
@@ -29,15 +40,14 @@ The current evidence supports treating the attachment provisionally as a **combi
 - enumerate all distinct official status labels and their row semantics before binding canonical statuses;
 - preserve source status text and ambiguous/negative outcomes until an evidence-backed mapping is reviewed.
 
-## Byte-level evidence still required
+## Canonical state constraints
 
-The current run did **not** complete the content-addressed capture gate. Raw PDF download through the available direct-download path was blocked by the execution environment, and the temporary branch-local audit workflow had not executed at checkpoint time.
+At this checkpoint:
 
-Therefore, at this checkpoint:
-
-- no SHA-256 is asserted for the 2026-09-11 PDF;
-- `source_verified`, `capture_completed`, `parser_validated`, `observations_loaded` and `public_export_enabled` must remain false in canonical coverage state;
-- no record count is asserted;
+- the current PDF is content-addressed and repeat-fetch verified;
+- `source_verified` may be supported for this exact edition, but no canonical coverage transition should be committed until the population and parser gates are complete;
+- `parser_validated`, `observations_loaded` and `public_export_enabled` must remain false;
+- no canonical record count is asserted;
 - no parser-family binding is approved;
 - no national/public integration is justified.
 
@@ -45,11 +55,10 @@ Therefore, at this checkpoint:
 
 Resume `expansion/forli-cesena-2026-09-13` and:
 
-1. fetch the exact official PDF bytes twice through an independently repeatable route;
-2. require matching SHA-256 values and byte identity;
-3. freeze byte size/page count and a layout-preserving text extraction;
-4. enumerate every observed official status and identify the row boundaries/columns used by each status;
-5. confirm whether all relevant listed/renewal/update/instruction populations are represented in the single edition;
-6. only then bind or implement a fail-closed parser and add semantic invariants before any canonical/public loading.
+1. reproduce a layout-preserving text extraction from the byte-pinned PDF and freeze page count/text diagnostics;
+2. enumerate every observed official status and identify the row boundaries/columns used by each status;
+3. confirm whether all relevant listed/renewal/update/instruction populations are represented in the single edition;
+4. identify source anomalies that must remain raw or be handled by explicit evidence-backed exceptions;
+5. only then bind or implement a fail-closed parser and add semantic invariants before any canonical/public loading.
 
-A failed fetch must remain an execution limitation, not evidence of non-publication or incompleteness.
+A failed later fetch must remain an execution limitation, not evidence of non-publication or incompleteness.
