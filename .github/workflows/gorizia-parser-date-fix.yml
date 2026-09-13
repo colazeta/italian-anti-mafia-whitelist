@@ -1,4 +1,4 @@
-name: Gorizia parser date fix
+name: Gorizia parser evidence fix
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply reviewed split-digit date support
+      - name: Apply reviewed source-specific parser support
         shell: bash
         run: |
           set -euo pipefail
@@ -26,32 +26,100 @@ jobs:
 
           parser = Path("src/white_list_archive/parsers/gorizia_tables.py")
           text = parser.read_text(encoding="utf-8")
-          marker = '_REVIEWED_MALFORMED_DATES = frozenset({"10.12.202", "14 agosto 204"})\n'
-          mapping = '_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}\n'
-          if mapping not in text:
-              if marker not in text:
-                  raise RuntimeError("Expected reviewed-malformed-date marker not found")
-              text = text.replace(marker, marker + mapping, 1)
 
-          old = '    if value in _REVIEWED_MALFORMED_DATES:\n        return ""\n'
-          new = old + '    if value in _REVIEWED_SPLIT_DIGIT_DATES:\n        return _REVIEWED_SPLIT_DIGIT_DATES[value]\n'
-          if 'if value in _REVIEWED_SPLIT_DIGIT_DATES:' not in text:
-              if old not in text:
-                  raise RuntimeError("Expected strict-date malformed-value guard not found")
-              text = text.replace(old, new, 1)
+          date_mapping = '_REVIEWED_SPLIT_DIGIT_DATES = {"2 1 aprile 2026": "2026-04-21"}\n'
+          blank_rule = '''_REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
+              (
+                  "“ MAROLLI COSTRUZIONI SRL”",
+                  "MONFALCONE (GO) Viale San Marco, 13/B",
+                  "C.F./P.I. 01218760310",
+                  "29 dicembre 2022",
+              ),
+          })
+'''
+          if blank_rule not in text:
+              if date_mapping not in text:
+                  raise RuntimeError("Expected reviewed split-digit date mapping not found")
+              text = text.replace(date_mapping, date_mapping + blank_rule, 1)
+
+          old_loop = '''    sector_rows: list[dict[str, Any]] = []
+    section_counts: Counter[int] = Counter()
+    update_values: Counter[str] = Counter()
+'''
+          new_loop = '''    sector_rows: list[dict[str, Any]] = []
+    section_counts: Counter[int] = Counter()
+    update_values: Counter[str] = Counter()
+    blank_expiry_rows = 0
+'''
+          if new_loop not in text:
+              if old_loop not in text:
+                  raise RuntimeError("Expected listed-loop setup not found")
+              text = text.replace(old_loop, new_loop, 1)
+
+          old_validation = '''            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
+            if not name or not listing_raw or not expiry_raw:
+                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
+            listing_date = _strict_source_date(listing_raw, label="listing")
+            expiry_date = _strict_source_date(expiry_raw, label="expiry")
+'''
+          new_validation = '''            name, office, secondary, identifier_raw, listing_raw, expiry_raw, update_raw = values
+            if not name or not listing_raw:
+                raise RuntimeError(f"Gorizia incomplete listed row in section {section}, row {source_row}: {values!r}")
+            reviewed_blank_expiry = (name, office, identifier_raw, listing_raw) in _REVIEWED_BLANK_EXPIRY_ROWS
+            if not expiry_raw:
+                if not reviewed_blank_expiry:
+                    raise RuntimeError(
+                        f"Gorizia unreviewed blank listed expiry in section {section}, row {source_row}: {values!r}"
+                    )
+                blank_expiry_rows += 1
+            listing_date = _strict_source_date(listing_raw, label="listing")
+            expiry_date = _strict_source_date(expiry_raw, label="expiry", allow_blank=reviewed_blank_expiry)
+'''
+          if new_validation not in text:
+              if old_validation not in text:
+                  raise RuntimeError("Expected listed row validation block not found")
+              text = text.replace(old_validation, new_validation, 1)
+
+          old_guard = '''    if dict(section_counts) != _EXPECTED_SECTION_ROWS:
+        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
+'''
+          new_guard = '''    if blank_expiry_rows != 1:
+        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 1")
+    if dict(section_counts) != _EXPECTED_SECTION_ROWS:
+        raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
+'''
+          if new_guard not in text:
+              if old_guard not in text:
+                  raise RuntimeError("Expected listed structural guard not found")
+              text = text.replace(old_guard, new_guard, 1)
+
+          old_diag = '''            "sector_rows": len(sector_rows),
+            "section_rows": dict(section_counts),
+'''
+          new_diag = '''            "sector_rows": len(sector_rows),
+            "blank_expiry_rows": blank_expiry_rows,
+            "section_rows": dict(section_counts),
+'''
+          if new_diag not in text:
+              if old_diag not in text:
+                  raise RuntimeError("Expected listed diagnostics block not found")
+              text = text.replace(old_diag, new_diag, 1)
+
           parser.write_text(text, encoding="utf-8")
 
           doc = Path("docs/sources/gorizia-operational-check-2026-09-13.md")
           doc_text = doc.read_text(encoding="utf-8")
-          anchor = "Support for the optional ordinal marker was added explicitly after the parser correctly failed closed on that previously unreviewed form; accepting it is source-supported date parsing, not a relaxation of validation."
+          anchor = "Other examples retained raw include `00001092420312`, `001370303018`, `0237978303` and company-name variants such as `EQUIPE SRL` / `EQUPE SRL`."
           note = (
-              " The physical OOXML extraction also exposes one reviewed split-run typography, `2 1 aprile 2026`, for MOVITUB di Giovanni Veneruso & C. SAS. "
-              "The same source cell's logical text is `21 aprile 2026`, and another source occurrence for the same company/identifier also reads `21 aprile 2026`. "
-              "The parser therefore maps only this exact reviewed physical lexeme to `2026-04-21`, while preserving the raw source value and keeping the exact physical registration grouping unchanged; no generic whitespace/date repair is enabled."
+              " The pinned DOCX also contains exactly one positively reviewed source row with a blank `Data scadenza iscrizione`: "
+              "`“ MAROLLI COSTRUZIONI SRL”`, MONFALCONE (GO) Viale San Marco, 13/B, `C.F./P.I. 01218760310`, "
+              "listing date `29 dicembre 2022` (section 2, source row 9). The parser permits a blank expiry only for this exact "
+              "reviewed name/office/identifier/listing tuple, preserves the blank raw and normalised expiry, and fails closed on any "
+              "additional blank-expiry row; publication in the listed series is retained as the only positive status evidence."
           )
           if note.strip() not in doc_text:
               if anchor not in doc_text:
-                  raise RuntimeError("Expected Gorizia date-review documentation anchor not found")
+                  raise RuntimeError("Expected Gorizia anomaly-documentation anchor not found")
               doc_text = doc_text.replace(anchor, anchor + note, 1)
               doc.write_text(doc_text, encoding="utf-8")
           PY
@@ -67,5 +135,5 @@ jobs:
             echo "No parser change to checkpoint."
             exit 0
           fi
-          git commit -m "Handle reviewed split-run date in Gorizia source"
+          git commit -m "Handle reviewed blank expiry in Gorizia source"
           git push
