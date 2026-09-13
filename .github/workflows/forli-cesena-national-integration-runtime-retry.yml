@@ -1,0 +1,77 @@
+name: Forli-Cesena national integration runtime retry
+
+on:
+  push:
+    branches:
+      - expansion/forli-cesena-2026-09-13
+    paths:
+      - .github/workflows/forli-cesena-national-integration-runtime-retry.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forli-cesena-national-integration-runtime-retry
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/forli-cesena-2026-09-13
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install complete validation runtime
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Validation runtime package installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,database,storage]' pyyaml
+
+      - name: Re-run validated integration transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import yaml
+
+          source = Path('.github/workflows/forli-cesena-national-integration.yml')
+          workflow = yaml.safe_load(source.read_text(encoding='utf-8'))
+          steps = workflow['jobs']['integrate']['steps']
+          wanted = [
+              'Materialise Forli-Cesena production candidate',
+              'Run full repository test suite',
+              'Build and validate Forli-Cesena national candidate',
+              'Commit validated Forli-Cesena production candidate',
+          ]
+          by_name = {step.get('name'): step for step in steps if isinstance(step, dict)}
+          missing = [name for name in wanted if name not in by_name]
+          if missing:
+              raise RuntimeError(f'integration workflow step drift: {missing!r}')
+          for name in wanted:
+              script = by_name[name].get('run')
+              if not isinstance(script, str) or not script.strip():
+                  raise RuntimeError(f'missing run script for {name!r}')
+              print(f'::group::{name}')
+              subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
+              print('::endgroup::')
+          PY
