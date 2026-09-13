@@ -59,6 +59,7 @@ jobs:
           FOREIGN_EXCEPTION = re.compile(r'^\s*(GRUPPO IDRODEMOLIZIONI SRL - SOCIETA[\'’] ESTERA)\s*$')
           STATUS = re.compile(r'\b(IN\s+AGGIORNAMENTO|AVVIO\s+ISTRUTTORIA)\b', re.I)
           DATE = re.compile(r'\b(\d{2}/\d{2}/\d{4})\b')
+          STANDALONE_DATE = re.compile(r'^(?:(DAL|AL|DEL)\s+)?\d{2}/\d{2}/\d{4}$', re.I)
           SECTION_TOKEN = re.compile(r'\b(VIII|VII|III|VI|IV|IX|II|V|X|I)\b')
           src = Path('/tmp/forli_probe/source.pdf')
           out = Path('tmp/forli_cesena_block_probe.txt')
@@ -107,6 +108,7 @@ jobs:
           decision_date_presence = Counter()
           expiry_date_presence = Counter()
           cid_names = []
+          standalone_date_examples = []
 
           for idx, block in enumerate(blocks, 1):
               id_kind_counts[block['id_kind']] += 1
@@ -142,15 +144,16 @@ jobs:
 
               extra = []
               for line in block['lines'][1:]:
-                  stripped = line.strip()
+                  stripped = re.sub(r'\s+', ' ', line.strip())
                   if not stripped or stripped == provv_line or re.search(r'Sezion', stripped, re.I):
                       continue
                   if DATE.search(stripped) and ('Provv.' not in stripped):
-                      if re.fullmatch(r'(?:DAL\s+|AL\s+)?\d{2}/\d{2}/\d{4}', re.sub(r'\s+', ' ', stripped), re.I):
-                          extra.append(re.sub(r'\s+', ' ', stripped).upper())
-              for value in extra:
-                  shape = 'DAL_DATE' if value.startswith('DAL ') else 'AL_DATE' if value.startswith('AL ') else 'BARE_DATE'
-                  status_note_shapes[shape] += 1
+                      if m := STANDALONE_DATE.fullmatch(stripped):
+                          extra.append(stripped.upper())
+                          prefix = (m.group(1) or 'BARE').upper()
+                          status_note_shapes[f'{prefix}_DATE'] += 1
+                          if len(standalone_date_examples) < 80:
+                              standalone_date_examples.append((idx, block['page'], block['id'], status, stripped.upper()))
               if len(extra) > 1:
                   anomalies.append((idx, f'multiple_status_date_lines={extra!r}', block))
 
@@ -172,6 +175,7 @@ jobs:
               'status_counts=' + json.dumps(dict(status_counts), sort_keys=True),
               'section_signature_counts=' + json.dumps({" ".join(k): v for k,v in section_signatures.items()}, sort_keys=True),
               'status_date_line_shapes=' + json.dumps(dict(status_note_shapes), sort_keys=True),
+              f'status_date_line_total={sum(status_note_shapes.values())}',
               'decision_date_presence=' + json.dumps({str(k):v for k,v in decision_date_presence.items()}, sort_keys=True),
               'expiry_date_presence=' + json.dumps({str(k):v for k,v in expiry_date_presence.items()}, sort_keys=True),
               'page_record_counts=' + json.dumps([page_record_counts[p] for p in range(1, len(pages)+1)]),
@@ -180,8 +184,12 @@ jobs:
               f'blocks_with_one_provv={sum(len(b["provv_lines"]) == 1 for b in blocks)}',
               f'blocks_with_one_section_line={sum(len(b["section_lines"]) == 1 for b in blocks)}',
               '',
-              '--- reviewed identifier exceptions ---',
+              '--- standalone status-date examples ---',
           ]
+          for item in standalone_date_examples:
+              lines_out.append(json.dumps(item, ensure_ascii=False))
+          lines_out.append('')
+          lines_out.append('--- reviewed identifier exceptions ---')
           for block in blocks:
               if block['id_kind'] != 'strict_11_digit':
                   lines_out.append(json.dumps(block, ensure_ascii=False))
@@ -210,5 +218,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/forli_cesena_block_probe.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Checkpoint Forli-Cesena reviewed block probe'
+          git commit -m 'Checkpoint Forli-Cesena standalone date audit'
           git push origin HEAD:expansion/forli-cesena-2026-09-13
