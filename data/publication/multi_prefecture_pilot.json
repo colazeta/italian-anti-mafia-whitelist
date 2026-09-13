@@ -946,6 +946,40 @@
       "last_source_update": "2026-09-11",
       "last_source_update_basis": "dated official resource",
       "notes": "Applicant status is grounded in the separately identified official applicant population; nonstandard identifiers remain raw and are never repaired."
+    },
+    {
+      "authority_key": "genova",
+      "authority_name": "Prefettura di Genova",
+      "register_key": "genova-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dated official listed/applicant resources directly verified 12 September 2026",
+      "source_key": "genova-listed",
+      "parser": "genova_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf",
+      "sha256": "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403",
+      "expected_source_rows": 652,
+      "notes": "Byte-pinned 114-page listed-company PDF. The fail-closed parser yields 652 observations: 528 listed and 124 renewal/update in progress. Reviewed source-layout anomalies use exact evidence-backed exceptions only; malformed official identifiers and invalid dates remain raw and are never repaired by inference. Exact evidence is documented in docs/sources/genova-operational-check-2026-09-12.md."
+    },
+    {
+      "authority_key": "genova",
+      "authority_name": "Prefettura di Genova",
+      "register_key": "genova-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dated official listed/applicant resources directly verified 12 September 2026",
+      "source_key": "genova-applicants",
+      "parser": "genova_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf",
+      "sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7",
+      "expected_source_rows": 110,
+      "notes": "Byte-pinned 20-page applicant PDF. The fail-closed parser yields exactly 110 pending observations. Reviewed split-table identities and incomplete extraction are reconstructed only under byte-pinned geometry-checked evidence; malformed official dates remain raw and uninferred."
     }
   ]
 }

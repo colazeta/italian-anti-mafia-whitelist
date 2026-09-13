@@ -44,6 +44,7 @@ from white_list_archive.parsers.bolzano_docx import (
 )
 from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
 from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
+from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -260,16 +261,84 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or BOLZANO_PARSERS.get(cfg["parser"])
         or CASERTA_PARSERS.get(cfg["parser"])
         or CATANIA_PARSERS.get(cfg["parser"])
+        or GENOVA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
     batch = parser(path, cfg)
     if cfg["parser"] in BOLZANO_PARSERS:
         batch = _adapt_bolzano_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in GENOVA_PARSERS:
+        batch = _adapt_genova_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "1"
     return batch
+
+
+def _adapt_genova_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Genova parser evidence onto the closed public contract.
+
+    The parser deliberately retains source-layout diagnostics that are useful for
+    validation but are not public-contract fields. This adapter is exact and
+    fail-closed: any new key or type drift stops publication rather than widening
+    the public contract.
+    """
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Genova source_fields must be a mapping")
+
+        if parser_name == "genova_listed":
+            expected = {
+                "sections",
+                "secondary_office_raw",
+                "listing_date_raw",
+                "expiry_date_raw",
+                "in_aggiornamento",
+                "source_locator",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Genova listed source-field drift: {sorted(fields)!r}")
+            sections = fields["sections"]
+            if not isinstance(sections, list) or any(not isinstance(value, str) for value in sections):
+                raise RuntimeError("Genova listed section type drift")
+            for key in ("secondary_office_raw", "listing_date_raw", "expiry_date_raw", "in_aggiornamento", "source_locator"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Genova listed source-field type drift: {key}")
+            record["source_fields"] = {
+                "sections": list(sections),
+                "secondary_office_variants": [fields["secondary_office_raw"]] if fields["secondary_office_raw"] else [],
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+                "in_aggiornamento": fields["in_aggiornamento"],
+            }
+        elif parser_name == "genova_applicants":
+            expected = {
+                "sections",
+                "secondary_office_raw",
+                "application_date_raw",
+                "source_locator",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Genova applicant source-field drift: {sorted(fields)!r}")
+            sections = fields["sections"]
+            if not isinstance(sections, list) or any(not isinstance(value, str) for value in sections):
+                raise RuntimeError("Genova applicant section type drift")
+            for key in ("secondary_office_raw", "application_date_raw", "source_locator"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Genova applicant source-field type drift: {key}")
+            record["source_fields"] = {
+                "sections": list(sections),
+                "secondary_office_variants": [fields["secondary_office_raw"]] if fields["secondary_office_raw"] else [],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Genova parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
 def _validate_batch(cfg: dict[str, Any], batch: ParsedBatch) -> None:
