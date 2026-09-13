@@ -15,5 +15,5 @@ Traceback (most recent call last):
     raise RuntimeError(
         f"Forli-Cesena p{page_number}:b{page_record_number} locality layout drift: {locality_candidates!r}"
     )
-RuntimeError: Forli-Cesena p28:b8 locality layout drift: ['DEL 09/07/2026', 'GATTEO (FC)']
+RuntimeError: Forli-Cesena p30:b10 locality layout drift: ['IL 29/04/2026', 'MODIGLIANA (FC) 47015']
 
