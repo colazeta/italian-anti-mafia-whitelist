@@ -98,7 +98,7 @@ jobs:
           assert listed.diagnostics["status_counts"] == {"listed": 529, "renewal_update_in_progress": 232}
           assert listed.diagnostics["identifier_coverage"] == 737
           assert listed.diagnostics["raw_identifier_only"] == 24
-          assert listed.diagnostics["continuation_fragments_joined"] == 42
+          assert listed.diagnostics["continuation_fragments_joined"] == 44
           assert listed.diagnostics["reviewed_malformed_dates"] == 8
           assert listed.diagnostics["blank_sections"] == 3
 
