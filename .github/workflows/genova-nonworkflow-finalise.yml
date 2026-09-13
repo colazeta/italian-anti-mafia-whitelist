@@ -1,4 +1,4 @@
-name: Genova non-workflow production finalisation
+name: Genova Pages gate staging
 
 on:
   push:
@@ -11,60 +11,54 @@ permissions:
   contents: write
 
 jobs:
-  finalise:
+  stage:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/genova-2026-09-12
           fetch-depth: 0
-      - name: Materialise validated Genova production state
-        run: |
-          awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
-          test -s /tmp/genova_materialise.py
-          python /tmp/genova_materialise.py
-          python tmp/genova_public_adapter_patch.py
-          git restore -- .github/workflows/public-pages.yml
-          git diff --check
-      - name: Remove temporary Genova diagnostics outside workflows
-        shell: bash
-        run: |
-          shopt -s nullglob
-          tmp_files=(tmp/genova_*)
-          if [ "${#tmp_files[@]}" -gt 0 ]; then
-            git rm -f -- "${tmp_files[@]}"
-          fi
-      - name: Enforce non-workflow diff scope
+      - name: Build fail-closed permanent Pages gate candidate
         run: |
           python - <<'PY'
-          import subprocess
-          allowed = {
-              'data/monitoring/national_coverage.json',
-              'data/publication/multi_prefecture_pilot.json',
-              'data/source_registry/source_series_inventory.csv',
-              'data/source_registry/verified_primary_pages.csv',
-              'src/white_list_archive/publishing/public_national_registry.py',
-              'tests/public_portal_browser.cjs',
-          }
-          changed = [x for x in subprocess.check_output(['git','diff','--name-only'], text=True).splitlines() if x]
-          bad = [p for p in changed if p not in allowed and not p.startswith('tmp/genova_')]
-          if bad:
-              raise SystemExit(f'unrelated changes: {bad}')
-          missing = sorted(p for p in allowed if p not in changed)
-          if missing:
-              raise SystemExit(f'expected permanent changes missing: {missing}')
+          from pathlib import Path
+
+          src = Path('.github/workflows/public-pages.yml')
+          text = src.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one Pages replacement target, found {count}: {old!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              "      - 'src/white_list_archive/parsers/catania_openxml.py'\n",
+              "      - 'src/white_list_archive/parsers/catania_openxml.py'\n      - 'src/white_list_archive/parsers/genova_tables.py'\n",
+          )
+          replace_once("          assert reg['meta']['record_count'] == 28838\n", "          assert reg['meta']['record_count'] == 29600\n")
+          replace_once("'caserta','catania'}\n", "'caserta','catania','genova'}\n")
+          replace_once("'caserta-ordinary','catania-ordinary'\n", "'caserta-ordinary','catania-ordinary','genova-ordinary'\n")
+          replace_once("          assert reg['meta']['authority_count'] == 29\n", "          assert reg['meta']['authority_count'] == 30\n")
+          replace_once("          assert reg['meta']['register_count'] == 30\n", "          assert reg['meta']['register_count'] == 31\n")
+          replace_once("          assert pref['meta']['published_count'] == 29\n", "          assert pref['meta']['published_count'] == 30\n")
+          replace_once(
+              "          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']\n          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2\n",
+              "          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']\n          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2\n          genova = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']\n          assert len(genova) == 1 and genova[0]['mapped'] and genova[0]['published'] and genova[0]['series_count'] == 2\n",
+          )
+
+          out = Path('tmp/public-pages-genova-final.yml')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(text, encoding='utf-8')
           PY
-          git add data/monitoring/national_coverage.json \
-            data/publication/multi_prefecture_pilot.json \
-            data/source_registry/source_series_inventory.csv \
-            data/source_registry/verified_primary_pages.csv \
-            src/white_list_archive/publishing/public_national_registry.py \
-            tests/public_portal_browser.cjs
-          git diff --cached --check
-      - name: Commit non-workflow production state
+          diff -u .github/workflows/public-pages.yml tmp/public-pages-genova-final.yml
+      - name: Commit staged Pages gate blob
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Integrate validated Genova public data'
+          git add tmp/public-pages-genova-final.yml
+          git diff --cached --check
+          git commit -m 'Stage validated Genova Pages gate'
           git push origin HEAD:expansion/genova-2026-09-12
