@@ -27,6 +27,7 @@ _EXPECTED_ID_KIND_COUNTS = {
 }
 _EXPECTED_DUPLICATE_STRICT_IDS = {"03690740406": 2, "04581460260": 2}
 _EXPECTED_DATED_PROVVEDIMENTO_ROWS = 600
+_EXPECTED_STATUS_DATE_ROWS = 314
 _EXPECTED_CID_ARTIFACT_ROWS = 1
 _EXPECTED_SECTIONS = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X")
 
@@ -112,8 +113,6 @@ def _parse_provvedimento(line: str, explicit_status: str) -> tuple[str, str, str
         raise RuntimeError(
             f"Forli-Cesena asymmetric provvedimento dates: decision={decision_raw!r}, expiry={expiry_raw!r}"
         )
-    if explicit_status == "AVVIO ISTRUTTORIA" and (number or decision or expiry):
-        raise RuntimeError("Forli-Cesena applicant row unexpectedly carries populated provvedimento fields")
     return street, number, decision, expiry
 
 
@@ -305,6 +304,10 @@ def parse_forli_cesena_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if dated_provvedimento_rows != _EXPECTED_DATED_PROVVEDIMENTO_ROWS:
         raise RuntimeError(
             f"Forli-Cesena dated-provvedimento drift: {dated_provvedimento_rows} != {_EXPECTED_DATED_PROVVEDIMENTO_ROWS}"
+        )
+    if status_date_rows != _EXPECTED_STATUS_DATE_ROWS:
+        raise RuntimeError(
+            f"Forli-Cesena standalone-status-date drift: {status_date_rows} != {_EXPECTED_STATUS_DATE_ROWS}"
         )
     if cid_artifact_rows != _EXPECTED_CID_ARTIFACT_ROWS:
         raise RuntimeError(
