@@ -37,7 +37,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           from collections import Counter
-          import json, math, re
+          import json, re
           import pdfplumber
 
           root=Path('tmp/napoli_spatial_probe')
@@ -51,6 +51,9 @@ jobs:
                   if len(cells)==width and all(c is not None for c in cells):
                       return [(float(c[0]),float(c[2])) for c in cells]
               raise RuntimeError('no full-width row geometry')
+          def row_vertical_bounds(row):
+              cells=[c for c in row.cells if c is not None]
+              return (min(float(c[1]) for c in cells), max(float(c[3]) for c in cells))
           def col_for(word,ranges):
               x=(float(word['x0'])+float(word['x1']))/2
               for i,(a,b) in enumerate(ranges):
@@ -75,16 +78,14 @@ jobs:
                   for pn,page in enumerate(pdf.pages,start=1):
                       tables=page.find_tables()
                       if len(tables)!=1: raise RuntimeError(f'{src} table count p{pn}: {len(tables)}')
-                      table=tables[0]; ranges=cell_ranges(table,width)
+                      table=tables[0]; extracted=table.extract() or []; ranges=cell_ranges(table,width)
                       words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
                       anchors=[]
                       for w in words:
-                          c=col_for(w,ranges)
-                          t=clean(w['text'])
+                          c=col_for(w,ranges); t=clean(w['text'])
                           if c==0 and re.fullmatch(r'\d{1,4}',t):
                               n=int(t)
-                              if 1<=n<=terminal:
-                                  anchors.append((n,(float(w['top'])+float(w['bottom']))/2,w))
+                              if 1<=n<=terminal: anchors.append((n,(float(w['top'])+float(w['bottom']))/2,w))
                       anchors.sort(key=lambda x:x[1])
                       page_anchor_counts.append(len(anchors))
                       if not anchors: raise RuntimeError(f'{src} no anchors p{pn}')
@@ -92,37 +93,45 @@ jobs:
                       if nums != list(range(expected_next, expected_next+len(nums))):
                           raise RuntimeError(f'{src} anchor sequence p{pn}: {nums[:3]}..{nums[-3:]} expected {expected_next}')
                       expected_next += len(nums)
+                      semantic_row_indexes=[]
+                      for i,row in enumerate(extracted):
+                          if not row: continue
+                          first=clean(row[0] if len(row)>0 else '')
+                          if first.isdigit() and int(first) in nums: semantic_row_indexes.append(i)
+                      if len(semantic_row_indexes)!=len(anchors):
+                          raise RuntimeError(f'{src} semantic geometry drift p{pn}: {len(semantic_row_indexes)} != {len(anchors)}')
+                      first_top,_=row_vertical_bounds(table.rows[semantic_row_indexes[0]])
+                      _,last_bottom=row_vertical_bounds(table.rows[semantic_row_indexes[-1]])
                       centers=[a[1] for a in anchors]
-                      gaps=[b-a for a,b in zip(centers,centers[1:]) if b>a]
-                      typical=sorted(gaps)[len(gaps)//2] if gaps else 30.0
-                      top_limit=max(table.bbox[1], centers[0]-0.80*typical)
-                      bottom_limit=min(table.bbox[3], centers[-1]+0.80*typical)
+                      boundaries=[(centers[i]+centers[i+1])/2 for i in range(len(centers)-1)]
                       bins=[[] for _ in anchors]
                       for w in words:
                           c=col_for(w,ranges)
                           if c is None or c==0: continue
                           yc=(float(w['top'])+float(w['bottom']))/2
-                          if yc < top_limit or yc > bottom_limit: continue
-                          idx=min(range(len(centers)), key=lambda i:abs(yc-centers[i]))
+                          if yc < first_top or yc > last_bottom: continue
+                          idx=0
+                          while idx < len(boundaries) and yc >= boundaries[idx]: idx += 1
                           bins[idx].append((c,w))
                       for (n,y,_),bucket in zip(anchors,bins):
                           cells=[str(n)]
-                          for c in range(1,width):
-                              cells.append(join_words([w for col,w in bucket if col==c]))
+                          for c in range(1,width): cells.append(join_words([w for col,w in bucket if col==c]))
                           reconstructed.append({'ordinal':n,'page':pn,'anchor_y':round(y,2),'cells':cells})
               if [r['ordinal'] for r in reconstructed] != list(range(1,terminal+1)):
                   raise RuntimeError(f'{src} reconstructed ordinal drift')
-              blanks={}
               labels=['ordinal','company','office','secondary','identifier','activities','primary_date'] + (['secondary_date','outcome'] if src=='listed' else ['outcome'])
-              for i,label in enumerate(labels[1:],start=1):
-                  blanks[label]=sum(not r['cells'][i] for r in reconstructed)
+              blanks={label:sum(not r['cells'][i] for r in reconstructed) for i,label in enumerate(labels[1:],start=1)}
+              id_shapes=Counter('11_digit' if re.fullmatch(r'\d{11}',r['cells'][4]) else '16_alnum' if re.fullmatch(r'[A-Za-z]{6}[0-9A-Za-z]{10}',r['cells'][4]) else 'other' for r in reconstructed)
+              outcome_counts=Counter(r['cells'][-1] for r in reconstructed)
+              other_ids=Counter(r['cells'][4] for r in reconstructed if not re.fullmatch(r'(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})',r['cells'][4]))
               report[src]={
                   'records':len(reconstructed),
-                  'page_anchor_counts':page_anchor_counts,
                   'blank_counts':blanks,
                   'selected_rows':[r for r in reconstructed if r['ordinal'] in selected[src]],
-                  'identifier_shape_counts':dict(Counter('11_digit' if re.fullmatch(r'\d{11}',r['cells'][4]) else '16_alnum' if re.fullmatch(r'[A-Za-z]{6}[0-9A-Za-z]{10}',r['cells'][4]) else 'other' for r in reconstructed)),
-                  'outcome_nonblank':sum(bool(r['cells'][-1]) for r in reconstructed),
+                  'identifier_shape_counts':dict(id_shapes),
+                  'other_identifier_values':dict(other_ids),
+                  'outcome_nonblank':sum(v for k,v in outcome_counts.items() if k),
+                  'outcome_counts':dict(outcome_counts),
               }
           print(json.dumps(report,indent=2,ensure_ascii=False))
           PY
