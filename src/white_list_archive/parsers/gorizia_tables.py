@@ -182,8 +182,10 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise RuntimeError(f"Gorizia listed section {section} has no header")
         header = _physical_cells(table.rows[0])
         expected_header = list(expected_headers)
-        if section == 3:
+        if section in {3, 4}:
             expected_header[4] = "Data d ’ iscrizione"
+        elif section >= 5:
+            expected_header[4] = "Data di iscrizione"
         if header != expected_header:
             raise RuntimeError(f"Gorizia listed header drift in section {section}: {header!r}")
         for source_row, row in enumerate(table.rows[1:], start=2):
