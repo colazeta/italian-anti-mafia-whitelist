@@ -1,4 +1,4 @@
-name: Gorizia parser source-shape fix
+name: Gorizia transactional parser fix
 
 on:
   push:
@@ -6,47 +6,111 @@ on:
       - expansion/gorizia-2026-09-13
     paths:
       - .github/workflows/gorizia-parser-import-fix.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   fix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: expansion/gorizia-2026-09-13
-      - name: Bind reviewed section-3 header typography
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply evidence-bound blank-expiry correction
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           path = Path('src/white_list_archive/parsers/gorizia_tables.py')
           text = path.read_text(encoding='utf-8')
-          old = '''        header = _physical_cells(table.rows[0])
-        if header != expected_headers:
-            raise RuntimeError(f"Gorizia listed header drift in section {section}: {header!r}")
-'''
-          new = '''        header = _physical_cells(table.rows[0])
-        expected_header = list(expected_headers)
-        if section == 3:
-            expected_header[4] = "Data d ’ iscrizione"
-        if header != expected_header:
-            raise RuntimeError(f"Gorizia listed header drift in section {section}: {header!r}")
-'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected exactly one strict header block, found {text.count(old)}')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+
+          old_address = '            "MONFALCONE (GO) Via Timavo, 63",\n'
+          new_address = '            "GORIZIA Via Gregorcic snc",\n'
+          context = '''        (\n            "PEVERE LOGISTICA SRL",\n            "MONFALCONE (GO) Via Timavo, 63",\n            "C.F./P.I. 01282120315",\n            "30 luglio 2026",\n        ),\n'''
+          if context in text:
+              text = text.replace(old_address, new_address, 1)
+          elif '            "GORIZIA Via Gregorcic snc",\n' not in text:
+              raise RuntimeError('reviewed PEVERE source signature not found')
+
+          old = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    blank_expiry_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            blank_expiry_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"\n        )\n'''
+          new = '''    grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)\n    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()\n    blank_expiry_sector_rows = 0\n    for row in sector_rows:\n        if not row["expiry_raw"]:\n            signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])\n            if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:\n                raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")\n            observed_blank_expiry_signatures.add(signature)\n            blank_expiry_sector_rows += 1\n        key = (\n            row["name"],\n            row["office"],\n            row["secondary"],\n            row["identifier_raw"],\n            row["listing_raw"],\n            row["expiry_raw"],\n        )\n        grouped[key].append(row)\n\n    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:\n        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)\n        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)\n        raise RuntimeError(\n            f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}"\n        )\n'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise RuntimeError('blank-expiry parser block drift')
+
+          old_diag = '            "blank_expiry_rows": blank_expiry_rows,\n'
+          new_diag = '            "blank_expiry_rows": blank_expiry_sector_rows,\n            "blank_expiry_registrations": len(observed_blank_expiry_signatures),\n'
+          if old_diag in text:
+              text = text.replace(old_diag, new_diag, 1)
+          elif new_diag not in text:
+              raise RuntimeError('blank-expiry diagnostic drift')
+          path.write_text(text, encoding='utf-8')
           PY
           git diff --check
-          git diff -- src/white_list_archive/parsers/gorizia_tables.py
-      - name: Commit source-shape fix
+
+      - name: Install validation runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev]' requests
+
+      - name: Validate approved official bytes and parser output
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, time
+          from collections import Counter
+          from pathlib import Path
+          import requests
+          from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed
+
+          landing='https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list'
+          headers={'User-Agent':'Mozilla/5.0 whitelist-archive-gorizia-validation/1.0','Referer':landing,'Connection':'close'}
+          specs=[
+            ('gorizia-listed','listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx','680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d','.docx'),
+            ('gorizia-applicants','applicant','https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf','befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c','.pdf'),
+          ]
+          batches=[]
+          Path('tmp/validation').mkdir(parents=True,exist_ok=True)
+          for key,scope,url,expected_sha,suffix in specs:
+              bodies=[]
+              for i in range(2):
+                  r=requests.get(url,headers=headers,timeout=(20,90),allow_redirects=True); r.raise_for_status()
+                  body=r.content; digest=hashlib.sha256(body).hexdigest()
+                  if digest != expected_sha: raise RuntimeError(f'{key} approved-byte drift: {digest}')
+                  bodies.append(body)
+                  if i == 0: time.sleep(2)
+              if bodies[0] != bodies[1]: raise RuntimeError(f'{key} repeat-fetch byte drift')
+              p=Path('tmp/validation')/f'{key}{suffix}'; p.write_bytes(bodies[0])
+              cfg={'source_key':key,'authority_key':'gorizia','authority_name':'Prefettura di Gorizia','register_key':'gorizia-ordinary','register_name':'White List ordinaria','population_scope':scope,'reference_date':'2026-09-13','source_page_url':landing,'resource_url':url,'sha256':expected_sha}
+              batches.append(parse_gorizia_listed(p,cfg) if scope == 'listed' else parse_gorizia_applicants(p,cfg))
+          listed,applicants=batches
+          if listed.diagnostics['sector_rows'] != 186 or listed.diagnostics['public_records'] != 117: raise RuntimeError(listed.diagnostics)
+          if listed.diagnostics['blank_expiry_registrations'] != 2: raise RuntimeError(listed.diagnostics)
+          if listed.diagnostics['status_counts'] != {'listed':86,'renewal_update_in_progress':31}: raise RuntimeError(listed.diagnostics)
+          if applicants.diagnostics['public_records'] != 10: raise RuntimeError(applicants.diagnostics)
+          records=listed.records+applicants.records
+          counts=dict(Counter(r['source_status'] for r in records))
+          if len(records) != 127 or counts != {'listed':86,'renewal_update_in_progress':31,'pending':10}: raise RuntimeError((len(records),counts))
+          if len({r['record_locator'] for r in records}) != 127: raise RuntimeError('record locator collision')
+          print({'records':127,'statuses':counts,'blank_expiry_rows':listed.diagnostics['blank_expiry_rows'],'blank_expiry_registrations':2})
+          PY
+
+      - name: Run repository tests
+        run: pytest -q
+
+      - name: Commit validated production parser correction
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add src/white_list_archive/parsers/gorizia_tables.py
           git diff --cached --quiet && exit 0
-          git commit -m 'Bind Gorizia section 3 header typography'
+          git commit -m 'Reconcile Gorizia blank expiry evidence'
           git push origin HEAD:expansion/gorizia-2026-09-13
