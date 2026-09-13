@@ -23,7 +23,8 @@ _EXPECTED_LISTED_STATUS_COUNTS = {"listed": 85, "renewal_update_in_progress": 24
 _EXPECTED_APPLICANT_RECORDS = 628
 _EXPECTED_APPLICANT_STATUS_COUNTS = {"pending": 628}
 _EXPECTED_APPLICANT_STRICT_IDENTIFIER_ROWS = 621
-_EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS = 7
+_EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS = 6
+_EXPECTED_APPLICANT_EMPTY_IDENTIFIER_ROWS = 1
 
 _STRICT_IDENTIFIER = re.compile(r"(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})(?![A-Za-z0-9])")
 _DATE = re.compile(r"^(\d{1,2})[./](\d{1,2})[./](\d{4})$")
@@ -381,10 +382,15 @@ def parse_foggia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Foggia applicant status-count drift: {status_counts!r}")
     identifier_coverage = sum(bool(record["identifiers"]) for record in records)
     raw_identifier_only = sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records)
-    if identifier_coverage != _EXPECTED_APPLICANT_STRICT_IDENTIFIER_ROWS or raw_identifier_only != _EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS:
+    empty_identifier = sum(not record["identifier_field_raw"] for record in records)
+    if (
+        identifier_coverage != _EXPECTED_APPLICANT_STRICT_IDENTIFIER_ROWS
+        or raw_identifier_only != _EXPECTED_APPLICANT_RAW_IDENTIFIER_ROWS
+        or empty_identifier != _EXPECTED_APPLICANT_EMPTY_IDENTIFIER_ROWS
+    ):
         raise RuntimeError(
             "Foggia applicant identifier-coverage drift: "
-            f"strict={identifier_coverage}, raw_only={raw_identifier_only}"
+            f"strict={identifier_coverage}, raw_only={raw_identifier_only}, empty={empty_identifier}"
         )
     return ParsedBatch(
         records,
@@ -396,5 +402,6 @@ def parse_foggia_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "status_counts": status_counts,
             "identifier_coverage": identifier_coverage,
             "raw_identifier_only": raw_identifier_only,
+            "empty_identifier": empty_identifier,
         },
     )
