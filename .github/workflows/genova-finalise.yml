@@ -1,0 +1,77 @@
+name: Genova production finalisation
+
+on:
+  push:
+    branches:
+      - expansion/genova-2026-09-12
+    paths:
+      - .github/workflows/genova-finalise.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/genova-2026-09-12
+          fetch-depth: 0
+      - name: Materialise the already validated production state
+        run: |
+          awk 'found && /^          PY$/ {exit} found {sub(/^          /,""); print} /^          python - <<'"'"'PY'"'"'$/ {found=1}' .github/workflows/genova-production-materialise-v2.yml > /tmp/genova_materialise.py
+          test -s /tmp/genova_materialise.py
+          python /tmp/genova_materialise.py
+          python tmp/genova_public_adapter_patch.py
+          git diff --check
+      - name: Remove all temporary Genova mechanisms and diagnostics
+        shell: bash
+        run: |
+          shopt -s nullglob
+          workflow_files=(.github/workflows/genova-*.yml)
+          tmp_files=(tmp/genova_*)
+          test "${#workflow_files[@]}" -gt 0
+          git rm -f -- "${workflow_files[@]}"
+          if [ "${#tmp_files[@]}" -gt 0 ]; then
+            git rm -f -- "${tmp_files[@]}"
+          fi
+      - name: Enforce final diff scope
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          allowed_permanent = {
+              '.github/workflows/public-pages.yml',
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'data/source_registry/verified_primary_pages.csv',
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'tests/public_portal_browser.cjs',
+          }
+          changed = [line for line in subprocess.check_output(['git','diff','--name-only'], text=True).splitlines() if line]
+          bad = [p for p in changed if p not in allowed_permanent and not p.startswith('.github/workflows/genova-') and not p.startswith('tmp/genova_')]
+          if bad:
+              raise SystemExit(f'unrelated working-tree changes: {bad}')
+          missing = sorted(p for p in allowed_permanent if p not in changed)
+          if missing:
+              raise SystemExit(f'expected permanent Genova integration changes missing: {missing}')
+          PY
+          git add -A
+          git diff --cached --check
+          python - <<'PY'
+          import subprocess
+          paths = [line for line in subprocess.check_output(['git','diff','--cached','--name-only'], text=True).splitlines() if line]
+          leaked = [p for p in paths if p.startswith('.github/workflows/genova-') and subprocess.run(['git','cat-file','-e',f':{p}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0]
+          if leaked:
+              raise SystemExit(f'temporary Genova workflows remain staged as live files: {leaked}')
+          PY
+      - name: Commit production-only Genova integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Finalise Genova public archive integration'
+          git push origin HEAD:expansion/genova-2026-09-12
