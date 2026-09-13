@@ -106,8 +106,8 @@ _REVIEWED_BLANK_EXPIRY_ROWS = frozenset(
         ),
         (
             "PEVERE LOGISTICA SRL",
-            "MONFALCONE (GO) Via Timavo, 63",
-            "C.F./P.I. 01282120315",
+            "GORIZIA Via Gregorcic snc",
+            "00546290313",
             "30 luglio 2026",
         ),
     }
@@ -147,6 +147,12 @@ def _normalise_italian_date(raw: str) -> str:
         return ""
     if value in _REVIEWED_SPLIT_DIGIT_DATES:
         return _REVIEWED_SPLIT_DIGIT_DATES[value]
+    numeric_match = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", value)
+    if numeric_match:
+        try:
+            return date(int(numeric_match.group(3)), int(numeric_match.group(2)), int(numeric_match.group(1))).isoformat()
+        except ValueError as exc:
+            raise RuntimeError(f"Gorizia invalid calendar date: {value!r}") from exc
     match = re.fullmatch(r"(\d{1,2})(?:°)?\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", value)
     if not match:
         raise RuntimeError(f"Gorizia unexpected date lexeme: {value!r}")
@@ -228,27 +234,22 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
     sector_rows, section_counts = _listed_sector_rows(path)
     grouped: dict[tuple[str, ...], list[dict[str, Any]]] = defaultdict(list)
-    blank_expiry_rows = 0
+    observed_blank_expiry_signatures: set[tuple[str, str, str, str]] = set()
+    blank_expiry_sector_rows = 0
     for row in sector_rows:
         if not row["expiry_raw"]:
             signature = (row["name"], row["office"], row["identifier_raw"], row["listing_raw"])
             if signature not in _REVIEWED_BLANK_EXPIRY_ROWS:
                 raise RuntimeError(f"Gorizia unreviewed blank expiry row: {signature!r}")
-            blank_expiry_rows += 1
-        key = (
-            row["name"],
-            row["office"],
-            row["secondary"],
-            row["identifier_raw"],
-            row["listing_raw"],
-            row["expiry_raw"],
-        )
+            observed_blank_expiry_signatures.add(signature)
+            blank_expiry_sector_rows += 1
+        key = (row["name"], row["office"], row["secondary"], row["identifier_raw"], row["listing_raw"], row["expiry_raw"])
         grouped[key].append(row)
 
-    if blank_expiry_rows != len(_REVIEWED_BLANK_EXPIRY_ROWS):
-        raise RuntimeError(
-            f"Gorizia reviewed blank-expiry population drift: {blank_expiry_rows} != {len(_REVIEWED_BLANK_EXPIRY_ROWS)}"
-        )
+    if observed_blank_expiry_signatures != _REVIEWED_BLANK_EXPIRY_ROWS:
+        missing = sorted(_REVIEWED_BLANK_EXPIRY_ROWS - observed_blank_expiry_signatures)
+        unexpected = sorted(observed_blank_expiry_signatures - _REVIEWED_BLANK_EXPIRY_ROWS)
+        raise RuntimeError(f"Gorizia reviewed blank-expiry population drift: missing={missing!r}; unexpected={unexpected!r}")
     if len(grouped) != _EXPECTED_LISTED_REGISTRATIONS:
         raise RuntimeError(
             f"Gorizia listed registration-group drift: {len(grouped)} != {_EXPECTED_LISTED_REGISTRATIONS}"
@@ -313,7 +314,8 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "registration_groups": len(records),
             "status_counts": status_counts,
             "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
-            "blank_expiry_rows": blank_expiry_rows,
+            "blank_expiry_rows": blank_expiry_sector_rows,
+            "blank_expiry_registrations": len(observed_blank_expiry_signatures),
             "section_rows": section_counts,
             "update_values": dict(Counter(row["update_raw"] for row in sector_rows)),
         },
