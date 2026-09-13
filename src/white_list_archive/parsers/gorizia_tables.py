@@ -91,6 +91,12 @@ _REVIEWED_BLANK_EXPIRY_ROWS = frozenset({
         "C.F./P.I. 01218760310",
         "29 dicembre 2022",
     ),
+    (
+        "PEVERE LOGISTICA SRL",
+        "GORIZIA Via Gregorcic snc",
+        "00546290313",
+        "30 luglio 2026",
+    ),
 })
 
 
@@ -228,8 +234,8 @@ def parse_gorizia_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 }
             )
 
-    if blank_expiry_rows != 1:
-        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 1")
+    if blank_expiry_rows != 2:
+        raise RuntimeError(f"Gorizia reviewed blank-expiry row drift: {blank_expiry_rows} != 2")
     if dict(section_counts) != _EXPECTED_SECTION_ROWS:
         raise RuntimeError(f"Gorizia listed section-row drift: {dict(section_counts)!r}")
     if len(sector_rows) != _EXPECTED_LISTED_SECTOR_ROWS:
