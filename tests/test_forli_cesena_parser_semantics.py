@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from white_list_archive.parsers.forli_cesena_combined import _parse_record_block
+from white_list_archive.publishing.public_contract import public_record
 
 
 def _cfg() -> dict[str, str]:
@@ -21,7 +22,9 @@ def _cfg() -> dict[str, str]:
 
 
 def _parse(identifier: str, name: str, id_kind: str, lines: list[str]):
-    return _parse_record_block(1, 1, identifier, name, id_kind, lines, _cfg(), 1)[0]
+    record = _parse_record_block(1, 1, identifier, name, id_kind, lines, _cfg(), 1)[0]
+    public_record(record)
+    return record
 
 
 def test_listed_row_preserves_provvedimento_and_address() -> None:
@@ -41,7 +44,7 @@ def test_listed_row_preserves_provvedimento_and_address() -> None:
     assert record["decision_date"] == "2026-03-20"
     assert record["observed_expiry_date"] == "2027-03-19"
     assert record["registered_office"] == "VIA P. NENNI, 35 MERCATO SARACENO (FC)"
-    assert record["source_fields"]["registration_number"] == "23508/2026"
+    assert "Provv. n. 23508/2026" in record["source_fields"]["provvedimento"]
     assert record["source_fields"]["sections"] == [
         "Sezione I", "Sezione II", "Sezione III", "Sezione IV", "Sezione V",
         "Sezione VI", "Sezione VII", "Sezione VIII", "Sezione IX", "Sezione X",
@@ -64,7 +67,10 @@ def test_renewal_row_follows_explicit_current_status() -> None:
     assert record["source_status"] == "renewal_update_in_progress"
     assert record["outcome_raw"] == "IN AGGIORNAMENTO"
     assert record["decision_date"] == "2025-06-18"
-    assert "DAL 13/05/2026" in record["source_fields"]["transcription_text"]
+    assert record["source_fields"]["in_aggiornamento"] == "DAL 13/05/2026"
+    assert record["source_fields"]["outcome"]["dates"] == [
+        {"raw_value": "DAL 13/05/2026", "date": "2026-05-13", "parenthesized": False}
+    ]
 
 
 def test_pending_row_does_not_fabricate_provvedimento_dates() -> None:
@@ -83,7 +89,8 @@ def test_pending_row_does_not_fabricate_provvedimento_dates() -> None:
     assert record["source_status"] == "pending"
     assert record["decision_date"] == ""
     assert record["observed_expiry_date"] == ""
-    assert record["source_fields"]["status_marker"] == "AVVIO ISTRUTTORIA"
+    assert record["source_fields"]["outcome"]["status"] == "pending"
+    assert record["source_fields"]["outcome"]["dates"][0]["raw_value"] == "08/01/2026"
 
 
 def test_reviewed_irregular_identifiers_are_not_repaired() -> None:
