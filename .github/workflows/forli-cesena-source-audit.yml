@@ -24,46 +24,70 @@ jobs:
         with:
           ref: expansion/forli-cesena-2026-09-13
           fetch-depth: 0
-      - name: Fetch official PDF twice and inspect
+
+      - name: Fetch official PDF twice and checkpoint exact outcome
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
+          landing='https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list'
           url='https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf'
           mkdir -p tmp /tmp/forli_audit
+          report='tmp/forli_cesena_source_audit.txt'
+          : > "$report"
+          printf '%s\n' 'authority_key=forli-cesena' "fetched_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "official_landing=$landing" "official_pdf=$url" 'edition_date=2026-09-11' >> "$report"
+
+          landing_code=$(curl -L -sS --connect-timeout 20 --max-time 90 --retry 2 --retry-delay 2 --retry-all-errors \
+            -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' \
+            -c /tmp/forli_audit/cookies.txt -w '%{http_code}' -o /tmp/forli_audit/landing.html "$landing" \
+            2>/tmp/forli_audit/landing.err || true)
+          echo "landing_http_code=${landing_code:-curl_error}" >> "$report"
+
           for n in a b; do
-            curl --fail --location --silent --show-error \
-              --retry 4 --retry-delay 2 --retry-all-errors \
-              -A 'Mozilla/5.0 white-list-source-audit/1.0' \
-              "$url" -o "/tmp/forli_audit/source_${n}.pdf"
+            code=$(curl -L -sS --connect-timeout 20 --max-time 120 --retry 3 --retry-delay 2 --retry-all-errors \
+              -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' \
+              -H 'Accept: application/pdf,application/octet-stream;q=0.9,*/*;q=0.8' -H "Referer: $landing" \
+              -b /tmp/forli_audit/cookies.txt -w '%{http_code}' -o "/tmp/forli_audit/source_${n}.pdf" "$url" \
+              2>"/tmp/forli_audit/source_${n}.err" || true)
+            size=0; test -f "/tmp/forli_audit/source_${n}.pdf" && size=$(stat -c '%s' "/tmp/forli_audit/source_${n}.pdf")
+            magic='missing'; test "$size" -gt 4 && magic=$(head -c 5 "/tmp/forli_audit/source_${n}.pdf" | tr -cd '[:print:]')
+            echo "fetch_${n}_http_code=${code:-curl_error}" >> "$report"
+            echo "fetch_${n}_bytes=$size" >> "$report"
+            echo "fetch_${n}_magic=$magic" >> "$report"
           done
-          sha_a=$(sha256sum /tmp/forli_audit/source_a.pdf | awk '{print $1}')
-          sha_b=$(sha256sum /tmp/forli_audit/source_b.pdf | awk '{print $1}')
-          test "$sha_a" = "$sha_b"
-          cmp -s /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source_b.pdf
-          bytes=$(stat -c '%s' /tmp/forli_audit/source_a.pdf)
-          pages=$(pdfinfo /tmp/forli_audit/source_a.pdf | awk '/^Pages:/ {print $2}')
-          pdftotext -layout /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source.txt
-          avvio=$(grep -Eio 'AVVIO[[:space:]]+ISTRUTTORIA' /tmp/forli_audit/source.txt | wc -l | tr -d ' ')
-          aggiornamento=$(grep -Eio 'IN[[:space:]]+AGGIORNAMENTO' /tmp/forli_audit/source.txt | wc -l | tr -d ' ')
-          ids=$(grep -Eo '(^|[^0-9])[0-9]{11}([^0-9]|$)' /tmp/forli_audit/source.txt | grep -Eo '[0-9]{11}' | sort -u | wc -l | tr -d ' ')
-          cat > tmp/forli_cesena_source_audit.txt <<EOF
-          authority_key=forli-cesena
-          fetched_utc=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-          official_landing=https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list
-          official_pdf=$url
-          edition_date=2026-09-11
-          sha256_a=$sha_a
-          sha256_b=$sha_b
-          byte_identical=true
-          bytes=$bytes
-          pages=$pages
-          avvio_istruttoria_occurrences=$avvio
-          in_aggiornamento_occurrences=$aggiornamento
-          unique_11_digit_tokens=$ids
-          combined_population_markers=true
-          EOF
-          printf '\n--- first 90 text lines ---\n' >> tmp/forli_cesena_source_audit.txt
-          sed -n '1,90p' /tmp/forli_audit/source.txt >> tmp/forli_cesena_source_audit.txt
+
+          valid_a=false; valid_b=false
+          test -f /tmp/forli_audit/source_a.pdf && head -c 5 /tmp/forli_audit/source_a.pdf | grep -q '^%PDF-' && valid_a=true
+          test -f /tmp/forli_audit/source_b.pdf && head -c 5 /tmp/forli_audit/source_b.pdf | grep -q '^%PDF-' && valid_b=true
+          echo "valid_pdf_a=$valid_a" >> "$report"; echo "valid_pdf_b=$valid_b" >> "$report"
+
+          if test "$valid_a" = true && test "$valid_b" = true; then
+            sha_a=$(sha256sum /tmp/forli_audit/source_a.pdf | awk '{print $1}')
+            sha_b=$(sha256sum /tmp/forli_audit/source_b.pdf | awk '{print $1}')
+            identical=false; cmp -s /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source_b.pdf && identical=true
+            echo "sha256_a=$sha_a" >> "$report"; echo "sha256_b=$sha_b" >> "$report"; echo "byte_identical=$identical" >> "$report"
+            echo "bytes=$(stat -c '%s' /tmp/forli_audit/source_a.pdf)" >> "$report"
+            if test "$identical" = true && command -v pdfinfo >/dev/null && command -v pdftotext >/dev/null; then
+              echo "pages=$(pdfinfo /tmp/forli_audit/source_a.pdf | awk '/^Pages:/ {print $2}')" >> "$report"
+              pdftotext -layout /tmp/forli_audit/source_a.pdf /tmp/forli_audit/source.txt
+              for label in 'AVVIO ISTRUTTORIA' RINNOVO AGGIORNAMENTO ISCRITTA; do
+                key=$(echo "$label" | tr '[:upper:] ' '[:lower:]_')
+                count=$(grep -Eio "$label" /tmp/forli_audit/source.txt 2>/dev/null | wc -l | tr -d ' ' || true)
+                echo "${key}_occurrences=${count:-0}" >> "$report"
+              done
+              ids=$(grep -Eo '(^|[^0-9])[0-9]{11}([^0-9]|$)' /tmp/forli_audit/source.txt 2>/dev/null | grep -Eo '[0-9]{11}' | sort -u | wc -l | tr -d ' ' || true)
+              echo "unique_11_digit_tokens=${ids:-0}" >> "$report"
+              echo 'capture_gate=BYTE_IDENTICAL_AND_TEXT_EXTRACTED' >> "$report"
+              printf '\n--- first 120 text lines ---\n' >> "$report"; sed -n '1,120p' /tmp/forli_audit/source.txt >> "$report"
+            elif test "$identical" = true; then
+              echo 'capture_gate=BYTE_IDENTICAL_PDF_TEXT_TOOLS_UNAVAILABLE' >> "$report"
+            else
+              echo 'capture_gate=PDF_FETCHED_BYTES_DIFFER' >> "$report"
+            fi
+          else
+            echo 'capture_gate=OFFICIAL_PDF_FETCH_UNAVAILABLE_FROM_GITHUB_RUNNER' >> "$report"
+          fi
+          cat "$report"
+
       - name: Commit audit checkpoint
         shell: bash
         run: |
@@ -71,8 +95,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/forli_cesena_source_audit.txt
-          if git diff --cached --quiet; then
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m 'Checkpoint Forli-Cesena official source audit'
           git push origin HEAD:expansion/forli-cesena-2026-09-13
