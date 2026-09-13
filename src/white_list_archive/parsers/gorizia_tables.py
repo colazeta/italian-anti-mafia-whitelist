@@ -133,7 +133,7 @@ def _strict_source_date(raw: str, *, label: str, allow_blank: bool = False) -> s
     if match:
         day, month, year = map(int, match.groups())
     else:
-        match = re.fullmatch(r"(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", value)
+        match = re.fullmatch(r"(\d{1,2})°?\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})", value)
         if not match:
             raise RuntimeError(f"Gorizia unreviewed {label} date typography: {value!r}")
         day = int(match.group(1))
