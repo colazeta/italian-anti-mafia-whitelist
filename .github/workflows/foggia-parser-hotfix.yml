@@ -124,28 +124,25 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m 'Finalise production-only Foggia integration'
-          allowed=$(cat <<'EOF'
-.github/workflows/public-pages.yml
-data/catalog.csv
-data/monitoring/national_coverage.json
-data/publication/multi_prefecture_pilot.json
-data/source_registry/source_series_inventory.csv
-data/source_registry/verified_primary_pages.csv
-docs/sources/foggia-operational-check-2026-09-13.md
-src/white_list_archive/parsers/foggia_tables.py
-src/white_list_archive/publishing/public_national_registry.py
-tests/public_portal_browser.cjs
-tests/test_foggia_parser_semantics.py
-tests/test_source_population_coverage.py
-tests/test_source_registry.py
-EOF
-          )
-          actual=$(git diff --name-only origin/main...HEAD | sort)
-          expected=$(printf '%s\n' "$allowed" | sort)
-          if [ "$actual" != "$expected" ]; then
-            echo 'Production-only file set mismatch' >&2
-            echo '--- expected'; printf '%s\n' "$expected"
-            echo '--- actual'; printf '%s\n' "$actual"
-            exit 1
-          fi
+          python - <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/public-pages.yml',
+              'data/catalog.csv',
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'data/source_registry/verified_primary_pages.csv',
+              'docs/sources/foggia-operational-check-2026-09-13.md',
+              'src/white_list_archive/parsers/foggia_tables.py',
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'tests/public_portal_browser.cjs',
+              'tests/test_foggia_parser_semantics.py',
+              'tests/test_source_population_coverage.py',
+              'tests/test_source_registry.py',
+          }
+          actual = set(subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'], text=True).splitlines())
+          if actual != expected:
+              raise SystemExit(f'production-only file set mismatch\nexpected={sorted(expected)!r}\nactual={sorted(actual)!r}')
+          PY
           git push origin HEAD:expansion/foggia-2026-09-13
