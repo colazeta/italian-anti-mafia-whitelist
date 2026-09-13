@@ -1,0 +1,170 @@
+name: Gorizia source audit
+
+on:
+  push:
+    branches:
+      - expansion/gorizia-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests pypdf
+
+      - name: Capture and verify current official sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import time
+          import zipfile
+          from pathlib import Path
+
+          import requests
+          from pypdf import PdfReader
+
+          landing = "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list"
+          sources = {
+              "listed": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx",
+                  "format": "docx",
+              },
+              "applicants": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
+                  "format": "pdf",
+              },
+          }
+
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-source-audit/1.0",
+              "Accept": "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/octet-stream;q=0.9,*/*;q=0.8",
+              "Referer": landing,
+              "Connection": "close",
+          }
+
+          session = requests.Session()
+          session.headers.update(headers)
+
+          def fetch(url: str, fmt: str) -> dict:
+              result = {"url": url, "format": fmt, "ok": False}
+              try:
+                  response = session.get(url, timeout=(20, 90), allow_redirects=True)
+                  body = response.content
+                  result.update({
+                      "status_code": response.status_code,
+                      "final_url": response.url,
+                      "content_type": response.headers.get("content-type"),
+                      "bytes": len(body),
+                      "sha256": hashlib.sha256(body).hexdigest(),
+                  })
+                  if response.status_code != 200:
+                      result["error"] = f"HTTP {response.status_code}"
+                      return result
+                  if len(body) < 10_000:
+                      result["error"] = f"unexpectedly small document ({len(body)} bytes)"
+                      return result
+
+                  if fmt == "pdf":
+                      result["pdf_magic"] = body.startswith(b"%PDF-")
+                      if not result["pdf_magic"]:
+                          result["error"] = "response does not start with PDF magic"
+                          return result
+                      reader = PdfReader(io.BytesIO(body), strict=False)
+                      result["pages"] = len(reader.pages)
+                  elif fmt == "docx":
+                      result["zip_magic"] = body.startswith(b"PK\x03\x04")
+                      if not result["zip_magic"]:
+                          result["error"] = "response does not start with ZIP/DOCX magic"
+                          return result
+                      with zipfile.ZipFile(io.BytesIO(body)) as archive:
+                          names = set(archive.namelist())
+                          required = {"[Content_Types].xml", "word/document.xml"}
+                          result["docx_entries"] = len(names)
+                          result["docx_required_members_present"] = required.issubset(names)
+                          if not result["docx_required_members_present"]:
+                              result["error"] = "DOCX container lacks required OOXML members"
+                              return result
+                  else:
+                      result["error"] = f"unsupported format {fmt}"
+                      return result
+
+                  result["ok"] = True
+                  return result
+              except Exception as exc:
+                  result["error"] = f"{type(exc).__name__}: {exc}"
+                  return result
+
+          report = {
+              "authority_key": "gorizia",
+              "official_landing_page": landing,
+              "landing_page_last_update": "2026-08-17T12:37:00+02:00",
+              "source_reference_date": None,
+              "capture_gate": "not_verified",
+              "sources": {},
+          }
+
+          for key, cfg in sources.items():
+              first = fetch(cfg["url"], cfg["format"])
+              time.sleep(2)
+              second = fetch(cfg["url"], cfg["format"])
+              verified = bool(
+                  first.get("ok")
+                  and second.get("ok")
+                  and first.get("sha256") == second.get("sha256")
+                  and first.get("bytes") == second.get("bytes")
+              )
+              report["sources"][key] = {
+                  "url": cfg["url"],
+                  "format": cfg["format"],
+                  "first": first,
+                  "second": second,
+                  "repeat_fetch_byte_identical": verified,
+                  "verified_sha256": first.get("sha256") if verified else None,
+                  "verified_bytes": first.get("bytes") if verified else None,
+                  "verified_pages": first.get("pages") if verified else None,
+                  "verified_docx_entries": first.get("docx_entries") if verified else None,
+              }
+
+          if all(item["repeat_fetch_byte_identical"] for item in report["sources"].values()):
+              report["capture_gate"] = "verified"
+
+          Path("tmp/gorizia_source_audit.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint audit result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/gorizia_source_audit.json
+          if git diff --cached --quiet; then
+            echo "No audit-result change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Gorizia official source audit"
+          git push
