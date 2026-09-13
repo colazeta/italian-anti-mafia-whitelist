@@ -1,0 +1,161 @@
+name: Frosinone layout audit
+
+on:
+  push:
+    branches:
+      - expansion/frosinone-2026-09-13
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+
+      - name: Audit byte-pinned document layouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import re
+          from collections import Counter
+          from pathlib import Path
+
+          import pdfplumber
+          import requests
+
+          landing = "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list"
+          sources = {
+              "listed": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+                  "sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+                  "pages": 91,
+              },
+              "applicants": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+                  "sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+                  "pages": 37,
+              },
+          }
+          headers = {
+              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36 whitelist-archive-layout-audit/1.0",
+              "Accept": "application/pdf,*/*;q=0.8",
+              "Referer": landing,
+          }
+
+          def clean(value):
+              return re.sub(r"\s+", " ", value or "").strip()
+
+          def download(key, cfg):
+              response = requests.get(cfg["url"], headers=headers, timeout=(20, 120))
+              response.raise_for_status()
+              body = response.content
+              digest = hashlib.sha256(body).hexdigest()
+              if digest != cfg["sha256"]:
+                  raise RuntimeError(f"{key} SHA drift: {digest} != {cfg['sha256']}")
+              path = Path(f"tmp/frosinone_{key}.pdf")
+              path.write_bytes(body)
+              return path
+
+          report = {"authority_key": "frosinone", "source_reference_date": "2026-09-02", "sources": {}}
+
+          for key, cfg in sources.items():
+              path = download(key, cfg)
+              table_counts = Counter()
+              width_counts = Counter()
+              last_column_values = Counter()
+              pages_without_tables = []
+              candidate_rows = 0
+              headers = 0
+              page_rows = []
+              unusual_width_examples = []
+
+              with pdfplumber.open(path) as pdf:
+                  if len(pdf.pages) != cfg["pages"]:
+                      raise RuntimeError(f"{key} page-count drift: {len(pdf.pages)} != {cfg['pages']}")
+                  for page_number, page in enumerate(pdf.pages, start=1):
+                      tables = page.extract_tables() or []
+                      table_counts[len(tables)] += 1
+                      if not tables:
+                          pages_without_tables.append(page_number)
+                      per_page_nonempty = 0
+                      for table_number, table in enumerate(tables, start=1):
+                          for row_number, raw_row in enumerate(table or [], start=1):
+                              row = [clean(cell) for cell in (raw_row or [])]
+                              if not any(row):
+                                  continue
+                              per_page_nonempty += 1
+                              width_counts[len(row)] += 1
+                              joined = " | ".join(row).casefold()
+                              is_header = (
+                                  ("denominaz" in joined and "codice fiscale" in joined)
+                                  or ("ragione sociale" in joined and "codice fiscale" in joined)
+                              )
+                              if is_header:
+                                  headers += 1
+                                  continue
+                              if len(row) == 7 and row[0]:
+                                  candidate_rows += 1
+                                  last_column_values[clean(row[6])] += 1
+                              elif len(row) != 7 and len(unusual_width_examples) < 20:
+                                  unusual_width_examples.append({
+                                      "page": page_number,
+                                      "table": table_number,
+                                      "row": row_number,
+                                      "width": len(row),
+                                      "cells": row,
+                                  })
+                      page_rows.append(per_page_nonempty)
+
+              report["sources"][key] = {
+                  "sha256": cfg["sha256"],
+                  "pages": cfg["pages"],
+                  "table_count_by_page": dict(sorted(table_counts.items())),
+                  "pages_without_tables": pages_without_tables,
+                  "row_width_counts": dict(sorted(width_counts.items())),
+                  "header_rows": headers,
+                  "candidate_width7_nonheader_rows": candidate_rows,
+                  "nonempty_rows_by_page_min": min(page_rows) if page_rows else 0,
+                  "nonempty_rows_by_page_max": max(page_rows) if page_rows else 0,
+                  "last_column_values": dict(last_column_values.most_common()),
+                  "unusual_width_examples": unusual_width_examples,
+              }
+
+          Path("tmp/frosinone_layout_audit.json").write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Checkpoint layout audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tmp/frosinone_listed.pdf tmp/frosinone_applicants.pdf
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/frosinone_layout_audit.json
+          if git diff --cached --quiet; then
+            echo "No layout-audit change to checkpoint."
+            exit 0
+          fi
+          git commit -m "Checkpoint Frosinone layout audit"
+          git push
