@@ -38,38 +38,66 @@ Accordingly **2,259 listed source observations and 2,571 applicant source observ
 
 ## Semantic audit and spatial reconstruction
 
-Plain table extraction exposed a small number of vertically misassigned cells. A second reconstruction therefore used the table's x-column geometry, the numbered source-row anchors and row-boundary geometry, on the same pinned bytes. It recovered the complete, ordered sequences 1–2,259 and 1–2,571 and removed the false identity/office gaps without inventing content.
+Plain table extraction exposed a small number of vertically misassigned cells. The first spatial reconstruction used table x-column geometry and numbered-row anchor midpoints. That method was useful diagnostically but is no longer accepted as the row-ownership primitive because a later audit against the physical PDF table-row boundaries demonstrated systematic cross-row contamination in long cells.
+
+A 14 September 2026 row-bound audit therefore reconstructed each numbered observation from words whose vertical centres fall inside the actual physical `pdfplumber` table-row top/bottom bounds, while retaining the same pinned bytes, x-column geometry and exact ordinal sequences. This method preserves materially more complete company names and assigns long outcome text to the row area in which it is physically printed. It also exposes a small set of genuine continuation spillovers that must be handled through exact reviewed continuation bindings rather than a generic midpoint heuristic.
 
 ### Listed publication
 
-The spatial reconstruction yields 2,259 numbered observations with nonblank company, office and identifier cells for every numbered row. Identifier evidence is 2,068 eleven-digit values, 167 sixteen-character alphanumeric fiscal-code-shaped values and 24 other raw values. The 24 noncanonical values are preserved as raw-only evidence rather than padded or otherwise repaired.
+The physical-row reconstruction yields all **2,259** numbered observations. Relative to the earlier midpoint reconstruction, **89 rows have a difference in one or more core cells**; inspection shows the midpoint method commonly truncated a long company name and prefixed the remainder to the following company. The physical-row representation is therefore the preferred basis for identity and core-field ownership, subject to exact exceptional review where a printed continuation visibly crosses a numbered-row boundary.
 
-The reconstructed outcome/update column contains 785 blank cells and 1,474 nonblank cells. The dominant positive update wording is `iscrizione in aggiornamento` (1,375 rows) plus 30 rows with `iscrizione in aggiornamento per variazione societaria`. The remaining nonblank values include source-positive collaborative-prevention, judicial-control/administration, interdittiva/diniego and revocation language, together with several long legal notes that visibly continue across source-row vertical space. Consequently a blanket nonblank→`renewal_update_in_progress` rule is prohibited.
+The physical outcome/update column contains **1,467 nonblank cells** and therefore 792 blank cells. This supersedes the earlier provisional midpoint count of 1,474 nonblank cells. Of the 1,467 physical nonblank values:
 
-The spatial reconstruction also shows why the plain table result could not be used directly: previously apparent blank identities and offices are recovered from visible words on the source page. Conversely, some long legal/outcome notes are still represented as fragments on neighbouring numbered rows by simple midpoint assignment. Those fragments must be grouped only through an explicitly reviewed continuation rule before their row ownership or canonical status is asserted.
+- **1,419** start with the source wording `iscrizione in aggiornamento`;
+- **48** are other source-positive values requiring reviewed semantics.
+
+There are **27 rows whose outcome assignment differs between midpoint and physical-row reconstruction**. The differences show why midpoint ownership is unsafe. For example, complete judicial-administration notes belong physically to `AMBIENTE CAMPANIA S.R.L.`, `AURORA S.R.L.`, `COSTRUZIONI GENERALI SUD S.R.L.` and `FONTANA DI FONTANA FRANCESCO S.R.L.`, while the following numbered rows are physically blank in the outcome column. Likewise, `LEONIDA COOPERATIVA SOCIALE` physically carries `DINIEGO DI ISCRIZIONE PROVVEDIMENTO PROT. 0106177 21/03/2024`, whereas the midpoint method had distributed fragments across neighbouring rows.
+
+The 48 non-prefix outcomes are not one semantic class. They include, among other positively observed source wordings:
+
+- collaborative-prevention measures under art. 94-bis;
+- judicial control/admission under art. 34-bis;
+- judicial administration notes;
+- interdittiva and diniego language;
+- revocation language;
+- a Council of State judgment reference;
+- update variants not beginning with the exact canonical phrase, including `in aggiornamento per variazione societaria` and the source typo `iscrizione in aggiornametnto`.
+
+Accordingly a blanket nonblank→`renewal_update_in_progress` rule remains prohibited. Exact positive update wording may support `renewal_update_in_progress`; explicit diniego/interdittiva/revocation evidence must follow the repository's reviewed adverse/cancellation semantics; control, administration, collaborative-prevention and judgment notes require conservative reviewed treatment with the raw source wording preserved.
+
+Identifier evidence remains 2,068 eleven-digit values, 167 sixteen-character alphanumeric fiscal-code-shaped values and 24 other raw values. The 24 noncanonical values are preserved as raw-only evidence rather than padded or otherwise repaired.
 
 ### Applicant publication
 
-The spatial reconstruction yields 2,571 numbered observations with nonblank company, office and identifier cells for every numbered row. Identifier evidence is 2,298 eleven-digit values, 261 sixteen-character alphanumeric values and 12 raw-only values. The raw-only set includes ten-digit values, `CHE-101,989.651`, the source value `011117840767` and `ZZVLR78S46F839J`; no alternative identifier is fabricated.
+The physical-row reconstruction yields all **2,571** numbered observations. It exposes **44 physically nonblank `ESITO` cells** rather than the earlier midpoint count of 41. The difference is fully localised: **41 values contain explicit diniego/interdittiva wording and three additional non-adverse fragments are continuation text physically printed in the following numbered row area**.
 
-The reconstructed `ESITO` column contains 2,530 blank rows and 41 nonblank rows. All 41 nonblank values expose explicit adverse administrative wording such as `DINIEGO DI ISCRIZIONE` or `Provvedimento interdittivo`; they therefore cannot be represented as ordinary pending observations merely because they remain physically present in the applicant publication. Any public status assignment must use an existing reviewed repository status/treatment and retain the raw outcome; no new status is introduced ad hoc.
+The three continuation spillovers are:
 
-The spatial method corrects the previously observed continuation error around rows 511–513: row 511 retains `DINIEGO DI ISCRIZIONE Provv. 0135353 del 05/07/2017 confermato con provvedimento`; row 512 has a blank outcome; row 513 retains its own `DINIEGO DI ISCRIZIONE Provv. di conferma n.0214725 del 06/06/2024`. One of the 41 applicant outcomes still ends with an apparently incomplete date phrase (`...399217 del`), so complete outcome preservation requires targeted neighbouring-row review before parser promotion.
+1. row 511 `CONSORZIO STABILE GOSERVICE S.C.A.R.L.` carries `DINIEGO DI ISCRIZIONE Provv. 0135353 del 05/07/2017 confermato con`; row 512 `CONSORZIO STABILE ICON S.C. A R.L.` contains only the continuation `provvedimento`;
+2. row 879 `EDIL SAN MARCO SRL` carries `DINIEGO DI ISCRIZIONE Provv. 0132224 del 30/06/2017 confermato da`; row 880 `EDIL SANT'ANNA S.R.L.` contains only `provv. 399217 del`;
+3. row 1259 `GIUGA ECOLOGY S.R.L.` carries `Provvedimento interdittivo prot.193574 dell'11/05/2026 sospeso con`; row 1260 `GIUGLIANO HOLDING S.R.L.` contains only `ordinanza TAR`.
+
+The first and third pairs are suitable for exact evidence-bound continuation ownership: the fragment can be attached to the immediately preceding adverse outcome and the following company must not inherit an independent adverse status from that fragment. The second pair remains **unresolved** because the source-visible tail currently ends at `provv. 399217 del`; no date or other missing content may be fabricated. A targeted page-74 geometry/text audit is required before freezing the exact raw outcome representation.
+
+The physical-vs-midpoint comparison also finds **eight core-field differences**, concentrated in four adjacent row pairs around ordinals 402/403, 793/794, 1209/1210 and 1226/1227. These are long company-name spillovers, not population gaps. They require exact row-ownership review before the parser's company-name invariants are frozen; neither physical nor midpoint text is accepted automatically where a fragment visibly crosses the row boundary.
+
+Identifier evidence remains 2,298 eleven-digit values, 261 sixteen-character alphanumeric values and 12 raw-only values. The raw-only set includes ten-digit values, `CHE-101,989.651`, the source value `011117840767` and `ZZVLR78S46F839J`; no alternative identifier is fabricated.
 
 ## Conservative semantic boundary
 
-The listed population is positively identified by its dedicated publication, but membership evidence and current legal/status wording must remain separate. Blank update/outcome text can support ordinary listed treatment; source-positive update wording can support `renewal_update_in_progress`; interdittiva/diniego/revocation/control/administration evidence must not be collapsed into update status and must follow the repository's existing reviewed status semantics after row ownership has been reconstructed.
+The listed population is positively identified by its dedicated publication, but membership evidence and current legal/status wording remain separate. Blank update/outcome text can support ordinary listed treatment. Source-positive update wording can support `renewal_update_in_progress`. Interdittiva/diniego/revocation evidence must not be collapsed into update status. Judicial control/administration, collaborative-prevention measures and other special notes require conservative reviewed treatment and raw evidence retention.
 
-Applicant membership is positively established by the dedicated applicant publication. Rows with blank `ESITO` are candidates for `pending` once the parser passes its full invariants. The 41 adverse-outcome rows require separate reviewed treatment and complete raw outcome preservation.
+Applicant membership is positively established by the dedicated applicant publication. Rows with genuinely blank `ESITO` after exact continuation resolution are candidates for `pending`. Explicit diniego/interdittiva rows are candidates for the repository's reviewed adverse status. Continuation-only rows must not acquire a status from a fragment belonging to the preceding row.
 
 ## Remaining gates
 
 Before admission to publication configuration the expansion still must establish:
 
-1. deterministic, reviewed continuation ownership for the exceptional listed legal notes and the one apparently truncated applicant outcome;
-2. a fail-closed parser family bound to both pinned SHA-256 values and the 11 September 2026 source edition;
-3. exact parser status distributions, identifier coverage and exception counters across the complete sources;
-4. parser semantic tests and repository CI;
-5. canonical/public national integration and permanent browser/Pages gates.
+1. targeted source review of the unresolved applicant continuation at rows 879–880 and the four applicant company-name spill pairs;
+2. exact, fail-closed continuation bindings for every reviewed spillover, with no generic cross-row concatenation rule;
+3. a fail-closed parser family bound to both pinned SHA-256 values and the 11 September 2026 source edition;
+4. exact parser status distributions, identifier coverage and exception counters across the complete sources;
+5. parser semantic tests and repository CI;
+6. canonical/public national integration and permanent browser/Pages gates.
 
 No national-count increment or public-export state is asserted until those gates pass.
