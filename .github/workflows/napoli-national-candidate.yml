@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/napoli-national-candidate.yml'
       - 'tmp/napoli_national_candidate.py'
+      - 'tmp/napoli_ledger_candidate.py'
   workflow_dispatch:
 
 permissions:
@@ -58,6 +59,9 @@ jobs:
 
       - name: Apply fail-closed Napoli publication candidate
         run: python tmp/napoli_national_candidate.py prepare
+
+      - name: Transition Napoli coverage ledger fail-closed
+        run: python tmp/napoli_ledger_candidate.py
 
       - name: Run repository tests
         run: pytest -q
@@ -116,16 +120,17 @@ jobs:
         run: |
           set -euo pipefail
           git restore public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
-          rm -f tmp/napoli_national_candidate.py
+          rm -f tmp/napoli_national_candidate.py tmp/napoli_ledger_candidate.py
           git config user.name colazeta
           git config user.email '47261299+colazeta@users.noreply.github.com'
           git add \
+            data/monitoring/national_coverage.json \
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
             src/white_list_archive/parsers/napoli_tables.py \
             src/white_list_archive/publishing/public_national_registry.py \
             tests/public_portal_browser.cjs
-          git add -u tmp/napoli_national_candidate.py
+          git add -u tmp/napoli_national_candidate.py tmp/napoli_ledger_candidate.py
           git diff --cached --check
           if git diff --cached --quiet; then
             echo 'No validated candidate diff to commit' >&2
