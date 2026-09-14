@@ -1,0 +1,92 @@
+name: Napoli parser validation
+
+on:
+  push:
+    branches:
+      - 'expansion/napoli-2026-09-13'
+    paths:
+      - 'src/white_list_archive/parsers/napoli_tables.py'
+      - '.github/workflows/napoli-parser-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Fetch approved Napoli sources twice and validate parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/napoli_parser_validation
+          ua='Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)'
+          listed='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
+          applicants='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
+          for n in 1 2; do
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_parser_validation/listed-$n.pdf" "$listed"
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_parser_validation/applicants-$n.pdf" "$applicants"
+          done
+          cmp tmp/napoli_parser_validation/listed-1.pdf tmp/napoli_parser_validation/listed-2.pdf
+          cmp tmp/napoli_parser_validation/applicants-1.pdf tmp/napoli_parser_validation/applicants-2.pdf
+          test "$(stat -c %s tmp/napoli_parser_validation/listed-1.pdf)" = '3081398'
+          test "$(stat -c %s tmp/napoli_parser_validation/applicants-1.pdf)" = '3566448'
+          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_parser_validation/listed-1.pdf' | sha256sum -c -
+          echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_parser_validation/applicants-1.pdf' | sha256sum -c -
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.parsers.napoli_tables import parse_napoli_applicants, parse_napoli_listed
+
+          base = {
+              'authority_key': 'napoli',
+              'authority_name': 'Prefettura di Napoli',
+              'register_key': 'napoli-ordinary',
+              'register_name': 'White List - Prefettura di Napoli',
+              'reference_date': '2026-09-13',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-iscritte',
+          }
+          listed_cfg = {
+              **base,
+              'source_key': 'napoli-listed',
+              'population_scope': 'listed',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf',
+              'sha256': '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be',
+          }
+          applicant_cfg = {
+              **base,
+              'source_key': 'napoli-applicants',
+              'population_scope': 'applicants',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-richiedenti',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf',
+              'sha256': '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b',
+          }
+          listed = parse_napoli_listed(Path('tmp/napoli_parser_validation/listed-1.pdf'), listed_cfg)
+          applicants = parse_napoli_applicants(Path('tmp/napoli_parser_validation/applicants-1.pdf'), applicant_cfg)
+          assert len(listed.records) == 2259, len(listed.records)
+          assert len(applicants.records) == 2571, len(applicants.records)
+          assert listed.diagnostics['status_counts'] == {
+              'listed': 792,
+              'renewal_update_in_progress': 1423,
+              'rejected_or_denied': 12,
+              'cancellation_related': 3,
+              'other_or_unknown': 29,
+          }, listed.diagnostics
+          assert applicants.diagnostics['status_counts'] == {
+              'pending': 2530,
+              'rejected_or_denied': 40,
+              'other_or_unknown': 1,
+          }, applicants.diagnostics
+          locators = [r['record_locator'] for r in listed.records + applicants.records]
+          assert len(locators) == 4830
+          assert len(set(locators)) == 4830
+          assert not any(r['source_status'] == 'rejected_or_denied' for r in applicants.records if r['source_row_ordinal'] in {512, 880, 1260})
+          print('listed diagnostics:', listed.diagnostics)
+          print('applicant diagnostics:', applicants.diagnostics)
+          print('combined records:', len(locators))
+          PY
