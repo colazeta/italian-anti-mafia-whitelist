@@ -1,4 +1,4 @@
-name: Padova source anomaly audit
+name: Padova parser validation
 
 on:
   push:
@@ -12,103 +12,120 @@ permissions:
   contents: read
 
 jobs:
-  audit:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install runtime
-        run: python -m pip install 'pdfplumber>=0.11,<0.12'
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
       - name: Fetch and pin official Padova PDFs
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p tmp/padova-audit
+          mkdir -p tmp/padova-validation
           fetch_twice() {
             local label="$1" url="$2" expected_size="$3" expected_sha="$4"
-            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-audit/${label}.a.pdf"
-            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-audit/${label}.b.pdf"
-            cmp "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.b.pdf"
-            test "$(wc -c < "tmp/padova-audit/${label}.a.pdf")" -eq "$expected_size"
-            printf '%s  %s\n' "$expected_sha" "tmp/padova-audit/${label}.a.pdf" | sha256sum -c -
-            mv "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.pdf"
-            rm "tmp/padova-audit/${label}.b.pdf"
+            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-validation/${label}.a.pdf"
+            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-validation/${label}.b.pdf"
+            cmp "tmp/padova-validation/${label}.a.pdf" "tmp/padova-validation/${label}.b.pdf"
+            test "$(wc -c < "tmp/padova-validation/${label}.a.pdf")" -eq "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "tmp/padova-validation/${label}.a.pdf" | sha256sum -c -
+            test "$(head -c 4 "tmp/padova-validation/${label}.a.pdf")" = '%PDF'
+            mv "tmp/padova-validation/${label}.a.pdf" "tmp/padova-validation/${label}.pdf"
+            rm "tmp/padova-validation/${label}.b.pdf"
           }
           fetch_twice listed 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf' 1411878 d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289
           fetch_twice applicants 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf' 343755 b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3
-      - name: Inspect exact anomalies and chronology
+      - name: Run permanent Padova semantic tests
+        run: pytest -q tests/test_padova_parser_semantics.py
+      - name: Parse and validate full official populations
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY' | tee tmp/padova-audit/anomalies.txt
-          from datetime import datetime
+          python - <<'PY'
+          from collections import Counter
           from pathlib import Path
-          import json
-          import pdfplumber
+          from white_list_archive.parsers.padova_tables import parse_padova_applicants, parse_padova_listed
 
-          root = Path('tmp/padova-audit')
-          def clean(v): return ' '.join((v or '').split())
-          def rows_for(pdf):
-              out=[]
-              for pno,page in enumerate(pdf.pages,1):
-                  tables=page.extract_tables() or []
-                  assert len(tables)==1,(pno,len(tables))
-                  for rno,row in enumerate(tables[0] or [],1):
-                      c=[clean(x) for x in row]
-                      if not any(c) or c[0]=='Ragione Sociale': continue
-                      assert len(c)==17,(pno,rno,len(c),c)
-                      out.append((pno,rno,c))
-              return out
-          def dt(s): return datetime.strptime(s,'%d/%m/%Y').date()
+          root = Path('tmp/padova-validation')
+          common = {
+              'authority_key': 'padova',
+              'authority_name': 'Prefettura di Padova',
+              'register_key': 'padova-white-list',
+              'register_name': 'White List - Padova',
+              'reference_date': '2026-08-14',
+          }
+          listed_cfg = {
+              **common,
+              'source_key': 'padova-listed',
+              'population_scope': 'listed',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-iscritte',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf',
+              'sha256': 'd140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289',
+          }
+          applicant_cfg = {
+              **common,
+              'source_key': 'padova-applicants',
+              'population_scope': 'applicant',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-richiedenti',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf',
+              'sha256': 'b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3',
+          }
 
-          with pdfplumber.open(root/'listed.pdf') as pdf:
-              rows=rows_for(pdf)
-              assert len(rows)==831
-              print('LISTED_TARGETS')
-              for target in (108,479):
-                  for ordinal in range(target-1,target+2):
-                      pno,rno,c=rows[ordinal-1]
-                      print(json.dumps({'ordinal':ordinal,'page':pno,'row':rno,'cells':c},ensure_ascii=False))
-              chrono=[]
-              unusual=[]
-              for ordinal,(pno,rno,c) in enumerate(rows,1):
-                  try: start,end=dt(c[14]),dt(c[15])
-                  except Exception: continue
-                  delta=(end-start).days
-                  if end < start: chrono.append([ordinal,pno,c[0],c[14],c[15],delta,c[16]])
-                  if delta < 300 or delta > 400: unusual.append([ordinal,pno,c[0],c[14],c[15],delta,c[16]])
-              print('LISTED_EXPIRY_BEFORE_LISTING',json.dumps(chrono,ensure_ascii=False))
-              print('LISTED_UNUSUAL_DATE_SPANS_LT300_OR_GT400',json.dumps(unusual,ensure_ascii=False))
-              for page_no in (14,61):
-                  page=pdf.pages[page_no-1]
-                  print(f'LISTED_PAGE_{page_no}_TEXT',json.dumps(page.extract_text() or '',ensure_ascii=False))
-                  page.to_image(resolution=180).save(root/f'listed-page-{page_no}.png')
+          listed = parse_padova_listed(root / 'listed.pdf', listed_cfg)
+          applicants = parse_padova_applicants(root / 'applicants.pdf', applicant_cfg)
+          assert len(listed.records) == 831
+          assert len(applicants.records) == 174
+          assert listed.diagnostics['status_counts'] == {'listed': 581, 'renewal_update_in_progress': 250}
+          assert applicants.diagnostics['status_counts'] == {'pending': 174}
+          assert listed.diagnostics['strict_identifier_count_distribution'] == {0: 9, 1: 713, 2: 109}
+          assert applicants.diagnostics['strict_identifier_count_distribution'] == {0: 2, 1: 143, 2: 29}
 
-          with pdfplumber.open(root/'applicants.pdf') as pdf:
-              rows=rows_for(pdf)
-              assert len(rows)==174
-              print('APPLICANT_TARGETS')
-              for target in (38,39,113):
-                  for ordinal in range(max(1,target-2),min(len(rows),target+2)+1):
-                      pno,rno,c=rows[ordinal-1]
-                      print(json.dumps({'target':target,'ordinal':ordinal,'page':pno,'row':rno,'cells':c},ensure_ascii=False))
-              for page_no in (5,11):
-                  page=pdf.pages[page_no-1]
-                  print(f'APPLICANT_PAGE_{page_no}_TEXT',json.dumps(page.extract_text() or '',ensure_ascii=False))
-                  words=page.extract_words(x_tolerance=1,y_tolerance=1,keep_blank_chars=False,use_text_flow=False)
-                  print(f'APPLICANT_PAGE_{page_no}_WORDS',json.dumps(words,ensure_ascii=False))
-                  page.to_image(resolution=180).save(root/f'applicants-page-{page_no}.png')
+          combined = listed.records + applicants.records
+          locators = [record['record_locator'] for record in combined]
+          assert len(combined) == 1005
+          assert len(set(locators)) == 1005
+
+          r108 = listed.records[107]
+          assert r108['name'] == 'BIOPROGRAMM BIOTECNOLOGIE AVANZATE E TECNICHE AMBIENTALI SRL'
+          assert r108['observed_listing_date'] == '2026-07-14'
+          assert r108['observed_expiry_date'] == ''
+          assert r108['source_fields']['expiry_date_raw'] == '46581,00'
+
+          r479 = listed.records[478]
+          assert r479['name'] == 'LA PERLA TRASPORTI E LOGISTICA DI MORELLO CARLO'
+          assert r479['identifiers'] == ['MRLCRL77H12F904M', '05700010282']
+          assert r479['observed_expiry_date'] == ''
+          assert r479['source_fields']['expiry_date_raw'] == '8807/2026'
+
+          r387 = listed.records[386]
+          assert r387['name'] == 'GEROTTO FEDERICO SRL'
+          assert r387['observed_listing_date'] == '2026-06-18'
+          assert r387['observed_expiry_date'] == '2025-02-04'
+          assert r387['source_status'] == 'renewal_update_in_progress'
+
+          r113 = applicants.records[112]
+          assert r113['name'] == 'NON SOLO ZANZARE SRL'
+          assert r113['identifiers'] == ['05504630285']
+          assert r113['requested_activities'] == ['Sezione 3', 'Sezione 5']
+          assert r113['source_fields']['reviewed_name_recovery'] is True
+
+          r38, r39 = applicants.records[37], applicants.records[38]
+          assert r38['name'] == r39['name'] == 'CLEAN SRL'
+          assert r38['identifier_field_raw'] == r39['identifier_field_raw'] == '02027230289'
+          assert r38['application_date'] == r39['application_date'] == '2026-01-14'
+          assert r38['source_fields']['protocol_raw'] == r39['source_fields']['protocol_raw'] == '674/2026'
+          assert r38['record_locator'] != r39['record_locator']
+          assert r38['source_fields']['reviewed_source_duplicate'] is True
+          assert r39['source_fields']['reviewed_source_duplicate'] is True
+
+          print('PADOVA_VALIDATED_RECORDS', len(combined))
+          print('PADOVA_LISTED_STATUS', dict(Counter(r['source_status'] for r in listed.records)))
+          print('PADOVA_APPLICANT_STATUS', dict(Counter(r['source_status'] for r in applicants.records)))
+          print('PADOVA_LISTED_DIAGNOSTICS', listed.diagnostics)
+          print('PADOVA_APPLICANT_DIAGNOSTICS', applicants.diagnostics)
           PY
-      - name: Upload targeted visual evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: padova-source-anomaly-audit
-          path: |
-            tmp/padova-audit/anomalies.txt
-            tmp/padova-audit/listed-page-*.png
-            tmp/padova-audit/applicants-page-*.png
-          if-no-files-found: error
-          retention-days: 3
