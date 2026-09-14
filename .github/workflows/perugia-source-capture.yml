@@ -1,0 +1,187 @@
+name: Perugia source capture
+
+on:
+  push:
+    branches:
+      - expansion/perugia-2026-09-14
+    paths:
+      - .github/workflows/perugia-source-capture.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PDF runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+
+      - name: Capture official Perugia sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/perugia-capture
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import subprocess
+          import time
+          import urllib.request
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          OUT = Path('tmp/perugia-capture')
+          PAGE_URL = 'https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list'
+          UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
+
+          def fetch(url: str, dest: Path) -> dict:
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      'User-Agent': UA,
+                      'Accept': 'text/html,application/pdf,application/octet-stream;q=0.9,*/*;q=0.8',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=45) as r:
+                  body = r.read()
+                  final_url = r.geturl()
+                  content_type = r.headers.get('Content-Type', '')
+              dest.write_bytes(body)
+              return {
+                  'requested_url': url,
+                  'final_url': final_url,
+                  'content_type': content_type,
+                  'bytes': len(body),
+                  'sha256': hashlib.sha256(body).hexdigest(),
+              }
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
+                  self._href = None
+                  self._text = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == 'a':
+                      self._href = dict(attrs).get('href')
+                      self._text = []
+              def handle_data(self, data):
+                  if self._href is not None:
+                      self._text.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == 'a' and self._href is not None:
+                      text = ' '.join(''.join(self._text).split())
+                      self.links.append((text, self._href))
+                      self._href = None
+                      self._text = []
+
+          page_primary = fetch(PAGE_URL, OUT / 'landing-primary.html')
+          secondary_error = None
+          page_secondary = None
+          try:
+              time.sleep(2)
+              page_secondary = fetch(PAGE_URL, OUT / 'landing-secondary.html')
+              if page_secondary['sha256'] != page_primary['sha256']:
+                  raise RuntimeError('official landing page changed between independent fetches')
+          except Exception as exc:
+              secondary_error = f'{type(exc).__name__}: {exc}'
+
+          html = (OUT / 'landing-primary.html').read_text('utf-8', errors='replace')
+          parser = Links()
+          parser.feed(html)
+          anchors = [
+              {'text': text, 'href': urljoin(page_primary['final_url'], href)}
+              for text, href in parser.links
+              if href
+          ]
+          (OUT / 'anchors.json').write_text(json.dumps(anchors, indent=2, ensure_ascii=False) + '\n')
+
+          def choose(kind: str) -> dict:
+              if kind == 'listed':
+                  matches = [a for a in anchors if '3 settembre 2026' in a['text'].casefold() and 'iscritte' in a['text'].casefold() and 'richied' not in a['text'].casefold()]
+              else:
+                  matches = [a for a in anchors if '3 settembre 2026' in a['text'].casefold() and 'richied' in a['text'].casefold()]
+              if len(matches) != 1:
+                  raise RuntimeError(f'expected exactly one positive-evidence {kind} anchor, found {len(matches)}: {matches!r}')
+              return matches[0]
+
+          selected = {'listed': choose('listed'), 'applicants': choose('applicants')}
+          result = {
+              'landing_page': page_primary,
+              'landing_second_fetch': page_secondary,
+              'landing_second_fetch_error': secondary_error,
+              'selected_anchors': selected,
+              'resources': {},
+          }
+
+          for kind, anchor in selected.items():
+              primary_path = OUT / f'{kind}-primary.pdf'
+              primary = fetch(anchor['href'], primary_path)
+              if not primary_path.read_bytes().startswith(b'%PDF-'):
+                  raise RuntimeError(f'{kind} primary resource is not a PDF')
+              second = None
+              second_error = None
+              try:
+                  time.sleep(2)
+                  second_path = OUT / f'{kind}-secondary.pdf'
+                  second = fetch(anchor['href'], second_path)
+                  if second['sha256'] != primary['sha256']:
+                      raise RuntimeError(f'{kind} resource changed between independent fetches')
+              except Exception as exc:
+                  second_error = f'{type(exc).__name__}: {exc}'
+
+              info = subprocess.run(['pdfinfo', str(primary_path)], text=True, capture_output=True, check=True).stdout
+              pages = None
+              for line in info.splitlines():
+                  if line.startswith('Pages:'):
+                      pages = int(line.split(':', 1)[1].strip())
+                      break
+              if not pages or pages < 1:
+                  raise RuntimeError(f'could not establish positive PDF page count for {kind}')
+              text_path = OUT / f'{kind}.txt'
+              subprocess.run(['pdftotext', '-layout', str(primary_path), str(text_path)], check=True)
+              text = text_path.read_text('utf-8', errors='replace')
+              if not text.strip():
+                  raise RuntimeError(f'{kind} PDF yielded no text')
+              result['resources'][kind] = {
+                  'anchor': anchor,
+                  'primary': primary,
+                  'second_fetch': second,
+                  'second_fetch_error': second_error,
+                  'pages': pages,
+                  'text_lines': len(text.splitlines()),
+                  'text_sha256': hashlib.sha256(text.encode()).hexdigest(),
+              }
+
+          (OUT / 'capture.json').write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n')
+          print(json.dumps(result, indent=2, ensure_ascii=False))
+          PY
+
+      - name: Summarise source structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in tmp/perugia-capture/listed.txt tmp/perugia-capture/applicants.txt; do
+            echo "===== $f : first 160 lines ====="
+            sed -n '1,160p' "$f"
+            echo "===== $f : last 100 lines ====="
+            tail -n 100 "$f"
+          done
+
+      - name: Upload capture evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: perugia-source-capture-${{ github.run_attempt }}
+          path: tmp/perugia-capture/
+          if-no-files-found: error
+          retention-days: 14
