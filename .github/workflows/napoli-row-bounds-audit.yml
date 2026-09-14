@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Recover all page-bottom listed cells against approved source
+      - name: Resolve all page-bottom listed cells against approved source
         shell: bash
         run: |
           set -euo pipefail
@@ -43,6 +43,7 @@ jobs:
           path = Path('tmp/napoli_row_audit/listed-1.pdf')
           rows = {}
           meta = {}
+          page_columns = {}
           with pdfplumber.open(path) as pdf:
               assert len(pdf.pages) == 60, len(pdf.pages)
               for page_number, page in enumerate(pdf.pages, start=1):
@@ -51,6 +52,9 @@ jobs:
                   table = tables[0]
                   extracted = table.extract() or []
                   assert len(extracted) == len(table.rows), page_number
+                  complete_geometry = next((r for r in table.rows if len(r.cells) == 9 and all(c is not None for c in r.cells)), None)
+                  assert complete_geometry is not None, page_number
+                  page_columns[page_number] = [(float(c[0]), float(c[2])) for c in complete_geometry.cells]
                   for row_number, raw in enumerate(extracted, start=1):
                       cells = [norm(v) for v in (raw or [])]
                       assert len(cells) == 9, (page_number, row_number, len(cells), cells)
@@ -59,8 +63,7 @@ jobs:
                       ordinal = int(cells[0])
                       assert ordinal not in rows, ordinal
                       rows[ordinal] = cells
-                      physical = table.rows[row_number - 1]
-                      meta[ordinal] = (page_number, row_number, physical)
+                      meta[ordinal] = (page_number, row_number, table.rows[row_number - 1])
 
               expected = list(range(1, 2260))
               assert sorted(rows) == expected
@@ -72,14 +75,9 @@ jobs:
                   page_number, row_number, physical = meta[ordinal]
                   page = pdf.pages[page_number - 1]
                   words = page.extract_words(x_tolerance=1, y_tolerance=1, keep_blank_chars=False)
+                  _, top, _, bottom = physical.bbox
                   recovered = []
-                  cell_boxes = []
-                  for cell in physical.cells:
-                      if cell is None:
-                          recovered.append('')
-                          cell_boxes.append(None)
-                          continue
-                      x0, top, x1, bottom = cell
+                  for x0, x1 in page_columns[page_number]:
                       selected = []
                       for word in words:
                           cx = (float(word['x0']) + float(word['x1'])) / 2
@@ -88,14 +86,14 @@ jobs:
                               selected.append(word)
                       selected.sort(key=lambda w: (round(float(w['top']), 1), float(w['x0'])))
                       recovered.append(norm(' '.join(w['text'] for w in selected)))
-                      cell_boxes.append(list(cell))
                   assert len(recovered) == 9, (ordinal, recovered)
-                  print('RECOVERED=' + json.dumps({
+                  assert recovered[0] == str(ordinal), (ordinal, recovered)
+                  assert recovered[4] == rows[ordinal][4], (ordinal, recovered, rows[ordinal])
+                  print('RESOLVED=' + json.dumps({
                       'ordinal': ordinal,
                       'page': page_number,
                       'physical_row': row_number,
                       'table_extract': rows[ordinal],
-                      'word_cells': recovered,
-                      'cell_boxes': cell_boxes,
+                      'resolved_cells': recovered,
                   }, ensure_ascii=False))
           PY
