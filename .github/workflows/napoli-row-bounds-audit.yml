@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit all blank listed company cells against approved source
+      - name: Recover all page-bottom listed cells against approved source
         shell: bash
         run: |
           set -euo pipefail
@@ -37,9 +37,12 @@ jobs:
           from pathlib import Path
           import pdfplumber
 
+          def norm(value):
+              return ' '.join(str(value or '').replace('\u00a0', ' ').split())
+
           path = Path('tmp/napoli_row_audit/listed-1.pdf')
           rows = {}
-          row_meta = {}
+          meta = {}
           with pdfplumber.open(path) as pdf:
               assert len(pdf.pages) == 60, len(pdf.pages)
               for page_number, page in enumerate(pdf.pages, start=1):
@@ -49,7 +52,7 @@ jobs:
                   extracted = table.extract() or []
                   assert len(extracted) == len(table.rows), page_number
                   for row_number, raw in enumerate(extracted, start=1):
-                      cells = [' '.join(str(v or '').replace('\u00a0', ' ').split()) for v in (raw or [])]
+                      cells = [norm(v) for v in (raw or [])]
                       assert len(cells) == 9, (page_number, row_number, len(cells), cells)
                       if not cells[0].isdigit():
                           continue
@@ -57,39 +60,42 @@ jobs:
                       assert ordinal not in rows, ordinal
                       rows[ordinal] = cells
                       physical = table.rows[row_number - 1]
-                      row_meta[ordinal] = {
-                          'page': page_number,
-                          'physical_row': row_number,
-                          'bbox': list(physical.bbox),
-                      }
+                      meta[ordinal] = (page_number, row_number, physical)
+
               expected = list(range(1, 2260))
               assert sorted(rows) == expected
-
               blank = [ordinal for ordinal in expected if not rows[ordinal][1]]
+              assert blank == [1620, 1659, 1698, 1735, 1775, 1816, 1854, 1890, 1923, 1965, 2004, 2036, 2074, 2117, 2157, 2200, 2239], blank
               print('BLANK_COMPANY_ORDINALS=' + json.dumps(blank))
-              print('BLANK_COMPANY_COUNT=' + str(len(blank)))
-              assert 1620 in blank, blank
 
               for ordinal in blank:
-                  print('=== BLANK COMPANY ORDINAL', ordinal, '===')
-                  print('META=' + json.dumps(row_meta[ordinal], ensure_ascii=False))
-                  for neighbour in range(max(1, ordinal - 2), min(2259, ordinal + 2) + 1):
-                      print('ROW=' + json.dumps({
-                          'ordinal': neighbour,
-                          **row_meta[neighbour],
-                          'cells': rows[neighbour],
-                      }, ensure_ascii=False))
-
-                  meta = row_meta[ordinal]
-                  page = pdf.pages[meta['page'] - 1]
-                  x0, top, x1, bottom = meta['bbox']
-                  # Include a narrow vertical margin so text split exactly on a table edge is visible.
-                  crop_top = max(0, top - 3)
-                  crop_bottom = min(page.height, bottom + 3)
-                  words = page.crop((x0, crop_top, x1, crop_bottom)).extract_words(
-                      x_tolerance=1,
-                      y_tolerance=1,
-                      keep_blank_chars=False,
-                  )
-                  print('ROW_WORDS=' + json.dumps(words, ensure_ascii=False))
+                  page_number, row_number, physical = meta[ordinal]
+                  page = pdf.pages[page_number - 1]
+                  words = page.extract_words(x_tolerance=1, y_tolerance=1, keep_blank_chars=False)
+                  recovered = []
+                  cell_boxes = []
+                  for cell in physical.cells:
+                      if cell is None:
+                          recovered.append('')
+                          cell_boxes.append(None)
+                          continue
+                      x0, top, x1, bottom = cell
+                      selected = []
+                      for word in words:
+                          cx = (float(word['x0']) + float(word['x1'])) / 2
+                          cy = (float(word['top']) + float(word['bottom'])) / 2
+                          if x0 <= cx <= x1 and top <= cy <= bottom:
+                              selected.append(word)
+                      selected.sort(key=lambda w: (round(float(w['top']), 1), float(w['x0'])))
+                      recovered.append(norm(' '.join(w['text'] for w in selected)))
+                      cell_boxes.append(list(cell))
+                  assert len(recovered) == 9, (ordinal, recovered)
+                  print('RECOVERED=' + json.dumps({
+                      'ordinal': ordinal,
+                      'page': page_number,
+                      'physical_row': row_number,
+                      'table_extract': rows[ordinal],
+                      'word_cells': recovered,
+                      'cell_boxes': cell_boxes,
+                  }, ensure_ascii=False))
           PY
