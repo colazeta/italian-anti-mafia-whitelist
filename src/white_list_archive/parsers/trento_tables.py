@@ -41,16 +41,15 @@ _EXPECTED_LISTED_SOURCE_STATUS_COUNTS = {
     "listed": 1507,
     "renewal_update_in_progress": 1513,
 }
-_EXPECTED_LISTED_STATUS_COUNTS = {
-    "listed": 699,
-    "renewal_update_in_progress": 667,
-}
+_EXPECTED_LISTED_STATUS_COUNTS = {"listed": 699, "renewal_update_in_progress": 667}
 _EXPECTED_APPLICANT_STATUS_COUNTS = {"pending": 98}
 _EXPECTED_LISTED_RAW_WIDTHS = {7: 3169, 9: 39}
 _EXPECTED_LISTED_TABLE_COUNTS = {0: 1, 1: 281, 2: 7}
+_EXPECTED_GROUP_OCCURRENCES = {1: 696, 2: 234, 3: 160, 4: 114, 5: 91, 6: 37, 7: 29, 8: 5}
+_EXPECTED_TEXT_VARIATION_GROUPS = 13
+
 _TWO_TABLE_PAGES = {69, 116, 147, 244, 246, 248, 261}
 _ZERO_TABLE_PAGES = {289}
-
 _SECTION_STARTS = {
     (1, 1): "I",
     (50, 1): "II",
@@ -91,16 +90,12 @@ _LISTED_DATE_EXCEPTIONS = {
     (274, 1, 8): (
         "F.I.R. S.A.S. DI F.I.R. SERVIZI S.R.L. SOCIETA’ BENEFIT",
         "14.04.206",
-        "14.04.2026",
-        "",
+        "13.04.2026",
+        "AGGIORNAMENTO IN CORSO",
     )
 }
 _LISTED_IDENTIFIER_EXCEPTIONS = {
-    (221, 1, 13): (
-        "BUTTERINI PIETRO TRASPORTI S.R.L.",
-        "006281590229",
-        (),
-    ),
+    (221, 1, 13): ("BUTTERINI PIETRO TRASPORTI S.R.L.", "006281590229", ()),
     (250, 1, 6): (
         "ASSOCIAZIONE SCUOLA MATERNA ROMANI – DE MOLL DI NOMI ENTE DEL TERZO SETTORE "
         "(già ASSOCIAZIONE SCUOLA MATERNA ROMANI – DE MOLL DI NOMI ORGANIZZAZIONE DI VOLONTARIATO)",
@@ -170,24 +165,18 @@ def _validate_cfg(
     reference_date: str,
     sha256: str,
 ) -> None:
-    if cfg.get("source_key") != source_key:
-        raise RuntimeError(f"Trento source-key drift: {cfg.get('source_key')!r} != {source_key!r}")
-    if cfg.get("authority_key") != "trento":
-        raise RuntimeError("Trento parser bound to a non-Trento authority")
-    if cfg.get("population_scope") != population_scope:
-        raise RuntimeError(
-            f"Trento population-scope drift for {source_key}: "
-            f"{cfg.get('population_scope')!r} != {population_scope!r}"
-        )
-    if cfg.get("reference_date") != reference_date:
-        raise RuntimeError(
-            f"Trento reference-date drift for {source_key}: "
-            f"{cfg.get('reference_date')!r} != {reference_date!r}"
-        )
-    if cfg.get("sha256") != sha256:
-        raise RuntimeError(
-            f"Trento configured SHA-256 drift for {source_key}: {cfg.get('sha256')!r} != {sha256!r}"
-        )
+    expected = {
+        "source_key": source_key,
+        "authority_key": "trento",
+        "population_scope": population_scope,
+        "reference_date": reference_date,
+        "sha256": sha256,
+    }
+    for key, value in expected.items():
+        if cfg.get(key) != value:
+            raise RuntimeError(
+                f"Trento configuration drift for {source_key}: {key}={cfg.get(key)!r} != {value!r}"
+            )
 
 
 def _calendar_date(raw: str, *, context: str) -> str:
@@ -201,22 +190,17 @@ def _calendar_date(raw: str, *, context: str) -> str:
     return value
 
 
-def _date_obj(raw: str) -> datetime:
-    return datetime.strptime(raw, "%d.%m.%Y")
-
-
 def _positive_identifiers(raw: str) -> list[str]:
     value = _clean(raw).upper()
-    token = re.sub(r"\s+", "", value)
-    if _STRICT_IDENTIFIER_11.fullmatch(token) or _STRICT_IDENTIFIER_16.fullmatch(token):
-        return [token]
-
-    found: list[str] = []
+    whole = re.sub(r"\s+", "", value)
+    if _STRICT_IDENTIFIER_11.fullmatch(whole) or _STRICT_IDENTIFIER_16.fullmatch(whole):
+        return [whole]
+    values: list[str] = []
     for candidate in _EMBEDDED_IDENTIFIER_11.findall(value) + _EMBEDDED_IDENTIFIER_16.findall(value):
         candidate = candidate.upper()
-        if candidate not in found:
-            found.append(candidate)
-    return found
+        if candidate not in values:
+            values.append(candidate)
+    return values
 
 
 def _normalise_listed_cells(raw: list[Any], *, coord: tuple[int, int, int]) -> tuple[str, ...]:
@@ -224,9 +208,9 @@ def _normalise_listed_cells(raw: list[Any], *, coord: tuple[int, int, int]) -> t
     if len(cells) == 7:
         return tuple(cells)
     if len(cells) != 9:
-        raise RuntimeError(f"Trento unreviewed listed table width at {coord!r}: {len(cells)}")
+        raise RuntimeError(f"Trento unreviewed listed width at {coord!r}: {len(cells)}")
     if cells[6]:
-        raise RuntimeError(f"Trento unreviewed split registration-date slot at {coord!r}: {cells!r}")
+        raise RuntimeError(f"Trento unreviewed split-date slot at {coord!r}: {cells!r}")
     date_parts = [value for value in cells[4:7] if value]
     if len(date_parts) > 1:
         raise RuntimeError(f"Trento ambiguous split registration date at {coord!r}: {cells!r}")
@@ -250,12 +234,6 @@ def _append_fragment(base: list[str], fragment: tuple[str, ...]) -> list[str]:
     return base
 
 
-def _expected_table_count(page_number: int) -> int:
-    if page_number in _ZERO_TABLE_PAGES:
-        return 0
-    return 2 if page_number in _TWO_TABLE_PAGES else 1
-
-
 def _listed_source_rows(path: Path) -> list[dict[str, Any]]:
     physical = 0
     raw_widths: Counter[int] = Counter()
@@ -268,24 +246,23 @@ def _listed_source_rows(path: Path) -> list[dict[str, Any]]:
 
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _LISTED_PAGES:
-            raise RuntimeError(f"Trento listed page-count drift: {len(pdf.pages)} != {_LISTED_PAGES}")
+            raise RuntimeError(f"Trento listed page-count drift: {len(pdf.pages)}")
         for page_number, page in enumerate(pdf.pages, start=1):
             tables = page.find_tables()
             table_counts[len(tables)] += 1
-            expected_tables = _expected_table_count(page_number)
+            expected_tables = 0 if page_number in _ZERO_TABLE_PAGES else (
+                2 if page_number in _TWO_TABLE_PAGES else 1
+            )
             if len(tables) != expected_tables:
                 raise RuntimeError(
-                    f"Trento listed table-count drift on page {page_number}: "
-                    f"{len(tables)} != {expected_tables}"
+                    f"Trento listed table-count drift page {page_number}: {len(tables)} != {expected_tables}"
                 )
             for table_number, table in enumerate(tables, start=1):
-                section = _SECTION_STARTS.get((page_number, table_number))
-                if section:
-                    current_section = section
+                current_section = _SECTION_STARTS.get(
+                    (page_number, table_number), current_section
+                )
                 if not current_section:
-                    raise RuntimeError(
-                        f"Trento listed table before first section: page={page_number} table={table_number}"
-                    )
+                    raise RuntimeError("Trento listed row precedes first reviewed section")
                 for row_number, raw in enumerate(table.extract() or [], start=1):
                     physical += 1
                     raw_widths[len(raw or [])] += 1
@@ -299,8 +276,10 @@ def _listed_source_rows(path: Path) -> list[dict[str, Any]]:
                         continue
                     if coord in _LISTED_CONTINUATIONS:
                         if not rows:
-                            raise RuntimeError(f"Trento orphan listed continuation at {coord!r}")
-                        rows[-1]["cells"] = tuple(_append_fragment(list(rows[-1]["cells"]), cells))
+                            raise RuntimeError(f"Trento orphan listed continuation {coord!r}")
+                        rows[-1]["cells"] = tuple(
+                            _append_fragment(list(rows[-1]["cells"]), cells)
+                        )
                         rows[-1]["fragments"].append(
                             {
                                 "page": page_number,
@@ -311,15 +290,15 @@ def _listed_source_rows(path: Path) -> list[dict[str, Any]]:
                         )
                         continuations.add(coord)
                         continue
-                    identifiers = _positive_identifiers(cells[3])
+                    positive = _positive_identifiers(cells[3])
                     if not (
-                        identifiers
+                        positive
                         or _DATE.fullmatch(cells[4])
                         or _DATE.fullmatch(cells[5])
                         or coord in _LISTED_IDENTIFIER_EXCEPTIONS
                         or coord in _LISTED_DATE_EXCEPTIONS
                     ):
-                        raise RuntimeError(f"Trento unreviewed listed non-continuation row at {coord!r}: {cells!r}")
+                        raise RuntimeError(f"Trento unreviewed listed row {coord!r}: {cells!r}")
                     rows.append(
                         {
                             "page": page_number,
@@ -331,78 +310,67 @@ def _listed_source_rows(path: Path) -> list[dict[str, Any]]:
                         }
                     )
 
-    if physical != _LISTED_PHYSICAL_ROWS:
-        raise RuntimeError(f"Trento listed physical-row drift: {physical} != {_LISTED_PHYSICAL_ROWS}")
-    if dict(raw_widths) != _EXPECTED_LISTED_RAW_WIDTHS:
-        raise RuntimeError(f"Trento listed raw-width drift: {dict(raw_widths)!r}")
-    if dict(sorted(table_counts.items())) != _EXPECTED_LISTED_TABLE_COUNTS:
-        raise RuntimeError(f"Trento listed page/table geometry drift: {dict(table_counts)!r}")
-    if blanks != _LISTED_BLANK_COORDS:
-        raise RuntimeError(f"Trento listed blank-row drift: {sorted(blanks)!r}")
-    if headers != _HEADER_COORDS:
-        raise RuntimeError(f"Trento listed header-boundary drift: {sorted(headers)!r}")
-    if continuations != _LISTED_CONTINUATIONS:
-        raise RuntimeError(
-            f"Trento listed continuation population drift: "
-            f"{sorted(continuations)!r} != {sorted(_LISTED_CONTINUATIONS)!r}"
-        )
-    if len(rows) != _LISTED_SECTION_ROWS:
-        raise RuntimeError(f"Trento listed section-row drift: {len(rows)} != {_LISTED_SECTION_ROWS}")
+    invariants = {
+        "physical rows": (physical, _LISTED_PHYSICAL_ROWS),
+        "raw widths": (dict(raw_widths), _EXPECTED_LISTED_RAW_WIDTHS),
+        "table geometry": (dict(sorted(table_counts.items())), _EXPECTED_LISTED_TABLE_COUNTS),
+        "blank rows": (blanks, _LISTED_BLANK_COORDS),
+        "headers": (headers, _HEADER_COORDS),
+        "continuations": (continuations, _LISTED_CONTINUATIONS),
+        "logical section rows": (len(rows), _LISTED_SECTION_ROWS),
+        "section denominators": (
+            dict(Counter(row["section"] for row in rows)),
+            _EXPECTED_SECTION_ROWS,
+        ),
+    }
+    for label, (observed, expected) in invariants.items():
+        if observed != expected:
+            raise RuntimeError(f"Trento listed {label} drift: {observed!r} != {expected!r}")
 
-    section_counts = dict(Counter(row["section"] for row in rows))
-    if section_counts != _EXPECTED_SECTION_ROWS:
-        raise RuntimeError(f"Trento listed section-denominator drift: {section_counts!r}")
-
-    source_statuses: Counter[str] = Counter()
-    observed_date_exceptions: dict[tuple[int, int, int], tuple[str, str, str, str]] = {}
-    observed_identifier_exceptions: dict[
-        tuple[int, int, int], tuple[str, str, tuple[str, ...]]
-    ] = {}
-    inversions: dict[tuple[int, int, int], tuple[str, str, str, str]] = {}
-
+    statuses: Counter[str] = Counter()
+    date_exceptions: dict[tuple[int, int, int], tuple[str, str, str, str]] = {}
+    id_exceptions: dict[tuple[int, int, int], tuple[str, str, tuple[str, ...]]] = {}
+    inversions: dict[tuple[int, int, int], tuple[str, str, str]] = {}
     for row in rows:
         coord = (row["page"], row["table"], row["row"])
         c = row["cells"]
-        update = _clean(c[6]).upper()
-        if update == "AGGIORNAMENTO IN CORSO":
+        marker = _clean(c[6]).upper()
+        if marker == "AGGIORNAMENTO IN CORSO":
             status = "renewal_update_in_progress"
-        elif not update:
+        elif not marker:
             status = "listed"
         else:
             raise RuntimeError(f"Trento unreviewed listed status at {coord!r}: {c[6]!r}")
         row["status"] = status
-        source_statuses[status] += 1
+        statuses[status] += 1
 
         listing_ok = bool(_DATE.fullmatch(c[4]))
         expiry_ok = bool(_DATE.fullmatch(c[5]))
         if not (listing_ok and expiry_ok):
-            observed_date_exceptions[coord] = (c[0], c[4], c[5], c[6])
+            date_exceptions[coord] = (c[0], c[4], c[5], c[6])
+        if listing_ok:
+            _calendar_date(c[4], context=f"listed {coord!r} registration")
+        if expiry_ok:
+            _calendar_date(c[5], context=f"listed {coord!r} expiry")
         if listing_ok and expiry_ok:
-            listing = _calendar_date(c[4], context=f"listed {coord!r} registration")
-            expiry = _calendar_date(c[5], context=f"listed {coord!r} expiry")
-            if _date_obj(expiry) < _date_obj(listing):
-                inversions[coord] = (c[0], c[4], c[5], c[6])
+            if datetime.strptime(c[5], "%d.%m.%Y") < datetime.strptime(c[4], "%d.%m.%Y"):
+                inversions[coord] = (c[0], c[4], c[5])
 
-        identifiers = tuple(_positive_identifiers(c[3]))
-        whole_token = re.sub(r"\s+", "", _clean(c[3])).upper()
+        whole = re.sub(r"\s+", "", _clean(c[3])).upper()
         if not (
-            _STRICT_IDENTIFIER_11.fullmatch(whole_token)
-            or _STRICT_IDENTIFIER_16.fullmatch(whole_token)
+            _STRICT_IDENTIFIER_11.fullmatch(whole)
+            or _STRICT_IDENTIFIER_16.fullmatch(whole)
         ):
-            observed_identifier_exceptions[coord] = (c[0], c[3], identifiers)
+            id_exceptions[coord] = (c[0], c[3], tuple(_positive_identifiers(c[3])))
 
-    if dict(source_statuses) != _EXPECTED_LISTED_SOURCE_STATUS_COUNTS:
-        raise RuntimeError(f"Trento listed source-status drift: {dict(source_statuses)!r}")
-    if observed_date_exceptions != _LISTED_DATE_EXCEPTIONS:
-        raise RuntimeError(
-            f"Trento listed reviewed date-exception drift: {observed_date_exceptions!r}"
-        )
+    if dict(statuses) != _EXPECTED_LISTED_SOURCE_STATUS_COUNTS:
+        raise RuntimeError(f"Trento listed source-status drift: {dict(statuses)!r}")
+    if date_exceptions != _LISTED_DATE_EXCEPTIONS:
+        raise RuntimeError(f"Trento listed reviewed date-exception drift: {date_exceptions!r}")
     if inversions:
         raise RuntimeError(f"Trento listed chronology-inversion drift: {inversions!r}")
-    if observed_identifier_exceptions != _LISTED_IDENTIFIER_EXCEPTIONS:
-        raise RuntimeError(
-            f"Trento listed reviewed identifier-exception drift: {observed_identifier_exceptions!r}"
-        )
+    if id_exceptions != _LISTED_IDENTIFIER_EXCEPTIONS:
+        raise RuntimeError(f"Trento listed identifier-exception drift: {id_exceptions!r}")
     return rows
 
 
@@ -410,9 +378,8 @@ def _listed_dates(row: dict[str, Any]) -> tuple[str, str]:
     coord = (row["page"], row["table"], row["row"])
     c = row["cells"]
     if coord in _LISTED_DATE_EXCEPTIONS:
-        expected = _LISTED_DATE_EXCEPTIONS[coord]
-        if (c[0], c[4], c[5], c[6]) != expected:
-            raise RuntimeError(f"Trento listed reviewed date-exception moved at {coord!r}")
+        if (c[0], c[4], c[5], c[6]) != _LISTED_DATE_EXCEPTIONS[coord]:
+            raise RuntimeError(f"Trento reviewed date exception moved at {coord!r}")
         return "", _calendar_date(c[5], context=f"listed {coord!r} expiry")
     return (
         _calendar_date(c[4], context=f"listed {coord!r} registration"),
@@ -431,46 +398,49 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if _sha256(path) != _LISTED_SHA256:
         raise RuntimeError("Trento listed source bytes drift from approved SHA-256")
 
-    source_rows = _listed_source_rows(path)
-    grouped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-    for source_row in source_rows:
-        c = source_row["cells"]
-        identifiers = _positive_identifiers(c[3])
-        if identifiers:
-            identity = "IDS:" + "|".join(identifiers)
+    rows = _listed_source_rows(path)
+    groups: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for row in rows:
+        c = row["cells"]
+        whole = re.sub(r"\s+", "", _clean(c[3])).upper()
+        if _STRICT_IDENTIFIER_11.fullmatch(whole) or _STRICT_IDENTIFIER_16.fullmatch(whole):
+            identity = whole
         else:
             identity = f"NAME:{_clean(c[0]).casefold()}"
-        key = (identity, c[4], c[5], source_row["status"])
-        group = grouped.setdefault(
+        key = (identity, c[4], c[5], row["status"])
+        group = groups.setdefault(
             key,
             {
-                "first": source_row,
-                "identifiers": identifiers,
+                "first": row,
+                "identifiers": [],
                 "sections": [],
                 "memberships": [],
                 "names": [],
                 "offices": [],
-                "secondary_offices": [],
-                "identifier_raw_values": [],
+                "secondary": [],
+                "identifier_raw": [],
             },
         )
-        section_label = f"Sezione {source_row['section']}"
-        if section_label not in group["sections"]:
-            group["sections"].append(section_label)
-        for field_name, value in (
+        for identifier in _positive_identifiers(c[3]):
+            if identifier not in group["identifiers"]:
+                group["identifiers"].append(identifier)
+        label = f"Sezione {row['section']}"
+        if label not in group["sections"]:
+            group["sections"].append(label)
+        for bucket, value in (
             ("names", c[0]),
             ("offices", c[1]),
-            ("secondary_offices", c[2]),
-            ("identifier_raw_values", c[3]),
+            ("secondary", c[2]),
+            ("identifier_raw", c[3]),
         ):
-            if value and value not in group[field_name]:
-                group[field_name].append(value)
+            if value and value not in group[bucket]:
+                group[bucket].append(value)
         group["memberships"].append(
             {
-                "page": source_row["page"],
-                "table": source_row["table"],
-                "row": source_row["row"],
-                "section": source_row["section"],
+                "page": row["page"],
+                "table": row["table"],
+                "row": row["row"],
+                "section": row["section"],
                 "name_raw": c[0],
                 "registered_office_raw": c[1],
                 "secondary_office_raw": c[2],
@@ -478,15 +448,25 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 "listing_date_raw": c[4],
                 "expiry_date_raw": c[5],
                 "update_raw": c[6],
-                "continuation_fragments": source_row["fragments"],
+                "continuation_fragments": row["fragments"],
             }
         )
 
-    if len(grouped) != _LISTED_RECORDS:
-        raise RuntimeError(f"Trento listed grouped-record drift: {len(grouped)} != {_LISTED_RECORDS}")
+    if len(groups) != _LISTED_RECORDS:
+        raise RuntimeError(f"Trento listed grouped-record drift: {len(groups)} != {_LISTED_RECORDS}")
+    occurrence_counts = dict(Counter(len(group["memberships"]) for group in groups.values()))
+    if occurrence_counts != _EXPECTED_GROUP_OCCURRENCES:
+        raise RuntimeError(f"Trento listed group-occurrence drift: {occurrence_counts!r}")
+    variations = sum(
+        1
+        for group in groups.values()
+        if len(group["names"]) > 1 or len(group["offices"]) > 1 or len(group["secondary"]) > 1
+    )
+    if variations != _EXPECTED_TEXT_VARIATION_GROUPS:
+        raise RuntimeError(f"Trento listed text-variation group drift: {variations}")
 
     records: list[dict[str, Any]] = []
-    for ordinal, group in enumerate(grouped.values(), start=1):
+    for ordinal, group in enumerate(groups.values(), start=1):
         first = group["first"]
         c = first["cells"]
         listing_date, expiry_date = _listed_dates(first)
@@ -508,15 +488,15 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 "source_memberships": group["memberships"],
                 "name_variants": group["names"],
                 "registered_office_variants": group["offices"],
-                "secondary_office_variants": group["secondary_offices"],
-                "identifier_raw_variants": group["identifier_raw_values"],
+                "secondary_office_variants": group["secondary"],
+                "identifier_raw_variants": group["identifier_raw"],
                 "listing_date_raw": c[4],
                 "expiry_date_raw": c[5],
                 "update_raw": c[6],
+                "identifier_source_evidence": group["identifiers"],
                 "reviewed_date_exception": (
                     first["page"], first["table"], first["row"]
                 ) in _LISTED_DATE_EXCEPTIONS,
-                "identifier_source_evidence": group["identifiers"],
             },
         )
         record["identifiers"] = list(group["identifiers"])
@@ -524,8 +504,7 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
     status_counts = dict(Counter(record["source_status"] for record in records))
     if status_counts != _EXPECTED_LISTED_STATUS_COUNTS:
-        raise RuntimeError(f"Trento listed grouped-status drift: {status_counts!r}")
-
+        raise RuntimeError(f"Trento listed public-status drift: {status_counts!r}")
     return ParsedBatch(
         records=records,
         diagnostics={
@@ -537,9 +516,11 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "section_counts": _EXPECTED_SECTION_ROWS,
             "public_records": len(records),
             "status_counts": status_counts,
+            "reviewed_continuations": len(_LISTED_CONTINUATIONS),
             "reviewed_date_exceptions": len(_LISTED_DATE_EXCEPTIONS),
             "reviewed_identifier_exceptions": len(_LISTED_IDENTIFIER_EXCEPTIONS),
-            "reviewed_continuations": len(_LISTED_CONTINUATIONS),
+            "group_occurrence_counts": occurrence_counts,
+            "groups_with_source_text_variation": variations,
         },
     )
 
@@ -548,12 +529,11 @@ def _split_applicant_activities(raw: str) -> list[str]:
     value = _clean(raw)
     chunks = [_clean(match) for match in _ACTIVITY_CHUNK.findall(value)]
     if not chunks:
-        raise RuntimeError(f"Trento applicant activity lacks a reviewed section token: {value!r}")
+        raise RuntimeError(f"Trento applicant activity lacks a section marker: {value!r}")
     if _clean(" ".join(chunks)) != value:
         raise RuntimeError(f"Trento applicant activity split left unparsed text: {value!r}")
-    for chunk in chunks:
-        if len(_SECTION_TOKEN.findall(chunk)) != 1:
-            raise RuntimeError(f"Trento applicant activity chunk has ambiguous section markers: {chunk!r}")
+    if any(len(_SECTION_TOKEN.findall(chunk)) != 1 for chunk in chunks):
+        raise RuntimeError(f"Trento applicant activity has ambiguous section markers: {value!r}")
     return chunks
 
 
@@ -566,23 +546,17 @@ def _applicant_source_rows(path: Path) -> list[dict[str, Any]]:
 
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _APPLICANT_PAGES:
-            raise RuntimeError(
-                f"Trento applicant page-count drift: {len(pdf.pages)} != {_APPLICANT_PAGES}"
-            )
+            raise RuntimeError(f"Trento applicant page-count drift: {len(pdf.pages)}")
         for page_number, page in enumerate(pdf.pages, start=1):
             tables = page.find_tables()
             if len(tables) != 1:
-                raise RuntimeError(
-                    f"Trento applicant table-count drift on page {page_number}: {len(tables)} != 1"
-                )
+                raise RuntimeError(f"Trento applicant table-count drift page {page_number}: {len(tables)}")
             for row_number, raw in enumerate(tables[0].extract() or [], start=1):
                 physical += 1
                 coord = (page_number, 1, row_number)
                 cells = tuple(_clean(value) for value in (raw or []))
                 if len(cells) != 7:
-                    raise RuntimeError(
-                        f"Trento applicant table-width drift at {coord!r}: {len(cells)} != 7"
-                    )
+                    raise RuntimeError(f"Trento applicant width drift at {coord!r}: {len(cells)}")
                 if not any(cells):
                     blanks.add(coord)
                     continue
@@ -591,22 +565,19 @@ def _applicant_source_rows(path: Path) -> list[dict[str, Any]]:
                     continue
                 if coord in _APPLICANT_CONTINUATIONS:
                     if not rows:
-                        raise RuntimeError(f"Trento orphan applicant continuation at {coord!r}")
-                    rows[-1]["cells"] = tuple(_append_fragment(list(rows[-1]["cells"]), cells))
+                        raise RuntimeError(f"Trento orphan applicant continuation {coord!r}")
+                    rows[-1]["cells"] = tuple(
+                        _append_fragment(list(rows[-1]["cells"]), cells)
+                    )
                     rows[-1]["fragments"].append(
-                        {
-                            "page": page_number,
-                            "table": 1,
-                            "row": row_number,
-                            "cells": list(cells),
-                        }
+                        {"page": page_number, "table": 1, "row": row_number, "cells": list(cells)}
                     )
                     continuations.add(coord)
                     continue
-                identifiers = _positive_identifiers(cells[3])
-                if len(identifiers) != 1:
+                positive = _positive_identifiers(cells[3])
+                if len(positive) != 1:
                     raise RuntimeError(
-                        f"Trento applicant row lacks one positive identifier at {coord!r}: {cells[3]!r}"
+                        f"Trento applicant row lacks exactly one positive identifier at {coord!r}: {cells[3]!r}"
                     )
                 rows.append(
                     {
@@ -618,67 +589,46 @@ def _applicant_source_rows(path: Path) -> list[dict[str, Any]]:
                     }
                 )
 
-    if physical != _APPLICANT_PHYSICAL_ROWS:
-        raise RuntimeError(
-            f"Trento applicant physical-row drift: {physical} != {_APPLICANT_PHYSICAL_ROWS}"
-        )
-    if blanks != _APPLICANT_BLANK_COORDS:
-        raise RuntimeError(f"Trento applicant blank-row drift: {sorted(blanks)!r}")
-    if headers != _APPLICANT_HEADER_COORDS:
-        raise RuntimeError(f"Trento applicant header drift: {sorted(headers)!r}")
-    if continuations != _APPLICANT_CONTINUATIONS:
-        raise RuntimeError(
-            f"Trento applicant continuation population drift: "
-            f"{sorted(continuations)!r} != {sorted(_APPLICANT_CONTINUATIONS)!r}"
-        )
-    if len(rows) != _APPLICANT_RECORDS:
-        raise RuntimeError(
-            f"Trento applicant logical-row drift: {len(rows)} != {_APPLICANT_RECORDS}"
-        )
+    invariants = {
+        "physical rows": (physical, _APPLICANT_PHYSICAL_ROWS),
+        "blank rows": (blanks, _APPLICANT_BLANK_COORDS),
+        "headers": (headers, _APPLICANT_HEADER_COORDS),
+        "continuations": (continuations, _APPLICANT_CONTINUATIONS),
+        "logical rows": (len(rows), _APPLICANT_RECORDS),
+    }
+    for label, (observed, expected) in invariants.items():
+        if observed != expected:
+            raise RuntimeError(f"Trento applicant {label} drift: {observed!r} != {expected!r}")
 
     identifiers = [_positive_identifiers(row["cells"][3])[0] for row in rows]
     if len(set(identifiers)) != _APPLICANT_RECORDS:
         raise RuntimeError("Trento applicant identifier uniqueness drift")
-
     outcomes = Counter(_clean(row["cells"][6]) for row in rows)
     if outcomes != Counter({"": _APPLICANT_RECORDS}):
         raise RuntimeError(f"Trento applicant outcome typography drift: {dict(outcomes)!r}")
 
-    observed_date_exceptions: dict[tuple[int, int, int], tuple[str, str, str, str]] = {}
+    date_exceptions: dict[tuple[int, int, int], tuple[str, str, str, str]] = {}
     section_counts: Counter[str] = Counter()
     for row in rows:
         coord = (row["page"], row["table"], row["row"])
         c = row["cells"]
-        if not _DATE.fullmatch(c[5]):
-            reviewed = _APPLICANT_DATE_EXCEPTION.get(coord)
-            if reviewed is None:
-                observed_date_exceptions[coord] = (c[0], c[5], "", "")
-            else:
-                observed_date_exceptions[coord] = reviewed
+        reviewed = _APPLICANT_DATE_EXCEPTION.get(coord)
+        if reviewed is not None:
+            if c[0] != reviewed[0] or c[5] != reviewed[1]:
+                raise RuntimeError(f"Trento applicant reviewed date exception moved at {coord!r}")
+            date_exceptions[coord] = reviewed
+            _calendar_date(reviewed[2], context=f"applicant {coord!r} application")
+            _calendar_date(reviewed[3], context=f"applicant {coord!r} integration")
         else:
             _calendar_date(c[5], context=f"applicant {coord!r} application")
         tokens = [token.upper() for token in _SECTION_TOKEN.findall(c[4])]
         if not tokens:
-            raise RuntimeError(f"Trento applicant row without source section at {coord!r}")
+            raise RuntimeError(f"Trento applicant row lacks source section at {coord!r}")
         section_counts.update(tokens)
         _split_applicant_activities(c[4])
 
-    expected_observed_exception = {
-        coord: value for coord, value in _APPLICANT_DATE_EXCEPTION.items()
-    }
-    for coord, expected in expected_observed_exception.items():
-        row = next(
-            candidate
-            for candidate in rows
-            if (candidate["page"], candidate["table"], candidate["row"]) == coord
-        )
-        c = row["cells"]
-        if c[0] != expected[0] or c[5] != expected[1]:
-            raise RuntimeError(f"Trento applicant reviewed date-exception drift at {coord!r}")
-    if observed_date_exceptions != expected_observed_exception:
-        raise RuntimeError(
-            f"Trento applicant date-exception population drift: {observed_date_exceptions!r}"
-        )
+    if date_exceptions != _APPLICANT_DATE_EXCEPTION:
+        raise RuntimeError(f"Trento applicant date-exception drift: {date_exceptions!r}")
     if dict(section_counts) != _EXPECTED_APPLICANT_ACTIVITY_SECTION_COUNTS:
         raise RuntimeError(f"Trento applicant activity-section drift: {dict(section_counts)!r}")
     return rows
@@ -688,14 +638,14 @@ def _applicant_dates(row: dict[str, Any]) -> tuple[str, str]:
     coord = (row["page"], row["table"], row["row"])
     c = row["cells"]
     reviewed = _APPLICANT_DATE_EXCEPTION.get(coord)
-    if reviewed is not None:
-        if c[0] != reviewed[0] or c[5] != reviewed[1]:
-            raise RuntimeError(f"Trento applicant reviewed date-exception drift at {coord!r}")
-        return (
-            _calendar_date(reviewed[2], context=f"applicant {coord!r} application"),
-            _calendar_date(reviewed[3], context=f"applicant {coord!r} integration"),
-        )
-    return _calendar_date(c[5], context=f"applicant {coord!r} application"), ""
+    if reviewed is None:
+        return _calendar_date(c[5], context=f"applicant {coord!r} application"), ""
+    if c[0] != reviewed[0] or c[5] != reviewed[1]:
+        raise RuntimeError(f"Trento applicant reviewed date exception moved at {coord!r}")
+    return (
+        _calendar_date(reviewed[2], context=f"applicant {coord!r} application"),
+        _calendar_date(reviewed[3], context=f"applicant {coord!r} integration"),
+    )
 
 
 def parse_trento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
@@ -709,13 +659,11 @@ def parse_trento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if _sha256(path) != _APPLICANT_SHA256:
         raise RuntimeError("Trento applicant source bytes drift from approved SHA-256")
 
-    source_rows = _applicant_source_rows(path)
+    rows = _applicant_source_rows(path)
     records: list[dict[str, Any]] = []
-    for ordinal, row in enumerate(source_rows, start=1):
+    for ordinal, row in enumerate(rows, start=1):
         c = row["cells"]
-        identifiers = _positive_identifiers(c[3])
         application_date, integration_date = _applicant_dates(row)
-        activities = _split_applicant_activities(c[4])
         record = _record(
             cfg,
             ordinal,
@@ -723,7 +671,7 @@ def parse_trento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             office=c[1],
             secondary=c[2],
             identifier_raw=c[3],
-            activities=activities,
+            activities=_split_applicant_activities(c[4]),
             status="pending",
             outcome_raw=c[6],
             application_date=application_date,
@@ -742,13 +690,12 @@ def parse_trento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 ) in _APPLICANT_DATE_EXCEPTION,
             },
         )
-        record["identifiers"] = identifiers
+        record["identifiers"] = _positive_identifiers(c[3])
         records.append(record)
 
     status_counts = dict(Counter(record["source_status"] for record in records))
     if status_counts != _EXPECTED_APPLICANT_STATUS_COUNTS:
-        raise RuntimeError(f"Trento applicant status drift: {status_counts!r}")
-
+        raise RuntimeError(f"Trento applicant public-status drift: {status_counts!r}")
     return ParsedBatch(
         records=records,
         diagnostics={
@@ -759,8 +706,8 @@ def parse_trento_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "public_records": len(records),
             "status_counts": status_counts,
             "strict_identifier_records": _APPLICANT_RECORDS,
-            "reviewed_date_exceptions": len(_APPLICANT_DATE_EXCEPTION),
             "reviewed_continuations": len(_APPLICANT_CONTINUATIONS),
+            "reviewed_date_exceptions": len(_APPLICANT_DATE_EXCEPTION),
             "activity_section_counts": _EXPECTED_APPLICANT_ACTIVITY_SECTION_COUNTS,
         },
     )
