@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate-source:
@@ -21,131 +21,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install project test runtime
-        run: python -m pip install -e .[dev]
+      - name: Install canonical test runtime
+        run: python -m pip install -e .[dev,database,storage]
       - name: Fetch two independent copies of each published Google Sheet export
         shell: bash
         run: |
           set -euo pipefail
           listed='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv'
           applicants='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv'
-          mkdir -p artifacts/lodi-source tmp
+          mkdir -p /tmp/lodi-source
           for n in 1 2; do
-            curl --fail --location --silent --show-error --retry 3 "$listed" -o "artifacts/lodi-source/listed-$n.csv"
+            curl --fail --location --silent --show-error --retry 3 "$listed" -o "/tmp/lodi-source/listed-$n.csv"
             sleep 2
-            curl --fail --location --silent --show-error --retry 3 "$applicants" -o "artifacts/lodi-source/applicants-$n.csv"
+            curl --fail --location --silent --show-error --retry 3 "$applicants" -o "/tmp/lodi-source/applicants-$n.csv"
             sleep 2
           done
-          cmp artifacts/lodi-source/listed-1.csv artifacts/lodi-source/listed-2.csv
-          cmp artifacts/lodi-source/applicants-1.csv artifacts/lodi-source/applicants-2.csv
-          sha256sum artifacts/lodi-source/*.csv
-          wc -c artifacts/lodi-source/*.csv
-      - name: Audit exact source structure and candidate semantics
-        run: |
-          python - <<'PY'
-          import csv, hashlib, json, re
-          from collections import Counter
-          from pathlib import Path
-
-          def clean(v):
-              return ' '.join((v or '').replace('\u00a0',' ').split())
-          def strict_ids(raw):
-              value=re.sub(r'\s+','',clean(raw)).upper()
-              if re.fullmatch(r'\d{11}', value) or re.fullmatch(r'[A-Z0-9]{16}', value):
-                  return [value]
-              out=[]
-              for x in re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b', clean(raw).upper()):
-                  if x not in out: out.append(x)
-              return out
-          def read(path):
-              with Path(path).open(encoding='utf-8-sig', newline='') as f:
-                  return [[clean(x) for x in row] for row in csv.reader(f)]
-          def digest(path):
-              return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-          def size(path):
-              return Path(path).stat().st_size
-
-          listed=read('artifacts/lodi-source/listed-1.csv')
-          applicants=read('artifacts/lodi-source/applicants-1.csv')
-          section=''
-          source=[]
-          nonrecord=[]
-          for idx,row in enumerate(listed, start=1):
-              c=(row+['']*7)[:7]
-              joined=' '.join(c)
-              m=re.search(r'\bSezione\s+([IVX]+)\b', joined, re.I)
-              if m and not strict_ids(c[3]):
-                  section=m.group(1).upper()
-              ids=strict_ids(c[3])
-              if ids:
-                  marker=clean(c[6]).casefold()
-                  if not marker:
-                      status='listed'
-                  elif 'aggiornamento' in marker:
-                      status='renewal_update_in_progress'
-                  else:
-                      status='other_or_unknown'
-                  source.append({'row':idx,'section':section,'cells':c,'ids':ids,'status':status})
-              elif any(c):
-                  nonrecord.append({'row':idx,'cells':c})
-
-          groups={}
-          for x in source:
-              c=x['cells']
-              key=(x['ids'][0], clean(c[4]), clean(c[5]), x['status'])
-              g=groups.setdefault(key, {'first':x, 'sections':[], 'members':[]})
-              if x['section'] and x['section'] not in g['sections']:
-                  g['sections'].append(x['section'])
-              g['members'].append(x['row'])
-
-          apps=[]
-          app_nonrecord=[]
-          for idx,row in enumerate(applicants, start=1):
-              c=(row+['']*7)[:7]
-              ids=strict_ids(c[3])
-              if ids:
-                  out=clean(c[6]).casefold()
-                  if 'istruttoria' in out:
-                      status='pending'
-                  elif 'diniego' in out or 'interdittiv' in out or 'negat' in out:
-                      status='rejected_or_denied'
-                  elif not out:
-                      status='pending'
-                  else:
-                      status='other_or_unknown'
-                  apps.append({'row':idx,'cells':c,'ids':ids,'status':status})
-              elif any(c):
-                  app_nonrecord.append({'row':idx,'cells':c})
-
-          summary={
-              'listed': {
-                  'sha256': digest('artifacts/lodi-source/listed-1.csv'),
-                  'bytes': size('artifacts/lodi-source/listed-1.csv'),
-                  'physical_rows': len(listed),
-                  'widths': dict(Counter(map(len, listed))),
-                  'source_rows': len(source),
-                  'section_counts': dict(Counter(x['section'] for x in source)),
-                  'source_status_counts': dict(Counter(x['status'] for x in source)),
-                  'grouped_records': len(groups),
-                  'group_status_counts': dict(Counter(g['first']['status'] for g in groups.values())),
-                  'group_occurrences': dict(Counter(len(g['members']) for g in groups.values())),
-                  'nonrecord_rows': nonrecord,
-              },
-              'applicants': {
-                  'sha256': digest('artifacts/lodi-source/applicants-1.csv'),
-                  'bytes': size('artifacts/lodi-source/applicants-1.csv'),
-                  'physical_rows': len(applicants),
-                  'widths': dict(Counter(map(len, applicants))),
-                  'records': len(apps),
-                  'status_counts': dict(Counter(x['status'] for x in apps)),
-                  'unique_primary_identifiers': len({x['ids'][0] for x in apps}),
-                  'nonrecord_rows': app_nonrecord,
-                  'rows': apps,
-              },
-          }
-          Path('tmp/lodi-source-diagnostic.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')
-          print(json.dumps(summary, indent=2, ensure_ascii=False))
-          PY
+          cmp /tmp/lodi-source/listed-1.csv /tmp/lodi-source/listed-2.csv
+          cmp /tmp/lodi-source/applicants-1.csv /tmp/lodi-source/applicants-2.csv
+          test "$(sha256sum /tmp/lodi-source/listed-1.csv | cut -d' ' -f1)" = 'ad64ab8669084bc31b80938a384b41849be4db28b448e9b2c0ce199f6af1d6ec'
+          test "$(sha256sum /tmp/lodi-source/applicants-1.csv | cut -d' ' -f1)" = '55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228'
+          test "$(wc -c < /tmp/lodi-source/listed-1.csv)" = '36372'
+          test "$(wc -c < /tmp/lodi-source/applicants-1.csv)" = '1388'
       - name: Run frozen Lodi semantic unit tests
         run: pytest -q tests/test_lodi_parser_semantics.py
       - name: Parse complete listed and applicant populations fail-closed
@@ -178,8 +74,8 @@ jobs:
               'resource_url':'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv',
               'sha256':'55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228',
           }
-          listed=parse_lodi_listed(Path('artifacts/lodi-source/listed-1.csv'), listed_cfg)
-          applicants=parse_lodi_applicants(Path('artifacts/lodi-source/applicants-1.csv'), applicant_cfg)
+          listed=parse_lodi_listed(Path('/tmp/lodi-source/listed-1.csv'), listed_cfg)
+          applicants=parse_lodi_applicants(Path('/tmp/lodi-source/applicants-1.csv'), applicant_cfg)
           records=listed.records+applicants.records
           if len(listed.records) != 169 or len(applicants.records) != 4 or len(records) != 173:
               raise SystemExit(f'Lodi denominator drift: {len(listed.records)} + {len(applicants.records)}')
@@ -195,34 +91,5 @@ jobs:
               raise SystemExit(f'Lodi denial decision-date drift: {[record["decision_date"] for record in denied]!r}')
           print({'listed': len(listed.records), 'applicants': len(applicants.records), 'statuses': dict(status)})
           PY
-      - name: Capture full repository pytest result
-        shell: bash
-        run: |
-          set +e
-          pytest -q > tmp/lodi-pytest.log 2>&1
-          rc=$?
-          echo "$rc" > tmp/lodi-pytest.rc
-          cat tmp/lodi-pytest.log
-          exit 0
-      - name: Persist temporary diagnostics
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/lodi-source-diagnostic.json tmp/lodi-pytest.log tmp/lodi-pytest.rc
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            echo 'Diagnostics unchanged; no checkpoint commit required.'
-          else
-            git commit -m 'Checkpoint Lodi test diagnostics'
-            git push origin HEAD:expansion/lodi-2026-09-15
-          fi
-      - name: Enforce full repository pytest success
-        run: test "$(cat tmp/lodi-pytest.rc)" = 0
-      - name: Upload reviewed source exports
-        uses: actions/upload-artifact@v4
-        with:
-          name: lodi-source-validation
-          path: artifacts/lodi-source/*.csv
-          if-no-files-found: error
-          retention-days: 7
+      - name: Run full repository test suite
+        run: pytest -q
