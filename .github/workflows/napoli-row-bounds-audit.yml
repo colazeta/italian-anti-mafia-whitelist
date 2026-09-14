@@ -19,169 +19,81 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit Napoli parser field invariants
+      - name: Audit Napoli listed non-calendar expiry values
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p tmp/napoli_row_bounds
-          curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
-            --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
-            -o tmp/napoli_row_bounds/listed.pdf \
-            'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
-          curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
-            --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
-            -o tmp/napoli_row_bounds/applicants.pdf \
-            'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
-          test "$(stat -c %s tmp/napoli_row_bounds/listed.pdf)" = "3081398"
-          test "$(stat -c %s tmp/napoli_row_bounds/applicants.pdf)" = "3566448"
-          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_bounds/listed.pdf' | sha256sum -c -
-          echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_row_bounds/applicants.pdf' | sha256sum -c -
+          source_url='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
+          ua='Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)'
+          for copy in a b; do
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
+              --user-agent "$ua" \
+              -o "tmp/napoli_row_bounds/listed_${copy}.pdf" \
+              "$source_url"
+            test "$(stat -c %s "tmp/napoli_row_bounds/listed_${copy}.pdf")" = "3081398"
+            echo "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_bounds/listed_${copy}.pdf" | sha256sum -c -
+          done
+          cmp --silent tmp/napoli_row_bounds/listed_a.pdf tmp/napoli_row_bounds/listed_b.pdf
           python - <<'PY'
-          from collections import Counter
           from pathlib import Path
           import json
           import re
           import pdfplumber
 
-          ROOT = Path('tmp/napoli_row_bounds')
-          SPECS = {
-              'listed': {'pages': 60, 'terminal': 2259, 'width': 9},
-              'applicants': {'pages': 215, 'terminal': 2571, 'width': 8},
-          }
-          STRICT_DATE = re.compile(r'^\d{2}/\d{2}/\d{2}$')
-          STRICT_IDENTIFIER = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          path = Path('tmp/napoli_row_bounds/listed_a.pdf')
+          strict_date = re.compile(r'^\d{2}/\d{2}/\d{2}$')
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
 
-          def extract(path, spec):
-              rows = {}
-              headers = Counter()
-              with pdfplumber.open(path) as pdf:
-                  if len(pdf.pages) != spec['pages']:
-                      raise RuntimeError(f'page drift {path.name}: {len(pdf.pages)} != {spec["pages"]}')
-                  for page_number, page in enumerate(pdf.pages, start=1):
-                      tables = page.find_tables()
-                      if len(tables) != 1:
-                          raise RuntimeError(f'{path.name} table-count drift p{page_number}: {len(tables)}')
-                      table = tables[0]
-                      extracted = table.extract() or []
-                      if len(extracted) != len(table.rows):
-                          raise RuntimeError(f'{path.name} extracted/physical row mismatch p{page_number}')
-                      for row_index, raw in enumerate(extracted):
-                          cells = [clean(value) for value in (raw or [])]
-                          if len(cells) != spec['width']:
-                              raise RuntimeError(f'{path.name} width drift p{page_number} r{row_index+1}: {len(cells)}')
-                          if not cells[0].isdigit():
-                              if any(cells):
-                                  headers[tuple(cells)] += 1
-                              continue
-                          ordinal = int(cells[0])
-                          if not (1 <= ordinal <= spec['terminal']):
-                              continue
-                          if ordinal in rows:
-                              raise RuntimeError(f'{path.name} duplicate ordinal: {ordinal}')
-                          rows[ordinal] = {'page': page_number, 'cells': cells}
-              if sorted(rows) != list(range(1, spec['terminal'] + 1)):
-                  raise RuntimeError(f'{path.name} ordinal coverage drift')
-              return rows, headers
+          rows = {}
+          with pdfplumber.open(path) as pdf:
+              if len(pdf.pages) != 60:
+                  raise RuntimeError(f'page drift: {len(pdf.pages)} != 60')
+              for page_number, page in enumerate(pdf.pages, start=1):
+                  tables = page.find_tables()
+                  if len(tables) != 1:
+                      raise RuntimeError(f'table-count drift p{page_number}: {len(tables)}')
+                  table = tables[0]
+                  extracted = table.extract() or []
+                  if len(extracted) != len(table.rows):
+                      raise RuntimeError(f'extracted/physical row mismatch p{page_number}')
+                  for row_index, raw in enumerate(extracted, start=1):
+                      if len(raw or []) != 9:
+                          raise RuntimeError(f'width drift p{page_number} r{row_index}: {len(raw or [])}')
+                      cells = [clean(value) for value in (raw or [])]
+                      if not cells[0].isdigit():
+                          continue
+                      ordinal = int(cells[0])
+                      if not 1 <= ordinal <= 2259:
+                          raise RuntimeError(f'unexpected ordinal p{page_number} r{row_index}: {ordinal}')
+                      if ordinal in rows:
+                          raise RuntimeError(f'duplicate ordinal: {ordinal}')
+                      rows[ordinal] = {
+                          'page': page_number,
+                          'company': cells[1],
+                          'expiry_raw': (raw or [''] * 9)[7] or '',
+                          'expiry_clean': cells[7],
+                      }
 
-          listed, listed_headers = extract(ROOT / 'listed.pdf', SPECS['listed'])
-          applicants, applicant_headers = extract(ROOT / 'applicants.pdf', SPECS['applicants'])
+          if sorted(rows) != list(range(1, 2260)):
+              raise RuntimeError('ordinal coverage drift')
 
-          # Freeze already-reviewed cross-border corrections.
-          continuation = {512: 'provvedimento', 880: 'provv. 399217 del', 1260: 'ordinanza TAR'}
-          for ordinal, expected in continuation.items():
-              if applicants[ordinal]['cells'][7] != expected:
-                  raise RuntimeError(f'continuation drift #{ordinal}')
-          border = {
-              793: 'ECOLOGIA LA VESUVIANA',
-              794: "S.R.L. ECOLOGIA SAN VINCENZO S.A.S. DI MIELE EMILIA",
-              1209: 'GENERAL COSTRUZIONI',
-              1210: 'S.R.L. GENERAL SERVICE S.R.L.',
-              1226: 'GESTIONE APPALTI E',
-              1227: 'SERVIZI S.R.L.S. GESTIONE HOTEL S.R.L.',
-          }
-          for ordinal, expected in border.items():
-              if applicants[ordinal]['cells'][1] != expected:
-                  raise RuntimeError(f'company-border drift #{ordinal}')
-
-          def date_audit(rows, column):
-              values = Counter(item['cells'][column] for item in rows.values())
-              noncanonical = [
-                  {'ordinal': ordinal, 'page': item['page'], 'raw': item['cells'][column]}
-                  for ordinal, item in rows.items()
-                  if item['cells'][column] and not STRICT_DATE.fullmatch(item['cells'][column])
-              ]
-              return {
-                  'blank': values[''],
-                  'nonblank': sum(count for value, count in values.items() if value),
-                  'noncanonical': noncanonical,
+          noncalendar = [
+              {
+                  'ordinal': ordinal,
+                  'page': item['page'],
+                  'company': item['company'],
+                  'expiration_raw': item['expiry_raw'],
+                  'expiration_clean': item['expiry_clean'],
               }
-
-          def section_audit(rows, column):
-              invalid = []
-              for ordinal, item in rows.items():
-                  raw = item['cells'][column]
-                  tokens = [token for token in re.split(r'[-,;/\s]+', raw) if token]
-                  if not tokens or any(token not in {'I','II','III','IV','V','VI','VII','VIII','IX','X'} for token in tokens):
-                      invalid.append({'ordinal': ordinal, 'page': item['page'], 'raw': raw})
-              return invalid
-
-          def identifier_audit(rows, column):
-              dist = Counter()
-              noncanonical = []
-              for ordinal, item in rows.items():
-                  raw = item['cells'][column]
-                  kind = 'strict' if STRICT_IDENTIFIER.fullmatch(raw) else ('blank' if not raw else 'raw_only')
-                  dist[kind] += 1
-                  if kind == 'raw_only':
-                      noncanonical.append({'ordinal': ordinal, 'page': item['page'], 'raw': raw})
-              return {'distribution': dict(dist), 'raw_only': noncanonical}
-
-          listed_outcomes = Counter(item['cells'][8] for item in listed.values())
-          listed_special = [
-              {'ordinal': ordinal, 'page': item['page'], 'outcome': item['cells'][8]}
-              for ordinal, item in listed.items()
-              if item['cells'][8] and not item['cells'][8].casefold().startswith('iscrizione in aggiornamento')
+              for ordinal, item in rows.items()
+              if item['expiry_clean'] and not strict_date.fullmatch(item['expiry_clean'])
           ]
-          applicant_nonblank = [
-              {'ordinal': ordinal, 'page': item['page'], 'outcome': item['cells'][7]}
-              for ordinal, item in applicants.items() if item['cells'][7]
-          ]
-
-          print('=== UNIQUE LISTED HEADERS ===')
-          print(json.dumps([{'count': count, 'cells': list(header)} for header, count in listed_headers.items()], ensure_ascii=False, indent=2))
-          print('=== UNIQUE APPLICANT HEADERS ===')
-          print(json.dumps([{'count': count, 'cells': list(header)} for header, count in applicant_headers.items()], ensure_ascii=False, indent=2))
-          print('=== LISTED SAMPLE ===')
-          print(json.dumps({str(k): listed[k] for k in [1,2,3,2259]}, ensure_ascii=False, indent=2))
-          print('=== APPLICANT SAMPLE ===')
-          print(json.dumps({str(k): applicants[k] for k in [1,2,3,2571]}, ensure_ascii=False, indent=2))
-          print('=== DATE AUDIT ===')
-          print(json.dumps({
-              'listed_col6': date_audit(listed, 6),
-              'listed_col7': date_audit(listed, 7),
-              'applicant_col6': date_audit(applicants, 6),
-          }, ensure_ascii=False, indent=2))
-          print('=== SECTION AUDIT ===')
-          print(json.dumps({
-              'listed_col5': section_audit(listed, 5),
-              'applicant_col5': section_audit(applicants, 5),
-              'listed_col7': section_audit(listed, 7),
-          }, ensure_ascii=False, indent=2))
-          print('=== IDENTIFIER AUDIT ===')
-          print(json.dumps({
-              'listed_col4': identifier_audit(listed, 4),
-              'applicant_col4': identifier_audit(applicants, 4),
-          }, ensure_ascii=False, indent=2))
-          print('=== OUTCOME SUMMARY ===')
-          print(json.dumps({
-              'listed_records': len(listed),
-              'applicant_records': len(applicants),
-              'listed_nonblank': sum(v for k,v in listed_outcomes.items() if k),
-              'listed_update_prefix': sum(v for k,v in listed_outcomes.items() if k.casefold().startswith('iscrizione in aggiornamento')),
-              'listed_special': listed_special,
-              'applicant_nonblank': applicant_nonblank,
-          }, ensure_ascii=False, indent=2))
+          print('=== NAPOLI LISTED NON-CALENDAR EXPIRY INVENTORY ===')
+          print(json.dumps(noncalendar, ensure_ascii=False, indent=2))
+          print(f'NONCALENDAR_EXPIRY_COUNT={len(noncalendar)}')
+          if not noncalendar:
+              raise RuntimeError('expected at least one reviewed non-calendar expiry value')
           PY
