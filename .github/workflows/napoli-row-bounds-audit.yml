@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit Napoli date typography exhaustively
+      - name: Revalidate bounded Napoli date anomalies
         shell: bash
         run: |
           set -euo pipefail
@@ -45,97 +45,123 @@ jobs:
           import pdfplumber
 
           short = re.compile(r'^(\d{1,2})/(\d{1,2})/(\d{2})$')
-
-          def clean(value):
-              return re.sub(r'\s+', ' ', value or '').strip()
-
-          def rows(path, *, pages, terminal, width, population):
-              result = {}
+          def clean(value): return re.sub(r'\s+', ' ', value or '').strip()
+          def load(path, pages, terminal, width):
+              rows = {}
               with pdfplumber.open(path) as pdf:
-                  if len(pdf.pages) != pages:
-                      raise RuntimeError(f'{population} page drift: {len(pdf.pages)} != {pages}')
+                  if len(pdf.pages) != pages: raise RuntimeError('page drift')
                   for page_number, page in enumerate(pdf.pages, start=1):
                       tables = page.find_tables()
-                      if len(tables) != 1:
-                          raise RuntimeError(f'{population} table-count drift p{page_number}: {len(tables)}')
+                      if len(tables) != 1: raise RuntimeError(f'table drift p{page_number}')
                       table = tables[0]
                       extracted = table.extract() or []
-                      if len(extracted) != len(table.rows):
-                          raise RuntimeError(f'{population} extracted/physical row mismatch p{page_number}')
+                      if len(extracted) != len(table.rows): raise RuntimeError(f'physical row drift p{page_number}')
                       for row_index, raw in enumerate(extracted, start=1):
-                          if len(raw or []) != width:
-                              raise RuntimeError(f'{population} width drift p{page_number} r{row_index}: {len(raw or [])}')
-                          cells = [clean(v) for v in (raw or [])]
-                          if not cells[0].isdigit():
-                              continue
+                          if len(raw or []) != width: raise RuntimeError(f'width drift p{page_number} r{row_index}')
+                          cells = [clean(v) for v in raw]
+                          if not cells[0].isdigit(): continue
                           ordinal = int(cells[0])
-                          if not 1 <= ordinal <= terminal:
-                              raise RuntimeError(f'{population} unexpected ordinal p{page_number} r{row_index}: {ordinal}')
-                          if ordinal in result:
-                              raise RuntimeError(f'{population} duplicate ordinal: {ordinal}')
-                          result[ordinal] = {'page': page_number, 'physical_row': row_index, 'cells': cells, 'raw': raw}
-              if sorted(result) != list(range(1, terminal + 1)):
-                  raise RuntimeError(f'{population} ordinal coverage drift')
-              return result
-
-          def classify_date(value):
-              if not value:
-                  return 'blank'
+                          if ordinal in rows: raise RuntimeError(f'duplicate ordinal {ordinal}')
+                          rows[ordinal] = (page_number, row_index, cells, raw)
+              if sorted(rows) != list(range(1, terminal + 1)): raise RuntimeError('ordinal coverage drift')
+              return rows
+          def malformed(value):
+              if not value: return False
               match = short.fullmatch(value)
-              if not match:
-                  return 'non_short_typography'
-              day, month, yy = (int(part) for part in match.groups())
-              try:
-                  date(2000 + yy, month, day)
-              except ValueError:
-                  return 'invalid_calendar_date'
-              return 'valid_short_date'
+              if not match: return True
+              day, month, yy = map(int, match.groups())
+              try: date(2000 + yy, month, day)
+              except ValueError: return True
+              return False
 
-          listed = rows(Path('tmp/napoli_row_bounds/listed_a.pdf'), pages=60, terminal=2259, width=9, population='listed')
-          applicants = rows(Path('tmp/napoli_row_bounds/applicants_a.pdf'), pages=215, terminal=2571, width=8, population='applicants')
-
-          payload = {'listed_listing_date': [], 'listed_expiry_date': [], 'applicant_application_date': []}
-          specs = [
-              ('listed_listing_date', listed, 6),
-              ('listed_expiry_date', listed, 7),
-              ('applicant_application_date', applicants, 6),
+          listed = load(Path('tmp/napoli_row_bounds/listed_a.pdf'), 60, 2259, 9)
+          applicants = load(Path('tmp/napoli_row_bounds/applicants_a.pdf'), 215, 2571, 8)
+          inventory = {
+              'listed_listing_date': [(o, r[2][1], r[2][4], r[2][6]) for o, r in listed.items() if malformed(r[2][6])],
+              'listed_expiry_date': [(o, r[2][1], r[2][4], r[2][7]) for o, r in listed.items() if malformed(r[2][7])],
+              'applicant_application_date': [(o, r[2][1], r[2][4], r[2][6]) for o, r in applicants.items() if malformed(r[2][6])],
+          }
+          expected_listing = [(556, 'DE LISIO COSTRUZIONI SRL', '04518100633', '14/0319')]
+          expected_expiry = [
+              (83, 'AMBIENTE CAMPANIA S.R.L.', '09382941210', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (155, 'AURORA S.R.L.', '05472591212', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (371, 'CIEFFE COSTRUZIONI SRL UNIPERSONALE', '06292251219', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (372, 'CIEFFE LAVORI S.R.L.', '05720260651', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (488, 'COSTRUZIONI GENERALI SUD S.R.L.', '06555141214', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (968, 'FONTANA DI FONTANA FRANCESCO S.R.L.', '08331081219', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              (2244, 'XECO SRL', '03440840613', "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
           ]
-          for key, population_rows, index in specs:
-              for ordinal, item in population_rows.items():
-                  value = item['cells'][index]
-                  classification = classify_date(value)
-                  if classification in {'blank', 'valid_short_date'}:
-                      continue
-                  payload[key].append({
-                      'ordinal': ordinal,
-                      'page': item['page'],
-                      'physical_row': item['physical_row'],
-                      'company': item['cells'][1],
-                      'identifier_raw': item['cells'][4],
-                      'date_raw': (item['raw'] or [''] * len(item['cells']))[index] or '',
-                      'date_clean': value,
-                      'classification': classification,
-                      'full_clean_row': item['cells'],
-                      'previous_company': population_rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
-                      'next_company': population_rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < max(population_rows) else '',
-                  })
-
-          out = Path('tmp/napoli-date-anomalies.json')
-          out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps(payload, ensure_ascii=False, indent=2))
-          print('LISTED_LISTING_DATE_ANOMALIES=', len(payload['listed_listing_date']))
-          print('LISTED_EXPIRY_DATE_ANOMALIES=', len(payload['listed_expiry_date']))
-          print('APPLICANT_APPLICATION_DATE_ANOMALIES=', len(payload['applicant_application_date']))
-          if not payload['listed_listing_date']:
-              raise RuntimeError('parser reported a listed listing-date anomaly but inventory is empty')
+          if inventory['listed_listing_date'] != expected_listing: raise RuntimeError(f'listing-date anomaly drift: {inventory["listed_listing_date"]!r}')
+          if inventory['listed_expiry_date'] != expected_expiry: raise RuntimeError(f'expiry anomaly drift: {inventory["listed_expiry_date"]!r}')
+          if inventory['applicant_application_date'] != []: raise RuntimeError(f'applicant date anomaly drift: {inventory["applicant_application_date"]!r}')
           PY
-      - name: Persist bounded date audit result
+      - name: Apply exact reviewed listing-date binding
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/white_list_archive/parsers/napoli_tables.py')
+          text = path.read_text(encoding='utf-8')
+
+          anchor = '''_LISTED_NONCALENDAR_EXPIRY = {
+          '''
+          insert = '''# One malformed listed registration date is source-positive but not a valid
+          # DD/MM/YY value. Preserve the raw typography and do not infer the omitted
+          # separator or normalised date.
+          _LISTED_MALFORMED_LISTING_DATE = {
+              556: ("DE LISIO COSTRUZIONI SRL", "04518100633", "14/0319"),
+          }
+
+          _LISTED_NONCALENDAR_EXPIRY = {
+          '''
+          if text.count(anchor) != 1: raise RuntimeError('listing-date constant anchor drift')
+          text = text.replace(anchor, insert, 1)
+
+          anchor = '''def _listed_expiry(raw: str, *, ordinal: int, company: str) -> str:
+          '''
+          insert = '''def _listed_listing_date(raw: str, *, ordinal: int, company: str, identifier_raw: str) -> str:
+              value = _clean(raw)
+              reviewed = _LISTED_MALFORMED_LISTING_DATE.get(ordinal)
+              if reviewed is not None:
+                  expected_company, expected_identifier, expected_raw = reviewed
+                  if (
+                      _clean(company) != expected_company
+                      or _clean(identifier_raw).upper() != expected_identifier
+                      or value != expected_raw
+                  ):
+                      raise RuntimeError(
+                          f"Napoli listed reviewed malformed listing-date drift at ordinal {ordinal}: "
+                          f"company={_clean(company)!r}; identifier={_clean(identifier_raw)!r}; date={value!r}"
+                      )
+                  return ""
+              return _short_date(raw, ordinal=ordinal, population="listed", field="listing date")
+
+
+def _listed_expiry(raw: str, *, ordinal: int, company: str) -> str:
+          '''
+          if text.count(anchor) != 1: raise RuntimeError('listed-expiry function anchor drift')
+          text = text.replace(anchor, insert, 1)
+
+          old = 'listing_date = _short_date(listing_raw, ordinal=ordinal, population="listed", field="listing date")'
+          new = '''listing_date = _listed_listing_date(
+                  listing_raw,
+                  ordinal=ordinal,
+                  company=name,
+                  identifier_raw=identifier_raw,
+              )'''
+          if text.count(old) != 1: raise RuntimeError('listed listing-date call anchor drift')
+          text = text.replace(old, new, 1)
+
+          diag = '            "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),\n'
+          diag_new = '            "reviewed_malformed_listing_dates": len(_LISTED_MALFORMED_LISTING_DATE),\n' + diag
+          if text.count(diag) != 1: raise RuntimeError('listed diagnostics anchor drift')
+          text = text.replace(diag, diag_new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/napoli-date-anomalies.json
+          git add src/white_list_archive/parsers/napoli_tables.py tmp/napoli-date-anomalies.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Record Napoli date typography inventory'
+          git commit -m 'Bind reviewed Napoli date typography'
           git push origin HEAD:expansion/napoli-2026-09-13
