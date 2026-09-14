@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   audit:
@@ -42,6 +42,7 @@ jobs:
           import pdfplumber
 
           source = Path('tmp/napoli_row_bounds/listed_a.pdf')
+          output = Path('tmp/napoli-section-anomalies.json')
           valid = {'I','II','III','IV','V','VI','VII','VIII','IX','X'}
 
           def clean(value):
@@ -98,9 +99,20 @@ jobs:
                       'previous_company': rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
                       'next_company': rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < 2259 else '',
                   })
+          output.write_text(json.dumps(anomalies, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           print('=== NAPOLI LISTED SECTION-TOKEN ANOMALY INVENTORY ===')
           print(json.dumps(anomalies, ensure_ascii=False, indent=2))
           print(f'SECTION_ANOMALY_COUNT={len(anomalies)}')
           if not anomalies:
               raise RuntimeError('validator reported a section anomaly but complete inventory is empty')
           PY
+      - name: Persist bounded audit result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/napoli-section-anomalies.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record Napoli section anomaly inventory'
+          git push origin HEAD:expansion/napoli-2026-09-13
