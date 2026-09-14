@@ -50,6 +50,7 @@ from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_
 from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed
 from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed
 from white_list_archive.parsers.napoli_tables import PARSERS as NAPOLI_PARSERS
+from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -456,6 +457,62 @@ def _adapt_napoli_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedB
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+def _adapt_padova_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Padova evidence onto the recursively closed public contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Padova source_fields must be a mapping")
+        if parser_name == "padova_listed":
+            expected = {
+                "sections", "section_cells_raw", "listing_date_raw", "expiry_date_raw",
+                "note_raw", "source_page", "source_table_row",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Padova listed source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["sections"], list) or any(not isinstance(value, str) for value in fields["sections"]):
+                raise RuntimeError("Padova listed section-field type drift")
+            if not isinstance(fields["section_cells_raw"], list) or any(not isinstance(value, str) for value in fields["section_cells_raw"]):
+                raise RuntimeError("Padova listed section-cell type drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw", "note_raw")):
+                raise RuntimeError("Padova listed raw scalar type drift")
+            if type(fields["source_page"]) is not int or type(fields["source_table_row"]) is not int:
+                raise RuntimeError("Padova listed source-locator type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        elif parser_name == "padova_applicants":
+            expected = {
+                "sections", "section_cells_raw", "application_date_raw", "protocol_raw",
+                "note_raw", "source_page", "source_table_row",
+                "reviewed_name_recovery", "reviewed_source_duplicate",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Padova applicant source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["sections"], list) or any(not isinstance(value, str) for value in fields["sections"]):
+                raise RuntimeError("Padova applicant section-field type drift")
+            if not isinstance(fields["section_cells_raw"], list) or any(not isinstance(value, str) for value in fields["section_cells_raw"]):
+                raise RuntimeError("Padova applicant section-cell type drift")
+            if any(not isinstance(fields[key], str) for key in ("application_date_raw", "protocol_raw", "note_raw")):
+                raise RuntimeError("Padova applicant raw scalar type drift")
+            if type(fields["source_page"]) is not int or type(fields["source_table_row"]) is not int:
+                raise RuntimeError("Padova applicant source-locator type drift")
+            if type(fields["reviewed_name_recovery"]) is not bool or type(fields["reviewed_source_duplicate"]) is not bool:
+                raise RuntimeError("Padova applicant reviewed-evidence flag type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Padova parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -490,6 +547,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or FROSINONE_PARSERS.get(cfg["parser"])
         or GORIZIA_PARSERS.get(cfg["parser"])
         or NAPOLI_PARSERS.get(cfg["parser"])
+        or PADOVA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -506,6 +564,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_gorizia_public_fields(batch, cfg["parser"])
     if cfg["parser"] in NAPOLI_PARSERS:
         batch = _adapt_napoli_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in PADOVA_PARSERS:
+        batch = _adapt_padova_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"
