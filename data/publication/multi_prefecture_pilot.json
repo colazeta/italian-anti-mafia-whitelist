@@ -1203,6 +1203,40 @@
       "sha256": "003e2ee6614302b1a1f8a504baae2b0c5d38752c70cfb509f693e1b4c1374f14",
       "expected_source_rows": 1213,
       "notes": "Byte-pinned 184-page requesting-company PDF. Exact continuation evidence yields 1,213 logical observations: 1,036 explicit positive outcomes, 176 pending rows and one other/unknown bare-date outcome. Reviewed malformed or absent dates and the single blank company-name source row are preserved without invention."
+    },
+    {
+      "authority_key": "trento",
+      "authority_name": "Commissariato del Governo per la Provincia di Trento",
+      "register_key": "trento-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-iscritte",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dedicated official registered-company page updated 11 September 2026 and exposing the current edition; exact bytes repeat-fetched and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_key": "trento-listed",
+      "parser": "trento_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf",
+      "sha256": "b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af",
+      "expected_source_rows": 1366,
+      "notes": "Byte-pinned 289-page registered-company PDF. The fail-closed parser freezes 3,208 physical table rows and 3,020 statutory-section rows, then conservatively groups repeated section memberships into exactly 1,366 public observations (699 listed; 667 renewal/update in progress). Reviewed split-table geometry, 172 continuation fragments, source text variants, one malformed date and identifier exceptions remain source-bound without inferential repair."
+    },
+    {
+      "authority_key": "trento",
+      "authority_name": "Commissariato del Governo per la Provincia di Trento",
+      "register_key": "trento-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-richiedenti",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dedicated official requesting-company page updated 10 September 2026 and exposing the current edition; exact bytes repeat-fetched and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_key": "trento-applicants",
+      "parser": "trento_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf",
+      "sha256": "9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0",
+      "expected_source_rows": 98,
+      "notes": "Byte-pinned 22-page requesting-company PDF. Exhaustive source review freezes 117 physical rows, 17 continuation fragments and exactly 98 logical applicant observations; all 98 source Esito cells are blank and therefore classify as pending on positive complete-population evidence. One reviewed application-date cell also carries a separately preserved integration date."
     }
   ]
 }
