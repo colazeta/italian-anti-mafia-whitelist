@@ -62,6 +62,10 @@ jobs:
             psql --version
             exit 0
           fi
+          # GitHub-hosted images can contain third-party APT source files in either
+          # .list or deb822 .sources form. This project does not depend on Chrome;
+          # remove only source files that actually reference its repository so a
+          # transient Google metadata mismatch cannot make database CI flaky.
           while IFS= read -r source_file; do
             [ -n "$source_file" ] && sudo rm -f "$source_file"
           done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
@@ -114,116 +118,3 @@ jobs:
 
       - name: Test evidence storage promotion against PostgreSQL (mock object transport)
         run: python tests/evidence_db_check.py
-
-  trento-national-candidate:
-    if: github.ref == 'refs/heads/expansion/trento-2026-09-14'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Install candidate runtime
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq -o Acquire::Retries=3
-          sudo apt-get install -y --no-install-recommends poppler-utils
-          python -m pip install -e '.[dev,database,storage,publication]'
-      - name: Independently recapture Trento sources twice
-        shell: bash
-        run: |
-          set -euo pipefail
-          fetch_twice() {
-            local label="$1" url="$2" expected_bytes="$3" expected_sha="$4"
-            for n in 1 2; do
-              curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
-                --user-agent 'italian-anti-mafia-whitelist/official-source-verification' "$url" -o "${label}.${n}.pdf"
-            done
-            cmp "${label}.1.pdf" "${label}.2.pdf"
-            test "$(head -c 5 "${label}.1.pdf")" = '%PDF-'
-            test "$(wc -c < "${label}.1.pdf" | tr -d ' ')" = "$expected_bytes"
-            test "$(sha256sum "${label}.1.pdf" | awk '{print $1}')" = "$expected_sha"
-          }
-          fetch_twice listed 'https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf' 7663549 b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af
-          fetch_twice applicants 'https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf' 384118 9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0
-      - name: Apply fail-closed candidate transaction
-        run: |
-          set -euo pipefail
-          python tmp/trento_integrate_candidate.py
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('data/source_registry/verified_primary_pages.csv')
-          old='trento,https://prefettura.interno.gov.it/it/prefetture/trento/evidenza/white-list,2026-09-06,verified'
-          new='trento,https://prefettura.interno.gov.it/it/prefetture/trento/evidenza/white-list,2026-09-14,verified'
-          text=p.read_text(encoding='utf-8')
-          assert text.count(old)==1
-          p.write_text(text.replace(old,new,1),encoding='utf-8')
-          PY
-      - name: Run repository and Trento semantic tests
-        run: python -m pytest -q
-      - name: Build and validate actual national candidate
-        run: |
-          set -euo pipefail
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/trento-national-sources \
-            --registry-json public-site/data/registry.json \
-            --registry-csv public-site/data/registry.csv \
-            --prefectures-json public-site/data/prefectures.json \
-            --prefectures-csv public-site/data/prefectures.csv
-          python -m white_list_archive.publishing.public_artifact public-site
-          python - <<'PY'
-          import json
-          from collections import Counter
-          from pathlib import Path
-          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
-          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
-          assert reg['meta']['record_count']==42198
-          assert reg['meta']['authority_count']==38
-          assert reg['meta']['register_count']==39
-          trento=[r for r in reg['records'] if r['authority_key']=='trento']
-          assert len(trento)==1464
-          assert sum(r['source_key']=='trento-listed' for r in trento)==1366
-          assert sum(r['source_key']=='trento-applicants' for r in trento)==98
-          assert Counter(r['source_status'] for r in trento)==Counter({'listed':699,'pending':98,'renewal_update_in_progress':667})
-          assert pref['meta']['published_count']==38
-          assert pref['meta']['mapped_count']==44
-          rows=[x for x in pref['prefectures'] if x['authority_key']=='trento']
-          assert len(rows)==1 and rows[0]['mapped'] and rows[0]['published'] and rows[0]['series_count']==2
-          PY
-      - name: Check exact production transaction
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --check
-          actual="$(git diff --name-only | sort)"
-          expected="$(printf '%s\n' \
-            data/monitoring/national_coverage.json \
-            data/publication/multi_prefecture_pilot.json \
-            data/source_registry/source_series_inventory.csv \
-            data/source_registry/verified_primary_pages.csv \
-            src/white_list_archive/publishing/public_national_registry.py \
-            tests/public_portal_browser.cjs | sort)"
-          test "$actual" = "$expected" || { printf 'Unexpected candidate diff:\n%s\n' "$actual"; exit 1; }
-      - name: Commit and push validated production integration
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            data/monitoring/national_coverage.json \
-            data/publication/multi_prefecture_pilot.json \
-            data/source_registry/source_series_inventory.csv \
-            data/source_registry/verified_primary_pages.csv \
-            src/white_list_archive/publishing/public_national_registry.py \
-            tests/public_portal_browser.cjs
-          git diff --cached --check
-          git commit -m 'Integrate Trento public White List coverage'
-          git push origin HEAD:expansion/trento-2026-09-14
