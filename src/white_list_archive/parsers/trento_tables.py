@@ -433,7 +433,7 @@ def parse_trento_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             ("secondary", c[2]),
             ("identifier_raw", c[3]),
         ):
-            if value and value not in group[bucket]:
+            if value not in group[bucket]:
                 group[bucket].append(value)
         group["memberships"].append(
             {
