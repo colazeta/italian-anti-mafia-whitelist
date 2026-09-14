@@ -119,7 +119,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git restore public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          rm -f public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
           rm -f tmp/napoli_national_candidate.py tmp/napoli_ledger_candidate.py
           git config user.name colazeta
           git config user.email '47261299+colazeta@users.noreply.github.com'
