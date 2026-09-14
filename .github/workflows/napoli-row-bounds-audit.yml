@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
@@ -19,39 +19,77 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Fetch approved Napoli sources twice
+      - name: Audit all blank listed company cells against approved source
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p tmp/napoli_date_binding
+          mkdir -p tmp/napoli_row_audit
           ua='Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)'
           listed='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
-          applicants='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
           for n in 1 2; do
-            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_date_binding/listed-$n.pdf" "$listed"
-            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_date_binding/applicants-$n.pdf" "$applicants"
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_row_audit/listed-$n.pdf" "$listed"
           done
-          cmp --silent tmp/napoli_date_binding/listed-1.pdf tmp/napoli_date_binding/listed-2.pdf
-          cmp --silent tmp/napoli_date_binding/applicants-1.pdf tmp/napoli_date_binding/applicants-2.pdf
-          test "$(stat -c %s tmp/napoli_date_binding/listed-1.pdf)" = '3081398'
-          test "$(stat -c %s tmp/napoli_date_binding/applicants-1.pdf)" = '3566448'
-          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_date_binding/listed-1.pdf' | sha256sum -c -
-          echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_date_binding/applicants-1.pdf' | sha256sum -c -
-      - name: Apply exact reviewed date binding
-        shell: bash
-        run: |
-          set -euo pipefail
-          python tmp/napoli_date_binding.py \
-            tmp/napoli_date_binding/listed-1.pdf \
-            tmp/napoli_date_binding/applicants-1.pdf \
-            src/white_list_archive/parsers/napoli_tables.py
-      - name: Persist parser change
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/napoli_tables.py
-          git diff --cached --quiet && exit 0
-          git commit -m 'Bind reviewed Napoli date typography in parser'
-          git push origin HEAD:expansion/napoli-2026-09-13
+          cmp --silent tmp/napoli_row_audit/listed-1.pdf tmp/napoli_row_audit/listed-2.pdf
+          test "$(stat -c %s tmp/napoli_row_audit/listed-1.pdf)" = '3081398'
+          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_audit/listed-1.pdf' | sha256sum -c -
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pdfplumber
+
+          path = Path('tmp/napoli_row_audit/listed-1.pdf')
+          rows = {}
+          row_meta = {}
+          with pdfplumber.open(path) as pdf:
+              assert len(pdf.pages) == 60, len(pdf.pages)
+              for page_number, page in enumerate(pdf.pages, start=1):
+                  tables = page.find_tables()
+                  assert len(tables) == 1, (page_number, len(tables))
+                  table = tables[0]
+                  extracted = table.extract() or []
+                  assert len(extracted) == len(table.rows), page_number
+                  for row_number, raw in enumerate(extracted, start=1):
+                      cells = [' '.join(str(v or '').replace('\u00a0', ' ').split()) for v in (raw or [])]
+                      assert len(cells) == 9, (page_number, row_number, len(cells), cells)
+                      if not cells[0].isdigit():
+                          continue
+                      ordinal = int(cells[0])
+                      assert ordinal not in rows, ordinal
+                      rows[ordinal] = cells
+                      physical = table.rows[row_number - 1]
+                      row_meta[ordinal] = {
+                          'page': page_number,
+                          'physical_row': row_number,
+                          'bbox': list(physical.bbox),
+                      }
+              expected = list(range(1, 2260))
+              assert sorted(rows) == expected
+
+              blank = [ordinal for ordinal in expected if not rows[ordinal][1]]
+              print('BLANK_COMPANY_ORDINALS=' + json.dumps(blank))
+              print('BLANK_COMPANY_COUNT=' + str(len(blank)))
+              assert 1620 in blank, blank
+
+              for ordinal in blank:
+                  print('=== BLANK COMPANY ORDINAL', ordinal, '===')
+                  print('META=' + json.dumps(row_meta[ordinal], ensure_ascii=False))
+                  for neighbour in range(max(1, ordinal - 2), min(2259, ordinal + 2) + 1):
+                      print('ROW=' + json.dumps({
+                          'ordinal': neighbour,
+                          **row_meta[neighbour],
+                          'cells': rows[neighbour],
+                      }, ensure_ascii=False))
+
+                  meta = row_meta[ordinal]
+                  page = pdf.pages[meta['page'] - 1]
+                  x0, top, x1, bottom = meta['bbox']
+                  # Include a narrow vertical margin so text split exactly on a table edge is visible.
+                  crop_top = max(0, top - 3)
+                  crop_bottom = min(page.height, bottom + 3)
+                  words = page.crop((x0, crop_top, x1, crop_bottom)).extract_words(
+                      x_tolerance=1,
+                      y_tolerance=1,
+                      keep_blank_chars=False,
+                  )
+                  print('ROW_WORDS=' + json.dumps(words, ensure_ascii=False))
+          PY
