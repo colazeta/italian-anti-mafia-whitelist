@@ -1,0 +1,131 @@
+name: Padova PDF structure audit
+
+on:
+  push:
+    branches:
+      - expansion/padova-2026-09-14
+    paths:
+      - .github/workflows/padova-pdf-structure.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install audit runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          python -m pip install --upgrade pip
+          python -m pip install 'pdfplumber>=0.11,<0.12'
+
+      - name: Fetch and verify official Padova PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/padova-audit
+          fetch_twice() {
+            local label="$1" url="$2" expected_size="$3" expected_sha="$4"
+            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-audit/${label}.a.pdf"
+            curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "tmp/padova-audit/${label}.b.pdf"
+            cmp "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.b.pdf"
+            test "$(wc -c < "tmp/padova-audit/${label}.a.pdf")" -eq "$expected_size"
+            printf '%s  %s\n' "$expected_sha" "tmp/padova-audit/${label}.a.pdf" | sha256sum -c -
+            test "$(head -c 4 "tmp/padova-audit/${label}.a.pdf")" = '%PDF'
+            mv "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.pdf"
+            rm "tmp/padova-audit/${label}.b.pdf"
+          }
+          fetch_twice listed 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf' 1411878 d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289
+          fetch_twice applicants 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf' 343755 b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3
+
+      - name: Audit PDF text and table structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' | tee tmp/padova-audit/structure.txt
+          from __future__ import annotations
+          from collections import Counter
+          from pathlib import Path
+          import json
+          import re
+          import pdfplumber
+
+          root = Path('tmp/padova-audit')
+          for label in ('listed', 'applicants'):
+              path = root / f'{label}.pdf'
+              print(f'===== {label.upper()} =====')
+              with pdfplumber.open(path) as pdf:
+                  print('PAGES', len(pdf.pages))
+                  page_table_counts = []
+                  width_counts = Counter()
+                  nonblank_rows = 0
+                  digit_lead_rows = 0
+                  samples = []
+                  for pno, page in enumerate(pdf.pages, 1):
+                      tables = page.extract_tables() or []
+                      page_table_counts.append(len(tables))
+                      for tno, table in enumerate(tables, 1):
+                          for rno, row in enumerate(table or [], 1):
+                              cells = [' '.join((c or '').split()) for c in row]
+                              if not any(cells):
+                                  continue
+                              nonblank_rows += 1
+                              width_counts[len(cells)] += 1
+                              if cells and re.fullmatch(r'\d+', cells[0] or ''):
+                                  digit_lead_rows += 1
+                              if len(samples) < 30:
+                                  samples.append((pno, tno, rno, cells))
+                  print('PAGE_TABLE_COUNTS', json.dumps(page_table_counts))
+                  print('NONBLANK_TABLE_ROWS', nonblank_rows)
+                  print('DIGIT_LEAD_ROWS', digit_lead_rows)
+                  print('ROW_WIDTH_COUNTS', json.dumps(dict(sorted(width_counts.items()))))
+                  print('TABLE_SAMPLES')
+                  for sample in samples:
+                      print(json.dumps(sample, ensure_ascii=False))
+                  for pno in sorted({1, max(1, len(pdf.pages)//2), len(pdf.pages)}):
+                      text = ' '.join((pdf.pages[pno-1].extract_text() or '').split())
+                      print(f'PAGE_TEXT_{pno}', text[:5000])
+              print()
+          PY
+
+          for label in listed applicants; do
+            pdfinfo "tmp/padova-audit/${label}.pdf" | sed "s/^/${label^^}_PDFINFO /" | tee -a tmp/padova-audit/structure.txt
+            pdftotext -layout "tmp/padova-audit/${label}.pdf" "tmp/padova-audit/${label}.txt"
+            echo "===== ${label^^} TEXT HEAD =====" | tee -a tmp/padova-audit/structure.txt
+            sed -n '1,120p' "tmp/padova-audit/${label}.txt" | tee -a tmp/padova-audit/structure.txt
+            echo "===== ${label^^} TEXT TAIL =====" | tee -a tmp/padova-audit/structure.txt
+            tail -n 100 "tmp/padova-audit/${label}.txt" | tee -a tmp/padova-audit/structure.txt
+          done
+
+      - name: Render representative pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for label in listed applicants; do
+            pages=$(pdfinfo "tmp/padova-audit/${label}.pdf" | awk '/^Pages:/ {print $2}')
+            mid=$(( (pages + 1) / 2 ))
+            for p in 1 "$mid" "$pages"; do
+              pdftoppm -f "$p" -singlefile -png -r 110 "tmp/padova-audit/${label}.pdf" "tmp/padova-audit/${label}-p${p}" >/dev/null 2>&1
+            done
+          done
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: padova-pdf-structure-audit
+          path: |
+            tmp/padova-audit/structure.txt
+            tmp/padova-audit/listed-p*.png
+            tmp/padova-audit/applicants-p*.png
+          if-no-files-found: error
+          retention-days: 3
