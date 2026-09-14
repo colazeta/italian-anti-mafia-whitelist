@@ -107,19 +107,154 @@ jobs:
               'applicants': inventory(Path('tmp/napoli_row_bounds/applicants_a.pdf'), pages=215, terminal=2571, width=8, population='applicants'),
           }
           Path('tmp/napoli-section-anomalies.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps(payload, ensure_ascii=False, indent=2))
-          print(f"LISTED_SECTION_ANOMALY_COUNT={len(payload['listed'])}")
-          print(f"APPLICANT_SECTION_ANOMALY_COUNT={len(payload['applicants'])}")
-          if not payload['listed']:
-              raise RuntimeError('listed validator reported a section anomaly but complete inventory is empty')
+          if len(payload['listed']) != 4 or len(payload['applicants']) != 5:
+              raise RuntimeError(f"section anomaly population drift: {len(payload['listed'])}/{len(payload['applicants'])}")
           PY
-      - name: Persist bounded audit result
+      - name: Apply exact reviewed section bindings
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/parsers/napoli_tables.py')
+          text = path.read_text(encoding='utf-8')
+
+          anchor = '''_LISTED_NONCALENDAR_EXPIRY = {
+              83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              371: ("CIEFFE COSTRUZIONI SRL UNIPERSONALE", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              372: ("CIEFFE LAVORI S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              488: ("COSTRUZIONI GENERALI SUD S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              968: ("FONTANA DI FONTANA FRANCESCO S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+              2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+          }
+          '''
+          insert = anchor + '''
+          # Exact source-bound section anomalies. Invalid source typography is never
+          # silently repaired into a different legal section: only positively valid
+          # tokens are retained, duplicate valid tokens are de-duplicated, and the
+          # original source text remains in source_fields.
+          _SECTION_EXCEPTIONS = {
+              "listed": {
+                  454: ("CONGLOMERATI S.r.l.", "05027321214", "II-IIII", ("II",)),
+                  820: ("ELETTROIMPIANTI DI RAIMO VITALIANO", "RMAVLN69P15I391U", "RMAVLN69P15I391U", ()),
+                  915: ("F.LLI MARTINO SNC DI MARTINO PASQUALE & C.", "04986160630", "I-VI-VI-X", ("I", "VI", "X")),
+                  1782: ("R.T. ELECTRONIC SYSTEM S.R.L.", "09469461215", "I-II-II-IV-V-VI-X", ("I", "II", "IV", "V", "VI", "X")),
+              },
+              "applicants": {
+                  398: ("CECA SRL", "05091870633", "I-III-V-V-X", ("I", "III", "V", "X")),
+                  1099: ("FG SERVICE S.R.L.", "09706611218", "IIII", ()),
+                  1170: ("G.P. PITTURAZIONI DI PIACENTE GAETANO", "PCNGTN94M27C129P", "I-II-III-V-VX", ("I", "II", "III", "V")),
+                  1520: ("L.C.S. ENGINEERING S.R.L.", "07466761215", "IIII", ()),
+                  2404: ("TECNOMEDICAL S.R.L.", "03110040635", "IIII", ()),
+              },
+          }
+          '''
+          if text.count(anchor) != 1:
+              raise RuntimeError('Napoli non-calendar expiry anchor drift')
+          text = text.replace(anchor, insert, 1)
+
+          old_sections = '''def _sections(raw: str, *, ordinal: int, population: str) -> list[str]:
+              value = _clean(raw)
+              if not value:
+                  return []
+              tokens = [token for token in re.split(r"[-,;/\\s]+", value.upper()) if token]
+              if not tokens or any(token not in _ROMAN_SECTIONS for token in tokens):
+                  raise RuntimeError(f"Napoli {population} unreviewed section value at ordinal {ordinal}: {value!r}")
+              if len(tokens) != len(set(tokens)):
+                  raise RuntimeError(f"Napoli {population} duplicate section token at ordinal {ordinal}: {value!r}")
+              return [f"Sezione {token}" for token in tokens]
+          '''
+          new_sections = '''def _sections(
+              raw: str,
+              *,
+              ordinal: int,
+              population: str,
+              company: str,
+              identifier_raw: str,
+          ) -> list[str]:
+              value = _clean(raw)
+              reviewed = _SECTION_EXCEPTIONS.get(population, {}).get(ordinal)
+              if reviewed is not None:
+                  expected_company, expected_identifier, expected_raw, retained_tokens = reviewed
+                  if (
+                      _clean(company) != expected_company
+                      or _clean(identifier_raw).upper() != expected_identifier
+                      or value != expected_raw
+                  ):
+                      raise RuntimeError(
+                          f"Napoli {population} reviewed section exception drift at ordinal {ordinal}: "
+                          f"company={_clean(company)!r}; identifier={_clean(identifier_raw)!r}; section={value!r}"
+                      )
+                  return [f"Sezione {token}" for token in retained_tokens]
+              if not value:
+                  return []
+              tokens = [token for token in re.split(r"[-,;/\\s]+", value.upper()) if token]
+              if not tokens or any(token not in _ROMAN_SECTIONS for token in tokens):
+                  raise RuntimeError(f"Napoli {population} unreviewed section value at ordinal {ordinal}: {value!r}")
+              if len(tokens) != len(set(tokens)):
+                  raise RuntimeError(f"Napoli {population} duplicate section token at ordinal {ordinal}: {value!r}")
+              return [f"Sezione {token}" for token in tokens]
+          '''
+          if text.count(old_sections) != 1:
+              raise RuntimeError('Napoli _sections anchor drift')
+          text = text.replace(old_sections, new_sections, 1)
+
+          old_call = 'sections = _sections(sections_raw, ordinal=ordinal, population="listed")'
+          new_call = '''sections = _sections(
+                  sections_raw,
+                  ordinal=ordinal,
+                  population="listed",
+                  company=name,
+                  identifier_raw=identifier_raw,
+              )'''
+          if text.count(old_call) != 1:
+              raise RuntimeError('Napoli listed section-call anchor drift')
+          text = text.replace(old_call, new_call, 1)
+
+          old_call = 'sections = _sections(sections_raw, ordinal=ordinal, population="applicants")'
+          new_call = '''sections = _sections(
+                  sections_raw,
+                  ordinal=ordinal,
+                  population="applicants",
+                  company=name,
+                  identifier_raw=identifier_raw,
+              )'''
+          if text.count(old_call) != 1:
+              raise RuntimeError('Napoli applicant section-call anchor drift')
+          text = text.replace(old_call, new_call, 1)
+
+          listed_fields = '''            source_fields={
+                          "sections": sections,
+                          "listing_date_raw_variants": [listing_raw] if listing_raw else [],
+          '''
+          listed_fields_new = '''            source_fields={
+                          "sections": sections,
+                          "sections_source_raw": sections_raw,
+                          "listing_date_raw_variants": [listing_raw] if listing_raw else [],
+          '''
+          if text.count(listed_fields) != 1:
+              raise RuntimeError('Napoli listed source-fields anchor drift')
+          text = text.replace(listed_fields, listed_fields_new, 1)
+
+          listed_diag = '            "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),\n'
+          listed_diag_new = listed_diag + '            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["listed"]),\n'
+          if text.count(listed_diag) != 1:
+              raise RuntimeError('Napoli listed diagnostics anchor drift')
+          text = text.replace(listed_diag, listed_diag_new, 1)
+
+          applicant_diag = '            "reviewed_name_boundaries": len(_APPLICANT_NAME_BOUNDARIES),\n'
+          applicant_diag_new = applicant_diag + '            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["applicants"]),\n'
+          if text.count(applicant_diag) != 1:
+              raise RuntimeError('Napoli applicant diagnostics anchor drift')
+          text = text.replace(applicant_diag, applicant_diag_new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/napoli-section-anomalies.json
+          git add src/white_list_archive/parsers/napoli_tables.py tmp/napoli-section-anomalies.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Record complete Napoli section anomaly inventory'
+          git commit -m 'Bind reviewed Napoli section anomalies'
           git push origin HEAD:expansion/napoli-2026-09-13
