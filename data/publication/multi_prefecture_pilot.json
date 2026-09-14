@@ -1169,6 +1169,40 @@
       "sha256": "b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3",
       "expected_source_rows": 174,
       "notes": "Byte-pinned 17-page applicant PDF. The dedicated official publication positively defines the applicant population; the fail-closed parser yields exactly 174 pending observations, with one exact source-bound company-name recovery and two adjacent identical source rows preserved as separate observations."
+    },
+    {
+      "authority_key": "perugia",
+      "authority_name": "Prefettura di Perugia",
+      "register_key": "perugia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-03",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "official landing page updated 4 September 2026 and explicitly publishing both current populations at 3 September 2026; exact bytes repeat-fetched and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_key": "perugia-listed",
+      "parser": "perugia_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
+      "sha256": "c9cd39452fb2f751c2b9e105c10ecf0b9e57569006138af7f766d6851748029f",
+      "expected_source_rows": 1016,
+      "notes": "Byte-pinned 224-page registered-company PDF. The fail-closed parser freezes 1,909 physical rows and 1,854 statutory-section rows, yielding exactly 1,016 company observations (674 listed; 342 renewal/update in progress). Seven malformed date-field cases and five source chronology inversions remain source-bound and are never corrected inferentially."
+    },
+    {
+      "authority_key": "perugia",
+      "authority_name": "Prefettura di Perugia",
+      "register_key": "perugia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-03",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
+      "last_source_update": "2026-09-04",
+      "last_source_update_basis": "official landing page updated 4 September 2026 and explicitly publishing both current populations at 3 September 2026; exact bytes repeat-fetched and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_key": "perugia-applicants",
+      "parser": "perugia_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
+      "sha256": "003e2ee6614302b1a1f8a504baae2b0c5d38752c70cfb509f693e1b4c1374f14",
+      "expected_source_rows": 1213,
+      "notes": "Byte-pinned 184-page requesting-company PDF. Exact continuation evidence yields 1,213 logical observations: 1,036 explicit positive outcomes, 176 pending rows and one other/unknown bare-date outcome. Reviewed malformed or absent dates and the single blank company-name source row are preserved without invention."
     }
   ]
 }

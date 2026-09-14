@@ -2,7 +2,7 @@
 
 ## Scope
 
-This note records the current official Prefettura di Perugia White List publication boundary and the completed source-structure audit used to design a fail-closed parser. It does not yet claim parser validation, company-observation loading or national/public integration.
+This note records the current official Prefettura di Perugia White List publication boundary, the completed source-structure audit and the fail-closed parser evidence approved for public-source integration.
 
 ## Official publication surface
 
@@ -93,4 +93,8 @@ The source-structure audit now establishes finite denominators and exception pop
 - applicants: 184 pages; 1,292 physical rows; 1,213 logical rows; the exact continuation population; 1,036 listed + 176 pending + 1 other/unknown outcome classification; the finite application-date exception population; one source row with an unpublished company name;
 - no generic date repair, identifier repair, de-duplication or status inference beyond those source-bound rules.
 
-Parser implementation, semantic tests, parser-family/source-registry binding, company-observation loading and national/public integration are **not yet completed** at this checkpoint. No Perugia record is public from this branch. No `NOT_PUBLISHED` or completeness conclusion is inferred from search failure.
+Parser implementation and semantic tests are complete. Dedicated parser-validation run `34876295250` completed successfully on 14 September 2026 after two independent acquisitions of each official PDF, exact byte/size/SHA-256 checks, semantic tests and complete parsing of all 408 source pages. The validation artifact reports exactly **2,229 distinct record locators**: 1,016 listed-series observations and 1,213 applicant-series observations.
+
+The listed validation also freezes five exact source chronology inversions without correcting them: P.B.M. – POLIMER BITUMEN MODIFIERS DI LEONARDO BACCARELLI E C. S.A.S. (23/06/2025 → 22/06/2025), TECNOTADDEI S.R.L. (23/06/2025 → 22/06/2025), SELLANI ALBERTO Impresa individuale (23/06/2025 → 22/06/2025), SOPRA IL MURO SOCIETA’ COOPERATIVA SOCIALE (07/07/2027 → 06/07/2027), and R.B. S.R.L. (12/11/2025 → 11/11/2025). These values remain exactly as published.
+
+The public integration boundary remains fail-closed: both source SHA-256 values, page counts, physical/logical row denominators, section counts, status distributions, continuation populations and reviewed anomalies must match. Canonical hosted-database integration and independent durable-evidence verification remain separate controls under issue #16 and are not asserted by this parser validation. No `NOT_PUBLISHED`, legal-status or completeness conclusion is inferred from search failure.
