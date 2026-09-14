@@ -51,6 +51,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Foggia'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Forlì-Cesena'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Frosinone'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Gorizia'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -91,8 +92,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,32543);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone'].includes(r.authority_key));
+      assert.equal(stats.total,32670);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -261,6 +262,11 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.deepEqual(statusCounts(frosinone),{listed:529,pending:475,renewal_update_in_progress:232});
       assert.equal(frosinone.filter(r=>r.source_fields&&Array.isArray(r.source_fields.listing_date_raw_variants)&&r.source_fields.listing_date_raw_variants.includes('30/07/*2026')&&r.observed_listing_date==='').length,1);
       assert.equal(frosinone.filter(r=>r.source_fields&&Array.isArray(r.source_fields.application_date_raw_variants)&&r.source_fields.application_date_raw_variants.includes('13/05/206')&&r.application_date==='').length,1);
+      const gorizia=registry.records.filter(r=>r.authority_key==='gorizia');
+      assert.equal(gorizia.length,127);
+      assert.equal(gorizia.filter(r=>r.source_key==='gorizia-listed').length,117);
+      assert.equal(gorizia.filter(r=>r.source_key==='gorizia-applicants').length,10);
+      assert.deepEqual(statusCounts(gorizia),{listed:86,pending:10,renewal_update_in_progress:31});
       const pm=crotone.filter(r=>r.name==='PM COSTRUZIONI S.R.L.');
       assert.ok(pm.some(r=>r.identifier_field_raw==='0330033796'&&r.identifiers.length===0));
       const a2g=caltanissetta.filter(r=>r.name==='A2G CONSTRUCTION SRL');
