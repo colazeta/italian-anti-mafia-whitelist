@@ -9,9 +9,11 @@ from white_list_archive.parsers.napoli_tables import (
     _EXPECTED_LISTED_STATUS_COUNTS,
     _LISTED_MALFORMED_LISTING_DATE,
     _LISTED_NONCALENDAR_EXPIRY,
+    _LISTED_PAGE_BOTTOM_RECOVERY,
     _SECTION_EXCEPTIONS,
     _listed_expiry,
     _listed_listing_date,
+    _prepare_listed_rows,
     _sections,
     _short_date,
 )
@@ -34,8 +36,56 @@ def test_napoli_source_denominators_and_statuses_are_frozen() -> None:
     }
     assert len(_LISTED_MALFORMED_LISTING_DATE) == 1
     assert len(_LISTED_NONCALENDAR_EXPIRY) == 7
+    assert len(_LISTED_PAGE_BOTTOM_RECOVERY) == 17
     assert len(_SECTION_EXCEPTIONS["listed"]) == 4
     assert len(_SECTION_EXCEPTIONS["applicants"]) == 5
+
+
+def test_napoli_page_bottom_rows_are_exactly_source_bound() -> None:
+    rows = {
+        ordinal: {"page": 0, "row": 0, "cells": list(truncated)}
+        for ordinal, (truncated, _) in _LISTED_PAGE_BOTTOM_RECOVERY.items()
+    }
+    _prepare_listed_rows(rows)
+    assert rows[1620]["cells"][1] == "NEW HOUSE COSTRUZIONI DI MURDACA LUCA I.I."
+    assert rows[2074]["cells"][1:8] == [
+        "T-CYCLE INDUSTRIES S.R.L.",
+        "Napoli",
+        "",
+        "07789361214",
+        "X",
+        "12/06/23",
+        "09/09/25",
+    ]
+    assert rows[2157]["cells"][1:8] == [
+        "TRASPORTI F.C. S.R.L.S.",
+        "Casoria",
+        "",
+        "08282961211",
+        "VI",
+        "08/03/22",
+        "13/11/25",
+    ]
+    assert rows[2200]["cells"][1:9] == [
+        "VELTRANS DI VELLUSO GIOVANNI",
+        "Giugliano in Campania",
+        "",
+        "VLLGNN80T20F839S",
+        "VI",
+        "27/10/17",
+        "09/12/26",
+        "",
+    ]
+
+
+def test_napoli_page_bottom_recovery_fails_on_extraction_drift() -> None:
+    rows = {
+        ordinal: {"page": 0, "row": 0, "cells": list(truncated)}
+        for ordinal, (truncated, _) in _LISTED_PAGE_BOTTOM_RECOVERY.items()
+    }
+    rows[1620]["cells"][2] = "Napoli drift"
+    with pytest.raises(RuntimeError, match="reviewed page-bottom row drift"):
+        _prepare_listed_rows(rows)
 
 
 def test_napoli_malformed_listing_date_is_exactly_source_bound() -> None:
