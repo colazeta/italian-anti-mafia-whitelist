@@ -1,0 +1,286 @@
+name: Napoli row-bounds audit
+
+on:
+  push:
+    branches:
+      - 'expansion/napoli-2026-09-13'
+    paths:
+      - '.github/workflows/napoli-row-bounds-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Compare midpoint and physical-row ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/napoli_row_bounds
+          curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
+            --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
+            -o tmp/napoli_row_bounds/listed.pdf \
+            'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
+          curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
+            --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
+            -o tmp/napoli_row_bounds/applicants.pdf \
+            'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
+          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_bounds/listed.pdf' | sha256sum -c -
+          echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_row_bounds/applicants.pdf' | sha256sum -c -
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          import json
+          import re
+          import pdfplumber
+
+          root = Path('tmp/napoli_row_bounds')
+          specs = {
+              'listed': {'pages': 60, 'terminal': 2259, 'width': 9},
+              'applicants': {'pages': 215, 'terminal': 2571, 'width': 8},
+          }
+
+          def clean(value):
+              return re.sub(r'\s+', ' ', value or '').strip()
+
+          def cell_ranges(table, width):
+              for row in table.rows:
+                  cells = row.cells
+                  if len(cells) == width and all(cell is not None for cell in cells):
+                      return [(float(cell[0]), float(cell[2])) for cell in cells]
+              raise RuntimeError('no full-width row geometry')
+
+          def row_bounds(row):
+              cells = [cell for cell in row.cells if cell is not None]
+              if not cells:
+                  raise RuntimeError('row without physical cells')
+              return min(float(cell[1]) for cell in cells), max(float(cell[3]) for cell in cells)
+
+          def col_for(word, ranges):
+              x = (float(word['x0']) + float(word['x1'])) / 2
+              for index, (left, right) in enumerate(ranges):
+                  if left - 0.5 <= x <= right + 0.5:
+                      return index
+              return None
+
+          def join_words(words):
+              if not words:
+                  return ''
+              lines = []
+              for word in sorted(words, key=lambda item: (item['top'], item['x0'])):
+                  y = float(word['top'])
+                  if not lines or abs(y - lines[-1][0]) > 2.5:
+                      lines.append([y, [word]])
+                  else:
+                      lines[-1][1].append(word)
+              return clean(' '.join(
+                  ' '.join(item['text'] for item in sorted(line_words, key=lambda item: item['x0']))
+                  for _, line_words in lines
+              ))
+
+          def reconstruct(source, spec):
+              bounded = []
+              midpoint = []
+              with pdfplumber.open(root / f'{source}.pdf') as pdf:
+                  if len(pdf.pages) != spec['pages']:
+                      raise RuntimeError(f'{source} page drift: {len(pdf.pages)} != {spec["pages"]}')
+                  expected_next = 1
+                  for page_number, page in enumerate(pdf.pages, start=1):
+                      tables = page.find_tables()
+                      if len(tables) != 1:
+                          raise RuntimeError(f'{source} table count p{page_number}: {len(tables)}')
+                      table = tables[0]
+                      extracted = table.extract() or []
+                      if len(extracted) != len(table.rows):
+                          raise RuntimeError(f'{source} extracted/physical row mismatch p{page_number}')
+                      ranges = cell_ranges(table, spec['width'])
+                      words = page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False)
+
+                      anchors = []
+                      for word in words:
+                          column = col_for(word, ranges)
+                          text = clean(word['text'])
+                          if column == 0 and re.fullmatch(r'\d{1,4}', text):
+                              number = int(text)
+                              if 1 <= number <= spec['terminal']:
+                                  anchors.append((number, (float(word['top']) + float(word['bottom'])) / 2))
+                      anchors.sort(key=lambda item: item[1])
+                      if not anchors:
+                          raise RuntimeError(f'{source} no ordinal anchors p{page_number}')
+                      numbers = [item[0] for item in anchors]
+                      expected = list(range(expected_next, expected_next + len(numbers)))
+                      if numbers != expected:
+                          raise RuntimeError(f'{source} anchor sequence p{page_number}: {numbers[:3]}..{numbers[-3:]} expected {expected_next}')
+                      expected_next += len(numbers)
+
+                      semantic = []
+                      for row_index, row in enumerate(extracted):
+                          first = clean(row[0] if row else '')
+                          if first.isdigit() and int(first) in numbers:
+                              semantic.append((row_index, int(first)))
+                      if [number for _, number in semantic] != numbers:
+                          raise RuntimeError(f'{source} semantic/anchor sequence mismatch p{page_number}')
+
+                      centers = [center for _, center in anchors]
+                      midpoint_boundaries = [(centers[i] + centers[i + 1]) / 2 for i in range(len(centers) - 1)]
+                      first_top, _ = row_bounds(table.rows[semantic[0][0]])
+                      _, last_bottom = row_bounds(table.rows[semantic[-1][0]])
+                      midpoint_buckets = [[] for _ in anchors]
+                      for word in words:
+                          column = col_for(word, ranges)
+                          if column is None or column == 0:
+                              continue
+                          y = (float(word['top']) + float(word['bottom'])) / 2
+                          if y < first_top or y > last_bottom:
+                              continue
+                          bucket_index = 0
+                          while bucket_index < len(midpoint_boundaries) and y >= midpoint_boundaries[bucket_index]:
+                              bucket_index += 1
+                          midpoint_buckets[bucket_index].append((column, word))
+
+                      for local_index, ((row_index, number), (_, anchor_y)) in enumerate(zip(semantic, anchors)):
+                          top, bottom = row_bounds(table.rows[row_index])
+                          physical_bucket = []
+                          for word in words:
+                              column = col_for(word, ranges)
+                              if column is None or column == 0:
+                                  continue
+                              y = (float(word['top']) + float(word['bottom'])) / 2
+                              if top <= y <= bottom:
+                                  physical_bucket.append((column, word))
+
+                          bounded_cells = [str(number)]
+                          midpoint_cells = [str(number)]
+                          for column in range(1, spec['width']):
+                              bounded_cells.append(join_words([word for c, word in physical_bucket if c == column]))
+                              midpoint_cells.append(join_words([word for c, word in midpoint_buckets[local_index] if c == column]))
+                          bounded.append({
+                              'ordinal': number,
+                              'page': page_number,
+                              'top': round(top, 2),
+                              'bottom': round(bottom, 2),
+                              'anchor_y': round(anchor_y, 2),
+                              'cells': bounded_cells,
+                          })
+                          midpoint.append({
+                              'ordinal': number,
+                              'page': page_number,
+                              'cells': midpoint_cells,
+                          })
+
+              expected_ordinals = list(range(1, spec['terminal'] + 1))
+              if [row['ordinal'] for row in bounded] != expected_ordinals:
+                  raise RuntimeError(f'{source} bounded ordinal drift')
+              if [row['ordinal'] for row in midpoint] != expected_ordinals:
+                  raise RuntimeError(f'{source} midpoint ordinal drift')
+              return bounded, midpoint
+
+          report = {}
+          for source, spec in specs.items():
+              bounded, midpoint = reconstruct(source, spec)
+              by_ordinal = {row['ordinal']: row for row in bounded}
+              outcome_diffs = []
+              core_diffs = []
+              for b_row, m_row in zip(bounded, midpoint):
+                  if b_row['cells'][1:-1] != m_row['cells'][1:-1]:
+                      core_diffs.append({
+                          'ordinal': b_row['ordinal'],
+                          'page': b_row['page'],
+                          'bounded': b_row['cells'][1:-1],
+                          'midpoint': m_row['cells'][1:-1],
+                      })
+                  if b_row['cells'][-1] != m_row['cells'][-1]:
+                      ordinal = b_row['ordinal']
+                      outcome_diffs.append({
+                          'ordinal': ordinal,
+                          'page': b_row['page'],
+                          'company': b_row['cells'][1],
+                          'bounded_outcome': b_row['cells'][-1],
+                          'midpoint_outcome': m_row['cells'][-1],
+                          'previous_company': by_ordinal.get(ordinal - 1, {}).get('cells', ['', ''])[1],
+                          'next_company': by_ordinal.get(ordinal + 1, {}).get('cells', ['', ''])[1],
+                      })
+
+              outcome_counts = Counter(row['cells'][-1] for row in bounded)
+              item = {
+                  'records': len(bounded),
+                  'core_diff_count': len(core_diffs),
+                  'core_diffs': core_diffs,
+                  'outcome_diff_count': len(outcome_diffs),
+                  'outcome_diffs': outcome_diffs,
+                  'outcome_nonblank': sum(bool(row['cells'][-1]) for row in bounded),
+              }
+
+              if source == 'listed':
+                  special = []
+                  update_like = 0
+                  for row in bounded:
+                      outcome = row['cells'][-1]
+                      if not outcome:
+                          continue
+                      if outcome.casefold().startswith('iscrizione in aggiornamento'):
+                          update_like += 1
+                          continue
+                      ordinal = row['ordinal']
+                      special.append({
+                          'ordinal': ordinal,
+                          'page': row['page'],
+                          'company': row['cells'][1],
+                          'identifier': row['cells'][4],
+                          'listing_date': row['cells'][6],
+                          'expiry_date': row['cells'][7],
+                          'outcome': outcome,
+                          'previous_outcome': by_ordinal.get(ordinal - 1, {}).get('cells', [''])[-1],
+                          'next_outcome': by_ordinal.get(ordinal + 1, {}).get('cells', [''])[-1],
+                      })
+                  item['update_like_outcomes'] = update_like
+                  item['special_outcome_count'] = len(special)
+                  item['special_outcomes'] = special
+                  if item['outcome_nonblank'] != 1474:
+                      raise RuntimeError(f'listed bounded nonblank-outcome drift: {item["outcome_nonblank"]} != 1474')
+              else:
+                  adverse = []
+                  non_adverse = []
+                  truncated = []
+                  for row in bounded:
+                      outcome = row['cells'][-1]
+                      if not outcome:
+                          continue
+                      folded = outcome.casefold()
+                      ordinal = row['ordinal']
+                      record = {
+                          'ordinal': ordinal,
+                          'page': row['page'],
+                          'company': row['cells'][1],
+                          'identifier': row['cells'][4],
+                          'application_date': row['cells'][6],
+                          'outcome': outcome,
+                          'previous_outcome': by_ordinal.get(ordinal - 1, {}).get('cells', [''])[-1],
+                          'next_outcome': by_ordinal.get(ordinal + 1, {}).get('cells', [''])[-1],
+                      }
+                      if 'diniego' in folded or 'interdittiv' in folded:
+                          adverse.append(record)
+                      else:
+                          non_adverse.append(record)
+                      if re.search(r'(?:\bdel|\bcon|\bprovvedimento|\bn\.?|\bprot\.?)\s*$', folded):
+                          truncated.append(record)
+                  item['adverse_outcome_count'] = len(adverse)
+                  item['adverse_outcomes'] = adverse
+                  item['non_adverse_nonblank'] = non_adverse
+                  item['truncated_candidates'] = truncated
+                  if item['outcome_nonblank'] != 41:
+                      raise RuntimeError(f'applicant bounded nonblank-outcome drift: {item["outcome_nonblank"]} != 41')
+                  if len(adverse) != 41 or non_adverse:
+                      raise RuntimeError(f'applicant adverse classification drift: adverse={len(adverse)} non_adverse={len(non_adverse)}')
+
+              report[source] = item
+
+          print(json.dumps(report, indent=2, ensure_ascii=False))
+          PY
