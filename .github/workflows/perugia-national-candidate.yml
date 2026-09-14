@@ -6,6 +6,9 @@ on:
       - expansion/perugia-2026-09-14
     paths:
       - .github/workflows/perugia-national-candidate.yml
+      - data/catalog.csv
+      - tests/test_source_population_coverage.py
+      - tests/test_source_registry.py
 
 permissions:
   contents: write
