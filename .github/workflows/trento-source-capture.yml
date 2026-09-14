@@ -14,7 +14,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
+          python -m pip install --disable-pip-version-check pdfplumber
 
       - name: Independently capture official Trento sources
         shell: bash
@@ -65,13 +66,121 @@ jobs:
           print(p.count('\f'))
           PY
           )"
-            echo "===== ${label^^} FIRST 120 LINES ====="
-            sed -n '1,120p' "${label}.txt"
-            echo "===== ${label^^} LAST 100 LINES ====="
-            tail -n 100 "${label}.txt"
-            echo "===== ${label^^} STATUS/DATE SAMPLE ====="
-            grep -Ein 'iscritt|richied|rinn|aggiorn|istrutt|scaden|dinieg|cancell|[0-3]?[0-9][./-][01]?[0-9][./-]20[0-9]{2}' "${label}.txt" | head -n 160 || true
+            echo "===== ${label^^} FIRST 80 LINES ====="
+            sed -n '1,80p' "${label}.txt"
+            echo "===== ${label^^} LAST 80 LINES ====="
+            tail -n 80 "${label}.txt"
           done
+
+      - name: Audit pdfplumber table boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from collections import Counter, defaultdict
+          from pathlib import Path
+          import pdfplumber
+
+          def clean(value):
+              return re.sub(r"\s+", " ", value or "").strip()
+
+          id_re = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
+          date_re = re.compile(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b")
+          section_re = re.compile(r"\bSezione\s+([IVX]+)\b", re.I)
+
+          for label in ("listed", "applicants"):
+              physical = 0
+              widths = Counter()
+              table_counts = Counter()
+              header_coords = []
+              valid_id_rows = []
+              dated_no_id = []
+              other_nonempty = []
+              section_first_pages = {}
+              section_rows = Counter()
+              current_section = None
+              outcomes = Counter()
+              groups = defaultdict(list)
+              identifiers = Counter()
+
+              with pdfplumber.open(Path(f"{label}.pdf")) as pdf:
+                  for pno, page in enumerate(pdf.pages, 1):
+                      text = page.extract_text() or ""
+                      match = section_re.search(text)
+                      if match:
+                          sec = match.group(1).upper()
+                          if sec not in section_first_pages:
+                              section_first_pages[sec] = pno
+                          current_section = sec
+                      tables = page.find_tables()
+                      table_counts[len(tables)] += 1
+                      for tno, table in enumerate(tables, 1):
+                          for rno, raw in enumerate(table.extract() or [], 1):
+                              physical += 1
+                              cells = tuple(clean(v) for v in (raw or []))
+                              widths[len(cells)] += 1
+                              if not any(cells):
+                                  continue
+                              first = cells[0].lower() if cells else ""
+                              if "ragione" in first and ("social" in first or "sociale" in first):
+                                  header_coords.append((pno, tno, rno))
+                                  continue
+                              identifier = re.sub(r"\s+", "", cells[3]).upper() if len(cells) > 3 else ""
+                              has_id = bool(id_re.fullmatch(identifier))
+                              has_date = bool(date_re.search(" ".join(cells)))
+                              coord = (pno, tno, rno)
+                              if has_id:
+                                  valid_id_rows.append((coord, cells))
+                                  identifiers[identifier] += 1
+                                  if label == "listed" and len(cells) == 7:
+                                      status = cells[6]
+                                      outcomes[status] += 1
+                                      key = (identifier, cells[4], cells[5], status)
+                                      groups[key].append((coord, cells[0], current_section))
+                                      if current_section:
+                                          section_rows[current_section] += 1
+                                  elif label == "applicants" and len(cells) == 7:
+                                      outcomes[cells[6]] += 1
+                              elif has_date:
+                                  dated_no_id.append((coord, cells))
+                              else:
+                                  other_nonempty.append((coord, cells))
+
+              print(f"===== TRN_{label.upper()}_PDFPLUMBER_AUDIT =====")
+              print(f"PHYSICAL_ROWS={physical}")
+              print(f"ROW_WIDTHS={dict(sorted(widths.items()))}")
+              print(f"TABLE_COUNT_BY_PAGE={dict(sorted(table_counts.items()))}")
+              print(f"HEADER_ROWS={len(header_coords)} FIRST={header_coords[:20]} LAST={header_coords[-10:]}")
+              print(f"VALID_ID_ROWS={len(valid_id_rows)}")
+              print(f"UNIQUE_VALID_IDENTIFIERS={len(identifiers)}")
+              print(f"IDENTIFIER_OCCURRENCE_COUNTS={dict(Counter(identifiers.values()))}")
+              print(f"DATED_ROWS_WITHOUT_STRICT_ID={len(dated_no_id)}")
+              for item in dated_no_id[:40]:
+                  print("DATED_NO_ID", item)
+              print(f"OTHER_NONEMPTY_ROWS={len(other_nonempty)}")
+              for item in other_nonempty[:30]:
+                  print("OTHER", item)
+              print(f"OUTCOME_TEXT_COUNTS={dict(outcomes)}")
+              if label == "listed":
+                  print(f"SECTION_FIRST_PAGES={section_first_pages}")
+                  print(f"STRICT_ID_SECTION_ROWS={dict(section_rows)}")
+                  print(f"EXACT_ID_DATE_STATUS_GROUPS={len(groups)}")
+                  print(f"GROUP_OCCURRENCE_COUNTS={dict(Counter(len(v) for v in groups.values()))}")
+                  conflict_ids = defaultdict(set)
+                  for key in groups:
+                      conflict_ids[key[0]].add(key[1:])
+                  conflicts = {k: sorted(v) for k, v in conflict_ids.items() if len(v) > 1}
+                  print(f"IDENTIFIERS_WITH_MULTIPLE_DATE_STATUS_GROUPS={len(conflicts)}")
+                  for key in sorted(conflicts)[:50]:
+                      print("CONFLICT", key, conflicts[key])
+              print("FIRST_VALID_ID_ROWS")
+              for item in valid_id_rows[:5]:
+                  print(item)
+              print("LAST_VALID_ID_ROWS")
+              for item in valid_id_rows[-5:]:
+                  print(item)
+          PY
 
       - name: Record page-level text fingerprints
         shell: bash
