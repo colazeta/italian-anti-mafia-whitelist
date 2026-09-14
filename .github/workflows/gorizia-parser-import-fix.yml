@@ -142,29 +142,23 @@ jobs:
           fi
           exit 0
 
-      - name: Remove temporary Gorizia expansion mechanisms
+      - name: Remove temporary Gorizia files from production candidate
         shell: bash
         run: |
           set -euo pipefail
-          find .github/workflows -maxdepth 1 -type f -name 'gorizia-*.yml' -print -delete
           find tmp -maxdepth 1 -type f -name 'gorizia*' -print -delete 2>/dev/null || true
-          if find .github/workflows -maxdepth 1 -type f -name 'gorizia-*.yml' | grep -q .; then
-            echo 'Temporary Gorizia workflow leaked after cleanup' >&2
-            exit 1
-          fi
           if find tmp -maxdepth 1 -type f -name 'gorizia*' 2>/dev/null | grep -q .; then
             echo 'Temporary Gorizia artefact leaked after cleanup' >&2
             exit 1
           fi
 
-      - name: Commit validated production-only Gorizia integration
+      - name: Commit validated non-workflow Gorizia integration
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            .github/workflows/public-pages.yml \
             data/catalog.csv \
             data/monitoring/national_coverage.json \
             data/publication/multi_prefecture_pilot.json \
@@ -176,11 +170,8 @@ jobs:
             tests/test_gorizia_parser_semantics.py \
             tests/test_source_population_coverage.py \
             tests/test_source_registry.py
-          git add -u .github/workflows tmp || true
+          git add -u tmp || true
           git diff --cached --check
-          if find .github/workflows -maxdepth 1 -type f -name 'gorizia-*.yml' | grep -q .; then exit 1; fi
-          if find tmp -maxdepth 1 -type f -name 'gorizia*' 2>/dev/null | grep -q .; then exit 1; fi
-          git status --short
           git diff --cached --quiet && { echo 'No production integration candidate to commit.' >&2; exit 1; }
           git commit -m 'Integrate Gorizia into public national archive'
           git push origin HEAD:expansion/gorizia-2026-09-13
