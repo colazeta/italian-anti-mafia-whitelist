@@ -14,53 +14,42 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Compare midpoint and physical-row ownership
+      - name: Capture unresolved Napoli applicant geometry
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p tmp/napoli_row_bounds
           curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
             --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
-            -o tmp/napoli_row_bounds/listed.pdf \
-            'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
-          curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
-            --user-agent 'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)' \
             -o tmp/napoli_row_bounds/applicants.pdf \
             'https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
-          echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_bounds/listed.pdf' | sha256sum -c -
+          test "$(stat -c %s tmp/napoli_row_bounds/applicants.pdf)" = "3566448"
           echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_row_bounds/applicants.pdf' | sha256sum -c -
           python - <<'PY'
-          from collections import Counter
           from pathlib import Path
           import json
           import re
           import pdfplumber
 
-          root = Path('tmp/napoli_row_bounds')
-          specs = {
-              'listed': {'pages': 60, 'terminal': 2259, 'width': 9},
-              'applicants': {'pages': 215, 'terminal': 2571, 'width': 8},
-          }
+          pdf_path = Path('tmp/napoli_row_bounds/applicants.pdf')
+          targets = {402, 403, 793, 794, 879, 880, 881, 1209, 1210, 1226, 1227}
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
 
-          def cell_ranges(table, width):
+          def cell_ranges(table):
               for row in table.rows:
-                  cells = row.cells
-                  if len(cells) == width and all(cell is not None for cell in cells):
-                      return [(float(cell[0]), float(cell[2])) for cell in cells]
-              raise RuntimeError('no full-width row geometry')
+                  if len(row.cells) == 8 and all(cell is not None for cell in row.cells):
+                      return [(float(cell[0]), float(cell[2])) for cell in row.cells]
+              raise RuntimeError('no complete eight-column geometry')
 
           def row_bounds(row):
               cells = [cell for cell in row.cells if cell is not None]
-              if not cells:
-                  raise RuntimeError('row without physical cells')
               return min(float(cell[1]) for cell in cells), max(float(cell[3]) for cell in cells)
 
           def col_for(word, ranges):
@@ -85,186 +74,93 @@ jobs:
                   for _, line_words in lines
               ))
 
-          def reconstruct(source, spec):
-              bounded = []
-              midpoint = []
-              with pdfplumber.open(root / f'{source}.pdf') as pdf:
-                  if len(pdf.pages) != spec['pages']:
-                      raise RuntimeError(f'{source} page drift: {len(pdf.pages)} != {spec["pages"]}')
-                  expected_next = 1
-                  for page_number, page in enumerate(pdf.pages, start=1):
-                      tables = page.find_tables()
-                      if len(tables) != 1:
-                          raise RuntimeError(f'{source} table count p{page_number}: {len(tables)}')
-                      table = tables[0]
-                      extracted = table.extract() or []
-                      if len(extracted) != len(table.rows):
-                          raise RuntimeError(f'{source} extracted/physical row mismatch p{page_number}')
-                      ranges = cell_ranges(table, spec['width'])
-                      words = page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False)
+          report = {'source': {
+              'bytes': pdf_path.stat().st_size,
+              'sha256': '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b',
+          }, 'rows': {}, 'page74': {}}
 
-                      anchors = []
+          with pdfplumber.open(pdf_path) as pdf:
+              if len(pdf.pages) != 215:
+                  raise RuntimeError(f'page drift: {len(pdf.pages)} != 215')
+              found = set()
+              for page_number, page in enumerate(pdf.pages, start=1):
+                  tables = page.find_tables()
+                  if len(tables) != 1:
+                      raise RuntimeError(f'table count p{page_number}: {len(tables)}')
+                  table = tables[0]
+                  extracted = table.extract() or []
+                  if len(extracted) != len(table.rows):
+                      raise RuntimeError(f'extracted/physical row mismatch p{page_number}')
+                  ranges = cell_ranges(table)
+                  words = page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False)
+
+                  semantic = {}
+                  for row_index, row in enumerate(extracted):
+                      first = clean(row[0] if row else '')
+                      if first.isdigit():
+                          number = int(first)
+                          if number in targets:
+                              semantic[number] = row_index
+
+                  for number, row_index in semantic.items():
+                      top, bottom = row_bounds(table.rows[row_index])
+                      physical = [[] for _ in range(8)]
                       for word in words:
                           column = col_for(word, ranges)
-                          text = clean(word['text'])
-                          if column == 0 and re.fullmatch(r'\d{1,4}', text):
-                              number = int(text)
-                              if 1 <= number <= spec['terminal']:
-                                  anchors.append((number, (float(word['top']) + float(word['bottom'])) / 2))
-                      anchors.sort(key=lambda item: item[1])
-                      if not anchors:
-                          raise RuntimeError(f'{source} no ordinal anchors p{page_number}')
-                      numbers = [number for number, _ in anchors]
-                      expected = list(range(expected_next, expected_next + len(numbers)))
-                      if numbers != expected:
-                          raise RuntimeError(f'{source} anchor sequence p{page_number}: {numbers[:3]}..{numbers[-3:]} expected {expected_next}')
-                      expected_next += len(numbers)
-
-                      semantic = []
-                      for row_index, row in enumerate(extracted):
-                          first = clean(row[0] if row else '')
-                          if first.isdigit() and int(first) in numbers:
-                              semantic.append((row_index, int(first)))
-                      if [number for _, number in semantic] != numbers:
-                          raise RuntimeError(f'{source} semantic/anchor sequence mismatch p{page_number}')
-
-                      centers = [center for _, center in anchors]
-                      midpoint_boundaries = [(centers[index] + centers[index + 1]) / 2 for index in range(len(centers) - 1)]
-                      first_top, _ = row_bounds(table.rows[semantic[0][0]])
-                      _, last_bottom = row_bounds(table.rows[semantic[-1][0]])
-                      midpoint_buckets = [[] for _ in anchors]
-                      for word in words:
-                          column = col_for(word, ranges)
-                          if column is None or column == 0:
+                          if column is None:
                               continue
                           y = (float(word['top']) + float(word['bottom'])) / 2
-                          if y < first_top or y > last_bottom:
-                              continue
-                          bucket_index = 0
-                          while bucket_index < len(midpoint_boundaries) and y >= midpoint_boundaries[bucket_index]:
-                              bucket_index += 1
-                          midpoint_buckets[bucket_index].append((column, word))
-
-                      for local_index, ((row_index, number), (_, anchor_y)) in enumerate(zip(semantic, anchors)):
-                          top, bottom = row_bounds(table.rows[row_index])
-                          physical_bucket = []
-                          for word in words:
-                              column = col_for(word, ranges)
-                              if column is None or column == 0:
-                                  continue
-                              y = (float(word['top']) + float(word['bottom'])) / 2
-                              if top <= y <= bottom:
-                                  physical_bucket.append((column, word))
-
-                          bounded_cells = [str(number)]
-                          midpoint_cells = [str(number)]
-                          for column in range(1, spec['width']):
-                              bounded_cells.append(join_words([word for c, word in physical_bucket if c == column]))
-                              midpoint_cells.append(join_words([word for c, word in midpoint_buckets[local_index] if c == column]))
-                          bounded.append({'ordinal': number, 'page': page_number, 'top': round(top, 2), 'bottom': round(bottom, 2), 'anchor_y': round(anchor_y, 2), 'cells': bounded_cells})
-                          midpoint.append({'ordinal': number, 'page': page_number, 'cells': midpoint_cells})
-
-              expected_ordinals = list(range(1, spec['terminal'] + 1))
-              if [row['ordinal'] for row in bounded] != expected_ordinals:
-                  raise RuntimeError(f'{source} bounded ordinal drift')
-              if [row['ordinal'] for row in midpoint] != expected_ordinals:
-                  raise RuntimeError(f'{source} midpoint ordinal drift')
-              return bounded, midpoint
-
-          report = {}
-          failures = []
-          for source, spec in specs.items():
-              bounded, midpoint = reconstruct(source, spec)
-              by_ordinal = {row['ordinal']: row for row in bounded}
-              outcome_diffs = []
-              core_diffs = []
-              for bounded_row, midpoint_row in zip(bounded, midpoint):
-                  if bounded_row['cells'][1:-1] != midpoint_row['cells'][1:-1]:
-                      core_diffs.append({
-                          'ordinal': bounded_row['ordinal'],
-                          'page': bounded_row['page'],
-                          'bounded': bounded_row['cells'][1:-1],
-                          'midpoint': midpoint_row['cells'][1:-1],
-                      })
-                  if bounded_row['cells'][-1] != midpoint_row['cells'][-1]:
-                      ordinal = bounded_row['ordinal']
-                      outcome_diffs.append({
-                          'ordinal': ordinal,
-                          'page': bounded_row['page'],
-                          'company': bounded_row['cells'][1],
-                          'bounded_outcome': bounded_row['cells'][-1],
-                          'midpoint_outcome': midpoint_row['cells'][-1],
-                          'previous_company': by_ordinal.get(ordinal - 1, {}).get('cells', ['', ''])[1],
-                          'next_company': by_ordinal.get(ordinal + 1, {}).get('cells', ['', ''])[1],
-                      })
-
-              item = {
-                  'records': len(bounded),
-                  'core_diff_count': len(core_diffs),
-                  'core_diffs': core_diffs,
-                  'outcome_diff_count': len(outcome_diffs),
-                  'outcome_diffs': outcome_diffs,
-                  'outcome_nonblank': sum(bool(row['cells'][-1]) for row in bounded),
-                  'midpoint_outcome_nonblank': sum(bool(row['cells'][-1]) for row in midpoint),
-              }
-
-              if source == 'listed':
-                  update_like = []
-                  special = []
-                  for row in bounded:
-                      outcome = row['cells'][-1]
-                      if not outcome:
-                          continue
-                      target = update_like if outcome.casefold().startswith('iscrizione in aggiornamento') else special
-                      target.append({
-                          'ordinal': row['ordinal'],
-                          'page': row['page'],
-                          'company': row['cells'][1],
-                          'identifier': row['cells'][4],
-                          'listing_date': row['cells'][6],
-                          'expiry_date': row['cells'][7],
-                          'outcome': outcome,
-                      })
-                  item['update_like_outcome_count'] = len(update_like)
-                  item['special_outcome_count'] = len(special)
-                  item['special_outcomes'] = special
-                  item['legacy_midpoint_nonblank_expected'] = 1474
-                  item['bounded_nonblank_delta_from_legacy_midpoint'] = item['outcome_nonblank'] - 1474
-              else:
-                  adverse = []
-                  non_adverse = []
-                  truncated = []
-                  for row in bounded:
-                      outcome = row['cells'][-1]
-                      if not outcome:
-                          continue
-                      folded = outcome.casefold()
-                      record = {
-                          'ordinal': row['ordinal'],
-                          'page': row['page'],
-                          'company': row['cells'][1],
-                          'identifier': row['cells'][4],
-                          'application_date': row['cells'][6],
-                          'outcome': outcome,
+                          if top <= y <= bottom:
+                              physical[column].append(word)
+                      report['rows'][str(number)] = {
+                          'page': page_number,
+                          'top': round(top, 3),
+                          'bottom': round(bottom, 3),
+                          'table_extract': [clean(value) for value in extracted[row_index]],
+                          'physical_cells': [join_words(bucket) for bucket in physical],
+                          'company_words': [
+                              {'text': w['text'], 'x0': round(float(w['x0']), 3), 'x1': round(float(w['x1']), 3),
+                               'top': round(float(w['top']), 3), 'bottom': round(float(w['bottom']), 3)}
+                              for w in sorted(physical[1], key=lambda item: (item['top'], item['x0']))
+                          ],
+                          'outcome_words': [
+                              {'text': w['text'], 'x0': round(float(w['x0']), 3), 'x1': round(float(w['x1']), 3),
+                               'top': round(float(w['top']), 3), 'bottom': round(float(w['bottom']), 3)}
+                              for w in sorted(physical[7], key=lambda item: (item['top'], item['x0']))
+                          ],
                       }
-                      if 'diniego' in folded or 'interdittiv' in folded:
-                          adverse.append(record)
-                      else:
-                          non_adverse.append(record)
-                      if re.search(r'(?:\bdel|\bcon|\bprovvedimento|\bn\.?|\bprot\.?)\s*$', folded):
-                          truncated.append(record)
-                  item['adverse_outcome_count'] = len(adverse)
-                  item['adverse_outcomes'] = adverse
-                  item['non_adverse_nonblank'] = non_adverse
-                  item['truncated_candidates'] = truncated
-                  if item['outcome_nonblank'] != 41:
-                      failures.append(f'applicant bounded nonblank outcomes {item["outcome_nonblank"]} != 41')
-                  if len(adverse) != 41 or non_adverse:
-                      failures.append(f'applicant adverse classification adverse={len(adverse)} non_adverse={len(non_adverse)}')
+                      found.add(number)
 
-              report[source] = item
+                  if page_number == 74:
+                      outcome_left, outcome_right = ranges[7]
+                      report['page74'] = {
+                          'width': round(float(page.width), 3),
+                          'height': round(float(page.height), 3),
+                          'outcome_x': [round(outcome_left, 3), round(outcome_right, 3)],
+                          'full_text': page.extract_text(x_tolerance=1, y_tolerance=2) or '',
+                          'outcome_words_all': [
+                              {'text': w['text'], 'x0': round(float(w['x0']), 3), 'x1': round(float(w['x1']), 3),
+                               'top': round(float(w['top']), 3), 'bottom': round(float(w['bottom']), 3)}
+                              for w in words if col_for(w, ranges) == 7
+                          ],
+                      }
 
-          print(json.dumps(report, indent=2, ensure_ascii=False))
-          if failures:
-              raise RuntimeError('; '.join(failures))
+              if found != targets:
+                  raise RuntimeError(f'target row coverage drift: found={sorted(found)} missing={sorted(targets-found)}')
+
+          Path('tmp/napoli_row_bounds/report.json').write_text(
+              json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8'
+          )
+          print(json.dumps({
+              'rows': {key: {'page': value['page'], 'company': value['physical_cells'][1], 'outcome': value['physical_cells'][7]}
+                       for key, value in report['rows'].items()},
+              'page74_outcome_words': report['page74']['outcome_words_all'],
+          }, indent=2, ensure_ascii=False))
           PY
+      - name: Upload evidence probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: napoli-row-bounds-evidence
+          path: tmp/napoli_row_bounds/report.json
+          if-no-files-found: error
+          retention-days: 7
