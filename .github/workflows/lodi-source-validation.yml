@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate-source:
@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           listed='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv'
           applicants='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv'
-          mkdir -p artifacts/lodi-source
+          mkdir -p artifacts/lodi-source tmp
           for n in 1 2; do
             curl --fail --location --silent --show-error --retry 3 "$listed" -o "artifacts/lodi-source/listed-$n.csv"
             sleep 2
@@ -40,7 +40,7 @@ jobs:
         run: |
           python - <<'PY'
           import csv, hashlib, json, re
-          from collections import Counter, defaultdict
+          from collections import Counter
           from pathlib import Path
 
           def clean(v):
@@ -58,17 +58,11 @@ jobs:
                   return [[clean(x) for x in row] for row in csv.reader(f)]
           def digest(path):
               return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+          def size(path):
+              return Path(path).stat().st_size
 
           listed=read('artifacts/lodi-source/listed-1.csv')
           applicants=read('artifacts/lodi-source/applicants-1.csv')
-          print('LISTED_SHA256', digest('artifacts/lodi-source/listed-1.csv'))
-          print('APPLICANT_SHA256', digest('artifacts/lodi-source/applicants-1.csv'))
-          print('LISTED_PHYSICAL_ROWS', len(listed))
-          print('APPLICANT_PHYSICAL_ROWS', len(applicants))
-          print('LISTED_WIDTHS', dict(Counter(map(len, listed))))
-          print('APPLICANT_WIDTHS', dict(Counter(map(len, applicants))))
-
-          # The source uses one row per section membership. Record only positively identifiable rows.
           section=''
           source=[]
           nonrecord=[]
@@ -89,16 +83,8 @@ jobs:
                       status='other_or_unknown'
                   source.append({'row':idx,'section':section,'cells':c,'ids':ids,'status':status})
               elif any(c):
-                  nonrecord.append((idx,c))
-          print('LISTED_SOURCE_ROWS', len(source))
-          print('LISTED_SECTION_COUNTS', dict(Counter(x['section'] for x in source)))
-          print('LISTED_SOURCE_STATUS_COUNTS', dict(Counter(x['status'] for x in source)))
-          print('LISTED_IDENTIFIER_ROW_COVERAGE', sum(bool(x['ids']) for x in source))
-          print('LISTED_NONRECORD_ROWS')
-          for x in nonrecord:
-              print(json.dumps(x, ensure_ascii=False))
+                  nonrecord.append({'row':idx,'cells':c})
 
-          # Match the repository's section-grouping discipline: positive identity + dates + source status.
           groups={}
           for x in source:
               c=x['cells']
@@ -107,9 +93,6 @@ jobs:
               if x['section'] and x['section'] not in g['sections']:
                   g['sections'].append(x['section'])
               g['members'].append(x['row'])
-          print('LISTED_GROUPED_RECORDS', len(groups))
-          print('LISTED_GROUP_STATUS_COUNTS', dict(Counter(g['first']['status'] for g in groups.values())))
-          print('LISTED_GROUP_OCCURRENCES', dict(Counter(len(g['members']) for g in groups.values())))
 
           apps=[]
           app_nonrecord=[]
@@ -128,17 +111,46 @@ jobs:
                       status='other_or_unknown'
                   apps.append({'row':idx,'cells':c,'ids':ids,'status':status})
               elif any(c):
-                  app_nonrecord.append((idx,c))
-          print('APPLICANT_RECORDS', len(apps))
-          print('APPLICANT_STATUS_COUNTS', dict(Counter(x['status'] for x in apps)))
-          print('APPLICANT_IDENTIFIERS_UNIQUE', len({x['ids'][0] for x in apps}))
-          print('APPLICANT_NONRECORD_ROWS')
-          for x in app_nonrecord:
-              print(json.dumps(x, ensure_ascii=False))
-          print('APPLICANT_ROWS')
-          for x in apps:
-              print(json.dumps(x, ensure_ascii=False))
+                  app_nonrecord.append({'row':idx,'cells':c})
+
+          summary={
+              'listed': {
+                  'sha256': digest('artifacts/lodi-source/listed-1.csv'),
+                  'bytes': size('artifacts/lodi-source/listed-1.csv'),
+                  'physical_rows': len(listed),
+                  'widths': dict(Counter(map(len, listed))),
+                  'source_rows': len(source),
+                  'section_counts': dict(Counter(x['section'] for x in source)),
+                  'source_status_counts': dict(Counter(x['status'] for x in source)),
+                  'grouped_records': len(groups),
+                  'group_status_counts': dict(Counter(g['first']['status'] for g in groups.values())),
+                  'group_occurrences': dict(Counter(len(g['members']) for g in groups.values())),
+                  'nonrecord_rows': nonrecord,
+              },
+              'applicants': {
+                  'sha256': digest('artifacts/lodi-source/applicants-1.csv'),
+                  'bytes': size('artifacts/lodi-source/applicants-1.csv'),
+                  'physical_rows': len(applicants),
+                  'widths': dict(Counter(map(len, applicants))),
+                  'records': len(apps),
+                  'status_counts': dict(Counter(x['status'] for x in apps)),
+                  'unique_primary_identifiers': len({x['ids'][0] for x in apps}),
+                  'nonrecord_rows': app_nonrecord,
+                  'rows': apps,
+              },
+          }
+          Path('tmp/lodi-source-diagnostic.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
+      - name: Persist temporary diagnostic checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/lodi-source-diagnostic.json
+          git diff --cached --check
+          git commit -m 'Checkpoint Lodi source diagnostics'
+          git push origin HEAD:expansion/lodi-2026-09-15
       - name: Upload reviewed source exports
         uses: actions/upload-artifact@v4
         with:
