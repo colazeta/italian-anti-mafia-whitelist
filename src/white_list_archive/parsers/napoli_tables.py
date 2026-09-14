@@ -189,6 +189,13 @@ _PROTECTED_CLEAN_NAME_ROWS = {
 # Seven listed records carry a source-positive non-calendar validity term.
 # Bind ordinal + company + exact cleaned source typography; do not interpret
 # the term as a calendar date or as a blank expiry.
+# One malformed listed registration date is source-positive but not a valid
+# DD/MM/YY value. Preserve the raw typography and do not infer the omitted
+# separator or a normalised date.
+_LISTED_MALFORMED_LISTING_DATE = {
+    556: ("DE LISIO COSTRUZIONI SRL", "04518100633", "14/0319"),
+}
+
 _LISTED_NONCALENDAR_EXPIRY = {
     83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
     155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
@@ -343,6 +350,24 @@ def _short_date(raw: str, *, ordinal: int, population: str, field: str) -> str:
         ) from exc
 
 
+def _listed_listing_date(raw: str, *, ordinal: int, company: str, identifier_raw: str) -> str:
+    value = _clean(raw)
+    reviewed = _LISTED_MALFORMED_LISTING_DATE.get(ordinal)
+    if reviewed is not None:
+        expected_company, expected_identifier, expected_raw = reviewed
+        if (
+            _clean(company) != expected_company
+            or _clean(identifier_raw).upper() != expected_identifier
+            or value != expected_raw
+        ):
+            raise RuntimeError(
+                f"Napoli listed reviewed malformed listing-date drift at ordinal {ordinal}: "
+                f"company={_clean(company)!r}; identifier={_clean(identifier_raw)!r}; date={value!r}"
+            )
+        return ""
+    return _short_date(raw, ordinal=ordinal, population="listed", field="listing date")
+
+
 def _listed_expiry(raw: str, *, ordinal: int, company: str) -> str:
     value = _clean(raw)
     reviewed = _LISTED_NONCALENDAR_EXPIRY.get(ordinal)
@@ -465,7 +490,12 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         company=name,
         identifier_raw=identifier_raw,
     )
-        listing_date = _short_date(listing_raw, ordinal=ordinal, population="listed", field="listing date")
+        listing_date = _listed_listing_date(
+            listing_raw,
+            ordinal=ordinal,
+            company=name,
+            identifier_raw=identifier_raw,
+        )
         expiry_date = _listed_expiry(expiry_raw, ordinal=ordinal, company=name)
         blank_listing_dates += int(not listing_raw)
         blank_expiry_dates += int(not expiry_raw)
@@ -515,6 +545,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "blank_listing_dates": blank_listing_dates,
             "blank_expiry_dates": blank_expiry_dates,
             "reviewed_special_outcomes": len(_EXPECTED_LISTED_SPECIAL),
+            "reviewed_malformed_listing_dates": len(_LISTED_MALFORMED_LISTING_DATE),
             "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),
             "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["listed"]),
         },
