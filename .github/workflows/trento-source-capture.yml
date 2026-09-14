@@ -1,0 +1,96 @@
+name: Trento source capture
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - expansion/trento-2026-09-14
+    paths:
+      - .github/workflows/trento-source-capture.yml
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PDF inspection runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+
+      - name: Independently capture official Trento sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          listed='https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf'
+          applicants='https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf'
+
+          fetch_twice() {
+            local label="$1"
+            local url="$2"
+            for n in 1 2; do
+              curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
+                --user-agent 'italian-anti-mafia-whitelist/official-source-verification' \
+                "$url" -o "${label}.${n}.pdf"
+            done
+            cmp "${label}.1.pdf" "${label}.2.pdf"
+            test "$(head -c 5 "${label}.1.pdf")" = '%PDF-'
+            cp "${label}.1.pdf" "${label}.pdf"
+            echo "TRN_${label^^}_URL=$url"
+            echo "TRN_${label^^}_BYTES=$(wc -c < "${label}.pdf" | tr -d ' ')"
+            echo "TRN_${label^^}_SHA256=$(sha256sum "${label}.pdf" | awk '{print $1}')"
+            echo "TRN_${label^^}_PAGES=$(pdfinfo "${label}.pdf" | awk '/^Pages:/ {print $2}')"
+          }
+
+          fetch_twice listed "$listed"
+          fetch_twice applicants "$applicants"
+
+      - name: Inspect textual structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          for label in listed applicants; do
+            pdftotext -layout "${label}.pdf" "${label}.txt"
+            echo "===== ${label^^} TEXT METRICS ====="
+            echo "LINES=$(wc -l < "${label}.txt" | tr -d ' ')"
+            echo "FORM_FEEDS=$(python - "$label" <<'PY'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1] + '.txt').read_text(errors='replace')
+          print(p.count('\f'))
+          PY
+          )"
+            echo "===== ${label^^} FIRST 120 LINES ====="
+            sed -n '1,120p' "${label}.txt"
+            echo "===== ${label^^} LAST 100 LINES ====="
+            tail -n 100 "${label}.txt"
+            echo "===== ${label^^} STATUS/DATE SAMPLE ====="
+            grep -Ein 'iscritt|richied|rinn|aggiorn|istrutt|scaden|dinieg|cancell|[0-3]?[0-9][./-][01]?[0-9][./-]20[0-9]{2}' "${label}.txt" | head -n 160 || true
+          done
+
+      - name: Record page-level text fingerprints
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          for label in ('listed', 'applicants'):
+              text = Path(f'{label}.txt').read_text(errors='replace')
+              pages = text.split('\f')
+              if pages and not pages[-1].strip():
+                  pages.pop()
+              print(f'TRN_{label.upper()}_TEXT_PAGES={len(pages)}')
+              for idx in sorted(set([0, 1, max(0, len(pages)//2), max(0, len(pages)-2), max(0, len(pages)-1)])):
+                  if idx >= len(pages):
+                      continue
+                  norm = '\n'.join(line.rstrip() for line in pages[idx].splitlines()).strip()
+                  digest = hashlib.sha256(norm.encode()).hexdigest()
+                  print(f'TRN_{label.upper()}_PAGE_{idx+1}_TEXT_SHA256={digest}')
+                  print(f'TRN_{label.upper()}_PAGE_{idx+1}_NONEMPTY_LINES={sum(bool(x.strip()) for x in pages[idx].splitlines())}')
+          PY
