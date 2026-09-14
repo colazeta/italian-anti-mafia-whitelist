@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit Napoli source outcomes and cross-border rows
+      - name: Audit Napoli parser field invariants
         shell: bash
         run: |
           set -euo pipefail
@@ -48,13 +48,15 @@ jobs:
               'listed': {'pages': 60, 'terminal': 2259, 'width': 9},
               'applicants': {'pages': 215, 'terminal': 2571, 'width': 8},
           }
-          TARGETS = {402, 403, 511, 512, 793, 794, 879, 880, 881, 1209, 1210, 1226, 1227, 1259, 1260}
+          STRICT_DATE = re.compile(r'^\d{2}/\d{2}/\d{2}$')
+          STRICT_IDENTIFIER = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
 
-          def physical_rows(path, spec):
+          def extract(path, spec):
               rows = {}
+              headers = Counter()
               with pdfplumber.open(path) as pdf:
                   if len(pdf.pages) != spec['pages']:
                       raise RuntimeError(f'page drift {path.name}: {len(pdf.pages)} != {spec["pages"]}')
@@ -68,28 +70,74 @@ jobs:
                           raise RuntimeError(f'{path.name} extracted/physical row mismatch p{page_number}')
                       for row_index, raw in enumerate(extracted):
                           cells = [clean(value) for value in (raw or [])]
-                          if not cells or not cells[0].isdigit():
+                          if len(cells) != spec['width']:
+                              raise RuntimeError(f'{path.name} width drift p{page_number} r{row_index+1}: {len(cells)}')
+                          if not cells[0].isdigit():
+                              if any(cells):
+                                  headers[tuple(cells)] += 1
                               continue
                           ordinal = int(cells[0])
                           if not (1 <= ordinal <= spec['terminal']):
                               continue
-                          if len(cells) != spec['width']:
-                              raise RuntimeError(f'{path.name} row-width drift p{page_number} #{ordinal}: {len(cells)}')
                           if ordinal in rows:
                               raise RuntimeError(f'{path.name} duplicate ordinal: {ordinal}')
-                          physical = [cell for cell in table.rows[row_index].cells if cell is not None]
-                          rows[ordinal] = {
-                              'page': page_number,
-                              'bounds': [round(min(float(c[1]) for c in physical), 3), round(max(float(c[3]) for c in physical), 3)],
-                              'cells': cells,
-                          }
+                          rows[ordinal] = {'page': page_number, 'cells': cells}
               if sorted(rows) != list(range(1, spec['terminal'] + 1)):
-                  missing = sorted(set(range(1, spec['terminal'] + 1)) - set(rows))
-                  raise RuntimeError(f'{path.name} ordinal coverage drift: count={len(rows)} missing={missing[:20]}')
-              return rows
+                  raise RuntimeError(f'{path.name} ordinal coverage drift')
+              return rows, headers
 
-          listed = physical_rows(ROOT / 'listed.pdf', SPECS['listed'])
-          applicants = physical_rows(ROOT / 'applicants.pdf', SPECS['applicants'])
+          listed, listed_headers = extract(ROOT / 'listed.pdf', SPECS['listed'])
+          applicants, applicant_headers = extract(ROOT / 'applicants.pdf', SPECS['applicants'])
+
+          # Freeze already-reviewed cross-border corrections.
+          continuation = {512: 'provvedimento', 880: 'provv. 399217 del', 1260: 'ordinanza TAR'}
+          for ordinal, expected in continuation.items():
+              if applicants[ordinal]['cells'][7] != expected:
+                  raise RuntimeError(f'continuation drift #{ordinal}')
+          border = {
+              793: 'ECOLOGIA LA VESUVIANA',
+              794: "S.R.L. ECOLOGIA SAN VINCENZO S.A.S. DI MIELE EMILIA",
+              1209: 'GENERAL COSTRUZIONI',
+              1210: 'S.R.L. GENERAL SERVICE S.R.L.',
+              1226: 'GESTIONE APPALTI E',
+              1227: 'SERVIZI S.R.L.S. GESTIONE HOTEL S.R.L.',
+          }
+          for ordinal, expected in border.items():
+              if applicants[ordinal]['cells'][1] != expected:
+                  raise RuntimeError(f'company-border drift #{ordinal}')
+
+          def date_audit(rows, column):
+              values = Counter(item['cells'][column] for item in rows.values())
+              noncanonical = [
+                  {'ordinal': ordinal, 'page': item['page'], 'raw': item['cells'][column]}
+                  for ordinal, item in rows.items()
+                  if item['cells'][column] and not STRICT_DATE.fullmatch(item['cells'][column])
+              ]
+              return {
+                  'blank': values[''],
+                  'nonblank': sum(count for value, count in values.items() if value),
+                  'noncanonical': noncanonical,
+              }
+
+          def section_audit(rows, column):
+              invalid = []
+              for ordinal, item in rows.items():
+                  raw = item['cells'][column]
+                  tokens = [token for token in re.split(r'[-,;/\s]+', raw) if token]
+                  if not tokens or any(token not in {'I','II','III','IV','V','VI','VII','VIII','IX','X'} for token in tokens):
+                      invalid.append({'ordinal': ordinal, 'page': item['page'], 'raw': raw})
+              return invalid
+
+          def identifier_audit(rows, column):
+              dist = Counter()
+              noncanonical = []
+              for ordinal, item in rows.items():
+                  raw = item['cells'][column]
+                  kind = 'strict' if STRICT_IDENTIFIER.fullmatch(raw) else ('blank' if not raw else 'raw_only')
+                  dist[kind] += 1
+                  if kind == 'raw_only':
+                      noncanonical.append({'ordinal': ordinal, 'page': item['page'], 'raw': raw})
+              return {'distribution': dict(dist), 'raw_only': noncanonical}
 
           listed_outcomes = Counter(item['cells'][8] for item in listed.values())
           listed_special = [
@@ -102,54 +150,38 @@ jobs:
               for ordinal, item in applicants.items() if item['cells'][7]
           ]
 
-          # Exact source-positive continuation fragments already isolated by the physical-row audit.
-          continuation_expectations = {
-              512: 'provvedimento',
-              880: 'provv. 399217 del',
-              1260: 'ordinanza TAR',
-          }
-          for ordinal, expected in continuation_expectations.items():
-              observed = applicants[ordinal]['cells'][7]
-              if observed != expected:
-                  raise RuntimeError(f'applicant continuation drift #{ordinal}: {observed!r} != {expected!r}')
-
-          # The source places these prefixes across a horizontal border. Freeze the exact observed cells;
-          # production parsing must reassign them only through explicit reviewed bindings.
-          company_expectations = {
-              793: 'ECOLOGIA LA VESUVIANA',
-              794: "S.R.L. ECOLOGIA SAN VINCENZO S.A.S. DI MIELE EMILIA",
-              1209: 'GENERAL COSTRUZIONI',
-              1210: 'S.R.L. GENERAL SERVICE S.R.L.',
-              1226: 'GESTIONE APPALTI E',
-              1227: 'SERVIZI S.R.L.S. GESTIONE HOTEL S.R.L.',
-          }
-          for ordinal, expected in company_expectations.items():
-              observed = applicants[ordinal]['cells'][1]
-              if observed != expected:
-                  raise RuntimeError(f'applicant company border drift #{ordinal}: {observed!r} != {expected!r}')
-
-          # 402/403 were a midpoint-only false alarm: physical table ownership is already clean.
-          if applicants[402]['cells'][1] != "CEM.AR. 86 - SOCIETA' COOPERATIVA DI PRODUZIONE E LAVORO A RESPON SABILITA' LIMITATA":
-              raise RuntimeError('applicant physical ownership drift #402')
-          if applicants[403]['cells'][1] != 'CEMENTI MOCCIA SPA':
-              raise RuntimeError('applicant physical ownership drift #403')
-
-          print('=== TARGET ROWS ===')
-          print(json.dumps({str(k): applicants[k] for k in sorted(TARGETS)}, ensure_ascii=False, indent=2))
-          print('=== APPLICANT NONBLANK OUTCOMES ===')
-          print(json.dumps(applicant_nonblank, ensure_ascii=False, indent=2))
-          print('=== LISTED SPECIAL OUTCOMES (excluding ordinary update prefix) ===')
-          print(json.dumps(listed_special, ensure_ascii=False, indent=2))
-          print('=== SUMMARY ===')
+          print('=== UNIQUE LISTED HEADERS ===')
+          print(json.dumps([{'count': count, 'cells': list(header)} for header, count in listed_headers.items()], ensure_ascii=False, indent=2))
+          print('=== UNIQUE APPLICANT HEADERS ===')
+          print(json.dumps([{'count': count, 'cells': list(header)} for header, count in applicant_headers.items()], ensure_ascii=False, indent=2))
+          print('=== LISTED SAMPLE ===')
+          print(json.dumps({str(k): listed[k] for k in [1,2,3,2259]}, ensure_ascii=False, indent=2))
+          print('=== APPLICANT SAMPLE ===')
+          print(json.dumps({str(k): applicants[k] for k in [1,2,3,2571]}, ensure_ascii=False, indent=2))
+          print('=== DATE AUDIT ===')
+          print(json.dumps({
+              'listed_col6': date_audit(listed, 6),
+              'listed_col7': date_audit(listed, 7),
+              'applicant_col6': date_audit(applicants, 6),
+          }, ensure_ascii=False, indent=2))
+          print('=== SECTION AUDIT ===')
+          print(json.dumps({
+              'listed_col5': section_audit(listed, 5),
+              'applicant_col5': section_audit(applicants, 5),
+              'listed_col7': section_audit(listed, 7),
+          }, ensure_ascii=False, indent=2))
+          print('=== IDENTIFIER AUDIT ===')
+          print(json.dumps({
+              'listed_col4': identifier_audit(listed, 4),
+              'applicant_col4': identifier_audit(applicants, 4),
+          }, ensure_ascii=False, indent=2))
+          print('=== OUTCOME SUMMARY ===')
           print(json.dumps({
               'listed_records': len(listed),
               'applicant_records': len(applicants),
-              'listed_outcome_nonblank': sum(v for key, v in listed_outcomes.items() if key),
-              'listed_update_prefix': sum(v for key, v in listed_outcomes.items() if key.casefold().startswith('iscrizione in aggiornamento')),
-              'listed_special_rows': len(listed_special),
-              'applicant_nonblank_raw_rows': len(applicant_nonblank),
-              'reviewed_applicant_continuation_rows': sorted(continuation_expectations),
-              'reviewed_company_border_pairs': [[793, 794], [1209, 1210], [1226, 1227]],
-              'midpoint_false_alarm_pair': [402, 403],
+              'listed_nonblank': sum(v for k,v in listed_outcomes.items() if k),
+              'listed_update_prefix': sum(v for k,v in listed_outcomes.items() if k.casefold().startswith('iscrizione in aggiornamento')),
+              'listed_special': listed_special,
+              'applicant_nonblank': applicant_nonblank,
           }, ensure_ascii=False, indent=2))
           PY
