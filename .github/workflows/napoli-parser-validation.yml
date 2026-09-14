@@ -39,7 +39,6 @@ jobs:
           echo '93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_parser_validation/listed-1.pdf' | sha256sum -c -
           echo '053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_parser_validation/applicants-1.pdf' | sha256sum -c -
           python - <<'PY'
-          from collections import Counter
           from pathlib import Path
           from white_list_archive.parsers.napoli_tables import parse_napoli_applicants, parse_napoli_listed
 
@@ -77,6 +76,7 @@ jobs:
               'cancellation_related': 3,
               'other_or_unknown': 29,
           }, listed.diagnostics
+          assert listed.diagnostics['reviewed_noncalendar_expiries'] == 7, listed.diagnostics
           assert applicants.diagnostics['status_counts'] == {
               'pending': 2530,
               'rejected_or_denied': 40,
