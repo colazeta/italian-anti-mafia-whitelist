@@ -48,6 +48,7 @@ on:
       - 'src/white_list_archive/parsers/napoli_tables.py'
       - 'src/white_list_archive/parsers/padova_tables.py'
       - 'src/white_list_archive/parsers/perugia_tables.py'
+      - 'src/white_list_archive/parsers/trento_tables.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -138,17 +139,17 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 40734
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia'}
+          assert reg['meta']['record_count'] == 42198
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary'
           }
-          assert reg['meta']['authority_count'] == 37
-          assert reg['meta']['register_count'] == 38
+          assert reg['meta']['authority_count'] == 38
+          assert reg['meta']['register_count'] == 39
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 37
+          assert pref['meta']['published_count'] == 38
           assert pref['meta']['mapped_count'] == 44
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['published'] and bolzano[0]['series_count'] > 0
@@ -172,6 +173,8 @@ jobs:
           assert len(padova) == 1 and padova[0]['mapped'] and padova[0]['published'] and padova[0]['series_count'] == 2
           perugia = [x for x in pref['prefectures'] if x['authority_key'] == 'perugia']
           assert len(perugia) == 1 and perugia[0]['mapped'] and perugia[0]['published'] and perugia[0]['series_count'] == 2
+          trento = [x for x in pref['prefectures'] if x['authority_key'] == 'trento']
+          assert len(trento) == 1 and trento[0]['mapped'] and trento[0]['published'] and trento[0]['series_count'] == 2
           alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']
           assert len(alessandria) == 1 and alessandria[0]['mapped'] and alessandria[0]['published']
           aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']
