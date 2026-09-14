@@ -14,7 +14,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,154 +52,257 @@ jobs:
           fetch_twice listed "$listed"
           fetch_twice applicants "$applicants"
 
-      - name: Inspect textual structure
-        shell: bash
-        run: |
-          set -euo pipefail
-          for label in listed applicants; do
-            pdftotext -layout "${label}.pdf" "${label}.txt"
-            echo "===== ${label^^} TEXT METRICS ====="
-            echo "LINES=$(wc -l < "${label}.txt" | tr -d ' ')"
-            echo "FORM_FEEDS=$(python - "$label" <<'PY'
-          import pathlib, sys
-          p = pathlib.Path(sys.argv[1] + '.txt').read_text(errors='replace')
-          print(p.count('\f'))
-          PY
-          )"
-            echo "===== ${label^^} FIRST 80 LINES ====="
-            sed -n '1,80p' "${label}.txt"
-            echo "===== ${label^^} LAST 80 LINES ====="
-            tail -n 80 "${label}.txt"
-          done
-
-      - name: Audit pdfplumber table boundaries
+      - name: Exhaustively audit table structure and logical rows
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import re
           from collections import Counter, defaultdict
+          from datetime import datetime
           from pathlib import Path
           import pdfplumber
 
           def clean(value):
               return re.sub(r"\s+", " ", value or "").strip()
 
-          id_re = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
-          date_re = re.compile(r"\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b")
+          def append_fragment(base, fragment):
+              if len(base) != len(fragment):
+                  raise RuntimeError((len(base), len(fragment)))
+              for i, value in enumerate(fragment):
+                  if value:
+                      base[i] = clean(f"{base[i]} {value}")
+              return base
+
+          strict_id = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
+          strict_date = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
           section_re = re.compile(r"\bSezione\s+([IVX]+)\b", re.I)
+          section_token = re.compile(r"\(Sezione\s+([IVX]+)\)", re.I)
 
-          for label in ("listed", "applicants"):
-              physical = 0
-              widths = Counter()
-              table_counts = Counter()
-              header_coords = []
-              valid_id_rows = []
-              dated_no_id = []
-              other_nonempty = []
-              section_first_pages = {}
-              section_rows = Counter()
-              current_section = None
-              outcomes = Counter()
-              groups = defaultdict(list)
-              identifiers = Counter()
+          # ---------------- LISTED ----------------
+          pages_tables = {}
+          raw_rows = []
+          section_first = {}
+          current_section = None
+          with pdfplumber.open(Path('listed.pdf')) as pdf:
+              if len(pdf.pages) != 289:
+                  raise RuntimeError(f'listed page drift: {len(pdf.pages)}')
+              for pno, page in enumerate(pdf.pages, 1):
+                  text = page.extract_text() or ''
+                  match = section_re.search(text)
+                  if match:
+                      sec = match.group(1).upper()
+                      section_first.setdefault(sec, pno)
+                      current_section = sec
+                  tables = page.find_tables()
+                  pages_tables[pno] = len(tables)
+                  for tno, table in enumerate(tables, 1):
+                      for rno, raw in enumerate(table.extract() or [], 1):
+                          cells = tuple(clean(v) for v in (raw or []))
+                          raw_rows.append((pno, tno, rno, current_section, cells))
 
-              with pdfplumber.open(Path(f"{label}.pdf")) as pdf:
-                  for pno, page in enumerate(pdf.pages, 1):
-                      text = page.extract_text() or ""
-                      match = section_re.search(text)
-                      if match:
-                          sec = match.group(1).upper()
-                          if sec not in section_first_pages:
-                              section_first_pages[sec] = pno
-                          current_section = sec
-                      tables = page.find_tables()
-                      table_counts[len(tables)] += 1
-                      for tno, table in enumerate(tables, 1):
-                          for rno, raw in enumerate(table.extract() or [], 1):
-                              physical += 1
-                              cells = tuple(clean(v) for v in (raw or []))
-                              widths[len(cells)] += 1
-                              if not any(cells):
-                                  continue
-                              first = cells[0].lower() if cells else ""
-                              if "ragione" in first and ("social" in first or "sociale" in first):
-                                  header_coords.append((pno, tno, rno))
-                                  continue
-                              identifier = re.sub(r"\s+", "", cells[3]).upper() if len(cells) > 3 else ""
-                              has_id = bool(id_re.fullmatch(identifier))
-                              has_date = bool(date_re.search(" ".join(cells)))
-                              coord = (pno, tno, rno)
-                              if has_id:
-                                  valid_id_rows.append((coord, cells))
-                                  identifiers[identifier] += 1
-                                  if label == "listed" and len(cells) == 7:
-                                      status = cells[6]
-                                      outcomes[status] += 1
-                                      key = (identifier, cells[4], cells[5], status)
-                                      groups[key].append((coord, cells[0], current_section))
-                                      if current_section:
-                                          section_rows[current_section] += 1
-                                  elif label == "applicants" and len(cells) == 7:
-                                      outcomes[cells[6]] += 1
-                              elif has_date:
-                                  dated_no_id.append((coord, cells))
-                              else:
-                                  other_nonempty.append((coord, cells))
+          print('===== TRENTO LISTED FINITE AUDIT =====')
+          print('PAGE_TABLE_COUNTS', dict(Counter(pages_tables.values())))
+          print('ZERO_TABLE_PAGES', [p for p, n in pages_tables.items() if n == 0])
+          print('TWO_TABLE_PAGES', [p for p, n in pages_tables.items() if n == 2])
+          print('SECTION_FIRST_PAGES', section_first)
+          print('PHYSICAL_ROWS', len(raw_rows))
+          print('WIDTH_COUNTS', dict(Counter(len(x[4]) for x in raw_rows)))
 
-              print(f"===== TRN_{label.upper()}_PDFPLUMBER_AUDIT =====")
-              print(f"PHYSICAL_ROWS={physical}")
-              print(f"ROW_WIDTHS={dict(sorted(widths.items()))}")
-              print(f"TABLE_COUNT_BY_PAGE={dict(sorted(table_counts.items()))}")
-              print(f"HEADER_ROWS={len(header_coords)} FIRST={header_coords[:20]} LAST={header_coords[-10:]}")
-              print(f"VALID_ID_ROWS={len(valid_id_rows)}")
-              print(f"UNIQUE_VALID_IDENTIFIERS={len(identifiers)}")
-              print(f"IDENTIFIER_OCCURRENCE_COUNTS={dict(Counter(identifiers.values()))}")
-              print(f"DATED_ROWS_WITHOUT_STRICT_ID={len(dated_no_id)}")
-              for item in dated_no_id[:40]:
-                  print("DATED_NO_ID", item)
-              print(f"OTHER_NONEMPTY_ROWS={len(other_nonempty)}")
-              for item in other_nonempty[:30]:
-                  print("OTHER", item)
-              print(f"OUTCOME_TEXT_COUNTS={dict(outcomes)}")
-              if label == "listed":
-                  print(f"SECTION_FIRST_PAGES={section_first_pages}")
-                  print(f"STRICT_ID_SECTION_ROWS={dict(section_rows)}")
-                  print(f"EXACT_ID_DATE_STATUS_GROUPS={len(groups)}")
-                  print(f"GROUP_OCCURRENCE_COUNTS={dict(Counter(len(v) for v in groups.values()))}")
-                  conflict_ids = defaultdict(set)
-                  for key in groups:
-                      conflict_ids[key[0]].add(key[1:])
-                  conflicts = {k: sorted(v) for k, v in conflict_ids.items() if len(v) > 1}
-                  print(f"IDENTIFIERS_WITH_MULTIPLE_DATE_STATUS_GROUPS={len(conflicts)}")
-                  for key in sorted(conflicts)[:50]:
-                      print("CONFLICT", key, conflicts[key])
-              print("FIRST_VALID_ID_ROWS")
-              for item in valid_id_rows[:5]:
-                  print(item)
-              print("LAST_VALID_ID_ROWS")
-              for item in valid_id_rows[-5:]:
-                  print(item)
-          PY
+          nine = [x for x in raw_rows if len(x[4]) == 9]
+          print('NINE_COLUMN_ROWS', len(nine))
+          for item in nine:
+              print('NINE', item)
 
-      - name: Record page-level text fingerprints
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-          import hashlib
-          for label in ('listed', 'applicants'):
-              text = Path(f'{label}.txt').read_text(errors='replace')
-              pages = text.split('\f')
-              if pages and not pages[-1].strip():
-                  pages.pop()
-              print(f'TRN_{label.upper()}_TEXT_PAGES={len(pages)}')
-              for idx in sorted(set([0, 1, max(0, len(pages)//2), max(0, len(pages)-2), max(0, len(pages)-1)])):
-                  if idx >= len(pages):
+          seven = [x for x in raw_rows if len(x[4]) == 7]
+          blanks = [x for x in seven if not any(x[4])]
+          headers = [x for x in seven if 'ragione' in x[4][0].casefold() and 'social' in x[4][0].casefold()]
+          print('SEVEN_COLUMN_ROWS', len(seven))
+          print('BLANK_ROWS', len(blanks), [(p,t,r) for p,t,r,_,_ in blanks])
+          print('HEADER_ROWS', len(headers), [(p,t,r) for p,t,r,_,_ in headers])
+
+          logical = []
+          continuation_coords = []
+          orphan_fragments = []
+          main_coords = []
+          for pno, tno, rno, section, cells_t in seven:
+              cells = list(cells_t)
+              if not any(cells):
+                  continue
+              if 'ragione' in cells[0].casefold() and 'social' in cells[0].casefold():
+                  continue
+              id_token = re.sub(r'\s+', '', cells[3]).upper()
+              has_strict_id = bool(strict_id.fullmatch(id_token))
+              has_source_dates = bool(strict_date.fullmatch(cells[4]) or strict_date.fullmatch(cells[5]))
+              if has_strict_id or has_source_dates:
+                  logical.append({'coord': (pno,tno,rno), 'section': section, 'cells': cells, 'fragments': []})
+                  main_coords.append((pno,tno,rno))
+              else:
+                  if not logical:
+                      orphan_fragments.append((pno,tno,rno,cells))
                       continue
-                  norm = '\n'.join(line.rstrip() for line in pages[idx].splitlines()).strip()
-                  digest = hashlib.sha256(norm.encode()).hexdigest()
-                  print(f'TRN_{label.upper()}_PAGE_{idx+1}_TEXT_SHA256={digest}')
-                  print(f'TRN_{label.upper()}_PAGE_{idx+1}_NONEMPTY_LINES={sum(bool(x.strip()) for x in pages[idx].splitlines())}')
+                  logical[-1]['cells'] = append_fragment(logical[-1]['cells'], cells)
+                  logical[-1]['fragments'].append((pno,tno,rno,cells))
+                  continuation_coords.append((pno,tno,rno))
+
+          print('LOGICAL_SECTION_ROWS_AFTER_STITCH', len(logical))
+          print('CONTINUATION_ROWS', len(continuation_coords))
+          print('CONTINUATION_COORDS', continuation_coords)
+          print('ORPHAN_FRAGMENTS', orphan_fragments)
+          print('CONTINUATION_ROW_NUMBER_COUNTS', dict(Counter(r for _,_,r in continuation_coords)))
+
+          sec_counts = Counter(row['section'] for row in logical)
+          print('SECTION_LOGICAL_ROW_COUNTS', dict(sec_counts))
+
+          status_counts = Counter()
+          status_unexpected = []
+          date_anomalies = []
+          chronology_inversions = []
+          raw_id_anomalies = []
+          for row in logical:
+              cells = row['cells']
+              raw_status = clean(cells[6]).upper()
+              if raw_status == 'AGGIORNAMENTO IN CORSO':
+                  status = 'renewal_update_in_progress'
+              elif raw_status == '':
+                  status = 'listed'
+              else:
+                  status = 'other_or_unknown'
+                  status_unexpected.append((row['coord'], cells[0], cells[6], row['fragments']))
+              row['status'] = status
+              status_counts[status] += 1
+
+              for idx, label in ((4,'listing'),(5,'expiry')):
+                  if not strict_date.fullmatch(cells[idx]):
+                      date_anomalies.append((row['coord'], label, cells[0], cells[idx], row['fragments']))
+              if strict_date.fullmatch(cells[4]) and strict_date.fullmatch(cells[5]):
+                  a = datetime.strptime(cells[4], '%d.%m.%Y')
+                  b = datetime.strptime(cells[5], '%d.%m.%Y')
+                  if b < a:
+                      chronology_inversions.append((row['coord'], cells[0], cells[4], cells[5], cells[6]))
+
+              raw_id = cells[3]
+              token = re.sub(r'\s+', '', raw_id).upper()
+              if not strict_id.fullmatch(token):
+                  embedded = re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b', raw_id.upper())
+                  raw_id_anomalies.append((row['coord'], cells[0], raw_id, embedded))
+
+          print('SECTION_STATUS_COUNTS', dict(status_counts))
+          print('UNEXPECTED_STATUS_ROWS', status_unexpected)
+          print('DATE_ANOMALIES', len(date_anomalies))
+          for x in date_anomalies:
+              print('DATE_ANOMALY', x)
+          print('CHRONOLOGY_INVERSIONS', len(chronology_inversions))
+          for x in chronology_inversions:
+              print('CHRONOLOGY_INVERSION', x)
+          print('RAW_ID_ANOMALIES', len(raw_id_anomalies))
+          for x in raw_id_anomalies:
+              print('RAW_ID_ANOMALY', x)
+
+          # Conservative source-observation grouping. We first use the full published
+          # identity/address/date/status key. We then compare it with a deliberately
+          # broader identifier+date+status key; equality of counts and zero conflicts
+          # is evidence that the full grouping is not accidentally splitting repeated
+          # section memberships.
+          full_groups = defaultdict(list)
+          broad_groups = defaultdict(list)
+          for row in logical:
+              c = row['cells']
+              raw_id = clean(c[3]).casefold()
+              full_key = (c[0].casefold(), c[1].casefold(), c[2].casefold(), raw_id, c[4], c[5], row['status'])
+              broad_key = (raw_id, c[4], c[5], row['status'])
+              full_groups[full_key].append(row)
+              broad_groups[broad_key].append(row)
+
+          print('FULL_GROUPS', len(full_groups))
+          print('BROAD_GROUPS', len(broad_groups))
+          print('FULL_GROUP_OCCURRENCE_COUNTS', dict(Counter(len(v) for v in full_groups.values())))
+          print('BROAD_GROUP_OCCURRENCE_COUNTS', dict(Counter(len(v) for v in broad_groups.values())))
+          broad_conflicts = []
+          for key, rows in broad_groups.items():
+              identities = {(r['cells'][0].casefold(), r['cells'][1].casefold(), r['cells'][2].casefold()) for r in rows}
+              if len(identities) > 1:
+                  broad_conflicts.append((key, sorted(identities), [(r['coord'], r['section']) for r in rows]))
+          print('BROAD_IDENTITY_CONFLICTS', len(broad_conflicts))
+          for x in broad_conflicts:
+              print('BROAD_CONFLICT', x)
+          grouped_status = Counter(next(iter(rows))['status'] for rows in full_groups.values())
+          print('GROUPED_STATUS_COUNTS', dict(grouped_status))
+
+          # ---------------- APPLICANTS ----------------
+          applicant_rows = []
+          with pdfplumber.open(Path('applicants.pdf')) as pdf:
+              if len(pdf.pages) != 22:
+                  raise RuntimeError(f'applicant page drift: {len(pdf.pages)}')
+              for pno, page in enumerate(pdf.pages, 1):
+                  tables = page.find_tables()
+                  if len(tables) != 1:
+                      raise RuntimeError(f'applicant table count drift p{pno}: {len(tables)}')
+                  for rno, raw in enumerate(tables[0].extract() or [], 1):
+                      cells = tuple(clean(v) for v in (raw or []))
+                      applicant_rows.append((pno,1,rno,cells))
+
+          print('===== TRENTO APPLICANTS FINITE AUDIT =====')
+          print('PHYSICAL_ROWS', len(applicant_rows))
+          print('WIDTH_COUNTS', dict(Counter(len(x[3]) for x in applicant_rows)))
+          app_blanks = [(p,t,r) for p,t,r,c in applicant_rows if not any(c)]
+          app_headers = [(p,t,r) for p,t,r,c in applicant_rows if c and 'ragione' in c[0].casefold() and 'social' in c[0].casefold()]
+          print('BLANK_ROWS', app_blanks)
+          print('HEADER_ROWS', app_headers)
+
+          app_logical = []
+          app_cont = []
+          app_orphans = []
+          for pno,tno,rno,cells_t in applicant_rows:
+              cells = list(cells_t)
+              if not any(cells):
+                  continue
+              if 'ragione' in cells[0].casefold() and 'social' in cells[0].casefold():
+                  continue
+              token = re.sub(r'\s+', '', cells[3]).upper()
+              if strict_id.fullmatch(token):
+                  app_logical.append({'coord':(pno,tno,rno),'cells':cells,'fragments':[]})
+              else:
+                  if not app_logical:
+                      app_orphans.append((pno,tno,rno,cells))
+                      continue
+                  app_logical[-1]['cells'] = append_fragment(app_logical[-1]['cells'], cells)
+                  app_logical[-1]['fragments'].append((pno,tno,rno,cells))
+                  app_cont.append((pno,tno,rno))
+
+          print('LOGICAL_ROWS_AFTER_STITCH', len(app_logical))
+          print('CONTINUATION_ROWS', len(app_cont), app_cont)
+          print('ORPHAN_FRAGMENTS', app_orphans)
+          print('STRICT_IDENTIFIER_COVERAGE', sum(bool(strict_id.fullmatch(re.sub(r'\s+','',r['cells'][3]).upper())) for r in app_logical))
+          print('UNIQUE_IDENTIFIERS', len({re.sub(r'\s+','',r['cells'][3]).upper() for r in app_logical}))
+
+          app_outcomes = Counter()
+          app_date_anomalies = []
+          app_sections = Counter()
+          app_unknown_activity = []
+          for r in app_logical:
+              c = r['cells']
+              app_outcomes[clean(c[6])] += 1
+              if not strict_date.fullmatch(c[5]):
+                  app_date_anomalies.append((r['coord'], c[0], c[5], r['fragments']))
+              tokens = [x.upper() for x in section_token.findall(c[4])]
+              for token in tokens:
+                  app_sections[token] += 1
+              if not tokens:
+                  app_unknown_activity.append((r['coord'], c[0], c[4]))
+
+          print('OUTCOME_COUNTS', dict(app_outcomes))
+          print('APPLICATION_DATE_ANOMALIES', len(app_date_anomalies))
+          for x in app_date_anomalies:
+              print('APP_DATE_ANOMALY', x)
+          print('ACTIVITY_SECTION_TOKEN_COUNTS', dict(app_sections))
+          print('ROWS_WITHOUT_SECTION_TOKEN', len(app_unknown_activity))
+          for x in app_unknown_activity:
+              print('NO_SECTION_TOKEN', x)
+          print('FIRST_LOGICAL_ROWS')
+          for r in app_logical[:3]:
+              print(r['coord'], tuple(r['cells']))
+          print('LAST_LOGICAL_ROWS')
+          for r in app_logical[-3:]:
+              print(r['coord'], tuple(r['cells']))
           PY
