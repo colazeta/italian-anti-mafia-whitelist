@@ -77,11 +77,39 @@ jobs:
               'other_or_unknown': 29,
           }, listed.diagnostics
           assert listed.diagnostics['reviewed_noncalendar_expiries'] == 7, listed.diagnostics
+          assert listed.diagnostics['reviewed_section_exceptions'] == 4, listed.diagnostics
           assert applicants.diagnostics['status_counts'] == {
               'pending': 2530,
               'rejected_or_denied': 40,
               'other_or_unknown': 1,
           }, applicants.diagnostics
+          assert applicants.diagnostics['reviewed_section_exceptions'] == 5, applicants.diagnostics
+
+          listed_by_ordinal = {r['source_row_ordinal']: r for r in listed.records}
+          applicants_by_ordinal = {r['source_row_ordinal']: r for r in applicants.records}
+          expected_listed_sections = {
+              454: ('II-IIII', ['Sezione II']),
+              820: ('RMAVLN69P15I391U', []),
+              915: ('I-VI-VI-X', ['Sezione I', 'Sezione VI', 'Sezione X']),
+              1782: ('I-II-II-IV-V-VI-X', ['Sezione I', 'Sezione II', 'Sezione IV', 'Sezione V', 'Sezione VI', 'Sezione X']),
+          }
+          for ordinal, (raw, retained) in expected_listed_sections.items():
+              record = listed_by_ordinal[ordinal]
+              assert record['source_fields']['sections_source_raw'] == raw, (ordinal, record)
+              assert record['requested_activities'] == retained, (ordinal, record)
+
+          expected_applicant_sections = {
+              398: ('I-III-V-V-X', ['Sezione I', 'Sezione III', 'Sezione V', 'Sezione X']),
+              1099: ('IIII', []),
+              1170: ('I-II-III-V-VX', ['Sezione I', 'Sezione II', 'Sezione III', 'Sezione V']),
+              1520: ('IIII', []),
+              2404: ('IIII', []),
+          }
+          for ordinal, (raw, retained) in expected_applicant_sections.items():
+              record = applicants_by_ordinal[ordinal]
+              assert record['source_fields']['requested_activities_source'] == raw, (ordinal, record)
+              assert record['requested_activities'] == retained, (ordinal, record)
+
           locators = [r['record_locator'] for r in listed.records + applicants.records]
           assert len(locators) == 4830
           assert len(set(locators)) == 4830
