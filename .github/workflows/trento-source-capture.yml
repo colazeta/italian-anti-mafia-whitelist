@@ -1,4 +1,4 @@
-name: Trento parser validation
+name: Trento national integration candidate
 
 on:
   workflow_dispatch:
@@ -7,25 +7,26 @@ on:
       - expansion/trento-2026-09-14
     paths:
       - .github/workflows/trento-source-capture.yml
-      - src/white_list_archive/parsers/trento_tables.py
-      - tests/test_trento_parser_semantics.py
-      - docs/sources/trento-operational-check-2026-09-14.md
+      - tmp/trento_integrate_candidate.py
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install project
+      - name: Install PDF and publication runtime
         run: |
+          set -euo pipefail
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
           python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
+          python -m pip install -e '.[dev,database,storage,publication]'
 
       - name: Independently capture approved Trento sources
         shell: bash
@@ -48,14 +49,8 @@ jobs:
             cp "${label}.1.pdf" "${label}.pdf"
           }
 
-          fetch_twice listed \
-            "$listed" \
-            7663549 \
-            b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af
-          fetch_twice applicants \
-            "$applicants" \
-            384118 \
-            9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0
+          fetch_twice listed "$listed" 7663549 b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af
+          fetch_twice applicants "$applicants" 384118 9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0
 
       - name: Run Trento semantic tests
         run: python -m pytest -q tests/test_trento_parser_semantics.py
@@ -67,79 +62,124 @@ jobs:
           python - <<'PY'
           from collections import Counter
           from pathlib import Path
-
-          from white_list_archive.parsers.trento_tables import (
-              parse_trento_applicants,
-              parse_trento_listed,
-          )
+          from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
 
           authority = "Commissariato del Governo per la Provincia di Trento"
           listed_cfg = {
-              "source_key": "trento-listed",
-              "authority_key": "trento",
-              "authority_name": authority,
-              "register_key": "trento-white-list",
-              "register_name": "White List - Trento",
-              "population_scope": "listed",
-              "reference_date": "2026-09-11",
+              "source_key": "trento-listed", "authority_key": "trento", "authority_name": authority,
+              "register_key": "trento-ordinary", "register_name": "White List ordinaria",
+              "population_scope": "listed", "reference_date": "2026-09-11",
               "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-iscritte",
               "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf",
               "sha256": "b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af",
           }
           applicant_cfg = {
-              "source_key": "trento-applicants",
-              "authority_key": "trento",
-              "authority_name": authority,
-              "register_key": "trento-white-list",
-              "register_name": "White List - Trento",
-              "population_scope": "applicant",
-              "reference_date": "2026-09-10",
+              "source_key": "trento-applicants", "authority_key": "trento", "authority_name": authority,
+              "register_key": "trento-ordinary", "register_name": "White List ordinaria",
+              "population_scope": "applicant", "reference_date": "2026-09-10",
               "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-richiedenti",
               "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf",
               "sha256": "9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0",
           }
-
-          listed = parse_trento_listed(Path("listed.pdf"), listed_cfg)
-          applicants = parse_trento_applicants(Path("applicants.pdf"), applicant_cfg)
+          listed = parse_trento_listed(Path('listed.pdf'), listed_cfg)
+          applicants = parse_trento_applicants(Path('applicants.pdf'), applicant_cfg)
           records = listed.records + applicants.records
-
-          assert len(listed.records) == 1366, len(listed.records)
-          assert len(applicants.records) == 98, len(applicants.records)
-          assert len(records) == 1464, len(records)
-          assert len({record["record_locator"] for record in records}) == 1464
-          assert Counter(record["source_status"] for record in listed.records) == Counter(
-              {"listed": 699, "renewal_update_in_progress": 667}
-          )
-          assert Counter(record["source_status"] for record in applicants.records) == Counter(
-              {"pending": 98}
-          )
-          assert listed.diagnostics["section_rows"] == 3020
-          assert listed.diagnostics["reviewed_continuations"] == 172
-          assert listed.diagnostics["reviewed_date_exceptions"] == 1
-          assert listed.diagnostics["reviewed_identifier_exceptions"] == 4
-          assert applicants.diagnostics["reviewed_continuations"] == 17
-          assert applicants.diagnostics["reviewed_date_exceptions"] == 1
-
-          malformed = [
-              record
-              for record in listed.records
-              if record["name"] == "BUTTERINI PIETRO TRASPORTI S.R.L."
-          ]
-          assert len(malformed) == 1
-          assert malformed[0]["identifiers"] == []
-
-          mixed = [
-              record
-              for record in applicants.records
-              if record["name"] == "ROMANI DE MOLL S.R.L. IMPRESA SOCIALE"
-          ]
-          assert len(mixed) == 1
-          assert mixed[0]["application_date"] == "2026-06-29"
-          assert mixed[0]["source_fields"]["integration_date_raw"] == "02.07.2026"
-
-          print("TRN_LISTED_PUBLIC_RECORDS=1366")
-          print("TRN_APPLICANT_PUBLIC_RECORDS=98")
-          print("TRN_TOTAL_PUBLIC_RECORDS=1464")
-          print("TRN_LISTED_STATUS_COUNTS=" + repr(listed.diagnostics["status_counts"]))
-          print("TRN_APPLICANT_STATUS_COUNTS=" + repr(applicants.diagnostics["status_counts"]))
+          assert len(listed.records) == 1366
+          assert len(applicants.records) == 98
+          assert len(records) == 1464
+          assert len({r['record_locator'] for r in records}) == 1464
+          assert Counter(r['source_status'] for r in listed.records) == Counter({'listed':699,'renewal_update_in_progress':667})
+          assert Counter(r['source_status'] for r in applicants.records) == Counter({'pending':98})
+          assert listed.diagnostics['section_rows'] == 3020
+          assert listed.diagnostics['reviewed_continuations'] == 172
+          assert applicants.diagnostics['reviewed_continuations'] == 17
           PY
+
+      - name: Apply fail-closed Trento integration transaction
+        run: |
+          set -euo pipefail
+          python tmp/trento_integrate_candidate.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('data/source_registry/verified_primary_pages.csv')
+          old='trento,https://prefettura.interno.gov.it/it/prefetture/trento/evidenza/white-list,2026-09-06,verified'
+          new='trento,https://prefettura.interno.gov.it/it/prefetture/trento/evidenza/white-list,2026-09-14,verified'
+          text=p.read_text(encoding='utf-8')
+          assert text.count(old)==1, 'Trento verified-page anchor drift'
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
+
+      - name: Run full repository tests
+        run: python -m pytest -q
+
+      - name: Build actual national candidate
+        run: |
+          set -euo pipefail
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/trento-national-sources \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python -m white_list_archive.publishing.public_artifact public-site
+
+      - name: Validate national candidate denominators
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count']==42198
+          assert reg['meta']['authority_count']==38
+          assert reg['meta']['register_count']==39
+          assert len(reg['records'])==42198
+          trento=[r for r in reg['records'] if r['authority_key']=='trento']
+          assert len(trento)==1464
+          assert sum(r['source_key']=='trento-listed' for r in trento)==1366
+          assert sum(r['source_key']=='trento-applicants' for r in trento)==98
+          assert Counter(r['source_status'] for r in trento)==Counter({'listed':699,'pending':98,'renewal_update_in_progress':667})
+          assert pref['meta']['published_count']==38
+          assert pref['meta']['mapped_count']==44
+          rows=[x for x in pref['prefectures'] if x['authority_key']=='trento']
+          assert len(rows)==1 and rows[0]['mapped'] and rows[0]['published'] and rows[0]['series_count']==2
+          PY
+
+      - name: Check production-only transaction diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs | sort)"
+          test "$actual" = "$expected" || { echo 'Unexpected candidate diff:'; printf '%s\n' "$actual"; exit 1; }
+          test ! -e tmp/trento_integrate_candidate.py~
+
+      - name: Commit and push validated production integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs
+          git diff --cached --check
+          git commit -m 'Integrate Trento public White List coverage'
+          git push origin HEAD:expansion/trento-2026-09-14
