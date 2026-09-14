@@ -1,4 +1,4 @@
-name: Padova PDF structure audit
+name: Padova source anomaly audit
 
 on:
   push:
@@ -17,15 +17,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Install audit runtime
+      - name: Install runtime
         run: python -m pip install 'pdfplumber>=0.11,<0.12'
-
-      - name: Fetch and verify official Padova PDFs
+      - name: Fetch and pin official Padova PDFs
         shell: bash
         run: |
           set -euo pipefail
@@ -37,120 +34,81 @@ jobs:
             cmp "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.b.pdf"
             test "$(wc -c < "tmp/padova-audit/${label}.a.pdf")" -eq "$expected_size"
             printf '%s  %s\n' "$expected_sha" "tmp/padova-audit/${label}.a.pdf" | sha256sum -c -
-            test "$(head -c 4 "tmp/padova-audit/${label}.a.pdf")" = '%PDF'
             mv "tmp/padova-audit/${label}.a.pdf" "tmp/padova-audit/${label}.pdf"
             rm "tmp/padova-audit/${label}.b.pdf"
           }
           fetch_twice listed 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf' 1411878 d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289
           fetch_twice applicants 'https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf' 343755 b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3
-
-      - name: Audit row-level parser boundary
+      - name: Inspect exact anomalies and chronology
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from __future__ import annotations
-          from collections import Counter, defaultdict
+          python - <<'PY' | tee tmp/padova-audit/anomalies.txt
           from datetime import datetime
           from pathlib import Path
-          import hashlib
           import json
-          import re
           import pdfplumber
 
-          ROOT = Path('tmp/padova-audit')
-          EXPECTED = {
-              'listed': {'pages': 105, 'sha': 'd140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289', 'rows': 831},
-              'applicants': {'pages': 17, 'sha': 'b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3', 'rows': 174},
-          }
-          STRICT_ID = re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
-          DATE = re.compile(r'^\d{2}/\d{2}/\d{4}$')
-          PROTOCOL = re.compile(r'^\d+/\d{4}$')
-
+          root = Path('tmp/padova-audit')
           def clean(v): return ' '.join((v or '').split())
-          def strict_ids(raw):
-              out = []
-              for token in [clean(x).replace(' ', '').upper() for x in clean(raw).split('/')]:
-                  if STRICT_ID.fullmatch(token) and token not in out:
-                      out.append(token)
+          def rows_for(pdf):
+              out=[]
+              for pno,page in enumerate(pdf.pages,1):
+                  tables=page.extract_tables() or []
+                  assert len(tables)==1,(pno,len(tables))
+                  for rno,row in enumerate(tables[0] or [],1):
+                      c=[clean(x) for x in row]
+                      if not any(c) or c[0]=='Ragione Sociale': continue
+                      assert len(c)==17,(pno,rno,len(c),c)
+                      out.append((pno,rno,c))
               return out
-          def valid_date(raw):
-              if not DATE.fullmatch(raw): return False
-              try:
-                  datetime.strptime(raw, '%d/%m/%Y'); return True
-              except ValueError: return False
+          def dt(s): return datetime.strptime(s,'%d/%m/%Y').date()
 
-          for scope in ('listed', 'applicants'):
-              cfg = EXPECTED[scope]
-              path = ROOT / f'{scope}.pdf'
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == cfg['sha']
-              rows = []
-              header_variants = Counter()
-              page_data_counts = []
-              with pdfplumber.open(path) as pdf:
-                  assert len(pdf.pages) == cfg['pages'], (scope, len(pdf.pages))
-                  for pno, page in enumerate(pdf.pages, 1):
-                      tables = page.extract_tables() or []
-                      assert len(tables) == 1, (scope, pno, len(tables))
-                      page_rows = []
-                      for rno, row in enumerate(tables[0] or [], 1):
-                          cells = [clean(c) for c in row]
-                          if not any(cells): continue
-                          assert len(cells) == 17, (scope, pno, rno, len(cells), cells)
-                          if cells[0] == 'Ragione Sociale':
-                              header_variants[tuple(cells)] += 1
-                              continue
-                          page_rows.append((pno, rno, cells))
-                      page_data_counts.append(len(page_rows))
-                      rows.extend(page_rows)
-              assert len(rows) == cfg['rows'], (scope, len(rows))
-              assert sum(header_variants.values()) == cfg['pages'], (scope, header_variants)
+          with pdfplumber.open(root/'listed.pdf') as pdf:
+              rows=rows_for(pdf)
+              assert len(rows)==831
+              print('LISTED_TARGETS')
+              for target in (108,479):
+                  for ordinal in range(target-1,target+2):
+                      pno,rno,c=rows[ordinal-1]
+                      print(json.dumps({'ordinal':ordinal,'page':pno,'row':rno,'cells':c},ensure_ascii=False))
+              chrono=[]
+              unusual=[]
+              for ordinal,(pno,rno,c) in enumerate(rows,1):
+                  try: start,end=dt(c[14]),dt(c[15])
+                  except Exception: continue
+                  delta=(end-start).days
+                  if end < start: chrono.append([ordinal,pno,c[0],c[14],c[15],delta,c[16]])
+                  if delta < 300 or delta > 400: unusual.append([ordinal,pno,c[0],c[14],c[15],delta,c[16]])
+              print('LISTED_EXPIRY_BEFORE_LISTING',json.dumps(chrono,ensure_ascii=False))
+              print('LISTED_UNUSUAL_DATE_SPANS_LT300_OR_GT400',json.dumps(unusual,ensure_ascii=False))
+              for page_no in (14,61):
+                  page=pdf.pages[page_no-1]
+                  print(f'LISTED_PAGE_{page_no}_TEXT',json.dumps(page.extract_text() or '',ensure_ascii=False))
+                  page.to_image(resolution=180).save(root/f'listed-page-{page_no}.png')
 
-              missing_name, missing_sections, bad_section_cells = [], [], []
-              bad_primary_dates, bad_secondary_dates, bad_protocols = [], [], []
-              note_counts, identifier_shape, strict_id_coverage = Counter(), Counter(), Counter()
-              duplicate_names, duplicate_identity = defaultdict(list), defaultdict(list)
-              section_combo_counts = Counter()
-
-              for ordinal, (pno, rno, c) in enumerate(rows, 1):
-                  name, office, secondary, ident = c[:4]
-                  sections = []
-                  for idx, value in enumerate(c[4:14], 1):
-                      if value:
-                          if value != str(idx): bad_section_cells.append((ordinal, pno, name, idx, value))
-                          else: sections.append(idx)
-                  if not name: missing_name.append((ordinal, pno, c))
-                  if not sections: missing_sections.append((ordinal, pno, name))
-                  section_combo_counts[tuple(sections)] += 1
-                  note_counts[c[16]] += 1
-                  ids = strict_ids(ident)
-                  strict_id_coverage[len(ids)] += 1
-                  if not ident: identifier_shape['blank'] += 1
-                  elif len(ids) == 1 and clean(ident).replace(' ', '').upper() == ids[0]: identifier_shape['single_strict'] += 1
-                  elif len(ids) >= 1: identifier_shape[f'{len(ids)}_strict_in_composite'] += 1
-                  else: identifier_shape['raw_only'] += 1
-                  duplicate_names[name.casefold()].append((ordinal, pno, ident))
-                  duplicate_identity[(name.casefold(), ident.casefold(), c[14], c[15])].append((ordinal, pno))
-                  if not valid_date(c[14]): bad_primary_dates.append((ordinal, pno, name, c[14]))
-                  if scope == 'listed':
-                      if not valid_date(c[15]): bad_secondary_dates.append((ordinal, pno, name, c[15]))
-                  elif not PROTOCOL.fullmatch(c[15]): bad_protocols.append((ordinal, pno, name, c[15]))
-
-              dup_names = {k:v for k,v in duplicate_names.items() if len(v) > 1}
-              dup_identity = {str(k):v for k,v in duplicate_identity.items() if len(v) > 1}
-              print(f'===== {scope.upper()} ROW AUDIT =====')
-              print('pages', cfg['pages']); print('records', len(rows)); print('page_data_counts', json.dumps(page_data_counts))
-              print('header_variants', len(header_variants)); print('missing_name', json.dumps(missing_name, ensure_ascii=False))
-              print('missing_sections', json.dumps(missing_sections, ensure_ascii=False)); print('bad_section_cells', json.dumps(bad_section_cells, ensure_ascii=False))
-              print('bad_primary_dates', json.dumps(bad_primary_dates, ensure_ascii=False)); print('bad_secondary_dates', json.dumps(bad_secondary_dates, ensure_ascii=False)); print('bad_protocols', json.dumps(bad_protocols, ensure_ascii=False))
-              print('identifier_shape', json.dumps(identifier_shape, ensure_ascii=False, sort_keys=True)); print('strict_id_coverage', json.dumps(strict_id_coverage, ensure_ascii=False, sort_keys=True))
-              print('note_counts', json.dumps(note_counts, ensure_ascii=False, sort_keys=True)); print('nonblank_notes')
-              for ordinal, (pno, rno, c) in enumerate(rows, 1):
-                  if c[16]: print(json.dumps([ordinal, pno, c[0], c[3], c[14], c[15], c[16]], ensure_ascii=False))
-              print('duplicate_name_groups', len(dup_names))
-              for name, entries in list(dup_names.items())[:50]: print('DUP_NAME', json.dumps([name, entries], ensure_ascii=False))
-              print('duplicate_exact_identity_groups', len(dup_identity))
-              for key, entries in list(dup_identity.items())[:50]: print('DUP_IDENTITY', key, json.dumps(entries))
-              print('section_combo_count', len(section_combo_counts)); print('section_combo_top', json.dumps(section_combo_counts.most_common(30)))
-              print('first_row', json.dumps([1, rows[0][0], rows[0][2]], ensure_ascii=False)); print('last_row', json.dumps([len(rows), rows[-1][0], rows[-1][2]], ensure_ascii=False)); print()
+          with pdfplumber.open(root/'applicants.pdf') as pdf:
+              rows=rows_for(pdf)
+              assert len(rows)==174
+              print('APPLICANT_TARGETS')
+              for target in (38,39,113):
+                  for ordinal in range(max(1,target-2),min(len(rows),target+2)+1):
+                      pno,rno,c=rows[ordinal-1]
+                      print(json.dumps({'target':target,'ordinal':ordinal,'page':pno,'row':rno,'cells':c},ensure_ascii=False))
+              for page_no in (5,11):
+                  page=pdf.pages[page_no-1]
+                  print(f'APPLICANT_PAGE_{page_no}_TEXT',json.dumps(page.extract_text() or '',ensure_ascii=False))
+                  words=page.extract_words(x_tolerance=1,y_tolerance=1,keep_blank_chars=False,use_text_flow=False)
+                  print(f'APPLICANT_PAGE_{page_no}_WORDS',json.dumps(words,ensure_ascii=False))
+                  page.to_image(resolution=180).save(root/f'applicants-page-{page_no}.png')
           PY
+      - name: Upload targeted visual evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: padova-source-anomaly-audit
+          path: |
+            tmp/padova-audit/anomalies.txt
+            tmp/padova-audit/listed-page-*.png
+            tmp/padova-audit/applicants-page-*.png
+          if-no-files-found: error
+          retention-days: 3
