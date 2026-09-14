@@ -199,6 +199,26 @@ _LISTED_NONCALENDAR_EXPIRY = {
     2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
 }
 
+# Exact source-bound section anomalies. Invalid source typography is never
+# silently repaired into a different legal section: only positively valid
+# tokens are retained, duplicate valid tokens are de-duplicated, and the
+# original source text remains in source_fields.
+_SECTION_EXCEPTIONS = {
+    "listed": {
+        454: ("CONGLOMERATI S.r.l.", "05027321214", "II-IIII", ("II",)),
+        820: ("ELETTROIMPIANTI DI RAIMO VITALIANO", "RMAVLN69P15I391U", "RMAVLN69P15I391U", ()),
+        915: ("F.LLI MARTINO SNC DI MARTINO PASQUALE & C.", "04986160630", "I-VI-VI-X", ("I", "VI", "X")),
+        1782: ("R.T. ELECTRONIC SYSTEM S.R.L.", "09469461215", "I-II-II-IV-V-VI-X", ("I", "II", "IV", "V", "VI", "X")),
+    },
+    "applicants": {
+        398: ("CECA SRL", "05091870633", "I-III-V-V-X", ("I", "III", "V", "X")),
+        1099: ("FG SERVICE S.R.L.", "09706611218", "IIII", ()),
+        1170: ("G.P. PITTURAZIONI DI PIACENTE GAETANO", "PCNGTN94M27C129P", "I-II-III-V-VX", ("I", "II", "III", "V")),
+        1520: ("L.C.S. ENGINEERING S.R.L.", "07466761215", "IIII", ()),
+        2404: ("TECNOMEDICAL S.R.L.", "03110040635", "IIII", ()),
+    },
+}
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -273,8 +293,28 @@ def _identifier(raw: str) -> tuple[list[str], str]:
     return [], "raw_only"
 
 
-def _sections(raw: str, *, ordinal: int, population: str) -> list[str]:
+def _sections(
+    raw: str,
+    *,
+    ordinal: int,
+    population: str,
+    company: str,
+    identifier_raw: str,
+) -> list[str]:
     value = _clean(raw)
+    reviewed = _SECTION_EXCEPTIONS.get(population, {}).get(ordinal)
+    if reviewed is not None:
+        expected_company, expected_identifier, expected_raw, retained_tokens = reviewed
+        if (
+            _clean(company) != expected_company
+            or _clean(identifier_raw).upper() != expected_identifier
+            or value != expected_raw
+        ):
+            raise RuntimeError(
+                f"Napoli {population} reviewed section exception drift at ordinal {ordinal}: "
+                f"company={_clean(company)!r}; identifier={_clean(identifier_raw)!r}; section={value!r}"
+            )
+        return [f"Sezione {token}" for token in retained_tokens]
     if not value:
         return []
     tokens = [token for token in re.split(r"[-,;/\s]+", value.upper()) if token]
@@ -418,7 +458,13 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise RuntimeError(f"Napoli listed blank company name at ordinal {ordinal}")
         identifiers, identifier_shape = _identifier(identifier_raw)
         identifier_shapes[identifier_shape] += 1
-        sections = _sections(sections_raw, ordinal=ordinal, population="listed")
+        sections = _sections(
+        sections_raw,
+        ordinal=ordinal,
+        population="listed",
+        company=name,
+        identifier_raw=identifier_raw,
+    )
         listing_date = _short_date(listing_raw, ordinal=ordinal, population="listed", field="listing date")
         expiry_date = _listed_expiry(expiry_raw, ordinal=ordinal, company=name)
         blank_listing_dates += int(not listing_raw)
@@ -440,6 +486,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             primary_date_label="Data iscrizione",
             source_fields={
                 "sections": sections,
+                "sections_source_raw": sections_raw,
                 "listing_date_raw_variants": [listing_raw] if listing_raw else [],
                 "expiry_date_raw_variants": [expiry_raw] if expiry_raw else [],
                 "in_aggiornamento": _clean(outcome_raw) if status == "renewal_update_in_progress" else "",
@@ -469,6 +516,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "blank_expiry_dates": blank_expiry_dates,
             "reviewed_special_outcomes": len(_EXPECTED_LISTED_SPECIAL),
             "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),
+            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["listed"]),
         },
     )
 
@@ -497,7 +545,13 @@ def parse_napoli_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise RuntimeError(f"Napoli applicant blank company name at ordinal {ordinal}")
         identifiers, identifier_shape = _identifier(identifier_raw)
         identifier_shapes[identifier_shape] += 1
-        sections = _sections(sections_raw, ordinal=ordinal, population="applicants")
+        sections = _sections(
+        sections_raw,
+        ordinal=ordinal,
+        population="applicants",
+        company=name,
+        identifier_raw=identifier_raw,
+    )
         application_date = _short_date(
             application_raw,
             ordinal=ordinal,
@@ -547,6 +601,7 @@ def parse_napoli_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "blank_application_dates": blank_application_dates,
             "reviewed_outcome_continuations": len(_APPLICANT_OUTCOME_CONTINUATIONS),
             "reviewed_name_boundaries": len(_APPLICANT_NAME_BOUNDARIES),
+            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["applicants"]),
         },
     )
 
