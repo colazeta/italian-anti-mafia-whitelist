@@ -11,7 +11,7 @@ import pdfplumber
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 _REFERENCE_DATE = "2026-09-13"
 _LISTED_SHA256 = "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be"
 _APPLICANT_SHA256 = "053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b"
@@ -186,9 +186,6 @@ _PROTECTED_CLEAN_NAME_ROWS = {
     403: "CEMENTI MOCCIA SPA",
 }
 
-# Seven listed records carry a source-positive non-calendar validity term.
-# Bind ordinal + company + exact cleaned source typography; do not interpret
-# the term as a calendar date or as a blank expiry.
 # One malformed listed registration date is source-positive but not a valid
 # DD/MM/YY value. Preserve the raw typography and do not infer the omitted
 # separator or a normalised date.
@@ -196,6 +193,9 @@ _LISTED_MALFORMED_LISTING_DATE = {
     556: ("DE LISIO COSTRUZIONI SRL", "04518100633", "14/0319"),
 }
 
+# Seven listed records carry a source-positive non-calendar validity term.
+# Bind ordinal + company + exact cleaned source typography; do not interpret
+# the term as a calendar date or as a blank expiry.
 _LISTED_NONCALENDAR_EXPIRY = {
     83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
     155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
@@ -224,6 +224,33 @@ _SECTION_EXCEPTIONS = {
         1520: ("L.C.S. ENGINEERING S.R.L.", "07466761215", "IIII", ()),
         2404: ("TECNOMEDICAL S.R.L.", "03110040635", "IIII", ()),
     },
+}
+
+# On 17 page-bottom rows the PDF table geometry omits the company cell from
+# pdfplumber's table grid (and on the last five rows also further cells), even
+# though the words are visibly present within the same physical row. A separate
+# byte-pinned audit recovered the words using stable page-column bounds. Bind
+# both the exact truncated table extraction and the exact recovered row so that
+# any source or extraction-library drift fails closed rather than being filled
+# heuristically at runtime.
+_LISTED_PAGE_BOTTOM_RECOVERY = {
+    1620: (("1620", "", "Napoli", "", "MRDLCU71A22F839W", "III-V", "19/10/16", "23/05/23", "iscrizione in aggiornamento"), ("1620", "NEW HOUSE COSTRUZIONI DI MURDACA LUCA I.I.", "Napoli", "", "MRDLCU71A22F839W", "III-V", "19/10/16", "23/05/23", "iscrizione in aggiornamento")),
+    1659: (("1659", "", "Qualiano", "", "07427261214", "I-III", "15/07/25", "14/07/26", ""), ("1659", "OPERA IMPIANTI E COSTRUZIONI S.R.L.", "Qualiano", "", "07427261214", "I-III", "15/07/25", "14/07/26", "")),
+    1698: (("1698", "", "Casalnuovo di Napoli", "", "04707610657", "III-V", "25/11/25", "24/11/26", ""), ("1698", "PERDONO DEVELOPMENT S.R.L.", "Casalnuovo di Napoli", "", "04707610657", "III-V", "25/11/25", "24/11/26", "")),
+    1735: (("1735", "", "Pomigliano D'Arco", "", "RRCGST64P20G812T", "I-III-IV-V-VI-X", "22/10/19", "10/09/25", "iscrizione in aggiornamento"), ("1735", "POMILIA COSTRUZIONI DI ERRICHIELLO AUGUSTO IMPRESA INDIVIDUALE", "Pomigliano D'Arco", "", "RRCGST64P20G812T", "I-III-IV-V-VI-X", "22/10/19", "10/09/25", "iscrizione in aggiornamento")),
+    1775: (("1775", "", "Napoli", "", "06651731215", "I", "05/12/16", "14/05/26", "iscrizione in aggiornamento"), ("1775", "R.C.S. SRL", "Napoli", "", "06651731215", "I", "05/12/16", "14/05/26", "iscrizione in aggiornamento")),
+    1816: (("1816", "", "Napoli", "", "00282670637", "VI", "20/12/19", "13/02/23", "iscrizione in aggiornamento"), ("1816", "RICOLFI & C. S.P.A. - CASA DI SPEDIZIONI", "Napoli", "", "00282670637", "VI", "20/12/19", "13/02/23", "iscrizione in aggiornamento")),
+    1854: (("1854", "", "Brusciano", "", "09415551218", "I-II-III-V-VI-X", "24/02/22", "18/03/27", ""), ("1854", "RUSSO GROUP SAS DI RUSSO FERDINANDO E C.", "Brusciano", "", "09415551218", "I-II-III-V-VI-X", "24/02/22", "18/03/27", "")),
+    1890: (("1890", "", "Volla", "", "02768721215", "VI", "15/12/20", "12/09/25", "iscrizione in aggiornamento"), ("1890", "S.I.TRA.S. S.R.L. SOCIETA' ITALIANA TRASPORTI SPECIALI", "Volla", "", "02768721215", "VI", "15/12/20", "12/09/25", "iscrizione in aggiornamento")),
+    1923: (("1923", "", "Somma Vesuviana", "", "04031220652", "III-V", "07/12/16", "22/10/26", ""), ("1923", "SANTACROCE SRL", "Somma Vesuviana", "", "04031220652", "III-V", "07/12/16", "22/10/26", "")),
+    1965: (("1965", "", "Napoli", "", "09452181218", "X", "08/04/22", "07/04/23", "iscrizione in aggiornamento"), ("1965", "SERVIZI TECNICI E AMBIENTALI SRL", "Napoli", "", "09452181218", "X", "08/04/22", "07/04/23", "iscrizione in aggiornamento")),
+    2004: (("2004", "", "Napoli", "", "07758000637", "I-III-V", "05/12/25", "04/12/26", "iscrizione in aggiornamento per modfica assetto societario"), ("2004", "SMARIG S.R.L", "Napoli", "", "07758000637", "I-III-V", "05/12/25", "04/12/26", "iscrizione in aggiornamento per modfica assetto societario")),
+    2036: (("2036", "", "Casoria", "", "10041191213", "III", "18/11/25", "17/11/26", ""), ("2036", "SS COSTRUZIONI S.R.L.", "Casoria", "", "10041191213", "III", "18/11/25", "17/11/26", "")),
+    2074: (("2074", "", "", "", "07789361214", "X", "", "09/09/25", "iscrizione in aggiornamento"), ("2074", "T-CYCLE INDUSTRIES S.R.L.", "Napoli", "", "07789361214", "X", "12/06/23", "09/09/25", "iscrizione in aggiornamento")),
+    2117: (("2117", "", "", "", "PLTGNN95L47E396X", "IX", "", "08/12/26", ""), ("2117", "TERRA MIA DI PILATO GIOVANNA", "Barano d'Ischia", "", "PLTGNN95L47E396X", "IX", "09/12/25", "08/12/26", "")),
+    2157: (("2157", "", "", "", "08282961211", "VI", "", "", "iscrizione in aggiornamento"), ("2157", "TRASPORTI F.C. S.R.L.S.", "Casoria", "", "08282961211", "VI", "08/03/22", "13/11/25", "iscrizione in aggiornamento")),
+    2200: (("2200", "", "", "", "VLLGNN80T20F839S", "VI", "", "", ""), ("2200", "VELTRANS DI VELLUSO GIOVANNI", "Giugliano in Campania", "", "VLLGNN80T20F839S", "VI", "27/10/17", "09/12/26", "")),
+    2239: (("2239", "", "", "", "08491491216", "IV", "", "", "iscrizione in aggiornamento"), ("2239", "WORK IN PROGRESS SRL", "Melito di Napoli", "", "08491491216", "IV", "22/10/19", "16/09/22", "iscrizione in aggiornamento")),
 }
 
 
@@ -287,6 +314,23 @@ def _physical_rows(path: Path, *, pages: int, terminal: int, width: int, populat
             f"Napoli {population} source-ordinal drift: missing={missing[:20]!r}; unexpected={unexpected[:20]!r}"
         )
     return rows
+
+
+def _prepare_listed_rows(rows: dict[int, dict[str, Any]]) -> None:
+    observed = {ordinal for ordinal, row in rows.items() if not row["cells"][1]}
+    expected = set(_LISTED_PAGE_BOTTOM_RECOVERY)
+    if observed != expected:
+        raise RuntimeError(
+            f"Napoli listed page-bottom recovery population drift: observed={sorted(observed)!r}; "
+            f"expected={sorted(expected)!r}"
+        )
+    for ordinal, (truncated, recovered) in _LISTED_PAGE_BOTTOM_RECOVERY.items():
+        current = tuple(rows[ordinal]["cells"])
+        if current != truncated:
+            raise RuntimeError(
+                f"Napoli listed reviewed page-bottom row drift at ordinal {ordinal}: {current!r} != {truncated!r}"
+            )
+        rows[ordinal]["cells"] = list(recovered)
 
 
 def _identifier(raw: str) -> tuple[list[str], str]:
@@ -462,6 +506,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         width=9,
         population="listed",
     )
+    _prepare_listed_rows(rows)
     observed_special = {
         ordinal
         for ordinal, row in rows.items()
@@ -484,12 +529,12 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         identifiers, identifier_shape = _identifier(identifier_raw)
         identifier_shapes[identifier_shape] += 1
         sections = _sections(
-        sections_raw,
-        ordinal=ordinal,
-        population="listed",
-        company=name,
-        identifier_raw=identifier_raw,
-    )
+            sections_raw,
+            ordinal=ordinal,
+            population="listed",
+            company=name,
+            identifier_raw=identifier_raw,
+        )
         listing_date = _listed_listing_date(
             listing_raw,
             ordinal=ordinal,
@@ -548,6 +593,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "reviewed_malformed_listing_dates": len(_LISTED_MALFORMED_LISTING_DATE),
             "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),
             "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["listed"]),
+            "reviewed_page_bottom_rows": len(_LISTED_PAGE_BOTTOM_RECOVERY),
         },
     )
 
@@ -577,12 +623,12 @@ def parse_napoli_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         identifiers, identifier_shape = _identifier(identifier_raw)
         identifier_shapes[identifier_shape] += 1
         sections = _sections(
-        sections_raw,
-        ordinal=ordinal,
-        population="applicants",
-        company=name,
-        identifier_raw=identifier_raw,
-    )
+            sections_raw,
+            ordinal=ordinal,
+            population="applicants",
+            company=name,
+            identifier_raw=identifier_raw,
+        )
         application_date = _short_date(
             application_raw,
             ordinal=ordinal,
