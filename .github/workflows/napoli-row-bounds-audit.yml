@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Verify evidence and bind reviewed Napoli expiry exceptions
+      - name: Audit all Napoli listed section-token anomalies
         shell: bash
         run: |
           set -euo pipefail
@@ -37,12 +37,12 @@ jobs:
           cmp --silent tmp/napoli_row_bounds/listed_a.pdf tmp/napoli_row_bounds/listed_b.pdf
           python - <<'PY'
           from pathlib import Path
+          import json
           import re
           import pdfplumber
 
           source = Path('tmp/napoli_row_bounds/listed_a.pdf')
-          parser = Path('src/white_list_archive/parsers/napoli_tables.py')
-          strict_date = re.compile(r'^\d{2}/\d{2}/\d{2}$')
+          valid = {'I','II','III','IV','V','VI','VII','VIII','IX','X'}
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
@@ -70,95 +70,37 @@ jobs:
                           raise RuntimeError(f'unexpected ordinal p{page_number} r{row_index}: {ordinal}')
                       if ordinal in rows:
                           raise RuntimeError(f'duplicate ordinal: {ordinal}')
-                      rows[ordinal] = (cells[1], cells[7])
+                      rows[ordinal] = {'page': page_number, 'row': row_index, 'cells': cells, 'raw': raw}
 
           if sorted(rows) != list(range(1, 2260)):
               raise RuntimeError('ordinal coverage drift')
 
-          observed = {
-              ordinal: pair
-              for ordinal, pair in rows.items()
-              if pair[1] and not strict_date.fullmatch(pair[1])
-          }
-          expected = {
-              83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              371: ("CIEFFE COSTRUZIONI SRL UNIPERSONALE", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              372: ("CIEFFE LAVORI S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              488: ("COSTRUZIONI GENERALI SUD S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              968: ("FONTANA DI FONTANA FRANCESCO S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-          }
-          if observed != expected:
-              raise RuntimeError(f'non-calendar expiry population drift: {observed!r}')
-
-          text = parser.read_text(encoding='utf-8')
-          if '_LISTED_NONCALENDAR_EXPIRY = {' in text or 'def _listed_expiry(' in text:
-              raise RuntimeError('Napoli non-calendar expiry binding already present; refusing duplicate patch')
-
-          anchor_constants = '''_PROTECTED_CLEAN_NAME_ROWS = {
-              402: "CEM.AR. 86 - SOCIETA' COOPERATIVA DI PRODUZIONE E LAVORO A RESPON SABILITA' LIMITATA",
-              403: "CEMENTI MOCCIA SPA",
-          }
-          '''
-          replacement_constants = anchor_constants + '''
-          # Seven listed records carry a source-positive non-calendar validity term.
-          # Bind ordinal + company + exact cleaned source typography; do not interpret
-          # the term as a calendar date or as a blank expiry.
-          _LISTED_NONCALENDAR_EXPIRY = {
-              83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              371: ("CIEFFE COSTRUZIONI SRL UNIPERSONALE", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              372: ("CIEFFE LAVORI S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              488: ("COSTRUZIONI GENERALI SUD S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              968: ("FONTANA DI FONTANA FRANCESCO S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-          }
-          '''
-          if text.count(anchor_constants) != 1:
-              raise RuntimeError('protected-name constant anchor drift')
-          text = text.replace(anchor_constants, replacement_constants, 1)
-
-          helper_anchor = '\n\ndef _listed_status(ordinal: int, raw: str) -> str:\n'
-          helper = '''
-
-          def _listed_expiry(raw: str, *, ordinal: int, company: str) -> str:
-              value = _clean(raw)
-              reviewed = _LISTED_NONCALENDAR_EXPIRY.get(ordinal)
-              if reviewed is not None:
-                  expected_company, expected_raw = reviewed
-                  if _clean(company) != expected_company or value != expected_raw:
-                      raise RuntimeError(
-                          f"Napoli listed reviewed non-calendar expiry drift at ordinal {ordinal}: "
-                          f"company={_clean(company)!r}; expiry={value!r}"
-                      )
-                  return ""
-              return _short_date(raw, ordinal=ordinal, population="listed", field="expiry date")
-          '''
-          if text.count(helper_anchor) != 1:
-              raise RuntimeError('listed-status helper anchor drift')
-          text = text.replace(helper_anchor, helper + helper_anchor, 1)
-
-          old_call = 'expiry_date = _short_date(expiry_raw, ordinal=ordinal, population="listed", field="expiry date")'
-          new_call = 'expiry_date = _listed_expiry(expiry_raw, ordinal=ordinal, company=name)'
-          if text.count(old_call) != 1:
-              raise RuntimeError('listed expiry call anchor drift')
-          text = text.replace(old_call, new_call, 1)
-
-          diagnostics_anchor = '            "reviewed_special_outcomes": len(_EXPECTED_LISTED_SPECIAL),\n'
-          diagnostics_replacement = diagnostics_anchor + '            "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),\n'
-          if text.count(diagnostics_anchor) != 1:
-              raise RuntimeError('listed diagnostics anchor drift')
-          text = text.replace(diagnostics_anchor, diagnostics_replacement, 1)
-
-          parser.write_text(text, encoding='utf-8')
+          anomalies = []
+          for ordinal, item in rows.items():
+              section_raw = item['cells'][5]
+              if not section_raw:
+                  continue
+              tokens = [token for token in re.split(r'[-,;/\s]+', section_raw.upper()) if token]
+              invalid = [token for token in tokens if token not in valid]
+              duplicate = len(tokens) != len(set(tokens))
+              if invalid or duplicate:
+                  anomalies.append({
+                      'ordinal': ordinal,
+                      'page': item['page'],
+                      'physical_row': item['row'],
+                      'company': item['cells'][1],
+                      'section_raw': (item['raw'] or [''] * 9)[5] or '',
+                      'section_clean': section_raw,
+                      'tokens': tokens,
+                      'invalid_tokens': invalid,
+                      'duplicate_tokens': duplicate,
+                      'full_clean_row': item['cells'],
+                      'previous_company': rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
+                      'next_company': rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < 2259 else '',
+                  })
+          print('=== NAPOLI LISTED SECTION-TOKEN ANOMALY INVENTORY ===')
+          print(json.dumps(anomalies, ensure_ascii=False, indent=2))
+          print(f'SECTION_ANOMALY_COUNT={len(anomalies)}')
+          if not anomalies:
+              raise RuntimeError('validator reported a section anomaly but complete inventory is empty')
           PY
-          python -m py_compile src/white_list_archive/parsers/napoli_tables.py
-          git diff --check
-          git diff -- src/white_list_archive/parsers/napoli_tables.py
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/napoli_tables.py
-          git diff --cached --quiet && { echo 'Expected Napoli parser patch was empty'; exit 1; }
-          git commit -m 'Bind Napoli non-calendar expiry evidence'
-          git push origin HEAD:expansion/napoli-2026-09-13
