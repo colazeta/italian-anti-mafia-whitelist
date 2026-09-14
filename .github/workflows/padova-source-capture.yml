@@ -1,0 +1,73 @@
+name: Padova source capture
+
+on:
+  push:
+    branches:
+      - expansion/padova-2026-09-14
+    paths:
+      - '.github/workflows/padova-source-capture.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/padova-2026-09-14
+          fetch-depth: 0
+
+      - name: Repeat-fetch and pin official Padova PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          listed='https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf'
+          applicants='https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf'
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          fetch_twice() {
+            local url="$1" stem="$2"
+            curl --fail --show-error --silent --location --retry 3 --retry-all-errors "$url" -o "$work/${stem}-a.pdf"
+            sleep 2
+            curl --fail --show-error --silent --location --retry 3 --retry-all-errors "$url" -o "$work/${stem}-b.pdf"
+            cmp "$work/${stem}-a.pdf" "$work/${stem}-b.pdf"
+            test "$(head -c 4 "$work/${stem}-a.pdf")" = '%PDF'
+          }
+
+          fetch_twice "$listed" listed
+          fetch_twice "$applicants" applicants
+
+          listed_sha="$(sha256sum "$work/listed-a.pdf" | awk '{print $1}')"
+          listed_size="$(wc -c < "$work/listed-a.pdf" | tr -d ' ')"
+          applicants_sha="$(sha256sum "$work/applicants-a.pdf" | awk '{print $1}')"
+          applicants_size="$(wc -c < "$work/applicants-a.pdf" | tr -d ' ')"
+          checked_at="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+          note='docs/sources/padova-operational-check-2026-09-14.md'
+          if grep -q '^## Byte-level capture' "$note"; then
+            echo 'Byte-level capture section already exists; refusing to append a second result.' >&2
+            exit 1
+          fi
+
+          cat >> "$note" <<EOF
+
+          ## Byte-level capture
+
+          A GitHub-hosted independent acquisition on ${checked_at} repeat-fetched each official PDF twice. Both pairs were byte-identical and passed a PDF magic-header check.
+
+          - Registered-company PDF: ${listed_size} bytes; SHA-256 \`${listed_sha}\`.
+          - Applicant PDF: ${applicants_size} bytes; SHA-256 \`${applicants_sha}\`.
+
+          These hashes pin the exact bytes reviewed by the expansion workflow. They do not by themselves establish page count, row count, field semantics, or completeness; those remain subject to visual/table-structure inspection and parser validation.
+          EOF
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$note"
+          git diff --cached --check
+          git commit -m 'Pin Padova official source bytes'
+          git push origin HEAD:expansion/padova-2026-09-14
