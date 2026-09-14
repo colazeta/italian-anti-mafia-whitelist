@@ -1101,6 +1101,40 @@
       "last_source_update": "2026-08-17",
       "last_source_update_basis": "official landing page last updated 17 August 2026; attachment itself is undated; current bytes repeat-fetched and byte-pinned 13 September 2026",
       "notes": "Byte-pinned two-page applicant PDF. The fail-closed parser binds exactly ten positively verified identifier/name anchors in source order and yields ten pending observations; blank application dates remain blank and are never inferred."
+    },
+    {
+      "authority_key": "napoli",
+      "authority_name": "Prefettura di Napoli",
+      "register_key": "napoli-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-iscritte",
+      "source_key": "napoli-listed",
+      "parser": "napoli_listed",
+      "population_scope": "listed",
+      "reference_date": "2026-09-13",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf",
+      "sha256": "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be",
+      "expected_source_rows": 2259,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dated official resource repeat-fetched and byte-pinned during parser validation on 14 September 2026",
+      "notes": "Byte-pinned 60-page listed-company PDF. The fail-closed parser yields 2259 observations and preserves reviewed source anomalies without inferential repair; exact row ownership, status semantics and exception populations are documented in docs/sources/napoli-operational-check-2026-09-13.md."
+    },
+    {
+      "authority_key": "napoli",
+      "authority_name": "Prefettura di Napoli",
+      "register_key": "napoli-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-richiedenti",
+      "source_key": "napoli-applicants",
+      "parser": "napoli_applicants",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-13",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf",
+      "sha256": "053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b",
+      "expected_source_rows": 2571,
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "dated official resource repeat-fetched and byte-pinned during parser validation on 14 September 2026",
+      "notes": "Byte-pinned 215-page applicant PDF. The dedicated official publication positively identifies the applicant population; the fail-closed parser yields 2571 observations and resolves only exact reviewed continuation/name-boundary evidence."
     }
   ]
 }
