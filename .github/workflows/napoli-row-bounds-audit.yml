@@ -14,97 +14,104 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit all Napoli listed section-token anomalies
+      - name: Audit all Napoli section-token anomalies
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p tmp/napoli_row_bounds
-          source_url='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
           ua='Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0; +https://github.com/colazeta/italian-anti-mafia-whitelist)'
+          listed_url='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf'
+          applicants_url='https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf'
           for copy in a b; do
-            curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
-              --user-agent "$ua" \
-              -o "tmp/napoli_row_bounds/listed_${copy}.pdf" \
-              "$source_url"
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_row_bounds/listed_${copy}.pdf" "$listed_url"
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors --user-agent "$ua" -o "tmp/napoli_row_bounds/applicants_${copy}.pdf" "$applicants_url"
             test "$(stat -c %s "tmp/napoli_row_bounds/listed_${copy}.pdf")" = "3081398"
+            test "$(stat -c %s "tmp/napoli_row_bounds/applicants_${copy}.pdf")" = "3566448"
             echo "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be  tmp/napoli_row_bounds/listed_${copy}.pdf" | sha256sum -c -
+            echo "053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b  tmp/napoli_row_bounds/applicants_${copy}.pdf" | sha256sum -c -
           done
           cmp --silent tmp/napoli_row_bounds/listed_a.pdf tmp/napoli_row_bounds/listed_b.pdf
+          cmp --silent tmp/napoli_row_bounds/applicants_a.pdf tmp/napoli_row_bounds/applicants_b.pdf
           python - <<'PY'
           from pathlib import Path
           import json
           import re
           import pdfplumber
 
-          source = Path('tmp/napoli_row_bounds/listed_a.pdf')
-          output = Path('tmp/napoli-section-anomalies.json')
           valid = {'I','II','III','IV','V','VI','VII','VIII','IX','X'}
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
 
-          rows = {}
-          with pdfplumber.open(source) as pdf:
-              if len(pdf.pages) != 60:
-                  raise RuntimeError(f'page drift: {len(pdf.pages)} != 60')
-              for page_number, page in enumerate(pdf.pages, start=1):
-                  tables = page.find_tables()
-                  if len(tables) != 1:
-                      raise RuntimeError(f'table-count drift p{page_number}: {len(tables)}')
-                  table = tables[0]
-                  extracted = table.extract() or []
-                  if len(extracted) != len(table.rows):
-                      raise RuntimeError(f'extracted/physical row mismatch p{page_number}')
-                  for row_index, raw in enumerate(extracted, start=1):
-                      if len(raw or []) != 9:
-                          raise RuntimeError(f'width drift p{page_number} r{row_index}: {len(raw or [])}')
-                      cells = [clean(value) for value in (raw or [])]
-                      if not cells[0].isdigit():
-                          continue
-                      ordinal = int(cells[0])
-                      if not 1 <= ordinal <= 2259:
-                          raise RuntimeError(f'unexpected ordinal p{page_number} r{row_index}: {ordinal}')
-                      if ordinal in rows:
-                          raise RuntimeError(f'duplicate ordinal: {ordinal}')
-                      rows[ordinal] = {'page': page_number, 'row': row_index, 'cells': cells, 'raw': raw}
+          def inventory(path, *, pages, terminal, width, population):
+              rows = {}
+              with pdfplumber.open(path) as pdf:
+                  if len(pdf.pages) != pages:
+                      raise RuntimeError(f'{population} page drift: {len(pdf.pages)} != {pages}')
+                  for page_number, page in enumerate(pdf.pages, start=1):
+                      tables = page.find_tables()
+                      if len(tables) != 1:
+                          raise RuntimeError(f'{population} table-count drift p{page_number}: {len(tables)}')
+                      table = tables[0]
+                      extracted = table.extract() or []
+                      if len(extracted) != len(table.rows):
+                          raise RuntimeError(f'{population} extracted/physical row mismatch p{page_number}')
+                      for row_index, raw in enumerate(extracted, start=1):
+                          if len(raw or []) != width:
+                              raise RuntimeError(f'{population} width drift p{page_number} r{row_index}: {len(raw or [])}')
+                          cells = [clean(value) for value in (raw or [])]
+                          if not cells[0].isdigit():
+                              continue
+                          ordinal = int(cells[0])
+                          if not 1 <= ordinal <= terminal:
+                              raise RuntimeError(f'{population} unexpected ordinal p{page_number} r{row_index}: {ordinal}')
+                          if ordinal in rows:
+                              raise RuntimeError(f'{population} duplicate ordinal: {ordinal}')
+                          rows[ordinal] = {'page': page_number, 'row': row_index, 'cells': cells, 'raw': raw}
+              if sorted(rows) != list(range(1, terminal + 1)):
+                  raise RuntimeError(f'{population} ordinal coverage drift')
 
-          if sorted(rows) != list(range(1, 2260)):
-              raise RuntimeError('ordinal coverage drift')
+              anomalies = []
+              for ordinal, item in rows.items():
+                  section_raw = item['cells'][5]
+                  if not section_raw:
+                      continue
+                  tokens = [token for token in re.split(r'[-,;/\s]+', section_raw.upper()) if token]
+                  invalid = [token for token in tokens if token not in valid]
+                  duplicate = len(tokens) != len(set(tokens))
+                  if invalid or duplicate:
+                      anomalies.append({
+                          'ordinal': ordinal,
+                          'page': item['page'],
+                          'physical_row': item['row'],
+                          'company': item['cells'][1],
+                          'identifier_raw': item['cells'][4],
+                          'section_raw': (item['raw'] or [''] * width)[5] or '',
+                          'section_clean': section_raw,
+                          'tokens': tokens,
+                          'invalid_tokens': invalid,
+                          'duplicate_tokens': duplicate,
+                          'full_clean_row': item['cells'],
+                          'previous_company': rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
+                          'next_company': rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < terminal else '',
+                      })
+              return anomalies
 
-          anomalies = []
-          for ordinal, item in rows.items():
-              section_raw = item['cells'][5]
-              if not section_raw:
-                  continue
-              tokens = [token for token in re.split(r'[-,;/\s]+', section_raw.upper()) if token]
-              invalid = [token for token in tokens if token not in valid]
-              duplicate = len(tokens) != len(set(tokens))
-              if invalid or duplicate:
-                  anomalies.append({
-                      'ordinal': ordinal,
-                      'page': item['page'],
-                      'physical_row': item['row'],
-                      'company': item['cells'][1],
-                      'section_raw': (item['raw'] or [''] * 9)[5] or '',
-                      'section_clean': section_raw,
-                      'tokens': tokens,
-                      'invalid_tokens': invalid,
-                      'duplicate_tokens': duplicate,
-                      'full_clean_row': item['cells'],
-                      'previous_company': rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
-                      'next_company': rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < 2259 else '',
-                  })
-          output.write_text(json.dumps(anomalies, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print('=== NAPOLI LISTED SECTION-TOKEN ANOMALY INVENTORY ===')
-          print(json.dumps(anomalies, ensure_ascii=False, indent=2))
-          print(f'SECTION_ANOMALY_COUNT={len(anomalies)}')
-          if not anomalies:
-              raise RuntimeError('validator reported a section anomaly but complete inventory is empty')
+          payload = {
+              'listed': inventory(Path('tmp/napoli_row_bounds/listed_a.pdf'), pages=60, terminal=2259, width=9, population='listed'),
+              'applicants': inventory(Path('tmp/napoli_row_bounds/applicants_a.pdf'), pages=215, terminal=2571, width=8, population='applicants'),
+          }
+          Path('tmp/napoli-section-anomalies.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          print(f"LISTED_SECTION_ANOMALY_COUNT={len(payload['listed'])}")
+          print(f"APPLICANT_SECTION_ANOMALY_COUNT={len(payload['applicants'])}")
+          if not payload['listed']:
+              raise RuntimeError('listed validator reported a section anomaly but complete inventory is empty')
           PY
       - name: Persist bounded audit result
         shell: bash
@@ -114,5 +121,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/napoli-section-anomalies.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Record Napoli section anomaly inventory'
+          git commit -m 'Record complete Napoli section anomaly inventory'
           git push origin HEAD:expansion/napoli-2026-09-13
