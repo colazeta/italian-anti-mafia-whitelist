@@ -186,6 +186,19 @@ _PROTECTED_CLEAN_NAME_ROWS = {
     403: "CEMENTI MOCCIA SPA",
 }
 
+# Seven listed records carry a source-positive non-calendar validity term.
+# Bind ordinal + company + exact cleaned source typography; do not interpret
+# the term as a calendar date or as a blank expiry.
+_LISTED_NONCALENDAR_EXPIRY = {
+    83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    371: ("CIEFFE COSTRUZIONI SRL UNIPERSONALE", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    372: ("CIEFFE LAVORI S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    488: ("COSTRUZIONI GENERALI SUD S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    968: ("FONTANA DI FONTANA FRANCESCO S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+    2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
+}
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -288,6 +301,20 @@ def _short_date(raw: str, *, ordinal: int, population: str, field: str) -> str:
         raise RuntimeError(
             f"Napoli {population} invalid {field} calendar date at ordinal {ordinal}: {value!r}"
         ) from exc
+
+
+def _listed_expiry(raw: str, *, ordinal: int, company: str) -> str:
+    value = _clean(raw)
+    reviewed = _LISTED_NONCALENDAR_EXPIRY.get(ordinal)
+    if reviewed is not None:
+        expected_company, expected_raw = reviewed
+        if _clean(company) != expected_company or value != expected_raw:
+            raise RuntimeError(
+                f"Napoli listed reviewed non-calendar expiry drift at ordinal {ordinal}: "
+                f"company={_clean(company)!r}; expiry={value!r}"
+            )
+        return ""
+    return _short_date(raw, ordinal=ordinal, population="listed", field="expiry date")
 
 
 def _listed_status(ordinal: int, raw: str) -> str:
@@ -393,7 +420,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         identifier_shapes[identifier_shape] += 1
         sections = _sections(sections_raw, ordinal=ordinal, population="listed")
         listing_date = _short_date(listing_raw, ordinal=ordinal, population="listed", field="listing date")
-        expiry_date = _short_date(expiry_raw, ordinal=ordinal, population="listed", field="expiry date")
+        expiry_date = _listed_expiry(expiry_raw, ordinal=ordinal, company=name)
         blank_listing_dates += int(not listing_raw)
         blank_expiry_dates += int(not expiry_raw)
         status = _listed_status(ordinal, outcome_raw)
@@ -441,6 +468,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "blank_listing_dates": blank_listing_dates,
             "blank_expiry_dates": blank_expiry_dates,
             "reviewed_special_outcomes": len(_EXPECTED_LISTED_SPECIAL),
+            "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),
         },
     )
 
