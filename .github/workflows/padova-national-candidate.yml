@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install project
-        run: python -m pip install -e '.[dev,publication]'
+        run: python -m pip install -e '.[dev,database,storage,publication]'
       - name: Apply fail-closed Padova integration transaction
         run: |
           sed -i 's/payload.get("authorities", \[\])/payload.get("prefectures", [])/g' tmp/padova_integrate_candidate.py
