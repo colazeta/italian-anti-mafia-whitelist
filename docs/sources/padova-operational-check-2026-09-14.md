@@ -48,3 +48,12 @@ A second independent byte-level acquisition of the two PDF attachments was not c
 - no inference is made from any unavailable or uninspected content.
 
 The next expansion step is to acquire each attachment repeatably, establish byte identity/content hashes, then perform visual/table-structure inspection before implementing a fail-closed parser for the listed and applicant series.
+
+## Byte-level capture
+
+A GitHub-hosted independent acquisition on 2026-09-14 12:03:26 UTC repeat-fetched each official PDF twice. Both pairs were byte-identical and passed a PDF magic-header check.
+
+- Registered-company PDF: 1411878 bytes; SHA-256 `d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289`.
+- Applicant PDF: 343755 bytes; SHA-256 `b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3`.
+
+These hashes pin the exact bytes reviewed by the expansion workflow. They do not by themselves establish page count, row count, field semantics, or completeness; those remain subject to visual/table-structure inspection and parser validation.
