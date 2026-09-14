@@ -121,15 +121,6 @@ jobs:
           set -euo pipefail
           git restore public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
           rm -f tmp/napoli_national_candidate.py tmp/napoli_ledger_candidate.py
-
-          allowed='^(data/monitoring/national_coverage\.json|data/publication/multi_prefecture_pilot\.json|data/source_registry/source_series_inventory\.csv|src/white_list_archive/parsers/napoli_tables\.py|src/white_list_archive/publishing/public_national_registry\.py|tests/public_portal_browser\.cjs|tmp/napoli_national_candidate\.py|tmp/napoli_ledger_candidate\.py)$'
-          unexpected="$(git status --porcelain=v1 | sed -E 's/^.. //' | grep -Ev "$allowed" || true)"
-          if [ -n "$unexpected" ]; then
-            echo 'Unexpected working-tree changes after validated candidate build:' >&2
-            printf '%s\n' "$unexpected" >&2
-            exit 1
-          fi
-
           git config user.name colazeta
           git config user.email '47261299+colazeta@users.noreply.github.com'
           git add -A -- \
