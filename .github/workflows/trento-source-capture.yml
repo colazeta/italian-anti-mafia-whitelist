@@ -1,4 +1,4 @@
-name: Trento source capture
+name: Trento parser validation
 
 on:
   workflow_dispatch:
@@ -7,32 +7,35 @@ on:
       - expansion/trento-2026-09-14
     paths:
       - .github/workflows/trento-source-capture.yml
+      - src/white_list_archive/parsers/trento_tables.py
+      - tests/test_trento_parser_semantics.py
+      - docs/sources/trento-operational-check-2026-09-14.md
 
 permissions:
   contents: read
 
 jobs:
-  capture:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PDF inspection runtime
+      - name: Install project
         run: |
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils
-          python -m pip install --disable-pip-version-check pdfplumber
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
 
-      - name: Independently capture official Trento sources
+      - name: Independently capture approved Trento sources
         shell: bash
         run: |
           set -euo pipefail
           listed='https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf'
           applicants='https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf'
+
           fetch_twice() {
-            local label="$1" url="$2"
+            local label="$1" url="$2" expected_bytes="$3" expected_sha="$4"
             for n in 1 2; do
               curl --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 180 \
                 --user-agent 'italian-anti-mafia-whitelist/official-source-verification' \
@@ -40,204 +43,103 @@ jobs:
             done
             cmp "${label}.1.pdf" "${label}.2.pdf"
             test "$(head -c 5 "${label}.1.pdf")" = '%PDF-'
+            test "$(wc -c < "${label}.1.pdf" | tr -d ' ')" = "$expected_bytes"
+            test "$(sha256sum "${label}.1.pdf" | awk '{print $1}')" = "$expected_sha"
             cp "${label}.1.pdf" "${label}.pdf"
-            echo "TRN_${label^^}_BYTES=$(wc -c < "${label}.pdf" | tr -d ' ')"
-            echo "TRN_${label^^}_SHA256=$(sha256sum "${label}.pdf" | awk '{print $1}')"
-            echo "TRN_${label^^}_PAGES=$(pdfinfo "${label}.pdf" | awk '/^Pages:/ {print $2}')"
           }
-          fetch_twice listed "$listed"
-          fetch_twice applicants "$applicants"
 
-      - name: Freeze normalised listed and applicant boundaries
+          fetch_twice listed \
+            "$listed" \
+            7663549 \
+            b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af
+          fetch_twice applicants \
+            "$applicants" \
+            384118 \
+            9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0
+
+      - name: Run Trento semantic tests
+        run: python -m pytest -q tests/test_trento_parser_semantics.py
+
+      - name: Validate complete Trento parser output
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import re
-          from collections import Counter, defaultdict
-          from datetime import datetime
+          from collections import Counter
           from pathlib import Path
-          import pdfplumber
 
-          def clean(v):
-              return re.sub(r"\s+", " ", v or "").strip()
+          from white_list_archive.parsers.trento_tables import (
+              parse_trento_applicants,
+              parse_trento_listed,
+          )
 
-          def stitch(base, fragment):
-              for i, value in enumerate(fragment):
-                  if value:
-                      base[i] = clean(f"{base[i]} {value}")
-              return base
-
-          STRICT_ID = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
-          STRICT_DATE = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
-          SECTION_TOKEN = re.compile(r"\(Sezione\s+([IVX]+)\)", re.I)
-          STARTS = {
-              (1,1): 'I', (50,1): 'II', (69,2): 'III', (116,2): 'IV',
-              (147,2): 'V', (213,1): 'VI', (244,2): 'VII', (246,2): 'VIII',
-              (248,2): 'IX', (261,2): 'X',
+          authority = "Commissariato del Governo per la Provincia di Trento"
+          listed_cfg = {
+              "source_key": "trento-listed",
+              "authority_key": "trento",
+              "authority_name": authority,
+              "register_key": "trento-white-list",
+              "register_name": "White List - Trento",
+              "population_scope": "listed",
+              "reference_date": "2026-09-11",
+              "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-iscritte",
+              "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf",
+              "sha256": "b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af",
+          }
+          applicant_cfg = {
+              "source_key": "trento-applicants",
+              "authority_key": "trento",
+              "authority_name": authority,
+              "register_key": "trento-white-list",
+              "register_name": "White List - Trento",
+              "population_scope": "applicant",
+              "reference_date": "2026-09-10",
+              "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-richiedenti",
+              "resource_url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf",
+              "sha256": "9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0",
           }
 
-          def normalise_listed(raw, coord):
-              cells = [clean(x) for x in (raw or [])]
-              if len(cells) == 7:
-                  return cells
-              if len(cells) != 9:
-                  raise RuntimeError(f'unreviewed listed width {len(cells)} at {coord}')
-              if cells[6]:
-                  raise RuntimeError(f'unreviewed listed split-date slot at {coord}: {cells!r}')
-              date_parts = [x for x in cells[4:7] if x]
-              if len(date_parts) > 1:
-                  raise RuntimeError(f'ambiguous listed registration split at {coord}: {cells!r}')
-              return [cells[0], cells[1], cells[2], cells[3], date_parts[0] if date_parts else '', cells[7], cells[8]]
+          listed = parse_trento_listed(Path("listed.pdf"), listed_cfg)
+          applicants = parse_trento_applicants(Path("applicants.pdf"), applicant_cfg)
+          records = listed.records + applicants.records
 
-          # Listed: exact table geometry + table-aware section boundaries.
-          physical = 0
-          width_counts = Counter()
-          table_counts = Counter()
-          blanks = set()
-          headers = set()
-          continuations = set()
-          rows = []
-          current_section = ''
-          with pdfplumber.open(Path('listed.pdf')) as pdf:
-              assert len(pdf.pages) == 289
-              for pno, page in enumerate(pdf.pages, 1):
-                  tables = page.find_tables()
-                  table_counts[len(tables)] += 1
-                  expected = 0 if pno == 289 else (2 if pno in {69,116,147,244,246,248,261} else 1)
-                  if len(tables) != expected:
-                      raise RuntimeError(f'listed table-count drift p{pno}: {len(tables)} != {expected}')
-                  for tno, table in enumerate(tables, 1):
-                      if (pno,tno) in STARTS:
-                          current_section = STARTS[(pno,tno)]
-                      if not current_section:
-                          raise RuntimeError(f'row before first section p{pno} t{tno}')
-                      for rno, raw in enumerate(table.extract() or [], 1):
-                          physical += 1
-                          width_counts[len(raw or [])] += 1
-                          coord = (pno,tno,rno)
-                          c = normalise_listed(raw, coord)
-                          if not any(c):
-                              blanks.add(coord); continue
-                          if 'ragione' in c[0].casefold() and 'social' in c[0].casefold():
-                              headers.add(coord); continue
-                          token = re.sub(r'\s+', '', c[3]).upper()
-                          main = bool(STRICT_ID.fullmatch(token) or STRICT_DATE.fullmatch(c[4]) or STRICT_DATE.fullmatch(c[5]))
-                          if main:
-                              rows.append({'coord':coord,'section':current_section,'cells':c,'fragments':[]})
-                          else:
-                              if not rows:
-                                  raise RuntimeError(f'orphan listed continuation {coord}: {c!r}')
-                              rows[-1]['cells'] = stitch(rows[-1]['cells'], c)
-                              rows[-1]['fragments'].append((coord, tuple(c)))
-                              continuations.add(coord)
+          assert len(listed.records) == 1366, len(listed.records)
+          assert len(applicants.records) == 98, len(applicants.records)
+          assert len(records) == 1464, len(records)
+          assert len({record["record_locator"] for record in records}) == 1464
+          assert Counter(record["source_status"] for record in listed.records) == Counter(
+              {"listed": 699, "renewal_update_in_progress": 667}
+          )
+          assert Counter(record["source_status"] for record in applicants.records) == Counter(
+              {"pending": 98}
+          )
+          assert listed.diagnostics["section_rows"] == 3020
+          assert listed.diagnostics["reviewed_continuations"] == 172
+          assert listed.diagnostics["reviewed_date_exceptions"] == 1
+          assert listed.diagnostics["reviewed_identifier_exceptions"] == 4
+          assert applicants.diagnostics["reviewed_continuations"] == 17
+          assert applicants.diagnostics["reviewed_date_exceptions"] == 1
 
-          print('LISTED_PHYSICAL_ROWS', physical)
-          print('LISTED_RAW_WIDTHS', dict(width_counts))
-          print('LISTED_TABLE_COUNTS', dict(table_counts))
-          print('LISTED_BLANKS', len(blanks), sorted(blanks))
-          print('LISTED_HEADERS', len(headers), sorted(headers))
-          print('LISTED_CONTINUATIONS', len(continuations), sorted(continuations))
-          print('LISTED_LOGICAL_SECTION_ROWS', len(rows))
-          section_counts = Counter(r['section'] for r in rows)
-          print('LISTED_SECTION_COUNTS', dict(section_counts))
+          malformed = [
+              record
+              for record in listed.records
+              if record["name"] == "BUTTERINI PIETRO TRASPORTI S.R.L."
+          ]
+          assert len(malformed) == 1
+          assert malformed[0]["identifiers"] == []
 
-          status_counts = Counter()
-          unexpected_status = {}
-          date_exceptions = {}
-          inversions = {}
-          id_exceptions = {}
-          for r in rows:
-              c = r['cells']; coord = r['coord']
-              status_raw = clean(c[6]).upper()
-              if status_raw == 'AGGIORNAMENTO IN CORSO':
-                  status = 'renewal_update_in_progress'
-              elif not status_raw:
-                  status = 'listed'
-              else:
-                  status = 'other_or_unknown'; unexpected_status[coord] = (c[0], c[6], r['fragments'])
-              r['status'] = status
-              status_counts[status] += 1
-              bad = []
-              for idx, label in ((4,'listing'),(5,'expiry')):
-                  if not STRICT_DATE.fullmatch(c[idx]):
-                      bad.append((label,c[idx]))
-              if bad:
-                  date_exceptions[coord] = (c[0], tuple(bad))
-              if STRICT_DATE.fullmatch(c[4]) and STRICT_DATE.fullmatch(c[5]):
-                  if datetime.strptime(c[5],'%d.%m.%Y') < datetime.strptime(c[4],'%d.%m.%Y'):
-                      inversions[coord] = (c[0],c[4],c[5],c[6])
-              token = re.sub(r'\s+','',c[3]).upper()
-              if not STRICT_ID.fullmatch(token):
-                  embedded = re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b', c[3].upper())
-                  id_exceptions[coord] = (c[0],c[3],tuple(embedded))
+          mixed = [
+              record
+              for record in applicants.records
+              if record["name"] == "ROMANI DE MOLL S.R.L. IMPRESA SOCIALE"
+          ]
+          assert len(mixed) == 1
+          assert mixed[0]["application_date"] == "2026-06-29"
+          assert mixed[0]["source_fields"]["integration_date_raw"] == "02.07.2026"
 
-          print('LISTED_SECTION_STATUS_COUNTS', dict(status_counts))
-          print('LISTED_UNEXPECTED_STATUS', unexpected_status)
-          print('LISTED_DATE_EXCEPTIONS', date_exceptions)
-          print('LISTED_INVERSIONS', inversions)
-          print('LISTED_ID_EXCEPTIONS', id_exceptions)
-
-          # Stable identifier/date/status grouping mirrors the existing Perugia approach.
-          groups = defaultdict(lambda: {'rows':[], 'names':set(), 'offices':set(), 'secondary':set(), 'sections':[]})
-          for r in rows:
-              c = r['cells']
-              token = re.sub(r'\s+','',c[3]).upper()
-              identity = token if STRICT_ID.fullmatch(token) else f"NAME:{clean(c[0]).casefold()}"
-              key = (identity,c[4],c[5],r['status'])
-              g = groups[key]
-              g['rows'].append(r['coord']); g['names'].add(c[0]); g['offices'].add(c[1]); g['secondary'].add(c[2])
-              if r['section'] not in g['sections']: g['sections'].append(r['section'])
-          print('LISTED_PUBLIC_GROUPS', len(groups))
-          print('LISTED_GROUP_OCCURRENCE_COUNTS', dict(Counter(len(g['rows']) for g in groups.values())))
-          grouped_status = Counter(key[3] for key in groups)
-          print('LISTED_PUBLIC_STATUS_COUNTS', dict(grouped_status))
-          multi_identity_text = [(key,g) for key,g in groups.items() if len(g['names'])>1 or len(g['offices'])>1 or len(g['secondary'])>1]
-          print('LISTED_GROUPS_WITH_SOURCE_TEXT_VARIATION', len(multi_identity_text))
-          for key,g in multi_identity_text:
-              print('LISTED_TEXT_VARIATION', key, sorted(g['names']), sorted(g['offices']), sorted(g['secondary']), g['rows'], g['sections'])
-
-          # Applicants: every page has one 7-column table; first-row fragments continue the preceding entity.
-          physical_a=0; blanks_a=set(); headers_a=set(); cont_a=set(); app=[]
-          with pdfplumber.open(Path('applicants.pdf')) as pdf:
-              assert len(pdf.pages)==22
-              for pno,page in enumerate(pdf.pages,1):
-                  tables=page.find_tables()
-                  if len(tables)!=1: raise RuntimeError(f'app table drift p{pno}: {len(tables)}')
-                  for rno,raw in enumerate(tables[0].extract() or [],1):
-                      physical_a+=1; coord=(pno,1,rno); c=[clean(x) for x in (raw or [])]
-                      if len(c)!=7: raise RuntimeError(f'app width drift {coord}: {len(c)}')
-                      if not any(c): blanks_a.add(coord); continue
-                      if 'ragione' in c[0].casefold() and 'social' in c[0].casefold(): headers_a.add(coord); continue
-                      token=re.sub(r'\s+','',c[3]).upper()
-                      if STRICT_ID.fullmatch(token):
-                          app.append({'coord':coord,'cells':c,'fragments':[]})
-                      else:
-                          if not app: raise RuntimeError(f'orphan app continuation {coord}')
-                          app[-1]['cells']=stitch(app[-1]['cells'],c); app[-1]['fragments'].append((coord,tuple(c))); cont_a.add(coord)
-          print('APP_PHYSICAL_ROWS',physical_a)
-          print('APP_BLANKS',sorted(blanks_a)); print('APP_HEADERS',sorted(headers_a)); print('APP_CONTINUATIONS',len(cont_a),sorted(cont_a))
-          print('APP_LOGICAL_ROWS',len(app))
-          identifiers=[re.sub(r'\s+','',r['cells'][3]).upper() for r in app]
-          print('APP_IDENTIFIER_COVERAGE',sum(bool(STRICT_ID.fullmatch(x)) for x in identifiers),'UNIQUE',len(set(identifiers)))
-          outcome=Counter(clean(r['cells'][6]) for r in app)
-          print('APP_OUTCOMES',dict(outcome))
-          date_exc={r['coord']:(r['cells'][0],r['cells'][5]) for r in app if not STRICT_DATE.fullmatch(r['cells'][5])}
-          print('APP_DATE_EXCEPTIONS',date_exc)
-          section_counts_a=Counter()
-          no_section={}
-          for r in app:
-              tokens=[x.upper() for x in SECTION_TOKEN.findall(r['cells'][4])]
-              if not tokens: no_section[r['coord']] = (r['cells'][0],r['cells'][4])
-              section_counts_a.update(tokens)
-          print('APP_ACTIVITY_SECTION_COUNTS',dict(section_counts_a))
-          print('APP_ROWS_WITHOUT_SECTION',no_section)
-
-          # Hard fail if the finite evidence no longer supports the boundaries just established.
-          if physical != 3208 or len(rows) != 3020 or len(headers) != 10 or len(blanks) != 6 or len(continuations) != 172:
-              raise RuntimeError('listed finite-boundary mismatch')
-          if unexpected_status:
-              raise RuntimeError(f'unresolved listed status fragments: {unexpected_status!r}')
-          if physical_a != 117 or len(app) != 98 or len(cont_a) != 17 or outcome != Counter({'':98}):
-              raise RuntimeError('applicant finite-boundary mismatch')
+          print("TRN_LISTED_PUBLIC_RECORDS=1366")
+          print("TRN_APPLICANT_PUBLIC_RECORDS=98")
+          print("TRN_TOTAL_PUBLIC_RECORDS=1464")
+          print("TRN_LISTED_STATUS_COUNTS=" + repr(listed.diagnostics["status_counts"]))
+          print("TRN_APPLICANT_STATUS_COUNTS=" + repr(applicants.diagnostics["status_counts"]))
           PY
