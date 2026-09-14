@@ -6,6 +6,8 @@ on:
       - expansion/lodi-2026-09-15
     paths:
       - '.github/workflows/lodi-source-validation.yml'
+      - 'src/white_list_archive/parsers/lodi_sheets.py'
+      - 'tests/test_lodi_parser_semantics.py'
   workflow_dispatch:
 
 permissions:
@@ -19,6 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install project test runtime
+        run: python -m pip install -e .[dev]
       - name: Fetch two independent copies of each published Google Sheet export
         shell: bash
         run: |
@@ -142,6 +146,55 @@ jobs:
           Path('tmp/lodi-source-diagnostic.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False)+'\n', encoding='utf-8')
           print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
+      - name: Run frozen Lodi semantic unit tests
+        run: pytest -q tests/test_lodi_parser_semantics.py
+      - name: Parse complete listed and applicant populations fail-closed
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.parsers.lodi_sheets import parse_lodi_applicants, parse_lodi_listed
+
+          page='https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list'
+          base={
+              'authority_key':'lodi',
+              'authority_name':'Prefettura di Lodi',
+              'register_key':'lodi-ordinary',
+              'register_name':'White List ordinaria',
+              'reference_date':'2026-09-15',
+              'source_page_url':page,
+          }
+          listed_cfg={
+              **base,
+              'source_key':'lodi-listed',
+              'population_scope':'listed',
+              'resource_url':'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv',
+              'sha256':'ad64ab8669084bc31b80938a384b41849be4db28b448e9b2c0ce199f6af1d6ec',
+          }
+          applicant_cfg={
+              **base,
+              'source_key':'lodi-applicants',
+              'population_scope':'applicant',
+              'resource_url':'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv',
+              'sha256':'55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228',
+          }
+          listed=parse_lodi_listed(Path('artifacts/lodi-source/listed-1.csv'), listed_cfg)
+          applicants=parse_lodi_applicants(Path('artifacts/lodi-source/applicants-1.csv'), applicant_cfg)
+          records=listed.records+applicants.records
+          if len(listed.records) != 169 or len(applicants.records) != 4 or len(records) != 173:
+              raise SystemExit(f'Lodi denominator drift: {len(listed.records)} + {len(applicants.records)}')
+          locators=[record['record_locator'] for record in records]
+          if len(set(locators)) != 173:
+              raise SystemExit('Lodi record-locator uniqueness drift')
+          status=Counter(record['source_status'] for record in records)
+          expected=Counter({'listed':146,'renewal_update_in_progress':23,'rejected_or_denied':2,'pending':2})
+          if status != expected:
+              raise SystemExit(f'Lodi status drift: {dict(status)!r}')
+          denied=[record for record in applicants.records if record['source_status']=='rejected_or_denied']
+          if [record['decision_date'] for record in denied] != ['2021-06-17','2022-11-17']:
+              raise SystemExit(f'Lodi denial decision-date drift: {[record["decision_date"] for record in denied]!r}')
+          print({'listed': len(listed.records), 'applicants': len(applicants.records), 'statuses': dict(status)})
+          PY
       - name: Persist temporary diagnostic checkpoint
         run: |
           set -euo pipefail
@@ -149,8 +202,12 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/lodi-source-diagnostic.json
           git diff --cached --check
-          git commit -m 'Checkpoint Lodi source diagnostics'
-          git push origin HEAD:expansion/lodi-2026-09-15
+          if git diff --cached --quiet; then
+            echo 'Diagnostic unchanged; no checkpoint commit required.'
+          else
+            git commit -m 'Checkpoint Lodi source diagnostics'
+            git push origin HEAD:expansion/lodi-2026-09-15
+          fi
       - name: Upload reviewed source exports
         uses: actions/upload-artifact@v4
         with:
