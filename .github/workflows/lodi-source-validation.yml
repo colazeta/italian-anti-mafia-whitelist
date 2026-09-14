@@ -195,19 +195,30 @@ jobs:
               raise SystemExit(f'Lodi denial decision-date drift: {[record["decision_date"] for record in denied]!r}')
           print({'listed': len(listed.records), 'applicants': len(applicants.records), 'statuses': dict(status)})
           PY
-      - name: Persist temporary diagnostic checkpoint
+      - name: Capture full repository pytest result
+        shell: bash
+        run: |
+          set +e
+          pytest -q > tmp/lodi-pytest.log 2>&1
+          rc=$?
+          echo "$rc" > tmp/lodi-pytest.rc
+          cat tmp/lodi-pytest.log
+          exit 0
+      - name: Persist temporary diagnostics
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/lodi-source-diagnostic.json
+          git add tmp/lodi-source-diagnostic.json tmp/lodi-pytest.log tmp/lodi-pytest.rc
           git diff --cached --check
           if git diff --cached --quiet; then
-            echo 'Diagnostic unchanged; no checkpoint commit required.'
+            echo 'Diagnostics unchanged; no checkpoint commit required.'
           else
-            git commit -m 'Checkpoint Lodi source diagnostics'
+            git commit -m 'Checkpoint Lodi test diagnostics'
             git push origin HEAD:expansion/lodi-2026-09-15
           fi
+      - name: Enforce full repository pytest success
+        run: test "$(cat tmp/lodi-pytest.rc)" = 0
       - name: Upload reviewed source exports
         uses: actions/upload-artifact@v4
         with:
