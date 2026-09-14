@@ -42,6 +42,7 @@ jobs:
           sed -i 's/payload.get("authorities", \[\])/payload.get("prefectures", [])/g' tmp/padova_integrate_candidate.py
           sed -i 's/Exact identity, status semantics and reviewed source anomalies/Exact identity plus status semantics and reviewed source anomalies/g' tmp/padova_integrate_candidate.py
           python tmp/padova_integrate_candidate.py
+          git checkout -- tmp/padova_integrate_candidate.py
       - name: Run repository and Padova semantic tests
         run: pytest -q
       - name: Build actual national candidate
