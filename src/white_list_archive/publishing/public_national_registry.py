@@ -49,6 +49,7 @@ from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, pa
 from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined
 from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed
 from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed
+from white_list_archive.parsers.napoli_tables import PARSERS as NAPOLI_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -407,6 +408,54 @@ def _adapt_gorizia_public_fields(batch: ParsedBatch, parser_name: str) -> Parsed
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+def _adapt_napoli_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Napoli evidence onto the recursively closed public contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Napoli source_fields must be a mapping")
+        if parser_name == "napoli_listed":
+            expected = {
+                "sections", "sections_source_raw", "listing_date_raw_variants",
+                "expiry_date_raw_variants", "in_aggiornamento", "source_page",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Napoli listed source-field drift: {sorted(fields)!r}")
+            for key in ("sections", "listing_date_raw_variants", "expiry_date_raw_variants"):
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Napoli listed source-field type drift: {key}")
+            if not isinstance(fields["sections_source_raw"], str) or not isinstance(fields["in_aggiornamento"], str):
+                raise RuntimeError("Napoli listed source-field scalar drift")
+            if type(fields["source_page"]) is not int:
+                raise RuntimeError("Napoli listed source-page type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "listing_date_raw_variants": list(fields["listing_date_raw_variants"]),
+                "expiry_date_raw_variants": list(fields["expiry_date_raw_variants"]),
+                "in_aggiornamento": fields["in_aggiornamento"],
+            }
+        elif parser_name == "napoli_applicants":
+            expected = {"requested_activities_source", "application_date_raw_variants", "source_page"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Napoli applicant source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["requested_activities_source"], str):
+                raise RuntimeError("Napoli applicant requested-activity source drift")
+            raw_dates = fields["application_date_raw_variants"]
+            if not isinstance(raw_dates, list) or any(not isinstance(value, str) for value in raw_dates):
+                raise RuntimeError("Napoli applicant raw-date type drift")
+            if type(fields["source_page"]) is not int:
+                raise RuntimeError("Napoli applicant source-page type drift")
+            record["source_fields"] = {
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": list(raw_dates),
+            }
+        else:
+            raise RuntimeError(f"Unexpected Napoli parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -440,6 +489,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or FORLI_CESENA_PARSERS.get(cfg["parser"])
         or FROSINONE_PARSERS.get(cfg["parser"])
         or GORIZIA_PARSERS.get(cfg["parser"])
+        or NAPOLI_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -454,9 +504,11 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_frosinone_public_fields(batch, cfg["parser"])
     if cfg["parser"] in GORIZIA_PARSERS:
         batch = _adapt_gorizia_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in NAPOLI_PARSERS:
+        batch = _adapt_napoli_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
-        record["parser_version"] = "1"
+        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"
     return batch
 
 

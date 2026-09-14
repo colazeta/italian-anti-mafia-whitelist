@@ -599,7 +599,7 @@ def parse_napoli_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
 
 def parse_napoli_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
-    _validate_cfg(cfg, source_key="napoli-applicants", population_scope="applicants", sha256=_APPLICANT_SHA256)
+    _validate_cfg(cfg, source_key="napoli-applicants", population_scope="applicant", sha256=_APPLICANT_SHA256)
     if _sha256(path) != _APPLICANT_SHA256:
         raise RuntimeError("Napoli applicant source bytes drift from approved SHA-256")
 
