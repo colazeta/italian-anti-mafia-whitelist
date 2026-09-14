@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install parser runtime
         run: python -m pip install -e '.[publication]'
-      - name: Audit all Napoli section-token anomalies
+      - name: Audit Napoli date typography exhaustively
         shell: bash
         run: |
           set -euo pipefail
@@ -39,17 +39,18 @@ jobs:
           cmp --silent tmp/napoli_row_bounds/applicants_a.pdf tmp/napoli_row_bounds/applicants_b.pdf
           python - <<'PY'
           from pathlib import Path
+          from datetime import date
           import json
           import re
           import pdfplumber
 
-          valid = {'I','II','III','IV','V','VI','VII','VIII','IX','X'}
+          short = re.compile(r'^(\d{1,2})/(\d{1,2})/(\d{2})$')
 
           def clean(value):
               return re.sub(r'\s+', ' ', value or '').strip()
 
-          def inventory(path, *, pages, terminal, width, population):
-              rows = {}
+          def rows(path, *, pages, terminal, width, population):
+              result = {}
               with pdfplumber.open(path) as pdf:
                   if len(pdf.pages) != pages:
                       raise RuntimeError(f'{population} page drift: {len(pdf.pages)} != {pages}')
@@ -64,197 +65,77 @@ jobs:
                       for row_index, raw in enumerate(extracted, start=1):
                           if len(raw or []) != width:
                               raise RuntimeError(f'{population} width drift p{page_number} r{row_index}: {len(raw or [])}')
-                          cells = [clean(value) for value in (raw or [])]
+                          cells = [clean(v) for v in (raw or [])]
                           if not cells[0].isdigit():
                               continue
                           ordinal = int(cells[0])
                           if not 1 <= ordinal <= terminal:
                               raise RuntimeError(f'{population} unexpected ordinal p{page_number} r{row_index}: {ordinal}')
-                          if ordinal in rows:
+                          if ordinal in result:
                               raise RuntimeError(f'{population} duplicate ordinal: {ordinal}')
-                          rows[ordinal] = {'page': page_number, 'row': row_index, 'cells': cells, 'raw': raw}
-              if sorted(rows) != list(range(1, terminal + 1)):
+                          result[ordinal] = {'page': page_number, 'physical_row': row_index, 'cells': cells, 'raw': raw}
+              if sorted(result) != list(range(1, terminal + 1)):
                   raise RuntimeError(f'{population} ordinal coverage drift')
+              return result
 
-              anomalies = []
-              for ordinal, item in rows.items():
-                  section_raw = item['cells'][5]
-                  if not section_raw:
+          def classify_date(value):
+              if not value:
+                  return 'blank'
+              match = short.fullmatch(value)
+              if not match:
+                  return 'non_short_typography'
+              day, month, yy = (int(part) for part in match.groups())
+              try:
+                  date(2000 + yy, month, day)
+              except ValueError:
+                  return 'invalid_calendar_date'
+              return 'valid_short_date'
+
+          listed = rows(Path('tmp/napoli_row_bounds/listed_a.pdf'), pages=60, terminal=2259, width=9, population='listed')
+          applicants = rows(Path('tmp/napoli_row_bounds/applicants_a.pdf'), pages=215, terminal=2571, width=8, population='applicants')
+
+          payload = {'listed_listing_date': [], 'listed_expiry_date': [], 'applicant_application_date': []}
+          specs = [
+              ('listed_listing_date', listed, 6),
+              ('listed_expiry_date', listed, 7),
+              ('applicant_application_date', applicants, 6),
+          ]
+          for key, population_rows, index in specs:
+              for ordinal, item in population_rows.items():
+                  value = item['cells'][index]
+                  classification = classify_date(value)
+                  if classification in {'blank', 'valid_short_date'}:
                       continue
-                  tokens = [token for token in re.split(r'[-,;/\s]+', section_raw.upper()) if token]
-                  invalid = [token for token in tokens if token not in valid]
-                  duplicate = len(tokens) != len(set(tokens))
-                  if invalid or duplicate:
-                      anomalies.append({
-                          'ordinal': ordinal,
-                          'page': item['page'],
-                          'physical_row': item['row'],
-                          'company': item['cells'][1],
-                          'identifier_raw': item['cells'][4],
-                          'section_raw': (item['raw'] or [''] * width)[5] or '',
-                          'section_clean': section_raw,
-                          'tokens': tokens,
-                          'invalid_tokens': invalid,
-                          'duplicate_tokens': duplicate,
-                          'full_clean_row': item['cells'],
-                          'previous_company': rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
-                          'next_company': rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < terminal else '',
-                      })
-              return anomalies
+                  payload[key].append({
+                      'ordinal': ordinal,
+                      'page': item['page'],
+                      'physical_row': item['physical_row'],
+                      'company': item['cells'][1],
+                      'identifier_raw': item['cells'][4],
+                      'date_raw': (item['raw'] or [''] * len(item['cells']))[index] or '',
+                      'date_clean': value,
+                      'classification': classification,
+                      'full_clean_row': item['cells'],
+                      'previous_company': population_rows.get(ordinal - 1, {}).get('cells', ['', ''])[1] if ordinal > 1 else '',
+                      'next_company': population_rows.get(ordinal + 1, {}).get('cells', ['', ''])[1] if ordinal < max(population_rows) else '',
+                  })
 
-          payload = {
-              'listed': inventory(Path('tmp/napoli_row_bounds/listed_a.pdf'), pages=60, terminal=2259, width=9, population='listed'),
-              'applicants': inventory(Path('tmp/napoli_row_bounds/applicants_a.pdf'), pages=215, terminal=2571, width=8, population='applicants'),
-          }
-          Path('tmp/napoli-section-anomalies.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          if len(payload['listed']) != 4 or len(payload['applicants']) != 5:
-              raise RuntimeError(f"section anomaly population drift: {len(payload['listed'])}/{len(payload['applicants'])}")
+          out = Path('tmp/napoli-date-anomalies.json')
+          out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          print('LISTED_LISTING_DATE_ANOMALIES=', len(payload['listed_listing_date']))
+          print('LISTED_EXPIRY_DATE_ANOMALIES=', len(payload['listed_expiry_date']))
+          print('APPLICANT_APPLICATION_DATE_ANOMALIES=', len(payload['applicant_application_date']))
+          if not payload['listed_listing_date']:
+              raise RuntimeError('parser reported a listed listing-date anomaly but inventory is empty')
           PY
-      - name: Apply exact reviewed section bindings
+      - name: Persist bounded date audit result
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('src/white_list_archive/parsers/napoli_tables.py')
-          text = path.read_text(encoding='utf-8')
-
-          anchor = '''_LISTED_NONCALENDAR_EXPIRY = {
-              83: ("AMBIENTE CAMPANIA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              155: ("AURORA S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              371: ("CIEFFE COSTRUZIONI SRL UNIPERSONALE", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              372: ("CIEFFE LAVORI S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              488: ("COSTRUZIONI GENERALI SUD S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              968: ("FONTANA DI FONTANA FRANCESCO S.R.L.", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-              2244: ("XECO SRL", "Iscrizione valida per la durata dell'amministrazi one giudiziaria"),
-          }
-          '''
-          insert = anchor + '''
-          # Exact source-bound section anomalies. Invalid source typography is never
-          # silently repaired into a different legal section: only positively valid
-          # tokens are retained, duplicate valid tokens are de-duplicated, and the
-          # original source text remains in source_fields.
-          _SECTION_EXCEPTIONS = {
-              "listed": {
-                  454: ("CONGLOMERATI S.r.l.", "05027321214", "II-IIII", ("II",)),
-                  820: ("ELETTROIMPIANTI DI RAIMO VITALIANO", "RMAVLN69P15I391U", "RMAVLN69P15I391U", ()),
-                  915: ("F.LLI MARTINO SNC DI MARTINO PASQUALE & C.", "04986160630", "I-VI-VI-X", ("I", "VI", "X")),
-                  1782: ("R.T. ELECTRONIC SYSTEM S.R.L.", "09469461215", "I-II-II-IV-V-VI-X", ("I", "II", "IV", "V", "VI", "X")),
-              },
-              "applicants": {
-                  398: ("CECA SRL", "05091870633", "I-III-V-V-X", ("I", "III", "V", "X")),
-                  1099: ("FG SERVICE S.R.L.", "09706611218", "IIII", ()),
-                  1170: ("G.P. PITTURAZIONI DI PIACENTE GAETANO", "PCNGTN94M27C129P", "I-II-III-V-VX", ("I", "II", "III", "V")),
-                  1520: ("L.C.S. ENGINEERING S.R.L.", "07466761215", "IIII", ()),
-                  2404: ("TECNOMEDICAL S.R.L.", "03110040635", "IIII", ()),
-              },
-          }
-          '''
-          if text.count(anchor) != 1:
-              raise RuntimeError('Napoli non-calendar expiry anchor drift')
-          text = text.replace(anchor, insert, 1)
-
-          old_sections = '''def _sections(raw: str, *, ordinal: int, population: str) -> list[str]:
-              value = _clean(raw)
-              if not value:
-                  return []
-              tokens = [token for token in re.split(r"[-,;/\\s]+", value.upper()) if token]
-              if not tokens or any(token not in _ROMAN_SECTIONS for token in tokens):
-                  raise RuntimeError(f"Napoli {population} unreviewed section value at ordinal {ordinal}: {value!r}")
-              if len(tokens) != len(set(tokens)):
-                  raise RuntimeError(f"Napoli {population} duplicate section token at ordinal {ordinal}: {value!r}")
-              return [f"Sezione {token}" for token in tokens]
-          '''
-          new_sections = '''def _sections(
-              raw: str,
-              *,
-              ordinal: int,
-              population: str,
-              company: str,
-              identifier_raw: str,
-          ) -> list[str]:
-              value = _clean(raw)
-              reviewed = _SECTION_EXCEPTIONS.get(population, {}).get(ordinal)
-              if reviewed is not None:
-                  expected_company, expected_identifier, expected_raw, retained_tokens = reviewed
-                  if (
-                      _clean(company) != expected_company
-                      or _clean(identifier_raw).upper() != expected_identifier
-                      or value != expected_raw
-                  ):
-                      raise RuntimeError(
-                          f"Napoli {population} reviewed section exception drift at ordinal {ordinal}: "
-                          f"company={_clean(company)!r}; identifier={_clean(identifier_raw)!r}; section={value!r}"
-                      )
-                  return [f"Sezione {token}" for token in retained_tokens]
-              if not value:
-                  return []
-              tokens = [token for token in re.split(r"[-,;/\\s]+", value.upper()) if token]
-              if not tokens or any(token not in _ROMAN_SECTIONS for token in tokens):
-                  raise RuntimeError(f"Napoli {population} unreviewed section value at ordinal {ordinal}: {value!r}")
-              if len(tokens) != len(set(tokens)):
-                  raise RuntimeError(f"Napoli {population} duplicate section token at ordinal {ordinal}: {value!r}")
-              return [f"Sezione {token}" for token in tokens]
-          '''
-          if text.count(old_sections) != 1:
-              raise RuntimeError('Napoli _sections anchor drift')
-          text = text.replace(old_sections, new_sections, 1)
-
-          old_call = 'sections = _sections(sections_raw, ordinal=ordinal, population="listed")'
-          new_call = '''sections = _sections(
-                  sections_raw,
-                  ordinal=ordinal,
-                  population="listed",
-                  company=name,
-                  identifier_raw=identifier_raw,
-              )'''
-          if text.count(old_call) != 1:
-              raise RuntimeError('Napoli listed section-call anchor drift')
-          text = text.replace(old_call, new_call, 1)
-
-          old_call = 'sections = _sections(sections_raw, ordinal=ordinal, population="applicants")'
-          new_call = '''sections = _sections(
-                  sections_raw,
-                  ordinal=ordinal,
-                  population="applicants",
-                  company=name,
-                  identifier_raw=identifier_raw,
-              )'''
-          if text.count(old_call) != 1:
-              raise RuntimeError('Napoli applicant section-call anchor drift')
-          text = text.replace(old_call, new_call, 1)
-
-          listed_fields = '''            source_fields={
-                          "sections": sections,
-                          "listing_date_raw_variants": [listing_raw] if listing_raw else [],
-          '''
-          listed_fields_new = '''            source_fields={
-                          "sections": sections,
-                          "sections_source_raw": sections_raw,
-                          "listing_date_raw_variants": [listing_raw] if listing_raw else [],
-          '''
-          if text.count(listed_fields) != 1:
-              raise RuntimeError('Napoli listed source-fields anchor drift')
-          text = text.replace(listed_fields, listed_fields_new, 1)
-
-          listed_diag = '            "reviewed_noncalendar_expiries": len(_LISTED_NONCALENDAR_EXPIRY),\n'
-          listed_diag_new = listed_diag + '            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["listed"]),\n'
-          if text.count(listed_diag) != 1:
-              raise RuntimeError('Napoli listed diagnostics anchor drift')
-          text = text.replace(listed_diag, listed_diag_new, 1)
-
-          applicant_diag = '            "reviewed_name_boundaries": len(_APPLICANT_NAME_BOUNDARIES),\n'
-          applicant_diag_new = applicant_diag + '            "reviewed_section_exceptions": len(_SECTION_EXCEPTIONS["applicants"]),\n'
-          if text.count(applicant_diag) != 1:
-              raise RuntimeError('Napoli applicant diagnostics anchor drift')
-          text = text.replace(applicant_diag, applicant_diag_new, 1)
-
-          path.write_text(text, encoding='utf-8')
-          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/napoli_tables.py tmp/napoli-section-anomalies.json
+          git add tmp/napoli-date-anomalies.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Bind reviewed Napoli section anomalies'
+          git commit -m 'Record Napoli date typography inventory'
           git push origin HEAD:expansion/napoli-2026-09-13
