@@ -2,7 +2,7 @@
 
 ## Scope
 
-This note records the current official-source verification for the Prefettura di Padova ordinary White List. It is an evidence checkpoint only: no parser, row denominator, status distribution, or publication-completeness claim is established here.
+This note records the official-source verification and fail-closed parser evidence for the Prefettura di Padova ordinary White List. Publication integration is permitted only for the exact byte-pinned editions and frozen populations documented below.
 
 ## Official publication surfaces
 
@@ -43,16 +43,16 @@ A GitHub-hosted independent acquisition on 2026-09-14 12:03:26 UTC repeat-fetche
 
 These hashes pin the exact bytes acquired by the expansion workflow. They do not by themselves establish page count, row count, field semantics, or completeness.
 
-## Current verification boundary
+## Parser validation and population boundary
 
-The two official HTML series pages were freshly resolved on 14 September 2026 and returned the resource links above. The repository already contained both Padova source-series mappings; this check re-confirms those mappings against the live official surface. Repeat acquisition also establishes stable current bytes for both resources.
+The dedicated Padova parser validation run `34849190341` completed successfully on 14 September 2026 against two independent acquisitions of each official source. The repository CI run `34849190491` on the same head also completed successfully.
 
-The PDF contents have not yet been promoted to parser evidence. Consequently:
+The byte-pinned listed PDF contains 105 pages and exactly 831 physical company rows after one repeated header per page is excluded. The parser yields 581 `listed` and 250 `renewal_update_in_progress` observations. Two exact non-calendar expiry values (`46581,00` and `8807/2026`) are retained as raw source evidence while the normalised expiry is left blank; one chronology inversion printed by the source for GEROTTO FEDERICO SRL is preserved without correction.
 
-- no page count or source-row denominator is claimed;
-- no parser-family binding is selected yet;
-- no record/status count is claimed;
-- no national/public integration is enabled;
-- no inference is made from unavailable or uninspected fields.
+The byte-pinned applicant PDF contains 17 pages and exactly 174 physical company rows. The parser yields 174 `pending` observations. Applicant row 113 recovers the visibly printed name `NON SOLO ZANZARE SRL` through an exact full-row binding because table extraction loses the company-name cell. Applicant rows 38 and 39 for `CLEAN SRL` are two genuinely distinct physical source rows with identical content and remain two observations; no deduplication is applied.
 
-The next expansion step is visual/table-structure inspection of the byte-pinned PDFs, followed by a fail-closed parser implementation and parser validation for the listed and applicant series.
+Across both populations the parser produces exactly 1,005 distinct record locators. Strict identifier extraction accepts only positively evidenced 11-digit VAT/fiscal identifiers or 16-character fiscal codes (including source whitespace normalisation inside explicit slash-delimited components); raw identifier text is retained separately. Section membership is accepted only when the numbered physical section cell contains its own expected section number.
+
+## Publication boundary
+
+The two official series positively establish both listed and applicant populations for the current Padova ordinary White List. The parser is therefore approved for public-source observation integration only when source SHA-256, page counts, row denominators, table width/header invariants, status counts and reviewed exception populations all match the frozen values above. Any drift fails closed. Canonical hosted-database integration and independent durable-evidence verification remain separate controls and are not asserted by this source-parser validation.

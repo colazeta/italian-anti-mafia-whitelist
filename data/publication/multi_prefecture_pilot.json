@@ -1135,6 +1135,40 @@
       "last_source_update": "2026-09-11",
       "last_source_update_basis": "dated official resource repeat-fetched and byte-pinned during parser validation on 14 September 2026",
       "notes": "Byte-pinned 215-page applicant PDF. The dedicated official publication positively identifies the applicant population; the fail-closed parser yields 2571 observations and resolves only exact reviewed continuation/name-boundary evidence."
+    },
+    {
+      "authority_key": "padova",
+      "authority_name": "Prefettura di Padova",
+      "register_key": "padova-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-14",
+      "last_source_update": "2026-08-17",
+      "last_source_update_basis": "official series page last updated 17 August 2026; exact PDF bytes repeat-fetched, byte-identical and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-iscritte",
+      "source_key": "padova-listed",
+      "parser": "padova_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf",
+      "sha256": "d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289",
+      "expected_source_rows": 831,
+      "notes": "Byte-pinned 105-page listed-company PDF. The fail-closed parser yields exactly 831 observations (581 listed; 250 renewal/update in progress), preserves two reviewed non-calendar expiry values as raw evidence without date inference, and freezes the single source chronology inversion exactly as published."
+    },
+    {
+      "authority_key": "padova",
+      "authority_name": "Prefettura di Padova",
+      "register_key": "padova-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-14",
+      "last_source_update": "2026-08-17",
+      "last_source_update_basis": "official series page last updated 17 August 2026; exact PDF bytes repeat-fetched, byte-identical and SHA-256 pinned during parser validation on 14 September 2026",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-richiedenti",
+      "source_key": "padova-applicants",
+      "parser": "padova_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf",
+      "sha256": "b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3",
+      "expected_source_rows": 174,
+      "notes": "Byte-pinned 17-page applicant PDF. The dedicated official publication positively defines the applicant population; the fail-closed parser yields exactly 174 pending observations, with one exact source-bound company-name recovery and two adjacent identical source rows preserved as separate observations."
     }
   ]
 }
