@@ -2,7 +2,7 @@
 
 ## Scope
 
-Expansion work for the current public White List publications of the Prefettura di Napoli. This note records only source-positive facts observed from official publication surfaces and byte-level capture. Public integration remains gated until source-outcome continuations are fully reviewed and the fail-closed parser is validated.
+Expansion work for the current public White List publications of the Prefettura di Napoli. This note records only source-positive facts observed from official publication surfaces and byte-level capture. Public integration remains gated until the fail-closed parser is validated.
 
 ## Current official publication surfaces
 
@@ -40,7 +40,7 @@ Accordingly **2,259 listed source observations and 2,571 applicant source observ
 
 Plain table extraction exposed a small number of vertically misassigned cells. The first spatial reconstruction used table x-column geometry and numbered-row anchor midpoints. That method was useful diagnostically but is no longer accepted as the row-ownership primitive because a later audit against the physical PDF table-row boundaries demonstrated systematic cross-row contamination in long cells.
 
-A 14 September 2026 row-bound audit therefore reconstructed each numbered observation from words whose vertical centres fall inside the actual physical `pdfplumber` table-row top/bottom bounds, while retaining the same pinned bytes, x-column geometry and exact ordinal sequences. This method preserves materially more complete company names and assigns long outcome text to the row area in which it is physically printed. It also exposes a small set of genuine continuation spillovers that must be handled through exact reviewed continuation bindings rather than a generic midpoint heuristic.
+A 14 September 2026 row-bound audit therefore compared every numbered observation with the actual physical `pdfplumber` table-row geometry while retaining the same pinned bytes, x-column geometry and exact ordinal sequences. The physical table representation preserves materially more complete row ownership than the earlier inter-anchor midpoint reconstruction, but a few glyph lines straddle a horizontal border. Those exceptional fragments are now handled only through exact reviewed bindings rather than a generic cross-row concatenation rule.
 
 ### Listed publication
 
@@ -69,17 +69,22 @@ Identifier evidence remains 2,068 eleven-digit values, 167 sixteen-character alp
 
 ### Applicant publication
 
-The physical-row reconstruction yields all **2,571** numbered observations. It exposes **44 physically nonblank `ESITO` cells** rather than the earlier midpoint count of 41. The difference is fully localised: **41 values contain explicit diniego/interdittiva wording and three additional non-adverse fragments are continuation text physically printed in the following numbered row area**.
+The physical-row reconstruction yields all **2,571** numbered observations. It exposes **44 physically nonblank `ESITO` cells** rather than the earlier midpoint count of 41. The difference is fully localised: **41 values contain explicit diniego/interdittiva wording and three additional cells contain continuation text printed across or immediately below the preceding adverse outcome**.
 
-The three continuation spillovers are:
+The three reviewed continuation bindings are now frozen as follows:
 
-1. row 511 `CONSORZIO STABILE GOSERVICE S.C.A.R.L.` carries `DINIEGO DI ISCRIZIONE Provv. 0135353 del 05/07/2017 confermato con`; row 512 `CONSORZIO STABILE ICON S.C. A R.L.` contains only the continuation `provvedimento`;
-2. row 879 `EDIL SAN MARCO SRL` carries `DINIEGO DI ISCRIZIONE Provv. 0132224 del 30/06/2017 confermato da`; row 880 `EDIL SANT'ANNA S.R.L.` contains only `provv. 399217 del`;
-3. row 1259 `GIUGA ECOLOGY S.R.L.` carries `Provvedimento interdittivo prot.193574 dell'11/05/2026 sospeso con`; row 1260 `GIUGLIANO HOLDING S.R.L.` contains only `ordinanza TAR`.
+1. row 511 `CONSORZIO STABILE GOSERVICE S.C.A.R.L.` carries `DINIEGO DI ISCRIZIONE Provv. 0135353 del 05/07/2017 confermato con` and absorbs the exact row-512 fragment `provvedimento`; row 512 `CONSORZIO STABILE ICON S.C. A R.L.` has no independent adverse outcome;
+2. row 879 `EDIL SAN MARCO SRL` carries `DINIEGO DI ISCRIZIONE Provv. 0132224 del 30/06/2017 confermato da` and absorbs the exact fragment `provv. 399217 del`; row 880 `EDIL SANT'ANNA S.R.L.` has no independent adverse outcome. The page-74 audit shows that `provv.`, `399217` and `del` are the final words in the entire outcome column for that source entry: their glyph box straddles the horizontal 879/880 border and there is no later outcome-column text before subsequent rows. The source therefore genuinely ends at `del`; no missing date is reconstructed or fabricated;
+3. row 1259 `GIUGA ECOLOGY S.R.L.` carries `Provvedimento interdittivo prot.193574 dell'11/05/2026 sospeso con` and absorbs the exact row-1260 fragment `ordinanza TAR`; row 1260 `GIUGLIANO HOLDING S.R.L.` has no independent adverse outcome.
 
-The first and third pairs are suitable for exact evidence-bound continuation ownership: the fragment can be attached to the immediately preceding adverse outcome and the following company must not inherit an independent adverse status from that fragment. The second pair remains **unresolved** because the source-visible tail currently ends at `provv. 399217 del`; no date or other missing content may be fabricated. A targeted page-74 geometry/text audit is required before freezing the exact raw outcome representation.
+The earlier physical-vs-midpoint comparison reported four adjacent company-name difference pairs. Exact row-bound review resolves them without a generic spill heuristic:
 
-The physical-vs-midpoint comparison also finds **eight core-field differences**, concentrated in four adjacent row pairs around ordinals 402/403, 793/794, 1209/1210 and 1226/1227. These are long company-name spillovers, not population gaps. They require exact row-ownership review before the parser's company-name invariants are frozen; neither physical nor midpoint text is accepted automatically where a fragment visibly crosses the row boundary.
+- **402/403 is a midpoint-only false alarm**. Physical table ownership is already coherent: row 402 is `CEM.AR. 86 - SOCIETA' COOPERATIVA DI PRODUZIONE E LAVORO A RESPON SABILITA' LIMITATA`; row 403 is `CEMENTI MOCCIA SPA`. No cross-row rebinding is permitted there.
+- At **793/794**, the source prints `S.R.L.` across the horizontal border as the terminal legal-form fragment of row 793. The reviewed names are therefore `ECOLOGIA LA VESUVIANA S.R.L.` for row 793 and `ECOLOGIA SAN VINCENZO S.A.S. DI MIELE EMILIA` for row 794.
+- At **1209/1210**, the border fragment `S.R.L.` belongs to row 1209. The reviewed names are `GENERAL COSTRUZIONI S.R.L.` for row 1209 and `GENERAL SERVICE S.R.L.` for row 1210.
+- At **1226/1227**, the border fragment `SERVIZI S.R.L.S.` completes row 1226. The reviewed names are `GESTIONE APPALTI E SERVIZI S.R.L.S.` for row 1226 and `GESTIONE HOTEL S.R.L.` for row 1227.
+
+These are exact ordinal-and-text bindings. Any source drift in either side of a reviewed pair must fail closed; the production parser must not generalise them into a fuzzy cross-row repair rule.
 
 Identifier evidence remains 2,298 eleven-digit values, 261 sixteen-character alphanumeric values and 12 raw-only values. The raw-only set includes ten-digit values, `CHE-101,989.651`, the source value `011117840767` and `ZZVLR78S46F839J`; no alternative identifier is fabricated.
 
@@ -93,11 +98,10 @@ Applicant membership is positively established by the dedicated applicant public
 
 Before admission to publication configuration the expansion still must establish:
 
-1. targeted source review of the unresolved applicant continuation at rows 879–880 and the four applicant company-name spill pairs;
-2. exact, fail-closed continuation bindings for every reviewed spillover, with no generic cross-row concatenation rule;
-3. a fail-closed parser family bound to both pinned SHA-256 values and the 11 September 2026 source edition;
-4. exact parser status distributions, identifier coverage and exception counters across the complete sources;
-5. parser semantic tests and repository CI;
-6. canonical/public national integration and permanent browser/Pages gates.
+1. exact fail-closed continuation bindings for the three reviewed applicant outcome spillovers and the three reviewed company-name border spillovers, with the 402/403 false alarm explicitly protected from rebinding;
+2. a fail-closed parser family bound to both pinned SHA-256 values and the 11 September 2026 source edition;
+3. exact parser status distributions, identifier coverage and exception counters across the complete sources, including reviewed semantics for the 48 listed special outcomes and 41 true applicant adverse outcomes;
+4. parser semantic tests and repository CI;
+5. canonical/public national integration and permanent browser/Pages gates.
 
 No national-count increment or public-export state is asserted until those gates pass.
