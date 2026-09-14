@@ -1066,6 +1066,41 @@
       "last_source_update": "2026-09-02",
       "last_source_update_basis": "dated official resource directly revalidated and byte-pinned 13 September 2026",
       "notes": "Byte-pinned 37-page applicant PDF. The fail-closed parser yields exactly 475 pending observations. Five continuation fragments, two reviewed malformed dates and four blank outcome cells are preserved under explicit invariants without inferred repair."
+    },
+    {
+      "authority_key": "gorizia",
+      "authority_name": "Prefettura di Gorizia",
+      "register_key": "gorizia-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list",
+      "source_key": "gorizia-listed",
+      "parser": "gorizia_listed",
+      "population_scope": "listed",
+      "reference_date": "2026-09-13",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx",
+      "sha256": "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d",
+      "expected_source_rows": 117,
+      "expected_sector_rows": 186,
+      "last_source_update": "2026-08-17",
+      "last_source_update_basis": "official landing page last updated 17 August 2026; attachment itself is undated; current bytes repeat-fetched and byte-pinned 13 September 2026",
+      "notes": "Byte-pinned DOCX with 10 physical sector tables and 186 sector rows. The fail-closed parser groups only exact source tuples into 117 observations: 86 listed and 31 renewal/update in progress. Two exact blank-expiry registrations and reviewed malformed/split date lexemes are preserved under explicit invariants without inferential repair."
+    },
+    {
+      "authority_key": "gorizia",
+      "authority_name": "Prefettura di Gorizia",
+      "register_key": "gorizia-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list",
+      "source_key": "gorizia-applicants",
+      "parser": "gorizia_applicants",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-13",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
+      "sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c",
+      "expected_source_rows": 10,
+      "last_source_update": "2026-08-17",
+      "last_source_update_basis": "official landing page last updated 17 August 2026; attachment itself is undated; current bytes repeat-fetched and byte-pinned 13 September 2026",
+      "notes": "Byte-pinned two-page applicant PDF. The fail-closed parser binds exactly ten positively verified identifier/name anchors in source order and yields ten pending observations; blank application dates remain blank and are never inferred."
     }
   ]
 }

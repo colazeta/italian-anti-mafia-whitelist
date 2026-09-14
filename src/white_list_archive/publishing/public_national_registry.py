@@ -48,6 +48,7 @@ from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
 from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
 from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined
 from white_list_archive.parsers.frosinone_tables import parse_frosinone_applicants, parse_frosinone_listed
+from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, parse_gorizia_listed
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -63,6 +64,10 @@ FORLI_CESENA_PARSERS = {"forli_cesena_combined": parse_forli_cesena_combined}
 FROSINONE_PARSERS = {
     "frosinone_listed": parse_frosinone_listed,
     "frosinone_applicants": parse_frosinone_applicants,
+}
+GORIZIA_PARSERS = {
+    "gorizia_listed": parse_gorizia_listed,
+    "gorizia_applicants": parse_gorizia_applicants,
 }
 
 
@@ -363,6 +368,45 @@ def _adapt_frosinone_public_fields(batch: ParsedBatch, parser_name: str) -> Pars
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+
+def _adapt_gorizia_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Gorizia evidence onto the closed public source-field contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Gorizia source_fields must be a mapping")
+        if parser_name == "gorizia_listed":
+            expected = {"source_rows", "sections", "identifier_raw", "listing_date_raw", "expiry_date_raw", "update_values"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Gorizia listed source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["source_rows"], list) or any(not isinstance(item, list) or len(item) != 2 or any(type(value) is not int for value in item) for item in fields["source_rows"]):
+                raise RuntimeError("Gorizia listed source-row cardinality drift")
+            if not isinstance(fields["sections"], list) or any(type(value) is not int for value in fields["sections"]):
+                raise RuntimeError("Gorizia listed section type drift")
+            if not isinstance(fields["update_values"], list) or any(not isinstance(value, str) for value in fields["update_values"]):
+                raise RuntimeError("Gorizia listed update type drift")
+            for key in ("identifier_raw", "listing_date_raw", "expiry_date_raw"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Gorizia listed source-field type drift: {key}")
+            record["source_fields"] = {
+                "sections": [f"Sezione {section}" for section in fields["sections"]],
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+                "in_aggiornamento": " · ".join(value for value in fields["update_values"] if value),
+            }
+        elif parser_name == "gorizia_applicants":
+            expected = {"page", "identifier_raw", "application_date_raw"}
+            if set(fields) != expected or type(fields["page"]) is not int or any(not isinstance(fields[key], str) for key in ("identifier_raw", "application_date_raw")):
+                raise RuntimeError("Gorizia applicant source-field drift")
+            raw = fields["application_date_raw"]
+            record["source_fields"] = {"application_date_raw_variants": [raw] if raw else []}
+        else:
+            raise RuntimeError(f"Unexpected Gorizia parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -395,6 +439,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or FOGGIA_PARSERS.get(cfg["parser"])
         or FORLI_CESENA_PARSERS.get(cfg["parser"])
         or FROSINONE_PARSERS.get(cfg["parser"])
+        or GORIZIA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -407,6 +452,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_foggia_public_fields(batch, cfg["parser"])
     if cfg["parser"] in FROSINONE_PARSERS:
         batch = _adapt_frosinone_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in GORIZIA_PARSERS:
+        batch = _adapt_gorizia_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "1"
