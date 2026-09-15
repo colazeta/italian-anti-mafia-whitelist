@@ -21,68 +21,83 @@ jobs:
           python-version: '3.13'
       - name: Install runtime
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Audit aligned record starts
+      - name: Freeze Roma production row geometry
         run: |
           python - <<'PY'
           import hashlib,json,re,time
           from collections import Counter
+          from datetime import date
           from pathlib import Path
           from urllib.parse import urljoin
           import requests,pdfplumber
           from bs4 import BeautifulSoup
+
           S={
           'roma-listed':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',168),
           'roma-applicants':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',142)}
-          ss=requests.Session(); ss.headers['User-Agent']='italian-anti-mafia-whitelist/0.1'
+          ss=requests.Session();ss.headers['User-Agent']='italian-anti-mafia-whitelist/0.1 (+Roma parser validation)'
           def get(u):
             last=None
             for i in range(3):
               try:r=ss.get(u,timeout=35);r.raise_for_status();return r
               except Exception as e:last=e;time.sleep(i+1)
             raise RuntimeError(f'GET {u}: {last}')
-          def clean(s):return ' '.join(str(s or '').split())
+          def clean(v):return ' '.join(str(v or '').split())
+          def parse_date(raw):
+            if not raw:return ''
+            if not re.fullmatch(r'\d{2}/\d{2}/\d{4}',raw):return 'TYPO'
+            try:d,m,y=map(int,raw.split('/'));return date(y,m,d).isoformat()
+            except ValueError:return 'INVALID'
           for key,(page_url,sha0,npages) in S.items():
-            soup=BeautifulSoup(get(page_url).text,'html.parser'); links=[]
+            soup=BeautifulSoup(get(page_url).text,'html.parser');links=[]
             for a in soup.find_all('a',href=True):
               u=urljoin(page_url,a['href'])
               if '.pdf' in u.lower() and u not in links:links.append(u)
-            if len(links)!=1:raise RuntimeError((key,links))
+            if len(links)!=1:raise RuntimeError((key,'pdf cardinality',links))
             body=get(links[0]).content;sha=hashlib.sha256(body).hexdigest()
             if sha!=sha0:raise RuntimeError((key,'sha drift',sha))
             p=Path('/tmp')/(key+'.pdf');p.write_bytes(body)
-            rows=[]; page_counts=Counter(); gaps=Counter(); missing_dates=[]; note_counts=Counter(); id_shapes=Counter(); samples=[]
+            rows=[];page_counts=[];note_counts=Counter();id_lengths=Counter();date_anomalies=[];missing_dates=[];footer=Counter()
             with pdfplumber.open(p) as pdf:
-              if len(pdf.pages)!=npages:raise RuntimeError((key,'pages',len(pdf.pages)))
+              if len(pdf.pages)!=npages:raise RuntimeError((key,'page drift',len(pdf.pages)))
               for pn,page in enumerate(pdf.pages,1):
-                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+                for w in words:
+                  if float(w['top'])>535 and re.fullmatch(r'\d{2}/\d{2}/\d{4}',str(w['text'])):footer[str(w['text'])]+=1
                 candidates=[]
                 for w in words:
                   if not (0<=float(w['x0'])<168 and 55<float(w['top'])<540):continue
-                  t=float(w['top'])
-                  core=[z for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6]
+                  t=float(w['top']);core=[z for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6]
                   if core:candidates.append(t)
                 starts=[]
                 for t in sorted(candidates):
-                  if not starts or abs(t-starts[-1])>2.0:starts.append(t)
-                # Retain only starts whose aligned identifier cell is not the header.
-                starts=[t for t in starts if not any(str(z['text']).upper().startswith('C.F') for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6)]
-                page_counts[len(starts)]+=1
+                  if not starts or abs(t-starts[-1])>2:starts.append(t)
+                def aligned_id(t):
+                  return clean(' '.join(str(z['text']) for z in sorted((z for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6),key=lambda z:float(z['x0']))))
+                starts=[t for t in starts if aligned_id(t).upper()!='SEZIONE' and not aligned_id(t).upper().startswith('C.F')]
+                page_counts.append(len(starts))
                 for i,t in enumerate(starts):
-                  if i+1<len(starts):gaps[round(starts[i+1]-t,1)]+=1
-                  hi=(starts[i+1]-3 if i+1<len(starts) else 540)
+                  hi=starts[i+1]-3 if i+1<len(starts) else 540
                   block=[z for z in words if t-3<=float(z['top'])<hi and float(z['top'])<540]
                   def col(a,b):
                     zz=sorted((z for z in block if a<=float(z['x0'])<b),key=lambda z:(float(z['top']),float(z['x0'])))
                     return clean(' '.join(str(z['text']) for z in zz))
                   if key=='roma-listed':
-                    rec={'page':pn,'top':round(t,1),'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'date':col(426,486),'protocol':col(486,582),'expiry':col(582,648),'sections':col(648,723),'notes':col(723,850)}
-                    if not rec['date'] and not rec['protocol'] and not rec['expiry']:missing_dates.append(rec)
+                    rec={'page':pn,'row':i+1,'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'listing':col(426,486),'protocol':col(486,582),'expiry':col(582,648),'sections':col(648,723),'notes':col(723,850)}
+                    for field in ('listing','expiry'):
+                      parsed=parse_date(rec[field])
+                      if rec[field] and parsed in {'TYPO','INVALID'}:date_anomalies.append((pn,i+1,field,rec[field],rec['name'],rec['id']))
+                    if not rec['listing'] and not rec['protocol'] and not rec['expiry']:missing_dates.append((pn,i+1,rec['name'],rec['id']))
                   else:
-                    rec={'page':pn,'top':round(t,1),'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'date':col(426,492),'sections':col(492,564),'notes':col(564,850)}
-                    if not rec['date']:missing_dates.append(rec)
-                  id_shapes[len(re.sub(r'[^A-Za-z0-9]','',rec['id']))]+=1
-                  if rec['notes']:note_counts[rec['notes']]+=1
+                    rec={'page':pn,'row':i+1,'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'application':col(426,492),'sections':col(492,564),'notes':col(564,850)}
+                    parsed=parse_date(rec['application'])
+                    if rec['application'] and parsed in {'TYPO','INVALID'}:date_anomalies.append((pn,i+1,'application',rec['application'],rec['name'],rec['id']))
+                    if not rec['application']:missing_dates.append((pn,i+1,rec['name'],rec['id']))
+                  if not rec['name'] or not rec['id']:raise RuntimeError((key,'empty required field',rec))
+                  note_counts[rec['notes']]+=1
+                  id_lengths[len(re.sub(r'[^A-Za-z0-9]','',rec['id']))]+=1
                   rows.append(rec)
-                  if len(samples)<5:samples.append(rec)
-            print('ROMA_ALIGNED',key,json.dumps({'sha256':sha,'pages':npages,'records':len(rows),'page_record_counts':dict(page_counts),'gap_counts':dict(gaps),'missing_core_date_rows':missing_dates[:30],'missing_core_date_count':len(missing_dates),'identifier_compact_lengths':dict(id_shapes),'notes':dict(note_counts),'first':samples,'last':rows[-5:]},ensure_ascii=False,sort_keys=True))
+            update_notes={n:c for n,c in note_counts.items() if any(x in n.casefold() for x in ('aggiorn','agiorn','aggion','aagior','ggior'))}
+            other_notes={n:c for n,c in note_counts.items() if n and n not in update_notes}
+            print('ROMA_FREEZE',key,json.dumps({'sha256':sha,'bytes':len(body),'pages':npages,'records':len(rows),'page_counts':page_counts,'id_lengths':dict(id_lengths),'update_notes':update_notes,'other_notes':other_notes,'missing_dates':missing_dates,'date_anomalies':date_anomalies,'footer_dates':dict(footer),'first':rows[:2],'last':rows[-2:]},ensure_ascii=False,sort_keys=True))
           PY
