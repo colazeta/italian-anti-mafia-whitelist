@@ -1,7 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const H=require('../public-site/history.js');
 const history=JSON.parse(require('node:fs').readFileSync('data/history/public_history.json','utf8'));
-const baseline=history.editions.filter(e=>e.authority_key==='cosenza').sort((a,b)=>a.reference_date.localeCompare(b.reference_date));
+// Keep the regression anchor stable as the durable ledger gains later editions.
+const frozenIds=new Set(['6edfbde7bc12618f42f5ff501fc644b6050ed60e5bd9d68b6a04d950dd6cbc4f','b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a']);
+const baseline=history.editions.filter(e=>frozenIds.has(e.id)).sort((a,b)=>a.reference_date.localeCompare(b.reference_date));
 const state={from:'',to:''};
 test('frozen pilot has one observed 36-day interval, not a cadence estimate',()=>{
  const events=H.events(history,baseline);assert.equal(events[1].delta,7);assert.equal(events[1].gap,36);assert.equal(events[1].type,'data_changed');
