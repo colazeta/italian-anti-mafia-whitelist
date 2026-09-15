@@ -24,32 +24,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Build production-only final diff
+      - name: Materialize reviewed production outputs
         run: |
           set -euo pipefail
           python tmp/catanzaro_finalize.py
-          git rm \
-            .github/workflows/catanzaro-source-validation.yml \
-            .github/workflows/catanzaro-national-candidate.yml \
-            .github/workflows/catanzaro-finalize.yml \
-            tmp/catanzaro_integrate_candidate.py \
-            tmp/catanzaro_finalize.py
-          git add -A
-          git diff --cached --check
+          git diff --check -- .github/workflows/public-pages.yml tests/public_portal_browser.cjs
           node --check tests/public_portal_browser.cjs
-          git diff --cached --name-only | sort > /tmp/actual.txt
-          cat > /tmp/expected.txt <<'EOF'
-          .github/workflows/catanzaro-finalize.yml
-          .github/workflows/catanzaro-national-candidate.yml
-          .github/workflows/catanzaro-source-validation.yml
-          .github/workflows/public-pages.yml
-          tests/public_portal_browser.cjs
-          tmp/catanzaro_finalize.py
-          tmp/catanzaro_integrate_candidate.py
-          EOF
-          sort -o /tmp/expected.txt /tmp/expected.txt
-          diff -u /tmp/expected.txt /tmp/actual.txt
-      - name: Commit validated finalization
+          cp .github/workflows/public-pages.yml tmp/catanzaro-public-pages.generated.yml
+          cp tests/public_portal_browser.cjs tmp/catanzaro-public-portal-browser.generated.cjs
+          git restore .github/workflows/public-pages.yml tests/public_portal_browser.cjs
+          git add tmp/catanzaro-public-pages.generated.yml tmp/catanzaro-public-portal-browser.generated.cjs
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+      - name: Commit generated outputs only
         env:
           BRANCH: expansion/catanzaro-2026-09-15
         run: |
@@ -58,5 +45,5 @@ jobs:
           test "$remote_sha" = "$GITHUB_SHA"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'ci(catanzaro): promote permanent public gates'
+          git commit -m 'chore(catanzaro): materialize reviewed public gate outputs'
           git push origin "HEAD:$BRANCH"
