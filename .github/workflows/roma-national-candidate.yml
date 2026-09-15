@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/roma-national-candidate.yml'
       - 'tmp/roma_integrate_candidate.py'
+      - 'tmp/roma_fix_positioned_geometry.py'
   workflow_dispatch:
 
 permissions:
@@ -50,6 +51,8 @@ jobs:
           cmp /tmp/roma-source/applicants-1.pdf /tmp/roma-source/applicants-2.pdf
           test "$(sha256sum /tmp/roma-source/listed-1.pdf | cut -d' ' -f1)" = '8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af'
           test "$(sha256sum /tmp/roma-source/applicants-1.pdf | cut -d' ' -f1)" = '9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a'
+      - name: Apply reviewed Roma first-page geometry correction
+        run: python tmp/roma_fix_positioned_geometry.py
       - name: Apply fail-closed Roma integration transaction
         run: python tmp/roma_integrate_candidate.py
       - name: Run full repository and Roma semantic tests
@@ -120,6 +123,7 @@ jobs:
           data/publication/multi_prefecture_pilot.json
           data/source_registry/source_series_inventory.csv
           data/source_registry/verified_primary_pages.csv
+          src/white_list_archive/parsers/roma_positioned.py
           src/white_list_archive/publishing/public_national_registry.py
           EOF
           diff -u /tmp/expected-files.txt /tmp/actual-files.txt
@@ -134,6 +138,7 @@ jobs:
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
             data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/parsers/roma_positioned.py \
             src/white_list_archive/publishing/public_national_registry.py
           git diff --cached --check
           git commit -m 'Integrate Roma public White List sources'
