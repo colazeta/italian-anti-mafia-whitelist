@@ -21,7 +21,7 @@ permissions:
 jobs:
   source-identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,11 +83,7 @@ jobs:
               except ValueError:
                   return False
 
-          specs = {
-              "listed": 10,
-              "applicant": 7,
-              "renewal_update": 8,
-          }
+          specs = {"listed": 10, "applicant": 7, "renewal_update": 8}
           parsed = {}
           for scope, expected_width in specs.items():
               path = Path(f"/tmp/pisa-source/{scope}.1.pdf")
@@ -107,7 +103,7 @@ jobs:
                                   continue
                               widths[len(row)] += 1
                               folded = " | ".join(row).casefold()
-                              if "prefettura competente" in folded and ("ragione sociale" in folded or "codice fiscale" in folded):
+                              if "prefettura competente" in folded and "codice fiscale" in folded:
                                   headers += 1
                                   continue
                               rows.append((page_number, table_number, row_number, row))
@@ -136,3 +132,65 @@ jobs:
                   overlap = sorted(parsed[left]["ids"] & parsed[right]["ids"])
                   print(f"OVERLAP {left} {right}: count={len(overlap)} ids={overlap!r}")
           PY
+      - name: Validate Pisa parsers against fresh byte-pinned captures
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from white_list_archive.parsers.pisa_tables import (
+              parse_pisa_applicants,
+              parse_pisa_listed,
+              parse_pisa_renewal_update,
+          )
+          from white_list_archive.publishing.public_contract import public_record
+
+          page = "https://prefettura.interno.gov.it/it/prefetture/pisa/white-list-elenco-imprese-iscritte-e-richiedenti-iscrizione"
+          base = {
+              "authority_key": "pisa",
+              "authority_name": "Prefettura di Pisa",
+              "register_key": "pisa-white-list",
+              "register_name": "White List — Prefettura di Pisa",
+              "reference_date": "2026-09-08",
+              "source_page_url": page,
+          }
+          configs = [
+              (parse_pisa_listed, Path("/tmp/pisa-source/listed.1.pdf"), {
+                  **base,
+                  "source_key": "pisa-listed",
+                  "population_scope": "listed",
+                  "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritte.pdf",
+                  "sha256": "30eea93e542aea6ceb13bcfd4e3f1358e1c3f9cfb274b23e738dfb304b1dea23",
+              }),
+              (parse_pisa_applicants, Path("/tmp/pisa-source/applicant.1.pdf"), {
+                  **base,
+                  "source_key": "pisa-applicants",
+                  "population_scope": "applicant",
+                  "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedente-iscrizione.pdf",
+                  "sha256": "ed3bbf19670dbed899f6386836f4723898e4c20f9315e4d4297156fd1dcd6b12",
+              }),
+              (parse_pisa_renewal_update, Path("/tmp/pisa-source/renewal_update.1.pdf"), {
+                  **base,
+                  "source_key": "pisa-renewal-update",
+                  "population_scope": "listed",
+                  "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/in-aggiornamento.pdf",
+                  "sha256": "8658cd2e6048c44de18687b3933980778dd36bbf3721cd944063f61c0e2ceedb",
+              }),
+          ]
+          batches = []
+          for parser, path, cfg in configs:
+              batch = parser(path, cfg)
+              for record in batch.records:
+                  public_record({**record, "parser_name": batch.diagnostics["parser"], "parser_version": "1"})
+              print(cfg["source_key"], batch.diagnostics)
+              batches.append(batch)
+          assert [len(batch.records) for batch in batches] == [398, 18, 33]
+          assert sum(len(batch.records) for batch in batches) == 449
+          id_sets = [{identifier for record in batch.records for identifier in record["identifiers"]} for batch in batches]
+          assert not (id_sets[0] & id_sets[1])
+          assert not (id_sets[0] & id_sets[2])
+          assert not (id_sets[1] & id_sets[2])
+          PY
+      - name: Run Pisa semantic regression tests
+        run: pytest -q tests/test_pisa_parser_semantics.py
+      - name: Run full repository tests
+        run: pytest -q
