@@ -14,7 +14,7 @@
 .history-scroll{max-height:460px;overflow:auto}.history-scroll thead{position:sticky;top:0;z-index:1}
 .history-timeline{width:100%;min-width:260px;height:34px;color:#284761}
 .history-timeline g{cursor:pointer}.history-timeline g:focus circle{stroke:#111;stroke-width:3}
-.history-axis{fill:none;stroke:#999;stroke-width:1}.history-stack{height:23px;display:flex;background:#eee;min-width:240px;border:1px solid #aaa}
+.history-axis{fill:none;stroke:#999;stroke-width:1}.history-stack{position:relative;overflow:hidden;height:23px;display:flex;background:#eee;min-width:240px;border:1px solid #aaa}
 .history-segment{display:block;height:100%;min-width:0;border-right:1px solid #fff}
 .history-state-listed{background:#345d76}.history-state-pending{background:#9aa9b3}
 .history-state-renewal_update_in_progress{background:#a49570}.history-state-renewal_requested{background:#666}
