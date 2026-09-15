@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install project and validation dependencies
-        run: python -m pip install -e .[dev,database,storage]
+        run: python -m pip install -e .[dev,database,storage] requests
       - name: Revalidate official publication surface and capture resources twice
         shell: bash
         run: |
