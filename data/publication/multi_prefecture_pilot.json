@@ -1390,6 +1390,40 @@
       "sha256": "8c5b0ea684b20f0893016e4a528bac57fb2b05c40aa9669340bdf7bd7dab115c",
       "expected_source_rows": 277,
       "notes": "Current official 46-page applicant PDF revalidated 15 September 2026 by independent byte-identical GETs. The fail-closed parser yields exactly 277 positive pending observations and preserves the reviewed blank/malformed source-date and identifier exceptions without inference. Exact evidence is documented in docs/sources/catanzaro-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "lecco",
+      "authority_name": "Prefettura di Lecco",
+      "register_key": "lecco-ordinary",
+      "register_name": "White List — Prefettura di Lecco",
+      "reference_date": "2026-09-14",
+      "last_source_update": "2026-09-14",
+      "last_source_update_basis": "edition date explicitly stated by the two current official attachment labels; used only as the current source-edition boundary and not as an inferred company decision, registration or legal-effect date",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte",
+      "source_key": "lecco-listed",
+      "parser": "lecco_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_a-attivita-elenco-ditte-non-soggette-a-tentativo-infiltr_mafiosa_2.pdf",
+      "sha256": "80c439521cf2bd4062b54fff3646666487367f0f8b47c1a91a6c8f62bcf8e5bc",
+      "expected_source_rows": 230,
+      "notes": "Official Allegato A revalidated 15 September 2026 by two byte-identical independent GETs. The fail-closed 19-page geometry parser yields exactly 230 listed-side observations: 201 listed and 29 renewal/update in progress. Strict identifier coverage is 228/230; malformed source identifiers and the reviewed blank Termoidraulica activity cell remain raw and uninferred."
+    },
+    {
+      "authority_key": "lecco",
+      "authority_name": "Prefettura di Lecco",
+      "register_key": "lecco-ordinary",
+      "register_name": "White List — Prefettura di Lecco",
+      "reference_date": "2026-09-14",
+      "last_source_update": "2026-09-14",
+      "last_source_update_basis": "edition date explicitly stated by the two current official attachment labels; used only as the current source-edition boundary and not as an inferred company decision, registration or legal-effect date",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte",
+      "source_key": "lecco-applicants",
+      "parser": "lecco_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_b-attivita-elenco-ditte-richiedenti-iscrizione_2.pdf",
+      "sha256": "7c24e015342cc2cb61cf4b5bf726621c8b3b90b195cd91c40942fc3ef6b6ba5b",
+      "expected_source_rows": 26,
+      "notes": "Official Allegato B revalidated 15 September 2026 by two byte-identical independent GETs. The fail-closed four-page geometry parser yields exactly 26 applicant-event observations: 22 pending and 4 rejected/denied, all with strict identifiers. Edilnord SRL remains three distinct source-backed application/denial events rather than being collapsed by identifier."
     }
   ]
 }
