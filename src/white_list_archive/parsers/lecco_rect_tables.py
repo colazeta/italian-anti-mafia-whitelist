@@ -169,9 +169,7 @@ def _sections(raw: str, *, source_key: str, locator: str) -> list[str]:
     sections = list(dict.fromkeys(sections))
     if not sections:
         raise RuntimeError(f"Lecco blank/unparsed activity section for {source_key} at {locator}: {value!r}")
-    residue = value
-    for section in _SECTION.findall(value):
-        residue = residue.replace(section, " ")
+    residue = _SECTION.sub(" ", value)
     if _clean(residue):
         raise RuntimeError(
             f"Lecco unreviewed activity typography for {source_key} at {locator}: {value!r}"
@@ -409,3 +407,8 @@ def parse_lecco_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         expected_status_counts=_EXPECTED_APPLICANT_STATUS_COUNTS,
         expected_identifier_coverage=_EXPECTED_APPLICANT_IDENTIFIER_COVERAGE,
     )
+
+PARSERS = {
+    "lecco_listed": parse_lecco_listed,
+    "lecco_applicants": parse_lecco_applicants,
+}
