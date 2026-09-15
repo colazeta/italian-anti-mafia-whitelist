@@ -27,8 +27,8 @@ _APPLICANT_PAGES = 4
 _LISTED_RECORDS = 230
 _APPLICANT_RECORDS = 26
 
-_EXPECTED_LISTED_PAGE_COUNTS = (6, 12, 15, 14, 12, 13, 12, 10, 13, 11, 12, 13, 14, 13, 13, 12, 14, 13, 8)
-_EXPECTED_APPLICANT_PAGE_COUNTS = (0, 8, 14, 4)
+_LISTED_PAGE_COUNTS = (6, 12, 15, 14, 12, 13, 12, 10, 13, 11, 12, 13, 14, 13, 13, 12, 14, 13, 8)
+_APPLICANT_PAGE_COUNTS = (0, 8, 14, 4)
 _EXPECTED_LISTED_STATUS_COUNTS = {"listed": 201, "renewal_update_in_progress": 29}
 _EXPECTED_APPLICANT_STATUS_COUNTS = {"rejected_or_denied": 4, "pending": 22}
 _EXPECTED_LISTED_IDENTIFIER_COVERAGE = 228
@@ -39,13 +39,13 @@ _REVIEWED_MALFORMED_LISTED_IDENTIFIERS = {
     "Termoidraulica": "035180050137",
 }
 
-_DATE_DOT = re.compile(r"^\d{2}\.\d{2}\.\d{4}$")
+_DATE = re.compile(r"^\d{2}[./]\d{2}[./]\d{4}$")
 _STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Z]{6}[0-9A-Z]{10})$")
 _SECTION = re.compile(r"Sez\.?\s*[IVX]+", re.I)
 
-# The source PDFs are Word-exported tables.  Their true logical cells are preserved as
+# The source PDFs are Word-exported tables. Their true logical cells are preserved as
 # white rectangle objects; pdfplumber's generic row reconstruction additionally exposes
-# text-line subdivisions.  Binding to the wider source-cell rectangles avoids joining
+# text-line subdivisions. Binding to the wider source-cell rectangles avoids joining
 # section/name fragments from adjacent companies while remaining fully byte-pinned.
 _LISTED_SPECS = (
     (25.0, 26.0, 79.0, 81.0),
@@ -117,10 +117,11 @@ def _validate_file(path: Path, *, source_key: str, sha256: str, byte_count: int)
 
 def _strict_date(raw: str, *, source_key: str, locator: str) -> str:
     value = _clean(raw)
-    if not _DATE_DOT.fullmatch(value):
+    if not _DATE.fullmatch(value):
         raise RuntimeError(f"Lecco unreviewed date typography for {source_key} at {locator}: {value!r}")
+    fmt = "%d/%m/%Y" if "/" in value else "%d.%m.%Y"
     try:
-        return datetime.strptime(value, "%d.%m.%Y").date().isoformat()
+        return datetime.strptime(value, fmt).date().isoformat()
     except ValueError as exc:
         raise RuntimeError(f"Lecco invalid calendar date for {source_key} at {locator}: {value!r}") from exc
 
@@ -192,7 +193,7 @@ def _listed_rows(path: Path) -> list[dict[str, Any]]:
                 if not (378.8 <= rect["x0"] <= 379.2 and 55.0 <= rect["width"] <= 56.0):
                     continue
                 text = _rect_text(page, rect)
-                if _DATE_DOT.fullmatch(text):
+                if _DATE.fullmatch(text):
                     date_rects.append((rect, text))
             date_rects.sort(key=lambda item: item[0]["top"])
             page_counts.append(len(date_rects))
@@ -207,17 +208,10 @@ def _listed_rows(path: Path) -> list[dict[str, Any]]:
                     raise RuntimeError(
                         f"Lecco listed date-cell disagreement at {locator}: {cells[5]!r} != {source_date!r}"
                     )
-                rows.append(
-                    {
-                        "page": page_number,
-                        "locator": locator,
-                        "cells": cells,
-                    }
-                )
-    if tuple(page_counts) != _EXPECTED_LISTED_PAGE_COUNTS:
+                rows.append({"page": page_number, "locator": locator, "cells": cells})
+    if tuple(page_counts) != _LISTED_PAGE_COUNTS:
         raise RuntimeError(
-            f"Lecco listed per-page denominator drift: {tuple(page_counts)!r} != "
-            f"{_EXPECTED_LISTED_PAGE_COUNTS!r}"
+            f"Lecco listed per-page denominator drift: {tuple(page_counts)!r} != {_LISTED_PAGE_COUNTS!r}"
         )
     if len(rows) != _LISTED_RECORDS:
         raise RuntimeError(f"Lecco listed record-count drift: {len(rows)} != {_LISTED_RECORDS}")
@@ -235,7 +229,6 @@ def _applicant_rows(path: Path) -> list[dict[str, Any]]:
             for rect in page.rects:
                 if not _is_white_rect(rect):
                     continue
-                # Full event cells are wider/taller than the text-line rectangles nested inside them.
                 if not (
                     442.5 <= rect["x0"] <= 443.5
                     and 52.6 <= rect["width"] <= 53.2
@@ -243,7 +236,7 @@ def _applicant_rows(path: Path) -> list[dict[str, Any]]:
                 ):
                     continue
                 text = _rect_text(page, rect)
-                if _DATE_DOT.fullmatch(text):
+                if _DATE.fullmatch(text):
                     date_rects.append((rect, text))
             date_rects.sort(key=lambda item: item[0]["top"])
             page_counts.append(len(date_rects))
@@ -258,17 +251,10 @@ def _applicant_rows(path: Path) -> list[dict[str, Any]]:
                     raise RuntimeError(
                         f"Lecco applicant date-cell disagreement at {locator}: {cells[5]!r} != {source_date!r}"
                     )
-                rows.append(
-                    {
-                        "page": page_number,
-                        "locator": locator,
-                        "cells": cells,
-                    }
-                )
-    if tuple(page_counts) != _EXPECTED_APPLICANT_PAGE_COUNTS:
+                rows.append({"page": page_number, "locator": locator, "cells": cells})
+    if tuple(page_counts) != _APPLICANT_PAGE_COUNTS:
         raise RuntimeError(
-            f"Lecco applicant per-page denominator drift: {tuple(page_counts)!r} != "
-            f"{_EXPECTED_APPLICANT_PAGE_COUNTS!r}"
+            f"Lecco applicant per-page denominator drift: {tuple(page_counts)!r} != {_APPLICANT_PAGE_COUNTS!r}"
         )
     if len(rows) != _APPLICANT_RECORDS:
         raise RuntimeError(f"Lecco applicant record-count drift: {len(rows)} != {_APPLICANT_RECORDS}")
@@ -293,8 +279,7 @@ def _finalise(
     identifier_coverage = sum(bool(record["identifiers"]) for record in records)
     if identifier_coverage != expected_identifier_coverage:
         raise RuntimeError(
-            f"Lecco identifier-coverage drift for {source_key}: "
-            f"{identifier_coverage} != {expected_identifier_coverage}"
+            f"Lecco identifier-coverage drift for {source_key}: {identifier_coverage} != {expected_identifier_coverage}"
         )
     return ParsedBatch(
         records=records,
@@ -347,15 +332,14 @@ def parse_lecco_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 primary_date_label="Data iscrizione",
                 source_fields={
                     "sections": sections,
-                    "activities_source": activities_raw,
+                    "requested_activities_source": activities_raw,
                     "physical_locator": item["locator"],
                 },
             )
         )
     if malformed != _REVIEWED_MALFORMED_LISTED_IDENTIFIERS:
         raise RuntimeError(
-            f"Lecco reviewed malformed-identifier set drift: {malformed!r} != "
-            f"{_REVIEWED_MALFORMED_LISTED_IDENTIFIERS!r}"
+            f"Lecco reviewed malformed-identifier set drift: {malformed!r} != {_REVIEWED_MALFORMED_LISTED_IDENTIFIERS!r}"
         )
     identifiers = [identifier for record in records for identifier in record["identifiers"]]
     duplicates = {value: count for value, count in Counter(identifiers).items() if count > 1}
@@ -380,27 +364,21 @@ def parse_lecco_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         if not name or not office:
             raise RuntimeError(f"Lecco blank applicant identity field at {item['locator']}: {cells!r}")
         if not _strict_identifier(identifier_raw):
-            raise RuntimeError(
-                f"Lecco unreviewed applicant identifier at {item['locator']}: {identifier_raw!r}"
-            )
+            raise RuntimeError(f"Lecco unreviewed applicant identifier at {item['locator']}: {identifier_raw!r}")
         sections = _sections(activities_raw, source_key=_APPLICANT_SOURCE_KEY, locator=item["locator"])
-        application_date = _strict_date(
-            application_raw, source_key=_APPLICANT_SOURCE_KEY, locator=item["locator"]
-        )
+        application_date = _strict_date(application_raw, source_key=_APPLICANT_SOURCE_KEY, locator=item["locator"])
         folded = outcome.casefold()
         decision_date = ""
         if folded == "in istruttoria":
             status = "pending"
         elif folded.startswith("diniego di iscrizione"):
             status = "rejected_or_denied"
-            match = re.search(r"\bdel\s+(\d{2}\.\d{2}\.\d{4})$", outcome, re.I)
+            match = re.search(r"\bdel\s+(\d{2}[./]\d{2}[./]\d{4})$", outcome, re.I)
             if not match:
                 raise RuntimeError(
                     f"Lecco denied applicant without reviewable decision date at {item['locator']}: {outcome!r}"
                 )
-            decision_date = _strict_date(
-                match.group(1), source_key=_APPLICANT_SOURCE_KEY, locator=item["locator"]
-            )
+            decision_date = _strict_date(match.group(1), source_key=_APPLICANT_SOURCE_KEY, locator=item["locator"])
         else:
             raise RuntimeError(f"Lecco unreviewed applicant outcome at {item['locator']}: {outcome!r}")
         records.append(
@@ -419,7 +397,7 @@ def parse_lecco_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 primary_date_label="Data presentazione istanza",
                 source_fields={
                     "sections": sections,
-                    "activities_source": activities_raw,
+                    "requested_activities_source": activities_raw,
                     "physical_locator": item["locator"],
                 },
             )
