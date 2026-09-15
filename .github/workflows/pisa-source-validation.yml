@@ -1,0 +1,57 @@
+name: Pisa source validation
+
+on:
+  push:
+    branches:
+      - expansion/pisa-2026-09-15
+    paths:
+      - .github/workflows/pisa-source-validation.yml
+      - docs/sources/pisa-operational-check-2026-09-15.md
+      - src/white_list_archive/parsers/pisa_tables.py
+      - tests/test_pisa_parser_semantics.py
+      - data/publication/multi_prefecture_pilot.json
+      - data/monitoring/national_coverage.json
+      - data/source_registry/verified_primary_pages.csv
+      - data/source_registry/source_series_inventory.csv
+      - data/catalog.csv
+
+permissions:
+  contents: read
+
+jobs:
+  source-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repeat-fetch and byte-verify official Pisa sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pisa-source
+          cat > /tmp/pisa-source/sources.tsv <<'EOF'
+          listed	https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritte.pdf
+          applicant	https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedente-iscrizione.pdf
+          renewal_update	https://prefettura.interno.gov.it/sites/default/files/0/2026-09/in-aggiornamento.pdf
+          EOF
+          : > /tmp/pisa-source/manifest.tsv
+          printf 'scope\tsha256\tbytes\tpages\turl\n' >> /tmp/pisa-source/manifest.tsv
+          while IFS=$'\t' read -r scope url; do
+            for attempt in 1 2; do
+              curl --fail --location --silent --show-error \
+                --retry 3 --retry-delay 2 --connect-timeout 20 --max-time 90 \
+                "$url" -o "/tmp/pisa-source/${scope}.${attempt}.pdf"
+              head -c 5 "/tmp/pisa-source/${scope}.${attempt}.pdf" | grep -q '^%PDF-'
+            done
+            cmp "/tmp/pisa-source/${scope}.1.pdf" "/tmp/pisa-source/${scope}.2.pdf"
+            sha="$(sha256sum "/tmp/pisa-source/${scope}.1.pdf" | awk '{print $1}')"
+            bytes="$(stat -c %s "/tmp/pisa-source/${scope}.1.pdf")"
+            if command -v pdfinfo >/dev/null 2>&1; then
+              pages="$(pdfinfo "/tmp/pisa-source/${scope}.1.pdf" | awk '/^Pages:/ {print $2}')"
+            else
+              pages='NA'
+            fi
+            printf '%s\t%s\t%s\t%s\t%s\n' "$scope" "$sha" "$bytes" "$pages" "$url" | tee -a /tmp/pisa-source/manifest.tsv
+          done < /tmp/pisa-source/sources.tsv
+          echo '--- Pisa repeat-fetch manifest ---'
+          cat /tmp/pisa-source/manifest.tsv
