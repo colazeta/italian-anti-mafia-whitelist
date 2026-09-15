@@ -1,0 +1,176 @@
+name: Lecco source validation
+
+on:
+  push:
+    branches:
+      - expansion/lecco-2026-09-15
+    paths:
+      - src/white_list_archive/parsers/lecco_rect_tables.py
+      - tests/test_lecco_parser_semantics.py
+      - docs/sources/lecco-operational-check-2026-09-15.md
+      - .github/workflows/lecco-source-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validation runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          python -m pip install requests beautifulsoup4
+
+      - name: Verify official sources independently and parse frozen boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/lecco-validation
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import pathlib
+          import time
+          from collections import Counter
+          from urllib.parse import urljoin
+
+          import requests
+          from bs4 import BeautifulSoup
+
+          from white_list_archive.parsers.lecco_rect_tables import (
+              parse_lecco_applicants,
+              parse_lecco_listed,
+          )
+
+          OUT = pathlib.Path('tmp/lecco-validation')
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte'
+          LISTED_URL = 'https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_a-attivita-elenco-ditte-non-soggette-a-tentativo-infiltr_mafiosa_2.pdf'
+          APPLICANT_URL = 'https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_b-attivita-elenco-ditte-richiedenti-iscrizione_2.pdf'
+          LISTED_SHA = '80c439521cf2bd4062b54fff3646666487367f0f8b47c1a91a6c8f62bcf8e5bc'
+          APPLICANT_SHA = '7c24e015342cc2cb61cf4b5bf726621c8b3b90b195cd91c40942fc3ef6b6ba5b'
+
+          s = requests.Session()
+          s.headers.update({
+              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8',
+          })
+
+          def get(url: str) -> bytes:
+              response = s.get(url, timeout=45, allow_redirects=True)
+              print(f'GET {url} -> {response.status_code} {len(response.content)} bytes final={response.url}')
+              response.raise_for_status()
+              return response.content
+
+          page_a = get(PAGE)
+          time.sleep(1)
+          page_b = get(PAGE)
+          if page_a != page_b:
+              raise SystemExit('Lecco official landing page changed between independent validation GETs')
+
+          soup = BeautifulSoup(page_a, 'html.parser')
+          labelled = {
+              ' '.join(a.get_text(' ', strip=True).split()): urljoin(PAGE, a['href'])
+              for a in soup.find_all('a', href=True)
+          }
+          if labelled.get('All.A aggiornato al 14.09.2026') != LISTED_URL:
+              raise SystemExit('Lecco listed population is not positively identified by the expected current official label/link')
+          if labelled.get('All.B aggiornato al 14.09.2026') != APPLICANT_URL:
+              raise SystemExit('Lecco applicant population is not positively identified by the expected current official label/link')
+
+          def acquire(role: str, url: str, sha: str, byte_count: int) -> pathlib.Path:
+              first = get(url)
+              time.sleep(1)
+              second = get(url)
+              if first != second:
+                  raise SystemExit(f'Lecco {role} resource changed between independent validation GETs')
+              digest = hashlib.sha256(first).hexdigest()
+              if digest != sha:
+                  raise SystemExit(f'Lecco {role} SHA-256 drift: {digest} != {sha}')
+              if len(first) != byte_count:
+                  raise SystemExit(f'Lecco {role} byte-length drift: {len(first)} != {byte_count}')
+              path = OUT / f'{role}.pdf'
+              path.write_bytes(first)
+              return path
+
+          listed_path = acquire('listed', LISTED_URL, LISTED_SHA, 448763)
+          applicant_path = acquire('applicants', APPLICANT_URL, APPLICANT_SHA, 235376)
+
+          base = {
+              'authority_key': 'lecco',
+              'authority_name': 'Prefettura di Lecco',
+              'register_key': 'lecco-ordinary',
+              'register_name': 'White List — Prefettura di Lecco',
+              'reference_date': '2026-09-14',
+              'source_page_url': PAGE,
+          }
+          listed_cfg = {
+              **base,
+              'source_key': 'lecco-listed',
+              'population_scope': 'listed',
+              'resource_url': LISTED_URL,
+              'sha256': LISTED_SHA,
+          }
+          applicant_cfg = {
+              **base,
+              'source_key': 'lecco-applicants',
+              'population_scope': 'applicant',
+              'resource_url': APPLICANT_URL,
+              'sha256': APPLICANT_SHA,
+          }
+
+          listed = parse_lecco_listed(listed_path, listed_cfg)
+          applicants = parse_lecco_applicants(applicant_path, applicant_cfg)
+          records = listed.records + applicants.records
+          if len(listed.records) != 230 or len(applicants.records) != 26 or len(records) != 256:
+              raise SystemExit('Lecco parser denominator mismatch')
+          statuses = Counter(record['source_status'] for record in records)
+          expected = Counter({
+              'listed': 201,
+              'renewal_update_in_progress': 29,
+              'pending': 22,
+              'rejected_or_denied': 4,
+          })
+          if statuses != expected:
+              raise SystemExit(f'Lecco combined status drift: {statuses!r} != {expected!r}')
+          locators = [record['record_locator'] for record in records]
+          if len(set(locators)) != 256:
+              raise SystemExit('Lecco record locators are not unique across the source boundary')
+          malformed = {
+              record['name']: record['identifier_field_raw']
+              for record in listed.records
+              if not record['identifiers']
+          }
+          if malformed != {
+              'BIGS di Ivan Chavarriaga': '0416200136',
+              'Termoidraulica': '035180050137',
+          }:
+              raise SystemExit(f'Lecco reviewed malformed identifier set drift: {malformed!r}')
+          edilnord = [
+              record for record in applicants.records
+              if record['identifier_field_raw'] == '01882770132'
+          ]
+          if len(edilnord) != 3 or {record['application_date'] for record in edilnord} != {
+              '2013-12-12', '2016-01-29', '2017-04-18'
+          }:
+              raise SystemExit(f'Lecco Edilnord repeated application-event semantics drift: {edilnord!r}')
+          print('Lecco source/parser boundary validated:', len(records), dict(statuses))
+          PY
+
+      - name: Run Lecco semantic regression tests
+        run: python -m pytest -q tests/test_lecco_parser_semantics.py
+
+      - name: Run full repository tests
+        run: python -m pytest -q
