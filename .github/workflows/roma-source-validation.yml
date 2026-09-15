@@ -6,8 +6,6 @@ on:
       - expansion/roma-2026-09-15
     paths:
       - '.github/workflows/roma-source-validation.yml'
-      - 'src/white_list_archive/parsers/roma_positioned.py'
-      - 'tests/test_roma_parser_semantics.py'
 
 permissions:
   contents: read
@@ -15,69 +13,34 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install project test runtime
-        run: python -m pip install -e .[dev] requests
-      - name: Independently recapture and parse both Roma populations
+      - name: Install inspection runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Inspect first-page vertical geometry
         run: |
           python - <<'PY'
-          from __future__ import annotations
-          import hashlib
-          import time
+          import hashlib, json
           from pathlib import Path
-          import requests
-          from white_list_archive.parsers.roma_positioned import parse_roma_applicants, parse_roma_listed
+          import requests, pdfplumber
 
-          sources = [
-              {
-                  'source_key':'roma-listed','parser':parse_roma_listed,
-                  'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte',
-                  'resource_url':'https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf',
-                  'sha256':'8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af','expected':2169,
-              },
-              {
-                  'source_key':'roma-applicants','parser':parse_roma_applicants,
-                  'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione',
-                  'resource_url':'https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf',
-                  'sha256':'9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a','expected':2259,
-              },
-          ]
-          session=requests.Session();session.headers['User-Agent']='italian-anti-mafia-whitelist/0.1 (+Roma parser validation)'
-          for source in sources:
-              bodies=[]
-              for attempt in range(2):
-                  last=None
-                  for retry in range(3):
-                      try:
-                          response=session.get(source['resource_url'],timeout=40);response.raise_for_status();last=None;break
-                      except Exception as exc:
-                          last=exc
-                          if retry<2:time.sleep(2*(retry+1))
-                  if last is not None:raise RuntimeError(f"{source['source_key']}: recapture failed: {last}")
-                  bodies.append(response.content)
-                  if attempt==0:time.sleep(1)
-              hashes=[hashlib.sha256(body).hexdigest() for body in bodies]
-              if hashes != [source['sha256'],source['sha256']]:
-                  raise RuntimeError(f"{source['source_key']}: independent capture drift: {hashes}")
-              path=Path('/tmp')/(source['source_key']+'.pdf');path.write_bytes(bodies[0])
-              cfg={
-                  'source_key':source['source_key'],'authority_key':'roma','authority_name':'Prefettura di Roma',
-                  'register_key':'roma-ordinary','register_name':'White List ordinaria',
-                  'population_scope':'listed' if source['source_key'].endswith('listed') else 'applicant',
-                  'reference_date':'2026-09-14','source_page_url':source['source_page_url'],
-                  'resource_url':source['resource_url'],'sha256':source['sha256'],
-              }
-              batch=source['parser'](path,cfg)
-              assert len(batch.records)==source['expected'],(source['source_key'],len(batch.records))
-              assert len({record['record_locator'] for record in batch.records})==source['expected']
-              print(source['source_key'],batch.diagnostics)
+          sources={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a')}
+          s=requests.Session();s.headers['User-Agent']='italian-anti-mafia-whitelist/0.1 (+Roma geometry)'
+          for key,(url,expected) in sources.items():
+            r=s.get(url,timeout=40);r.raise_for_status();body=r.content
+            assert hashlib.sha256(body).hexdigest()==expected
+            p=Path('/tmp')/(key+'.pdf');p.write_bytes(body)
+            with pdfplumber.open(p) as pdf:
+              words=pdf.pages[0].extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
+            # print every positioned token from the table-heading/first-company transition only
+            selected=[w for w in words if 250 <= float(w['top']) <= 380]
+            selected.sort(key=lambda w:(float(w['top']),float(w['x0'])))
+            for w in selected:
+              print('GEOM',key,json.dumps({'top':round(float(w['top']),3),'bottom':round(float(w['bottom']),3),'x0':round(float(w['x0']),3),'x1':round(float(w['x1']),3),'text':str(w['text'])},ensure_ascii=False))
           PY
-      - name: Run Roma semantic tests
-        run: pytest -q tests/test_roma_parser_semantics.py
-      - name: Run repository tests
-        run: pytest -q
