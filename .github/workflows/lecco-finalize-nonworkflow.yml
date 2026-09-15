@@ -1,4 +1,5 @@
 name: Lecco production finaliser (temporary)
+# Triggered only after the validated national candidate commit.
 
 on:
   push:
