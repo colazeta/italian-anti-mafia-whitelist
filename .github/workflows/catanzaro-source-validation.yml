@@ -1,0 +1,135 @@
+name: Catanzaro source validation (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/catanzaro-2026-09-15
+    paths:
+      - .github/workflows/catanzaro-source-validation.yml
+      - src/white_list_archive/parsers/catanzaro_tables.py
+      - tests/test_catanzaro_parser_semantics.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validation runtime
+        run: python -m pip install --disable-pip-version-check pdfplumber requests
+      - name: Independently capture and inspect current Catanzaro sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import re
+          from collections import Counter
+          from pathlib import Path
+
+          import pdfplumber
+          import requests
+
+          SOURCES = {
+              "applicants": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
+              "listed": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
+          }
+          DATE = re.compile(r"\b\d{1,2}/\d{1,2}/\d{4}\b")
+          SECTION = re.compile(r"\bsezione\s+(X|IX|VIII|VII|VI|V|IV|III|II|I|10|[1-9])\b", re.I)
+
+          def clean(v):
+              return " ".join((v or "").replace("\n", " ").split())
+
+          for kind, url in SOURCES.items():
+              payloads = []
+              for attempt in (1, 2):
+                  response = requests.get(url, timeout=60, headers={"User-Agent": "italian-anti-mafia-whitelist/1.0 source-verification"})
+                  response.raise_for_status()
+                  if "pdf" not in response.headers.get("content-type", "").lower() and not response.content.startswith(b"%PDF"):
+                      raise RuntimeError(f"{kind} attempt {attempt}: non-PDF response {response.headers.get('content-type')!r}")
+                  payloads.append(response.content)
+                  print(json.dumps({
+                      "kind": kind,
+                      "attempt": attempt,
+                      "bytes": len(response.content),
+                      "sha256": hashlib.sha256(response.content).hexdigest(),
+                      "content_type": response.headers.get("content-type"),
+                  }, sort_keys=True))
+              if payloads[0] != payloads[1]:
+                  raise RuntimeError(f"{kind}: independent GETs were not byte-identical")
+
+              path = Path(f"/tmp/catanzaro-{kind}.pdf")
+              path.write_bytes(payloads[0])
+              width_counts = Counter()
+              table_counts = Counter()
+              nonempty_rows = 0
+              header_rows = 0
+              rows_with_dates = 0
+              rows_with_identifier_marker = 0
+              section_pages = Counter()
+              page_summaries = []
+              samples = []
+
+              with pdfplumber.open(path) as pdf:
+                  print(json.dumps({"kind": kind, "pages": len(pdf.pages)}, sort_keys=True))
+                  for pno, page in enumerate(pdf.pages, start=1):
+                      text = page.extract_text() or ""
+                      sections = SECTION.findall(text)
+                      for section in sections:
+                          section_pages[section.upper()] += 1
+                      tables = page.extract_tables() or []
+                      table_counts[len(tables)] += 1
+                      page_rows = 0
+                      page_widths = Counter()
+                      page_dates = 0
+                      for tno, table in enumerate(tables, start=1):
+                          for rno, row in enumerate(table or [], start=1):
+                              cells = [clean(v) for v in row]
+                              if not any(cells):
+                                  continue
+                              nonempty_rows += 1
+                              page_rows += 1
+                              width_counts[len(cells)] += 1
+                              page_widths[len(cells)] += 1
+                              folded = " ".join(cells).casefold()
+                              if "ragione sociale" in folded and ("codice fiscale" in folded or "partita iva" in folded):
+                                  header_rows += 1
+                              if any(DATE.search(cell) for cell in cells):
+                                  rows_with_dates += 1
+                                  page_dates += 1
+                              if any("*" in cell for cell in cells):
+                                  rows_with_identifier_marker += 1
+                              if len(samples) < 12 and pno in {1, 2, len(pdf.pages)}:
+                                  samples.append({"page": pno, "table": tno, "row": rno, "cells": cells})
+                      page_summaries.append({
+                          "page": pno,
+                          "tables": len(tables),
+                          "rows": page_rows,
+                          "widths": dict(page_widths),
+                          "date_rows": page_dates,
+                          "sections": sections,
+                      })
+
+              print(json.dumps({
+                  "kind": kind,
+                  "nonempty_rows": nonempty_rows,
+                  "header_rows": header_rows,
+                  "rows_with_dates": rows_with_dates,
+                  "rows_with_identifier_marker": rows_with_identifier_marker,
+                  "width_counts": dict(width_counts),
+                  "tables_per_page": dict(table_counts),
+                  "section_pages": dict(section_pages),
+                  "page_summaries": page_summaries,
+                  "samples": samples,
+              }, ensure_ascii=False, sort_keys=True))
+          PY
