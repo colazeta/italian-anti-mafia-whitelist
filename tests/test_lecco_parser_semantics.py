@@ -17,6 +17,7 @@ from white_list_archive.parsers.lecco_rect_tables import (
     _LISTED_SHA256,
     _REFERENCE_DATE,
     _REVIEWED_MALFORMED_LISTED_IDENTIFIERS,
+    _sections,
     _strict_date,
     _strict_identifier,
 )
@@ -61,6 +62,20 @@ def test_lecco_reviewed_malformed_identifiers_are_not_repaired() -> None:
     assert _strict_identifier("035180050137") == ""
     assert _strict_identifier("00333170132") == "00333170132"
     assert _strict_identifier("RSSMRA80A01H501Z") == "RSSMRA80A01H501Z"
+
+
+def test_lecco_activity_sections_accept_only_reviewed_section_tokens() -> None:
+    assert _sections(
+        "Sez. I Sez. III Sez. V Sez. VI Sez. X",
+        source_key="lecco-listed",
+        locator="p1:y481-543",
+    ) == ["Sez. I", "Sez. III", "Sez. V", "Sez. VI", "Sez. X"]
+    with pytest.raises(RuntimeError, match="unreviewed activity typography"):
+        _sections(
+            "Sez. I attività extra",
+            source_key="lecco-listed",
+            locator="p1:y481-543",
+        )
 
 
 def test_lecco_dates_are_strict_calendar_dates_with_reviewed_separators() -> None:
