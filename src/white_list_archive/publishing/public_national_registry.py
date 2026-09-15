@@ -54,6 +54,7 @@ from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.parsers.perugia_tables import PARSERS as PERUGIA_PARSERS
 from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
 from white_list_archive.parsers.torino_tables import parse_torino_applicants, parse_torino_listed
+from white_list_archive.parsers.potenza_webapp import PARSERS as POTENZA_PARSERS
 from white_list_archive.parsers.lodi_sheets import PARSERS as LODI_PARSERS
 from white_list_archive.parsers.roma_positioned import PARSERS as ROMA_PARSERS
 from white_list_archive.parsers.pisa_tables import PARSERS as PISA_PARSERS
@@ -656,6 +657,40 @@ def _adapt_trento_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedB
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+def _adapt_potenza_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project approved Potenza source semantics onto the closed public contract."""
+    if parser_name != "potenza_combined":
+        raise RuntimeError(f"Unexpected Potenza parser: {parser_name!r}")
+    adapted: list[dict[str, Any]] = []
+    expected = {
+        "source_id", "ragione_sociale_raw", "indirizzo_sede_legale_raw",
+        "denom_comune_sede_legale_raw", "richiedente", "carica_sociale_rich",
+        "stato_richiesta", "agg_incorso", "iscriz_scaduta", "note",
+        "data_istanza_raw", "data_iscriz_raw", "data_scad_iscriz_raw",
+    }
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict) or set(fields) != expected:
+            observed = sorted(fields) if isinstance(fields, dict) else type(fields).__name__
+            raise RuntimeError(f"Potenza source-field drift: {observed!r}")
+        if any(not isinstance(fields[key], str) for key in expected):
+            raise RuntimeError("Potenza source-field scalar type drift")
+        source_id = fields["source_id"]
+        if not source_id.isdigit() or record.get("record_locator", "").rsplit(":id-", 1)[-1] != source_id:
+            raise RuntimeError("Potenza source-id/locator reconciliation drift")
+        record["source_fields"] = {
+            "physical_locator": f"source-id:{source_id}",
+            "application_date_raw": fields["data_istanza_raw"],
+            "listing_date_raw_variants": [fields["data_iscriz_raw"]] if fields["data_iscriz_raw"] else [],
+            "expiry_date_raw_variants": [fields["data_scad_iscriz_raw"]] if fields["data_scad_iscriz_raw"] else [],
+            "in_aggiornamento": fields["agg_incorso"],
+            "notes": [fields["note"]] if fields["note"] else [],
+        }
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _adapt_lodi_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
     """Project audited Lodi evidence onto the recursively closed public source-field contract."""
     adapted: list[dict[str, Any]] = []
@@ -813,6 +848,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or PERUGIA_PARSERS.get(cfg["parser"])
         or TRENTO_PARSERS.get(cfg["parser"])
         or TORINO_PARSERS.get(cfg["parser"])
+        or POTENZA_PARSERS.get(cfg["parser"])
         or LODI_PARSERS.get(cfg["parser"])
         or ROMA_PARSERS.get(cfg["parser"])
         or PISA_PARSERS.get(cfg["parser"])
@@ -846,7 +882,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_roma_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
-        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"
+        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
     return batch
 
 
@@ -964,6 +1000,8 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
                     f"{cfg['source_key']}: approved semantic SHA mismatch; "
                     f"expected {expected_semantic_sha}, got {actual_semantic_sha}"
                 )
+        if cfg["parser"] in POTENZA_PARSERS:
+            batch = _adapt_potenza_public_fields(batch, cfg["parser"])
         all_records.extend(public_record(record) for record in batch.records)
         # Build diagnostics remain review evidence, outside the Pages artifact.
         (work_dir / f"{cfg['source_key']}.diagnostics.json").write_text(
