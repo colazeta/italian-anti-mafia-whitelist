@@ -1,0 +1,125 @@
+name: Roma source validation
+
+on:
+  push:
+    branches:
+      - expansion/roma-2026-09-15
+    paths:
+      - '.github/workflows/roma-source-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install bounded inspection runtime
+        run: |
+          python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
+      - name: Resolve, capture and inspect current Roma publications
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import re
+          import time
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+
+          UA = 'italian-anti-mafia-whitelist/0.1 (+bounded source validation)'
+          SOURCES = {
+              'roma-listed': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte',
+              'roma-applicants': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione',
+          }
+
+          session = requests.Session()
+          session.headers.update({'User-Agent': UA, 'Accept': 'text/html,application/pdf,*/*'})
+
+          def get(url: str) -> requests.Response:
+              last = None
+              for attempt in range(3):
+                  try:
+                      r = session.get(url, timeout=35)
+                      r.raise_for_status()
+                      return r
+                  except Exception as exc:
+                      last = exc
+                      if attempt < 2:
+                          time.sleep(2 * (attempt + 1))
+              raise RuntimeError(f'bounded GET failed for {url}: {last}')
+
+          summary = {}
+          for key, page_url in SOURCES.items():
+              page = get(page_url)
+              soup = BeautifulSoup(page.text, 'html.parser')
+              links = []
+              for a in soup.find_all('a', href=True):
+                  href = urljoin(page_url, a['href'])
+                  text = ' '.join(a.get_text(' ', strip=True).split())
+                  if '.pdf' in href.lower() or 'elenco' in text.casefold() or 'white list' in text.casefold():
+                      links.append((text, href))
+              print(f'PAGE {key} status={page.status_code} bytes={len(page.content)}')
+              for text, href in links:
+                  print('LINK', key, json.dumps(text, ensure_ascii=False), href)
+              pdf_links = []
+              seen = set()
+              for text, href in links:
+                  if '.pdf' not in href.lower() or href in seen:
+                      continue
+                  seen.add(href)
+                  pdf_links.append((text, href))
+              if len(pdf_links) != 1:
+                  raise RuntimeError(f'{key}: expected exactly one PDF attachment, got {len(pdf_links)}: {pdf_links!r}')
+              label, resource_url = pdf_links[0]
+              body = get(resource_url).content
+              sha = hashlib.sha256(body).hexdigest()
+              path = Path('/tmp') / f'{key}.pdf'
+              path.write_bytes(body)
+              with pdfplumber.open(path) as pdf:
+                  page_stats = []
+                  samples = []
+                  for page_no, p in enumerate(pdf.pages, 1):
+                      tables = p.extract_tables() or []
+                      rows = [row for table in tables for row in (table or [])]
+                      nonempty = [row for row in rows if any(str(c or '').strip() for c in row)]
+                      page_stats.append({'page': page_no, 'tables': len(tables), 'rows': len(nonempty), 'widths': sorted({len(r) for r in nonempty})})
+                      if page_no <= 2:
+                          for row in nonempty[:8]:
+                              samples.append({'page': page_no, 'row': [' '.join(str(c or '').split()) for c in row]})
+                  text = '\n'.join((p.extract_text() or '') for p in pdf.pages)
+              dates = sorted(set(re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b', text)))
+              summary[key] = {
+                  'page_url': page_url,
+                  'label': label,
+                  'resource_url': resource_url,
+                  'sha256': sha,
+                  'bytes': len(body),
+                  'pages': len(page_stats),
+                  'page_stats': page_stats,
+                  'sample_rows': samples,
+                  'date_tokens_sample': dates[:40],
+              }
+              print('SOURCE_SUMMARY', json.dumps({k:v for k,v in summary[key].items() if k not in {'page_stats','sample_rows'}}, ensure_ascii=False, sort_keys=True))
+              print('PAGE_STATS', key, json.dumps(page_stats, ensure_ascii=False))
+              print('SAMPLE_ROWS', key, json.dumps(samples, ensure_ascii=False))
+          Path('/tmp/roma-source-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+      - name: Upload inspection summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: roma-source-summary
+          path: /tmp/roma-source-summary.json
+          retention-days: 7
