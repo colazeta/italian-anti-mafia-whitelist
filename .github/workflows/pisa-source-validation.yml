@@ -40,7 +40,7 @@ jobs:
           renewal_update	https://prefettura.interno.gov.it/sites/default/files/0/2026-09/in-aggiornamento.pdf
           EOF
           : > /tmp/pisa-source/manifest.tsv
-          printf 'scope\tsha256\tbytes\tpages\turl\n' >> /tmp/pisa-source/manifest.tsv
+          printf 'scope\tsha256\tbytes\turl\n' >> /tmp/pisa-source/manifest.tsv
           while IFS=$'\t' read -r scope url; do
             for attempt in 1 2; do
               curl --fail --location --silent --show-error \
@@ -53,32 +53,53 @@ jobs:
             bytes="$(stat -c %s "/tmp/pisa-source/${scope}.1.pdf")"
             printf '%s\t%s\t%s\t%s\n' "$scope" "$sha" "$bytes" "$url" | tee -a /tmp/pisa-source/manifest.tsv
           done < /tmp/pisa-source/sources.tsv
-          echo '--- Pisa repeat-fetch manifest ---'
           cat /tmp/pisa-source/manifest.tsv
-      - name: Inspect source table geometry without repairing values
+      - name: Inspect source geometry identities and cross-surface overlap without repair
         shell: bash
         run: |
           python - <<'PY'
           from collections import Counter
+          from datetime import datetime
           from pathlib import Path
+          import re
           import pdfplumber
 
           def clean(value):
               return " ".join(str(value or "").replace("\u00a0", " ").split())
 
-          for scope in ("listed", "applicant", "renewal_update"):
+          def strict_id(value):
+              value = clean(value).upper()
+              if re.fullmatch(r"\d{11}", value) or re.fullmatch(r"[A-Z]{6}[0-9A-Z]{10}", value):
+                  return value
+              return ""
+
+          def valid_date(value):
+              value = clean(value)
+              if not re.fullmatch(r"\d{2}/\d{2}/\d{4}", value):
+                  return False
+              try:
+                  datetime.strptime(value, "%d/%m/%Y")
+                  return True
+              except ValueError:
+                  return False
+
+          specs = {
+              "listed": 10,
+              "applicant": 7,
+              "renewal_update": 8,
+          }
+          parsed = {}
+          for scope, expected_width in specs.items():
               path = Path(f"/tmp/pisa-source/{scope}.1.pdf")
+              rows = []
+              headers = 0
               widths = Counter()
-              statuses = Counter()
-              nonblank_rows = 0
-              header_rows = 0
-              table_count = 0
-              samples = []
               with pdfplumber.open(path) as pdf:
-                  page_count = len(pdf.pages)
+                  pages = len(pdf.pages)
+                  tables_total = 0
                   for page_number, page in enumerate(pdf.pages, 1):
                       tables = page.extract_tables() or []
-                      table_count += len(tables)
+                      tables_total += len(tables)
                       for table_number, table in enumerate(tables, 1):
                           for row_number, raw in enumerate(table or [], 1):
                               row = [clean(cell) for cell in (raw or [])]
@@ -87,16 +108,31 @@ jobs:
                               widths[len(row)] += 1
                               folded = " | ".join(row).casefold()
                               if "prefettura competente" in folded and ("ragione sociale" in folded or "codice fiscale" in folded):
-                                  header_rows += 1
+                                  headers += 1
                                   continue
-                              nonblank_rows += 1
-                              for value in row:
-                                  upper = value.upper()
-                                  if upper in {"ISCRITTA", "RICHIEDENTE_ISCRIZIONE", "IN AGGIORNAMENTO"}:
-                                      statuses[upper] += 1
-                              if len(samples) < 3:
-                                  samples.append((page_number, table_number, row_number, row))
-              print(f"SCOPE={scope} pages={page_count} tables={table_count} data_rows={nonblank_rows} headers={header_rows} widths={dict(widths)} statuses={dict(statuses)}")
-              for sample in samples:
-                  print(f"SAMPLE {scope}: {sample!r}")
+                              rows.append((page_number, table_number, row_number, row))
+              bad_width = [x for x in rows if len(x[3]) != expected_width]
+              ids = [strict_id(x[3][2]) for x in rows]
+              missing_ids = [(x[0], x[2], x[3][2], x[3][3]) for x, ident in zip(rows, ids) if not ident]
+              valid_ids = [ident for ident in ids if ident]
+              duplicate_ids = {k:v for k,v in Counter(valid_ids).items() if v > 1}
+              dates = [x[3][1] for x in rows]
+              malformed_dates = Counter(d for d in dates if d and not valid_date(d))
+              years = Counter(d[-4:] for d in dates if valid_date(d))
+              statuses = Counter(clean(x[3][6]).upper() for x in rows)
+              protocols = Counter(clean(x[3][7]) for x in rows if len(x[3]) > 7 and clean(x[3][7]))
+              parsed[scope] = {"rows": rows, "ids": set(valid_ids)}
+              print(f"SCOPE={scope} pages={pages} tables={tables_total} rows={len(rows)} headers={headers} widths={dict(widths)}")
+              print(f"STATUS={scope} {dict(statuses)}")
+              print(f"IDS={scope} valid={len(valid_ids)} missing_or_malformed={len(missing_ids)} duplicates={duplicate_ids}")
+              print(f"MISSING_IDS={scope} {missing_ids!r}")
+              print(f"DATES={scope} years={dict(years)} malformed={dict(malformed_dates)}")
+              print(f"PROTOCOL_DUPLICATES={scope} { {k:v for k,v in protocols.items() if v>1} }")
+              print(f"BAD_WIDTH={scope} {bad_width!r}")
+
+          scopes = list(specs)
+          for i, left in enumerate(scopes):
+              for right in scopes[i+1:]:
+                  overlap = sorted(parsed[left]["ids"] & parsed[right]["ids"])
+                  print(f"OVERLAP {left} {right}: count={len(overlap)} ids={overlap!r}")
           PY
