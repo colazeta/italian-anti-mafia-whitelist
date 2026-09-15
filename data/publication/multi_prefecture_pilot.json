@@ -1271,6 +1271,40 @@
       "sha256": "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228",
       "expected_source_rows": 4,
       "notes": "Official applicant tab linked by the Prefettura di Lodi. Two independent bounded GETs on 15 September 2026 were byte-identical. Four positively identified observations are present: two explicit denials with source-explicit decision dates and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "roma",
+      "authority_name": "Prefettura di Roma",
+      "register_key": "roma-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-14",
+      "last_source_update": "2026-09-14",
+      "last_source_update_basis": "date printed in the official PDF footer on every page; used as the document reference boundary and not as an inferred legal publication timestamp for the webpage",
+      "source_key": "roma-listed",
+      "parser": "roma_positioned_listed",
+      "population_scope": "listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf",
+      "sha256": "8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af",
+      "expected_source_rows": 2169,
+      "notes": "Dedicated official registered-company page and 168-page PDF revalidated 15 September 2026. Independent retrievals were byte-identical. The positioned fail-closed parser yields exactly 2,169 observations (1,215 listed; 954 renewal/update in progress) and freezes the reviewed malformed/missing-date exceptions without inference. Exact evidence is documented in docs/sources/roma-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "roma",
+      "authority_name": "Prefettura di Roma",
+      "register_key": "roma-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-14",
+      "last_source_update": "2026-09-14",
+      "last_source_update_basis": "date printed in the official PDF footer on every page; used as the document reference boundary and not as an inferred legal publication timestamp for the webpage",
+      "source_key": "roma-applicants",
+      "parser": "roma_positioned_applicants",
+      "population_scope": "applicant",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf",
+      "sha256": "9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a",
+      "expected_source_rows": 2259,
+      "notes": "Dedicated official applicant-company page and 142-page PDF revalidated 15 September 2026. Independent retrievals were byte-identical. The positioned fail-closed parser yields exactly 2,259 observations (2,256 pending; 3 explicit AGGIORNAMENTO IN CORSO) and freezes the reviewed malformed/missing application-date exceptions without inference. Exact evidence is documented in docs/sources/roma-operational-check-2026-09-15.md."
     }
   ]
 }

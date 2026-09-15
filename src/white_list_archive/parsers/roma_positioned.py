@@ -71,8 +71,8 @@ _APPLICANT_MISSING_DATE_IDS = {
 }
 
 _ROMAN = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
-_LISTED_PSEUDO_IDS = {"SEZIONE", "DI LAVORI", "2013) C.F./P.I."}
-_APPLICANT_PSEUDO_IDS = {"SEZIONE", "NELL’ELENCO DEI C.F./P.I."}
+_LISTED_PSEUDO_IDS = {"SEZIONE", "DI LAVORI", "2013)"}
+_APPLICANT_PSEUDO_IDS = {"SEZIONE", "NELL’ELENCO DEI"}
 
 
 def _sha256(path: Path) -> str:
@@ -244,9 +244,9 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
     if len(records) != _LISTED_RECORDS:
         raise RuntimeError(f"{cfg['source_key']}: denominator drift; expected {_LISTED_RECORDS}, got {len(records)}")
-    if pseudo_total != Counter({"SEZIONE": 5, "DI LAVORI": 1, "2013) C.F./P.I.": 1}):
+    if pseudo_total != Counter({"SEZIONE": 5, "DI LAVORI": 1, "2013)": 1, "C.F./P.I.": 1}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed header/legend geometry drift: {dict(pseudo_total)!r}")
-    if reviewed_header_note_overlaps != 1:
+    if reviewed_header_note_overlaps != 0:
         raise RuntimeError(
             f"{cfg['source_key']}: reviewed first-page NOTE overlap drift: {reviewed_header_note_overlaps}"
         )
@@ -338,7 +338,7 @@ def parse_roma_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
     if len(records) != _APPLICANT_RECORDS:
         raise RuntimeError(f"{cfg['source_key']}: denominator drift; expected {_APPLICANT_RECORDS}, got {len(records)}")
-    if pseudo_total != Counter({"SEZIONE": 5, "NELL’ELENCO DEI C.F./P.I.": 1}):
+    if pseudo_total != Counter({"SEZIONE": 5, "NELL’ELENCO DEI": 1, "C.F./P.I.": 1}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed header/legend geometry drift: {dict(pseudo_total)!r}")
     if bad_dates != Counter({"10/12/215": 1, "23/04/201": 1}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed malformed-date set drift: {dict(bad_dates)!r}")
