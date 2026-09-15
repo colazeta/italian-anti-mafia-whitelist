@@ -34,7 +34,8 @@ jobs:
           import hashlib
           import json
           import re
-          from collections import Counter
+          import unicodedata
+          from collections import Counter, defaultdict
           from pathlib import Path
 
           import pdfplumber
@@ -44,17 +45,38 @@ jobs:
               "applicants": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
               "listed": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
           }
-          DATE = re.compile(r"(?<!\d)(\d{1,2}/\d{1,2}/\d{2,4})(?!\d)")
+          DATE_FULL = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
           SECTION = re.compile(r"\bsezione\s+(X|IX|VIII|VII|VI|V|IV|III|II|I|10|[1-9])\b", re.I)
-          STAR_ID = re.compile(r"\*")
+          STRICT_11 = re.compile(r"^\d{11}$")
+          STRICT_16 = re.compile(r"^[A-Z0-9]{16}$")
+          ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
 
           def clean(v):
               return " ".join((v or "").replace("\n", " ").split())
+
+          def norm(v):
+              return clean(unicodedata.normalize("NFKC", v or "")).casefold()
+
+          def norm_addr(v):
+              text = norm(v).replace("–", "-").replace("—", "-").replace("−", "-")
+              text = re.sub(r"\s*([,;:/.-])\s*", r"\1", text)
+              return re.sub(r"\s+", " ", text).strip()
 
           def is_header(cells):
               folded = " ".join(cells).casefold()
               return "ragione sociale" in folded and ("codice fiscale" in folded or "partita iva" in folded)
 
+          def identifiers(raw):
+              compact = re.sub(r"\s+", "", clean(raw).upper()).lstrip("*")
+              out = []
+              for token in re.split(r"[/;]", compact):
+                  token = token.strip("*.,:;-")
+                  if STRICT_11.fullmatch(token) or STRICT_16.fullmatch(token):
+                      if token not in out:
+                          out.append(token)
+              return out
+
+          captured = {}
           for kind, url in SOURCES.items():
               payloads = []
               for attempt in (1, 2):
@@ -72,70 +94,141 @@ jobs:
                   }, sort_keys=True))
               if payloads[0] != payloads[1]:
                   raise RuntimeError(f"{kind}: independent GETs were not byte-identical")
-
               path = Path(f"/tmp/catanzaro-{kind}.pdf")
               path.write_bytes(payloads[0])
-              width_counts = Counter()
-              table_counts = Counter()
-              section_pages = Counter()
-              data_rows = []
+              captured[kind] = path
 
-              with pdfplumber.open(path) as pdf:
-                  print(json.dumps({"kind": kind, "pages": len(pdf.pages)}, sort_keys=True))
-                  for pno, page in enumerate(pdf.pages, start=1):
-                      text = page.extract_text() or ""
-                      sections = SECTION.findall(text)
-                      for section in sections:
-                          section_pages[section.upper()] += 1
-                      tables = page.extract_tables() or []
-                      table_counts[len(tables)] += 1
-                      for tno, table in enumerate(tables, start=1):
-                          for rno, row in enumerate(table or [], start=1):
-                              cells = [clean(v) for v in row]
-                              if not any(cells):
-                                  continue
-                              width_counts[len(cells)] += 1
-                              if is_header(cells):
-                                  continue
-                              dates = DATE.findall(" | ".join(cells))
-                              stars = sum(len(STAR_ID.findall(cell)) for cell in cells)
-                              data_rows.append({
-                                  "page": pno,
-                                  "table": tno,
-                                  "row": rno,
-                                  "sections": sections,
-                                  "cells": cells,
-                                  "dates": dates,
-                                  "stars": stars,
-                              })
+          # Applicants: one five-column table per page. Preserve positive rows even when the source date is blank.
+          applicant_rows = []
+          applicant_headers = 0
+          with pdfplumber.open(captured["applicants"]) as pdf:
+              if len(pdf.pages) != 46:
+                  raise RuntimeError(f"applicant page drift: {len(pdf.pages)}")
+              for pno, page in enumerate(pdf.pages, start=1):
+                  tables = page.extract_tables() or []
+                  if len(tables) != 1:
+                      raise RuntimeError(f"applicant table count drift p{pno}: {len(tables)}")
+                  for rno, row in enumerate(tables[0] or [], start=1):
+                      cells = [clean(v) for v in row]
+                      if not any(cells):
+                          continue
+                      if len(cells) != 5:
+                          raise RuntimeError(f"applicant width drift p{pno} r{rno}: {len(cells)}")
+                      if is_header(cells):
+                          applicant_headers += 1
+                          continue
+                      if cells == ["", "", "*", "", ""]:
+                          continue
+                      applicant_rows.append({"page": pno, "row": rno, "cells": cells})
 
-              anomalies = [
-                  row for row in data_rows
-                  if len(row["dates"]) != (1 if kind == "applicants" else 2)
-                  or row["stars"] != 1
-                  or not row["cells"][0]
-              ]
-              multiple_dates = [row for row in data_rows if len(row["dates"]) > (1 if kind == "applicants" else 2)]
-              multiple_stars = [row for row in data_rows if row["stars"] > 1]
-              blank_names = [row for row in data_rows if not row["cells"][0]]
-              date_multiplicity = Counter(len(row["dates"]) for row in data_rows)
-              star_multiplicity = Counter(row["stars"] for row in data_rows)
+          applicant_keys = Counter(tuple(norm(cell) for cell in row["cells"]) for row in applicant_rows)
+          applicant_duplicates = [key for key, count in applicant_keys.items() if count > 1]
+          applicant_blank_dates = [row for row in applicant_rows if not row["cells"][4]]
+          applicant_bad_dates = [row for row in applicant_rows if row["cells"][4] and not DATE_FULL.fullmatch(row["cells"][4])]
+          applicant_blank_names = [row for row in applicant_rows if not row["cells"][0]]
+          applicant_id_coverage = sum(bool(identifiers(row["cells"][2])) for row in applicant_rows)
+          applicant_neighbours = [
+              row for row in applicant_rows
+              if row["page"] in {29, 30, 31, 35, 36, 37}
+          ]
+          print(json.dumps({
+              "kind": "applicants-reviewed",
+              "pages": 46,
+              "headers": applicant_headers,
+              "records": len(applicant_rows),
+              "strict_identifier_coverage": applicant_id_coverage,
+              "duplicate_exact_normalised_rows": len(applicant_duplicates),
+              "blank_name_rows": applicant_blank_names,
+              "blank_date_rows": applicant_blank_dates,
+              "nonblank_malformed_date_rows": applicant_bad_dates,
+              "review_neighbours": applicant_neighbours,
+          }, ensure_ascii=False, sort_keys=True))
 
-              print(json.dumps({
-                  "kind": kind,
-                  "data_rows": len(data_rows),
-                  "width_counts": dict(width_counts),
-                  "tables_per_page": dict(table_counts),
-                  "section_pages": dict(section_pages),
-                  "date_multiplicity": dict(date_multiplicity),
-                  "star_multiplicity": dict(star_multiplicity),
-                  "blank_name_rows": len(blank_names),
-                  "multi_date_rows": len(multiple_dates),
-                  "multi_star_rows": len(multiple_stars),
-                  "anomaly_count": len(anomalies),
-              }, ensure_ascii=False, sort_keys=True))
-              print(json.dumps({
-                  "kind": kind,
-                  "anomalies": anomalies,
-              }, ensure_ascii=False, sort_keys=True))
+          # Listed: determine the section only from the page header crop, then conservatively group section memberships.
+          listed_rows = []
+          listed_headers = 0
+          section_by_page = {}
+          with pdfplumber.open(captured["listed"]) as pdf:
+              if len(pdf.pages) != 82:
+                  raise RuntimeError(f"listed page drift: {len(pdf.pages)}")
+              for pno, page in enumerate(pdf.pages, start=1):
+                  top = page.crop((0, 0, page.width, min(page.height, 230))).extract_text() or ""
+                  hits = SECTION.findall(top)
+                  numeric = []
+                  for value in hits:
+                      n = int(value) if value.isdigit() else ROMAN[value.upper()]
+                      if n not in numeric:
+                          numeric.append(n)
+                  if len(numeric) != 1:
+                      raise RuntimeError(f"listed header section drift p{pno}: {numeric!r} from {hits!r}")
+                  section_by_page[pno] = numeric[0]
+                  tables = page.extract_tables() or []
+                  if len(tables) != 1:
+                      raise RuntimeError(f"listed table count drift p{pno}: {len(tables)}")
+                  for rno, row in enumerate(tables[0] or [], start=1):
+                      cells = [clean(v) for v in row]
+                      if not any(cells):
+                          continue
+                      if len(cells) != 7:
+                          raise RuntimeError(f"listed width drift p{pno} r{rno}: {len(cells)}")
+                      if is_header(cells):
+                          listed_headers += 1
+                          continue
+                      if not cells[0]:
+                          raise RuntimeError(f"listed blank company p{pno} r{rno}: {cells!r}")
+                      note_folded = cells[6].casefold()
+                      status = "renewal_update_in_progress" if any(token in note_folded for token in ("rinnovo", "aggiornamento", "istruttoria")) else "listed"
+                      listed_rows.append({
+                          "page": pno,
+                          "row": rno,
+                          "section": numeric[0],
+                          "cells": cells,
+                          "status": status,
+                      })
+
+          grouped = {}
+          same_section_dupes = []
+          for row in listed_rows:
+              c = row["cells"]
+              key = (
+                  norm(c[0]), norm_addr(c[1]), norm_addr(c[2]), norm(c[3]),
+                  norm(c[4]), norm(c[5]), row["status"],
+              )
+              group = grouped.setdefault(key, {"row": row, "sections": [], "rows": []})
+              if row["section"] in group["sections"]:
+                  same_section_dupes.append({"key": key, "first": group["rows"][-1], "duplicate": row})
+              group["sections"].append(row["section"])
+              group["rows"].append(row)
+
+          listed_status = Counter(group["row"]["status"] for group in grouped.values())
+          listed_id_coverage = sum(bool(identifiers(group["row"]["cells"][3])) for group in grouped.values())
+          listing_bad = [row for row in listed_rows if row["cells"][4] and not DATE_FULL.fullmatch(row["cells"][4]) and row["cells"][4].casefold() != "x"]
+          expiry_bad = [row for row in listed_rows if row["cells"][5] and not DATE_FULL.fullmatch(row["cells"][5]) and row["cells"][5].casefold() != "x"]
+          blank_listing = [row for row in listed_rows if not row["cells"][4]]
+          blank_expiry = [row for row in listed_rows if not row["cells"][5]]
+          x_dates = [row for row in listed_rows if row["cells"][4].casefold() == "x" or row["cells"][5].casefold() == "x"]
+          section_counts = Counter(row["section"] for row in listed_rows)
+          distinct_section_sets = Counter(tuple(sorted(set(group["sections"]))) for group in grouped.values())
+
+          print(json.dumps({
+              "kind": "listed-reviewed",
+              "pages": 82,
+              "headers": listed_headers,
+              "sector_rows": len(listed_rows),
+              "records": len(grouped),
+              "status_counts": dict(listed_status),
+              "strict_identifier_coverage": listed_id_coverage,
+              "section_by_page": section_by_page,
+              "sector_rows_by_section": dict(section_counts),
+              "section_set_distribution": {str(k): v for k, v in distinct_section_sets.items()},
+              "same_section_duplicate_count": len(same_section_dupes),
+              "same_section_duplicates": same_section_dupes[:20],
+              "malformed_listing_date_rows": listing_bad,
+              "malformed_expiry_date_rows": expiry_bad,
+              "blank_listing_date_count": len(blank_listing),
+              "blank_listing_date_rows": blank_listing,
+              "blank_expiry_date_count": len(blank_expiry),
+              "blank_expiry_date_rows": blank_expiry[:30],
+              "x_date_rows": x_dates,
+          }, ensure_ascii=False, sort_keys=True))
           PY
