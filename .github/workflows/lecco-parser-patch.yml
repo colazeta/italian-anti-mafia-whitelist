@@ -25,22 +25,15 @@ jobs:
           from pathlib import Path
           path = Path('src/white_list_archive/parsers/lecco_rect_tables.py')
           text = path.read_text()
-          old = '''    residue = value
-              for section in _SECTION.findall(value):
-                  residue = residue.replace(section, " ")
-              if _clean(residue):
-          '''.replace('              ', '    ')
-          new = '''    residue = _SECTION.sub(" ", value)
-              if _clean(residue):
-          '''.replace('              ', '    ')
+          old = '    residue = value\n    for section in _SECTION.findall(value):\n        residue = residue.replace(section, " ")\n'
+          new = '    residue = _SECTION.sub(" ", value)\n'
           if text.count(old) != 1:
               raise SystemExit(f'Expected exactly one reviewed section-residue block, got {text.count(old)}')
           text = text.replace(old, new)
-          parser_map = '''\n\nPARSERS = {\n    "lecco_listed": parse_lecco_listed,\n    "lecco_applicants": parse_lecco_applicants,\n}\n'''
+          parser_map = '\n\nPARSERS = {\n    "lecco_listed": parse_lecco_listed,\n    "lecco_applicants": parse_lecco_applicants,\n}\n'
           if 'PARSERS = {' in text:
               raise SystemExit('Lecco parser map already exists; refusing duplicate append')
-          text = text.rstrip() + parser_map
-          path.write_text(text)
+          path.write_text(text.rstrip() + parser_map)
           PY
           git diff --check
           git diff -- src/white_list_archive/parsers/lecco_rect_tables.py
