@@ -24,7 +24,7 @@ jobs:
       - name: Install bounded inspection runtime
         run: |
           python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Resolve, capture and inspect current Roma publications
+      - name: Resolve, recapture and inspect positioned Roma publications
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -32,6 +32,7 @@ jobs:
           import json
           import re
           import time
+          from collections import Counter, defaultdict
           from pathlib import Path
           from urllib.parse import urljoin
 
@@ -44,7 +45,10 @@ jobs:
               'roma-listed': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte',
               'roma-applicants': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione',
           }
-
+          EXPECTED_SHA = {
+              'roma-listed': '8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',
+              'roma-applicants': '9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',
+          }
           session = requests.Session()
           session.headers.update({'User-Agent': UA, 'Accept': 'text/html,application/pdf,*/*'})
 
@@ -61,65 +65,76 @@ jobs:
                           time.sleep(2 * (attempt + 1))
               raise RuntimeError(f'bounded GET failed for {url}: {last}')
 
+          def lines(page):
+              grouped = defaultdict(list)
+              for w in page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False):
+                  grouped[round(float(w['top']), 1)].append(w)
+              out = []
+              for top, words in sorted(grouped.items()):
+                  words.sort(key=lambda w: float(w['x0']))
+                  out.append({
+                      'top': top,
+                      'text': ' '.join(str(w['text']) for w in words),
+                      'words': [{'x0': round(float(w['x0']),1), 'text': str(w['text'])} for w in words],
+                  })
+              return out
+
           summary = {}
           for key, page_url in SOURCES.items():
               page = get(page_url)
               soup = BeautifulSoup(page.text, 'html.parser')
-              links = []
-              for a in soup.find_all('a', href=True):
-                  href = urljoin(page_url, a['href'])
-                  text = ' '.join(a.get_text(' ', strip=True).split())
-                  if '.pdf' in href.lower() or 'elenco' in text.casefold() or 'white list' in text.casefold():
-                      links.append((text, href))
-              print(f'PAGE {key} status={page.status_code} bytes={len(page.content)}')
-              for text, href in links:
-                  print('LINK', key, json.dumps(text, ensure_ascii=False), href)
               pdf_links = []
               seen = set()
-              for text, href in links:
+              for a in soup.find_all('a', href=True):
+                  href = urljoin(page_url, a['href'])
                   if '.pdf' not in href.lower() or href in seen:
                       continue
                   seen.add(href)
-                  pdf_links.append((text, href))
+                  pdf_links.append((' '.join(a.get_text(' ', strip=True).split()), href))
               if len(pdf_links) != 1:
-                  raise RuntimeError(f'{key}: expected exactly one PDF attachment, got {len(pdf_links)}: {pdf_links!r}')
+                  raise RuntimeError(f'{key}: expected exactly one PDF, got {pdf_links!r}')
               label, resource_url = pdf_links[0]
               body = get(resource_url).content
               sha = hashlib.sha256(body).hexdigest()
+              if sha != EXPECTED_SHA[key]:
+                  raise RuntimeError(f'{key}: content changed between independent captures: {sha}')
               path = Path('/tmp') / f'{key}.pdf'
               path.write_bytes(body)
               with pdfplumber.open(path) as pdf:
-                  page_stats = []
-                  samples = []
-                  for page_no, p in enumerate(pdf.pages, 1):
-                      tables = p.extract_tables() or []
-                      rows = [row for table in tables for row in (table or [])]
-                      nonempty = [row for row in rows if any(str(c or '').strip() for c in row)]
-                      page_stats.append({'page': page_no, 'tables': len(tables), 'rows': len(nonempty), 'widths': sorted({len(r) for r in nonempty})})
-                      if page_no <= 2:
-                          for row in nonempty[:8]:
-                              samples.append({'page': page_no, 'row': [' '.join(str(c or '').split()) for c in row]})
-                  text = '\n'.join((p.extract_text() or '') for p in pdf.pages)
-              dates = sorted(set(re.findall(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b', text)))
-              summary[key] = {
-                  'page_url': page_url,
-                  'label': label,
-                  'resource_url': resource_url,
-                  'sha256': sha,
-                  'bytes': len(body),
-                  'pages': len(page_stats),
-                  'page_stats': page_stats,
-                  'sample_rows': samples,
-                  'date_tokens_sample': dates[:40],
-              }
-              print('SOURCE_SUMMARY', json.dumps({k:v for k,v in summary[key].items() if k not in {'page_stats','sample_rows'}}, ensure_ascii=False, sort_keys=True))
-              print('PAGE_STATS', key, json.dumps(page_stats, ensure_ascii=False))
-              print('SAMPLE_ROWS', key, json.dumps(samples, ensure_ascii=False))
-          Path('/tmp/roma-source-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+                  page_line_counts=[]
+                  samples={}
+                  date_counts=Counter()
+                  x_hist=Counter()
+                  page_text_lengths=[]
+                  for page_no,p in enumerate(pdf.pages,1):
+                      ls=lines(p)
+                      page_line_counts.append(len(ls))
+                      page_text_lengths.append(len(p.extract_text() or ''))
+                      if page_no in {1,2,3,len(pdf.pages)}:
+                          samples[str(page_no)]=ls[:120]
+                      for line in ls:
+                          for token in re.findall(r'\b\d{1,2}/\d{1,2}/\d{4}\b',line['text']):
+                              date_counts[token]+=1
+                          for w in line['words']:
+                              x_hist[round(float(w['x0'])/10)*10]+=1
+                  summary[key]={
+                      'page_url':page_url,'label':label,'resource_url':resource_url,
+                      'sha256':sha,'bytes':len(body),'pages':len(pdf.pages),
+                      'page_line_counts':page_line_counts,
+                      'page_text_lengths':page_text_lengths,
+                      'date_token_count':sum(date_counts.values()),
+                      'distinct_date_tokens':len(date_counts),
+                      'x_hist_top':x_hist.most_common(30),
+                      'samples':samples,
+                  }
+              print('ROMA_META',key,json.dumps({k:v for k,v in summary[key].items() if k!='samples'},ensure_ascii=False))
+              for pno, sample in summary[key]['samples'].items():
+                  print('ROMA_PAGE_SAMPLE',key,pno,json.dumps(sample,ensure_ascii=False))
+          Path('/tmp/roma-positioned-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
           PY
-      - name: Upload inspection summary
+      - name: Upload positioned inspection summary
         uses: actions/upload-artifact@v4
         with:
-          name: roma-source-summary
-          path: /tmp/roma-source-summary.json
+          name: roma-positioned-summary
+          path: /tmp/roma-positioned-summary.json
           retention-days: 7
