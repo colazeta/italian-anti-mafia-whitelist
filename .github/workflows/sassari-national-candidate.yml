@@ -27,7 +27,20 @@ jobs:
           python-version: '3.13'
 
       - name: Apply candidate transaction in the runner worktree
-        run: python tmp/sassari_integrate_candidate.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tmp/sassari_integrate_candidate.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('data/catalog.csv')
+          text = path.read_text(encoding='utf-8')
+          old = 'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,90,false,internal_research,Qualified recurring White List publication series and publication models.'
+          new = 'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,91,false,internal_research,Qualified recurring White List publication series and publication models.'
+          if text.count(old) != 1:
+              raise RuntimeError('source-series catalog row did not match the audited pre-transaction state')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
 
       - name: Enforce exact candidate integration diff
         shell: bash
@@ -36,6 +49,7 @@ jobs:
           git diff --check
           git diff --name-only | sort > /tmp/actual-files.txt
           cat > /tmp/expected-files.txt <<'EOF'
+          data/catalog.csv
           data/monitoring/national_coverage.json
           data/publication/multi_prefecture_pilot.json
           data/source_registry/source_series_inventory.csv
@@ -152,7 +166,7 @@ jobs:
           assert coverage['complete_register_scope_count'] == 47
           assert coverage['incomplete_register_scope_count'] == 1
           unresolved = {
-              row['authority_key'] for row in coverage['scopes']
+              row['authority_key'] for row in coverage['rows']
               if not row['source_population_complete']
           }
           assert unresolved == {'milano'}
@@ -190,6 +204,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
+            data/catalog.csv \
             data/monitoring/national_coverage.json \
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
