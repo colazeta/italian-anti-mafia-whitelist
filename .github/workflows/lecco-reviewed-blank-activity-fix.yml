@@ -101,3 +101,5 @@ jobs:
           git diff --cached --quiet && { echo 'No parser change to commit'; exit 0; }
           git commit -m 'Handle reviewed blank Lecco activity without inference'
           git push origin HEAD:expansion/lecco-2026-09-15
+
+# one-shot trigger after workflow registration on the branch
