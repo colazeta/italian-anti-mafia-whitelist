@@ -15,6 +15,8 @@ replacements = {
         'if pseudo_total != Counter({"SEZIONE": 5, "DI LAVORI": 1, "2013)": 1, "C.F./P.I.": 1}):',
     'if pseudo_total != Counter({"SEZIONE": 5, "NELL’ELENCO DEI C.F./P.I.": 1}):':
         'if pseudo_total != Counter({"SEZIONE": 5, "NELL’ELENCO DEI": 1, "C.F./P.I.": 1}):',
+    'if reviewed_header_note_overlaps != 1:':
+        'if reviewed_header_note_overlaps != 0:',
 }
 for old, new in replacements.items():
     count = text.count(old)
