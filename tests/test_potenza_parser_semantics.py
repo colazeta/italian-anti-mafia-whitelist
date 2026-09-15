@@ -106,6 +106,21 @@ def test_potenza_status_mapping_and_raw_provenance(tmp_path: Path) -> None:
             expiry=None,
             expiry_marker="NE",
         ),
+        # Mirrors the reviewed live edge case discovered on 2026-09-15:
+        # source state 1 (in Istruttoria) + in Agg., with explicit prior
+        # enrolment dates. It is an enrolled firm under update, not a new
+        # first-time applicant.
+        _row(
+            "903",
+            name="GAP S.R.L.S.",
+            identifier="02071920769",
+            status="1",
+            update="1",
+            application="2023-01-11",
+            listing="2024-11-28",
+            expiry="2025-11-28",
+            expiry_marker="R",
+        ),
     ]
     batch = parse_potenza_combined(_write(tmp_path, rows), _cfg())
 
@@ -113,6 +128,7 @@ def test_potenza_status_mapping_and_raw_provenance(tmp_path: Path) -> None:
         "listed",
         "renewal_update_in_progress",
         "pending",
+        "renewal_update_in_progress",
     ]
     assert batch.records[0]["name"] == "ALFA & BETA SRL"
     assert batch.records[0]["registered_office"] == "Via Test, 1, Potenza"
@@ -126,15 +142,19 @@ def test_potenza_status_mapping_and_raw_provenance(tmp_path: Path) -> None:
     assert batch.records[2]["observed_expiry_date"] == ""
     assert batch.records[2]["primary_date"] == "2026-04-20"
     assert batch.records[2]["requested_activities"] == []
+    assert batch.records[3]["source_fields"]["stato_richiesta"] == "1"
+    assert batch.records[3]["source_fields"]["agg_incorso"] == "1"
+    assert batch.records[3]["observed_listing_date"] == "2024-11-28"
+    assert batch.records[3]["source_status"] == "renewal_update_in_progress"
     assert batch.diagnostics["status_counts"] == {
         "listed": 1,
-        "renewal_update_in_progress": 1,
+        "renewal_update_in_progress": 2,
         "pending": 1,
     }
     assert batch.diagnostics["raw_identifier_only"] == 1
 
 
-def test_potenza_unknown_status_combination_fails_closed(tmp_path: Path) -> None:
+def test_potenza_state_one_update_without_prior_enrolment_fails_closed(tmp_path: Path) -> None:
     row = _row(
         "1",
         name="ALFA SRL",
