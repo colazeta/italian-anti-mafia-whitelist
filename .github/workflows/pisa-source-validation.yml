@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install parser runtime
-        run: python -m pip install -e .[dev]
+        run: python -m pip install -e .[dev,database,storage]
       - name: Repeat-fetch and byte-verify official Pisa sources
         shell: bash
         run: |
