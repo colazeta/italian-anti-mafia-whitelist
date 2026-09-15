@@ -14,10 +14,9 @@ RESOURCE = (
     "&cerca_stato_richiesta=0&cerca_sezione=0"
 )
 CAPTURE_SHA = "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6"
-# This initial value is the independently validated full-parser semantic digest.
-# The national publication gate hashes the explicitly adapted public projection;
-# if that digest differs, the candidate must fail closed and the approved value
-# must be updated only from the observed production parser output.
+# Independently validated on two byte-identical complete captures. For this
+# mutable structured source the digest intentionally covers the full parsed
+# source semantics before the separately fail-closed public-field projection.
 SEMANTIC_SHA = "c033d7b1f2d758f42e9b0a97d70e8f7f2278cb08608db86c2e7b600e1857cb34"
 
 
@@ -53,7 +52,7 @@ def update_source_registry() -> None:
             "notes": (
                 "Current official Ministry landing and linked UTG Potenza web application directly revalidated 15 September 2026. "
                 "Two independent complete endpoint captures were byte-identical at SHA-256 483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6 and expose exactly 1,034 current public observations: 217 listed, 375 pending and 442 renewal/update in progress. "
-                "The mutable web-app response is approved by parser semantics rather than assumed immutable; exact boundary, status evidence and conservative anomaly handling are documented in docs/sources/potenza-operational-check-2026-09-15.md."
+                "The mutable web-app response is approved by full parsed source semantics rather than assumed immutable; exact boundary, status evidence and conservative anomaly handling are documented in docs/sources/potenza-operational-check-2026-09-15.md."
             ),
         }
     )
@@ -144,7 +143,7 @@ def update_publication_config() -> None:
             "notes": (
                 "Official Ministry landing links the UTG Potenza public White List web application. "
                 "Two complete live captures were byte-identical and yielded 1,034 observations. "
-                "Because the endpoint is a mutable current web application, publication is fail-closed on the separately approved parsed semantic digest; raw capture SHA-256 remains observation provenance."
+                "Because the endpoint is a mutable current web application, publication is fail-closed on the independently approved full parsed source-semantic digest before closed-contract projection; raw capture SHA-256 remains observation provenance."
             ),
         }
     )
@@ -166,20 +165,20 @@ def bind_parser_and_adapter() -> None:
     )
     replace_exact(
         path,
-        '    if cfg["parser"] in TRENTO_PARSERS:\n        batch = _adapt_trento_public_fields(batch, cfg["parser"])\n    if cfg["parser"] in LODI_PARSERS:\n',
-        '    if cfg["parser"] in TRENTO_PARSERS:\n        batch = _adapt_trento_public_fields(batch, cfg["parser"])\n'
-        '    if cfg["parser"] in POTENZA_PARSERS:\n        batch = _adapt_potenza_public_fields(batch, cfg["parser"])\n'
-        '    if cfg["parser"] in LODI_PARSERS:\n',
-    )
-    replace_exact(
-        path,
         '    for record in batch.records:\n        record["parser_name"] = cfg["parser"]\n        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"\n',
         '    for record in batch.records:\n        record["parser_name"] = cfg["parser"]\n'
         '        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"\n',
     )
     marker = '\n\ndef _adapt_lodi_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:\n'
-    adapter = '''\n\ndef _adapt_potenza_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:\n    """Project audited Potenza web-app provenance onto the closed public contract."""\n    if parser_name != "potenza_combined":\n        raise RuntimeError(f"Unexpected Potenza parser: {parser_name!r}")\n    adapted: list[dict[str, Any]] = []\n    expected = {\n        "source_id", "ragione_sociale_raw", "indirizzo_sede_legale_raw",\n        "denom_comune_sede_legale_raw", "richiedente", "carica_sociale_rich",\n        "stato_richiesta", "agg_incorso", "iscriz_scaduta", "note",\n        "data_istanza_raw", "data_iscriz_raw", "data_scad_iscriz_raw",\n    }\n    for source_record in batch.records:\n        record = dict(source_record)\n        fields = record.get("source_fields")\n        if not isinstance(fields, dict) or set(fields) != expected:\n            raise RuntimeError(f"Potenza source-field drift: {sorted(fields) if isinstance(fields, dict) else type(fields)!r}")\n        if any(not isinstance(fields[key], str) for key in expected):\n            raise RuntimeError("Potenza source-field scalar type drift")\n        source_id = fields["source_id"]\n        if not source_id.isdigit() or record.get("record_locator", "").rsplit(":id-", 1)[-1] != source_id:\n            raise RuntimeError("Potenza source-id/locator reconciliation drift")\n        record["source_fields"] = {\n            "physical_locator": f"source-id:{source_id}",\n            "application_date_raw": fields["data_istanza_raw"],\n            "listing_date_raw_variants": [fields["data_iscriz_raw"]] if fields["data_iscriz_raw"] else [],\n            "expiry_date_raw_variants": [fields["data_scad_iscriz_raw"]] if fields["data_scad_iscriz_raw"] else [],\n            "in_aggiornamento": fields["agg_incorso"],\n            "notes": [fields["note"]] if fields["note"] else [],\n        }\n        adapted.append(record)\n    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)\n'''
+    adapter = '''\n\ndef _adapt_potenza_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:\n    """Project approved Potenza source semantics onto the closed public contract."""\n    if parser_name != "potenza_combined":\n        raise RuntimeError(f"Unexpected Potenza parser: {parser_name!r}")\n    adapted: list[dict[str, Any]] = []\n    expected = {\n        "source_id", "ragione_sociale_raw", "indirizzo_sede_legale_raw",\n        "denom_comune_sede_legale_raw", "richiedente", "carica_sociale_rich",\n        "stato_richiesta", "agg_incorso", "iscriz_scaduta", "note",\n        "data_istanza_raw", "data_iscriz_raw", "data_scad_iscriz_raw",\n    }\n    for source_record in batch.records:\n        record = dict(source_record)\n        fields = record.get("source_fields")\n        if not isinstance(fields, dict) or set(fields) != expected:\n            observed = sorted(fields) if isinstance(fields, dict) else type(fields).__name__\n            raise RuntimeError(f"Potenza source-field drift: {observed!r}")\n        if any(not isinstance(fields[key], str) for key in expected):\n            raise RuntimeError("Potenza source-field scalar type drift")\n        source_id = fields["source_id"]\n        if not source_id.isdigit() or record.get("record_locator", "").rsplit(":id-", 1)[-1] != source_id:\n            raise RuntimeError("Potenza source-id/locator reconciliation drift")\n        record["source_fields"] = {\n            "physical_locator": f"source-id:{source_id}",\n            "application_date_raw": fields["data_istanza_raw"],\n            "listing_date_raw_variants": [fields["data_iscriz_raw"]] if fields["data_iscriz_raw"] else [],\n            "expiry_date_raw_variants": [fields["data_scad_iscriz_raw"]] if fields["data_scad_iscriz_raw"] else [],\n            "in_aggiornamento": fields["agg_incorso"],\n            "notes": [fields["note"]] if fields["note"] else [],\n        }\n        adapted.append(record)\n    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)\n'''
     replace_exact(path, marker, adapter + marker)
+    replace_exact(
+        path,
+        '        all_records.extend(public_record(record) for record in batch.records)\n',
+        '        if cfg["parser"] in POTENZA_PARSERS:\n'
+        '            batch = _adapt_potenza_public_fields(batch, cfg["parser"])\n'
+        '        all_records.extend(public_record(record) for record in batch.records)\n',
+    )
 
 
 def main() -> None:
