@@ -53,6 +53,7 @@ from white_list_archive.parsers.napoli_tables import PARSERS as NAPOLI_PARSERS
 from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.parsers.perugia_tables import PARSERS as PERUGIA_PARSERS
 from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
+from white_list_archive.parsers.torino_tables import parse_torino_applicants, parse_torino_listed
 from white_list_archive.parsers.lodi_sheets import PARSERS as LODI_PARSERS
 from white_list_archive.parsers.roma_positioned import PARSERS as ROMA_PARSERS
 from white_list_archive.parsers.pisa_tables import PARSERS as PISA_PARSERS
@@ -81,6 +82,10 @@ GORIZIA_PARSERS = {
 TRENTO_PARSERS = {
     "trento_listed": parse_trento_listed,
     "trento_applicants": parse_trento_applicants,
+}
+TORINO_PARSERS = {
+    "torino_listed": parse_torino_listed,
+    "torino_applicants": parse_torino_applicants,
 }
 
 
@@ -807,6 +812,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or PADOVA_PARSERS.get(cfg["parser"])
         or PERUGIA_PARSERS.get(cfg["parser"])
         or TRENTO_PARSERS.get(cfg["parser"])
+        or TORINO_PARSERS.get(cfg["parser"])
         or LODI_PARSERS.get(cfg["parser"])
         or ROMA_PARSERS.get(cfg["parser"])
         or PISA_PARSERS.get(cfg["parser"])
