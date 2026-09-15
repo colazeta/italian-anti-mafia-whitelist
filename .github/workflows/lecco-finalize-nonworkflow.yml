@@ -58,23 +58,24 @@ jobs:
               'pre-expansion baseline exclusion',
           )
           anchor = "      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&r.source_fields?.application_date_raw==='1/8/12/2025'&&r.application_date==='').length,1);\n"
-          lecco_block = anchor + """      const lecco=registry.records.filter(r=>r.authority_key==='lecco');
-      assert.equal(lecco.length,256);
-      assert.equal(lecco.filter(r=>r.source_key==='lecco-listed').length,230);
-      assert.equal(lecco.filter(r=>r.source_key==='lecco-applicants').length,26);
-      assert.deepEqual(statusCounts(lecco),{listed:201,pending:22,rejected_or_denied:4,renewal_update_in_progress:29});
-      assert.equal(new Set(lecco.map(r=>r.record_locator)).size,256);
-      assert.equal(lecco.filter(r=>r.source_key==='lecco-listed'&&r.identifiers.length>0).length,228);
-      assert.equal(lecco.filter(r=>r.source_key==='lecco-applicants'&&r.identifiers.length>0).length,26);
-      const termoidraulica=lecco.filter(r=>r.source_key==='lecco-listed'&&r.name==='Termoidraulica');
-      assert.equal(termoidraulica.length,1);
-      assert.equal(termoidraulica[0].identifier_field_raw,'035180050137');
-      assert.deepEqual(termoidraulica[0].identifiers,[]);
-      assert.deepEqual(termoidraulica[0].requested_activities,[]);
-      const edilnord=lecco.filter(r=>r.source_key==='lecco-applicants'&&r.identifier_field_raw==='01882770132');
-      assert.equal(edilnord.length,3);
-      assert.deepEqual(edilnord.map(r=>r.application_date).sort(),['2013-12-12','2016-01-29','2017-04-18']);
-"""
+          lecco_block = anchor + (
+              "      const lecco=registry.records.filter(r=>r.authority_key==='lecco');\n"
+              "      assert.equal(lecco.length,256);\n"
+              "      assert.equal(lecco.filter(r=>r.source_key==='lecco-listed').length,230);\n"
+              "      assert.equal(lecco.filter(r=>r.source_key==='lecco-applicants').length,26);\n"
+              "      assert.deepEqual(statusCounts(lecco),{listed:201,pending:22,rejected_or_denied:4,renewal_update_in_progress:29});\n"
+              "      assert.equal(new Set(lecco.map(r=>r.record_locator)).size,256);\n"
+              "      assert.equal(lecco.filter(r=>r.source_key==='lecco-listed'&&r.identifiers.length>0).length,228);\n"
+              "      assert.equal(lecco.filter(r=>r.source_key==='lecco-applicants'&&r.identifiers.length>0).length,26);\n"
+              "      const termoidraulica=lecco.filter(r=>r.source_key==='lecco-listed'&&r.name==='Termoidraulica');\n"
+              "      assert.equal(termoidraulica.length,1);\n"
+              "      assert.equal(termoidraulica[0].identifier_field_raw,'035180050137');\n"
+              "      assert.deepEqual(termoidraulica[0].identifiers,[]);\n"
+              "      assert.deepEqual(termoidraulica[0].requested_activities,[]);\n"
+              "      const edilnord=lecco.filter(r=>r.source_key==='lecco-applicants'&&r.identifier_field_raw==='01882770132');\n"
+              "      assert.equal(edilnord.length,3);\n"
+              "      assert.deepEqual(edilnord.map(r=>r.application_date).sort(),['2013-12-12','2016-01-29','2017-04-18']);\n"
+          )
           browser = replace_once(browser, anchor, lecco_block, 'Lecco browser invariants anchor')
           browser_path.write_text(browser, encoding='utf-8')
 
