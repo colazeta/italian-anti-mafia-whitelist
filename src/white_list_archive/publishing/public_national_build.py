@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import shutil
 import tempfile
+import time
+from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 from white_list_archive.publishing.public_history import publish_history
-from pathlib import Path
-
 from white_list_archive.publishing.public_national_registry import (
     build_prefecture_index,
     build_registry,
@@ -124,6 +126,39 @@ def _canonicalise_prefecture_authority_keys(prefectures: dict, aliases: Path) ->
     return {**prefectures, "prefectures": rows}
 
 
+def _build_registry_with_network_retries(
+    config: dict,
+    work_dir: Path,
+    *,
+    attempts: int = 3,
+    sleep=time.sleep,
+) -> dict:
+    """Retry only transient acquisition failures; semantic failures still fail fast.
+
+    Each attempt starts from an empty work directory so a partially downloaded
+    source can never be reused as though it had passed the normal hash/parser
+    checks.  ``build_registry`` retains all existing source SHA-256, parsing and
+    public-contract validation behaviour.
+    """
+    if attempts < 1:
+        raise ValueError("attempts must be at least one")
+    retryable = (HTTPError, URLError, ConnectionError, TimeoutError)
+    for attempt in range(1, attempts + 1):
+        shutil.rmtree(work_dir, ignore_errors=True)
+        try:
+            return build_registry(config, work_dir)
+        except retryable as exc:
+            if attempt == attempts:
+                raise
+            delay = attempt * 3
+            print(
+                f"Transient source acquisition failure on attempt {attempt}/{attempts} "
+                f"({type(exc).__name__}); rebuilding from a clean work directory in {delay}s."
+            )
+            sleep(delay)
+    raise AssertionError("unreachable")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build public national registry and Prefecture index with explicit source/canonical authority aliases"
@@ -147,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             args.authority_aliases,
             Path(tmp),
         )
-        registry = build_registry(config, args.work_dir)
+        registry = _build_registry_with_network_retries(config, args.work_dir)
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
             verified,
