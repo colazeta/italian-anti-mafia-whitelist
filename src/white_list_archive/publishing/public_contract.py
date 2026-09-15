@@ -22,7 +22,14 @@ SOURCE_LIST_FIELDS = {
     "date_conflict_fields",
     "malformed_date_pairs",
 }
-SOURCE_FIELDS = SOURCE_LIST_FIELDS | {"physical_locator", "provvedimento", "in_aggiornamento", "outcome", "requested_activities_source"}
+SOURCE_FIELDS = SOURCE_LIST_FIELDS | {
+    "physical_locator",
+    "application_date_raw",
+    "provvedimento",
+    "in_aggiornamento",
+    "outcome",
+    "requested_activities_source",
+}
 OUTCOME_FIELDS = {"status", "observed_listing_date", "observed_expiry_date", "renewal_requested", "update_in_progress", "dates"}
 DATE_FIELDS = {"raw_value", "date", "parenthesized"}
 SOURCE_REPORT_FIELDS = {"source_key", "authority_key", "register_key", "population_scope", "reference_date", "sha256", "parser", "document_checked_at"}
