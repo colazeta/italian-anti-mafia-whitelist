@@ -21,9 +21,14 @@ permissions:
 jobs:
   source-identity:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install parser runtime
+        run: python -m pip install -e .[dev]
       - name: Repeat-fetch and byte-verify official Pisa sources
         shell: bash
         run: |
@@ -46,12 +51,52 @@ jobs:
             cmp "/tmp/pisa-source/${scope}.1.pdf" "/tmp/pisa-source/${scope}.2.pdf"
             sha="$(sha256sum "/tmp/pisa-source/${scope}.1.pdf" | awk '{print $1}')"
             bytes="$(stat -c %s "/tmp/pisa-source/${scope}.1.pdf")"
-            if command -v pdfinfo >/dev/null 2>&1; then
-              pages="$(pdfinfo "/tmp/pisa-source/${scope}.1.pdf" | awk '/^Pages:/ {print $2}')"
-            else
-              pages='NA'
-            fi
-            printf '%s\t%s\t%s\t%s\t%s\n' "$scope" "$sha" "$bytes" "$pages" "$url" | tee -a /tmp/pisa-source/manifest.tsv
+            printf '%s\t%s\t%s\t%s\n' "$scope" "$sha" "$bytes" "$url" | tee -a /tmp/pisa-source/manifest.tsv
           done < /tmp/pisa-source/sources.tsv
           echo '--- Pisa repeat-fetch manifest ---'
           cat /tmp/pisa-source/manifest.tsv
+      - name: Inspect source table geometry without repairing values
+        shell: bash
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          import pdfplumber
+
+          def clean(value):
+              return " ".join(str(value or "").replace("\u00a0", " ").split())
+
+          for scope in ("listed", "applicant", "renewal_update"):
+              path = Path(f"/tmp/pisa-source/{scope}.1.pdf")
+              widths = Counter()
+              statuses = Counter()
+              nonblank_rows = 0
+              header_rows = 0
+              table_count = 0
+              samples = []
+              with pdfplumber.open(path) as pdf:
+                  page_count = len(pdf.pages)
+                  for page_number, page in enumerate(pdf.pages, 1):
+                      tables = page.extract_tables() or []
+                      table_count += len(tables)
+                      for table_number, table in enumerate(tables, 1):
+                          for row_number, raw in enumerate(table or [], 1):
+                              row = [clean(cell) for cell in (raw or [])]
+                              if not any(row):
+                                  continue
+                              widths[len(row)] += 1
+                              folded = " | ".join(row).casefold()
+                              if "prefettura competente" in folded and ("ragione sociale" in folded or "codice fiscale" in folded):
+                                  header_rows += 1
+                                  continue
+                              nonblank_rows += 1
+                              for value in row:
+                                  upper = value.upper()
+                                  if upper in {"ISCRITTA", "RICHIEDENTE_ISCRIZIONE", "IN AGGIORNAMENTO"}:
+                                      statuses[upper] += 1
+                              if len(samples) < 3:
+                                  samples.append((page_number, table_number, row_number, row))
+              print(f"SCOPE={scope} pages={page_count} tables={table_count} data_rows={nonblank_rows} headers={header_rows} widths={dict(widths)} statuses={dict(statuses)}")
+              for sample in samples:
+                  print(f"SAMPLE {scope}: {sample!r}")
+          PY
