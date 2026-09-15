@@ -25,7 +25,7 @@ jobs:
       - name: Install runtime
         run: |
           python -m pip install -e .
-          python -m pip install requests beautifulsoup4 pytest
+          python -m pip install pdfplumber requests beautifulsoup4 pytest
 
       - name: Verify official sources and parse frozen populations
         shell: bash
