@@ -57,6 +57,7 @@ from white_list_archive.parsers.lodi_sheets import PARSERS as LODI_PARSERS
 from white_list_archive.parsers.roma_positioned import PARSERS as ROMA_PARSERS
 from white_list_archive.parsers.pisa_tables import PARSERS as PISA_PARSERS
 from white_list_archive.parsers.catanzaro_tables import PARSERS as CATANZARO_PARSERS
+from white_list_archive.parsers.lecco_rect_tables import PARSERS as LECCO_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -810,6 +811,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or ROMA_PARSERS.get(cfg["parser"])
         or PISA_PARSERS.get(cfg["parser"])
         or CATANZARO_PARSERS.get(cfg["parser"])
+        or LECCO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")

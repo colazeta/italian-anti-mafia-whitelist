@@ -2087,36 +2087,50 @@
       "prefecture": "Lecco",
       "region": "Lombardia",
       "national_index_key": "lecco",
-      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/lecco/evidenza/white-list",
-      "source_verified": false,
-      "current_edition_identified": null,
+      "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte",
+      "source_verified": true,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
-      "population_scopes_complete": false,
-      "latest_source_reference_date": null,
+      "population_scopes_complete": true,
+      "latest_source_reference_date": "2026-09-14",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
       "last_attempted_source_check_at": null,
       "last_content_change_at": null,
-      "last_successful_investigation_on": null,
+      "last_successful_investigation_on": "2026-09-15",
       "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [],
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/lecco-operational-check-2026-09-15.md",
+        "src/white_list_archive/parsers/lecco_rect_tables.py",
+        "tests/test_lecco_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "80c439521cf2bd4062b54fff3646666487367f0f8b47c1a91a6c8f62bcf8e5bc",
+        "7c24e015342cc2cb61cf4b5bf726621c8b3b90b195cd91c40942fc3ef6b6ba5b"
+      ],
       "evidence": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/lecco-operational-check-2026-09-15.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "livorno",
