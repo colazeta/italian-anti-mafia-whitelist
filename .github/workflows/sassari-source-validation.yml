@@ -1,0 +1,89 @@
+name: Sassari source validation
+
+on:
+  push:
+    branches:
+      - expansion/sassari-2026-09-15
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sassari-source-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install project
+        run: pip install -e .
+
+      - name: Verify current official source and capture twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list'
+          RESOURCE='https://prefettura.interno.gov.it/sites/default/files/93/2026-08/2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx'
+          mkdir -p tmp/sassari
+          curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+            -H 'Cache-Control: no-cache' "$PAGE" -o tmp/sassari/page.html
+          grep -Fq '2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx' tmp/sassari/page.html
+          for n in 1 2; do
+            curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+              -H 'Cache-Control: no-cache' "$RESOURCE" -o "tmp/sassari/source-${n}.xlsx"
+          done
+          cmp --silent tmp/sassari/source-1.xlsx tmp/sassari/source-2.xlsx
+          bytes=$(wc -c < tmp/sassari/source-1.xlsx)
+          test "$bytes" -gt 100000
+          echo "SASSARI_BYTES=$bytes" | tee -a "$GITHUB_ENV"
+          echo "SASSARI_SHA256=$(sha256sum tmp/sassari/source-1.xlsx | cut -d' ' -f1)" | tee -a "$GITHUB_ENV"
+
+      - name: Parse complete combined listed/applicant population
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from white_list_archive.parsers.sassari_openxml import parse_sassari_combined
+
+          cfg = {
+              'source_key': 'sassari-combined',
+              'authority_key': 'sassari',
+              'authority_name': 'Prefettura di Sassari',
+              'register_key': 'sassari-ordinary',
+              'register_name': 'White List ordinaria',
+              'population_scope': 'listed_and_applicant',
+              'reference_date': '2026-08-31',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/93/2026-08/2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx',
+              'sha256': os.environ['SASSARI_SHA256'],
+          }
+          batch = parse_sassari_combined(Path('tmp/sassari/source-1.xlsx'), cfg)
+          d = batch.diagnostics
+          assert d['public_records'] == d['source_rows']
+          assert d['public_records'] > 200
+          assert d['identifier_coverage'] / d['public_records'] > 0.90
+          for status in ('listed', 'pending', 'renewal_update_in_progress'):
+              assert d['status_counts'].get(status, 0) > 0, (status, d)
+          assert d['office_identifier_like_rows'] >= 1, d
+          assert d['malformed_application_dates_preserved'] >= 1, d
+          assert len({r['record_locator'] for r in batch.records}) == len(batch.records)
+          print('SASSARI_DIAGNOSTICS=' + json.dumps(d, ensure_ascii=False, sort_keys=True))
+          print('SASSARI_STATUS_COUNTS=' + json.dumps(d['status_counts'], sort_keys=True))
+          print('SASSARI_SHA256=' + os.environ['SASSARI_SHA256'])
+          print('SASSARI_BYTES=' + os.environ['SASSARI_BYTES'])
+          PY
+
+      - name: Run repository tests
+        run: pytest -q
