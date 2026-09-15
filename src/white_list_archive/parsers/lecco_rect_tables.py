@@ -38,6 +38,7 @@ _REVIEWED_MALFORMED_LISTED_IDENTIFIERS = {
     "BIGS di Ivan Chavarriaga": "0416200136",
     "Termoidraulica": "035180050137",
 }
+_REVIEWED_BLANK_LISTED_ACTIVITIES = {"Termoidraulica"}
 
 _DATE = re.compile(r"^\d{2}[./]\d{2}[./]\d{4}$")
 _STRICT_IDENTIFIER = re.compile(r"^(?:\d{11}|[A-Z]{6}[0-9A-Z]{10})$")
@@ -297,6 +298,7 @@ def parse_lecco_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _validate_file(path, source_key=_LISTED_SOURCE_KEY, sha256=_LISTED_SHA256, byte_count=_LISTED_BYTES)
     records: list[dict[str, Any]] = []
     malformed: dict[str, str] = {}
+    blank_activity_names: set[str] = set()
     for ordinal, item in enumerate(_listed_rows(path), start=1):
         cells = item["cells"]
         name, office, secondary, identifier_raw, activities_raw, listing_raw, expiry_raw, outcome = cells
@@ -305,7 +307,15 @@ def parse_lecco_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         identifier = _strict_identifier(identifier_raw)
         if not identifier:
             malformed[name] = identifier_raw
-        sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
+        if _clean(activities_raw):
+            sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
+        elif name in _REVIEWED_BLANK_LISTED_ACTIVITIES:
+            blank_activity_names.add(name)
+            sections = []
+        else:
+            raise RuntimeError(
+                f"Lecco unreviewed blank listed activity at {item['locator']}: {name!r}"
+            )
         listing_date = _strict_date(listing_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
         expiry_date = _strict_date(expiry_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
         if outcome == "Aggiornamento in corso":
@@ -338,6 +348,11 @@ def parse_lecco_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if malformed != _REVIEWED_MALFORMED_LISTED_IDENTIFIERS:
         raise RuntimeError(
             f"Lecco reviewed malformed-identifier set drift: {malformed!r} != {_REVIEWED_MALFORMED_LISTED_IDENTIFIERS!r}"
+        )
+    if blank_activity_names != _REVIEWED_BLANK_LISTED_ACTIVITIES:
+        raise RuntimeError(
+            "Lecco reviewed blank-activity set drift: "
+            f"{blank_activity_names!r} != {_REVIEWED_BLANK_LISTED_ACTIVITIES!r}"
         )
     identifiers = [identifier for record in records for identifier in record["identifiers"]]
     duplicates = {value: count for value, count in Counter(identifiers).items() if count > 1}
