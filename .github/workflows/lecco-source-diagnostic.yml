@@ -1,0 +1,141 @@
+name: Lecco source diagnostic
+
+on:
+  push:
+    branches:
+      - expansion/lecco-2026-09-15
+    paths:
+      - .github/workflows/lecco-source-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PDF tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Acquire and inspect current official Lecco sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/lecco-diagnostic
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import pathlib
+          import re
+          import subprocess
+          import sys
+          import time
+          from urllib.parse import urljoin
+
+          import requests
+          from bs4 import BeautifulSoup
+
+          OUT = pathlib.Path('tmp/lecco-diagnostic')
+          PAGE = 'https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte'
+          UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
+          session = requests.Session()
+          session.headers.update({'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8'})
+
+          def get(url: str) -> bytes:
+              r = session.get(url, timeout=45, allow_redirects=True)
+              print(f'GET {url} -> {r.status_code} {len(r.content)} bytes final={r.url}')
+              r.raise_for_status()
+              return r.content
+
+          page1 = get(PAGE)
+          time.sleep(1)
+          page2 = get(PAGE)
+          (OUT / 'landing.html').write_bytes(page1)
+          print('landing_sha256_1', hashlib.sha256(page1).hexdigest())
+          print('landing_sha256_2', hashlib.sha256(page2).hexdigest())
+
+          soup = BeautifulSoup(page1, 'html.parser')
+          candidates = []
+          for a in soup.find_all('a', href=True):
+              text = ' '.join(a.get_text(' ', strip=True).split())
+              href = urljoin(PAGE, a['href'])
+              folded = text.casefold()
+              if ('all.a' in folded or 'all.b' in folded or
+                  ('white' in folded and 'list' in folded and href.lower().endswith('.pdf')) or
+                  'aggiornato al 09.09.2026' in folded):
+                  candidates.append({'text': text, 'url': href})
+          print('attachment_candidates', json.dumps(candidates, ensure_ascii=False, indent=2))
+
+          listed = None
+          applicants = None
+          for c in candidates:
+              t = c['text'].casefold()
+              if 'all.a' in t:
+                  listed = c
+              if 'all.b' in t:
+                  applicants = c
+          if not listed or not applicants:
+              # Broader fallback: inspect every PDF-like attachment and classify only by positive link text.
+              all_links = []
+              for a in soup.find_all('a', href=True):
+                  text = ' '.join(a.get_text(' ', strip=True).split())
+                  href = urljoin(PAGE, a['href'])
+                  if '.pdf' in href.lower() or '/sites/default/files/' in href.lower():
+                      all_links.append({'text': text, 'url': href})
+              print('all_attachment_links', json.dumps(all_links, ensure_ascii=False, indent=2))
+              for c in all_links:
+                  t = c['text'].casefold()
+                  if listed is None and ('all.a' in t or 'imprese iscritte' in t):
+                      listed = c
+                  if applicants is None and ('all.b' in t or 'richiedenti' in t):
+                      applicants = c
+          if not listed or not applicants:
+              raise SystemExit('Could not positively identify both listed and applicant attachments from official link text')
+
+          metadata = {'page_url': PAGE, 'listed': listed, 'applicants': applicants}
+          for role, item in [('listed', listed), ('applicants', applicants)]:
+              b1 = get(item['url'])
+              time.sleep(1)
+              b2 = get(item['url'])
+              h1 = hashlib.sha256(b1).hexdigest()
+              h2 = hashlib.sha256(b2).hexdigest()
+              print(role, 'sha256_1', h1, 'sha256_2', h2, 'bytes', len(b1))
+              if h1 != h2 or b1 != b2:
+                  raise SystemExit(f'{role}: independent source fetches differ')
+              pdf = OUT / f'{role}.pdf'
+              pdf.write_bytes(b1)
+              metadata[role].update({'sha256': h1, 'bytes': len(b1)})
+              info = subprocess.run(['pdfinfo', str(pdf)], text=True, capture_output=True, check=True).stdout
+              print(f'--- {role} pdfinfo ---\n{info}')
+              txt = OUT / f'{role}.txt'
+              subprocess.run(['pdftotext', '-layout', str(pdf), str(txt)], check=True)
+              lines = txt.read_text(errors='replace').splitlines()
+              nonblank = [x for x in lines if x.strip()]
+              print(role, 'text_lines', len(lines), 'nonblank_lines', len(nonblank))
+              print(f'--- {role} first 220 nonblank lines ---')
+              for line in nonblank[:220]:
+                  print(line[:500])
+              print(f'--- {role} last 80 nonblank lines ---')
+              for line in nonblank[-80:]:
+                  print(line[:500])
+
+          (OUT / 'metadata.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n')
+          PY
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lecco-source-diagnostic
+          path: tmp/lecco-diagnostic
+          if-no-files-found: warn
+          retention-days: 7
