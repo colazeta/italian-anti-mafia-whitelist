@@ -18,24 +18,29 @@ The endpoint also exposes the server-side population predicate in its response. 
 
 ## Source semantics
 
-The public application exposes two explicit request states in its interface: `Richiesta in corso` and `Iscritta`. The current list endpoint provides both `stato_richiesta` and `agg_incorso`. The parser therefore uses only the following positively reviewed combinations:
+The public JavaScript renders `stato_richiesta=1` as `in Istruttoria`, `stato_richiesta=2` as `Iscritta`, and independently renders `agg_incorso=1` as a checked `in Agg.` flag. The 15 September 2026 public response contained exactly these source combinations:
 
-- `stato_richiesta=1`, `agg_incorso=0` → `pending`;
-- `stato_richiesta=2`, `agg_incorso=0` → `listed`;
-- `stato_richiesta=2`, `agg_incorso=1` → `renewal_update_in_progress`.
+- `stato_richiesta=1`, `agg_incorso=0`: 375 rows → `pending`;
+- `stato_richiesta=2`, `agg_incorso=0`: 217 rows → `listed`;
+- `stato_richiesta=2`, `agg_incorso=1`: 441 rows → `renewal_update_in_progress`;
+- `stato_richiesta=1`, `agg_incorso=1`: one reviewed row, source id `903`, `GAP S.R.L.S.`.
 
-Any other combination fails closed pending review. `iscriz_scaduta` contains opaque source markers such as `NE`, `G` and `R`; these are retained as provenance and are not assigned a legal meaning. Free-text `note` is likewise provenance only and cannot override the source-status mapping.
+The sole `1/1` row has explicit prior-enrolment evidence: `data_iscriz=2024-11-28`, `data_scad_iscriz=2025-11-28`, while the public UI simultaneously marks the practice `in Istruttoria` and `in Agg.`. It is therefore represented conservatively as `renewal_update_in_progress`, not as a first-time pending applicant. Parser version 2 generalises that reviewed evidence only to a `1/1` row that also has both an explicit prior listing date and expiry date. A future `1/1` row lacking those prior-enrolment dates fails closed pending review.
+
+The resulting reviewed status boundary is therefore 375 `pending`, 217 `listed` and 442 `renewal_update_in_progress`, totalling 1,034 observations.
+
+`iscriz_scaduta` contains source markers including `NE`, `G` and `R`. Their display behaviour is observable in the official JavaScript, but the parser retains the raw marker as provenance and does not assign it an additional legal status. Free-text `note` is likewise provenance only and cannot override the source-status mapping.
 
 The endpoint publishes `data_istanza`, `data_iscriz` and `data_scad_iscriz` as ISO dates or null. Null dates remain absent. The parser does not reconstruct missing dates. Raw identifiers are preserved. Only syntactically valid 11-digit VAT/tax identifiers or 16-character alphanumeric tax codes enter the normalised identifier list; malformed source strings are neither padded nor repaired.
 
-The list response does not expose sector membership in each returned company object. The first parser stage therefore leaves `requested_activities` empty rather than imputing a sector. The application separately exposes nine sector filters; sector enrichment must be based on positive source evidence before it can be added to canonical observations.
+The list response does not expose sector membership in each returned company object. The first parser stage therefore leaves `requested_activities` empty rather than imputing a sector. The application separately exposes sector filters and a per-company `vis_sezioni.php` child view; sector enrichment must be based on positive source evidence before it can be added to canonical observations and is not inferred from the list response.
 
 ## Parser and validation state
 
-Parser: `src/white_list_archive/parsers/potenza_webapp.py` (`potenza_combined`, version 1).
+Parser: `src/white_list_archive/parsers/potenza_webapp.py` (`potenza_combined`, version 2).
 
-The parser requires a complete response (`TotalRecordCount == len(Records)`), unique positive numeric source ids, the reviewed field schema, valid source date typography and one of the reviewed status combinations. It uses the stable source id in `record_locator` so alphabetical reordering cannot relabel an observation.
+The parser requires a complete response (`TotalRecordCount == len(Records)`), unique positive numeric source ids, the reviewed field schema, valid source date typography and one of the positively reviewed status patterns. It uses the stable source id in `record_locator` so alphabetical reordering cannot relabel an observation.
 
-The current 1,034-record denominator has been established from the official endpoint and UI. Exact status, date, identifier and note denominators are intentionally not frozen in this note until the branch source-validation workflow parses the entire live endpoint on a GitHub runner. This prevents manual transcription or partial-page inspection from becoming canonical evidence.
+The current 1,034-record and status denominators have been established from the official endpoint through the source-validation workflow. Exact date, identifier and note denominators are intentionally not frozen here until the version-2 parser completes two independent live captures and the full validation suite on the branch.
 
 `canonical_integration_validated=false` at this stage. `durable_evidence_verified=false`; immutable evidence promotion remains a separate infrastructure control and is not inferred from live-source availability.
