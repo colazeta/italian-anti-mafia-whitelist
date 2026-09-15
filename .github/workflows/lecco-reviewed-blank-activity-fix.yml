@@ -1,0 +1,103 @@
+name: Lecco reviewed blank activity fix
+
+on:
+  push:
+    branches:
+      - expansion/lecco-2026-09-15
+    paths:
+      - .github/workflows/lecco-reviewed-blank-activity-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/lecco-2026-09-15
+          fetch-depth: 0
+
+      - name: Apply reviewed source-specific blank-activity handling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/parsers/lecco_rect_tables.py')
+          text = path.read_text(encoding='utf-8')
+
+          old_constant = '''_REVIEWED_MALFORMED_LISTED_IDENTIFIERS = {
+              "BIGS di Ivan Chavarriaga": "0416200136",
+              "Termoidraulica": "035180050137",
+          }
+'''
+          new_constant = old_constant + '''_REVIEWED_BLANK_LISTED_ACTIVITIES = {"Termoidraulica"}
+'''
+          if text.count(old_constant) != 1:
+              raise SystemExit(f'Expected one reviewed malformed-identifier block, got {text.count(old_constant)}')
+          text = text.replace(old_constant, new_constant)
+
+          old_init = '''    records: list[dict[str, Any]] = []
+              malformed: dict[str, str] = {}
+              for ordinal, item in enumerate(_listed_rows(path), start=1):
+'''
+          new_init = '''    records: list[dict[str, Any]] = []
+              malformed: dict[str, str] = {}
+              blank_activity_names: set[str] = set()
+              for ordinal, item in enumerate(_listed_rows(path), start=1):
+'''
+          if text.count(old_init) != 1:
+              raise SystemExit(f'Expected one listed accumulator block, got {text.count(old_init)}')
+          text = text.replace(old_init, new_init)
+
+          old_sections = '''        sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
+'''
+          new_sections = '''        if _clean(activities_raw):
+              sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
+          elif name in _REVIEWED_BLANK_LISTED_ACTIVITIES:
+              blank_activity_names.add(name)
+              sections = []
+          else:
+              raise RuntimeError(
+                  f"Lecco unreviewed blank listed activity at {item['locator']}: {name!r}"
+              )
+'''
+          if text.count(old_sections) != 1:
+              raise SystemExit(f'Expected one listed section parse line, got {text.count(old_sections)}')
+          text = text.replace(old_sections, new_sections)
+
+          old_check = '''    if malformed != _REVIEWED_MALFORMED_LISTED_IDENTIFIERS:
+              raise RuntimeError(
+                  f"Lecco reviewed malformed-identifier set drift: {malformed!r} != {_REVIEWED_MALFORMED_LISTED_IDENTIFIERS!r}"
+              )
+'''
+          new_check = old_check + '''    if blank_activity_names != _REVIEWED_BLANK_LISTED_ACTIVITIES:
+              raise RuntimeError(
+                  "Lecco reviewed blank-activity set drift: "
+                  f"{blank_activity_names!r} != {_REVIEWED_BLANK_LISTED_ACTIVITIES!r}"
+              )
+'''
+          if text.count(old_check) != 1:
+              raise SystemExit(f'Expected one malformed-identifier drift check, got {text.count(old_check)}')
+          text = text.replace(old_check, new_check)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- src/white_list_archive/parsers/lecco_rect_tables.py
+
+      - name: Commit reviewed parser fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/lecco_rect_tables.py
+          git diff --cached --quiet && { echo 'No parser change to commit'; exit 0; }
+          git commit -m 'Handle reviewed blank Lecco activity without inference'
+          git push origin HEAD:expansion/lecco-2026-09-15
