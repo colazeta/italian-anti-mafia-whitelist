@@ -209,7 +209,29 @@ append_csv_rows(
     unique_field="authority_key",
 )
 
-# 4. Promote only the validated public-source observation layer. Hosted DB and durable evidence remain separate controls.
+# 4. Keep exact governance denominators in lockstep with the positively verified additions.
+replace_once(
+    "data/catalog.csv",
+    "verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,44,false,internal_research,Independently verified primary White List landing pages.",
+    "verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,45,false,internal_research,Independently verified primary White List landing pages.",
+)
+replace_once(
+    "data/catalog.csv",
+    "source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,83,false,internal_research,Qualified recurring White List publication series and publication models.",
+    "source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,86,false,internal_research,Qualified recurring White List publication series and publication models.",
+)
+replace_once(
+    "tests/test_source_population_coverage.py",
+    "    assert report[\"verified_authority_count\"] == 44\n    assert report[\"register_scope_count\"] == 45\n    assert report[\"complete_register_scope_count\"] == 43\n    assert report[\"incomplete_register_scope_count\"] == 2\n",
+    "    assert report[\"verified_authority_count\"] == 45\n    assert report[\"register_scope_count\"] == 46\n    assert report[\"complete_register_scope_count\"] == 44\n    assert report[\"incomplete_register_scope_count\"] == 2\n",
+)
+replace_once(
+    "tests/test_source_registry.py",
+    "    assert len(pages) == 44\n",
+    "    assert len(pages) == 45\n",
+)
+
+# 5. Promote only the validated public-source observation layer. Hosted DB and durable evidence remain separate controls.
 coverage_path = ROOT / "data/monitoring/national_coverage.json"
 coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
 matches = [item for item in coverage["prefectures"] if item.get("authority_key") == "pisa"]
@@ -267,7 +289,7 @@ row.update(
 )
 coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-# 5. Bind the already public-contract-valid Pisa parsers into the national publication registry.
+# 6. Bind the already public-contract-valid Pisa parsers into the national publication registry.
 registry_path = "src/white_list_archive/publishing/public_national_registry.py"
 replace_once(
     registry_path,
