@@ -41,7 +41,7 @@ Strict identifier coverage is **228/230**. The two malformed source identifiers 
 - `BIGS di Ivan Chavarriaga` — `0416200136`;
 - `Termoidraulica` — `035180050137`.
 
-Source activity labels are preserved as printed, including unusual source typography such as `Sez. XIII`; no section correction is inferred.
+Source activity labels are preserved as printed, including unusual source typography such as `Sez. XIII`; no section correction is inferred. Source-geometry review confirms that the activity cell for `Termoidraulica` is genuinely blank: `requested_activities` is therefore preserved as an empty list, with no activity borrowed from neighbouring rows. The parser remains fail-closed for any other blank activity cell not covered by this byte-pinned reviewed exception.
 
 ### Allegato B
 
@@ -70,4 +70,4 @@ No applicant population, status, date, identifier repair or completeness conclus
 
 ## Integration state
 
-At this checkpoint source verification and parser work are in progress on `expansion/lecco-2026-09-15`. National canonical/public integration is not yet validated. `canonical_integration_validated` and `durable_evidence_verified` therefore remain false; durable evidence infrastructure continues to be governed separately under issue #16.
+The actual national candidate build and its fail-closed denominator checks completed successfully on `expansion/lecco-2026-09-15`: 48,391 national observations, 43 published Prefectures, 44 registers and 47 mapped Prefectures, including exactly 256 Lecco observations with 256 distinct record locators. The production integration transaction was committed only after the full repository tests, Lecco semantic tests, actual national build, Lecco denominator checks and exact production-diff recheck succeeded. `canonical_integration_validated` is therefore true for this candidate integration. `durable_evidence_verified` remains false: no separate immutable evidence archive is inferred from successful live retrieval, and durable evidence infrastructure continues to be governed separately under issue #16.
