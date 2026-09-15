@@ -16,6 +16,7 @@ from white_list_archive.parsers.lecco_rect_tables import (
     _LISTED_RECORDS,
     _LISTED_SHA256,
     _REFERENCE_DATE,
+    _REVIEWED_BLANK_LISTED_ACTIVITIES,
     _REVIEWED_MALFORMED_LISTED_IDENTIFIERS,
     _sections,
     _strict_date,
@@ -62,6 +63,10 @@ def test_lecco_reviewed_malformed_identifiers_are_not_repaired() -> None:
     assert _strict_identifier("035180050137") == ""
     assert _strict_identifier("00333170132") == "00333170132"
     assert _strict_identifier("RSSMRA80A01H501Z") == "RSSMRA80A01H501Z"
+
+
+def test_lecco_reviewed_blank_activity_is_explicit_and_not_inferred() -> None:
+    assert _REVIEWED_BLANK_LISTED_ACTIVITIES == {"Termoidraulica"}
 
 
 def test_lecco_activity_sections_accept_only_reviewed_section_tokens() -> None:
