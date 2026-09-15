@@ -44,11 +44,16 @@ jobs:
               "applicants": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
               "listed": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
           }
-          DATE = re.compile(r"\b\d{1,2}/\d{1,2}/\d{4}\b")
+          DATE = re.compile(r"(?<!\d)(\d{1,2}/\d{1,2}/\d{2,4})(?!\d)")
           SECTION = re.compile(r"\bsezione\s+(X|IX|VIII|VII|VI|V|IV|III|II|I|10|[1-9])\b", re.I)
+          STAR_ID = re.compile(r"\*")
 
           def clean(v):
               return " ".join((v or "").replace("\n", " ").split())
+
+          def is_header(cells):
+              folded = " ".join(cells).casefold()
+              return "ragione sociale" in folded and ("codice fiscale" in folded or "partita iva" in folded)
 
           for kind, url in SOURCES.items():
               payloads = []
@@ -72,13 +77,8 @@ jobs:
               path.write_bytes(payloads[0])
               width_counts = Counter()
               table_counts = Counter()
-              nonempty_rows = 0
-              header_rows = 0
-              rows_with_dates = 0
-              rows_with_identifier_marker = 0
               section_pages = Counter()
-              page_summaries = []
-              samples = []
+              data_rows = []
 
               with pdfplumber.open(path) as pdf:
                   print(json.dumps({"kind": kind, "pages": len(pdf.pages)}, sort_keys=True))
@@ -89,47 +89,53 @@ jobs:
                           section_pages[section.upper()] += 1
                       tables = page.extract_tables() or []
                       table_counts[len(tables)] += 1
-                      page_rows = 0
-                      page_widths = Counter()
-                      page_dates = 0
                       for tno, table in enumerate(tables, start=1):
                           for rno, row in enumerate(table or [], start=1):
                               cells = [clean(v) for v in row]
                               if not any(cells):
                                   continue
-                              nonempty_rows += 1
-                              page_rows += 1
                               width_counts[len(cells)] += 1
-                              page_widths[len(cells)] += 1
-                              folded = " ".join(cells).casefold()
-                              if "ragione sociale" in folded and ("codice fiscale" in folded or "partita iva" in folded):
-                                  header_rows += 1
-                              if any(DATE.search(cell) for cell in cells):
-                                  rows_with_dates += 1
-                                  page_dates += 1
-                              if any("*" in cell for cell in cells):
-                                  rows_with_identifier_marker += 1
-                              if len(samples) < 12 and pno in {1, 2, len(pdf.pages)}:
-                                  samples.append({"page": pno, "table": tno, "row": rno, "cells": cells})
-                      page_summaries.append({
-                          "page": pno,
-                          "tables": len(tables),
-                          "rows": page_rows,
-                          "widths": dict(page_widths),
-                          "date_rows": page_dates,
-                          "sections": sections,
-                      })
+                              if is_header(cells):
+                                  continue
+                              dates = DATE.findall(" | ".join(cells))
+                              stars = sum(len(STAR_ID.findall(cell)) for cell in cells)
+                              data_rows.append({
+                                  "page": pno,
+                                  "table": tno,
+                                  "row": rno,
+                                  "sections": sections,
+                                  "cells": cells,
+                                  "dates": dates,
+                                  "stars": stars,
+                              })
+
+              anomalies = [
+                  row for row in data_rows
+                  if len(row["dates"]) != (1 if kind == "applicants" else 2)
+                  or row["stars"] != 1
+                  or not row["cells"][0]
+              ]
+              multiple_dates = [row for row in data_rows if len(row["dates"]) > (1 if kind == "applicants" else 2)]
+              multiple_stars = [row for row in data_rows if row["stars"] > 1]
+              blank_names = [row for row in data_rows if not row["cells"][0]]
+              date_multiplicity = Counter(len(row["dates"]) for row in data_rows)
+              star_multiplicity = Counter(row["stars"] for row in data_rows)
 
               print(json.dumps({
                   "kind": kind,
-                  "nonempty_rows": nonempty_rows,
-                  "header_rows": header_rows,
-                  "rows_with_dates": rows_with_dates,
-                  "rows_with_identifier_marker": rows_with_identifier_marker,
+                  "data_rows": len(data_rows),
                   "width_counts": dict(width_counts),
                   "tables_per_page": dict(table_counts),
                   "section_pages": dict(section_pages),
-                  "page_summaries": page_summaries,
-                  "samples": samples,
+                  "date_multiplicity": dict(date_multiplicity),
+                  "star_multiplicity": dict(star_multiplicity),
+                  "blank_name_rows": len(blank_names),
+                  "multi_date_rows": len(multiple_dates),
+                  "multi_star_rows": len(multiple_stars),
+                  "anomaly_count": len(anomalies),
+              }, ensure_ascii=False, sort_keys=True))
+              print(json.dumps({
+                  "kind": kind,
+                  "anomalies": anomalies,
               }, ensure_ascii=False, sort_keys=True))
           PY
