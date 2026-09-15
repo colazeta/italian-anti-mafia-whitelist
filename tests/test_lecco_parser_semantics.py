@@ -63,11 +63,16 @@ def test_lecco_reviewed_malformed_identifiers_are_not_repaired() -> None:
     assert _strict_identifier("RSSMRA80A01H501Z") == "RSSMRA80A01H501Z"
 
 
-def test_lecco_dates_are_strict_calendar_dates() -> None:
+def test_lecco_dates_are_strict_calendar_dates_with_reviewed_separators() -> None:
     assert _strict_date(
         "14.09.2026", source_key="lecco-listed", locator="p1:y1-2"
     ) == "2026-09-14"
+    # One current listed row is source-printed with slash separators; preserve that
+    # reviewed typography without broadening to arbitrary date formats.
+    assert _strict_date(
+        "09/02/2026", source_key="lecco-listed", locator="p2:y388-446"
+    ) == "2026-02-09"
     with pytest.raises(RuntimeError, match="unreviewed date typography"):
-        _strict_date("14/09/2026", source_key="lecco-listed", locator="p1:y1-2")
+        _strict_date("14-09-2026", source_key="lecco-listed", locator="p1:y1-2")
     with pytest.raises(RuntimeError, match="invalid calendar date"):
         _strict_date("31.02.2026", source_key="lecco-listed", locator="p1:y1-2")
