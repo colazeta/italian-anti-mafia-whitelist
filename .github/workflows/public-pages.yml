@@ -49,6 +49,7 @@ on:
       - 'src/white_list_archive/parsers/padova_tables.py'
       - 'src/white_list_archive/parsers/perugia_tables.py'
       - 'src/white_list_archive/parsers/trento_tables.py'
+      - 'src/white_list_archive/parsers/lodi_sheets.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -139,17 +140,17 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 42198
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento'}
+          assert reg['meta']['record_count'] == 42371
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary','lodi-ordinary'
           }
-          assert reg['meta']['authority_count'] == 38
-          assert reg['meta']['register_count'] == 39
+          assert reg['meta']['authority_count'] == 39
+          assert reg['meta']['register_count'] == 40
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 38
+          assert pref['meta']['published_count'] == 39
           assert pref['meta']['mapped_count'] == 44
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['published'] and bolzano[0]['series_count'] > 0
@@ -175,6 +176,17 @@ jobs:
           assert len(perugia) == 1 and perugia[0]['mapped'] and perugia[0]['published'] and perugia[0]['series_count'] == 2
           trento = [x for x in pref['prefectures'] if x['authority_key'] == 'trento']
           assert len(trento) == 1 and trento[0]['mapped'] and trento[0]['published'] and trento[0]['series_count'] == 2
+          lodi = [x for x in pref['prefectures'] if x['authority_key'] == 'lodi']
+          assert len(lodi) == 1 and lodi[0]['mapped'] and lodi[0]['published'] and lodi[0]['series_count'] == 2
+          lodi_records = [r for r in reg['records'] if r['authority_key'] == 'lodi']
+          assert len(lodi_records) == 173
+          assert sum(r['source_key'] == 'lodi-listed' for r in lodi_records) == 169
+          assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 4
+          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 146
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 23
+          assert sum(r['source_status'] == 'pending' for r in lodi_records) == 2
+          assert sum(r['source_status'] == 'rejected_or_denied' for r in lodi_records) == 2
+          assert sorted(r['decision_date'] for r in lodi_records if r['source_status'] == 'rejected_or_denied') == ['2021-06-17','2022-11-17']
           alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']
           assert len(alessandria) == 1 and alessandria[0]['mapped'] and alessandria[0]['published']
           aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']
