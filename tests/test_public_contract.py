@@ -35,6 +35,26 @@ def test_approved_company_observation_is_preserved_exactly():
     assert public_record(copy.deepcopy(r)) == r
 
 
+def test_approved_source_provenance_is_typed_and_preserved():
+    r = record()
+    r["source_fields"] = {
+        "physical_locator": "p1:r2",
+        "physical_locators": ["p1:r2", "p5:r4"],
+        "notes": ["source note"],
+    }
+    assert public_record(copy.deepcopy(r)) == r
+
+    bad = copy.deepcopy(r)
+    bad["source_fields"]["physical_locators"] = "p1:r2"
+    with pytest.raises(ValueError, match="Public string list expected"):
+        public_record(bad)
+
+    bad = copy.deepcopy(r)
+    bad["source_fields"]["physical_locator"] = ["p1:r2"]
+    with pytest.raises(ValueError, match="Public source text expected"):
+        public_record(bad)
+
+
 def test_summary_counts_observations_not_unique_names_and_separates_dates():
     r = record()
     other = {**r, "record_locator": "b:2026-09-05:1", "source_key": "b", "authority_key": "b", "reference_date": "2026-09-05"}
