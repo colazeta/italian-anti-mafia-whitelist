@@ -1,0 +1,66 @@
+name: Persist public edition history
+
+on:
+  workflow_run:
+    workflows: ['Public retro portal']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  persist:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      # Never check out or execute the workflow artifact's code. Only consume
+      # the closed-contract aggregate JSON, using trusted current-main code.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Download the successful main release
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: public-portal-review-attempt-${{ github.event.workflow_run.run_attempt }}
+          path: ${{ runner.temp }}/public-history-release
+      - name: Reconcile and append aggregate history
+        env:
+          PYTHONPATH: src
+          INCOMING_HISTORY: ${{ runner.temp }}/public-history-release/data/history.json
+        run: |
+          set -euo pipefail
+          test -f "$INCOMING_HISTORY"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Optimistic reconciliation, not a force-push. Each attempt rebuilds
+          # the union against current main; incoming evidence stays in /tmp.
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            git reset --hard origin/main
+            python -m white_list_archive.publishing.public_history \
+              --ledger data/history/public_history.json \
+              --merge "$INCOMING_HISTORY"
+            if git diff --quiet -- data/history/public_history.json; then
+              echo 'All release evidence is already preserved.'
+              exit 0
+            fi
+            git add -- data/history/public_history.json
+            git commit -m 'Preserve approved public edition aggregates and checks'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 2))
+          done
+          echo 'Concurrent updates prevented a safe history append; no force-push attempted.' >&2
+          exit 1

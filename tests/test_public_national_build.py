@@ -1,7 +1,11 @@
 import csv
 from pathlib import Path
+from urllib.error import URLError
 
-from white_list_archive.publishing.public_national_build import _alias_inputs
+from white_list_archive.publishing.public_national_build import (
+    _alias_inputs,
+    _build_registry_with_network_retries,
+)
 
 
 def write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
@@ -44,6 +48,59 @@ def test_alias_inputs_preserve_canonical_rows_and_add_national_index_view(tmp_pa
     assert {row["authority_key"] for row in series_rows} == {"bolzano-bozen", "bolzano"}
     assert next(row for row in verified_rows if row["authority_key"] == "bolzano")["landing_url"] == "https://example.test/bolzano"
     assert next(row for row in series_rows if row["authority_key"] == "bolzano")["source_series_key"] == "bolzano-listed"
+
+
+def test_registry_retries_transient_network_failures_from_clean_work_dir(monkeypatch, tmp_path):
+    import white_list_archive.publishing.public_national_build as build
+
+    work_dir = tmp_path / "work"
+    attempts = []
+
+    def flaky(config, path):
+        attempts.append(path.exists())
+        assert config == {"sources": []}
+        assert path == work_dir
+        assert not path.exists()
+        path.mkdir(parents=True)
+        (path / "partial-download").write_text("partial")
+        if len(attempts) < 3:
+            raise URLError("transient fixture failure")
+        return {"records": [], "meta": {"record_count": 0}}
+
+    sleeps = []
+    monkeypatch.setattr(build, "build_registry", flaky)
+    result = _build_registry_with_network_retries(
+        {"sources": []},
+        work_dir,
+        attempts=3,
+        sleep=sleeps.append,
+    )
+
+    assert result["meta"]["record_count"] == 0
+    assert attempts == [False, False, False]
+    assert sleeps == [3, 6]
+
+
+def test_registry_does_not_retry_semantic_failures(monkeypatch, tmp_path):
+    import white_list_archive.publishing.public_national_build as build
+
+    calls = 0
+
+    def invalid(config, path):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("fixture hash or semantic failure")
+
+    monkeypatch.setattr(build, "build_registry", invalid)
+    try:
+        _build_registry_with_network_retries(
+            {"sources": []}, tmp_path / "work", sleep=lambda _: None
+        )
+    except RuntimeError as exc:
+        assert "semantic" in str(exc)
+    else:
+        raise AssertionError("semantic failures must not be retried")
+    assert calls == 1
 
 
 def test_public_edition_date_does_not_use_page_modification_date(monkeypatch, tmp_path):

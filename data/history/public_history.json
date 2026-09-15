@@ -1,0 +1,99 @@
+{
+  "checks": [
+    {
+      "checked_at": "2026-09-06T18:25:35+00:00",
+      "edition_id": "6edfbde7bc12618f42f5ff501fc644b6050ed60e5bd9d68b6a04d950dd6cbc4f",
+      "kind": "historical_capture"
+    },
+    {
+      "checked_at": "2026-09-06T18:25:37+00:00",
+      "edition_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "kind": "historical_capture"
+    }
+  ],
+  "comparisons": [
+    {
+      "added": 21,
+      "after_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "basis": "frozen_observational_diff",
+      "before_id": "6edfbde7bc12618f42f5ff501fc644b6050ed60e5bd9d68b6a04d950dd6cbc4f",
+      "common": 1313,
+      "content_changed": 66,
+      "disappeared": 14,
+      "evidence": [
+        "data/captures/cosenza/diff_v2_2026-06-28_2026-08-03.json"
+      ],
+      "status_changed": 55,
+      "transition_counts": {
+        "listed->pending": 3,
+        "listed->renewal_requested": 10,
+        "listed->renewal_update_in_progress": 1,
+        "pending->listed": 25,
+        "renewal_requested->listed": 2,
+        "renewal_requested->renewal_update_in_progress": 6,
+        "renewal_update_in_progress->listed": 8
+      },
+      "unresolved_after": null,
+      "unresolved_before": null
+    }
+  ],
+  "editions": [
+    {
+      "authority_key": "cosenza",
+      "authority_name": "Prefettura di Cosenza",
+      "data_fingerprint": null,
+      "document_sha256": "565a71d89c4d684b68303949974a6c63410b9432eefe9f3773ac540a4318a07d",
+      "evidence": [
+        "data/captures/cosenza/combined_2026-06-28.json",
+        "data/captures/cosenza/diff_v2_2026-06-28_2026-08-03.json"
+      ],
+      "id": "6edfbde7bc12618f42f5ff501fc644b6050ed60e5bd9d68b6a04d950dd6cbc4f",
+      "parser_signature": "white_list_archive.parsers.cosenza_combined_v2@2",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-06-28",
+      "reference_date_raw": "2026-06-28",
+      "register_key": "cosenza-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/34/2026-06/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-28.06.2026.pdf",
+      "source_key": "cosenza-combined",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-28-giugno-2026",
+      "status_counts": {
+        "listed": 452,
+        "other_or_unknown": 1,
+        "pending": 661,
+        "renewal_requested": 11,
+        "renewal_update_in_progress": 202
+      },
+      "total": 1327
+    },
+    {
+      "authority_key": "cosenza",
+      "authority_name": "Prefettura di Cosenza",
+      "data_fingerprint": null,
+      "document_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+      "evidence": [
+        "data/captures/cosenza/combined_2026-08-03.json",
+        "data/captures/cosenza/diff_v2_2026-06-28_2026-08-03.json"
+      ],
+      "id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "parser_signature": "white_list_archive.parsers.cosenza_combined_v2@2",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-08-03",
+      "reference_date_raw": "2026-08-03",
+      "register_key": "cosenza-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
+      "source_key": "cosenza-combined",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
+      "status_counts": {
+        "listed": 461,
+        "other_or_unknown": 1,
+        "pending": 657,
+        "renewal_requested": 14,
+        "renewal_update_in_progress": 201
+      },
+      "total": 1334
+    }
+  ],
+  "version": 1
+}

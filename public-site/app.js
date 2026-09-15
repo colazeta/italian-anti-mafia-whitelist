@@ -22,6 +22,8 @@ const prefectureState={query:'',status:'all',page:1,size:50};
 let SITE=null;
 let REGISTRY=null;
 let PREFECTURES=null;
+let HISTORY=null;
+let HISTORY_UI=null;
 
 function activate(name){
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===name));
@@ -208,14 +210,22 @@ function publishedEditions(){
 function editionTable(){
   return `<div class="gridwrap"><table class="grid"><thead><tr><th>Prefettura</th><th>Registro</th><th>Data dell’elenco</th><th>Contenuto</th><th>Fonte</th></tr></thead><tbody>${publishedEditions().map(r=>`<tr><td>${esc(r.authority_name)}</td><td>${esc(r.register_name)}</td><td>${esc(displayDate(r.reference_date))}</td><td>${esc(({listed:'Imprese iscritte',applicant:'Domande di iscrizione',listed_and_applicant:'Iscrizioni e domande',operational_mixed:'Iscrizioni, domande e altri esiti'})[r.population_scope]||'Elenco')}</td><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr>`).join('')}</tbody></table></div>`;
 }
+function historyController(){
+  if(!HISTORY_UI&&HISTORY)HISTORY_UI=WhiteListHistory.createController({
+    history:HISTORY,registry:REGISTRY,site:SITE,
+    historyRoot:'#view-history',updatesRoot:'#view-updates',onRecord:openDetail,onHistory:()=>activate('history')
+  });
+  return HISTORY_UI;
+}
 function renderHistory(D){
-  const rows=[...D.history].sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr><td>${esc(displayDate(r.date))}</td><td>Edizione individuata sul sito ufficiale</td><td><a href="${esc(r.page_url)}" target="_blank" rel="noopener">Consulta la pagina ufficiale</a></td></tr>`).join('');
-  $('#view-history').innerHTML=section('EDIZIONI CONSULTABILI NEL REGISTRO',editionTable())+
-    section('PAGINE STORICHE INDIVIDUATE — COSENZA',`<p>Le pagine qui indicate documentano la disponibilità di edizioni dal 2024. Questo elenco di collegamenti non garantisce una copia permanentemente conservata né la ricerca delle imprese in tutte le edizioni. La data non indica da quando un’impresa è iscritta.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Data dell’elenco</th><th>Disponibilità</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div>`);
+  const controller=historyController();
+  if(controller)controller.renderHistory();
+  else $('#view-history').innerHTML='<div class="note bad">Storico non disponibile. Il registro e le statistiche correnti restano consultabili.</div>';
 }
 function renderUpdates(){
-  const s=archiveSummary(REGISTRY,PREFECTURES);
-  $('#view-updates').innerHTML=section('AGGIORNAMENTI DISPONIBILI',metric('Edizione più recente nel registro',displayDate(s.latest,'Non disponibile'))+metric('Ultima verifica completata dei documenti pubblicati',displayCheckTime(s.documentsCheckedAt))+`<p>La verifica confronta i documenti pubblicati con le copie approvate. Non dimostra che siano le ultime edizioni presenti oggi sui siti delle Prefetture. Le date delle edizioni possono essere diverse da Prefettura a Prefettura.</p>`)+section('ELENCHI PUBBLICATI, DAL PIÙ RECENTE',editionTable());
+  const controller=historyController();
+  if(controller)controller.renderUpdates();
+  else $('#view-updates').innerHTML='<div class="note bad">Registro storico dei controlli non disponibile. Nessuna frequenza viene stimata.</div>';
 }
 function renderQuality(D){
   $('#view-quality').innerHTML=section('CONTROLLI E LIMITI',`<p>I controlli verificano che i documenti corrispondano alle copie approvate, che le righe siano lette senza omissioni note e che i dati pubblici rispettino i campi autorizzati.</p><p>La stessa impresa può essere presente in più elenchi. Il numero delle presenze non misura il numero di imprese distinte. Una scadenza riportata o l’assenza da una successiva edizione non dimostrano da sole la perdita dell’iscrizione.</p><p>Le verifiche sulla posizione geografica degli indirizzi sono separate. I risultati del caso Cosenza non dimostrano la qualità dell’intero archivio.</p>`)+section('DOCUMENTAZIONE TECNICA',`<ul><li><a href="${esc(D.audit.validation_url)}" target="_blank" rel="noopener">Verifiche sugli indirizzi di Cosenza: campioni, risultati e limiti</a></li><li><a href="${esc(D.audit.architecture_url)}" target="_blank" rel="noopener">Modello dei dati e conservazione delle fonti</a></li><li><a href="${esc(D.audit.repository_url)}" target="_blank" rel="noopener">Codice e cronologia delle modifiche</a></li></ul>`);
@@ -235,8 +245,9 @@ async function fetchJson(path){
 }
 async function main(){
   try{
-    [SITE,REGISTRY,PREFECTURES]=await Promise.all([
-      fetchJson('./data/site.json'),fetchJson('./data/registry.json'),fetchJson('./data/prefectures.json')
+    [SITE,REGISTRY,PREFECTURES,HISTORY]=await Promise.all([
+      fetchJson('./data/site.json'),fetchJson('./data/registry.json'),fetchJson('./data/prefectures.json'),
+      fetchJson('./data/history.json').catch(()=>null)
     ]);
     drawPrefectures();drawRegistry();renderStatistics();renderHistory(SITE);renderUpdates();renderQuality(SITE);renderMethod(SITE);
     $('#status').textContent='Registro caricato';
