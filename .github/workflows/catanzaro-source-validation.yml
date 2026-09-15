@@ -8,6 +8,7 @@ on:
       - .github/workflows/catanzaro-source-validation.yml
       - src/white_list_archive/parsers/catanzaro_tables.py
       - tests/test_catanzaro_parser_semantics.py
+      - docs/sources/catanzaro-operational-check-2026-09-15.md
   workflow_dispatch:
 
 permissions:
@@ -16,15 +17,15 @@ permissions:
 jobs:
   validate-source:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install validation runtime
-        run: python -m pip install --disable-pip-version-check pdfplumber requests
-      - name: Independently capture and inspect current Catanzaro sources
+          python-version: '3.13'
+      - name: Install project and validation dependencies
+        run: python -m pip install -e .[dev,database,storage]
+      - name: Revalidate official publication surface and capture resources twice
         shell: bash
         run: |
           set -euo pipefail
@@ -33,202 +34,107 @@ jobs:
 
           import hashlib
           import json
-          import re
-          import unicodedata
-          from collections import Counter, defaultdict
           from pathlib import Path
 
-          import pdfplumber
           import requests
 
+          PAGE = "https://prefettura.interno.gov.it/it/prefetture/catanzaro/provvedimenti-whitelist-elenchi"
           SOURCES = {
-              "applicants": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
-              "listed": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
+              "listed": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
+                  "sha256": "8578a1b2d3ef0e2d71f1133381082d63d131182fd1b74c456cffe708ed94df7f",
+                  "bytes": 619398,
+                  "filename": "elencoditteiscritteinwhitelistal10092026.pdf",
+              },
+              "applicants": {
+                  "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
+                  "sha256": "8c5b0ea684b20f0893016e4a528bac57fb2b05c40aa9669340bdf7bd7dab115c",
+                  "bytes": 338826,
+                  "filename": "elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
+              },
           }
-          DATE_FULL = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
-          SECTION = re.compile(r"\bsezione\s+(X|IX|VIII|VII|VI|V|IV|III|II|I|10|[1-9])\b", re.I)
-          STRICT_11 = re.compile(r"^\d{11}$")
-          STRICT_16 = re.compile(r"^[A-Z0-9]{16}$")
-          ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
+          headers = {"User-Agent": "italian-anti-mafia-whitelist/1.0 source-verification"}
+          landing = requests.get(PAGE, timeout=60, headers=headers)
+          landing.raise_for_status()
+          for source in SOURCES.values():
+              if source["filename"] not in landing.text:
+                  raise RuntimeError(f"Official Catanzaro page no longer exposes {source['filename']}")
 
-          def clean(v):
-              return " ".join((v or "").replace("\n", " ").split())
-
-          def norm(v):
-              return clean(unicodedata.normalize("NFKC", v or "")).casefold()
-
-          def norm_addr(v):
-              text = norm(v).replace("–", "-").replace("—", "-").replace("−", "-")
-              text = re.sub(r"\s*([,;:/.-])\s*", r"\1", text)
-              return re.sub(r"\s+", " ", text).strip()
-
-          def is_header(cells):
-              folded = " ".join(cells).casefold()
-              return "ragione sociale" in folded and ("codice fiscale" in folded or "partita iva" in folded)
-
-          def identifiers(raw):
-              compact = re.sub(r"\s+", "", clean(raw).upper()).lstrip("*")
-              out = []
-              for token in re.split(r"[/;]", compact):
-                  token = token.strip("*.,:;-")
-                  if STRICT_11.fullmatch(token) or STRICT_16.fullmatch(token):
-                      if token not in out:
-                          out.append(token)
-              return out
-
-          captured = {}
-          for kind, url in SOURCES.items():
+          for kind, source in SOURCES.items():
               payloads = []
               for attempt in (1, 2):
-                  response = requests.get(url, timeout=60, headers={"User-Agent": "italian-anti-mafia-whitelist/1.0 source-verification"})
+                  response = requests.get(source["url"], timeout=60, headers=headers)
                   response.raise_for_status()
                   if "pdf" not in response.headers.get("content-type", "").lower() and not response.content.startswith(b"%PDF"):
-                      raise RuntimeError(f"{kind} attempt {attempt}: non-PDF response {response.headers.get('content-type')!r}")
+                      raise RuntimeError(
+                          f"{kind} attempt {attempt}: non-PDF response {response.headers.get('content-type')!r}"
+                      )
                   payloads.append(response.content)
                   print(json.dumps({
                       "kind": kind,
                       "attempt": attempt,
                       "bytes": len(response.content),
                       "sha256": hashlib.sha256(response.content).hexdigest(),
-                      "content_type": response.headers.get("content-type"),
                   }, sort_keys=True))
               if payloads[0] != payloads[1]:
                   raise RuntimeError(f"{kind}: independent GETs were not byte-identical")
-              path = Path(f"/tmp/catanzaro-{kind}.pdf")
-              path.write_bytes(payloads[0])
-              captured[kind] = path
-
-          # Applicants: one five-column table per page. Preserve positive rows even when the source date is blank.
-          applicant_rows = []
-          applicant_headers = 0
-          with pdfplumber.open(captured["applicants"]) as pdf:
-              if len(pdf.pages) != 46:
-                  raise RuntimeError(f"applicant page drift: {len(pdf.pages)}")
-              for pno, page in enumerate(pdf.pages, start=1):
-                  tables = page.extract_tables() or []
-                  if len(tables) != 1:
-                      raise RuntimeError(f"applicant table count drift p{pno}: {len(tables)}")
-                  for rno, row in enumerate(tables[0] or [], start=1):
-                      cells = [clean(v) for v in row]
-                      if not any(cells):
-                          continue
-                      if len(cells) != 5:
-                          raise RuntimeError(f"applicant width drift p{pno} r{rno}: {len(cells)}")
-                      if is_header(cells):
-                          applicant_headers += 1
-                          continue
-                      if cells == ["", "", "*", "", ""]:
-                          continue
-                      applicant_rows.append({"page": pno, "row": rno, "cells": cells})
-
-          applicant_keys = Counter(tuple(norm(cell) for cell in row["cells"]) for row in applicant_rows)
-          applicant_duplicates = [key for key, count in applicant_keys.items() if count > 1]
-          applicant_blank_dates = [row for row in applicant_rows if not row["cells"][4]]
-          applicant_bad_dates = [row for row in applicant_rows if row["cells"][4] and not DATE_FULL.fullmatch(row["cells"][4])]
-          applicant_blank_names = [row for row in applicant_rows if not row["cells"][0]]
-          applicant_id_coverage = sum(bool(identifiers(row["cells"][2])) for row in applicant_rows)
-          applicant_neighbours = [
-              row for row in applicant_rows
-              if row["page"] in {29, 30, 31, 35, 36, 37}
-          ]
-          print(json.dumps({
-              "kind": "applicants-reviewed",
-              "pages": 46,
-              "headers": applicant_headers,
-              "records": len(applicant_rows),
-              "strict_identifier_coverage": applicant_id_coverage,
-              "duplicate_exact_normalised_rows": len(applicant_duplicates),
-              "blank_name_rows": applicant_blank_names,
-              "blank_date_rows": applicant_blank_dates,
-              "nonblank_malformed_date_rows": applicant_bad_dates,
-              "review_neighbours": applicant_neighbours,
-          }, ensure_ascii=False, sort_keys=True))
-
-          # Listed: determine the section only from the page header crop, then conservatively group section memberships.
-          listed_rows = []
-          listed_headers = 0
-          section_by_page = {}
-          with pdfplumber.open(captured["listed"]) as pdf:
-              if len(pdf.pages) != 82:
-                  raise RuntimeError(f"listed page drift: {len(pdf.pages)}")
-              for pno, page in enumerate(pdf.pages, start=1):
-                  top = page.crop((0, 0, page.width, min(page.height, 230))).extract_text() or ""
-                  hits = SECTION.findall(top)
-                  numeric = []
-                  for value in hits:
-                      n = int(value) if value.isdigit() else ROMAN[value.upper()]
-                      if n not in numeric:
-                          numeric.append(n)
-                  if len(numeric) != 1:
-                      raise RuntimeError(f"listed header section drift p{pno}: {numeric!r} from {hits!r}")
-                  section_by_page[pno] = numeric[0]
-                  tables = page.extract_tables() or []
-                  if len(tables) != 1:
-                      raise RuntimeError(f"listed table count drift p{pno}: {len(tables)}")
-                  for rno, row in enumerate(tables[0] or [], start=1):
-                      cells = [clean(v) for v in row]
-                      if not any(cells):
-                          continue
-                      if len(cells) != 7:
-                          raise RuntimeError(f"listed width drift p{pno} r{rno}: {len(cells)}")
-                      if is_header(cells):
-                          listed_headers += 1
-                          continue
-                      if not cells[0]:
-                          raise RuntimeError(f"listed blank company p{pno} r{rno}: {cells!r}")
-                      note_folded = cells[6].casefold()
-                      status = "renewal_update_in_progress" if any(token in note_folded for token in ("rinnovo", "aggiornamento", "istruttoria")) else "listed"
-                      listed_rows.append({
-                          "page": pno,
-                          "row": rno,
-                          "section": numeric[0],
-                          "cells": cells,
-                          "status": status,
-                      })
-
-          grouped = {}
-          same_section_dupes = []
-          for row in listed_rows:
-              c = row["cells"]
-              key = (
-                  norm(c[0]), norm_addr(c[1]), norm_addr(c[2]), norm(c[3]),
-                  norm(c[4]), norm(c[5]), row["status"],
-              )
-              group = grouped.setdefault(key, {"row": row, "sections": [], "rows": []})
-              if row["section"] in group["sections"]:
-                  same_section_dupes.append({"key": key, "first": group["rows"][-1], "duplicate": row})
-              group["sections"].append(row["section"])
-              group["rows"].append(row)
-
-          listed_status = Counter(group["row"]["status"] for group in grouped.values())
-          listed_id_coverage = sum(bool(identifiers(group["row"]["cells"][3])) for group in grouped.values())
-          listing_bad = [row for row in listed_rows if row["cells"][4] and not DATE_FULL.fullmatch(row["cells"][4]) and row["cells"][4].casefold() != "x"]
-          expiry_bad = [row for row in listed_rows if row["cells"][5] and not DATE_FULL.fullmatch(row["cells"][5]) and row["cells"][5].casefold() != "x"]
-          blank_listing = [row for row in listed_rows if not row["cells"][4]]
-          blank_expiry = [row for row in listed_rows if not row["cells"][5]]
-          x_dates = [row for row in listed_rows if row["cells"][4].casefold() == "x" or row["cells"][5].casefold() == "x"]
-          section_counts = Counter(row["section"] for row in listed_rows)
-          distinct_section_sets = Counter(tuple(sorted(set(group["sections"]))) for group in grouped.values())
-
-          print(json.dumps({
-              "kind": "listed-reviewed",
-              "pages": 82,
-              "headers": listed_headers,
-              "sector_rows": len(listed_rows),
-              "records": len(grouped),
-              "status_counts": dict(listed_status),
-              "strict_identifier_coverage": listed_id_coverage,
-              "section_by_page": section_by_page,
-              "sector_rows_by_section": dict(section_counts),
-              "section_set_distribution": {str(k): v for k, v in distinct_section_sets.items()},
-              "same_section_duplicate_count": len(same_section_dupes),
-              "same_section_duplicates": same_section_dupes[:20],
-              "malformed_listing_date_rows": listing_bad,
-              "malformed_expiry_date_rows": expiry_bad,
-              "blank_listing_date_count": len(blank_listing),
-              "blank_listing_date_rows": blank_listing,
-              "blank_expiry_date_count": len(blank_expiry),
-              "blank_expiry_date_rows": blank_expiry[:30],
-              "x_date_rows": x_dates,
-          }, ensure_ascii=False, sort_keys=True))
+              digest = hashlib.sha256(payloads[0]).hexdigest()
+              if digest != source["sha256"] or len(payloads[0]) != source["bytes"]:
+                  raise RuntimeError(
+                      f"{kind}: official source drift: sha={digest}, bytes={len(payloads[0])}"
+                  )
+              Path(f"/tmp/catanzaro-{kind}.pdf").write_bytes(payloads[0])
           PY
+      - name: Parse fresh captures through the edition-bound parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          from white_list_archive.parsers.catanzaro_tables import (
+              parse_catanzaro_applicants,
+              parse_catanzaro_listed,
+          )
+
+          PAGE = "https://prefettura.interno.gov.it/it/prefetture/catanzaro/provvedimenti-whitelist-elenchi"
+          common = {
+              "authority_key": "catanzaro",
+              "authority_name": "Prefettura di Catanzaro",
+              "register_key": "catanzaro-white-list",
+              "register_name": "White List — Prefettura di Catanzaro",
+              "reference_date": "2026-09-10",
+              "source_page_url": PAGE,
+          }
+          listed_cfg = {
+              **common,
+              "source_key": "catanzaro-listed",
+              "population_scope": "listed",
+              "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
+              "sha256": "8578a1b2d3ef0e2d71f1133381082d63d131182fd1b74c456cffe708ed94df7f",
+          }
+          applicant_cfg = {
+              **common,
+              "source_key": "catanzaro-applicants",
+              "population_scope": "applicant",
+              "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
+              "sha256": "8c5b0ea684b20f0893016e4a528bac57fb2b05c40aa9669340bdf7bd7dab115c",
+          }
+          listed = parse_catanzaro_listed(Path("/tmp/catanzaro-listed.pdf"), listed_cfg)
+          applicants = parse_catanzaro_applicants(Path("/tmp/catanzaro-applicants.pdf"), applicant_cfg)
+          assert listed.diagnostics["public_records"] == 610
+          assert listed.diagnostics["sector_rows"] == 1556
+          assert listed.diagnostics["status_counts"] == {
+              "listed": 377,
+              "renewal_update_in_progress": 233,
+          }
+          assert applicants.diagnostics["public_records"] == 277
+          assert applicants.diagnostics["status_counts"] == {"pending": 277}
+          assert len(listed.records) + len(applicants.records) == 887
+          print(listed.diagnostics)
+          print(applicants.diagnostics)
+          PY
+      - name: Run Catanzaro semantic regression tests
+        run: pytest -q tests/test_catanzaro_parser_semantics.py
+      - name: Run repository tests
+        run: pytest -q
