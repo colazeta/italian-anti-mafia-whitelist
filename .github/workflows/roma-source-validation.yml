@@ -15,113 +15,74 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install bounded inspection runtime
+      - name: Install runtime
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Audit complete Roma record geometry
+      - name: Audit aligned record starts
         run: |
           python - <<'PY'
-          from __future__ import annotations
-          import hashlib, json, re, time
+          import hashlib,json,re,time
           from collections import Counter
-          from datetime import datetime
           from pathlib import Path
           from urllib.parse import urljoin
-          import pdfplumber, requests
+          import requests,pdfplumber
           from bs4 import BeautifulSoup
-
-          UA='italian-anti-mafia-whitelist/0.1 (+bounded Roma validation)'
-          SOURCES={
-            'roma-listed':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',168),
-            'roma-applicants':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',142),
-          }
-          s=requests.Session(); s.headers.update({'User-Agent':UA,'Accept':'text/html,application/pdf,*/*'})
-          def get(url):
+          S={
+          'roma-listed':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',168),
+          'roma-applicants':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',142)}
+          ss=requests.Session(); ss.headers['User-Agent']='italian-anti-mafia-whitelist/0.1'
+          def get(u):
             last=None
             for i in range(3):
-              try:
-                r=s.get(url,timeout=35); r.raise_for_status(); return r
-              except Exception as e:
-                last=e
-                if i<2: time.sleep(2*(i+1))
-            raise RuntimeError(f'GET failed {url}: {last}')
-          def clean(v): return ' '.join(str(v or '').split())
-          id_re=re.compile(r'^(?:\d{10,12}|[A-Z0-9]{16})$')
-          date_re=re.compile(r'^\d{2}/\d{2}/\d{4}$')
-          for key,(page_url,expected_sha,expected_pages) in SOURCES.items():
-            html=get(page_url).text; soup=BeautifulSoup(html,'html.parser')
-            pdfs=[]
+              try:r=ss.get(u,timeout=35);r.raise_for_status();return r
+              except Exception as e:last=e;time.sleep(i+1)
+            raise RuntimeError(f'GET {u}: {last}')
+          def clean(s):return ' '.join(str(s or '').split())
+          for key,(page_url,sha0,npages) in S.items():
+            soup=BeautifulSoup(get(page_url).text,'html.parser'); links=[]
             for a in soup.find_all('a',href=True):
-              href=urljoin(page_url,a['href'])
-              if '.pdf' in href.lower() and href not in [x[1] for x in pdfs]: pdfs.append((clean(a.get_text(' ',strip=True)),href))
-            if len(pdfs)!=1: raise RuntimeError(f'{key}: attachment cardinality {pdfs!r}')
-            label,url=pdfs[0]; body=get(url).content; sha=hashlib.sha256(body).hexdigest()
-            if sha!=expected_sha: raise RuntimeError(f'{key}: byte drift {sha}')
-            p=Path('/tmp')/f'{key}.pdf'; p.write_bytes(body)
-            records=[]; per_page=Counter(); duplicate_ids=Counter(); notes=Counter(); date_anomalies=[]; missing_name=[]; strange_anchor=[]
-            footer_stamps=Counter(); section_tokens=Counter()
+              u=urljoin(page_url,a['href'])
+              if '.pdf' in u.lower() and u not in links:links.append(u)
+            if len(links)!=1:raise RuntimeError((key,links))
+            body=get(links[0]).content;sha=hashlib.sha256(body).hexdigest()
+            if sha!=sha0:raise RuntimeError((key,'sha drift',sha))
+            p=Path('/tmp')/(key+'.pdf');p.write_bytes(body)
+            rows=[]; page_counts=Counter(); gaps=Counter(); missing_dates=[]; note_counts=Counter(); id_shapes=Counter(); samples=[]
             with pdfplumber.open(p) as pdf:
-              if len(pdf.pages)!=expected_pages: raise RuntimeError(f'{key}: page drift {len(pdf.pages)}')
-              for pno,page in enumerate(pdf.pages,1):
+              if len(pdf.pages)!=npages:raise RuntimeError((key,'pages',len(pdf.pages)))
+              for pn,page in enumerate(pdf.pages,1):
                 words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                candidates=[]
                 for w in words:
-                  if float(w['top'])>535 and re.fullmatch(r'\d{2}/\d{2}/\d{4}',str(w['text'])):
-                    footer_stamps[str(w['text'])]+=1
-                anchors=[]
-                for w in words:
-                  x=float(w['x0']); text=str(w['text']).strip().upper()
-                  if 325<=x<420 and id_re.fullmatch(text): anchors.append(w)
-                anchors.sort(key=lambda w:float(w['top']))
-                per_page[pno]=len(anchors)
-                for ai,a in enumerate(anchors):
-                  atop=float(a['top']); next_top=float(anchors[ai+1]['top']) if ai+1<len(anchors) else 540.0
-                  lo=atop-3.0; hi=next_top-3.0
-                  block=[w for w in words if lo<=float(w['top'])<hi and float(w['top'])<540]
-                  def col(x0,x1):
-                    ww=sorted((w for w in block if x0<=float(w['x0'])<x1),key=lambda w:(float(w['top']),float(w['x0'])))
-                    return clean(' '.join(str(w['text']) for w in ww))
+                  if not (0<=float(w['x0'])<168 and 55<float(w['top'])<540):continue
+                  t=float(w['top'])
+                  core=[z for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6]
+                  if core:candidates.append(t)
+                starts=[]
+                for t in sorted(candidates):
+                  if not starts or abs(t-starts[-1])>2.0:starts.append(t)
+                # Retain only starts whose aligned identifier cell is not the header.
+                starts=[t for t in starts if not any(str(z['text']).upper().startswith('C.F') for z in words if 325<=float(z['x0'])<426 and abs(float(z['top'])-t)<=1.6)]
+                page_counts[len(starts)]+=1
+                for i,t in enumerate(starts):
+                  if i+1<len(starts):gaps[round(starts[i+1]-t,1)]+=1
+                  hi=(starts[i+1]-3 if i+1<len(starts) else 540)
+                  block=[z for z in words if t-3<=float(z['top'])<hi and float(z['top'])<540]
+                  def col(a,b):
+                    zz=sorted((z for z in block if a<=float(z['x0'])<b),key=lambda z:(float(z['top']),float(z['x0'])))
+                    return clean(' '.join(str(z['text']) for z in zz))
                   if key=='roma-listed':
-                    fields={
-                      'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'identifier_raw':col(325,426),
-                      'listing_date':col(426,486),'protocol':col(486,582),'expiry_date':col(582,648),'sections':col(648,723),'notes':col(723,850),
-                    }
-                    for field in ('listing_date','expiry_date'):
-                      raw=fields[field]
-                      if raw and date_re.fullmatch(raw):
-                        try: datetime.strptime(raw,'%d/%m/%Y')
-                        except ValueError: date_anomalies.append((pno,ai+1,field,raw,fields['name'],str(a['text'])))
-                      elif raw:
-                        date_anomalies.append((pno,ai+1,field,raw,fields['name'],str(a['text'])))
+                    rec={'page':pn,'top':round(t,1),'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'date':col(426,486),'protocol':col(486,582),'expiry':col(582,648),'sections':col(648,723),'notes':col(723,850)}
+                    if not rec['date'] and not rec['protocol'] and not rec['expiry']:missing_dates.append(rec)
                   else:
-                    fields={
-                      'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'identifier_raw':col(325,426),
-                      'application_date':col(426,492),'sections':col(492,564),'notes':col(564,850),
-                    }
-                    raw=fields['application_date']
-                    if raw:
-                      if not date_re.fullmatch(raw): date_anomalies.append((pno,ai+1,'application_date',raw,fields['name'],str(a['text'])))
-                      else:
-                        try: datetime.strptime(raw,'%d/%m/%Y')
-                        except ValueError: date_anomalies.append((pno,ai+1,'application_date',raw,fields['name'],str(a['text'])))
-                  anchor=str(a['text']).strip().upper(); duplicate_ids[anchor]+=1
-                  if not fields['name']: missing_name.append((pno,ai+1,anchor,fields))
-                  if fields['identifier_raw']!=anchor: strange_anchor.append((pno,ai+1,anchor,fields['identifier_raw'],fields['name']))
-                  if fields['notes']: notes[fields['notes']]+=1
-                  for token in re.findall(r'\b(?:VIII|VII|VI|IV|IX|III|II|I|V|X)\b',fields['sections']): section_tokens[token]+=1
-                  records.append({'page':pno,'row':ai+1,'anchor':anchor,**fields})
-            print('ROMA_AUDIT',key,json.dumps({
-              'sha256':sha,'bytes':len(body),'pages':expected_pages,'records':len(records),
-              'per_page_distribution':dict(Counter(per_page.values())),
-              'duplicate_identifier_values':sum(1 for v in duplicate_ids.values() if v>1),
-              'duplicate_identifier_occurrences':sum(v-1 for v in duplicate_ids.values() if v>1),
-              'notes':dict(notes),'date_anomalies':date_anomalies,'missing_name':missing_name,
-              'strange_anchor_count':len(strange_anchor),'strange_anchor_sample':strange_anchor[:30],
-              'footer_dates':dict(footer_stamps),'section_tokens':dict(section_tokens),
-            },ensure_ascii=False,sort_keys=True))
-            print('ROMA_FIRST_LAST',key,json.dumps({'first':records[:3],'last':records[-3:]},ensure_ascii=False))
+                    rec={'page':pn,'top':round(t,1),'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'id':col(325,426),'date':col(426,492),'sections':col(492,564),'notes':col(564,850)}
+                    if not rec['date']:missing_dates.append(rec)
+                  id_shapes[len(re.sub(r'[^A-Za-z0-9]','',rec['id']))]+=1
+                  if rec['notes']:note_counts[rec['notes']]+=1
+                  rows.append(rec)
+                  if len(samples)<5:samples.append(rec)
+            print('ROMA_ALIGNED',key,json.dumps({'sha256':sha,'pages':npages,'records':len(rows),'page_record_counts':dict(page_counts),'gap_counts':dict(gaps),'missing_core_date_rows':missing_dates[:30],'missing_core_date_count':len(missing_dates),'identifier_compact_lengths':dict(id_shapes),'notes':dict(note_counts),'first':samples,'last':rows[-5:]},ensure_ascii=False,sort_keys=True))
           PY
