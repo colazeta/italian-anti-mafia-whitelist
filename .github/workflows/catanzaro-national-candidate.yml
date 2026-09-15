@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/catanzaro-national-candidate.yml
       - tmp/catanzaro_integrate_candidate.py
+      - src/white_list_archive/publishing/public_contract.py
+      - tests/test_public_contract.py
   workflow_dispatch:
 
 permissions:
