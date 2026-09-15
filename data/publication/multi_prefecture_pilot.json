@@ -1305,6 +1305,57 @@
       "sha256": "9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a",
       "expected_source_rows": 2259,
       "notes": "Dedicated official applicant-company page and 142-page PDF revalidated 15 September 2026. Independent retrievals were byte-identical. The positioned fail-closed parser yields exactly 2,259 observations (2,256 pending; 3 explicit AGGIORNAMENTO IN CORSO) and freezes the reviewed malformed/missing application-date exceptions without inference. Exact evidence is documented in docs/sources/roma-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "pisa",
+      "authority_name": "Prefettura di Pisa",
+      "register_key": "pisa-white-list",
+      "register_name": "White List — Prefettura di Pisa",
+      "reference_date": "2026-09-08",
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "page-level 'Ultimo aggiornamento' marker on the official Pisa publication page; used only as the current source-edition boundary and not as an inferred company decision, registration, legal-effect or attachment-publication date",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pisa/white-list-elenco-imprese-iscritte-e-richiedenti-iscrizione",
+      "source_key": "pisa-listed",
+      "parser": "pisa_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritte.pdf",
+      "sha256": "30eea93e542aea6ceb13bcfd4e3f1358e1c3f9cfb274b23e738dfb304b1dea23",
+      "expected_source_rows": 398,
+      "notes": "Official Allegato A revalidated 15 September 2026 by two byte-identical independent GETs. The fail-closed six-page table parser yields exactly 398 current listed observations; 397 carry a strict source identifier and the genuinely blank identifier for ROHDE NIELSEN A/S is preserved without inference. Exact evidence is documented in docs/sources/pisa-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "pisa",
+      "authority_name": "Prefettura di Pisa",
+      "register_key": "pisa-white-list",
+      "register_name": "White List — Prefettura di Pisa",
+      "reference_date": "2026-09-08",
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "page-level 'Ultimo aggiornamento' marker on the official Pisa publication page; used only as the current source-edition boundary and not as an inferred company decision, registration, legal-effect or attachment-publication date",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pisa/white-list-elenco-imprese-iscritte-e-richiedenti-iscrizione",
+      "source_key": "pisa-applicants",
+      "parser": "pisa_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedente-iscrizione.pdf",
+      "sha256": "ed3bbf19670dbed899f6386836f4723898e4c20f9315e4d4297156fd1dcd6b12",
+      "expected_source_rows": 18,
+      "notes": "Official Allegato B revalidated 15 September 2026 by two byte-identical independent GETs. The fail-closed one-page table parser yields exactly 18 current applicant observations, all with strict source identifiers. Exact evidence is documented in docs/sources/pisa-operational-check-2026-09-15.md."
+    },
+    {
+      "authority_key": "pisa",
+      "authority_name": "Prefettura di Pisa",
+      "register_key": "pisa-white-list",
+      "register_name": "White List — Prefettura di Pisa",
+      "reference_date": "2026-09-08",
+      "last_source_update": "2026-09-08",
+      "last_source_update_basis": "page-level 'Ultimo aggiornamento' marker on the official Pisa publication page; used only as the current source-edition boundary and not as an inferred company decision, registration, legal-effect or attachment-publication date",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pisa/white-list-elenco-imprese-iscritte-e-richiedenti-iscrizione",
+      "source_key": "pisa-renewal-update",
+      "parser": "pisa_renewal_update",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/in-aggiornamento.pdf",
+      "sha256": "8658cd2e6048c44de18687b3933980778dd36bbf3721cd944063f61c0e2ceedb",
+      "expected_source_rows": 33,
+      "notes": "Separate official 'Elenco Imprese in Aggiornamento' revalidated 15 September 2026 by two byte-identical independent GETs. It is supplementary current evidence on the listed/renewal side of the same ordinary Pisa White List register, not a separate legal register. The fail-closed parser yields exactly 33 renewal/update observations. Exact evidence is documented in docs/sources/pisa-operational-check-2026-09-15.md."
     }
   ]
 }
