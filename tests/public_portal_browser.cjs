@@ -382,7 +382,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(potenza.filter(r=>r.requested_activities.length>0).length,0);
       assert.ok(potenza.every(r=>r.parser_name==='potenza_combined'&&r.parser_version==='2'));
       assert.ok(potenza.every(r=>r.source_fields.physical_locator.startsWith('source-id:')));
-      assert.equal(potenza.filter(r=>r.source_fields.notes).length,1);
+      assert.ok(potenza.every(r=>Array.isArray(r.source_fields.notes)));
+      assert.equal(potenza.filter(r=>r.source_fields.notes.length>0).length,1);
       const gap=potenza.filter(r=>r.source_fields.physical_locator==='source-id:903');
       assert.equal(gap.length,1);
       assert.equal(gap[0].name,'GAP S.R.L.S.');
