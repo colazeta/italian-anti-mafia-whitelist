@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install project and parser test runtime
-        run: pip install -e '.[dev]'
+      - name: Install project and full test runtime
+        run: pip install -e '.[dev,database,storage]'
 
       - name: Verify current official source and capture twice
         shell: bash
@@ -33,6 +33,8 @@ jobs:
           set -euo pipefail
           PAGE='https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list'
           RESOURCE='https://prefettura.interno.gov.it/sites/default/files/93/2026-08/2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx'
+          EXPECTED_BYTES='123745'
+          EXPECTED_SHA256='e5cf9776971e4c0b46b97c56e2764f906bd07e3d573ac07b59fcd6605ab9c370'
           mkdir -p tmp/sassari
           curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
             -H 'Cache-Control: no-cache' "$PAGE" -o tmp/sassari/page.html
@@ -43,11 +45,13 @@ jobs:
           done
           cmp --silent tmp/sassari/source-1.xlsx tmp/sassari/source-2.xlsx
           bytes=$(wc -c < tmp/sassari/source-1.xlsx)
-          test "$bytes" -gt 100000
+          sha=$(sha256sum tmp/sassari/source-1.xlsx | cut -d' ' -f1)
+          test "$bytes" = "$EXPECTED_BYTES"
+          test "$sha" = "$EXPECTED_SHA256"
           echo "SASSARI_BYTES=$bytes" | tee -a "$GITHUB_ENV"
-          echo "SASSARI_SHA256=$(sha256sum tmp/sassari/source-1.xlsx | cut -d' ' -f1)" | tee -a "$GITHUB_ENV"
+          echo "SASSARI_SHA256=$sha" | tee -a "$GITHUB_ENV"
 
-      - name: Parse complete combined listed/applicant population
+      - name: Parse exact combined listed/applicant population
         shell: bash
         run: |
           set -euo pipefail
@@ -71,16 +75,45 @@ jobs:
           }
           batch = parse_sassari_combined(Path('tmp/sassari/source-1.xlsx'), cfg)
           d = batch.diagnostics
-          assert d['public_records'] == d['source_rows']
-          assert d['public_records'] > 200
-          assert d['identifier_coverage'] / d['public_records'] > 0.90
-          for status in ('listed', 'pending', 'renewal_update_in_progress'):
-              assert d['status_counts'].get(status, 0) > 0, (status, d)
-          assert d['office_identifier_like_rows'] >= 1, d
-          assert d['malformed_application_dates_preserved'] >= 1, d
-          assert len({r['record_locator'] for r in batch.records}) == len(batch.records)
+          expected_statuses = {
+              'listed': 335,
+              'pending': 129,
+              'renewal_update_in_progress': 12,
+              'expired_observed': 1,
+              'other_or_unknown': 1,
+          }
+          assert d['workbook_sheet_count'] == 4, d
+          assert d['worksheet_names'] == ['Foglio1', 'Foglio2', 'Foglio3', 'Foglio4'], d
+          assert d['worksheet'] == 'Foglio1', d
+          assert d['header_row'] == 7, d
+          assert d['source_rows'] == 478, d
+          assert d['public_records'] == 478, d
+          assert d['status_counts'] == expected_statuses, d
+          assert d['identifier_coverage'] == 472, d
+          assert d['raw_identifier_only'] == 6, d
+          assert d['identifier_not_identifier_like_rows'] == 6, d
+          assert d['office_identifier_like_rows'] == 1, d
+          assert d['malformed_application_dates_preserved'] == 1, d
+          assert d['malformed_start_dates_preserved'] == 0, d
+          assert d['malformed_expiry_dates_preserved'] == 0, d
+          assert d['malformed_previous_expiry_dates_preserved'] == 0, d
+          assert len({r['record_locator'] for r in batch.records}) == 478
+
+          malformed_dates = [
+              r for r in batch.records
+              if r['source_fields']['application_date_raw'] and not r['application_date']
+          ]
+          office_anomalies = [r for r in batch.records if r['registered_office'].replace(' ', '').isalnum() and len(r['registered_office'].replace(' ', '')) in (11, 16)]
+          nonstandard = [r for r in batch.records if r['source_status'] in {'expired_observed', 'other_or_unknown'}]
+          raw_id_only = [r for r in batch.records if r['identifier_field_raw'] and not r['identifiers']]
+          assert len(malformed_dates) == 1
+          assert len(nonstandard) == 2
+          assert len(raw_id_only) == 6
           print('SASSARI_DIAGNOSTICS=' + json.dumps(d, ensure_ascii=False, sort_keys=True))
-          print('SASSARI_STATUS_COUNTS=' + json.dumps(d['status_counts'], sort_keys=True))
+          print('SASSARI_MALFORMED_APPLICATION_DATE=' + json.dumps(malformed_dates, ensure_ascii=False, sort_keys=True))
+          print('SASSARI_OFFICE_IDENTIFIER_ANOMALIES=' + json.dumps(office_anomalies, ensure_ascii=False, sort_keys=True))
+          print('SASSARI_NONSTANDARD_STATUS_ROWS=' + json.dumps(nonstandard, ensure_ascii=False, sort_keys=True))
+          print('SASSARI_RAW_IDENTIFIER_ONLY=' + json.dumps(raw_id_only, ensure_ascii=False, sort_keys=True))
           print('SASSARI_SHA256=' + os.environ['SASSARI_SHA256'])
           print('SASSARI_BYTES=' + os.environ['SASSARI_BYTES'])
           PY
