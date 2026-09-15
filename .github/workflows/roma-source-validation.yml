@@ -6,6 +6,8 @@ on:
       - expansion/roma-2026-09-15
     paths:
       - '.github/workflows/roma-source-validation.yml'
+      - 'tmp/roma_fix_positioned_geometry.py'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,34 +15,62 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install inspection runtime
-        run: python -m pip install --disable-pip-version-check requests pdfplumber
-      - name: Inspect first-page vertical geometry
+      - name: Install parser runtime
+        run: python -m pip install -e '.[dev]'
+      - name: Reacquire approved Roma source bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          listed='https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf'
+          applicants='https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf'
+          curl --fail --location --silent --show-error --retry 3 "$listed" -o /tmp/roma-listed.pdf
+          curl --fail --location --silent --show-error --retry 3 "$applicants" -o /tmp/roma-applicants.pdf
+          test "$(sha256sum /tmp/roma-listed.pdf | cut -d' ' -f1)" = '8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af'
+          test "$(sha256sum /tmp/roma-applicants.pdf | cut -d' ' -f1)" = '9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a'
+      - name: Apply reviewed first-page geometry correction in validation workspace
+        run: python tmp/roma_fix_positioned_geometry.py
+      - name: Parse both complete official populations fail-closed
         run: |
           python - <<'PY'
-          import hashlib, json
+          from collections import Counter
           from pathlib import Path
-          import requests, pdfplumber
+          from white_list_archive.parsers.roma_positioned import parse_roma_applicants, parse_roma_listed
 
-          sources={
-            'listed':('https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af'),
-            'applicants':('https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a')}
-          s=requests.Session();s.headers['User-Agent']='italian-anti-mafia-whitelist/0.1 (+Roma geometry)'
-          for key,(url,expected) in sources.items():
-            r=s.get(url,timeout=40);r.raise_for_status();body=r.content
-            assert hashlib.sha256(body).hexdigest()==expected
-            p=Path('/tmp')/(key+'.pdf');p.write_bytes(body)
-            with pdfplumber.open(p) as pdf:
-              words=pdf.pages[0].extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-            # print every positioned token from the table-heading/first-company transition only
-            selected=[w for w in words if 250 <= float(w['top']) <= 380]
-            selected.sort(key=lambda w:(float(w['top']),float(w['x0'])))
-            for w in selected:
-              print('GEOM',key,json.dumps({'top':round(float(w['top']),3),'bottom':round(float(w['bottom']),3),'x0':round(float(w['x0']),3),'x1':round(float(w['x1']),3),'text':str(w['text'])},ensure_ascii=False))
+          base = {
+              'authority_key': 'roma',
+              'authority_name': 'Prefettura di Roma',
+              'register_key': 'roma-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-14',
+          }
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf'
+          applicants_url = 'https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf'
+          listed = parse_roma_listed(Path('/tmp/roma-listed.pdf'), {
+              **base,
+              'source_key': 'roma-listed',
+              'population_scope': 'listed',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte',
+              'resource_url': listed_url,
+              'sha256': '8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',
+          })
+          applicants = parse_roma_applicants(Path('/tmp/roma-applicants.pdf'), {
+              **base,
+              'source_key': 'roma-applicants',
+              'population_scope': 'applicant',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione',
+              'resource_url': applicants_url,
+              'sha256': '9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',
+          })
+          assert len(listed.records) == 2169
+          assert len(applicants.records) == 2259
+          assert Counter(r['source_status'] for r in listed.records) == Counter({'listed': 1215, 'renewal_update_in_progress': 954})
+          assert Counter(r['source_status'] for r in applicants.records) == Counter({'pending': 2256, 'renewal_update_in_progress': 3})
+          assert len({r['record_locator'] for r in listed.records + applicants.records}) == 4428
+          print({'listed': listed.diagnostics, 'applicants': applicants.diagnostics})
           PY
