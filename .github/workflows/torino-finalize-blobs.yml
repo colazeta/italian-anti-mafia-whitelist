@@ -1,0 +1,100 @@
+name: Torino finalization blobs (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/torino-2026-09-15
+    paths:
+      - '.github/workflows/torino-finalize-blobs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-blobs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build final production-only file blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, urllib.request
+
+          def once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              return text.replace(old, new, 1)
+
+          pp_path = Path('.github/workflows/public-pages.yml')
+          pp = pp_path.read_text(encoding='utf-8')
+          pp = once(pp,
+              "      - 'src/white_list_archive/parsers/lecco_rect_tables.py'\n",
+              "      - 'src/white_list_archive/parsers/lecco_rect_tables.py'\n      - 'src/white_list_archive/parsers/torino_tables.py'\n",
+              'public-pages parser trigger')
+          pp = once(pp, "assert reg['meta']['record_count'] == 48391", "assert reg['meta']['record_count'] == 50054", 'public-pages record count')
+          pp = once(pp, ",'catanzaro','lecco'}", ",'catanzaro','lecco','torino'}", 'public-pages authority set')
+          pp = once(pp, "'pisa-white-list','catanzaro-ordinary','lecco-ordinary'\n          }", "'pisa-white-list','catanzaro-ordinary','lecco-ordinary','torino-ordinary'\n          }", 'public-pages register set')
+          pp = once(pp, "assert reg['meta']['authority_count'] == 43", "assert reg['meta']['authority_count'] == 44", 'public-pages authority count')
+          pp = once(pp, "assert reg['meta']['register_count'] == 44", "assert reg['meta']['register_count'] == 45", 'public-pages register count')
+          pp = once(pp, "assert pref['meta']['published_count'] == 43", "assert pref['meta']['published_count'] == 44", 'public-pages published count')
+          marker = "          assert sorted(r['application_date'] for r in edilnord) == ['2013-12-12','2016-01-29','2017-04-18']\n          alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']"
+          torino_block = "          assert sorted(r['application_date'] for r in edilnord) == ['2013-12-12','2016-01-29','2017-04-18']\n          torino = [x for x in pref['prefectures'] if x['authority_key'] == 'torino']\n          assert len(torino) == 1 and torino[0]['mapped'] and torino[0]['published'] and torino[0]['series_count'] == 2\n          torino_records = [r for r in reg['records'] if r['authority_key'] == 'torino']\n          assert len(torino_records) == 1663\n          assert sum(r['source_key'] == 'torino-listed' for r in torino_records) == 1501\n          assert sum(r['source_key'] == 'torino-applicants' for r in torino_records) == 162\n          assert sum(r['source_status'] == 'listed' for r in torino_records) == 1237\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in torino_records) == 264\n          assert sum(r['source_status'] == 'pending' for r in torino_records) == 162\n          assert len({r['record_locator'] for r in torino_records}) == 1663\n          assert sum(bool(r['identifiers']) for r in torino_records if r['source_key'] == 'torino-listed') == 1496\n          assert sum(bool(r['identifiers']) for r in torino_records if r['source_key'] == 'torino-applicants') == 162\n          assert sum(r['source_key'] == 'torino-listed' and r['application_date'] == '' for r in torino_records) == 1241\n          alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']"
+          pp = once(pp, marker, torino_block, 'public-pages Torino block')
+          pp_path.write_text(pp, encoding='utf-8')
+
+          browser_path = Path('tests/public_portal_browser.cjs')
+          browser = browser_path.read_text(encoding='utf-8')
+          browser = once(browser,
+              "      assert.ok(labels.includes('White List — Prefettura di Lecco · Prefettura di Lecco'));\n",
+              "      assert.ok(labels.includes('White List — Prefettura di Lecco · Prefettura di Lecco'));\n      assert.ok(labels.includes('White List — Prefettura di Torino · Prefettura di Torino'));\n",
+              'browser Torino register label')
+          browser = once(browser, '      assert.equal(stats.total,48391);', '      assert.equal(stats.total,50054);', 'browser total')
+          browser = once(browser,
+              ",'pisa','catanzaro','lecco'].includes(r.authority_key));",
+              ",'pisa','catanzaro','lecco','torino'].includes(r.authority_key));",
+              'browser expansion exclusion set')
+          marker = "      assert.deepEqual(edilnord.map(r=>r.application_date).sort(),['2013-12-12','2016-01-29','2017-04-18']);\n      const pm=crotone.filter(r=>r.name==='PM COSTRUZIONI S.R.L.');"
+          torino_browser = "      assert.deepEqual(edilnord.map(r=>r.application_date).sort(),['2013-12-12','2016-01-29','2017-04-18']);\n      const torino=registry.records.filter(r=>r.authority_key==='torino');\n      assert.equal(torino.length,1663);\n      assert.equal(torino.filter(r=>r.source_key==='torino-listed').length,1501);\n      assert.equal(torino.filter(r=>r.source_key==='torino-applicants').length,162);\n      assert.deepEqual(statusCounts(torino),{listed:1237,pending:162,renewal_update_in_progress:264});\n      assert.equal(new Set(torino.map(r=>r.record_locator)).size,1663);\n      assert.equal(torino.filter(r=>r.source_key==='torino-listed'&&r.identifiers.length>0).length,1496);\n      assert.equal(torino.filter(r=>r.source_key==='torino-applicants'&&r.identifiers.length>0).length,162);\n      assert.equal(torino.filter(r=>r.source_key==='torino-listed'&&r.application_date==='').length,1241);\n      const pm=crotone.filter(r=>r.name==='PM COSTRUZIONI S.R.L.');"
+          browser = once(browser, marker, torino_browser, 'browser Torino block')
+          browser_path.write_text(browser, encoding='utf-8')
+
+          note_path = Path('docs/sources/torino-operational-check-2026-09-15.md')
+          note = note_path.read_text(encoding='utf-8')
+          note = once(note,
+              "This is a source boundary, not yet a claim that Torino is integrated into the national public registry. No applicant population, legal status, missing value, identifier repair or completeness conclusion is inferred from search absence or failed retrieval. Publication remains fail-closed on the pinned byte identities and reviewed structural denominators.",
+              "This is the source boundary used by the validated national candidate. The branch-level candidate build has established 50,054 national observations, 44 published Prefectures, 45 registers and 47 mapped Prefectures, including exactly 1,663 Torino observations and 1,663 distinct Torino locators. This is not yet a claim of live public deployment: PR, merge and post-merge Pages verification remain required. No applicant population, legal status, missing value, identifier repair or completeness conclusion is inferred from search absence or failed retrieval. Publication remains fail-closed on the pinned byte identities and reviewed structural denominators.",
+              'source note candidate boundary')
+          note = once(note,
+              "The current branch has established the official-source boundary and implements a byte-pinned parser with semantic regression invariants. National canonical/public integration has not yet been validated in this checkpoint, so `canonical_integration_validated` remains false. `durable_evidence_verified` also remains false: successful retrieval is not treated as proof of a separate immutable evidence archive.",
+              "The current branch has established the official-source boundary, implements a byte-pinned parser with semantic regression invariants, and has passed the fail-closed national candidate build and denominator checks. `canonical_integration_validated` is therefore true for this branch-level candidate. `durable_evidence_verified` remains false: successful retrieval and candidate publication validation are not treated as proof of a separate immutable evidence archive. Live verification remains pending PR, merge and successful GitHub Pages deployment.",
+              'source note integration state')
+          note_path.write_text(note, encoding='utf-8')
+
+          token = os.environ['GH_TOKEN']
+          repo = os.environ['GH_REPOSITORY']
+          for path in (pp_path, browser_path, note_path):
+              payload = json.dumps({'content': path.read_text(encoding='utf-8'), 'encoding': 'utf-8'}).encode()
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  data=payload,
+                  method='POST',
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'Content-Type': 'application/json',
+                  },
+              )
+              with urllib.request.urlopen(req) as response:
+                  result = json.load(response)
+              print(f'FINAL_BLOB {path.as_posix()} {result["sha"]}')
+          PY
