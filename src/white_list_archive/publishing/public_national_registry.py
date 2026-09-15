@@ -53,6 +53,7 @@ from white_list_archive.parsers.napoli_tables import PARSERS as NAPOLI_PARSERS
 from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.parsers.perugia_tables import PARSERS as PERUGIA_PARSERS
 from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
+from white_list_archive.parsers.lodi_sheets import PARSERS as LODI_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -646,6 +647,68 @@ def _adapt_trento_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedB
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+def _adapt_lodi_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Lodi evidence onto the recursively closed public source-field contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Lodi source_fields must be a mapping")
+        if parser_name == "lodi_listed":
+            expected = {
+                "sections", "source_memberships", "name_variants",
+                "registered_office_variants", "secondary_office_variants",
+                "identifier_raw_variants", "listing_date_raw", "expiry_date_raw",
+                "update_raw",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Lodi listed source-field drift: {sorted(fields)!r}")
+            for key in (
+                "sections", "name_variants", "registered_office_variants",
+                "secondary_office_variants", "identifier_raw_variants",
+            ):
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Lodi listed source-list type drift: {key}")
+            memberships = fields["source_memberships"]
+            if not isinstance(memberships, list) or not memberships or any(not isinstance(value, dict) for value in memberships):
+                raise RuntimeError("Lodi listed source-membership type/cardinality drift")
+            expected_membership = {
+                "source_row", "section", "name_raw", "registered_office_raw",
+                "secondary_office_raw", "identifier_raw", "listing_date_raw",
+                "expiry_date_raw", "update_raw",
+            }
+            for membership in memberships:
+                if set(membership) != expected_membership or type(membership["source_row"]) is not int:
+                    raise RuntimeError("Lodi listed source-membership shape drift")
+                if any(not isinstance(membership[key], str) for key in expected_membership - {"source_row"}):
+                    raise RuntimeError("Lodi listed source-membership scalar drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw", "update_raw")):
+                raise RuntimeError("Lodi listed raw scalar type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "registered_office_variants": list(fields["registered_office_variants"]),
+                "secondary_office_variants": list(fields["secondary_office_variants"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+                "in_aggiornamento": fields["update_raw"],
+            }
+        elif parser_name == "lodi_applicants":
+            expected = {"source_row", "activities_raw", "application_date_raw", "outcome_raw"}
+            if set(fields) != expected or type(fields["source_row"]) is not int:
+                raise RuntimeError("Lodi applicant source-field shape drift")
+            if any(not isinstance(fields[key], str) for key in ("activities_raw", "application_date_raw", "outcome_raw")):
+                raise RuntimeError("Lodi applicant source-field scalar drift")
+            record["source_fields"] = {
+                "requested_activities_source": fields["activities_raw"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Lodi parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -683,6 +746,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or PADOVA_PARSERS.get(cfg["parser"])
         or PERUGIA_PARSERS.get(cfg["parser"])
         or TRENTO_PARSERS.get(cfg["parser"])
+        or LODI_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -705,6 +769,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_perugia_public_fields(batch, cfg["parser"])
     if cfg["parser"] in TRENTO_PARSERS:
         batch = _adapt_trento_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in LODI_PARSERS:
+        batch = _adapt_lodi_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"
