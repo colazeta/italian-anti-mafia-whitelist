@@ -59,6 +59,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Lodi'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Roma'));
       assert.ok(labels.includes('White List — Prefettura di Pisa · Prefettura di Pisa'));
+      assert.ok(labels.includes('White List — Prefettura di Catanzaro · Prefettura di Catanzaro'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -99,8 +100,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,47248);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa'].includes(r.authority_key));
+      assert.equal(stats.total,48135);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -329,6 +330,17 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(pisa.filter(r=>r.source_key==='pisa-applicants'&&r.identifiers.length>0).length,18);
       assert.equal(pisa.filter(r=>r.source_key==='pisa-renewal-update'&&r.identifiers.length>0).length,33);
       assert.equal(pisa.filter(r=>r.name==='ROHDE NIELSEN A/S'&&r.source_key==='pisa-listed'&&r.identifiers.length===0).length,1);
+      const catanzaro=registry.records.filter(r=>r.authority_key==='catanzaro');
+      assert.equal(catanzaro.length,887);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed').length,610);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants').length,277);
+      assert.deepEqual(statusCounts(catanzaro),{listed:377,pending:277,renewal_update_in_progress:233});
+      assert.equal(new Set(catanzaro.map(r=>r.record_locator)).size,887);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed'&&r.identifiers.length>0).length,601);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&r.identifiers.length>0).length,272);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed'&&Array.isArray(r.source_fields?.physical_locators)).length,610);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&typeof r.source_fields?.physical_locator==='string').length,277);
+      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&r.source_fields?.application_date_raw==='1/8/12/2025'&&r.application_date==='').length,1);
       const pm=crotone.filter(r=>r.name==='PM COSTRUZIONI S.R.L.');
       assert.ok(pm.some(r=>r.identifier_field_raw==='0330033796'&&r.identifiers.length===0));
       const a2g=caltanissetta.filter(r=>r.name==='A2G CONSTRUCTION SRL');
