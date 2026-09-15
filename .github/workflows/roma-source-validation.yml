@@ -6,6 +6,8 @@ on:
       - expansion/roma-2026-09-15
     paths:
       - '.github/workflows/roma-source-validation.yml'
+      - 'src/white_list_archive/parsers/roma_positioned.py'
+      - 'tests/test_roma_parser_semantics.py'
 
 permissions:
   contents: read
