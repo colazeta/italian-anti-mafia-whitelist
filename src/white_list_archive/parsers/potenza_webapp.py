@@ -10,7 +10,7 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 PARSER_NAME = "potenza_combined"
 
 _EXPECTED_ROW_KEYS = {
@@ -49,7 +49,13 @@ def _strict_date(value: Any, *, source_id: str, field: str) -> str:
         raise RuntimeError(f"Potenza invalid {field} for source id {source_id}: {raw!r}") from exc
 
 
-def _status(row: dict[str, Any], *, source_id: str) -> str:
+def _status(
+    row: dict[str, Any],
+    *,
+    source_id: str,
+    listing_date: str,
+    expiry_date: str,
+) -> str:
     source_status = _text(row["stato_richiesta"])
     update_flag = _text(row["agg_incorso"])
     if source_status == "1" and update_flag == "0":
@@ -58,9 +64,19 @@ def _status(row: dict[str, Any], *, source_id: str) -> str:
         return "listed"
     if source_status == "2" and update_flag == "1":
         return "renewal_update_in_progress"
+    # The public UI labels stato_richiesta=1 as "in Istruttoria" and
+    # agg_incorso=1 as "in Agg.".  On 2026-09-15 the sole 1/1 row (source
+    # id 903, GAP S.R.L.S.) also retained explicit prior listing and expiry
+    # dates.  That is positive source evidence of an enrolled firm whose
+    # update is in instruction, rather than a first-time applicant.  Keep
+    # the rule evidence-dependent: a future 1/1 row lacking prior enrolment
+    # dates fails closed instead of being silently reclassified.
+    if source_status == "1" and update_flag == "1" and listing_date and expiry_date:
+        return "renewal_update_in_progress"
     raise RuntimeError(
         "Potenza unreviewed status combination for source id "
-        f"{source_id}: stato_richiesta={source_status!r}, agg_incorso={update_flag!r}"
+        f"{source_id}: stato_richiesta={source_status!r}, agg_incorso={update_flag!r}, "
+        f"listing_date={listing_date!r}, expiry_date={expiry_date!r}"
     )
 
 
@@ -113,7 +129,12 @@ def parse_potenza_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         application_date = _strict_date(source["data_istanza"], source_id=source_id, field="data_istanza")
         listing_date = _strict_date(source["data_iscriz"], source_id=source_id, field="data_iscriz")
         expiry_date = _strict_date(source["data_scad_iscriz"], source_id=source_id, field="data_scad_iscriz")
-        status = _status(source, source_id=source_id)
+        status = _status(
+            source,
+            source_id=source_id,
+            listing_date=listing_date,
+            expiry_date=expiry_date,
+        )
 
         record = _record(
             cfg,
