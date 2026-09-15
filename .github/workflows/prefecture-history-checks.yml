@@ -1,0 +1,37 @@
+name: Prefecture history checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public-site/**'
+      - 'src/white_list_archive/publishing/public_history.py'
+      - 'src/white_list_archive/publishing/public_national_build.py'
+      - 'src/white_list_archive/publishing/public_artifact.py'
+      - 'data/history/**'
+      - 'tests/*public_history*'
+      - '.github/workflows/prefecture-history-checks.yml'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test runtime
+        run: |
+          python -m pip install pytest playwright==1.55.0
+          python -m playwright install chromium
+      - name: Validate history and browser interactions
+        env:
+          PYTHONPATH: src
+        run: |
+          node --check public-site/history.js
+          python -m pytest -q tests/test_public_history.py tests/test_public_history_browser.py

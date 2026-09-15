@@ -4,6 +4,8 @@ import argparse
 import csv
 import json
 import tempfile
+
+from white_list_archive.publishing.public_history import publish_history
 from pathlib import Path
 
 from white_list_archive.publishing.public_national_registry import (
@@ -167,6 +169,11 @@ def main(argv: list[str] | None = None) -> int:
         encoding="utf-8",
     )
     write_prefecture_csv(prefectures, args.prefectures_csv)
+    publish_history(
+        registry,
+        Path(__file__).resolve().parents[3],
+        args.registry_json.with_name("history.json"),
+    )
 
     print(
         json.dumps(

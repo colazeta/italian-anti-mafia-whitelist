@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from white_list_archive.publishing.public_history import validate_history_registry
 from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_national_registry import write_registry_csv, write_prefecture_csv
 
-PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
+PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js", "data/history.json", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
 
 
 def validate_artifact(root: Path) -> None:
@@ -32,6 +33,8 @@ def validate_artifact(root: Path) -> None:
             raise ValueError("Unapproved history fields")
     registry = json.loads((root / "data/registry.json").read_text())
     validate_registry(registry)
+    history = json.loads((root / "data/history.json").read_text(encoding="utf-8"))
+    validate_history_registry(history, registry)
     prefectures = json.loads((root / "data/prefectures.json").read_text())
     if set(prefectures) != {"meta", "prefectures"}:
         raise ValueError("Unapproved directory payload")
