@@ -72,28 +72,30 @@ jobs:
           browser = browser.replace(old_previous, "'catanzaro','lecco','torino','potenza'].includes(r.authority_key)", 1)
           torino_anchor = "      assert.equal(torino.filter(r=>r.source_key==='torino-listed'&&r.application_date==='').length,1241);\n"
           assert browser.count(torino_anchor) == 1
-          potenza_block = """      const potenza=registry.records.filter(r=>r.authority_key==='potenza');
-      assert.equal(potenza.length,1034);
-      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1034);
-      assert.deepEqual(statusCounts(potenza),{listed:217,pending:375,renewal_update_in_progress:442});
-      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1034);
-      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1033);
-      assert.equal(potenza.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,1);
-      assert.equal(potenza.filter(r=>r.application_date!=='').length,1034);
-      assert.equal(potenza.filter(r=>r.observed_listing_date!=='').length,659);
-      assert.equal(potenza.filter(r=>r.observed_expiry_date!=='').length,659);
-      assert.equal(potenza.filter(r=>r.requested_activities.length>0).length,0);
-      assert.ok(potenza.every(r=>r.parser_name==='potenza_combined'&&r.parser_version==='2'));
-      assert.ok(potenza.every(r=>r.source_fields.physical_locator.startsWith('source-id:')));
-      assert.equal(potenza.filter(r=>r.source_fields.notes).length,1);
-      const gap=potenza.filter(r=>r.source_fields.physical_locator==='source-id:903');
-      assert.equal(gap.length,1);
-      assert.equal(gap[0].name,'GAP S.R.L.S.');
-      assert.equal(gap[0].source_status,'renewal_update_in_progress');
-      assert.equal(gap[0].observed_listing_date,'2024-11-28');
-      assert.equal(gap[0].observed_expiry_date,'2025-11-28');
-      assert.equal(gap[0].source_fields.in_aggiornamento,'1');
-"""
+          potenza_block = '\n'.join([
+              "      const potenza=registry.records.filter(r=>r.authority_key==='potenza');",
+              "      assert.equal(potenza.length,1034);",
+              "      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1034);",
+              "      assert.deepEqual(statusCounts(potenza),{listed:217,pending:375,renewal_update_in_progress:442});",
+              "      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1034);",
+              "      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1033);",
+              "      assert.equal(potenza.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,1);",
+              "      assert.equal(potenza.filter(r=>r.application_date!=='').length,1034);",
+              "      assert.equal(potenza.filter(r=>r.observed_listing_date!=='').length,659);",
+              "      assert.equal(potenza.filter(r=>r.observed_expiry_date!=='').length,659);",
+              "      assert.equal(potenza.filter(r=>r.requested_activities.length>0).length,0);",
+              "      assert.ok(potenza.every(r=>r.parser_name==='potenza_combined'&&r.parser_version==='2'));",
+              "      assert.ok(potenza.every(r=>r.source_fields.physical_locator.startsWith('source-id:')));",
+              "      assert.equal(potenza.filter(r=>r.source_fields.notes).length,1);",
+              "      const gap=potenza.filter(r=>r.source_fields.physical_locator==='source-id:903');",
+              "      assert.equal(gap.length,1);",
+              "      assert.equal(gap[0].name,'GAP S.R.L.S.');",
+              "      assert.equal(gap[0].source_status,'renewal_update_in_progress');",
+              "      assert.equal(gap[0].observed_listing_date,'2024-11-28');",
+              "      assert.equal(gap[0].observed_expiry_date,'2025-11-28');",
+              "      assert.equal(gap[0].source_fields.in_aggiornamento,'1');",
+              '',
+          ])
           browser_path.write_text(browser.replace(torino_anchor, torino_anchor + potenza_block, 1), encoding='utf-8')
 
           workflow = Path('.github/workflows/public-pages.yml').read_text(encoding='utf-8')
@@ -116,34 +118,35 @@ jobs:
           workflow = workflow.replace("assert pref['meta']['published_count'] == 44", "assert pref['meta']['published_count'] == 45", 1)
           torino_wf_anchor = "          assert sum(r['source_key'] == 'torino-listed' and r['application_date'] == '' for r in torino_records) == 1241\n"
           assert workflow.count(torino_wf_anchor) == 1
-          potenza_wf_block = """          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']
-          assert len(potenza) == 1 and potenza[0]['mapped'] and potenza[0]['published'] and potenza[0]['series_count'] == 1
-          potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']
-          assert len(potenza_records) == 1034
-          assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)
-          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 217
-          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 375
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 442
-          assert len({r['record_locator'] for r in potenza_records}) == 1034
-          assert sum(bool(r['identifiers']) for r in potenza_records) == 1033
-          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1
-          assert sum(bool(r['application_date']) for r in potenza_records) == 1034
-          assert sum(bool(r['observed_listing_date']) for r in potenza_records) == 659
-          assert sum(bool(r['observed_expiry_date']) for r in potenza_records) == 659
-          assert sum(bool(r['requested_activities']) for r in potenza_records) == 0
-          assert all(r['parser_name'] == 'potenza_combined' and r['parser_version'] == '2' for r in potenza_records)
-          assert all(r['source_fields']['physical_locator'].startswith('source-id:') for r in potenza_records)
-          assert sum(bool(r['source_fields']['notes']) for r in potenza_records) == 1
-          gap = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:903']
-          assert len(gap) == 1
-          assert gap[0]['name'] == 'GAP S.R.L.S.'
-          assert gap[0]['source_status'] == 'renewal_update_in_progress'
-          assert gap[0]['observed_listing_date'] == '2024-11-28'
-          assert gap[0]['observed_expiry_date'] == '2025-11-28'
-          assert gap[0]['source_fields']['in_aggiornamento'] == '1'
-"""
-          workflow = workflow.replace(torino_wf_anchor, torino_wf_anchor + potenza_wf_block, 1)
-          Path('tmp/potenza-public-pages.yml').write_text(workflow, encoding='utf-8')
+          potenza_wf_block = '\n'.join([
+              "          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']",
+              "          assert len(potenza) == 1 and potenza[0]['mapped'] and potenza[0]['published'] and potenza[0]['series_count'] == 1",
+              "          potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']",
+              "          assert len(potenza_records) == 1034",
+              "          assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)",
+              "          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 217",
+              "          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 375",
+              "          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 442",
+              "          assert len({r['record_locator'] for r in potenza_records}) == 1034",
+              "          assert sum(bool(r['identifiers']) for r in potenza_records) == 1033",
+              "          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1",
+              "          assert sum(bool(r['application_date']) for r in potenza_records) == 1034",
+              "          assert sum(bool(r['observed_listing_date']) for r in potenza_records) == 659",
+              "          assert sum(bool(r['observed_expiry_date']) for r in potenza_records) == 659",
+              "          assert sum(bool(r['requested_activities']) for r in potenza_records) == 0",
+              "          assert all(r['parser_name'] == 'potenza_combined' and r['parser_version'] == '2' for r in potenza_records)",
+              "          assert all(r['source_fields']['physical_locator'].startswith('source-id:') for r in potenza_records)",
+              "          assert sum(bool(r['source_fields']['notes']) for r in potenza_records) == 1",
+              "          gap = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:903']",
+              "          assert len(gap) == 1",
+              "          assert gap[0]['name'] == 'GAP S.R.L.S.'",
+              "          assert gap[0]['source_status'] == 'renewal_update_in_progress'",
+              "          assert gap[0]['observed_listing_date'] == '2024-11-28'",
+              "          assert gap[0]['observed_expiry_date'] == '2025-11-28'",
+              "          assert gap[0]['source_fields']['in_aggiornamento'] == '1'",
+              '',
+          ])
+          Path('tmp/potenza-public-pages.yml').write_text(workflow.replace(torino_wf_anchor, torino_wf_anchor + potenza_wf_block, 1), encoding='utf-8')
           PY
       - name: Validate finalisation edits
         run: |
