@@ -60,7 +60,7 @@ def test_history_filters_snapshots_exports_and_navigation(width,tmp_path):
         assert len(exported['editions'])==1 and exported['editions'][0]['reference_date']=='2026-06-01'
         page.locator('#h-asof').fill('2026-01-01');page.locator('#h-asof').dispatch_event('change')
         assert '1 elenchi senza una base anteriore' in page.locator('#view-history').inner_text()
-        assert page.evaluate('document.body.scrollWidth <= window.innerWidth + 1')
+        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1')
         assert not errors
         page.screenshot(path=str(tmp_path/f'history-{width}.png'),full_page=True)
         browser.close()
