@@ -1,0 +1,63 @@
+name: Torino coverage blob (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/torino-2026-09-15
+    paths:
+      - '.github/workflows/torino-coverage-blob.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-blob:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build exact national coverage blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, urllib.request
+
+          path = Path('data/monitoring/national_coverage.json')
+          text = path.read_text(encoding='utf-8')
+          start_marker = '      "authority_key": "torino",'
+          end_marker = '    {\n      "authority_key": "trapani",'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          segment = text[start:end]
+          old = '      "canonical_integration_validated": false,'
+          new = '      "canonical_integration_validated": true,'
+          if segment.count(old) != 1:
+              raise SystemExit(f'Expected exactly one Torino canonical flag, got {segment.count(old)}')
+          segment = segment.replace(old, new, 1)
+          updated = text[:start] + segment + text[end:]
+          if updated.count(new) <= text.count(new):
+              raise SystemExit('Canonical validation flag did not advance')
+          path.write_text(updated, encoding='utf-8')
+
+          payload = json.dumps({'content': updated, 'encoding': 'utf-8'}).encode()
+          req = urllib.request.Request(
+              f'https://api.github.com/repos/{os.environ["GH_REPOSITORY"]}/git/blobs',
+              data=payload,
+              method='POST',
+              headers={
+                  'Authorization': f'Bearer {os.environ["GH_TOKEN"]}',
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+              },
+          )
+          with urllib.request.urlopen(req) as response:
+              result = json.load(response)
+          print(f'FINAL_BLOB {path.as_posix()} {result["sha"]}')
+          PY
