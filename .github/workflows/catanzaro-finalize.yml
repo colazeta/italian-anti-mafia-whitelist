@@ -12,195 +12,51 @@ permissions:
   contents: write
 
 concurrency:
-  group: catanzaro-production-finalizer-${{ github.ref }}
+  group: catanzaro-production-finalizer
   cancel-in-progress: false
 
 jobs:
   finalize:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Promote permanent Catanzaro public gates and remove temporary machinery
-        shell: bash
+      - name: Build production-only final diff
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          def replace_one(text: str, old: str, new: str, *, label: str) -> str:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
-              return text.replace(old, new, 1)
-
-          pages_path = Path('.github/workflows/public-pages.yml')
-          pages = pages_path.read_text(encoding='utf-8')
-          pages = replace_one(
-              pages,
-              "      - 'src/white_list_archive/parsers/pisa_tables.py'\n",
-              "      - 'src/white_list_archive/parsers/pisa_tables.py'\n      - 'src/white_list_archive/parsers/catanzaro_tables.py'\n",
-              label='public-pages parser trigger',
-          )
-          pages = replace_one(pages, "assert reg['meta']['record_count'] == 47248", "assert reg['meta']['record_count'] == 48135", label='record count')
-          pages = replace_one(pages, "'lodi','roma','pisa'}", "'lodi','roma','pisa','catanzaro'}", label='authority set')
-          pages = replace_one(pages, "'lodi-ordinary','roma-ordinary','pisa-white-list'", "'lodi-ordinary','roma-ordinary','pisa-white-list','catanzaro-ordinary'", label='register set')
-          pages = replace_one(pages, "assert reg['meta']['authority_count'] == 41", "assert reg['meta']['authority_count'] == 42", label='authority count')
-          pages = replace_one(pages, "assert reg['meta']['register_count'] == 42", "assert reg['meta']['register_count'] == 43", label='register count')
-          pages = replace_one(pages, "assert pref['meta']['published_count'] == 41", "assert pref['meta']['published_count'] == 42", label='published count')
-          pages = replace_one(pages, "assert pref['meta']['mapped_count'] == 45", "assert pref['meta']['mapped_count'] == 46", label='mapped count')
-          pisa_tail = """          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-listed') == 397
-          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-applicants') == 18
-          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-renewal-update') == 33
-"""
-          catanzaro_block = pisa_tail + """          catanzaro = [x for x in pref['prefectures'] if x['authority_key'] == 'catanzaro']
-          assert len(catanzaro) == 1 and catanzaro[0]['mapped'] and catanzaro[0]['published'] and catanzaro[0]['series_count'] == 2
-          catanzaro_records = [r for r in reg['records'] if r['authority_key'] == 'catanzaro']
-          assert len(catanzaro_records) == 887
-          assert sum(r['source_key'] == 'catanzaro-listed' for r in catanzaro_records) == 610
-          assert sum(r['source_key'] == 'catanzaro-applicants' for r in catanzaro_records) == 277
-          assert sum(r['source_status'] == 'listed' for r in catanzaro_records) == 377
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in catanzaro_records) == 233
-          assert sum(r['source_status'] == 'pending' for r in catanzaro_records) == 277
-          assert len({r['record_locator'] for r in catanzaro_records}) == 887
-          assert sum(bool(r['identifiers']) for r in catanzaro_records if r['source_key'] == 'catanzaro-listed') == 601
-          assert sum(bool(r['identifiers']) for r in catanzaro_records if r['source_key'] == 'catanzaro-applicants') == 272
-          assert sum(
-              r['source_key'] == 'catanzaro-applicants'
-              and r.get('source_fields', {}).get('application_date_raw') == '1/8/12/2025'
-              and r.get('application_date') == ''
-              for r in catanzaro_records
-          ) == 1
-"""
-          pages = replace_one(pages, pisa_tail, catanzaro_block, label='Catanzaro public invariants')
-          pages_path.write_text(pages, encoding='utf-8')
-
-          browser_path = Path('tests/public_portal_browser.cjs')
-          browser = browser_path.read_text(encoding='utf-8')
-          browser = replace_one(
-              browser,
-              "      assert.ok(labels.includes('White List — Prefettura di Pisa · Prefettura di Pisa'));\n",
-              "      assert.ok(labels.includes('White List — Prefettura di Pisa · Prefettura di Pisa'));\n      assert.ok(labels.includes('White List — Prefettura di Catanzaro · Prefettura di Catanzaro'));\n",
-              label='browser Catanzaro selector',
-          )
-          browser = replace_one(browser, 'assert.equal(stats.total,47248);', 'assert.equal(stats.total,48135);', label='browser total')
-          browser = replace_one(browser, "'lodi','roma','pisa'].includes(r.authority_key)", "'lodi','roma','pisa','catanzaro'].includes(r.authority_key)", label='browser expansion exclusion')
-          pisa_browser_tail = """      assert.equal(pisa.filter(r=>r.source_key==='pisa-renewal-update'&&r.identifiers.length>0).length,33);
-      assert.equal(pisa.filter(r=>r.name==='ROHDE NIELSEN A/S'&&r.source_key==='pisa-listed'&&r.identifiers.length===0).length,1);
-"""
-          catanzaro_browser = pisa_browser_tail + """      const catanzaro=registry.records.filter(r=>r.authority_key==='catanzaro');
-      assert.equal(catanzaro.length,887);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed').length,610);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants').length,277);
-      assert.deepEqual(statusCounts(catanzaro),{listed:377,pending:277,renewal_update_in_progress:233});
-      assert.equal(new Set(catanzaro.map(r=>r.record_locator)).size,887);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed'&&r.identifiers.length>0).length,601);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&r.identifiers.length>0).length,272);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-listed'&&Array.isArray(r.source_fields?.physical_locators)).length,610);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&typeof r.source_fields?.physical_locator==='string').length,277);
-      assert.equal(catanzaro.filter(r=>r.source_key==='catanzaro-applicants'&&r.source_fields?.application_date_raw==='1/8/12/2025'&&r.application_date==='').length,1);
-"""
-          browser = replace_one(browser, pisa_browser_tail, catanzaro_browser, label='browser Catanzaro invariants')
-          browser_path.write_text(browser, encoding='utf-8')
-          PY
+          python tmp/catanzaro_finalize.py
           git rm \
             .github/workflows/catanzaro-source-validation.yml \
             .github/workflows/catanzaro-national-candidate.yml \
             .github/workflows/catanzaro-finalize.yml \
-            tmp/catanzaro_integrate_candidate.py
+            tmp/catanzaro_integrate_candidate.py \
+            tmp/catanzaro_finalize.py
           git diff --check
-          git diff --name-only | sort > /tmp/actual-finalizer-files.txt
-          cat > /tmp/expected-finalizer-files.txt <<'EOF'
+          node --check tests/public_portal_browser.cjs
+          git diff --name-only | sort > /tmp/actual.txt
+          cat > /tmp/expected.txt <<'EOF'
           .github/workflows/catanzaro-finalize.yml
           .github/workflows/catanzaro-national-candidate.yml
           .github/workflows/catanzaro-source-validation.yml
           .github/workflows/public-pages.yml
           tests/public_portal_browser.cjs
+          tmp/catanzaro_finalize.py
           tmp/catanzaro_integrate_candidate.py
           EOF
-          sort -o /tmp/expected-finalizer-files.txt /tmp/expected-finalizer-files.txt
-          diff -u /tmp/expected-finalizer-files.txt /tmp/actual-finalizer-files.txt
-          node --check tests/public_portal_browser.cjs
-      - name: Prepare validation runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS= read -r source_file; do
-            [ -n "$source_file" ] && sudo rm -f "$source_file"
-          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
-          if [ -f /etc/apt/sources.list ]; then
-            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
-          fi
-          for attempt in 1 2 3; do
-            sudo rm -rf /var/lib/apt/lists/*
-            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
-              break
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            sleep $((attempt * 3))
-          done
-          python -m pip install -e '.[dev,publication,database,storage]'
-      - name: Revalidate repository and national Catanzaro boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          pytest -q
-          rm -rf /tmp/catanzaro-final-public /tmp/catanzaro-final-sources
-          mkdir -p /tmp/catanzaro-final-public
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/catanzaro-final-sources \
-            --registry-json /tmp/catanzaro-final-public/registry.json \
-            --registry-csv /tmp/catanzaro-final-public/registry.csv \
-            --prefectures-json /tmp/catanzaro-final-public/prefectures.json \
-            --prefectures-csv /tmp/catanzaro-final-public/prefectures.csv
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root = Path('/tmp/catanzaro-final-public')
-          reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
-          pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
-          assert reg['meta']['record_count'] == len(reg['records']) == 48135
-          assert reg['meta']['authority_count'] == 42
-          assert reg['meta']['register_count'] == 43
-          assert pref['meta']['published_count'] == 42
-          assert pref['meta']['mapped_count'] == 46
-          records = [r for r in reg['records'] if r['authority_key'] == 'catanzaro']
-          assert len(records) == 887
-          assert len({r['record_locator'] for r in records}) == 887
-          assert sum(r['source_key'] == 'catanzaro-listed' for r in records) == 610
-          assert sum(r['source_key'] == 'catanzaro-applicants' for r in records) == 277
-          assert sum(r['source_status'] == 'listed' for r in records) == 377
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in records) == 233
-          assert sum(r['source_status'] == 'pending' for r in records) == 277
-          assert sum(bool(r['identifiers']) for r in records if r['source_key'] == 'catanzaro-listed') == 601
-          assert sum(bool(r['identifiers']) for r in records if r['source_key'] == 'catanzaro-applicants') == 272
-          assert sum(
-              r['source_key'] == 'catanzaro-applicants'
-              and r.get('source_fields', {}).get('application_date_raw') == '1/8/12/2025'
-              and r.get('application_date') == ''
-              for r in records
-          ) == 1
-          PY
-      - name: Commit production-only Catanzaro finalization
-        shell: bash
+          sort -o /tmp/expected.txt /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/actual.txt
+      - name: Commit validated finalization
         env:
           BRANCH: expansion/catanzaro-2026-09-15
         run: |
           set -euo pipefail
           remote_sha="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
-          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
-            echo "Remote branch advanced during finalization: $remote_sha != $GITHUB_SHA" >&2
-            exit 1
-          fi
+          test "$remote_sha" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'ci(catanzaro): promote permanent public gates'
           git push origin "HEAD:$BRANCH"
