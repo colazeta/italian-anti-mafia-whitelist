@@ -28,65 +28,51 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('src/white_list_archive/parsers/lecco_rect_tables.py')
-          text = path.read_text(encoding='utf-8')
+          path = Path("src/white_list_archive/parsers/lecco_rect_tables.py")
+          lines = path.read_text(encoding="utf-8").splitlines()
 
-          old_constant = '''_REVIEWED_MALFORMED_LISTED_IDENTIFIERS = {
-              "BIGS di Ivan Chavarriaga": "0416200136",
-              "Termoidraulica": "035180050137",
-          }
-'''
-          new_constant = old_constant + '''_REVIEWED_BLANK_LISTED_ACTIVITIES = {"Termoidraulica"}
-'''
-          if text.count(old_constant) != 1:
-              raise SystemExit(f'Expected one reviewed malformed-identifier block, got {text.count(old_constant)}')
-          text = text.replace(old_constant, new_constant)
+          marker = '_REVIEWED_MALFORMED_LISTED_IDENTIFIERS = {'
+          start = lines.index(marker)
+          end = lines.index('}', start)
+          constant = '_REVIEWED_BLANK_LISTED_ACTIVITIES = {"Termoidraulica"}'
+          if constant not in lines:
+              lines.insert(end + 1, constant)
 
-          old_init = '''    records: list[dict[str, Any]] = []
-              malformed: dict[str, str] = {}
-              for ordinal, item in enumerate(_listed_rows(path), start=1):
-'''
-          new_init = '''    records: list[dict[str, Any]] = []
-              malformed: dict[str, str] = {}
-              blank_activity_names: set[str] = set()
-              for ordinal, item in enumerate(_listed_rows(path), start=1):
-'''
-          if text.count(old_init) != 1:
-              raise SystemExit(f'Expected one listed accumulator block, got {text.count(old_init)}')
-          text = text.replace(old_init, new_init)
+          fn = lines.index('def parse_lecco_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:')
+          malformed = lines.index('    malformed: dict[str, str] = {}', fn)
+          accumulator = '    blank_activity_names: set[str] = set()'
+          if accumulator not in lines[fn:]:
+              lines.insert(malformed + 1, accumulator)
 
-          old_sections = '''        sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
-'''
-          new_sections = '''        if _clean(activities_raw):
-              sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])
-          elif name in _REVIEWED_BLANK_LISTED_ACTIVITIES:
-              blank_activity_names.add(name)
-              sections = []
-          else:
-              raise RuntimeError(
-                  f"Lecco unreviewed blank listed activity at {item['locator']}: {name!r}"
-              )
-'''
-          if text.count(old_sections) != 1:
-              raise SystemExit(f'Expected one listed section parse line, got {text.count(old_sections)}')
-          text = text.replace(old_sections, new_sections)
+          section_line = '        sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])'
+          section_idx = lines.index(section_line, fn)
+          replacement = [
+              '        if _clean(activities_raw):',
+              '            sections = _sections(activities_raw, source_key=_LISTED_SOURCE_KEY, locator=item["locator"])',
+              '        elif name in _REVIEWED_BLANK_LISTED_ACTIVITIES:',
+              '            blank_activity_names.add(name)',
+              '            sections = []',
+              '        else:',
+              '            raise RuntimeError(',
+              '                f"Lecco unreviewed blank listed activity at {item[\'locator\']}: {name!r}"',
+              '            )',
+          ]
+          lines[section_idx:section_idx + 1] = replacement
 
-          old_check = '''    if malformed != _REVIEWED_MALFORMED_LISTED_IDENTIFIERS:
-              raise RuntimeError(
-                  f"Lecco reviewed malformed-identifier set drift: {malformed!r} != {_REVIEWED_MALFORMED_LISTED_IDENTIFIERS!r}"
-              )
-'''
-          new_check = old_check + '''    if blank_activity_names != _REVIEWED_BLANK_LISTED_ACTIVITIES:
-              raise RuntimeError(
-                  "Lecco reviewed blank-activity set drift: "
-                  f"{blank_activity_names!r} != {_REVIEWED_BLANK_LISTED_ACTIVITIES!r}"
-              )
-'''
-          if text.count(old_check) != 1:
-              raise SystemExit(f'Expected one malformed-identifier drift check, got {text.count(old_check)}')
-          text = text.replace(old_check, new_check)
+          drift = '    if blank_activity_names != _REVIEWED_BLANK_LISTED_ACTIVITIES:'
+          if drift not in lines[fn:]:
+              malformed_check = lines.index('    if malformed != _REVIEWED_MALFORMED_LISTED_IDENTIFIERS:', fn)
+              close = lines.index('        )', malformed_check)
+              drift_block = [
+                  drift,
+                  '        raise RuntimeError(',
+                  '            "Lecco reviewed blank-activity set drift: "',
+                  '            f"{blank_activity_names!r} != {_REVIEWED_BLANK_LISTED_ACTIVITIES!r}"',
+                  '        )',
+              ]
+              lines[close + 1:close + 1] = drift_block
 
-          path.write_text(text, encoding='utf-8')
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
           git diff --check
           git diff -- src/white_list_archive/parsers/lecco_rect_tables.py
@@ -101,5 +87,3 @@ jobs:
           git diff --cached --quiet && { echo 'No parser change to commit'; exit 0; }
           git commit -m 'Handle reviewed blank Lecco activity without inference'
           git push origin HEAD:expansion/lecco-2026-09-15
-
-# one-shot trigger after workflow registration on the branch
