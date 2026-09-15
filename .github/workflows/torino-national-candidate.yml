@@ -1,0 +1,190 @@
+name: Torino national candidate (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/torino-2026-09-15
+    paths:
+      - .github/workflows/torino-national-candidate.yml
+      - tmp/torino_integrate_candidate.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: torino-national-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply candidate transaction in the runner worktree
+        run: python tmp/torino_integrate_candidate.py
+
+      - name: Enforce exact candidate integration diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          data/monitoring/national_coverage.json
+          data/publication/multi_prefecture_pilot.json
+          data/source_registry/source_series_inventory.csv
+          src/white_list_archive/publishing/public_national_registry.py
+          EOF
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+
+      - name: Prepare publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,database,storage]'
+
+      - name: Run full repository and Torino semantic tests
+        run: |
+          pytest -q
+          pytest -q tests/test_torino_parser_semantics.py
+
+      - name: Build actual national candidate
+        run: |
+          rm -rf /tmp/torino-national-candidate /tmp/torino-national-sources
+          mkdir -p /tmp/torino-national-candidate
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/torino-national-sources \
+            --registry-json /tmp/torino-national-candidate/registry.json \
+            --registry-csv /tmp/torino-national-candidate/registry.csv \
+            --prefectures-json /tmp/torino-national-candidate/prefectures.json \
+            --prefectures-csv /tmp/torino-national-candidate/prefectures.csv
+
+      - name: Validate actual national and Torino denominators
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path('/tmp/torino-national-candidate')
+          reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
+          pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
+
+          assert reg['meta']['record_count'] == len(reg['records']) == 50054
+          assert reg['meta']['authority_count'] == 44
+          assert reg['meta']['register_count'] == 45
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['published_count'] == 44
+          assert pref['meta']['mapped_count'] == 47
+
+          torino_pref = [x for x in pref['prefectures'] if x.get('authority_key') == 'torino']
+          assert len(torino_pref) == 1
+          assert torino_pref[0]['mapped'] and torino_pref[0]['published']
+          assert torino_pref[0]['series_count'] == 2
+
+          records = [r for r in reg['records'] if r['authority_key'] == 'torino']
+          assert len(records) == 1663
+          assert len({r['record_locator'] for r in records}) == 1663
+          assert sum(r['source_key'] == 'torino-listed' for r in records) == 1501
+          assert sum(r['source_key'] == 'torino-applicants' for r in records) == 162
+          assert Counter(r['source_status'] for r in records) == Counter({
+              'listed': 1237,
+              'renewal_update_in_progress': 264,
+              'pending': 162,
+          })
+          listed = [r for r in records if r['source_key'] == 'torino-listed']
+          applicants = [r for r in records if r['source_key'] == 'torino-applicants']
+          assert sum(bool(r['identifiers']) for r in listed) == 1496
+          assert sum(bool(r['identifiers']) for r in applicants) == 162
+          assert sum(bool(r['application_date']) for r in listed) == 260
+          assert sum(bool(r['observed_listing_date']) for r in listed) == 1500
+          assert sum(bool(r['observed_expiry_date']) for r in listed) == 1501
+          assert sum(bool(r['application_date']) for r in applicants) == 162
+
+          malformed = {
+              r['name']: r['identifier_field_raw']
+              for r in listed
+              if r['name'] in {
+                  'BENA SNC', 'CAL.E.S.A. SRL', 'EDIL TRIVAL SRLS',
+                  'G.V. TRASPORTI DI GALVAGNO VITTORIO',
+                  'ORIGLIA SERGIO AZIENDA AGRICOLA', 'PICCO BARTOLOMEO SRL',
+                  'SOCIETA’ COOPERATIVA EUROPA',
+              }
+          }
+          assert malformed == {
+              'BENA SNC': '0526550017',
+              'CAL.E.S.A. SRL': '6197640011',
+              'EDIL TRIVAL SRLS': '1228500019',
+              'G.V. TRASPORTI DI GALVAGNO VITTORIO': 'GLVVTR77S12L219-08560640016',
+              'ORIGLIA SERGIO AZIENDA AGRICOLA': 'RGLSRG67C31777X-07050560015',
+              'PICCO BARTOLOMEO SRL': '1280650050',
+              'SOCIETA’ COOPERATIVA EUROPA': '9800980014',
+          }
+
+          print({
+              'record_count': reg['meta']['record_count'],
+              'authority_count': reg['meta']['authority_count'],
+              'register_count': reg['meta']['register_count'],
+              'published_count': pref['meta']['published_count'],
+              'mapped_count': pref['meta']['mapped_count'],
+              'torino_records': len(records),
+          })
+          PY
+
+      - name: Recheck exact production transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-files-final.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files-final.txt
+
+      - name: Commit validated production integration
+        shell: bash
+        env:
+          BRANCH: expansion/torino-2026-09-15
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "Remote branch advanced during candidate transaction: $remote_sha != $GITHUB_SHA" >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            src/white_list_archive/publishing/public_national_registry.py
+          git commit -m 'feat(torino): integrate current White List coverage'
+          git push origin "HEAD:$BRANCH"
