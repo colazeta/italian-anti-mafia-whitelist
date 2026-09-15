@@ -3418,34 +3418,48 @@
       "national_index_key": "roma",
       "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/roma/evidenza/white-list",
       "source_verified": true,
-      "current_edition_identified": null,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": null,
+      "latest_source_reference_date": "2026-09-14",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
       "last_attempted_source_check_at": null,
       "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-06",
+      "last_successful_investigation_on": "2026-09-15",
       "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [],
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/roma-operational-check-2026-09-15.md",
+        "src/white_list_archive/parsers/roma_positioned.py",
+        "tests/test_roma_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af",
+        "9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a"
+      ],
       "evidence": [
-        "data/source_registry/verified_primary_pages.csv"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/roma-operational-check-2026-09-15.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "rovigo",

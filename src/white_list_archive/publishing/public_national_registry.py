@@ -54,6 +54,7 @@ from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.parsers.perugia_tables import PARSERS as PERUGIA_PARSERS
 from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
 from white_list_archive.parsers.lodi_sheets import PARSERS as LODI_PARSERS
+from white_list_archive.parsers.roma_positioned import PARSERS as ROMA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -709,6 +710,63 @@ def _adapt_lodi_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBat
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+def _adapt_roma_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Roma positioned-PDF evidence onto the closed public source-field contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Roma source_fields must be a mapping")
+        sections = record.get("requested_activities")
+        if not isinstance(sections, list) or any(not isinstance(value, str) for value in sections):
+            raise RuntimeError("Roma requested-activity/section type drift")
+        if parser_name == "roma_positioned_listed":
+            expected = {
+                "source_page", "source_row_on_page", "listing_date_raw",
+                "registration_protocol_raw", "expiry_date_raw", "sections_raw",
+                "note_raw", "reviewed_header_note_contamination",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Roma listed source-field drift: {sorted(fields)!r}")
+            if any(type(fields[key]) is not int for key in ("source_page", "source_row_on_page")):
+                raise RuntimeError("Roma listed source-locator type drift")
+            if type(fields["reviewed_header_note_contamination"]) is not bool:
+                raise RuntimeError("Roma listed reviewed-header flag type drift")
+            for key in ("listing_date_raw", "registration_protocol_raw", "expiry_date_raw", "sections_raw", "note_raw"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Roma listed source-field scalar drift: {key}")
+            update_raw = fields["note_raw"] if record.get("source_status") == "renewal_update_in_progress" else ""
+            record["source_fields"] = {
+                "sections": list(sections),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+                "in_aggiornamento": update_raw,
+            }
+        elif parser_name == "roma_positioned_applicants":
+            expected = {
+                "source_page", "source_row_on_page", "application_date_raw",
+                "sections_raw", "note_raw",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Roma applicant source-field drift: {sorted(fields)!r}")
+            if any(type(fields[key]) is not int for key in ("source_page", "source_row_on_page")):
+                raise RuntimeError("Roma applicant source-locator type drift")
+            for key in ("application_date_raw", "sections_raw", "note_raw"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Roma applicant source-field scalar drift: {key}")
+            record["source_fields"] = {
+                "sections": list(sections),
+                "requested_activities_source": fields["sections_raw"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+                "in_aggiornamento": fields["note_raw"],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Roma parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -747,6 +805,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or PERUGIA_PARSERS.get(cfg["parser"])
         or TRENTO_PARSERS.get(cfg["parser"])
         or LODI_PARSERS.get(cfg["parser"])
+        or ROMA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -771,6 +830,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_trento_public_fields(batch, cfg["parser"])
     if cfg["parser"] in LODI_PARSERS:
         batch = _adapt_lodi_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in ROMA_PARSERS:
+        batch = _adapt_roma_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS else "1"
