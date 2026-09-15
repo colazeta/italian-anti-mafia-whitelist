@@ -13,7 +13,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,119 +22,106 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install bounded inspection runtime
-        run: |
-          python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Resolve, recapture and inspect positioned Roma publications
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
+      - name: Audit complete Roma record geometry
         run: |
           python - <<'PY'
           from __future__ import annotations
-          import hashlib
-          import json
-          import re
-          import time
-          from collections import Counter, defaultdict
+          import hashlib, json, re, time
+          from collections import Counter
+          from datetime import datetime
           from pathlib import Path
           from urllib.parse import urljoin
-
-          import pdfplumber
-          import requests
+          import pdfplumber, requests
           from bs4 import BeautifulSoup
 
-          UA = 'italian-anti-mafia-whitelist/0.1 (+bounded source validation)'
-          SOURCES = {
-              'roma-listed': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte',
-              'roma-applicants': 'https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione',
+          UA='italian-anti-mafia-whitelist/0.1 (+bounded Roma validation)'
+          SOURCES={
+            'roma-listed':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte','8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',168),
+            'roma-applicants':('https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione','9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',142),
           }
-          EXPECTED_SHA = {
-              'roma-listed': '8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af',
-              'roma-applicants': '9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a',
-          }
-          session = requests.Session()
-          session.headers.update({'User-Agent': UA, 'Accept': 'text/html,application/pdf,*/*'})
-
-          def get(url: str) -> requests.Response:
-              last = None
-              for attempt in range(3):
-                  try:
-                      r = session.get(url, timeout=35)
-                      r.raise_for_status()
-                      return r
-                  except Exception as exc:
-                      last = exc
-                      if attempt < 2:
-                          time.sleep(2 * (attempt + 1))
-              raise RuntimeError(f'bounded GET failed for {url}: {last}')
-
-          def lines(page):
-              grouped = defaultdict(list)
-              for w in page.extract_words(x_tolerance=1, y_tolerance=2, keep_blank_chars=False):
-                  grouped[round(float(w['top']), 1)].append(w)
-              out = []
-              for top, words in sorted(grouped.items()):
-                  words.sort(key=lambda w: float(w['x0']))
-                  out.append({
-                      'top': top,
-                      'text': ' '.join(str(w['text']) for w in words),
-                      'words': [{'x0': round(float(w['x0']),1), 'text': str(w['text'])} for w in words],
-                  })
-              return out
-
-          summary = {}
-          for key, page_url in SOURCES.items():
-              page = get(page_url)
-              soup = BeautifulSoup(page.text, 'html.parser')
-              pdf_links = []
-              seen = set()
-              for a in soup.find_all('a', href=True):
-                  href = urljoin(page_url, a['href'])
-                  if '.pdf' not in href.lower() or href in seen:
-                      continue
-                  seen.add(href)
-                  pdf_links.append((' '.join(a.get_text(' ', strip=True).split()), href))
-              if len(pdf_links) != 1:
-                  raise RuntimeError(f'{key}: expected exactly one PDF, got {pdf_links!r}')
-              label, resource_url = pdf_links[0]
-              body = get(resource_url).content
-              sha = hashlib.sha256(body).hexdigest()
-              if sha != EXPECTED_SHA[key]:
-                  raise RuntimeError(f'{key}: content changed between independent captures: {sha}')
-              path = Path('/tmp') / f'{key}.pdf'
-              path.write_bytes(body)
-              with pdfplumber.open(path) as pdf:
-                  page_line_counts=[]
-                  samples={}
-                  date_counts=Counter()
-                  x_hist=Counter()
-                  page_text_lengths=[]
-                  for page_no,p in enumerate(pdf.pages,1):
-                      ls=lines(p)
-                      page_line_counts.append(len(ls))
-                      page_text_lengths.append(len(p.extract_text() or ''))
-                      if page_no in {1,2,3,len(pdf.pages)}:
-                          samples[str(page_no)]=ls[:120]
-                      for line in ls:
-                          for token in re.findall(r'\b\d{1,2}/\d{1,2}/\d{4}\b',line['text']):
-                              date_counts[token]+=1
-                          for w in line['words']:
-                              x_hist[round(float(w['x0'])/10)*10]+=1
-                  summary[key]={
-                      'page_url':page_url,'label':label,'resource_url':resource_url,
-                      'sha256':sha,'bytes':len(body),'pages':len(pdf.pages),
-                      'page_line_counts':page_line_counts,
-                      'page_text_lengths':page_text_lengths,
-                      'date_token_count':sum(date_counts.values()),
-                      'distinct_date_tokens':len(date_counts),
-                      'x_hist_top':x_hist.most_common(30),
-                      'samples':samples,
-                  }
-              print('ROMA_META',key,json.dumps({k:v for k,v in summary[key].items() if k!='samples'},ensure_ascii=False))
-              for pno, sample in summary[key]['samples'].items():
-                  print('ROMA_PAGE_SAMPLE',key,pno,json.dumps(sample,ensure_ascii=False))
-          Path('/tmp/roma-positioned-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          s=requests.Session(); s.headers.update({'User-Agent':UA,'Accept':'text/html,application/pdf,*/*'})
+          def get(url):
+            last=None
+            for i in range(3):
+              try:
+                r=s.get(url,timeout=35); r.raise_for_status(); return r
+              except Exception as e:
+                last=e
+                if i<2: time.sleep(2*(i+1))
+            raise RuntimeError(f'GET failed {url}: {last}')
+          def clean(v): return ' '.join(str(v or '').split())
+          id_re=re.compile(r'^(?:\d{10,12}|[A-Z0-9]{16})$')
+          date_re=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          for key,(page_url,expected_sha,expected_pages) in SOURCES.items():
+            html=get(page_url).text; soup=BeautifulSoup(html,'html.parser')
+            pdfs=[]
+            for a in soup.find_all('a',href=True):
+              href=urljoin(page_url,a['href'])
+              if '.pdf' in href.lower() and href not in [x[1] for x in pdfs]: pdfs.append((clean(a.get_text(' ',strip=True)),href))
+            if len(pdfs)!=1: raise RuntimeError(f'{key}: attachment cardinality {pdfs!r}')
+            label,url=pdfs[0]; body=get(url).content; sha=hashlib.sha256(body).hexdigest()
+            if sha!=expected_sha: raise RuntimeError(f'{key}: byte drift {sha}')
+            p=Path('/tmp')/f'{key}.pdf'; p.write_bytes(body)
+            records=[]; per_page=Counter(); duplicate_ids=Counter(); notes=Counter(); date_anomalies=[]; missing_name=[]; strange_anchor=[]
+            footer_stamps=Counter(); section_tokens=Counter()
+            with pdfplumber.open(p) as pdf:
+              if len(pdf.pages)!=expected_pages: raise RuntimeError(f'{key}: page drift {len(pdf.pages)}')
+              for pno,page in enumerate(pdf.pages,1):
+                words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
+                for w in words:
+                  if float(w['top'])>535 and re.fullmatch(r'\d{2}/\d{2}/\d{4}',str(w['text'])):
+                    footer_stamps[str(w['text'])]+=1
+                anchors=[]
+                for w in words:
+                  x=float(w['x0']); text=str(w['text']).strip().upper()
+                  if 325<=x<420 and id_re.fullmatch(text): anchors.append(w)
+                anchors.sort(key=lambda w:float(w['top']))
+                per_page[pno]=len(anchors)
+                for ai,a in enumerate(anchors):
+                  atop=float(a['top']); next_top=float(anchors[ai+1]['top']) if ai+1<len(anchors) else 540.0
+                  lo=atop-3.0; hi=next_top-3.0
+                  block=[w for w in words if lo<=float(w['top'])<hi and float(w['top'])<540]
+                  def col(x0,x1):
+                    ww=sorted((w for w in block if x0<=float(w['x0'])<x1),key=lambda w:(float(w['top']),float(w['x0'])))
+                    return clean(' '.join(str(w['text']) for w in ww))
+                  if key=='roma-listed':
+                    fields={
+                      'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'identifier_raw':col(325,426),
+                      'listing_date':col(426,486),'protocol':col(486,582),'expiry_date':col(582,648),'sections':col(648,723),'notes':col(723,850),
+                    }
+                    for field in ('listing_date','expiry_date'):
+                      raw=fields[field]
+                      if raw and date_re.fullmatch(raw):
+                        try: datetime.strptime(raw,'%d/%m/%Y')
+                        except ValueError: date_anomalies.append((pno,ai+1,field,raw,fields['name'],str(a['text'])))
+                      elif raw:
+                        date_anomalies.append((pno,ai+1,field,raw,fields['name'],str(a['text'])))
+                  else:
+                    fields={
+                      'name':col(0,168),'office':col(168,264),'secondary':col(264,325),'identifier_raw':col(325,426),
+                      'application_date':col(426,492),'sections':col(492,564),'notes':col(564,850),
+                    }
+                    raw=fields['application_date']
+                    if raw:
+                      if not date_re.fullmatch(raw): date_anomalies.append((pno,ai+1,'application_date',raw,fields['name'],str(a['text'])))
+                      else:
+                        try: datetime.strptime(raw,'%d/%m/%Y')
+                        except ValueError: date_anomalies.append((pno,ai+1,'application_date',raw,fields['name'],str(a['text'])))
+                  anchor=str(a['text']).strip().upper(); duplicate_ids[anchor]+=1
+                  if not fields['name']: missing_name.append((pno,ai+1,anchor,fields))
+                  if fields['identifier_raw']!=anchor: strange_anchor.append((pno,ai+1,anchor,fields['identifier_raw'],fields['name']))
+                  if fields['notes']: notes[fields['notes']]+=1
+                  for token in re.findall(r'\b(?:VIII|VII|VI|IV|IX|III|II|I|V|X)\b',fields['sections']): section_tokens[token]+=1
+                  records.append({'page':pno,'row':ai+1,'anchor':anchor,**fields})
+            print('ROMA_AUDIT',key,json.dumps({
+              'sha256':sha,'bytes':len(body),'pages':expected_pages,'records':len(records),
+              'per_page_distribution':dict(Counter(per_page.values())),
+              'duplicate_identifier_values':sum(1 for v in duplicate_ids.values() if v>1),
+              'duplicate_identifier_occurrences':sum(v-1 for v in duplicate_ids.values() if v>1),
+              'notes':dict(notes),'date_anomalies':date_anomalies,'missing_name':missing_name,
+              'strange_anchor_count':len(strange_anchor),'strange_anchor_sample':strange_anchor[:30],
+              'footer_dates':dict(footer_stamps),'section_tokens':dict(section_tokens),
+            },ensure_ascii=False,sort_keys=True))
+            print('ROMA_FIRST_LAST',key,json.dumps({'first':records[:3],'last':records[-3:]},ensure_ascii=False))
           PY
-      - name: Upload positioned inspection summary
-        uses: actions/upload-artifact@v4
-        with:
-          name: roma-positioned-summary
-          path: /tmp/roma-positioned-summary.json
-          retention-days: 7
