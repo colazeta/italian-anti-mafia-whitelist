@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install project
-        run: pip install -e .
+      - name: Install project and parser test runtime
+        run: pip install -e '.[dev]'
 
       - name: Verify current official source and capture twice
         shell: bash
