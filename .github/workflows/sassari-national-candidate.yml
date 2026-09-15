@@ -1,0 +1,200 @@
+name: Sassari national candidate (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/sassari-2026-09-15
+    paths:
+      - .github/workflows/sassari-national-candidate.yml
+      - tmp/sassari_integrate_candidate.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sassari-national-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply candidate transaction in the runner worktree
+        run: python tmp/sassari_integrate_candidate.py
+
+      - name: Enforce exact candidate integration diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          data/monitoring/national_coverage.json
+          data/publication/multi_prefecture_pilot.json
+          data/source_registry/source_series_inventory.csv
+          data/source_registry/verified_primary_pages.csv
+          src/white_list_archive/publishing/public_national_registry.py
+          tests/test_source_population_coverage.py
+          EOF
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+
+      - name: Prepare publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,database,storage]'
+
+      - name: Run full repository and Sassari semantic tests
+        run: |
+          pytest -q
+          pytest -q tests/test_sassari_parser_semantics.py
+
+      - name: Build actual national candidate
+        run: |
+          rm -rf /tmp/sassari-national-candidate /tmp/sassari-national-sources
+          mkdir -p /tmp/sassari-national-candidate
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/sassari-national-sources \
+            --registry-json /tmp/sassari-national-candidate/registry.json \
+            --registry-csv /tmp/sassari-national-candidate/registry.csv \
+            --prefectures-json /tmp/sassari-national-candidate/prefectures.json \
+            --prefectures-csv /tmp/sassari-national-candidate/prefectures.csv
+
+      - name: Validate actual national and Sassari denominators
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.acquisition.source_population_coverage import _read_csv, build_coverage
+
+          root = Path('/tmp/sassari-national-candidate')
+          reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
+          pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
+
+          assert reg['meta']['record_count'] == len(reg['records']) == 50532
+          assert reg['meta']['authority_count'] == 45
+          assert reg['meta']['register_count'] == 46
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['published_count'] == 45
+          assert pref['meta']['mapped_count'] == 47
+
+          sassari_pref = [x for x in pref['prefectures'] if x.get('authority_key') == 'sassari']
+          assert len(sassari_pref) == 1
+          assert sassari_pref[0]['mapped'] and sassari_pref[0]['published']
+          assert sassari_pref[0]['series_count'] == 1
+
+          records = [r for r in reg['records'] if r['authority_key'] == 'sassari']
+          assert len(records) == 478
+          assert len({r['record_locator'] for r in records}) == 478
+          assert {r['source_key'] for r in records} == {'sassari-combined'}
+          assert Counter(r['source_status'] for r in records) == Counter({
+              'listed': 335,
+              'pending': 129,
+              'renewal_update_in_progress': 12,
+              'expired_observed': 1,
+              'other_or_unknown': 1,
+          })
+          assert sum(bool(r['identifiers']) for r in records) == 472
+
+          mia = [r for r in records if r['name'] == 'M.I.A. SRL']
+          assert len(mia) == 1
+          assert mia[0]['source_fields']['application_date_raw'] == '129.01.2025'
+          assert mia[0]['application_date'] == ''
+
+          desca = [r for r in records if r['name'] == 'DE.SCA.RI DEL GEOM. CALIA GIANLUCA']
+          assert len(desca) == 1
+          assert desca[0]['registered_office'] == 'CLAGLC74B11E736M'
+          assert desca[0]['identifier_field_raw'] == 'OLBIA'
+          assert desca[0]['identifiers'] == []
+
+          aac = [r for r in records if r['name'] == 'AAC COOPERATIVA SOCIALE']
+          assert len(aac) == 1 and aac[0]['source_status'] == 'other_or_unknown'
+          romano = [r for r in records if r['name'] == 'ROMANO FRANCA']
+          assert len(romano) == 1 and romano[0]['source_status'] == 'expired_observed'
+
+          coverage = build_coverage(
+              _read_csv(Path('data/source_registry/verified_primary_pages.csv')),
+              _read_csv(Path('data/source_registry/source_series_inventory.csv')),
+          )
+          assert coverage['verified_authority_count'] == 47
+          assert coverage['register_scope_count'] == 48
+          assert coverage['complete_register_scope_count'] == 47
+          assert coverage['incomplete_register_scope_count'] == 1
+          unresolved = {
+              row['authority_key'] for row in coverage['scopes']
+              if not row['source_population_complete']
+          }
+          assert unresolved == {'milano'}
+
+          print({
+              'record_count': reg['meta']['record_count'],
+              'authority_count': reg['meta']['authority_count'],
+              'register_count': reg['meta']['register_count'],
+              'published_count': pref['meta']['published_count'],
+              'mapped_count': pref['meta']['mapped_count'],
+              'sassari_records': len(records),
+              'source_population_complete': coverage['complete_register_scope_count'],
+          })
+          PY
+
+      - name: Recheck exact production transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-files-final.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files-final.txt
+
+      - name: Commit validated production integration
+        shell: bash
+        env:
+          BRANCH: expansion/sassari-2026-09-15
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "Remote branch advanced during candidate transaction: $remote_sha != $GITHUB_SHA" >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/test_source_population_coverage.py
+          git commit -m 'feat(sassari): integrate combined White List coverage'
+          git push origin "HEAD:$BRANCH"
