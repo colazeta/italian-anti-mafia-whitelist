@@ -55,6 +55,7 @@ _LISTED_OTHER_NOTES = {
     "SOCIETÀ SOTTOPOSTA AD AMMINISTRAZIONE GIUDIZIARIA.",
 }
 _APPLICANT_UPDATE_NOTES = {"AGGIORNAMENTO IN CORSO"}
+_LISTED_HEADER_NOTE_CONTAMINATION = "NOTE"
 
 _REVIEWED_BAD_LISTED_DATES = {"28/01/205", "27/07/202"}
 _REVIEWED_BAD_APPLICANT_DATES = {"10/12/215", "23/04/201"}
@@ -160,6 +161,7 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     pseudo_total: Counter[str] = Counter()
     bad_dates: Counter[str] = Counter()
     missing_core: set[str] = set()
+    reviewed_header_note_overlaps = 0
 
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _LISTED_PAGES:
@@ -180,14 +182,25 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 protocol_raw = _text_in_band(words, 486, 582, y_min, y_max)
                 expiry_raw = _text_in_band(words, 582, 648, y_min, y_max)
                 sections_raw = _text_in_band(words, 648, 723, y_min, y_max)
-                note = _text_in_band(words, 723, 850, y_min, y_max)
+                note_raw = _text_in_band(words, 723, 850, y_min, y_max)
+                reviewed_header_overlap = (
+                    page_number == 1 and row_number == 1 and note_raw == _LISTED_HEADER_NOTE_CONTAMINATION
+                )
+                if reviewed_header_overlap:
+                    reviewed_header_note_overlaps += 1
+                    note = ""
+                else:
+                    note = note_raw
                 if not name or not identifier_raw:
                     raise RuntimeError(
                         f"{cfg['source_key']}: unresolved name/identifier at page {page_number} row {row_number}: "
                         f"name={name!r}, identifier={identifier_raw!r}"
                     )
                 if note and note not in _LISTED_UPDATE_NOTES and note not in _LISTED_OTHER_NOTES:
-                    raise RuntimeError(f"{cfg['source_key']}: unreviewed note at page {page_number} row {row_number}: {note!r}")
+                    raise RuntimeError(
+                        f"{cfg['source_key']}: unreviewed note at page {page_number} row {row_number}: "
+                        f"{note!r}; name={name!r}; identifier={identifier_raw!r}"
+                    )
                 listing_date = _strict_date(
                     listing_raw, reviewed_bad=_REVIEWED_BAD_LISTED_DATES,
                     source_key=cfg["source_key"], page=page_number, row=row_number,
@@ -224,7 +237,8 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                         "registration_protocol_raw": protocol_raw,
                         "expiry_date_raw": expiry_raw,
                         "sections_raw": sections_raw,
-                        "note_raw": note,
+                        "note_raw": note_raw,
+                        "reviewed_header_note_contamination": reviewed_header_overlap,
                     },
                 ))
 
@@ -232,6 +246,10 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"{cfg['source_key']}: denominator drift; expected {_LISTED_RECORDS}, got {len(records)}")
     if pseudo_total != Counter({"SEZIONE": 5, "DI LAVORI": 1, "2013) C.F./P.I.": 1}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed header/legend geometry drift: {dict(pseudo_total)!r}")
+    if reviewed_header_note_overlaps != 1:
+        raise RuntimeError(
+            f"{cfg['source_key']}: reviewed first-page NOTE overlap drift: {reviewed_header_note_overlaps}"
+        )
     if bad_dates != Counter({"28/01/205": 1, "27/07/202": 1}):
         raise RuntimeError(f"{cfg['source_key']}: reviewed malformed-date set drift: {dict(bad_dates)!r}")
     if missing_core != _LISTED_MISSING_CORE_IDS:
@@ -247,6 +265,7 @@ def parse_roma_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "identifier_raw_coverage": sum(bool(record["identifier_field_raw"]) for record in records),
         "reviewed_malformed_dates": dict(bad_dates),
         "reviewed_missing_core_rows": len(missing_core),
+        "reviewed_header_note_overlaps": reviewed_header_note_overlaps,
     })
 
 
@@ -281,7 +300,10 @@ def parse_roma_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                         f"name={name!r}, identifier={identifier_raw!r}"
                     )
                 if note and note not in _APPLICANT_UPDATE_NOTES:
-                    raise RuntimeError(f"{cfg['source_key']}: unreviewed applicant note at page {page_number} row {row_number}: {note!r}")
+                    raise RuntimeError(
+                        f"{cfg['source_key']}: unreviewed applicant note at page {page_number} row {row_number}: "
+                        f"{note!r}; name={name!r}; identifier={identifier_raw!r}"
+                    )
                 application_date = _strict_date(
                     application_raw, reviewed_bad=_REVIEWED_BAD_APPLICANT_DATES,
                     source_key=cfg["source_key"], page=page_number, row=row_number,
