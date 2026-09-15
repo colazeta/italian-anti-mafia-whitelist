@@ -40,6 +40,7 @@ def test_approved_source_provenance_is_typed_and_preserved():
     r["source_fields"] = {
         "physical_locator": "p1:r2",
         "physical_locators": ["p1:r2", "p5:r4"],
+        "application_date_raw": "1/8/12/2025",
         "notes": ["source note"],
     }
     assert public_record(copy.deepcopy(r)) == r
@@ -51,6 +52,11 @@ def test_approved_source_provenance_is_typed_and_preserved():
 
     bad = copy.deepcopy(r)
     bad["source_fields"]["physical_locator"] = ["p1:r2"]
+    with pytest.raises(ValueError, match="Public source text expected"):
+        public_record(bad)
+
+    bad = copy.deepcopy(r)
+    bad["source_fields"]["application_date_raw"] = ["1/8/12/2025"]
     with pytest.raises(ValueError, match="Public source text expected"):
         public_record(bad)
 
