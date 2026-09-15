@@ -37,6 +37,22 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors --max-time 90 \
             --user-agent 'italian-anti-mafia-whitelist/0.1 (+source validation)' \
             "$URL" -o /tmp/potenza-2.json
+      - name: Report unreviewed live status combinations
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          payload = json.loads(Path('/tmp/potenza-1.json').read_text(encoding='utf-8'))
+          counts = Counter((str(r.get('stato_richiesta')), str(r.get('agg_incorso'))) for r in payload['Records'])
+          print('status/update combinations:', dict(sorted(counts.items())))
+          reviewed = {('1', '0'), ('2', '0'), ('2', '1')}
+          for row in payload['Records']:
+              combo = (str(row.get('stato_richiesta')), str(row.get('agg_incorso')))
+              if combo not in reviewed:
+                  print('UNREVIEWED_SOURCE_ROW=' + json.dumps(row, ensure_ascii=False, sort_keys=True))
+          PY
       - name: Validate full public population and semantics
         run: |
           python - <<'PY'
@@ -89,19 +105,9 @@ jobs:
               'semantic_sha256': semantic_hashes[0],
               'diagnostics': batches[0].diagnostics,
           }
-          Path('potenza-live-validation.json').write_text(
-              json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True),
-              encoding='utf-8',
-          )
           print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
           PY
       - name: Run Potenza semantic tests
         run: pytest -q tests/test_potenza_parser_semantics.py
       - name: Run full repository tests
         run: pytest -q
-      - name: Upload validation report
-        uses: actions/upload-artifact@v4
-        with:
-          name: potenza-live-validation
-          path: potenza-live-validation.json
-          retention-days: 14
