@@ -60,7 +60,7 @@ def _find_header(rows: list[tuple[Any, ...]]) -> tuple[int, list[str]]:
             if "codice fiscale" in folded[2] and "partita iva" in folded[2]:
                 matches.append((index, values))
     if len(matches) != 1:
-        raise ValueError(f"Sassari workbook header changed: expected one audited header, found {len(matches)}")
+        raise ValueError(f"expected one audited Sassari header, found {len(matches)}")
     index, header = matches[0]
     if len(header) < 18:
         raise ValueError("Sassari workbook header has fewer than 18 audited columns")
@@ -82,6 +82,28 @@ def _find_header(rows: list[tuple[Any, ...]]) -> tuple[int, list[str]]:
     return index, header
 
 
+def _select_table(workbook: Any) -> tuple[Any, list[tuple[Any, ...]], int, list[str]]:
+    """Select exactly one worksheet that satisfies the audited Sassari table schema."""
+    candidates: list[tuple[Any, list[tuple[Any, ...]], int, list[str]]] = []
+    diagnostics: list[str] = []
+    for worksheet in workbook.worksheets:
+        rows = list(worksheet.iter_rows(values_only=True))
+        try:
+            header_index, header = _find_header(rows)
+        except ValueError as exc:
+            diagnostics.append(f"{worksheet.title}: {exc}")
+            continue
+        candidates.append((worksheet, rows, header_index, header))
+    if len(candidates) != 1:
+        detail = "; ".join(diagnostics)
+        names = [candidate[0].title for candidate in candidates]
+        raise ValueError(
+            f"Sassari workbook changed: expected exactly one worksheet matching the audited schema, "
+            f"found {len(candidates)} ({names}); non-matches: {detail}"
+        )
+    return candidates[0]
+
+
 def _status(start_raw: str, note_raw: str) -> str:
     start = _clean(start_raw)
     note = _clean(note_raw)
@@ -98,11 +120,7 @@ def _status(start_raw: str, note_raw: str) -> str:
 
 def parse_sassari_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     workbook = openpyxl.load_workbook(path, data_only=True, read_only=True)
-    if len(workbook.worksheets) != 1:
-        raise ValueError(f"Sassari workbook changed: expected one worksheet, got {len(workbook.worksheets)}")
-    worksheet = workbook.worksheets[0]
-    rows = list(worksheet.iter_rows(values_only=True))
-    header_index, header = _find_header(rows)
+    worksheet, rows, header_index, header = _select_table(workbook)
     activity_labels = [_clean(value) for value in header[3:13]]
 
     records: list[dict[str, Any]] = []
@@ -197,6 +215,8 @@ def parse_sassari_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         records,
         {
             "parser": "sassari_combined",
+            "workbook_sheet_count": len(workbook.worksheets),
+            "worksheet_names": [sheet.title for sheet in workbook.worksheets],
             "worksheet": worksheet.title,
             "header_row": header_index + 1,
             "source_rows": source_rows,
