@@ -42,7 +42,7 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[publication,dev]'
+          python -m pip install -e '.[publication,dev,database,storage]'
       - name: Verify and materialise reviewed Aosta transition
         run: python tmp/aosta_transition_finalise_2026_09_16.py
       - name: Remove temporary machinery and freeze production-only diff
