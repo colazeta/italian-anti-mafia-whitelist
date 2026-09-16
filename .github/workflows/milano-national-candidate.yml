@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/milano-national-candidate.yml
       - tmp/milano_integrate_candidate.py
+      - tmp/fix_operations_priority_test.py
   workflow_dispatch:
 
 permissions:
@@ -27,7 +28,9 @@ jobs:
           python-version: '3.13'
 
       - name: Apply candidate transaction in the runner worktree
-        run: python tmp/milano_integrate_candidate.py
+        run: |
+          python tmp/milano_integrate_candidate.py
+          python tmp/fix_operations_priority_test.py
 
       - name: Enforce exact candidate integration diff
         shell: bash
@@ -41,6 +44,7 @@ jobs:
           data/source_registry/source_series_inventory.csv
           data/source_registry/verified_primary_pages.csv
           src/white_list_archive/publishing/public_national_registry.py
+          tests/test_operations.py
           tests/test_source_population_coverage.py
           EOF
           sort -o /tmp/expected-files.txt /tmp/expected-files.txt
@@ -206,6 +210,7 @@ jobs:
             data/source_registry/source_series_inventory.csv \
             data/source_registry/verified_primary_pages.csv \
             src/white_list_archive/publishing/public_national_registry.py \
+            tests/test_operations.py \
             tests/test_source_population_coverage.py
           git commit -m 'feat(milano): integrate combined White List coverage'
           git push origin "HEAD:$BRANCH"
