@@ -163,7 +163,7 @@ jobs:
           assert coverage['complete_register_scope_count'] == 47
           assert coverage['incomplete_register_scope_count'] == 1
           unresolved = {
-              row['authority_key'] for row in coverage['rows']
+              row['authority_key'] for row in coverage['scopes']
               if not row['source_population_complete']
           }
           assert unresolved == {'milano'}
