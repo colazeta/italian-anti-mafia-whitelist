@@ -1,5 +1,6 @@
 name: Lodi source transition v2 (temporary)
 
+# Rerun after removing the completed source-audit artifact surface.
 on:
   push:
     branches:
