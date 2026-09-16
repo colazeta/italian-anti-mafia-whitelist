@@ -23,7 +23,19 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install validation runtime
-        run: python -m pip install -e '.[dev,publication,database,storage]'
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,database,storage]'
       - name: Apply reviewed Aosta 242/140 transition
         run: |
           python - <<'PY'
