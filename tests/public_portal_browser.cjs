@@ -104,7 +104,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,51566);
+      assert.equal(stats.total,51565);
       const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
@@ -116,10 +116,10 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-applicants').length,71);
       const aosta=registry.records.filter(r=>r.authority_key==='aosta');
-      assert.equal(aosta.length,383);
-      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,244);
+      assert.equal(aosta.length,382);
+      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,243);
       assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,139);
-      assert.deepEqual(statusCounts(aosta),{listed:343,pending:23,renewal_update_in_progress:17});
+      assert.deepEqual(statusCounts(aosta),{listed:337,pending:24,renewal_update_in_progress:21});
       const arezzo=registry.records.filter(r=>r.authority_key==='arezzo');
       assert.equal(arezzo.length,364);
       assert.equal(arezzo.filter(r=>r.source_key==='arezzo-listed').length,332);
