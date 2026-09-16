@@ -117,9 +117,9 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-applicants').length,71);
       const aosta=registry.records.filter(r=>r.authority_key==='aosta');
       assert.equal(aosta.length,382);
-      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,243);
-      assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,139);
-      assert.deepEqual(statusCounts(aosta),{listed:337,pending:24,renewal_update_in_progress:21});
+      assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,242);
+      assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,140);
+      assert.deepEqual(statusCounts(aosta),{listed:336,pending:25,renewal_update_in_progress:21});
       const arezzo=registry.records.filter(r=>r.authority_key==='arezzo');
       assert.equal(arezzo.length,364);
       assert.equal(arezzo.filter(r=>r.source_key==='arezzo-listed').length,332);
