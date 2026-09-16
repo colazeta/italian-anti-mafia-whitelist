@@ -29,6 +29,9 @@ jobs:
       - name: Promote validated coverage state
         run: python tmp/sassari_finalize.py coverage
 
+      - name: Promote validated source note
+        run: python tmp/sassari_finalize.py note
+
       - name: Promote permanent Pages gate
         run: python tmp/sassari_finalize.py pages
 
