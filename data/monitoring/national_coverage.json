@@ -2190,16 +2190,16 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-15",
+      "latest_source_reference_date": "2026-09-16",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
       "last_attempted_source_check_at": null,
       "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-15",
+      "last_successful_investigation_on": "2026-09-16",
       "monitoring_status": "NEVER_CHECKED",
       "unresolved_issue": [
-        "The official Google Sheet is mutable and exposes no reliable edition date; 2026-09-15 is the byte-pinned observation/capture boundary, not an inferred publication date.",
+        "The official Google Sheet is mutable and exposes no reliable edition date; 2026-09-16 is the current byte-pinned observation/capture boundary, not an inferred publication date.",
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
       ],
       "actionable_issue": false,
@@ -2209,17 +2209,19 @@
         "docs/sources/lodi-operational-check-2026-09-15.md",
         "src/white_list_archive/parsers/lodi_sheets.py",
         "tests/test_lodi_parser_semantics.py",
-        "data/publication/multi_prefecture_pilot.json"
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/lodi-operational-check-2026-09-16.md"
       ],
       "known_content_sha256": [
-        "ad64ab8669084bc31b80938a384b41849be4db28b448e9b2c0ce199f6af1d6ec",
+        "c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613",
         "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
-        "docs/sources/lodi-operational-check-2026-09-15.md"
+        "docs/sources/lodi-operational-check-2026-09-15.md",
+        "docs/sources/lodi-operational-check-2026-09-16.md"
       ],
       "last_completed_coverage_stage": "VALIDATED"
     },

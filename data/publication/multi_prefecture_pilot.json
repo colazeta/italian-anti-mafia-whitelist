@@ -1243,26 +1243,26 @@
       "authority_name": "Prefettura di Lodi",
       "register_key": "lodi-ordinary",
       "register_name": "White List ordinaria",
-      "reference_date": "2026-09-15",
+      "reference_date": "2026-09-16",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list",
-      "last_source_update": "2026-09-15",
+      "last_source_update": "2026-09-16",
       "last_source_update_basis": "observation/capture date of the mutable official Google Sheets publication; the sheet does not expose a reliable edition date, so no publication date is inferred",
       "source_key": "lodi-listed",
       "parser": "lodi_listed",
       "population_scope": "listed",
       "resource_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv",
-      "sha256": "ad64ab8669084bc31b80938a384b41849be4db28b448e9b2c0ce199f6af1d6ec",
+      "sha256": "c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613",
       "expected_source_rows": 169,
-      "notes": "Official mutable Google Sheet linked by the Prefettura di Lodi. Two independent bounded GETs on 15 September 2026 were byte-identical. The fail-closed parser freezes 324 physical rows and 291 statutory-section membership rows, then conservatively groups exact identifier/date/status peers into 169 public observations (146 listed; 23 renewal/update in progress) while retaining all section memberships and source variants. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-15.md."
+      "notes": "Official mutable Google Sheet linked by the Prefettura di Lodi. Two independent no-cache GETs on 16 September 2026 were byte-identical at the approved SHA-256. The physical, section-membership and grouped-record denominators remain 324, 291 and 169 (146 listed; 23 renewal/update in progress). Exact comparison with the preserved 15 September capture identifies only two row-level semantic transitions: KUMAR S.n.c. di Kumar Devinder e C. (03030560969) is now explicitly in aggiornamento with unchanged 23/10/2025–23/10/2026 dates; Z.A. AUTOTRASPORTI S.r.l. (04220560967) is now ordinarily listed with source dates 16/09/2026–16/09/2027 instead of the previous in-aggiornamento 13/08/2025–13/08/2026 row. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-16.md."
     },
     {
       "authority_key": "lodi",
       "authority_name": "Prefettura di Lodi",
       "register_key": "lodi-ordinary",
       "register_name": "White List ordinaria",
-      "reference_date": "2026-09-15",
+      "reference_date": "2026-09-16",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list",
-      "last_source_update": "2026-09-15",
+      "last_source_update": "2026-09-16",
       "last_source_update_basis": "observation/capture date of the mutable official Google Sheets publication; the sheet does not expose a reliable edition date, so no publication date is inferred",
       "source_key": "lodi-applicants",
       "parser": "lodi_applicants",
@@ -1270,7 +1270,7 @@
       "resource_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv",
       "sha256": "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228",
       "expected_source_rows": 4,
-      "notes": "Official applicant tab linked by the Prefettura di Lodi. Two independent bounded GETs on 15 September 2026 were byte-identical. Four positively identified observations are present: two explicit denials with source-explicit decision dates and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-15.md."
+      "notes": "Official applicant tab linked by the Prefettura di Lodi. Two independent no-cache GETs on 16 September 2026 are byte-identical to each other and to the approved 15 September capture. The four positively identified observations remain unchanged: two explicit denials with source-explicit decision dates and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-16.md."
     },
     {
       "authority_key": "roma",
