@@ -63,6 +63,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List — Prefettura di Lecco · Prefettura di Lecco'));
       assert.ok(labels.includes('White List — Prefettura di Torino · Prefettura di Torino'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Potenza'));
+      assert.ok(labels.includes('White List — Prefettura di Sassari · Prefettura di Sassari'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
@@ -103,8 +104,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,51088);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza'].includes(r.authority_key));
+      assert.equal(stats.total,51566);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -391,6 +392,24 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(gap[0].observed_listing_date,'2024-11-28');
       assert.equal(gap[0].observed_expiry_date,'2025-11-28');
       assert.equal(gap[0].source_fields.in_aggiornamento,'1');
+      const sassari=registry.records.filter(r=>r.authority_key==='sassari');
+      assert.equal(sassari.length,478);
+      assert.equal(sassari.filter(r=>r.source_key==='sassari-combined').length,478);
+      assert.deepEqual(statusCounts(sassari),{expired_observed:1,listed:335,other_or_unknown:1,pending:129,renewal_update_in_progress:12});
+      assert.equal(new Set(sassari.map(r=>r.record_locator)).size,478);
+      assert.equal(sassari.filter(r=>r.identifiers.length>0).length,472);
+      assert.equal(sassari.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,6);
+      assert.ok(sassari.every(r=>r.requested_activities.length>0));
+      assert.ok(sassari.every(r=>r.parser_name==='sassari_combined'&&r.parser_version==='1'));
+      assert.ok(sassari.every(r=>r.source_fields.physical_locator.startsWith('Foglio1!')));
+      const mia=sassari.filter(r=>r.name==='M.I.A. SRL');
+      assert.equal(mia.length,1);
+      assert.equal(mia[0].source_fields.application_date_raw,'129.01.2025');
+      assert.equal(mia[0].application_date,'');
+      const descari=sassari.filter(r=>r.name==='DE.SCA.RI DEL GEOM. CALIA GIANLUCA');
+      assert.equal(descari.length,1);
+      assert.equal(descari[0].registered_office,'CLAGLC74B11E736M');
+      assert.equal(descari[0].identifier_field_raw,'OLBIA');
       const pm=crotone.filter(r=>r.name==='PM COSTRUZIONI S.R.L.');
       assert.ok(pm.some(r=>r.identifier_field_raw==='0330033796'&&r.identifiers.length===0));
       const a2g=caltanissetta.filter(r=>r.name==='A2G CONSTRUCTION SRL');

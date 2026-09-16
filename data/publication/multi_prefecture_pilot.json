@@ -1477,6 +1477,23 @@
       "last_source_update": "2026-09-15",
       "last_source_update_basis": "current mutable official web-application capture directly verified on this date; the date is an observation/reference boundary only and is not an inferred source-edition, company-decision or legal-effect date",
       "notes": "Official Ministry landing links the UTG Potenza public White List web application. Two complete live captures were byte-identical and yielded 1,034 observations. Because the endpoint is a mutable current web application, publication is fail-closed on the independently approved full parsed source-semantic digest before closed-contract projection; raw capture SHA-256 remains observation provenance."
+    },
+    {
+      "source_key": "sassari-combined",
+      "parser": "sassari_combined",
+      "authority_key": "sassari",
+      "authority_name": "Prefettura di Sassari",
+      "register_key": "sassari-ordinary",
+      "register_name": "White List — Prefettura di Sassari",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-08-31",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/93/2026-08/2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx",
+      "sha256": "e5cf9776971e4c0b46b97c56e2764f906bd07e3d573ac07b59fcd6605ab9c370",
+      "expected_source_rows": 478,
+      "last_source_update": "2026-08-31",
+      "last_source_update_basis": "date embedded in the current official workbook filename; used only as the source-edition boundary and not as an inferred company decision, registration, application or legal-effect date",
+      "notes": "Official combined workbook revalidated 15 September 2026 by two byte-identical no-cache GETs. The fail-closed parser yields exactly 478 observations: 335 listed, 129 pending, 12 renewal/update in progress, one source-explicit expired observation and one other/unknown observation with no inferred status. Strict identifier coverage is 472/478; reviewed malformed identifier/date fields and the apparent office/identifier column swap are preserved without repair."
     }
   ]
 }

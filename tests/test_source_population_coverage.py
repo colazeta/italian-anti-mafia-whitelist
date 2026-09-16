@@ -20,8 +20,8 @@ def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
     assert report["verified_authority_count"] == 47
     assert report["register_scope_count"] == 48
-    assert report["complete_register_scope_count"] == 46
-    assert report["incomplete_register_scope_count"] == 2
+    assert report["complete_register_scope_count"] == 47
+    assert report["incomplete_register_scope_count"] == 1
 
     by_scope = {}
     for row in report["rows"]:
@@ -62,6 +62,15 @@ def test_combined_series_satisfies_both_targets_without_duplication():
     assert {row["coverage_status"] for row in forli} == {"COVERED_COMBINED_SERIES"}
     assert all(row["covering_series_keys"] == ["forli-cesena-combined"] for row in forli)
 
+    sassari = [
+        row
+        for row in report["rows"]
+        if row["authority_key"] == "sassari"
+        and row["regime_code"] == "WL-REGIME-L190-2012"
+    ]
+    assert {row["coverage_status"] for row in sassari} == {"COVERED_COMBINED_SERIES"}
+    assert all(row["covering_series_keys"] == ["sassari-combined"] for row in sassari)
+
 
 def test_separate_series_and_unresolved_gaps_are_distinguished():
     report = _report()
@@ -86,7 +95,7 @@ def test_separate_series_and_unresolved_gaps_are_distinguished():
         for row in report["scopes"]
         if not row["source_population_complete"]
     }
-    assert unresolved == {"milano", "sassari"}
+    assert unresolved == {"milano"}
 
 
 def test_recently_resolved_current_pages_cover_both_populations():
