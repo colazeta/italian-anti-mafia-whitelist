@@ -1,115 +1,49 @@
-# Prefecture history and document updates
+# Prefecture history and delta view
 
-The existing public portal's **Storico** and **Aggiornamenti** tabs share Prefecture,
-register, source series, source-date interval and status filters. The registry and
-existing statistics retain their original behaviour. This is an observational
-read model, not a reconstruction of administrative decisions or a ranking of
-Prefectures.
+The public portal exposes a single **Storico** tab. Its purpose is deliberately narrow: select a Prefecture and inspect how each archived source series changed between its latest two comparable editions. The registry and current statistics retain their existing behaviour.
 
-## What the interface exposes
+The historical model remains observational. It describes differences between published source editions; it does not reconstruct administrative decisions and it does not rank Prefectures.
 
-- A source-date timeline, one row per source series and one point per available
-  edition. Selecting a point opens its edition comparison.
-- Status distributions and counts by edition, in absolute or percentage scale.
-  A status percentage always uses the full edition as its denominator.
-- A/B comparison within the same Prefecture, register, population and source
-  series: net change, new and no-longer-observed presences, modified common rows,
-  status transitions, document links and the available public rows for edition B.
-- An as-of-source-date view: the last usable edition of each selected series not
-  later than the requested date. Missing bases and ambiguous same-date versions
-  are excluded and counted explicitly. This does not reconstruct what the project
-  knew at the time or certify an entity's legal position on that day.
-- Update intervals, a type-of-change filter, minimum absolute net change and
-  minimum interval. One edition yields no frequency; two give only one interval.
-  The median is exposed only from two observed intervals, with its denominator.
-- CSV/JSON exports of the selected history or event rows. JSON also retains the
-  source-edition evidence and missing/ambiguous snapshot scopes.
+## Public interface
 
-Count units are **source observations / presences**, not distinct legal entities.
-The entry/absence and modified-row cards cover the whole compared source, even
-when a status filter selects only the net balance; the labels state this scope.
-Status changes are a subset of modified common rows, not an additional category
-to sum. A row table for edition B is not mislabelled as a list of changed rows.
-No historical company names are manufactured from aggregate counts.
+The page follows the portal's existing compact, table-first visual language rather than introducing a separate dashboard.
+
+- One Prefecture selector is the primary control.
+- For every source series of that Prefecture, a plain table shows the previous comparable edition, the latest edition, days between them, observations in A and B, and the net delta.
+- Opening a series shows an A/B table for the total and each reported status.
+- Where an approved row-level comparison exists, a second table reports newly observed presences, presences no longer observed, modified common rows and the subset involving a status change.
+- A final table lists all archived editions for the selected Prefecture and links back to the official documents.
+
+There is no separate public **Aggiornamenti** tab, timeline chart, stacked-status chart, KPI-card layout, as-of mode, cadence ranking or advanced filter panel. These additions obscured the narrower analytical question the page is intended to answer. The underlying edition, comparison and check evidence is still retained for audit and future analysis.
+
+Series with different registers, population scopes or source keys are never added together. If only one comparable edition exists, the interface reports that the delta is unavailable rather than substituting zero. Parser revisions and ambiguous same-date versions are not silently treated as Prefecture updates.
+
+Count units are **source observations / presences**, not distinct legal entities. A newly observed presence is not automatically a new administrative registration; a presence no longer observed is not automatically a cancellation. Status changes are a subset of modified common rows and must not be added to them.
 
 ## Available starting evidence
 
-The seed ledger contains the frozen Cosenza editions of 28 June and 3 August 2026.
-It references the original capture manifests and parser-v2 aggregate comparison:
-1,327 to 1,334 observations; 21 newly observed, 14 no longer observed, 1,313 common,
-66 modified common mentions, including 55 status transitions. The interval between
-the dates is 36 days. These are observational mention matches, not canonical
-entity resolutions. The historical aggregate does not report a resolved-identity
-quality measure, so its unresolved-identity fields remain null.
+The seed ledger contains the frozen Cosenza editions of 28 June and 3 August 2026. It references the original capture manifests and parser-v2 aggregate comparison: 1,327 to 1,334 observations; 21 newly observed, 14 no longer observed, 1,313 common, 66 modified common mentions, including 55 status transitions. The interval between the dates is 36 days.
 
-Other current approved source editions are added by the ordinary public build.
-The existence of one edition does not imply a complete historical series. The
-older Cosenza discovery links remain accessible but do not enter counts or cadence
-until an edition has actually been acquired, extracted and approved.
+Other approved source editions are added by the ordinary public build. The existence of one edition does not imply a complete historical series: only actually acquired, extracted and approved editions enter the delta view.
 
 ## Data path and durability
 
-`public_national_build` runs the ordinary approved registry build first. It then
-merges `data/history/public_history.json`, the current approved edition aggregates,
-and optionally the previous public release from the project's own Pages site.
-The output is `public-site/data/history.json`, validated against the current
-registry by the public artifact gate. The public allow-list includes only the new
-history JSON and its JavaScript module; the row-level publication contract is not
-widened.
+`public_national_build` runs the ordinary approved registry build first. It then merges `data/history/public_history.json`, current approved edition aggregates and, when available, the previous public release from the project's own Pages site. The output is `public-site/data/history.json`, validated against the current registry by the public artifact gate.
 
-After a successful **main** Public retro portal run, **Persist public edition
-history** downloads that run's reviewed artifact and merges only its aggregate
-history JSON back into the durable ledger. It checks out trusted current main,
-never executes artifact code, validates the closed data contract and uses normal
-fast-forward pushes with bounded reconciliation retries. Reruns are idempotent.
-The collector does not change the publication dataset or create an extra source
-polling schedule. A failed safe append fails visibly rather than force-pushing.
-The already-published history is also read on the next build as a recovery layer.
+After a successful **main** Public retro portal run, **Persist public edition history** downloads that run's reviewed artifact and merges only its aggregate history JSON back into the durable ledger. It checks out trusted current main, never executes artifact code, validates the closed data contract and uses normal fast-forward pushes with bounded reconciliation retries. Reruns are idempotent and a failed safe append fails visibly rather than force-pushing.
 
-The ledger persists no company names, identifiers, per-company hashes or internal
-review annotations. Edition identity includes scope, raw reference date, original
-SHA-256 and parser signature. Counts and comparison evidence are immutable; parser
-revisions remain separate. Only a whole-edition data fingerprint is stored, after
-whitespace/list-order normalisation and exclusion of physical row positions.
-Changing this fingerprint algorithm requires an explicit history migration.
+The ledger persists no company names, identifiers, per-company hashes or internal review annotations. Edition identity includes scope, raw reference date, original SHA-256 and parser signature. Counts and approved comparison evidence are immutable; parser revisions remain separate.
 
 ## Guardrails and known limits
 
-Repeated successful checks of the same document do not create editions or inflate
-update counts. Different bytes with unchanged extracted values are distinguished
-from data changes, and parser revisions are not presented as Prefecture actions.
-Unknown dates remain unknown; conflicting same-date versions are never selected
-by arbitrary hash order for a historical snapshot.
+Repeated successful checks of the same document do not create editions. Different bytes with unchanged extracted values are distinguishable from data changes, and parser revisions are not presented as Prefecture actions. Unknown dates remain unknown; conflicting same-date versions are not arbitrarily ordered.
 
-Checks currently concern **approved, pinned resource URLs**, not an exhaustive
-watcher of the newest publications on each institutional site. The retained
-success-only check ledger does not contain every failed attempt. Consequently it
-cannot measure website uptime, monitoring completeness, or prove there were no
-updates during unobserved periods. UI labels and exports do not claim otherwise.
+Automatic granular comparisons require compatible consecutive approved row-level releases and sufficiently unambiguous identifiers. Missing or duplicate identifiers, changed overlapping identifier bundles and name conflicts remain unresolved. Where granular comparison evidence is unavailable, the public page shows only the defensible aggregate A/B balances.
 
-Automatic granular comparisons require both consecutive approved row-level
-releases, compatible parsers and unambiguous exact identifier observations.
-Missing/duplicate identifiers, changed overlapping identifier bundles and name
-conflicts remain unresolved. Incomplete identity coverage suppresses complete
-entry/absence counts rather than turning uncertain matches into flows. Without
-previous rows, counts and status balances remain available but granular deltas
-stay null. No fuzzy name matching or administrative interpretation is applied.
-
-Source absence is not administrative removal. Nominal expiry is not automatic
-loss of legal effect. Different registers and populations are never compared as
-if they were one source. Requested sectors are not converted into authorised
-relationship sectors. Geography and private canonical tables are not involved.
+Source absence is not administrative removal. Nominal expiry is not automatic loss of legal effect. Different registers and populations are never compared as if they were one source. Geography and private canonical tables are not involved.
 
 ## Verification
 
-`tests/test_public_history.py` checks reconciliation, immutable merge, idempotence,
-parser revisions, uncertain identities, unknown dates, preservation of old scopes,
-optional-network failure and the recursive publication contract. It also runs the
-Node invariants in `tests/public_history.test.cjs`.
+`tests/test_public_history.py` covers reconciliation, immutable merge, idempotence, parser revisions, uncertain identities, unknown dates, preservation of old scopes, optional-network failure and the publication contract. It also runs the Node invariants in `tests/public_history.test.cjs`.
 
-`tests/test_public_history_browser.py` renders the existing portal with consistent
-synthetic fixtures at desktop/mobile widths and exercises shared filters, A/B
-metrics, as-of selection, exports, drill-down navigation and missing-history
-fallback. It is run by **Prefecture history checks** with the same Playwright
-version as the existing public acceptance workflow. The ordinary public workflow
-continues to run its full national registry and rendered acceptance gates.
+`tests/test_public_history_browser.py` renders the simplified Prefecture-delta interface at desktop and mobile widths. It verifies the Prefecture selector, latest comparable A/B pair, observational delta table, absence of the discarded dashboard elements and root-level mobile overflow. The ordinary public acceptance test continues to cover the complete national registry, all visible portal sections and official-source links.

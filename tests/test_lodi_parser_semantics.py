@@ -15,8 +15,8 @@ def test_lodi_source_and_record_denominators_are_frozen() -> None:
 
 
 def test_lodi_content_identity_and_observation_date_are_frozen() -> None:
-    assert lodi._REFERENCE_DATE == "2026-09-15"
-    assert lodi._LISTED_SHA256 == "ad64ab8669084bc31b80938a384b41849be4db28b448e9b2c0ce199f6af1d6ec"
+    assert lodi._REFERENCE_DATE == "2026-09-16"
+    assert lodi._LISTED_SHA256 == "c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613"
     assert lodi._APPLICANT_SHA256 == "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228"
 
 
