@@ -6,6 +6,7 @@ on:
       - expansion/sassari-2026-09-15
     paths:
       - '.github/workflows/sassari-finalize.yml'
+      - 'tmp/sassari_finalize.py'
 
 permissions:
   contents: write
