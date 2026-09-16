@@ -1,0 +1,141 @@
+name: Milano source probe
+
+on:
+  push:
+    branches:
+      - expansion/milano-2026-09-16
+    paths:
+      - .github/workflows/milano-source-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Capture current official Milano surfaces
+        shell: bash
+        run: |
+          set -u
+          mkdir -p /tmp/milano-probe
+          capture() {
+            name="$1"
+            url="$2"
+            echo "=== CAPTURE $name ==="
+            code=$(curl --silent --show-error --location --retry 2 --retry-all-errors \
+              --connect-timeout 20 --max-time 90 \
+              --user-agent 'italian-anti-mafia-whitelist/0.1 (+source investigation)' \
+              --dump-header "/tmp/milano-probe/${name}.headers" \
+              --output "/tmp/milano-probe/${name}.body" \
+              --write-out '%{http_code}' "$url" || true)
+            printf '%s\n' "$url" > "/tmp/milano-probe/${name}.url"
+            printf '%s\n' "$code" > "/tmp/milano-probe/${name}.status"
+            echo "HTTP=$code bytes=$(wc -c < /tmp/milano-probe/${name}.body 2>/dev/null || echo 0)"
+          }
+          capture ministry 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list'
+          capture registered 'https://whitelist.prefmi.it/elenco/elenco_iscritte.php'
+          capture legacy 'https://whitelist.prefmi.it/elenco/elenco.php'
+          capture app_root 'https://whitelist.prefmi.it/'
+      - name: Analyse captured surfaces conservatively
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import re
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin, urlparse
+
+          ROOT = Path('/tmp/milano-probe')
+
+          class ProbeParser(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.links=[]; self.forms=[]; self.inputs=[]; self.scripts=[]; self.text=[]
+                  self._form=None
+              def handle_starttag(self, tag, attrs):
+                  d=dict(attrs)
+                  if tag=='a' and d.get('href'):
+                      self.links.append({'href':d['href'], 'title':d.get('title')})
+                  elif tag=='form':
+                      self._form={'action':d.get('action'), 'method':(d.get('method') or 'get').lower(), 'inputs':[]}
+                      self.forms.append(self._form)
+                  elif tag in {'input','select','textarea','button'}:
+                      item={'tag':tag,'name':d.get('name'),'type':d.get('type'),'value':d.get('value'),'id':d.get('id')}
+                      self.inputs.append(item)
+                      if self._form is not None: self._form['inputs'].append(item)
+                  elif tag=='script' and d.get('src'):
+                      self.scripts.append(d['src'])
+              def handle_endtag(self, tag):
+                  if tag=='form': self._form=None
+              def handle_data(self, data):
+                  s=' '.join(data.split())
+                  if s: self.text.append(s)
+
+          keywords = ['richiesta iscrizione','richiesta di iscrizione','richiedent','in aggiornamento','iscritt','rinnovo','istruttoria','diniego','cancell']
+          report={}
+          for status_path in sorted(ROOT.glob('*.status')):
+              name=status_path.stem
+              body_path=ROOT/f'{name}.body'
+              url=(ROOT/f'{name}.url').read_text().strip()
+              status=status_path.read_text().strip()
+              raw=body_path.read_bytes() if body_path.exists() else b''
+              text=raw.decode('utf-8','replace')
+              parser=ProbeParser()
+              try: parser.feed(text)
+              except Exception as exc: parse_error=repr(exc)
+              else: parse_error=None
+              visible=' '.join(parser.text)
+              lower=visible.lower()
+              contexts={}
+              for kw in keywords:
+                  hits=[]
+                  start=0
+                  while True:
+                      i=lower.find(kw,start)
+                      if i<0 or len(hits)>=8: break
+                      hits.append(visible[max(0,i-160):min(len(visible),i+260)])
+                      start=i+len(kw)
+                  if hits: contexts[kw]=hits
+              same_host=[]
+              host=urlparse(url).netloc
+              for link in parser.links:
+                  absolute=urljoin(url,link['href'])
+                  if urlparse(absolute).netloc==host:
+                      same_host.append(absolute)
+              report[name]={
+                  'url':url,
+                  'http_status':status,
+                  'bytes':len(raw),
+                  'sha256':hashlib.sha256(raw).hexdigest() if raw else None,
+                  'parse_error':parse_error,
+                  'forms':parser.forms,
+                  'inputs':parser.inputs[:100],
+                  'scripts':[urljoin(url,s) for s in parser.scripts],
+                  'same_host_links':sorted(set(same_host))[:200],
+                  'keyword_contexts':contexts,
+                  'row_tag_count':len(re.findall(r'<tr\b', text, flags=re.I)),
+                  'table_tag_count':len(re.findall(r'<table\b', text, flags=re.I)),
+                  'php_references':sorted(set(re.findall(r"[A-Za-z0-9_./-]+\.php(?:\?[^\"'<> ]*)?", text)))[:200],
+              }
+          out=Path('milano-source-probe.json')
+          out.write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True),encoding='utf-8')
+          print(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True))
+          PY
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: milano-source-probe
+          path: |
+            milano-source-probe.json
+            /tmp/milano-probe/*.headers
+            /tmp/milano-probe/*.body
+          retention-days: 14
