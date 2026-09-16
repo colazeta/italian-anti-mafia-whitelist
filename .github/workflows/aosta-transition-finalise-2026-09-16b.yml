@@ -51,7 +51,7 @@ jobs:
 
           coverage_path = Path('data/monitoring/national_coverage.json')
           coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
-          aosta = next(row for row in coverage['rows'] if row['authority_key'] == 'aosta')
+          aosta = next(row for row in coverage['prefectures'] if row['authority_key'] == 'aosta')
           stamp = '2026-09-16T10:08:19Z'
           aosta['last_successful_source_check_at'] = stamp
           aosta['last_attempted_source_check_at'] = stamp
