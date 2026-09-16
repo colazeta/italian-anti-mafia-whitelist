@@ -1,0 +1,134 @@
+name: Aosta post-merge drift finalisation (temporary)
+
+on:
+  push:
+    branches:
+      - fix/aosta-source-drift-2026-09-16b
+    paths:
+      - .github/workflows/aosta-transition-finalise-2026-09-16b.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/aosta-source-drift-2026-09-16b
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev,publication]'
+      - name: Apply reviewed Aosta 242/140 transition
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          by_key = {row['source_key']: row for row in config['sources']}
+          listed = by_key['aosta-listed']
+          applicants = by_key['aosta-applicants']
+          listed.update({
+              'sha256': '7b107f612d5336dd21a7db6fef105759e65057ef8147b165fea47e4ccab0ebc4',
+              'expected_source_rows': 242,
+              'notes': 'The official listed-company attachment is a mutable current resource. On 16 September 2026 a second same-day two-capture no-cache audit after the earlier 243-row approval was byte- and parser-stable and exposed 242 complete source rows: 221 listed and 21 with explicit update/renewal text. Compared with the earlier 16 September approved state, IMPRESA HENRIET GERMANO & C. Sas (00090050071) is no longer present in the listed series; no other common listed identity changed in the audited public semantic fields. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest.',
+              'semantic_sha256': 'db0db749e75a09fce8dcdaffc6ef2c7e5d7da58bd6978e111b3d66dadc8b4f93',
+          })
+          applicants.update({
+              'sha256': 'd514dd66b7248f0f3a46f56c582ccd9ba986a031b6676fb8aca560158b0a1e55',
+              'expected_source_rows': 140,
+              'notes': 'The official applicant attachment is a mutable current resource. On 16 September 2026 a second same-day two-capture no-cache audit after the earlier 139-row approval was byte- and parser-stable and exposed 140 request observations: 115 with a source outcome indicating subsequent White List enrolment and 25 pending. Compared with the earlier 16 September approved state, IMPRESA HENRIET GERMANO & C. Sas (00090050071) now appears with a 20 August 2026 application for activities C–D–G-H and explicit outcome Istruttoria in corso; no other applicant identity or common applicant semantic field changed. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest.',
+              'semantic_sha256': '1519a119b34b4b3340feaf5cf2f391de84803592060720f6c9660492d192be93',
+          })
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          aosta = next(row for row in coverage['rows'] if row['authority_key'] == 'aosta')
+          stamp = '2026-09-16T10:08:19Z'
+          aosta['last_successful_source_check_at'] = stamp
+          aosta['last_attempted_source_check_at'] = stamp
+          aosta['last_content_change_at'] = stamp
+          for digest in (
+              '7b107f612d5336dd21a7db6fef105759e65057ef8147b165fea47e4ccab0ebc4',
+              'd514dd66b7248f0f3a46f56c582ccd9ba986a031b6676fb8aca560158b0a1e55',
+          ):
+              if digest not in aosta['known_content_sha256']:
+                  aosta['known_content_sha256'].append(digest)
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          browser_path = Path('tests/public_portal_browser.cjs')
+          browser = browser_path.read_text(encoding='utf-8')
+          replacements = {
+              "assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,243);": "assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,242);",
+              "assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,139);": "assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,140);",
+              "assert.deepEqual(statusCounts(aosta),{listed:337,pending:24,renewal_update_in_progress:21});": "assert.deepEqual(statusCounts(aosta),{listed:336,pending:25,renewal_update_in_progress:21});",
+          }
+          for old, new in replacements.items():
+              if browser.count(old) != 1:
+                  raise SystemExit(f'expected exactly one browser assertion to replace: {old}')
+              browser = browser.replace(old, new)
+          browser_path.write_text(browser, encoding='utf-8')
+
+          note_path = Path('docs/sources/aosta-operational-check-2026-09-10.md')
+          note = note_path.read_text(encoding='utf-8')
+          heading = '## Second verified current-source transition — 16 September 2026'
+          if heading not in note:
+              note += f'''\n## Second verified current-source transition — 16 September 2026\n\nImmediately after the first 16 September transition was merged, the post-merge public build failed closed because the mutable official listed attachment had changed again. A dedicated same-Prefecture audit in GitHub Actions run `35083259611` independently captured both official attachments twice without cache. Each source pair was byte-identical and parser-identical.\n\n- Listed: witnessed SHA-256 `7b107f612d5336dd21a7db6fef105759e65057ef8147b165fea47e4ccab0ebc4`; 242 complete observations = 221 `listed` + 21 `renewal_update_in_progress`; identifier coverage 242/242; approved semantic SHA-256 `db0db749e75a09fce8dcdaffc6ef2c7e5d7da58bd6978e111b3d66dadc8b4f93`.\n- Applicants: witnessed SHA-256 `d514dd66b7248f0f3a46f56c582ccd9ba986a031b6676fb8aca560158b0a1e55`; 140 complete observations = 115 with source-explicit subsequent enrolment + 25 `pending`; identifier coverage 140/140; approved semantic SHA-256 `1519a119b34b4b3340feaf5cf2f391de84803592060720f6c9660492d192be93`.\n\nThe row-level delta is exact and internally coherent. `IMPRESA HENRIET GERMANO & C. Sas` (`00090050071`) is the only identity removed from the listed series; its previous listed observation carried listing date 16 September 2025 and expiry date 15 September 2026. The same identity is the only addition to the applicant series, with application date 20 August 2026, activities `C–D–G-H` and explicit outcome `Istruttoria in corso`. No other common listed or applicant identity changes in the audited public semantic fields. The Aosta observation total therefore remains 382 while its status composition changes from 337 listed / 24 pending / 21 renewal-update to 336 listed / 25 pending / 21 renewal-update.\n\nThe attachments remain undated mutable current resources, so 16 September 2026 remains a verified-current/capture reference date rather than an asserted administrative publication date. This second transition is approved only from the independently reproduced current source semantics; raw capture SHA-256 remains attached as provenance and future semantic drift continues to fail closed.\n'''
+              note_path.write_text(note, encoding='utf-8')
+          PY
+      - name: Verify permanent diff scope
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'data/publication/multi_prefecture_pilot.json',
+              'data/monitoring/national_coverage.json',
+              'docs/sources/aosta-operational-check-2026-09-10.md',
+              'tests/public_portal_browser.cjs',
+          }
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected permanent diff scope: {sorted(changed)!r}')
+          PY
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and validate current national boundary
+        run: |
+          mkdir -p /tmp/aosta-final
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/aosta-final/sources \
+            --registry-json /tmp/aosta-final/registry.json \
+            --registry-csv /tmp/aosta-final/registry.csv \
+            --prefectures-json /tmp/aosta-final/prefectures.json \
+            --prefectures-csv /tmp/aosta-final/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          reg=json.load(open('/tmp/aosta-final/registry.json'))
+          assert reg['meta']['record_count'] == 51565, reg['meta']['record_count']
+          a=[r for r in reg['records'] if r['authority_key']=='aosta']
+          assert len(a)==382, len(a)
+          assert Counter(r['source_key'] for r in a)==Counter({'aosta-listed':242,'aosta-applicants':140})
+          assert Counter(r['source_status'] for r in a)==Counter({'listed':336,'pending':25,'renewal_update_in_progress':21})
+          assert len({r['record_locator'] for r in a})==382
+          PY
+      - name: Commit reviewed permanent transition
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/publication/multi_prefecture_pilot.json data/monitoring/national_coverage.json docs/sources/aosta-operational-check-2026-09-10.md tests/public_portal_browser.cjs
+          git commit -m 'Approve second 16 September Aosta source transition'
+          git push origin HEAD:fix/aosta-source-drift-2026-09-16b
