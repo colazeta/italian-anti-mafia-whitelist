@@ -43,6 +43,38 @@ jobs:
           git merge --no-edit origin/main
           test "$(git rev-list --count origin/main..HEAD)" -gt 0
           test "$(git rev-list --count HEAD..origin/main)" -eq 0
+      - name: Rebase finalisation expectations on verified Aosta boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tmp/milano_finalise.py')
+          text = path.read_text(encoding='utf-8')
+          if '51566' not in text or '54180' not in text:
+              raise SystemExit('Milano finalisation helper no longer has the expected pre-Aosta denominators')
+          old = (
+              "National publication was then exercised as a separate fail-closed transaction in GitHub Actions run `35058960470`. "
+              "The actual national build completed successfully and validated **54,180 records / 47 published Prefectures / 48 published registers / 47 mapped Prefectures**, "
+              "with exactly **2,614 Milano observations / 2,614 distinct record locators** and **48/48 register scopes source-complete**. "
+              "The transaction rechecked the exact production diff before committing the integration, so `canonical_integration_validated` is now **true** for Milano."
+          )
+          new = (
+              "National publication was first exercised as a separate fail-closed candidate transaction in GitHub Actions run `35058960470`. "
+              "That candidate build completed successfully and at that time validated **54,180 records / 47 published Prefectures / 48 published registers / 47 mapped Prefectures**, "
+              "with exactly **2,614 Milano observations / 2,614 distinct record locators** and **48/48 register scopes source-complete**. "
+              "After the independently verified 16 September Aosta source transition reduced the standing national total by one record while keeping Aosta at 382 observations, "
+              "this production finalisation revalidates the current boundary at **54,179 records / 47 published Prefectures / 48 published registers / 47 mapped Prefectures** before promotion. "
+              "The transaction rechecks the exact production diff before committing the integration, so `canonical_integration_validated` is now **true** for Milano."
+          )
+          if text.count(old) != 1:
+              raise SystemExit('Milano source-note finalisation paragraph drifted unexpectedly')
+          text = text.replace(old, new)
+          text = text.replace('51566', '51565')
+          text = text.replace('54180', '54179')
+          path.write_text(text, encoding='utf-8')
+          PY
       - name: Apply permanent Milano finalisation and remove temporary machinery
         run: python tmp/milano_finalise.py
       - name: Enforce production-only diff
@@ -126,7 +158,7 @@ jobs:
           root = Path('/tmp/milano-final-national')
           reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
           pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
-          assert reg['meta']['record_count'] == len(reg['records']) == 54180
+          assert reg['meta']['record_count'] == len(reg['records']) == 54179
           assert reg['meta']['authority_count'] == 47
           assert reg['meta']['register_count'] == 48
           assert pref['meta']['authority_count'] == 106
@@ -159,7 +191,7 @@ jobs:
           assert len(milano) == 1
           assert milano[0]['canonical_integration_validated'] is True
           assert milano[0]['durable_evidence_verified'] is False
-          print({'record_count': 54180, 'authority_count': 47, 'register_count': 48, 'published_count': 47, 'mapped_count': 47, 'milano_records': 2614, 'complete_register_scopes': 48})
+          print({'record_count': 54179, 'authority_count': 47, 'register_count': 48, 'published_count': 47, 'mapped_count': 47, 'milano_records': 2614, 'complete_register_scopes': 48})
           PY
       - name: Commit validated production-only finalisation
         shell: bash
