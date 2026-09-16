@@ -77,8 +77,8 @@ Source-row provenance is retained through the physical worksheet/row locator, ra
 - combined listed/applicant population positively established: **yes**;
 - byte-pinned parser implemented: **yes**;
 - parser semantic boundary validated: **yes**;
-- company observations loaded into a national candidate: **not yet**;
-- `canonical_integration_validated`: **false**;
+- company observations loaded into a national candidate: **yes** — the successful candidate build validated **51,566** national records, **46** published Prefectures, **47** published registers and **47** mapped Prefectures, including exactly **478** Sassari observations and **478** distinct locators;
+- `canonical_integration_validated`: **true**;
 - `durable_evidence_verified`: **false**.
 
-The latter two flags must not be promoted by this source review alone. Canonical/public integration requires a successful national candidate build and its denominator gates. Independent durable-evidence verification remains a separate infrastructure/evidence concern.
+The canonical/public integration flag is promoted only because the national candidate build, denominator checks, exact production-transaction recheck and integration commit all completed successfully. Independent durable-evidence verification remains a separate infrastructure/evidence concern and is not inferred from publication success.
