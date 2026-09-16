@@ -26,8 +26,17 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Apply production-only finalisation
-        run: python tmp/sassari_finalize.py
+      - name: Promote validated coverage state
+        run: python tmp/sassari_finalize.py coverage
+
+      - name: Promote permanent Pages gate
+        run: python tmp/sassari_finalize.py pages
+
+      - name: Promote permanent browser gate
+        run: python tmp/sassari_finalize.py browser
+
+      - name: Remove expansion-only machinery
+        run: python tmp/sassari_finalize.py cleanup
 
       - name: Enforce finalisation change set
         run: |
