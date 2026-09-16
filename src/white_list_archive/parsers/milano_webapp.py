@@ -17,14 +17,14 @@ PARSER_NAME = "milano_combined"
 _REFERENCE_DATE = "2026-09-16"
 _SOURCE_KEY = "milano-combined"
 _EXPECTED_TABLES = 10
-_EXPECTED_SECTOR_ROWS = 4214
-_EXPECTED_RECORDS = 2614
+_EXPECTED_SECTOR_ROWS = 4220
+_EXPECTED_RECORDS = 2618
 _EXPECTED_STATUS_COUNTS = {
-    "listed": 940,
-    "renewal_update_in_progress": 516,
-    "pending": 1158,
+    "listed": 939,
+    "renewal_update_in_progress": 517,
+    "pending": 1162,
 }
-_EXPECTED_IDENTIFIER_COVERAGE = 2614
+_EXPECTED_IDENTIFIER_COVERAGE = 2618
 _EXPECTED_NONBLANK_NOTES = 1
 
 _EXPECTED_SECTION_PREFIXES = (

@@ -2455,16 +2455,16 @@
       "parser_validated": true,
       "company_observations_loaded": true,
       "observation_layer": "public_source_observations",
-      "canonical_integration_validated": false,
+      "canonical_integration_validated": true,
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
       "latest_source_reference_date": "2026-09-16",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-16T05:09:32Z",
-      "last_attempted_source_check_at": "2026-09-16T05:09:32Z",
-      "last_content_change_at": null,
+      "last_successful_source_check_at": "2026-09-16T19:03:59Z",
+      "last_attempted_source_check_at": "2026-09-16T19:03:59Z",
+      "last_content_change_at": "2026-09-16T19:03:37Z",
       "last_successful_investigation_on": "2026-09-16",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
@@ -2480,7 +2480,7 @@
         "data/publication/multi_prefecture_pilot.json"
       ],
       "known_content_sha256": [
-        "350e995ac06fc9525c1bd21cc2e2ad8b69224e4dd603e530a65553c21f44b044"
+        "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
