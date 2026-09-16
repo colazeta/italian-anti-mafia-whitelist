@@ -1494,6 +1494,24 @@
       "last_source_update": "2026-08-31",
       "last_source_update_basis": "date embedded in the current official workbook filename; used only as the source-edition boundary and not as an inferred company decision, registration, application or legal-effect date",
       "notes": "Official combined workbook revalidated 15 September 2026 by two byte-identical no-cache GETs. The fail-closed parser yields exactly 478 observations: 335 listed, 129 pending, 12 renewal/update in progress, one source-explicit expired observation and one other/unknown observation with no inferred status. Strict identifier coverage is 472/478; reviewed malformed identifier/date fields and the apparent office/identifier column swap are preserved without repair."
+    },
+    {
+      "source_key": "milano-combined",
+      "parser": "milano_combined",
+      "authority_key": "milano",
+      "authority_name": "Prefettura di Milano",
+      "register_key": "milano-ordinary",
+      "register_name": "White List — Prefettura di Milano",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-16",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
+      "resource_url": "https://whitelist.prefmi.it/elenco/elenco.php",
+      "sha256": "350e995ac06fc9525c1bd21cc2e2ad8b69224e4dd603e530a65553c21f44b044",
+      "expected_sector_rows": 4214,
+      "expected_source_rows": 2614,
+      "last_source_update": "2026-09-16",
+      "last_source_update_basis": "current mutable official web application captured and independently revalidated on this date; the date is a capture/reference boundary only and is not an inferred company event or legal-effect date",
+      "notes": "Official combined operational table revalidated 16 September 2026 by two byte-identical no-cache GETs. The fail-closed parser expands source colspan geometry and yields exactly 2,614 logical observations from 4,214 sector rows: 940 listed, 516 renewal/update in progress and 1,158 pending. All 2,614 source identifiers are strict; all observations have explicit statutory activity coverage; all pending observations have explicit application dates and all listed observations have explicit listing/expiry dates. The registered-only sibling surface is not co-ingested to avoid duplicate/conflicting presentations of the same non-pending company identities."
     }
   ]
 }

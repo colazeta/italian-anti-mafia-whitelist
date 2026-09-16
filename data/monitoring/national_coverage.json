@@ -2442,36 +2442,47 @@
       "national_index_key": "milano",
       "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
       "source_verified": true,
-      "current_edition_identified": null,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
-      "population_scopes_complete": false,
-      "latest_source_reference_date": null,
+      "population_scopes_complete": true,
+      "latest_source_reference_date": "2026-09-16",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
+      "last_successful_source_check_at": "2026-09-16T05:09:32Z",
+      "last_attempted_source_check_at": "2026-09-16T05:09:32Z",
       "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-06",
-      "monitoring_status": "NEVER_CHECKED",
+      "last_successful_investigation_on": "2026-09-16",
+      "monitoring_status": "CURRENT",
       "unresolved_issue": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/20"
+        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
       ],
-      "actionable_issue": true,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "actionable_issue": false,
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/milano-operational-check-2026-09-16.md",
+        "src/white_list_archive/parsers/milano_webapp.py",
+        "tests/test_milano_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "350e995ac06fc9525c1bd21cc2e2ad8b69224e4dd603e530a65553c21f44b044"
+      ],
       "evidence": [
-        "data/source_registry/verified_primary_pages.csv"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/milano-operational-check-2026-09-16.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "modena",
