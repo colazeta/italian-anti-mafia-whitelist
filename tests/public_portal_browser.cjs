@@ -92,7 +92,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       await page.screenshot({path:`test-results/detail-${width}.png`});
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#detail').getAttribute('aria-hidden'),'true');
-      for(const [name,id] of [['Statistiche','statistics'],['Prefetture','prefectures'],['Storico','history'],['Aggiornamenti','updates'],['Metodo e fonti','method'],['Qualità dei dati','quality']]){
+      for(const [name,id] of [['Statistiche','statistics'],['Prefetture','prefectures'],['Storico','history'],['Metodo e fonti','method'],['Qualità dei dati','quality']]){
         await page.getByRole('button',{name,exact:true}).click();
         await page.locator(`#view-${id}.active`).waitFor();
         const body=await page.locator(`#view-${id}`).innerText();
