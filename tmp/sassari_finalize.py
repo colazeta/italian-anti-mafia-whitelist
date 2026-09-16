@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -11,57 +12,71 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-coverage_path = Path("data/monitoring/national_coverage.json")
-coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
-matches = [row for row in coverage["rows"] if row.get("authority_key") == "sassari"]
-if len(matches) != 1:
-    raise SystemExit(f"expected one Sassari coverage row, found {len(matches)}")
-sassari = matches[0]
-expected = {
-    "source_verified": True,
-    "current_edition_identified": True,
-    "capture_implemented": True,
-    "parser_implemented": True,
-    "parser_validated": True,
-    "company_observations_loaded": True,
-    "public_export_enabled": True,
-    "population_scopes_complete": True,
-    "canonical_integration_validated": False,
-    "durable_evidence_verified": False,
-    "latest_source_reference_date": "2026-08-31",
-}
-for key, value in expected.items():
-    if sassari.get(key) != value:
-        raise SystemExit(f"unexpected Sassari coverage state for {key}: {sassari.get(key)!r} != {value!r}")
-sassari["canonical_integration_validated"] = True
-coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def coverage_and_note() -> None:
+    coverage_path = Path("data/monitoring/national_coverage.json")
+    coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+    matches = [row for row in coverage["rows"] if row.get("authority_key") == "sassari"]
+    if len(matches) != 1:
+        raise SystemExit(f"expected one Sassari coverage row, found {len(matches)}")
+    sassari = matches[0]
+    expected = {
+        "source_verified": True,
+        "current_edition_identified": True,
+        "capture_implemented": True,
+        "parser_implemented": True,
+        "parser_validated": True,
+        "company_observations_loaded": True,
+        "public_export_enabled": True,
+        "population_scopes_complete": True,
+        "canonical_integration_validated": False,
+        "durable_evidence_verified": False,
+        "latest_source_reference_date": "2026-08-31",
+    }
+    for key, value in expected.items():
+        if sassari.get(key) != value:
+            raise SystemExit(f"unexpected Sassari coverage state for {key}: {sassari.get(key)!r} != {value!r}")
+    sassari["canonical_integration_validated"] = True
+    coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-note_path = Path("docs/sources/sassari-operational-check-2026-09-15.md")
-note = note_path.read_text(encoding="utf-8")
-note = replace_once(
-    note,
-    "- company observations loaded into a national candidate: **not yet**;\n- `canonical_integration_validated`: **false**;\n- `durable_evidence_verified`: **false**.\n\nThe latter two flags must not be promoted by this source review alone. Canonical/public integration requires a successful national candidate build and its denominator gates. Independent durable-evidence verification remains a separate infrastructure/evidence concern.",
-    "- company observations loaded into a national candidate: **yes** — the successful candidate build validated **51,566** national records, **46** published Prefectures, **47** published registers and **47** mapped Prefectures, including exactly **478** Sassari observations and **478** distinct locators;\n- `canonical_integration_validated`: **true**;\n- `durable_evidence_verified`: **false**.\n\nThe canonical/public integration flag is promoted only because the national candidate build, denominator checks, exact production-transaction recheck and integration commit all completed successfully. Independent durable-evidence verification remains a separate infrastructure/evidence concern and is not inferred from publication success.",
-    "source note validation state",
-)
-note_path.write_text(note, encoding="utf-8")
+    note_path = Path("docs/sources/sassari-operational-check-2026-09-15.md")
+    note = note_path.read_text(encoding="utf-8")
+    note = replace_once(
+        note,
+        "- company observations loaded into a national candidate: **not yet**;\n- `canonical_integration_validated`: **false**;\n- `durable_evidence_verified`: **false**.\n\nThe latter two flags must not be promoted by this source review alone. Canonical/public integration requires a successful national candidate build and its denominator gates. Independent durable-evidence verification remains a separate infrastructure/evidence concern.",
+        "- company observations loaded into a national candidate: **yes** — the successful candidate build validated **51,566** national records, **46** published Prefectures, **47** published registers and **47** mapped Prefectures, including exactly **478** Sassari observations and **478** distinct locators;\n- `canonical_integration_validated`: **true**;\n- `durable_evidence_verified`: **false**.\n\nThe canonical/public integration flag is promoted only because the national candidate build, denominator checks, exact production-transaction recheck and integration commit all completed successfully. Independent durable-evidence verification remains a separate infrastructure/evidence concern and is not inferred from publication success.",
+        "source note validation state",
+    )
+    note_path.write_text(note, encoding="utf-8")
 
-pages_path = Path(".github/workflows/public-pages.yml")
-pages = pages_path.read_text(encoding="utf-8")
-pages = replace_once(
-    pages,
-    "      - 'src/white_list_archive/parsers/potenza_webapp.py'\n",
-    "      - 'src/white_list_archive/parsers/potenza_webapp.py'\n      - 'src/white_list_archive/parsers/sassari_openxml.py'\n",
-    "Pages parser path",
-)
-pages = replace_once(pages, "assert reg['meta']['record_count'] == 51088", "assert reg['meta']['record_count'] == 51566", "Pages record count")
-pages = replace_once(pages, ",'torino','potenza'}", ",'torino','potenza','sassari'}", "Pages authority set")
-pages = replace_once(pages, ",'torino-ordinary','potenza-ordinary'\n", ",'torino-ordinary','potenza-ordinary','sassari-ordinary'\n", "Pages register set")
-pages = replace_once(pages, "assert reg['meta']['authority_count'] == 45", "assert reg['meta']['authority_count'] == 46", "Pages authority count")
-pages = replace_once(pages, "assert reg['meta']['register_count'] == 46", "assert reg['meta']['register_count'] == 47", "Pages register count")
-pages = replace_once(pages, "assert pref['meta']['published_count'] == 45", "assert pref['meta']['published_count'] == 46", "Pages published count")
-pages_marker = "          assert gap[0]['source_fields']['in_aggiornamento'] == '1'\n"
-sassari_pages = """          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']
+
+def pages_gate() -> None:
+    path = Path(".github/workflows/public-pages.yml")
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "      - 'src/white_list_archive/parsers/potenza_webapp.py'\n",
+        "      - 'src/white_list_archive/parsers/potenza_webapp.py'\n      - 'src/white_list_archive/parsers/sassari_openxml.py'\n",
+        "Pages parser path",
+    )
+    for old, new, label in (
+        ("assert reg['meta']['record_count'] == 51088", "assert reg['meta']['record_count'] == 51566", "Pages record count"),
+        ("assert reg['meta']['authority_count'] == 45", "assert reg['meta']['authority_count'] == 46", "Pages authority count"),
+        ("assert reg['meta']['register_count'] == 46", "assert reg['meta']['register_count'] == 47", "Pages register count"),
+        ("assert pref['meta']['published_count'] == 45", "assert pref['meta']['published_count'] == 46", "Pages published count"),
+    ):
+        text = replace_once(text, old, new, label)
+
+    authority_line = next((line for line in text.splitlines() if "assert set(reg['meta']['authority_counts'])" in line), None)
+    if authority_line is None or not authority_line.endswith("'potenza'}") or "'sassari'" in authority_line:
+        raise SystemExit(f"unexpected Pages authority set: {authority_line!r}")
+    text = replace_once(text, authority_line, authority_line[:-1] + ",'sassari'}", "Pages authority set")
+
+    if text.count("'potenza-ordinary'\n") != 1 or "'sassari-ordinary'" in text:
+        raise SystemExit("unexpected Pages register-set boundary")
+    text = text.replace("'potenza-ordinary'\n", "'potenza-ordinary','sassari-ordinary'\n", 1)
+
+    marker = "          assert gap[0]['source_fields']['in_aggiornamento'] == '1'\n"
+    block = """          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']
           assert len(sassari) == 1 and sassari[0]['mapped'] and sassari[0]['published'] and sassari[0]['series_count'] == 1
           sassari_records = [r for r in reg['records'] if r['authority_key'] == 'sassari']
           assert len(sassari_records) == 478
@@ -86,21 +101,27 @@ sassari_pages = """          sassari = [x for x in pref['prefectures'] if x['aut
           assert column_swap[0]['registered_office'] == 'CLAGLC74B11E736M'
           assert column_swap[0]['identifier_field_raw'] == 'OLBIA'
 """
-pages = replace_once(pages, pages_marker, pages_marker + sassari_pages, "Pages Sassari semantic block")
-pages_path.write_text(pages, encoding="utf-8")
+    text = replace_once(text, marker, marker + block, "Pages Sassari semantic block")
+    path.write_text(text, encoding="utf-8")
 
-browser_path = Path("tests/public_portal_browser.cjs")
-browser = browser_path.read_text(encoding="utf-8")
-browser = replace_once(
-    browser,
-    "      assert.ok(labels.includes('White List ordinaria · Prefettura di Potenza'));\n",
-    "      assert.ok(labels.includes('White List ordinaria · Prefettura di Potenza'));\n      assert.ok(labels.includes('White List — Prefettura di Sassari · Prefettura di Sassari'));\n",
-    "browser Sassari label",
-)
-browser = replace_once(browser, "      assert.equal(stats.total,51088);", "      assert.equal(stats.total,51566);", "browser total")
-browser = replace_once(browser, ",'torino','potenza'].includes(r.authority_key));", ",'torino','potenza','sassari'].includes(r.authority_key));", "browser baseline exclusions")
-browser_marker = "      assert.equal(gap[0].source_fields.in_aggiornamento,'1');\n"
-sassari_browser = """      const sassari=registry.records.filter(r=>r.authority_key==='sassari');
+
+def browser_gate() -> None:
+    path = Path("tests/public_portal_browser.cjs")
+    text = path.read_text(encoding="utf-8")
+    text = replace_once(
+        text,
+        "      assert.ok(labels.includes('White List ordinaria · Prefettura di Potenza'));\n",
+        "      assert.ok(labels.includes('White List ordinaria · Prefettura di Potenza'));\n      assert.ok(labels.includes('White List — Prefettura di Sassari · Prefettura di Sassari'));\n",
+        "browser Sassari label",
+    )
+    text = replace_once(text, "      assert.equal(stats.total,51088);", "      assert.equal(stats.total,51566);", "browser total")
+    previous_line = next((line for line in text.splitlines() if line.lstrip().startswith("const previous=registry.records.filter")), None)
+    if previous_line is None or "'potenza'].includes" not in previous_line or "'sassari'" in previous_line:
+        raise SystemExit(f"unexpected browser baseline exclusion: {previous_line!r}")
+    text = replace_once(text, previous_line, previous_line.replace("'potenza'].includes", "'potenza','sassari'].includes"), "browser baseline exclusions")
+
+    marker = "      assert.equal(gap[0].source_fields.in_aggiornamento,'1');\n"
+    block = """      const sassari=registry.records.filter(r=>r.authority_key==='sassari');
       assert.equal(sassari.length,478);
       assert.equal(sassari.filter(r=>r.source_key==='sassari-combined').length,478);
       assert.deepEqual(statusCounts(sassari),{expired_observed:1,listed:335,other_or_unknown:1,pending:129,renewal_update_in_progress:12});
@@ -119,17 +140,25 @@ sassari_browser = """      const sassari=registry.records.filter(r=>r.authority_
       assert.equal(descari[0].registered_office,'CLAGLC74B11E736M');
       assert.equal(descari[0].identifier_field_raw,'OLBIA');
 """
-browser = replace_once(browser, browser_marker, browser_marker + sassari_browser, "browser Sassari semantic block")
-browser_path.write_text(browser, encoding="utf-8")
+    text = replace_once(text, marker, marker + block, "browser Sassari semantic block")
+    path.write_text(text, encoding="utf-8")
 
-for filename in (
-    ".github/workflows/sassari-national-candidate.yml",
-    ".github/workflows/sassari-source-validation.yml",
-    ".github/workflows/sassari-finalize.yml",
-    "tmp/sassari_integrate_candidate.py",
-    "tmp/sassari_finalize.py",
-):
-    path = Path(filename)
-    if not path.exists():
-        raise SystemExit(f"expected temporary file is missing: {filename}")
-    path.unlink()
+
+def cleanup() -> None:
+    for filename in (
+        ".github/workflows/sassari-national-candidate.yml",
+        ".github/workflows/sassari-source-validation.yml",
+        ".github/workflows/sassari-finalize.yml",
+        "tmp/sassari_integrate_candidate.py",
+        "tmp/sassari_finalize.py",
+    ):
+        path = Path(filename)
+        if not path.exists():
+            raise SystemExit(f"expected temporary file is missing: {filename}")
+        path.unlink()
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("phase", choices=("coverage", "pages", "browser", "cleanup"))
+args = parser.parse_args()
+{"coverage": coverage_and_note, "pages": pages_gate, "browser": browser_gate, "cleanup": cleanup}[args.phase]()
