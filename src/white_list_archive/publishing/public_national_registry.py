@@ -61,6 +61,7 @@ from white_list_archive.parsers.pisa_tables import PARSERS as PISA_PARSERS
 from white_list_archive.parsers.catanzaro_tables import PARSERS as CATANZARO_PARSERS
 from white_list_archive.parsers.lecco_rect_tables import PARSERS as LECCO_PARSERS
 from white_list_archive.parsers.sassari_openxml import PARSERS as SASSARI_PARSERS
+from white_list_archive.parsers.milano_webapp import PARSERS as MILANO_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -90,6 +91,71 @@ TORINO_PARSERS = {
     "torino_applicants": parse_torino_applicants,
 }
 
+
+
+def _adapt_milano_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Milano HTML evidence onto the closed public source-field contract."""
+    if parser_name != "milano_combined":
+        raise RuntimeError(f"Unexpected Milano parser: {parser_name!r}")
+    adapted: list[dict[str, Any]] = []
+    expected = {
+        "sections", "section_headings", "physical_locators",
+        "status_or_listing_raw", "expiry_raw", "note",
+    }
+    request_re = re.compile(r"^RICHIESTA\s+ISCRIZIONE\s*\((\d{2}/\d{2}/\d{4})\)$", re.I)
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict) or set(fields) != expected:
+            raise RuntimeError(f"Milano source-field drift: {sorted(fields) if isinstance(fields, dict) else fields!r}")
+        sections = fields["sections"]
+        headings = fields["section_headings"]
+        locators = fields["physical_locators"]
+        if (
+            not isinstance(sections, list)
+            or not isinstance(headings, list)
+            or not isinstance(locators, list)
+            or any(not isinstance(value, str) for value in sections + headings + locators)
+            or not (len(sections) == len(headings) == len(locators))
+        ):
+            raise RuntimeError("Milano section/source-locator type or cardinality drift")
+        first = fields["status_or_listing_raw"]
+        expiry = fields["expiry_raw"]
+        note = fields["note"]
+        if any(not isinstance(value, str) for value in (first, expiry, note)):
+            raise RuntimeError("Milano raw source-field type drift")
+        status = record.get("source_status")
+        listing_raw: list[str] = []
+        application_raw: list[str] = []
+        expiry_raw: list[str] = []
+        in_aggiornamento = ""
+        if status == "listed":
+            if not first or not expiry:
+                raise RuntimeError("Milano listed row lost raw listing/expiry evidence")
+            listing_raw = [first]
+            expiry_raw = [expiry]
+        elif status == "pending":
+            match = request_re.fullmatch(first)
+            if match is None or expiry:
+                raise RuntimeError("Milano pending row lost request-label semantics")
+            application_raw = [match.group(1)]
+        elif status == "renewal_update_in_progress":
+            if first.casefold() != "in aggiornamento" or expiry:
+                raise RuntimeError("Milano renewal/update row lost explicit update semantics")
+            in_aggiornamento = first
+        else:
+            raise RuntimeError(f"Milano unapproved public status: {status!r}")
+        record["source_fields"] = {
+            "sections": list(sections),
+            "physical_locators": list(locators),
+            "notes": [note] if note else [],
+            "listing_date_raw_variants": listing_raw,
+            "application_date_raw_variants": application_raw,
+            "expiry_date_raw_variants": expiry_raw,
+            "in_aggiornamento": in_aggiornamento,
+        }
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 def _adapt_bolzano_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
     """Map audited parser evidence onto the already-approved public source-field contract.
@@ -856,10 +922,13 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or CATANZARO_PARSERS.get(cfg["parser"])
         or LECCO_PARSERS.get(cfg["parser"])
         or SASSARI_PARSERS.get(cfg["parser"])
+        or MILANO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
     batch = parser(path, cfg)
+    if cfg["parser"] in MILANO_PARSERS:
+        batch = _adapt_milano_public_fields(batch, cfg["parser"])
     if cfg["parser"] in BOLZANO_PARSERS:
         batch = _adapt_bolzano_public_fields(batch, cfg["parser"])
     if cfg["parser"] in GENOVA_PARSERS:

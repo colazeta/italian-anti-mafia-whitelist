@@ -1494,6 +1494,24 @@
       "last_source_update": "2026-08-31",
       "last_source_update_basis": "date embedded in the current official workbook filename; used only as the source-edition boundary and not as an inferred company decision, registration, application or legal-effect date",
       "notes": "Official combined workbook revalidated 15 September 2026 by two byte-identical no-cache GETs. The fail-closed parser yields exactly 478 observations: 335 listed, 129 pending, 12 renewal/update in progress, one source-explicit expired observation and one other/unknown observation with no inferred status. Strict identifier coverage is 472/478; reviewed malformed identifier/date fields and the apparent office/identifier column swap are preserved without repair."
+    },
+    {
+      "source_key": "milano-combined",
+      "parser": "milano_combined",
+      "authority_key": "milano",
+      "authority_name": "Prefettura di Milano",
+      "register_key": "milano-ordinary",
+      "register_name": "White List — Prefettura di Milano",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-16",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
+      "resource_url": "https://whitelist.prefmi.it/elenco/elenco.php",
+      "sha256": "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8",
+      "expected_sector_rows": 4220,
+      "expected_source_rows": 2618,
+      "last_source_update": "2026-09-16",
+      "last_source_update_basis": "current mutable official web application captured and independently revalidated on this date; the date is a capture/reference boundary only and is not an inferred company event or legal-effect date",
+      "notes": "The mutable combined operational table was revalidated again on 16 September 2026 after another fail-closed same-day drift. Two fresh no-cache GETs were byte-identical at 972,380 bytes with SHA-256 b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8. The reviewed boundary contains 4,220 sector rows and 2,618 logical observations: 939 listed, 517 renewal/update in progress and 1,162 pending. All 2,618 identifiers are strict. Four pending observations are source-explicitly dated 16 September 2026, including SV VERNICIATURE INDUSTRIALI S.R.L. (02685280394), G.B.C. INDUSTRIAL TOOLS SPA (07639230155), VERNIA SRL (11967860153) and CARBON SUD TRASPORTI E SERVIZI S.R.L. (14302100962). The registered-only sibling remains stable at SHA-256 4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608; its 1,456 identities exactly match the combined non-pending set and it is not co-ingested."
     }
   ]
 }

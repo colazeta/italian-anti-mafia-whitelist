@@ -98,7 +98,24 @@ def test_expansion_prioritises_existing_validated_work_then_actionable_issues(le
     for row in ledger["prefectures"]:
         if row["public_export_enabled"]:
             row["coverage_status"] = "BLOCKED"
-    assert priority_queue(ledger)[0]["actionable_issue"]
+
+    # The actionable-issue ordering invariant must not depend on the live ledger
+    # permanently containing an actionable territorial issue. Milano was the last
+    # such source-population issue; once it is resolved, that historical fixture
+    # disappears. Build a controlled tie instead and verify that actionability is
+    # still the deciding key before region/recency/authority ordering.
+    candidates = [row for row in ledger["prefectures"] if row["coverage_status"] != "BLOCKED"]
+    assert len(candidates) >= 2
+    for row in candidates:
+        row.update(
+            source_verified=False,
+            coverage_status="NOT_STARTED",
+            canonical_integration_validated=False,
+            actionable_issue=False,
+        )
+    target = candidates[-1]
+    target["actionable_issue"] = True
+    assert priority_queue(ledger)[0]["authority_key"] == target["authority_key"]
 
 
 def test_unknown_stale_or_missing_monitoring_data_fails_closed(ledger):
