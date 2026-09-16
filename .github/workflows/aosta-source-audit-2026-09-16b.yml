@@ -1,0 +1,96 @@
+name: Aosta source drift audit 2 (temporary)
+
+on:
+  push:
+    branches:
+      - fix/aosta-source-drift-2026-09-16b
+    paths:
+      - .github/workflows/aosta-source-audit-2026-09-16b.yml
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/aosta-source-drift-2026-09-16b
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Capture twice and parse both Aosta series
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import time
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.multi_prefecture_tables import parse_aosta_applicants, parse_aosta_listed
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
+
+          out = Path('/tmp/aosta-audit')
+          out.mkdir(parents=True, exist_ok=True)
+          cfgs = {row['source_key']: row for row in json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))['sources'] if row['source_key'] in {'aosta-listed','aosta-applicants'}}
+          assert set(cfgs) == {'aosta-listed','aosta-applicants'}
+          parsers = {'aosta-listed': parse_aosta_listed, 'aosta-applicants': parse_aosta_applicants}
+          summary = {'captured_at_utc': __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(), 'sources': {}}
+          all_stable = True
+          for source_key in ('aosta-listed','aosta-applicants'):
+              cfg = cfgs[source_key]
+              captures = []
+              for attempt in (1, 2):
+                  req = Request(cfg['resource_url'], headers={
+                      'User-Agent': 'italian-anti-mafia-whitelist/0.1 (+Aosta source audit)',
+                      'Accept': 'application/pdf,*/*',
+                      'Cache-Control': 'no-cache, no-store, max-age=0',
+                      'Pragma': 'no-cache',
+                      'X-Audit-Attempt': str(attempt),
+                  })
+                  with urlopen(req, timeout=90) as response:
+                      body = response.read()
+                      content_type = response.headers.get('Content-Type','')
+                  path = out / f'{source_key}-{attempt}.pdf'
+                  path.write_bytes(body)
+                  raw_sha = hashlib.sha256(body).hexdigest()
+                  parse_cfg = dict(cfg)
+                  parse_cfg['sha256'] = raw_sha
+                  batch = parsers[source_key](path, parse_cfg)
+                  captures.append({
+                      'attempt': attempt,
+                      'bytes': len(body),
+                      'content_type': content_type,
+                      'raw_sha256': raw_sha,
+                      'semantic_sha256': _semantic_digest(batch.records),
+                      'diagnostics': batch.diagnostics,
+                      'records': batch.records,
+                  })
+                  time.sleep(2)
+              stable = captures[0]['raw_sha256'] == captures[1]['raw_sha256'] and captures[0]['semantic_sha256'] == captures[1]['semantic_sha256']
+              all_stable = all_stable and stable
+              summary['sources'][source_key] = {
+                  'approved_raw_sha256': cfg.get('sha256'),
+                  'approved_semantic_sha256': cfg.get('semantic_sha256'),
+                  'approved_expected_source_rows': cfg.get('expected_source_rows'),
+                  'stable_pair': stable,
+                  'captures': captures,
+              }
+              print(source_key, {'stable_pair': stable, 'raw_sha256': captures[0]['raw_sha256'], 'semantic_sha256': captures[0]['semantic_sha256'], 'diagnostics': captures[0]['diagnostics']})
+          (out / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          if not all_stable:
+              raise SystemExit('Aosta official source pair was not stable across two independent no-cache captures')
+          PY
+      - name: Upload audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aosta-source-audit-${{ github.run_id }}
+          path: /tmp/aosta-audit
+          if-no-files-found: error
+          retention-days: 7
