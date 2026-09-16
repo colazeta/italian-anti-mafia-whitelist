@@ -1,0 +1,186 @@
+name: Milano production finalisation (temporary)
+
+on:
+  push:
+    branches:
+      - expansion/milano-2026-09-16
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: milano-production-finalisation
+  cancel-in-progress: false
+
+jobs:
+  finalise:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout expansion branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Reconcile latest main without publishing partial state
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='expansion/milano-2026-09-16'
+          remote_sha="$(git ls-remote origin "refs/heads/$branch" | cut -f1)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "Expansion branch advanced before finalisation: $remote_sha != $GITHUB_SHA" >&2
+            exit 1
+          fi
+          git fetch origin main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-edit origin/main
+          test "$(git rev-list --count origin/main..HEAD)" -gt 0
+          test "$(git rev-list --count HEAD..origin/main)" -eq 0
+      - name: Apply permanent Milano finalisation and remove temporary machinery
+        run: python tmp/milano_finalise.py
+      - name: Enforce production-only diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only origin/main | sort > /tmp/actual-files.txt
+          cat > /tmp/expected-files.txt <<'EOF'
+          .github/workflows/public-pages.yml
+          data/monitoring/national_coverage.json
+          data/publication/multi_prefecture_pilot.json
+          data/source_registry/source_series_inventory.csv
+          data/source_registry/verified_primary_pages.csv
+          docs/sources/milano-operational-check-2026-09-16.md
+          src/white_list_archive/parsers/milano_webapp.py
+          src/white_list_archive/publishing/public_national_registry.py
+          tests/public_portal_browser.cjs
+          tests/test_milano_parser_semantics.py
+          tests/test_operations.py
+          tests/test_source_population_coverage.py
+          EOF
+          sed -i 's/^          //' /tmp/expected-files.txt
+          sort -o /tmp/expected-files.txt /tmp/expected-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test ! -e .github/workflows/milano-national-candidate.yml
+          test ! -e .github/workflows/milano-source-probe.yml
+          test ! -e .github/workflows/milano-finalise.yml
+          test ! -e tmp/fix_operations_priority_test.py
+          test ! -e tmp/milano_integrate_candidate.py
+          test ! -e tmp/milano_finalise.py
+      - name: Prepare publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication,database,storage]'
+      - name: Run repository and Milano semantic tests
+        run: |
+          pytest -q
+          pytest -q tests/test_milano_parser_semantics.py
+          node --check tests/public_portal_browser.cjs
+      - name: Build and validate final national boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/milano-final-national /tmp/milano-final-sources
+          mkdir -p /tmp/milano-final-national
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/milano-final-sources \
+            --registry-json /tmp/milano-final-national/registry.json \
+            --registry-csv /tmp/milano-final-national/registry.csv \
+            --prefectures-json /tmp/milano-final-national/prefectures.json \
+            --prefectures-csv /tmp/milano-final-national/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.acquisition.source_population_coverage import _read_csv, build_coverage
+
+          root = Path('/tmp/milano-final-national')
+          reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
+          pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == len(reg['records']) == 54180
+          assert reg['meta']['authority_count'] == 47
+          assert reg['meta']['register_count'] == 48
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['published_count'] == 47
+          assert pref['meta']['mapped_count'] == 47
+          records = [r for r in reg['records'] if r['authority_key'] == 'milano']
+          assert len(records) == 2614
+          assert len({r['record_locator'] for r in records}) == 2614
+          assert {r['source_key'] for r in records} == {'milano-combined'}
+          assert Counter(r['source_status'] for r in records) == Counter({'listed': 940, 'renewal_update_in_progress': 516, 'pending': 1158})
+          assert sum(bool(r['identifiers']) for r in records) == 2614
+          assert all(r['requested_activities'] for r in records)
+          assert sum(bool(r['application_date']) for r in records) == 1158
+          assert sum(bool(r['observed_listing_date']) for r in records) == 940
+          assert sum(bool(r['observed_expiry_date']) for r in records) == 940
+          assert max(r['application_date'] for r in records if r['application_date']) == '2026-09-15'
+          noted = [r for r in records if r['source_fields']['notes']]
+          assert len(noted) == 1 and noted[0]['name'] == 'COMOTER SRL'
+          coverage = build_coverage(
+              _read_csv(Path('data/source_registry/verified_primary_pages.csv')),
+              _read_csv(Path('data/source_registry/source_series_inventory.csv')),
+          )
+          assert coverage['verified_authority_count'] == 47
+          assert coverage['register_scope_count'] == 48
+          assert coverage['complete_register_scope_count'] == 48
+          assert coverage['incomplete_register_scope_count'] == 0
+          assert not {row['authority_key'] for row in coverage['scopes'] if not row['source_population_complete']}
+          monitoring = json.loads(Path('data/monitoring/national_coverage.json').read_text(encoding='utf-8'))
+          milano = [p for p in monitoring['prefectures'] if p['authority_key'] == 'milano']
+          assert len(milano) == 1
+          assert milano[0]['canonical_integration_validated'] is True
+          assert milano[0]['durable_evidence_verified'] is False
+          print({'record_count': 54180, 'authority_count': 47, 'register_count': 48, 'published_count': 47, 'mapped_count': 47, 'milano_records': 2614, 'complete_register_scopes': 48})
+          PY
+      - name: Commit validated production-only finalisation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git add -A
+          git commit -m 'chore(milano): finalise production integration'
+          git diff --name-only origin/main...HEAD | sort > /tmp/committed-files.txt
+          diff -u /tmp/expected-files.txt /tmp/committed-files.txt
+          echo "FINAL_SHA=$(git rev-parse HEAD)"
+          echo "MAIN_SHA=$(git rev-parse origin/main)"
+          echo "AHEAD=$(git rev-list --count origin/main..HEAD)"
+          echo "BEHIND=$(git rev-list --count HEAD..origin/main)"
+      - name: Publish final branch checkpoint when permitted
+        shell: bash
+        run: |
+          set +e
+          branch='expansion/milano-2026-09-16'
+          git push origin "HEAD:$branch"
+          rc=$?
+          echo "PUSH_EXIT=$rc"
+          echo "FINAL_SHA=$(git rev-parse HEAD)"
+          exit 0
