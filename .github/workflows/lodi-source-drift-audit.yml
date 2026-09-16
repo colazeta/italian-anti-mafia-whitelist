@@ -1,0 +1,153 @@
+name: Lodi source drift audit (temporary)
+
+on:
+  push:
+    branches:
+      - fix/lodi-source-drift-2026-09-16
+    paths:
+      - '.github/workflows/lodi-source-drift-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Fetch two independent copies of each official Google Sheet export
+        shell: bash
+        run: |
+          set -euo pipefail
+          listed='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv'
+          applicants='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv'
+          mkdir -p artifacts/lodi-drift
+          for n in 1 2; do
+            nonce="$(date +%s%N)-$n"
+            curl --fail --location --silent --show-error --retry 3 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              "${listed}&cb=${nonce}" -o "artifacts/lodi-drift/listed-$n.csv"
+            sleep 3
+            nonce="$(date +%s%N)-a-$n"
+            curl --fail --location --silent --show-error --retry 3 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              "${applicants}&cb=${nonce}" -o "artifacts/lodi-drift/applicants-$n.csv"
+            sleep 3
+          done
+          cmp artifacts/lodi-drift/listed-1.csv artifacts/lodi-drift/listed-2.csv
+          cmp artifacts/lodi-drift/applicants-1.csv artifacts/lodi-drift/applicants-2.csv
+          sha256sum artifacts/lodi-drift/*.csv
+          wc -c artifacts/lodi-drift/*.csv
+      - name: Audit current structure and semantics without approving the drift
+        run: |
+          python - <<'PY'
+          import csv, hashlib, json, re
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path('artifacts/lodi-drift')
+          def clean(v):
+              return ' '.join((v or '').replace('\u00a0', ' ').split())
+          def strict_ids(raw):
+              value = re.sub(r'\s+', '', clean(raw)).upper()
+              if re.fullmatch(r'\d{11}', value) or re.fullmatch(r'[A-Z0-9]{16}', value):
+                  return [value]
+              out=[]
+              for x in re.findall(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b', clean(raw).upper()):
+                  if x not in out:
+                      out.append(x)
+              return out
+          def read(path):
+              with path.open(encoding='utf-8-sig', newline='') as f:
+                  return [[clean(x) for x in row] for row in csv.reader(f)]
+          def digest(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          listed_path = root / 'listed-1.csv'
+          applicants_path = root / 'applicants-1.csv'
+          listed = read(listed_path)
+          applicants = read(applicants_path)
+
+          section=''
+          listed_source=[]
+          for idx,row in enumerate(listed, start=1):
+              c=(row+['']*7)[:7]
+              joined=' '.join(c)
+              m=re.search(r'\bSezione\s+([IVX]+)\b', joined, re.I)
+              if m and not strict_ids(c[3]):
+                  section=m.group(1).upper()
+              ids=strict_ids(c[3])
+              if not ids:
+                  continue
+              marker=clean(c[6]).casefold()
+              if not marker:
+                  status='listed'
+              elif marker.startswith('in aggiornamento'):
+                  status='renewal_update_in_progress'
+              else:
+                  status='other_or_unknown'
+              listed_source.append({
+                  'row': idx, 'section': section, 'cells': c,
+                  'identifier': ids[0], 'status': status,
+              })
+
+          groups={}
+          for x in listed_source:
+              c=x['cells']
+              key=(x['identifier'], clean(c[4]), clean(c[5]), x['status'])
+              g=groups.setdefault(key, {'first':x,'sections':[],'rows':[]})
+              if x['section'] and x['section'] not in g['sections']:
+                  g['sections'].append(x['section'])
+              g['rows'].append(x['row'])
+
+          apps=[]
+          for idx,row in enumerate(applicants, start=1):
+              c=(row+['']*7)[:7]
+              ids=strict_ids(c[3])
+              if not ids:
+                  continue
+              outcome=clean(c[6]).casefold()
+              if 'istruttoria' in outcome:
+                  status='pending'
+              elif 'diniego' in outcome or 'interdittiv' in outcome or 'negat' in outcome:
+                  status='rejected_or_denied'
+              elif not outcome:
+                  status='pending'
+              else:
+                  status='other_or_unknown'
+              apps.append({'row':idx,'cells':c,'identifier':ids[0],'status':status})
+
+          summary={
+              'listed_sha256': digest(listed_path),
+              'listed_size': listed_path.stat().st_size,
+              'listed_physical_rows': len(listed),
+              'listed_widths': dict(Counter(map(len, listed))),
+              'listed_source_rows': len(listed_source),
+              'listed_section_counts': dict(Counter(x['section'] for x in listed_source)),
+              'listed_source_status_counts': dict(Counter(x['status'] for x in listed_source)),
+              'listed_grouped_records': len(groups),
+              'listed_group_status_counts': dict(Counter(g['first']['status'] for g in groups.values())),
+              'listed_group_occurrences': dict(Counter(len(g['rows']) for g in groups.values())),
+              'applicant_sha256': digest(applicants_path),
+              'applicant_size': applicants_path.stat().st_size,
+              'applicant_physical_rows': len(applicants),
+              'applicant_widths': dict(Counter(map(len, applicants))),
+              'applicant_records': len(apps),
+              'applicant_status_counts': dict(Counter(x['status'] for x in apps)),
+              'applicant_identifiers_unique': len({x['identifier'] for x in apps}),
+          }
+          (root/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          (root/'applicant_rows.json').write_text(json.dumps(apps,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          PY
+      - name: Upload current source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: lodi-source-drift-2026-09-16
+          path: artifacts/lodi-drift/*
+          if-no-files-found: error
+          retention-days: 7
