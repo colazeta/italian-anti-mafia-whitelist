@@ -40,7 +40,69 @@ jobs:
           git fetch origin main
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git merge --no-edit origin/main
+          merge_rc=0
+          git merge --no-edit origin/main || merge_rc=$?
+          if [ "$merge_rc" -ne 0 ]; then
+            conflicted="$(git diff --name-only --diff-filter=U)"
+            if [ "$conflicted" != 'data/source_registry/source_series_inventory.csv' ]; then
+              echo "Unexpected merge conflict set while reconciling main:" >&2
+              printf '%s\n' "$conflicted" >&2
+              exit 1
+            fi
+            # Main contains the subsequently approved Aosta/Lodi transitions. Keep
+            # its complete inventory as the base; the reviewed Milano row is
+            # reconstructed deterministically below before the merge is committed.
+            git checkout --theirs -- data/source_registry/source_series_inventory.csv
+          fi
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          path = Path('data/source_registry/source_series_inventory.csv')
+          with path.open('r', encoding='utf-8', newline='') as fh:
+              reader = csv.DictReader(fh)
+              fieldnames = reader.fieldnames
+              rows = list(reader)
+          if not fieldnames:
+              raise SystemExit('source_series_inventory.csv has no header')
+          matches = [row for row in rows if row.get('authority_key') == 'milano']
+          if len(matches) != 1:
+              raise SystemExit(f'Expected exactly one Milano inventory row before finalisation, found {len(matches)}')
+          row = matches[0]
+          if row.get('source_series_key') not in {'milano-listed', 'milano-combined'}:
+              raise SystemExit(f"Unexpected Milano inventory pre-state: {row.get('source_series_key')!r}")
+          row.update({
+              'source_series_key': 'milano-combined',
+              'authority_key': 'milano',
+              'regime_code': 'WL-REGIME-L190-2012',
+              'population_scope': 'listed_and_applicant',
+              'sector_scope': 'all',
+              'publication_model': 'custom_web_application',
+              'series_url': 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list',
+              'resource_resolution_status': 'landing_page_resolved',
+              'verified_date': '2026-09-16',
+              'notes': (
+                  'Current official Prefettura di Milano application directly revalidated 16 September 2026. '
+                  'The mutable combined operational table was revalidated after same-day source drift by two '
+                  'byte-identical no-cache GETs at SHA-256 1d84bda8cdcd7252fd2580af31489b0cc4361801a417125fbfade03c584bb474 '
+                  'and positively publishes listed, renewal/update and first-time applicant rows, including applications '
+                  'dated through 16 September 2026. The reviewed current boundary contains 4,218 statutory-sector '
+                  'membership rows yielding 2,617 conservative logical observations (941 listed, 515 renewal/update in '
+                  'progress, 1,161 pending). The registered-only sibling was independently stable at SHA-256 '
+                  '4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608 and its 1,456-company identity '
+                  "set exactly matches the combined table's non-pending identity set, so it is not co-ingested. Exact "
+                  'evidence is documented in docs/sources/milano-operational-check-2026-09-16.md.'
+              ),
+          })
+          with path.open('w', encoding='utf-8', newline='') as fh:
+              writer = csv.DictWriter(fh, fieldnames=fieldnames, lineterminator='\n')
+              writer.writeheader()
+              writer.writerows(rows)
+          PY
+          if [ "$merge_rc" -ne 0 ]; then
+            git add data/source_registry/source_series_inventory.csv
+            git commit --no-edit
+          fi
           test "$(git rev-list --count origin/main..HEAD)" -gt 0
           test "$(git rev-list --count HEAD..origin/main)" -eq 0
       - name: Confirm reviewed current-source transaction targets
