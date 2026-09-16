@@ -49,6 +49,11 @@ jobs:
         run: |
           git rm tmp/aosta_transition_finalise_2026_09_16.py
           git rm .github/workflows/aosta-source-audit-2026-09-16.yml
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/sources/aosta-operational-check-2026-09-10.md')
+          path.write_text(path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
           git diff --check
           python - <<'PY'
           import subprocess
