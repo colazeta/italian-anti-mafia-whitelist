@@ -72,8 +72,7 @@ jobs:
           fi
           for attempt in 1 2 3; do
             sudo rm -rf /var/lib/apt/lists/*
-            if sudo apt-get update -qq -o Acquire::Retries=3 && \
-               sudo apt-get install -y --no-install-recommends poppler-utils; then
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
               break
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -116,11 +115,11 @@ jobs:
           reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
           pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
 
-          assert reg['meta']['record_count'] == len(reg['records']) == 50532
-          assert reg['meta']['authority_count'] == 45
-          assert reg['meta']['register_count'] == 46
+          assert reg['meta']['record_count'] == len(reg['records']) == 51566
+          assert reg['meta']['authority_count'] == 46
+          assert reg['meta']['register_count'] == 47
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 45
+          assert pref['meta']['published_count'] == 46
           assert pref['meta']['mapped_count'] == 47
 
           sassari_pref = [x for x in pref['prefectures'] if x.get('authority_key') == 'sassari']
@@ -145,13 +144,11 @@ jobs:
           assert len(mia) == 1
           assert mia[0]['source_fields']['application_date_raw'] == '129.01.2025'
           assert mia[0]['application_date'] == ''
-
           desca = [r for r in records if r['name'] == 'DE.SCA.RI DEL GEOM. CALIA GIANLUCA']
           assert len(desca) == 1
           assert desca[0]['registered_office'] == 'CLAGLC74B11E736M'
           assert desca[0]['identifier_field_raw'] == 'OLBIA'
           assert desca[0]['identifiers'] == []
-
           aac = [r for r in records if r['name'] == 'AAC COOPERATIVA SOCIALE']
           assert len(aac) == 1 and aac[0]['source_status'] == 'other_or_unknown'
           romano = [r for r in records if r['name'] == 'ROMANO FRANCA']
@@ -170,7 +167,6 @@ jobs:
               if not row['source_population_complete']
           }
           assert unresolved == {'milano'}
-
           print({
               'record_count': reg['meta']['record_count'],
               'authority_count': reg['meta']['authority_count'],
