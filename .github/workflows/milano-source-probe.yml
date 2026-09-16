@@ -1,4 +1,4 @@
-name: Milano source probe
+name: Milano source validation
 
 on:
   push:
@@ -6,136 +6,135 @@ on:
       - expansion/milano-2026-09-16
     paths:
       - .github/workflows/milano-source-probe.yml
+      - src/white_list_archive/parsers/milano_webapp.py
+      - tests/test_milano_parser_semantics.py
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  probe:
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Capture current official Milano surfaces
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev]'
+      - name: Run Milano semantic and repository tests
+        run: |
+          pytest -q tests/test_milano_parser_semantics.py
+          pytest -q
+      - name: Capture two independent current official editions
         shell: bash
         run: |
-          set -u
-          mkdir -p /tmp/milano-probe
+          set -euo pipefail
+          mkdir -p /tmp/milano-validation
           capture() {
             name="$1"
             url="$2"
-            echo "=== CAPTURE $name ==="
             code=$(curl --silent --show-error --location --retry 2 --retry-all-errors \
-              --connect-timeout 20 --max-time 90 \
-              --user-agent 'italian-anti-mafia-whitelist/0.1 (+source investigation)' \
-              --dump-header "/tmp/milano-probe/${name}.headers" \
-              --output "/tmp/milano-probe/${name}.body" \
-              --write-out '%{http_code}' "$url" || true)
-            printf '%s\n' "$url" > "/tmp/milano-probe/${name}.url"
-            printf '%s\n' "$code" > "/tmp/milano-probe/${name}.status"
-            echo "HTTP=$code bytes=$(wc -c < /tmp/milano-probe/${name}.body 2>/dev/null || echo 0)"
+              --connect-timeout 20 --max-time 120 \
+              --header 'Cache-Control: no-cache' --header 'Pragma: no-cache' \
+              --user-agent 'italian-anti-mafia-whitelist/0.1 (+source validation)' \
+              --dump-header "/tmp/milano-validation/${name}.headers" \
+              --output "/tmp/milano-validation/${name}.body" \
+              --write-out '%{http_code}' "$url")
+            test "$code" = 200
+            printf '%s\n' "$url" > "/tmp/milano-validation/${name}.url"
+            echo "$name HTTP=$code bytes=$(wc -c < /tmp/milano-validation/${name}.body) sha256=$(sha256sum /tmp/milano-validation/${name}.body | cut -d' ' -f1)"
           }
-          capture ministry 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list'
-          capture registered 'https://whitelist.prefmi.it/elenco/elenco_iscritte.php'
-          capture legacy 'https://whitelist.prefmi.it/elenco/elenco.php'
-          capture app_root 'https://whitelist.prefmi.it/'
-      - name: Analyse captured surfaces conservatively
+          for round in 1 2; do
+            capture "legacy_${round}" 'https://whitelist.prefmi.it/elenco/elenco.php'
+            capture "registered_${round}" 'https://whitelist.prefmi.it/elenco/elenco_iscritte.php'
+            if [ "$round" = 1 ]; then
+              capture ministry 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list'
+              capture inizio 'https://whitelist.prefmi.it/elenco/inizio.php'
+            fi
+            sleep 2
+          done
+          cmp /tmp/milano-validation/legacy_1.body /tmp/milano-validation/legacy_2.body
+          cmp /tmp/milano-validation/registered_1.body /tmp/milano-validation/registered_2.body
+      - name: Validate combined source with production parser
         run: |
           python - <<'PY'
           from __future__ import annotations
           import hashlib
           import json
           import re
-          from html.parser import HTMLParser
           from pathlib import Path
-          from urllib.parse import urljoin, urlparse
+          from white_list_archive.parsers.milano_webapp import parse_milano_combined
 
-          ROOT = Path('/tmp/milano-probe')
+          root = Path('/tmp/milano-validation')
+          source = root / 'legacy_1.body'
+          sha = hashlib.sha256(source.read_bytes()).hexdigest()
+          cfg = {
+              'source_key': 'milano-combined',
+              'authority_key': 'milano',
+              'authority_name': 'Prefettura di Milano',
+              'register_key': 'milano-ordinary',
+              'register_name': 'White List ordinaria',
+              'population_scope': 'listed_and_applicant',
+              'reference_date': '2026-09-16',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list',
+              'resource_url': 'https://whitelist.prefmi.it/elenco/elenco.php',
+              'sha256': sha,
+          }
+          batch = parse_milano_combined(source, cfg)
+          expected = {
+              'public_records': 2614,
+              'sector_rows': 4214,
+              'status_counts': {'listed': 940, 'renewal_update_in_progress': 516, 'pending': 1158},
+              'identifier_coverage': 2614,
+              'distinct_identifiers': 2614,
+              'nonblank_notes': 1,
+              'application_date_coverage': 1158,
+              'listing_date_coverage': 940,
+              'expiry_date_coverage': 940,
+              'requested_activity_coverage': 2614,
+          }
+          for key, value in expected.items():
+              actual = batch.diagnostics.get(key)
+              if actual != value:
+                  raise SystemExit(f'Milano diagnostic drift for {key}: {actual!r} != {value!r}')
 
-          class ProbeParser(HTMLParser):
-              def __init__(self):
-                  super().__init__(convert_charrefs=True)
-                  self.links=[]; self.forms=[]; self.inputs=[]; self.scripts=[]; self.text=[]
-                  self._form=None
-              def handle_starttag(self, tag, attrs):
-                  d=dict(attrs)
-                  if tag=='a' and d.get('href'):
-                      self.links.append({'href':d['href'], 'title':d.get('title')})
-                  elif tag=='form':
-                      self._form={'action':d.get('action'), 'method':(d.get('method') or 'get').lower(), 'inputs':[]}
-                      self.forms.append(self._form)
-                  elif tag in {'input','select','textarea','button'}:
-                      item={'tag':tag,'name':d.get('name'),'type':d.get('type'),'value':d.get('value'),'id':d.get('id')}
-                      self.inputs.append(item)
-                      if self._form is not None: self._form['inputs'].append(item)
-                  elif tag=='script' and d.get('src'):
-                      self.scripts.append(d['src'])
-              def handle_endtag(self, tag):
-                  if tag=='form': self._form=None
-              def handle_data(self, data):
-                  s=' '.join(data.split())
-                  if s: self.text.append(s)
+          pending_dates = [r['application_date'] for r in batch.records if r['source_status'] == 'pending']
+          if max(pending_dates) < '2026-09-01':
+              raise SystemExit('Milano applicant surface lacks a current September 2026 application date')
 
-          keywords = ['richiesta iscrizione','richiesta di iscrizione','richiedent','in aggiornamento','iscritt','rinnovo','istruttoria','diniego','cancell']
-          report={}
-          for status_path in sorted(ROOT.glob('*.status')):
-              name=status_path.stem
-              body_path=ROOT/f'{name}.body'
-              url=(ROOT/f'{name}.url').read_text().strip()
-              status=status_path.read_text().strip()
-              raw=body_path.read_bytes() if body_path.exists() else b''
-              text=raw.decode('utf-8','replace')
-              parser=ProbeParser()
-              try: parser.feed(text)
-              except Exception as exc: parse_error=repr(exc)
-              else: parse_error=None
-              visible=' '.join(parser.text)
-              lower=visible.lower()
-              contexts={}
-              for kw in keywords:
-                  hits=[]
-                  start=0
-                  while True:
-                      i=lower.find(kw,start)
-                      if i<0 or len(hits)>=8: break
-                      hits.append(visible[max(0,i-160):min(len(visible),i+260)])
-                      start=i+len(kw)
-                  if hits: contexts[kw]=hits
-              same_host=[]
-              host=urlparse(url).netloc
-              for link in parser.links:
-                  absolute=urljoin(url,link['href'])
-                  if urlparse(absolute).netloc==host:
-                      same_host.append(absolute)
-              report[name]={
-                  'url':url,
-                  'http_status':status,
-                  'bytes':len(raw),
-                  'sha256':hashlib.sha256(raw).hexdigest() if raw else None,
-                  'parse_error':parse_error,
-                  'forms':parser.forms,
-                  'inputs':parser.inputs[:100],
-                  'scripts':[urljoin(url,s) for s in parser.scripts],
-                  'same_host_links':sorted(set(same_host))[:200],
-                  'keyword_contexts':contexts,
-                  'row_tag_count':len(re.findall(r'<tr\b', text, flags=re.I)),
-                  'table_tag_count':len(re.findall(r'<table\b', text, flags=re.I)),
-                  'php_references':sorted(set(re.findall(r"[A-Za-z0-9_./-]+\.php(?:\?[^\"'<> ]*)?", text)))[:200],
-              }
-          out=Path('milano-source-probe.json')
-          out.write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True),encoding='utf-8')
-          print(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True))
+          # The Ministry page expressly tells contracting authorities to consult
+          # this Prefecture's White Lists to verify that a not-yet-listed firm
+          # has requested enrolment or renewal. Keep this positive evidence tied
+          # to the same capture as the data validation.
+          ministry = (root / 'ministry.body').read_bytes().decode('utf-8', 'replace')
+          ministry_visible = re.sub(r'<[^>]+>', ' ', ministry)
+          ministry_visible = ' '.join(ministry_visible.split()).casefold()
+          required = (
+              'che ancora non siano iscritte nelle white list',
+              "richiedere l'iscrizione o il rinnovo",
+              'white list - elenco imprese iscritte',
+          )
+          for token in required:
+              if token not in ministry_visible:
+                  raise SystemExit(f'Milano Ministry-page evidence drift: missing {token!r}')
+
+          # The live application entry point is a sibling of both data views.
+          # Record its labels for provenance but do not infer population absence
+          # from any wording on this menu.
+          inizio = (root / 'inizio.body').read_bytes().decode('cp1252')
+          visible = ' '.join(re.sub(r'<[^>]+>', ' ', inizio).split())
+          print('MILANO_ENTRYPOINT_VISIBLE=', visible[:2000])
+          print('MILANO_SHA256=', sha)
+          print('MILANO_BYTES=', source.stat().st_size)
+          print('MILANO_DIAGNOSTICS=', json.dumps(batch.diagnostics, ensure_ascii=False, sort_keys=True))
+          print('MILANO_LATEST_PENDING_DATE=', max(pending_dates))
           PY
-      - name: Upload probe evidence
+      - name: Upload source-validation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: milano-source-probe
-          path: |
-            milano-source-probe.json
-            /tmp/milano-probe/*.headers
-            /tmp/milano-probe/*.body
+          name: milano-source-validation
+          path: /tmp/milano-validation
           retention-days: 14
