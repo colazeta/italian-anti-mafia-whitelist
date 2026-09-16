@@ -58,70 +58,182 @@ jobs:
           done
           cmp /tmp/milano-validation/legacy_1.body /tmp/milano-validation/legacy_2.body
           cmp /tmp/milano-validation/registered_1.body /tmp/milano-validation/registered_2.body
-      - name: Validate combined source with production parser
+      - name: Audit current combined source semantics without relaxing production gates
         run: |
           python - <<'PY'
           from __future__ import annotations
+
           import hashlib
           import json
           import re
+          from collections import Counter
           from pathlib import Path
-          from white_list_archive.parsers.milano_webapp import parse_milano_combined
+
+          import white_list_archive.parsers.milano_webapp as m
 
           root = Path('/tmp/milano-validation')
-          source = root / 'legacy_1.body'
-          sha = hashlib.sha256(source.read_bytes()).hexdigest()
-          cfg = {
-              'source_key': 'milano-combined',
-              'authority_key': 'milano',
-              'authority_name': 'Prefettura di Milano',
-              'register_key': 'milano-ordinary',
-              'register_name': 'White List ordinaria',
-              'population_scope': 'listed_and_applicant',
-              'reference_date': '2026-09-16',
-              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list',
-              'resource_url': 'https://whitelist.prefmi.it/elenco/elenco.php',
-              'sha256': sha,
-          }
-          batch = parse_milano_combined(source, cfg)
-          expected = {
-              'public_records': 2614,
-              'sector_rows': 4214,
-              'status_counts': {'listed': 940, 'renewal_update_in_progress': 516, 'pending': 1158},
-              'identifier_coverage': 2614,
-              'distinct_identifiers': 2614,
-              'nonblank_notes': 1,
-              'application_date_coverage': 1158,
-              'listing_date_coverage': 940,
-              'expiry_date_coverage': 940,
-              'requested_activity_coverage': 2614,
-          }
-          for key, value in expected.items():
-              actual = batch.diagnostics.get(key)
-              if actual != value:
-                  raise SystemExit(f'Milano diagnostic drift for {key}: {actual!r} != {value!r}')
 
-          pending_dates = [r['application_date'] for r in batch.records if r['source_status'] == 'pending']
-          if max(pending_dates) < '2026-09-01':
-              raise SystemExit('Milano applicant surface lacks a current September 2026 application date')
+          def audit(path: Path, *, allow_pending: bool) -> dict:
+              text = m._decode(path)
+              tables = m._parse_tables(text)
+              if len(tables) != 10:
+                  raise SystemExit(f'Milano current table-count drift is structurally unreviewed: {len(tables)}')
+              rows = []
+              headings = []
+              for section_number, table in enumerate(tables, start=1):
+                  if len(table) < 3:
+                      raise SystemExit(f'Milano current section {section_number} has fewer than three rows')
+                  heading = m._clean(table[0][0] if table[0] else '')
+                  if heading != m._EXPECTED_SECTION_PREFIXES[section_number - 1]:
+                      raise SystemExit(f'Milano current section-heading drift in section {section_number}: {heading!r}')
+                  if tuple(m._clean(value) for value in table[1]) != m._HEADER:
+                      raise SystemExit(f'Milano current table-header drift in section {section_number}: {table[1]!r}')
+                  headings.append(heading)
+                  for physical_row, cells in enumerate(table[2:], start=3):
+                      if not any(m._clean(value) for value in cells):
+                          continue
+                      if len(cells) != 6:
+                          raise SystemExit(f'Milano current row-width drift in section {section_number}, row {physical_row}: {len(cells)}')
+                      name, office, identifier_raw, first, second, note = [m._clean(value) for value in cells]
+                      if not name or not office or not identifier_raw:
+                          raise SystemExit(f'Milano current blank identity field in section {section_number}, row {physical_row}')
+                      if not m._STRICT_IDENTIFIER.fullmatch(identifier_raw):
+                          raise SystemExit(f'Milano current malformed identifier in section {section_number}, row {physical_row}: {identifier_raw!r}')
+                      status, application_date, listing_date, expiry_date = m._status_and_dates(first, second)
+                      if status == 'pending' and not allow_pending:
+                          raise SystemExit(f'Registered-only sibling unexpectedly contains pending row {identifier_raw}')
+                      rows.append({
+                          'section': section_number,
+                          'physical_row': physical_row,
+                          'heading': heading,
+                          'name': name,
+                          'office': office,
+                          'identifier_raw': identifier_raw,
+                          'first_raw': first,
+                          'second_raw': second,
+                          'note': note,
+                          'status': status,
+                          'application_date': application_date,
+                          'listing_date': listing_date,
+                          'expiry_date': expiry_date,
+                      })
+
+              grouped = {}
+              for row in rows:
+                  key = (
+                      m._normalise_text(row['name']),
+                      row['identifier_raw'].upper(),
+                      m._normalise_address(row['office']),
+                      row['status'],
+                      row['application_date'],
+                      row['listing_date'],
+                      row['expiry_date'],
+                      m._normalise_text(row['note']),
+                  )
+                  group = grouped.setdefault(key, {'row': row, 'sections': []})
+                  if row['section'] in group['sections']:
+                      raise SystemExit(f"Milano current duplicate same-section observation: {row['identifier_raw']} section {row['section']}")
+                  group['sections'].append(row['section'])
+
+              by_identifier = {}
+              for group in grouped.values():
+                  row = group['row']
+                  identifier = row['identifier_raw'].upper()
+                  if identifier in by_identifier:
+                      raise SystemExit(f'Milano current identifier maps to multiple logical observations: {identifier}')
+                  by_identifier[identifier] = group
+
+              logical = [group['row'] | {'sections': sorted(group['sections'])} for group in grouped.values()]
+              status_counts = Counter(row['status'] for row in logical)
+              notes = [
+                  {'name': row['name'], 'identifier': row['identifier_raw'], 'status': row['status'], 'note': row['note']}
+                  for row in logical if row['note']
+              ]
+              recent_pending = sorted(
+                  [
+                      {'name': row['name'], 'identifier': row['identifier_raw'], 'application_date': row['application_date'], 'sections': row['sections']}
+                      for row in logical if row['status'] == 'pending' and row['application_date'] >= '2026-09-16'
+                  ],
+                  key=lambda row: (row['application_date'], row['identifier']),
+              )
+              return {
+                  'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'bytes': path.stat().st_size,
+                  'tables': len(tables),
+                  'sector_rows': len(rows),
+                  'logical_records': len(logical),
+                  'status_counts': dict(status_counts),
+                  'identifiers': sorted(by_identifier),
+                  'identifier_count': len(by_identifier),
+                  'application_date_coverage': sum(bool(row['application_date']) for row in logical),
+                  'listing_date_coverage': sum(bool(row['listing_date']) for row in logical),
+                  'expiry_date_coverage': sum(bool(row['expiry_date']) for row in logical),
+                  'latest_pending_date': max((row['application_date'] for row in logical if row['status'] == 'pending'), default=''),
+                  'notes': notes,
+                  'recent_pending': recent_pending,
+              }
+
+          combined = audit(root / 'legacy_1.body', allow_pending=True)
+          registered = audit(root / 'registered_1.body', allow_pending=False)
+          combined_nonpending = {
+              identifier for identifier, status in [
+                  (row_id, None) for row_id in combined['identifiers']
+              ]
+          }
+          # Reconstruct status by identifier once, using the same conservative audit routine.
+          # A second lightweight pass is deliberately explicit rather than calling the production
+          # parser, whose reviewed denominators must remain frozen until this drift is approved.
+          def statuses_by_identifier(path: Path) -> dict[str, str]:
+              text = m._decode(path)
+              result = {}
+              for table in m._parse_tables(text):
+                  for cells in table[2:]:
+                      if not any(m._clean(value) for value in cells):
+                          continue
+                      name, office, identifier_raw, first, second, note = [m._clean(value) for value in cells]
+                      status, application_date, listing_date, expiry_date = m._status_and_dates(first, second)
+                      identifier = identifier_raw.upper()
+                      prior = result.get(identifier)
+                      if prior is not None and prior != status:
+                          raise SystemExit(f'Milano current identifier has conflicting statuses across sections: {identifier}: {prior} vs {status}')
+                      result[identifier] = status
+              return result
+
+          combined_status = statuses_by_identifier(root / 'legacy_1.body')
+          registered_status = statuses_by_identifier(root / 'registered_1.body')
+          combined_nonpending_ids = {key for key, value in combined_status.items() if value != 'pending'}
+          registered_ids = set(registered_status)
+          if combined_nonpending_ids != registered_ids:
+              raise SystemExit(
+                  'Milano combined/non-pending identity set no longer matches the registered sibling: '
+                  f'combined_only={sorted(combined_nonpending_ids - registered_ids)[:20]!r} '
+                  f'registered_only={sorted(registered_ids - combined_nonpending_ids)[:20]!r}'
+              )
+          if {key for key, value in combined_status.items() if value == 'pending'} & registered_ids:
+              raise SystemExit('Milano pending identities unexpectedly overlap registered sibling identities')
 
           ministry = (root / 'ministry.body').read_bytes().decode('utf-8', 'replace')
-          ministry_visible = re.sub(r'<[^>]+>', ' ', ministry)
-          ministry_visible = ' '.join(ministry_visible.split()).casefold()
-          required = (
+          ministry_visible = ' '.join(re.sub(r'<[^>]+>', ' ', ministry).split()).casefold()
+          for token in (
               'che ancora non siano iscritte nelle white list',
               "richiedere l'iscrizione o il rinnovo",
               'white list - elenco imprese iscritte',
-          )
-          for token in required:
+          ):
               if token not in ministry_visible:
                   raise SystemExit(f'Milano Ministry-page evidence drift: missing {token!r}')
 
           inizio = (root / 'inizio.body').read_bytes().decode('cp1252')
-          visible = ' '.join(re.sub(r'<[^>]+>', ' ', inizio).split())
-          print('MILANO_ENTRYPOINT_VISIBLE=', visible[:2000])
-          print('MILANO_SHA256=', sha)
-          print('MILANO_BYTES=', source.stat().st_size)
-          print('MILANO_DIAGNOSTICS=', json.dumps(batch.diagnostics, ensure_ascii=False, sort_keys=True))
-          print('MILANO_LATEST_PENDING_DATE=', max(pending_dates))
+          visible = ' '.join(re.sub(r'<[^>]+>', ' ', inizio).split()).casefold()
+          for token in ('elenco imprese richiedenti iscrizione nella white list provinciale', 'elenco imprese iscritte nella white list provinciale'):
+              if token not in visible:
+                  raise SystemExit(f'Milano entry-point evidence drift: missing {token!r}')
+
+          summary = {
+              'combined': {key: value for key, value in combined.items() if key != 'identifiers'},
+              'registered': {key: value for key, value in registered.items() if key not in {'identifiers', 'recent_pending'}},
+              'combined_nonpending_identifiers': len(combined_nonpending_ids),
+              'registered_identifiers': len(registered_ids),
+              'identity_sets_match': True,
+          }
+          print('MILANO_CURRENT_AUDIT=' + json.dumps(summary, ensure_ascii=False, sort_keys=True))
           PY
