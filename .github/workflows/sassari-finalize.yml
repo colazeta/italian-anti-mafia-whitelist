@@ -26,6 +26,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Correct temporary coverage collection binding
+        run: sed -i 's/coverage\["rows"\]/coverage["prefectures"]/g' tmp/sassari_finalize.py
+
       - name: Promote validated coverage state
         run: python tmp/sassari_finalize.py coverage
 
