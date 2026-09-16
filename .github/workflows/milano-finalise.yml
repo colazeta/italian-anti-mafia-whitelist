@@ -49,9 +49,6 @@ jobs:
               printf '%s\n' "$conflicted" >&2
               exit 1
             fi
-            # Main contains the subsequently approved Aosta/Lodi transitions. Keep
-            # its complete inventory as the base; the reviewed Milano row is
-            # reconstructed deterministically below before the merge is committed.
             git checkout --theirs -- data/source_registry/source_series_inventory.csv
           fi
           python - <<'PY'
@@ -82,16 +79,13 @@ jobs:
               'resource_resolution_status': 'landing_page_resolved',
               'verified_date': '2026-09-16',
               'notes': (
-                  'Current official Prefettura di Milano application directly revalidated 16 September 2026. '
-                  'The mutable combined operational table was revalidated after same-day source drift by two '
-                  'byte-identical no-cache GETs at SHA-256 1d84bda8cdcd7252fd2580af31489b0cc4361801a417125fbfade03c584bb474 '
-                  'and positively publishes listed, renewal/update and first-time applicant rows, including applications '
-                  'dated through 16 September 2026. The reviewed current boundary contains 4,218 statutory-sector '
-                  'membership rows yielding 2,617 conservative logical observations (941 listed, 515 renewal/update in '
-                  'progress, 1,161 pending). The registered-only sibling was independently stable at SHA-256 '
-                  '4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608 and its 1,456-company identity '
-                  "set exactly matches the combined table's non-pending identity set, so it is not co-ingested. Exact "
-                  'evidence is documented in docs/sources/milano-operational-check-2026-09-16.md.'
+                  'Current official Prefettura di Milano application revalidated again on 16 September 2026 after further same-day source drift. '
+                  'Two fresh independent no-cache GETs were byte-identical at SHA-256 b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8. '
+                  'The current combined table has 4,220 statutory-sector membership rows and 2,618 conservative logical observations '
+                  '(939 listed, 517 renewal/update in progress, 1,162 pending), all with strict source identifiers. '
+                  'The registered-only sibling remains byte-stable at SHA-256 4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608 '
+                  "and its 1,456-company identity set exactly matches the combined table's non-pending identity set, so it is not co-ingested. "
+                  'Exact evidence is documented in docs/sources/milano-operational-check-2026-09-16.md.'
               ),
           })
           with path.open('w', encoding='utf-8', newline='') as fh:
@@ -105,27 +99,176 @@ jobs:
           fi
           test "$(git rev-list --count origin/main..HEAD)" -gt 0
           test "$(git rev-list --count HEAD..origin/main)" -eq 0
-      - name: Confirm reviewed current-source transaction targets
+      - name: Confirm latest reviewed source transaction target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f tmp/milano_finalise.py
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/milano-finalise.yml').read_text(encoding='utf-8')
+          for token in (
+              'b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8',
+              '4,220', '2,618', '54,183', '939', '517', '1,162', '104935675169',
+          ):
+              if token not in text:
+                  raise SystemExit(f'Latest Milano evidence token missing from finalisation workflow: {token}')
+          PY
+      - name: Apply permanent Milano finalisation
+        run: python tmp/milano_finalise.py
+      - name: Promote finalisation to latest independently audited Milano boundary
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          from __future__ import annotations
+          import json
           from pathlib import Path
 
-          text = Path('tmp/milano_finalise.py').read_text(encoding='utf-8')
-          required = (
-              '1d84bda8cdcd7252fd2580af31489b0cc4361801a417125fbfade03c584bb474',
-              '4218',
-              '2617',
-              '54182',
-              '35107286700',
+          NEW_SHA = 'b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8'
+          PREV_SHA = '1d84bda8cdcd7252fd2580af31489b0cc4361801a417125fbfade03c584bb474'
+          REGISTERED_SHA = '4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608'
+          COMOTER_NOTE = 'Misura di prevenzione collaborativa ex art. 94 bis D.lgs.159/2011 in data 18/04/2024, per la durata di un anno'
+
+          def replace_exact(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'Expected one replacement in {path}: {old!r}; found {count}')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          data = json.loads(config_path.read_text(encoding='utf-8'))
+          matches = [x for x in data['sources'] if x.get('source_key') == 'milano-combined']
+          if len(matches) != 1:
+              raise RuntimeError(f'Expected one Milano publication source, found {len(matches)}')
+          source = matches[0]
+          expected = {'sha256': PREV_SHA, 'expected_sector_rows': 4218, 'expected_source_rows': 2617}
+          for key, value in expected.items():
+              if source.get(key) != value:
+                  raise RuntimeError(f'Unexpected intermediate Milano {key}: {source.get(key)!r} != {value!r}')
+          source['sha256'] = NEW_SHA
+          source['expected_sector_rows'] = 4220
+          source['expected_source_rows'] = 2618
+          source['notes'] = (
+              'The mutable combined operational table was revalidated again on 16 September 2026 after another fail-closed same-day drift. '
+              'Two fresh independent no-cache GETs were byte-identical at 972,380 bytes with SHA-256 '
+              f'{NEW_SHA}. The reviewed current boundary contains 4,220 statutory-sector rows and 2,618 logical observations: '
+              '939 listed, 517 renewal/update in progress and 1,162 pending. All 2,618 identifiers are strict and every observation has '
+              'source-explicit statutory activity coverage. Four pending observations are source-explicitly dated 16 September 2026, including '
+              'SV VERNICIATURE INDUSTRIALI S.R.L. (02685280394), G.B.C. INDUSTRIAL TOOLS SPA (07639230155), VERNIA SRL (11967860153) '
+              'and CARBON SUD TRASPORTI E SERVIZI S.R.L. (14302100962). The registered-only sibling remains byte-stable at 559,326 bytes '
+              f'with SHA-256 {REGISTERED_SHA}; its 1,456-company identity set exactly matches the combined table non-pending identity set. '
+              'The sibling is corroborative only and is not co-ingested.'
           )
-          missing = [token for token in required if token not in text]
-          if missing:
-              raise SystemExit(f'Milano finalisation helper is not pinned to the reviewed current-source boundary: {missing}')
+          config_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          parser = Path('src/white_list_archive/parsers/milano_webapp.py')
+          replace_exact(parser, '_EXPECTED_SECTOR_ROWS = 4218\n', '_EXPECTED_SECTOR_ROWS = 4220\n')
+          replace_exact(parser, '_EXPECTED_RECORDS = 2617\n', '_EXPECTED_RECORDS = 2618\n')
+          replace_exact(
+              parser,
+              '_EXPECTED_STATUS_COUNTS = {\n    "listed": 941,\n    "renewal_update_in_progress": 515,\n    "pending": 1161,\n}\n',
+              '_EXPECTED_STATUS_COUNTS = {\n    "listed": 939,\n    "renewal_update_in_progress": 517,\n    "pending": 1162,\n}\n',
+          )
+          replace_exact(parser, '_EXPECTED_IDENTIFIER_COVERAGE = 2617\n', '_EXPECTED_IDENTIFIER_COVERAGE = 2618\n')
+
+          monitoring_path = Path('data/monitoring/national_coverage.json')
+          monitoring = json.loads(monitoring_path.read_text(encoding='utf-8'))
+          mm = [x for x in monitoring['prefectures'] if x.get('authority_key') == 'milano']
+          if len(mm) != 1 or mm[0].get('known_content_sha256') != [PREV_SHA] or mm[0].get('canonical_integration_validated') is not True:
+              raise RuntimeError('Unexpected intermediate Milano monitoring state')
+          mm[0]['known_content_sha256'] = [NEW_SHA]
+          mm[0]['last_successful_source_check_at'] = '2026-09-16T19:03:59Z'
+          mm[0]['last_attempted_source_check_at'] = '2026-09-16T19:03:59Z'
+          mm[0]['last_content_change_at'] = '2026-09-16T19:03:37Z'
+          monitoring_path.write_text(json.dumps(monitoring, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          note = f'''# Milano White List — operational source check (16 September 2026)
+
+## Scope and conclusion
+
+The Prefettura di Milano operates an official dedicated White List application at `whitelist.prefmi.it`, linked from the Ministry/Prefettura surface. The application positively exposes both registered companies and first-time applicants. The publication source selected for the archive is the combined operational table at `https://whitelist.prefmi.it/elenco/elenco.php`; the registered-only sibling is used only as corroboration because its non-pending identities overlap the combined source.
+
+This conclusion is based on positive current official evidence. It is not inferred from failed discovery, from a submission route, or from URL construction.
+
+## Current official-source evidence
+
+A fresh source-validation rerun on 16 September 2026 (workflow run `35107286700`, attempt job `104935675169`) captured the official surfaces with no-cache headers. Two independent captures of each operational table were byte-identical:
+
+- combined table: **972,380 bytes**, SHA-256 **`{NEW_SHA}`**;
+- registered-only sibling: **559,326 bytes**, SHA-256 **`{REGISTERED_SHA}`**.
+
+The Ministry landing page and dedicated entry point also passed the positive-evidence checks for the published registered and applicant populations.
+
+The current combined table contains **10** statutory tables, **4,220** physical sector-membership rows and **2,618** conservative logical observations, all with strict source identifiers. Its current status distribution is:
+
+- **939** `listed`;
+- **517** `renewal_update_in_progress`;
+- **1,162** `pending`.
+
+All 1,162 pending observations have source-explicit application dates. All 939 listed observations have source-explicit listing and expiry dates. The latest observed applicant date is **16 September 2026**. Four pending identities are source-explicitly dated 16 September: SV VERNICIATURE INDUSTRIALI S.R.L. (`02685280394`), G.B.C. INDUSTRIAL TOOLS SPA (`07639230155`), VERNIA SRL (`11967860153`) and CARBON SUD TRASPORTI E SERVIZI S.R.L. (`14302100962`).
+
+The registered-only sibling contains **1,456** logical identities. That identity set exactly equals the combined table's **1,456 non-pending identities**, and no combined pending identity appears in the sibling. The sibling therefore corroborates population separation but is not co-ingested.
+
+## Same-day source transitions
+
+The source is a mutable current web application. The project observed three independently reviewed same-day boundaries before production finalisation:
+
+1. 4,214 sector rows / 2,614 logical observations at SHA-256 `350e995ac06fc9525c1bd21cc2e2ad8b69224e4dd603e530a65553c21f44b044`;
+2. 4,218 sector rows / 2,617 logical observations at SHA-256 `{PREV_SHA}` with 941 listed / 515 renewal-update / 1,161 pending;
+3. the current 4,220 / 2,618 boundary at SHA-256 `{NEW_SHA}` with 939 listed / 517 renewal-update / 1,162 pending.
+
+The third boundary adds one logical observation and two sector memberships relative to the second. SV VERNICIATURE INDUSTRIALI S.R.L. is positively observed as the additional 16 September pending identity. The aggregate change also shifts two observations from `listed` to `renewal_update_in_progress`; because the retained evidence does not establish those individual transitions unambiguously, no identity-level inference is made for them.
+
+Because the source is mutable, `2026-09-16` is a capture/reference boundary only. It is not treated as an inferred application, decision, registration, expiry or legal-effect date for any company. Publication is byte-pinned to the reviewed capture and fails closed on any further drift.
+
+## Source-faithful parsing
+
+`RICHIESTA ISCRIZIONE (dd/mm/yyyy)` maps only to `pending`; `IN AGGIORNAMENTO` maps only to `renewal_update_in_progress`; rows with valid listing and expiry dates map to `listed`; any new status/date grammar fails closed. Names, offices and identifiers are not repaired from external information. Repeated sector memberships are grouped only under the reviewed identity/status/date rule and retained as requested-activity provenance.
+
+One combined-source observation, COMOTER SRL, carries the source note `{COMOTER_NOTE}`. It remains provenance and does not override the source-explicit status. Sibling-only note presentations are not imported into the combined-series model.
+
+## Publication gate
+
+The current transaction requires the national build to reproduce **54,183 records / 47 published Prefetture / 48 published registers / 47 mapped Prefetture**, exactly **2,618 Milano observations / 2,618 distinct locators**, and **48/48 source-complete register scopes**. `canonical_integration_validated` is committed only if those gates pass. `durable_evidence_verified` remains **false** unless the separate governed durable-evidence requirement is established.
+'''
+          Path('docs/sources/milano-operational-check-2026-09-16.md').write_text(note, encoding='utf-8')
+
+          pages = Path('.github/workflows/public-pages.yml')
+          replace_exact(pages, "          assert reg['meta']['record_count'] == 54182\n", "          assert reg['meta']['record_count'] == 54183\n")
+          for old, new in (
+              ("          assert len(milano_records) == 2617\n", "          assert len(milano_records) == 2618\n"),
+              ("          assert sum(r['source_status'] == 'listed' for r in milano_records) == 941\n", "          assert sum(r['source_status'] == 'listed' for r in milano_records) == 939\n"),
+              ("          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 515\n", "          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 517\n"),
+              ("          assert sum(r['source_status'] == 'pending' for r in milano_records) == 1161\n", "          assert sum(r['source_status'] == 'pending' for r in milano_records) == 1162\n"),
+              ("          assert len({r['record_locator'] for r in milano_records}) == 2617\n", "          assert len({r['record_locator'] for r in milano_records}) == 2618\n"),
+              ("          assert sum(bool(r['identifiers']) for r in milano_records) == 2617\n", "          assert sum(bool(r['identifiers']) for r in milano_records) == 2618\n"),
+              ("          assert sum(bool(r['application_date']) for r in milano_records) == 1161\n", "          assert sum(bool(r['application_date']) for r in milano_records) == 1162\n"),
+              ("          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 941\n", "          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 939\n"),
+              ("          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 941\n", "          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 939\n"),
+          ):
+              replace_exact(pages, old, new)
+          replace_exact(
+              pages,
+              "          assert pending_16 == {\n              ('G.B.C. INDUSTRIAL TOOLS SPA', '07639230155'),\n              ('VERNIA SRL', '11967860153'),\n              ('CARBON SUD TRASPORTI E SERVIZI S.R.L.', '14302100962'),\n          }\n",
+              "          assert pending_16 == {\n              ('SV VERNICIATURE INDUSTRIALI S.R.L.', '02685280394'),\n              ('G.B.C. INDUSTRIAL TOOLS SPA', '07639230155'),\n              ('VERNIA SRL', '11967860153'),\n              ('CARBON SUD TRASPORTI E SERVIZI S.R.L.', '14302100962'),\n          }\n",
+          )
+
+          browser = Path('tests/public_portal_browser.cjs')
+          replace_exact(browser, '      assert.equal(stats.total,54182);\n', '      assert.equal(stats.total,54183);\n')
+          for old, new in (
+              ('      assert.equal(milano.length,2617);\n', '      assert.equal(milano.length,2618);\n'),
+              ("      assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2617);\n", "      assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2618);\n"),
+              ('      assert.deepEqual(statusCounts(milano),{listed:941,pending:1161,renewal_update_in_progress:515});\n', '      assert.deepEqual(statusCounts(milano),{listed:939,pending:1162,renewal_update_in_progress:517});\n'),
+              ('      assert.equal(new Set(milano.map(r=>r.record_locator)).size,2617);\n', '      assert.equal(new Set(milano.map(r=>r.record_locator)).size,2618);\n'),
+              ('      assert.equal(milano.filter(r=>r.identifiers.length>0).length,2617);\n', '      assert.equal(milano.filter(r=>r.identifiers.length>0).length,2618);\n'),
+              ("      assert.equal(milano.filter(r=>r.application_date!=='').length,1161);\n", "      assert.equal(milano.filter(r=>r.application_date!=='').length,1162);\n"),
+              ("      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,941);\n", "      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,939);\n"),
+              ("      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,941);\n", "      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,939);\n"),
+          ):
+              replace_exact(browser, old, new)
           PY
-      - name: Apply permanent Milano finalisation and remove temporary machinery
-        run: python tmp/milano_finalise.py
       - name: Enforce production-only diff
         shell: bash
         run: |
@@ -207,25 +350,26 @@ jobs:
           root = Path('/tmp/milano-final-national')
           reg = json.loads((root / 'registry.json').read_text(encoding='utf-8'))
           pref = json.loads((root / 'prefectures.json').read_text(encoding='utf-8'))
-          assert reg['meta']['record_count'] == len(reg['records']) == 54182
+          assert reg['meta']['record_count'] == len(reg['records']) == 54183
           assert reg['meta']['authority_count'] == 47
           assert reg['meta']['register_count'] == 48
           assert pref['meta']['authority_count'] == 106
           assert pref['meta']['published_count'] == 47
           assert pref['meta']['mapped_count'] == 47
           records = [r for r in reg['records'] if r['authority_key'] == 'milano']
-          assert len(records) == 2617
-          assert len({r['record_locator'] for r in records}) == 2617
+          assert len(records) == 2618
+          assert len({r['record_locator'] for r in records}) == 2618
           assert {r['source_key'] for r in records} == {'milano-combined'}
-          assert Counter(r['source_status'] for r in records) == Counter({'listed': 941, 'renewal_update_in_progress': 515, 'pending': 1161})
-          assert sum(bool(r['identifiers']) for r in records) == 2617
+          assert Counter(r['source_status'] for r in records) == Counter({'listed': 939, 'renewal_update_in_progress': 517, 'pending': 1162})
+          assert sum(bool(r['identifiers']) for r in records) == 2618
           assert all(r['requested_activities'] for r in records)
-          assert sum(bool(r['application_date']) for r in records) == 1161
-          assert sum(bool(r['observed_listing_date']) for r in records) == 941
-          assert sum(bool(r['observed_expiry_date']) for r in records) == 941
+          assert sum(bool(r['application_date']) for r in records) == 1162
+          assert sum(bool(r['observed_listing_date']) for r in records) == 939
+          assert sum(bool(r['observed_expiry_date']) for r in records) == 939
           assert max(r['application_date'] for r in records if r['application_date']) == '2026-09-16'
           pending_16 = {(r['name'], r['identifier_field_raw']) for r in records if r['source_status'] == 'pending' and r['application_date'] == '2026-09-16'}
           assert pending_16 == {
+              ('SV VERNICIATURE INDUSTRIALI S.R.L.', '02685280394'),
               ('G.B.C. INDUSTRIAL TOOLS SPA', '07639230155'),
               ('VERNIA SRL', '11967860153'),
               ('CARBON SUD TRASPORTI E SERVIZI S.R.L.', '14302100962'),
@@ -246,8 +390,8 @@ jobs:
           assert len(milano) == 1
           assert milano[0]['canonical_integration_validated'] is True
           assert milano[0]['durable_evidence_verified'] is False
-          assert milano[0]['known_content_sha256'] == ['1d84bda8cdcd7252fd2580af31489b0cc4361801a417125fbfade03c584bb474']
-          print({'record_count': 54182, 'authority_count': 47, 'register_count': 48, 'published_count': 47, 'mapped_count': 47, 'milano_records': 2617, 'complete_register_scopes': 48})
+          assert milano[0]['known_content_sha256'] == ['b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8']
+          print({'record_count': 54183, 'authority_count': 47, 'register_count': 48, 'published_count': 47, 'mapped_count': 47, 'milano_records': 2618, 'complete_register_scopes': 48})
           PY
       - name: Commit validated production-only finalisation
         shell: bash
