@@ -17,7 +17,7 @@ jobs:
   finalise:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 55
     steps:
       - name: Checkout expansion branch
         uses: actions/checkout@v4
