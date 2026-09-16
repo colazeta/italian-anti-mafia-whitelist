@@ -68,7 +68,7 @@ jobs:
 
       - name: Validate permanent Sassari tests
         run: |
-          python -m pip install -e '.[publication]' >/dev/null
+          python -m pip install -e '.[publication]' pytest >/dev/null
           python -m pytest -q tests/test_sassari_parser_semantics.py tests/test_source_population_coverage.py
 
       - name: Commit production-only finalisation
