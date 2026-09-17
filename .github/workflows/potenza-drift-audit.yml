@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install parser runtime
-        run: python -m pip install -e .
+        run: python -m pip install -e '.[dev]'
       - name: Capture and compare current Potenza source
         shell: bash
         run: |
@@ -109,6 +109,7 @@ jobs:
           rows_by_id = {str(r['id']).strip(): r for r in payload['Records']}
           for sid in added:
               print('ADDED_RAW_ROW', sid, json.dumps(rows_by_id[sid], ensure_ascii=False, sort_keys=True))
-          print('status_pairs', json.dumps(Counter((str(r['stato_richiesta']).strip(), str(r['agg_incorso']).strip()) for r in payload['Records']), sort_keys=True, default=str))
+          pairs = Counter((str(r['stato_richiesta']).strip(), str(r['agg_incorso']).strip()) for r in payload['Records'])
+          print('status_pairs', json.dumps({f'{k[0]}/{k[1]}': v for k, v in sorted(pairs.items())}, sort_keys=True))
           print('max_source_id', max(map(int, current_ids)))
           PY
