@@ -100,6 +100,6 @@ jobs:
           git add .github/workflows/public-pages.yml tests/public_portal_browser.cjs docs/sources/milano-source-transition-2026-09-17.md
           git diff --cached --check
           git diff --cached --name-only
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml docs/sources/milano-source-transition-2026-09-17.md tests/public_portal_browser.cjs "
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml .github/workflows/tmp-milano-audit-fix.yml docs/sources/milano-source-transition-2026-09-17.md tests/public_portal_browser.cjs "
           git commit -m 'Correct Milano audit-backed exact assertions'
           git push origin HEAD:fix/milano-audit-assertions-2026-09-17
