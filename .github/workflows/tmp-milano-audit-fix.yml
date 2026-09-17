@@ -1,0 +1,102 @@
+name: Temporary Milano audit assertion correction
+
+on:
+  push:
+    branches:
+      - fix/milano-audit-assertions-2026-09-17
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout correction branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/milano-audit-assertions-2026-09-17
+          fetch-depth: 0
+      - name: Apply evidence-backed Milano corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('.github/workflows/public-pages.yml'): [
+                  (
+                      "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))",
+                      "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))",
+                  ),
+                  (
+                      "assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','08611910152','13169050963'))",
+                      "assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))",
+                  ),
+              ],
+              Path('tests/public_portal_browser.cjs'): [
+                  (
+                      "for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964']) assert.equal(currentMilano[k].source_status,'listed');",
+                      "for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960']) assert.equal(currentMilano[k].source_status,'listed');",
+                  ),
+                  (
+                      "for(const k of ['01843860543','08402360963','08611910152','13169050963']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');",
+                      "for(const k of ['01843860543','08402360963','09406080961','11572370960']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');",
+                  ),
+              ],
+              Path('docs/sources/milano-source-transition-2026-09-17.md'): [
+                  (
+                      "Three previously pending identities are absent: `12957130961` **TEEKAN CONSTRUCTION**, `13540670968` **OSSERVANZA DELLE REGOLE S.R.L.**, and `14580020965` **IDEALLIFT SRL**.",
+                      "Three previously pending identities are absent: `12957130961` **MJA SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICATA**, `13540670968` **GLOBAL CITY SERVICE SPA**, and `14580020965` **LA NUOVA ECOMET SRL**.",
+                  ),
+                  (
+                      "seven records move from renewal/update in progress to listed (`01081040154`, `02004400996`, `04214900161`, `05561460824`, `05696960961`, `06745770963`, `08530830960`); four move from listed to renewal/update in progress (`01843860543`, `08402360963`, `08611910152`, `13169050963`); and four move from pending to listed (`10529780966`, `10732740963`, `12653840962`, `13153100964`).",
+                      "seven records move from renewal/update in progress to listed (`01081040154`, `02004400996`, `04214900161`, `05561460824`, `05696960961`, `06785160968`, `08530830960`); four move from listed to renewal/update in progress (`01843860543`, `08402360963`, `09406080961`, `11572370960`); and four move from pending to listed (`10553180968`, `10753650018`, `12654640965`, `13163200960`).",
+                  ),
+              ],
+          }
+
+          for path, pairs in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly one occurrence of correction target, found {count}: {old}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          evidence = Path('docs/sources/milano-source-transition-2026-09-17.md')
+          text = evidence.read_text(encoding='utf-8')
+          marker = "The parser structure and status interpretation are unchanged. Only its fail-closed version and approved denominators/status counts advance. `durable_evidence_verified=false` remains unchanged. Audit runs `35256361941` and `35256826285` provide the repeated current-source and row-level reconciliation evidence."
+          addition = marker + "\n\nThe exact identifier and company-name transcription in this section was rechecked against the `MILANO_EXACT_DELTA` emitted by audit run `35256826285`; the public-registry and browser assertions use those same audited identifiers."
+          if text.count(marker) != 1:
+              raise SystemExit('Milano evidence marker not found exactly once')
+          text = text.replace(marker, addition)
+          evidence.write_text(text, encoding='utf-8')
+          PY
+
+          node --check tests/public_portal_browser.cjs
+          git diff --check
+          grep -F "'09406080961','11572370960'" .github/workflows/public-pages.yml
+          grep -F "'09406080961','11572370960'" tests/public_portal_browser.cjs
+          grep -F "GLOBAL CITY SERVICE SPA" docs/sources/milano-source-transition-2026-09-17.md
+          if grep -R -n -E "08611910152|13169050963|06745770963|10529780966|10732740963|12653840962|13153100964|TEEKAN CONSTRUCTION|OSSERVANZA DELLE REGOLE|IDEALLIFT SRL" \
+              .github/workflows/public-pages.yml tests/public_portal_browser.cjs docs/sources/milano-source-transition-2026-09-17.md; then
+            echo 'Stale Milano audit transcription remains' >&2
+            exit 1
+          fi
+      - name: Commit permanent correction and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/tmp-milano-audit-fix.yml
+          git add .github/workflows/public-pages.yml tests/public_portal_browser.cjs docs/sources/milano-source-transition-2026-09-17.md
+          git diff --cached --check
+          git diff --cached --name-only
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml docs/sources/milano-source-transition-2026-09-17.md tests/public_portal_browser.cjs "
+          git commit -m 'Correct Milano audit-backed exact assertions'
+          git push origin HEAD:fix/milano-audit-assertions-2026-09-17
