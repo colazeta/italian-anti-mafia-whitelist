@@ -1,0 +1,207 @@
+name: Milano source drift validation
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-17
+    paths:
+      - .github/workflows/milano-source-drift-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev,database,storage]'
+      - name: Capture official sources twice independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/milano-drift
+          capture() {
+            name="$1"
+            url="$2"
+            code=$(curl --silent --show-error --location --retry 2 --retry-all-errors \
+              --connect-timeout 20 --max-time 120 \
+              --header 'Cache-Control: no-cache' --header 'Pragma: no-cache' \
+              --user-agent 'italian-anti-mafia-whitelist/0.1 (+source-drift-validation)' \
+              --dump-header "/tmp/milano-drift/${name}.headers" \
+              --output "/tmp/milano-drift/${name}.body" \
+              --write-out '%{http_code}' "${url}?drift_validation=${GITHUB_RUN_ID}-${name}")
+            test "$code" = 200
+            echo "$name HTTP=$code bytes=$(wc -c < /tmp/milano-drift/${name}.body) sha256=$(sha256sum /tmp/milano-drift/${name}.body | cut -d' ' -f1)"
+          }
+          for round in 1 2; do
+            capture "combined_${round}" 'https://whitelist.prefmi.it/elenco/elenco.php'
+            capture "registered_${round}" 'https://whitelist.prefmi.it/elenco/elenco_iscritte.php'
+            sleep 2
+          done
+          cmp /tmp/milano-drift/combined_1.body /tmp/milano-drift/combined_2.body
+          cmp /tmp/milano-drift/registered_1.body /tmp/milano-drift/registered_2.body
+      - name: Audit current source semantics and compare with live approved edition
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import re
+          import urllib.request
+          from collections import Counter
+          from pathlib import Path
+
+          import white_list_archive.parsers.milano_webapp as m
+
+          root = Path('/tmp/milano-drift')
+
+          def audit(path: Path, *, allow_pending: bool) -> dict:
+              tables = m._parse_tables(m._decode(path))
+              if len(tables) != 10:
+                  raise SystemExit(f'unreviewed table-count drift: {len(tables)}')
+              rows = []
+              for section_number, table in enumerate(tables, start=1):
+                  if len(table) < 3:
+                      raise SystemExit(f'section {section_number} has fewer than three rows')
+                  heading = m._clean(table[0][0] if table[0] else '')
+                  if heading != m._EXPECTED_SECTION_PREFIXES[section_number - 1]:
+                      raise SystemExit(f'unreviewed section-heading drift in section {section_number}: {heading!r}')
+                  if tuple(m._clean(value) for value in table[1]) != m._HEADER:
+                      raise SystemExit(f'unreviewed header drift in section {section_number}: {table[1]!r}')
+                  for physical_row, cells in enumerate(table[2:], start=3):
+                      if not any(m._clean(value) for value in cells):
+                          continue
+                      if len(cells) != 6:
+                          raise SystemExit(f'unreviewed row-width drift in section {section_number}, row {physical_row}: {len(cells)}')
+                      name, office, identifier_raw, first, second, note = [m._clean(value) for value in cells]
+                      if not name or not office or not identifier_raw:
+                          raise SystemExit(f'blank identity field in section {section_number}, row {physical_row}')
+                      if not m._STRICT_IDENTIFIER.fullmatch(identifier_raw):
+                          raise SystemExit(f'malformed identifier in section {section_number}, row {physical_row}: {identifier_raw!r}')
+                      status, application_date, listing_date, expiry_date = m._status_and_dates(first, second)
+                      if status == 'pending' and not allow_pending:
+                          raise SystemExit(f'registered sibling contains pending row {identifier_raw}')
+                      rows.append({
+                          'section': section_number,
+                          'physical_row': physical_row,
+                          'name': name,
+                          'office': office,
+                          'identifier': identifier_raw.upper(),
+                          'status': status,
+                          'application_date': application_date,
+                          'listing_date': listing_date,
+                          'expiry_date': expiry_date,
+                          'note': note,
+                      })
+              grouped = {}
+              for row in rows:
+                  key = (
+                      m._normalise_text(row['name']), row['identifier'], m._normalise_address(row['office']),
+                      row['status'], row['application_date'], row['listing_date'], row['expiry_date'],
+                      m._normalise_text(row['note']),
+                  )
+                  group = grouped.setdefault(key, {'row': row, 'sections': []})
+                  if row['section'] in group['sections']:
+                      raise SystemExit(f"duplicate same-section observation: {row['identifier']} section {row['section']}")
+                  group['sections'].append(row['section'])
+              by_identifier = {}
+              for group in grouped.values():
+                  row = dict(group['row'])
+                  row['sections'] = sorted(group['sections'])
+                  identifier = row['identifier']
+                  if identifier in by_identifier:
+                      raise SystemExit(f'identifier maps to multiple logical observations: {identifier}')
+                  by_identifier[identifier] = row
+              return {
+                  'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'bytes': path.stat().st_size,
+                  'tables': len(tables),
+                  'sector_rows': len(rows),
+                  'logical_records': len(by_identifier),
+                  'status_counts': dict(Counter(row['status'] for row in by_identifier.values())),
+                  'identifier_count': len(by_identifier),
+                  'latest_pending_date': max((row['application_date'] for row in by_identifier.values() if row['status'] == 'pending'), default=''),
+                  'nonblank_notes': sum(bool(row['note']) for row in by_identifier.values()),
+                  'by_identifier': by_identifier,
+              }
+
+          combined = audit(root / 'combined_1.body', allow_pending=True)
+          registered = audit(root / 'registered_1.body', allow_pending=False)
+          combined_nonpending = {k for k,v in combined['by_identifier'].items() if v['status'] != 'pending'}
+          registered_ids = set(registered['by_identifier'])
+          if combined_nonpending != registered_ids:
+              raise SystemExit(
+                  'combined/non-pending identity set differs from registered sibling: '
+                  f'combined_only={sorted(combined_nonpending-registered_ids)[:20]!r} '
+                  f'registered_only={sorted(registered_ids-combined_nonpending)[:20]!r}'
+              )
+          pending_ids = {k for k,v in combined['by_identifier'].items() if v['status'] == 'pending'}
+          if pending_ids & registered_ids:
+              raise SystemExit('pending identities overlap registered sibling')
+
+          approved_sha = '37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215'
+          summary = {
+              'approved_combined_sha256': approved_sha,
+              'combined': {k:v for k,v in combined.items() if k != 'by_identifier'},
+              'registered': {k:v for k,v in registered.items() if k != 'by_identifier'},
+              'identity_sets_match': True,
+              'combined_nonpending_identifiers': len(combined_nonpending),
+              'registered_identifiers': len(registered_ids),
+          }
+          print('MILANO_CURRENT_AUDIT=' + json.dumps(summary, ensure_ascii=False, sort_keys=True))
+
+          try:
+              req = urllib.request.Request(
+                  'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json?milano_drift_validation=2',
+                  headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source-drift-validation)','Cache-Control':'no-cache','Pragma':'no-cache'},
+              )
+              with urllib.request.urlopen(req, timeout=120) as response:
+                  public = json.load(response)
+              prior = [r for r in public['records'] if r.get('authority_key') == 'milano' and r.get('source_key') == 'milano-combined']
+              prior_by_id = {}
+              for record in prior:
+                  locator = record.get('record_locator','')
+                  match = re.search(r':id-([A-Za-z0-9]+)$', locator)
+                  if not match:
+                      raise RuntimeError(f'cannot recover Milano identifier from public locator {locator!r}')
+                  prior_by_id[match.group(1).upper()] = record
+              current_by_id = combined['by_identifier']
+              added = sorted(set(current_by_id)-set(prior_by_id))
+              removed = sorted(set(prior_by_id)-set(current_by_id))
+              changed = []
+              for identifier in sorted(set(current_by_id) & set(prior_by_id)):
+                  now = current_by_id[identifier]
+                  old = prior_by_id[identifier]
+                  delta = {}
+                  for current_key, public_key in (
+                      ('status','source_status'),
+                      ('application_date','application_date'),
+                      ('listing_date','listing_date'),
+                      ('expiry_date','expiry_date'),
+                  ):
+                      if (now.get(current_key) or '') != (old.get(public_key) or ''):
+                          delta[current_key] = {'approved': old.get(public_key) or '', 'current': now.get(current_key) or ''}
+                  if delta:
+                      changed.append({'identifier':identifier,'name':now['name'],'changes':delta})
+              comparison = {
+                  'approved_public_records': len(prior),
+                  'current_records': len(current_by_id),
+                  'added_count': len(added),
+                  'removed_count': len(removed),
+                  'changed_count': len(changed),
+                  'added': [{'identifier':i,'name':current_by_id[i]['name'],'status':current_by_id[i]['status'],'application_date':current_by_id[i]['application_date']} for i in added],
+                  'removed': removed,
+                  'changed': changed,
+              }
+              print('MILANO_PUBLIC_COMPARISON=' + json.dumps(comparison, ensure_ascii=False, sort_keys=True))
+          except Exception as exc:
+              print('MILANO_PUBLIC_COMPARISON_UNAVAILABLE=' + repr(exc))
+          PY
