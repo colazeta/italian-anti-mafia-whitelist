@@ -21,6 +21,14 @@
       "error": "Official registered landing page returned HTTP 403; current listed/applicant resources could not be established from this execution environment.",
       "content_changed": null,
       "content_sha256": null
+    },
+    {
+      "authority_key": "milano",
+      "at": "2026-09-17T00:03:58Z",
+      "evidence": "docs/sources/milano-source-transition-2026-09-17.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215"
     }
   ],
   "prefectures": [
@@ -2459,13 +2467,13 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-16",
+      "latest_source_reference_date": "2026-09-17",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-16T19:03:59Z",
-      "last_attempted_source_check_at": "2026-09-16T19:03:59Z",
-      "last_content_change_at": "2026-09-16T19:03:37Z",
-      "last_successful_investigation_on": "2026-09-16",
+      "last_successful_source_check_at": "2026-09-17T00:03:58Z",
+      "last_attempted_source_check_at": "2026-09-17T00:03:58Z",
+      "last_content_change_at": "2026-09-17T00:03:58Z",
+      "last_successful_investigation_on": "2026-09-17",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
@@ -2477,16 +2485,21 @@
         "docs/sources/milano-operational-check-2026-09-16.md",
         "src/white_list_archive/parsers/milano_webapp.py",
         "tests/test_milano_parser_semantics.py",
-        "data/publication/multi_prefecture_pilot.json"
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/milano-source-transition-2026-09-17.md"
       ],
       "known_content_sha256": [
-        "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8"
+        "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8",
+        "37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215",
+        "4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608",
+        "7f5c7dcc3288387d15125aee1f8aee4e271e5743ecc3a6e9da229873cc1f4848"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
-        "docs/sources/milano-operational-check-2026-09-16.md"
+        "docs/sources/milano-operational-check-2026-09-16.md",
+        "docs/sources/milano-source-transition-2026-09-17.md"
       ],
       "last_completed_coverage_stage": "VALIDATED"
     },
