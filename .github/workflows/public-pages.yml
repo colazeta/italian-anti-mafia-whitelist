@@ -149,7 +149,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 57969
+          assert reg['meta']['record_count'] == 57970
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -275,15 +275,15 @@ jobs:
           potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']
           assert len(potenza) == 1 and potenza[0]['mapped'] and potenza[0]['published'] and potenza[0]['series_count'] == 1
           potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']
-          assert len(potenza_records) == 1034
+          assert len(potenza_records) == 1035
           assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)
-          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 217
-          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 375
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 442
-          assert len({r['record_locator'] for r in potenza_records}) == 1034
-          assert sum(bool(r['identifiers']) for r in potenza_records) == 1033
+          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 216
+          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 376
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 443
+          assert len({r['record_locator'] for r in potenza_records}) == 1035
+          assert sum(bool(r['identifiers']) for r in potenza_records) == 1034
           assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1
-          assert sum(bool(r['application_date']) for r in potenza_records) == 1034
+          assert sum(bool(r['application_date']) for r in potenza_records) == 1035
           assert sum(bool(r['observed_listing_date']) for r in potenza_records) == 659
           assert sum(bool(r['observed_expiry_date']) for r in potenza_records) == 659
           assert sum(bool(r['requested_activities']) for r in potenza_records) == 0
@@ -297,6 +297,19 @@ jobs:
           assert gap[0]['observed_listing_date'] == '2024-11-28'
           assert gap[0]['observed_expiry_date'] == '2025-11-28'
           assert gap[0]['source_fields']['in_aggiornamento'] == '1'
+          scavone = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:656']
+          assert len(scavone) == 1
+          assert scavone[0]['name'] == 'SCAVONE & C. S.R.L.'
+          assert scavone[0]['identifier_field_raw'] == '01652690767'
+          assert scavone[0]['source_status'] == 'pending'
+          assert scavone[0]['application_date'] == '2026-09-16'
+          malaspina = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:359']
+          assert len(malaspina) == 1
+          assert malaspina[0]['name'] == 'MALASPINA S.R.L.'
+          assert malaspina[0]['source_status'] == 'renewal_update_in_progress'
+          assert malaspina[0]['observed_listing_date'] == '2018-10-18'
+          assert malaspina[0]['observed_expiry_date'] == '2026-10-18'
+          assert malaspina[0]['source_fields']['in_aggiornamento'] == '1'
           sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']
           assert len(sassari) == 1 and sassari[0]['mapped'] and sassari[0]['published'] and sassari[0]['series_count'] == 1
           sassari_records = [r for r in reg['records'] if r['authority_key'] == 'sassari']

@@ -29,6 +29,14 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215"
+    },
+    {
+      "authority_key": "potenza",
+      "at": "2026-09-17T13:11:20Z",
+      "evidence": "docs/sources/potenza-operational-check-2026-09-15.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820"
     }
   ],
   "prefectures": [
@@ -3230,14 +3238,14 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-15",
+      "latest_source_reference_date": "2026-09-17",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
-      "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-15",
-      "monitoring_status": "NEVER_CHECKED",
+      "last_successful_source_check_at": "2026-09-17T13:11:20Z",
+      "last_attempted_source_check_at": "2026-09-17T13:11:20Z",
+      "last_content_change_at": "2026-09-17T13:11:20Z",
+      "last_successful_investigation_on": "2026-09-17",
+      "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "The combined list response does not expose per-company statutory sections; requested activities remain empty pending positive evidence from the official child section view rather than inference.",
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
@@ -3252,7 +3260,8 @@
         "data/publication/multi_prefecture_pilot.json"
       ],
       "known_content_sha256": [
-        "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6"
+        "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6",
+        "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",

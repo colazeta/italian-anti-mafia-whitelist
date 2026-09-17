@@ -107,7 +107,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,57969);
+      assert.equal(stats.total,57970);
       const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
@@ -374,13 +374,13 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(torino.filter(r=>r.source_key==='torino-applicants'&&r.identifiers.length>0).length,162);
       assert.equal(torino.filter(r=>r.source_key==='torino-listed'&&r.application_date==='').length,1241);
       const potenza=registry.records.filter(r=>r.authority_key==='potenza');
-      assert.equal(potenza.length,1034);
-      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1034);
-      assert.deepEqual(statusCounts(potenza),{listed:217,pending:375,renewal_update_in_progress:442});
-      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1034);
-      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1033);
+      assert.equal(potenza.length,1035);
+      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1035);
+      assert.deepEqual(statusCounts(potenza),{listed:216,pending:376,renewal_update_in_progress:443});
+      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1035);
+      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1034);
       assert.equal(potenza.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,1);
-      assert.equal(potenza.filter(r=>r.application_date!=='').length,1034);
+      assert.equal(potenza.filter(r=>r.application_date!=='').length,1035);
       assert.equal(potenza.filter(r=>r.observed_listing_date!=='').length,659);
       assert.equal(potenza.filter(r=>r.observed_expiry_date!=='').length,659);
       assert.equal(potenza.filter(r=>r.requested_activities.length>0).length,0);
@@ -395,6 +395,19 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(gap[0].observed_listing_date,'2024-11-28');
       assert.equal(gap[0].observed_expiry_date,'2025-11-28');
       assert.equal(gap[0].source_fields.in_aggiornamento,'1');
+      const scavone=potenza.filter(r=>r.source_fields.physical_locator==='source-id:656');
+      assert.equal(scavone.length,1);
+      assert.equal(scavone[0].name,'SCAVONE & C. S.R.L.');
+      assert.equal(scavone[0].identifier_field_raw,'01652690767');
+      assert.equal(scavone[0].source_status,'pending');
+      assert.equal(scavone[0].application_date,'2026-09-16');
+      const malaspina=potenza.filter(r=>r.source_fields.physical_locator==='source-id:359');
+      assert.equal(malaspina.length,1);
+      assert.equal(malaspina[0].name,'MALASPINA S.R.L.');
+      assert.equal(malaspina[0].source_status,'renewal_update_in_progress');
+      assert.equal(malaspina[0].observed_listing_date,'2018-10-18');
+      assert.equal(malaspina[0].observed_expiry_date,'2026-10-18');
+      assert.equal(malaspina[0].source_fields.in_aggiornamento,'1');
       const sassari=registry.records.filter(r=>r.authority_key==='sassari');
       assert.equal(sassari.length,478);
       assert.equal(sassari.filter(r=>r.source_key==='sassari-combined').length,478);
