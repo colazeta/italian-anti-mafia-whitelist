@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/milano-audit-assertions-2026-09-17
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
