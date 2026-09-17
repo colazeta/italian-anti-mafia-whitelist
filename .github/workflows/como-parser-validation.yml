@@ -20,8 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install package
-        run: pip install -e .
+      - name: Install publication runtime
+        run: pip install -e '.[publication]'
       - name: Re-fetch pinned Como sources and validate semantics
         run: |
           python - <<'PY'
