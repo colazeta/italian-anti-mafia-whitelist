@@ -1,0 +1,243 @@
+name: Como integration checkpoint
+
+on:
+  push:
+    branches:
+      - expansion/como-2026-09-17
+    paths:
+      - .github/workflows/como-integration-checkpoint.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconcile exact canonical base
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "9e80b9e5db283cf077cdf7870a05bb75c324bf89"
+          git merge-base --is-ancestor origin/main HEAD
+      - name: Install publication runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,publication]'
+      - name: Materialise Como production integration
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          from pathlib import Path
+
+          listed_url = 'https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list'
+          applicant_url = 'https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list'
+          listed_sha = '276fcec3a27893b0b57af24ff8d69ebb64338fd5bc955e4722bd48eb33535413'
+          applicant_sha = 'a4ed63b8e04a277af0221288c40552027437c31064d89ddbc44da432eada42c7'
+          listed_semantic = '653dc491b25dd4afdd88c7848a42e0ea5b997b51cc2fdc4ef71dcf63bc9c9ad4'
+          applicant_semantic = 'fe4dcf2b862696df0aac87b43af0037b272c26285b87360f0d5a75cee613a24b'
+
+          # Publication configuration: preserve historical order and append only the new authority.
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          if any(s.get('authority_key') == 'como' for s in config['sources']):
+              raise SystemExit('Como already present in publication config; reconcile instead of duplicating')
+          config['sources'].extend([
+              {
+                  'source_key': 'como-listed',
+                  'parser': 'como_html_listed',
+                  'authority_key': 'como',
+                  'authority_name': 'Prefettura di Como',
+                  'register_key': 'como-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'listed',
+                  'reference_date': '2026-09-10',
+                  'source_page_url': listed_url,
+                  'resource_url': listed_url,
+                  'sha256': listed_sha,
+                  'semantic_sha256': listed_semantic,
+                  'approval_mode': 'semantic_sha256',
+                  'expected_source_rows': 391,
+                  'last_source_update': '2026-09-10',
+                  'last_source_update_basis': 'dedicated official HTML table source date/update; independently reverified 17 September 2026',
+                  'notes': 'Mutable official HTML table. The physical table contains 391 company observations while the source counter states 388; no hidden rows were found. Raw capture SHA remains observation provenance and approved parsed semantics fail closed on drift. Exact evidence is documented in docs/sources/como-operational-check-2026-09-17.md.'
+              },
+              {
+                  'source_key': 'como-applicants',
+                  'parser': 'como_html_applicants',
+                  'authority_key': 'como',
+                  'authority_name': 'Prefettura di Como',
+                  'register_key': 'como-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'applicant',
+                  'reference_date': '2026-09-10',
+                  'source_page_url': applicant_url,
+                  'resource_url': applicant_url,
+                  'sha256': applicant_sha,
+                  'semantic_sha256': applicant_semantic,
+                  'approval_mode': 'semantic_sha256',
+                  'expected_source_rows': 18,
+                  'last_source_update': '2026-09-10',
+                  'last_source_update_basis': 'dedicated official HTML table source date/update; independently reverified 17 September 2026',
+                  'notes': 'Mutable official applicant HTML table. The physical table contains 18 positive applicant observations while the source counter states 12; no hidden rows were found. Month-only application evidence remains raw and is never expanded to an invented date. Exact evidence is documented in docs/sources/como-operational-check-2026-09-17.md.'
+              },
+          ])
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Bind the parser into the national publication path without widening any other parser family.
+          registry_path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          registry = registry_path.read_text(encoding='utf-8')
+          import_anchor = 'from white_list_archive.parsers.modena_tables import PARSERS as MODENA_PARSERS\n'
+          if 'from white_list_archive.parsers.como_html import PARSERS as COMO_PARSERS\n' not in registry:
+              if registry.count(import_anchor) != 1:
+                  raise SystemExit('Como import anchor drift')
+              registry = registry.replace(import_anchor, import_anchor + 'from white_list_archive.parsers.como_html import PARSERS as COMO_PARSERS\n')
+          resolver_anchor = '        or MODENA_PARSERS.get(cfg["parser"])\n'
+          if '        or COMO_PARSERS.get(cfg["parser"])\n' not in registry:
+              if registry.count(resolver_anchor) != 1:
+                  raise SystemExit('Como resolver anchor drift')
+              registry = registry.replace(resolver_anchor, resolver_anchor + '        or COMO_PARSERS.get(cfg["parser"])\n')
+          registry_path.write_text(registry, encoding='utf-8')
+
+          # Verified primary page: dedicated listed page is the primary current official surface;
+          # the applicant dedicated page remains an independently registered source series below.
+          primary_path = Path('data/source_registry/verified_primary_pages.csv')
+          primary_lines = primary_path.read_text(encoding='utf-8').splitlines()
+          header, rows = primary_lines[0], [line for line in primary_lines[1:] if not line.startswith('como,')]
+          rows.append(f'como,{listed_url},2026-09-17,verified')
+          rows.sort(key=lambda line: line.split(',', 1)[0])
+          primary_path.write_text('\n'.join([header, *rows]) + '\n', encoding='utf-8')
+
+          # Source-series inventory: two positively identified populations, one ordinary register.
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          series_lines = series_path.read_text(encoding='utf-8').splitlines()
+          header, rows = series_lines[0], [line for line in series_lines[1:] if not line.startswith('como-')]
+          rows.extend([
+              'como-applicants,como,WL-REGIME-L190-2012,applicant,all,html_table,' + applicant_url + ',direct_series_page_resolved,2026-09-17,Current dedicated official applicant HTML table directly verified 17 September 2026. It contains 18 positive pending observations although its displayed counter states 12. Complete source boundary and conservative month-only date handling are documented in docs/sources/como-operational-check-2026-09-17.md.',
+              'como-listed,como,WL-REGIME-L190-2012,listed,all,html_table,' + listed_url + ',direct_series_page_resolved,2026-09-17,Current dedicated official registered-company HTML table directly verified 17 September 2026. It contains 391 observations although its displayed counter states 388. Exact status semantics identifier anomalies and malformed-date handling are documented in docs/sources/como-operational-check-2026-09-17.md.',
+          ])
+          rows.sort(key=lambda line: line.split(',', 1)[0])
+          series_path.write_text('\n'.join([header, *rows]) + '\n', encoding='utf-8')
+
+          # Coverage state: do not assert canonical hosted-database or durable-evidence completion.
+          coverage_path = Path('data/monitoring/national_coverage.json')
+          coverage = json.loads(coverage_path.read_text(encoding='utf-8'))
+          matches = [p for p in coverage['prefectures'] if p.get('authority_key') == 'como']
+          if len(matches) != 1:
+              raise SystemExit(f'Expected one Como coverage object, got {len(matches)}')
+          p = matches[0]
+          p.update({
+              'official_landing_page': listed_url,
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-10',
+              'last_successful_source_check_at': '2026-09-17T10:16:44Z',
+              'last_attempted_source_check_at': '2026-09-17T10:16:44Z',
+              'last_successful_investigation_on': '2026-09-17',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/como-operational-check-2026-09-17.md',
+                  'src/white_list_archive/parsers/como_html.py',
+                  'tests/test_como_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [listed_sha, applicant_sha],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/como-operational-check-2026-09-17.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          coverage_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: Run Como semantic tests
+        run: pytest -q tests/test_como_parser_semantics.py
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and validate candidate national boundary
+        run: |
+          rm -rf /tmp/como-national-work /tmp/como-public
+          mkdir -p /tmp/como-public/data
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/como-national-work \
+            --registry-json /tmp/como-public/data/registry.json \
+            --registry-csv /tmp/como-public/data/registry.csv \
+            --prefectures-json /tmp/como-public/data/prefectures.json \
+            --prefectures-csv /tmp/como-public/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('/tmp/como-public/data')
+          reg=json.loads((root/'registry.json').read_text(encoding='utf-8'))
+          pref=json.loads((root/'prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 58378, reg['meta']
+          assert reg['meta']['authority_count'] == 49, reg['meta']
+          assert reg['meta']['register_count'] == 51, reg['meta']
+          assert len(reg['records']) == 58378
+          rows=[r for r in reg['records'] if r['authority_key']=='como']
+          assert len(rows) == 409
+          assert sum(r['source_key']=='como-listed' for r in rows) == 391
+          assert sum(r['source_key']=='como-applicants' for r in rows) == 18
+          assert sum(r['source_status']=='listed' for r in rows) == 359
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows) == 32
+          assert sum(r['source_status']=='pending' for r in rows) == 18
+          assert sum(bool(r['identifiers']) for r in rows) == 405
+          como=[p for p in pref['prefectures'] if p['authority_key']=='como']
+          assert len(como)==1 and como[0]['mapped'] and como[0]['published'] and como[0]['series_count']==2
+          assert pref['meta']['published_count'] == 49, pref['meta']
+          assert pref['meta']['mapped_count'] == 49, pref['meta']
+          print(json.dumps({'registry':reg['meta'], 'como':como[0]}, ensure_ascii=False, indent=2))
+          PY
+      - name: Checkpoint only scoped permanent integration
+        run: |
+          git status --short
+          allowed='^(data/monitoring/national_coverage.json|data/publication/multi_prefecture_pilot.json|data/source_registry/source_series_inventory.csv|data/source_registry/verified_primary_pages.csv|src/white_list_archive/publishing/public_national_registry.py)$'
+          unexpected="$(git status --short | sed -E 's/^.. //' | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected integration mutations:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          git add data/monitoring/national_coverage.json \
+                  data/publication/multi_prefecture_pilot.json \
+                  data/source_registry/source_series_inventory.csv \
+                  data/source_registry/verified_primary_pages.csv \
+                  src/white_list_archive/publishing/public_national_registry.py
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate Como current White List populations'
+          git push origin HEAD:expansion/como-2026-09-17
