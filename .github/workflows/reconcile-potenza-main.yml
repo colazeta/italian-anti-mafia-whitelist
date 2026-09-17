@@ -1,0 +1,166 @@
+name: Reconcile Potenza with current main
+
+on:
+  push:
+    branches:
+      - fix/potenza-source-drift-2026-09-17
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/potenza-source-drift-2026-09-17
+          fetch-depth: 0
+      - name: Reconcile current main while preserving Potenza-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='fix/potenza-source-drift-2026-09-17'
+          OLD_HEAD="$(git rev-parse HEAD)"
+          git fetch origin main
+
+          # Create a real merge state so current main becomes an ancestor of the
+          # Potenza branch. Conflicts are resolved from current main first; only
+          # the six already-reviewed Potenza deltas are then reapplied.
+          git merge --no-commit --no-ff origin/main || true
+
+          for path in \
+            .github/workflows/public-pages.yml \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/potenza-operational-check-2026-09-15.md \
+            tests/public_portal_browser.cjs
+          do
+            git checkout origin/main -- "$path"
+          done
+
+          # The Potenza evidence note is intrinsically Potenza-scoped: restore
+          # the reviewed version from the pre-merge branch head.
+          git checkout "$OLD_HEAD" -- docs/sources/potenza-operational-check-2026-09-15.md
+
+          python - <<'PY'
+          import csv
+          import io
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          old_head = subprocess.check_output(['git','rev-parse','HEAD^1'], text=True).strip() if False else None
+          # The workflow stores the pre-merge branch head in the environment via
+          # git's ORIG_HEAD after `git merge`.
+          old_head = subprocess.check_output(['git','rev-parse','ORIG_HEAD'], text=True).strip()
+
+          def old_text(path: str) -> str:
+              return subprocess.check_output(['git','show',f'{old_head}:{path}'], text=True)
+
+          # Publication config: start from current main and copy only the
+          # reviewed potenza-combined source object from the old Potenza head.
+          p = Path('data/publication/multi_prefecture_pilot.json')
+          current = json.loads(p.read_text())
+          old = json.loads(old_text(str(p)))
+          desired = next(x for x in old['sources'] if x['source_key'] == 'potenza-combined')
+          idx = next(i for i,x in enumerate(current['sources']) if x['source_key'] == 'potenza-combined')
+          current['sources'][idx] = desired
+          p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
+
+          # Monitoring: copy only Potenza's prefecture object and the reviewed
+          # 17 September Potenza check-history event, preserving every other
+          # authority exactly from current main.
+          p = Path('data/monitoring/national_coverage.json')
+          current = json.loads(p.read_text())
+          old = json.loads(old_text(str(p)))
+          desired_pref = next(x for x in old['prefectures'] if x['authority_key'] == 'potenza')
+          idx = next(i for i,x in enumerate(current['prefectures']) if x['authority_key'] == 'potenza')
+          current['prefectures'][idx] = desired_pref
+          desired_events = [x for x in old.get('check_history', []) if x.get('authority_key') == 'potenza' and x.get('at') == '2026-09-17T13:11:20Z']
+          assert len(desired_events) == 1
+          if not any(x.get('authority_key') == 'potenza' and x.get('at') == '2026-09-17T13:11:20Z' for x in current.get('check_history', [])):
+              current.setdefault('check_history', []).append(desired_events[0])
+          p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
+
+          # Source-series inventory: replace exactly the Potenza row using the
+          # reviewed branch row; preserve all current-main rows (including
+          # Aosta and Milano transitions).
+          p = Path('data/source_registry/source_series_inventory.csv')
+          cur_rows = list(csv.reader(io.StringIO(p.read_text())))
+          old_rows = list(csv.reader(io.StringIO(old_text(str(p)))))
+          desired_row = next(r for r in old_rows[1:] if r and r[0] == 'potenza-combined')
+          matches = [i for i,r in enumerate(cur_rows[1:], start=1) if r and r[0] == 'potenza-combined']
+          assert len(matches) == 1
+          cur_rows[matches[0]] = desired_row
+          out = io.StringIO(newline='')
+          w = csv.writer(out, lineterminator='\n')
+          w.writerows(cur_rows)
+          p.write_text(out.getvalue())
+
+          # Public workflow: splice only the Potenza assertion block from the
+          # reviewed branch into current main and set the combined current total
+          # (Milano -1, Potenza +1) to 57,969.
+          path = '.github/workflows/public-pages.yml'
+          p = Path(path)
+          cur = p.read_text()
+          old = old_text(path)
+          def block(text, start, end):
+              m = re.search(re.escape(start) + r'.*?(?=' + re.escape(end) + r')', text, flags=re.S)
+              assert m, (start, end)
+              return m.group(0)
+          old_block = block(old, "          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n", "          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n")
+          cur = re.sub(re.escape("          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n") + r'.*?(?=' + re.escape("          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          cur, n = re.subn(r"assert reg\['meta'\]\['record_count'\] == \d+", "assert reg['meta']['record_count'] == 57969", cur, count=1)
+          assert n == 1
+          p.write_text(cur)
+
+          # Browser acceptance: same scoped block replacement and combined
+          # current total. No Aosta/Milano assertions are touched.
+          path = 'tests/public_portal_browser.cjs'
+          p = Path(path)
+          cur = p.read_text()
+          old = old_text(path)
+          old_block = block(old, "      const potenza=registry.records.filter(r=>r.authority_key==='potenza');\n", "      const sassari=registry.records.filter(r=>r.authority_key==='sassari');\n")
+          cur = re.sub(re.escape("      const potenza=registry.records.filter(r=>r.authority_key==='potenza');\n") + r'.*?(?=' + re.escape("      const sassari=registry.records.filter(r=>r.authority_key==='sassari');\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          cur, n = re.subn(r'assert\.equal\(stats\.total,\d+\);', 'assert.equal(stats.total,57969);', cur, count=1)
+          assert n == 1
+          p.write_text(cur)
+          PY
+
+          # Fail if any unresolved merge paths remain.
+          test -z "$(git diff --name-only --diff-filter=U)"
+          node --check tests/public_portal_browser.cjs
+          python -m json.tool data/publication/multi_prefecture_pilot.json >/dev/null
+          python -m json.tool data/monitoring/national_coverage.json >/dev/null
+
+          git add \
+            .github/workflows/public-pages.yml \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/potenza-operational-check-2026-09-15.md \
+            tests/public_portal_browser.cjs
+
+          # Before committing, only the reviewed six Potenza files plus this
+          # temporary reconciliation workflow may differ from current main.
+          mapfile -t changed < <(git diff --cached --name-only origin/main | sort)
+          expected=(
+            '.github/workflows/public-pages.yml'
+            '.github/workflows/reconcile-potenza-main.yml'
+            'data/monitoring/national_coverage.json'
+            'data/publication/multi_prefecture_pilot.json'
+            'data/source_registry/source_series_inventory.csv'
+            'docs/sources/potenza-operational-check-2026-09-15.md'
+            'tests/public_portal_browser.cjs'
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Reconcile Potenza transition with Aosta and Milano main'
+          git push origin HEAD:"$BRANCH"
