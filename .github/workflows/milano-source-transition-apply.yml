@@ -1,0 +1,245 @@
+name: Milano source transition apply
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-17
+    paths:
+      - .github/workflows/milano-source-transition-apply.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/milano-source-drift-2026-09-17
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install validation runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils; then break; fi
+            test "$attempt" -lt 3 || exit 1
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Revalidate exact official bytes before approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/milano-apply
+          for n in 1 2; do
+            curl --fail --silent --show-error --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 120 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              -A 'italian-anti-mafia-whitelist/0.1 (+milano-transition-apply)' \
+              -o "/tmp/milano-apply/combined_${n}.html" \
+              "https://whitelist.prefmi.it/elenco/elenco.php?transition_apply=${GITHUB_RUN_ID}-${n}"
+            curl --fail --silent --show-error --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 120 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              -A 'italian-anti-mafia-whitelist/0.1 (+milano-transition-apply)' \
+              -o "/tmp/milano-apply/registered_${n}.html" \
+              "https://whitelist.prefmi.it/elenco/elenco_iscritte.php?transition_apply=${GITHUB_RUN_ID}-${n}"
+            sleep 2
+          done
+          cmp /tmp/milano-apply/combined_1.html /tmp/milano-apply/combined_2.html
+          cmp /tmp/milano-apply/registered_1.html /tmp/milano-apply/registered_2.html
+          test "$(sha256sum /tmp/milano-apply/combined_1.html | cut -d' ' -f1)" = '51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a'
+          test "$(sha256sum /tmp/milano-apply/registered_1.html | cut -d' ' -f1)" = 'e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab'
+      - name: Apply reviewed Milano-only permanent transition
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import io
+          import json
+          from pathlib import Path
+
+          OLD_SHA='37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215'
+          NEW_SHA='51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a'
+          REG_SHA='e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab'
+          AT='2026-09-17T18:06:44Z'
+          DOC='docs/sources/milano-source-transition-2026-09-17.md'
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p=Path(path); text=p.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one occurrence of {old!r}, got {text.count(old)}')
+              p.write_text(text.replace(old,new,1), encoding='utf-8')
+
+          # Publication source contract: keep raw-byte pinning and all fail-closed semantics.
+          p=Path('data/publication/multi_prefecture_pilot.json')
+          data=json.loads(p.read_text(encoding='utf-8'))
+          entries=[x for x in data['sources'] if x['source_key']=='milano-combined']
+          if len(entries)!=1: raise SystemExit('milano-combined publication source not unique')
+          e=entries[0]
+          expected=(e['sha256'],e['expected_sector_rows'],e['expected_source_rows'],e['reference_date'])
+          if expected!=(OLD_SHA,4213,2612,'2026-09-17'):
+              raise SystemExit(f'unexpected prior Milano publication contract: {expected!r}')
+          e['sha256']=NEW_SHA
+          e['expected_sector_rows']=4208
+          e['expected_source_rows']=2611
+          e['last_source_update']='2026-09-17'
+          e['last_source_update_basis']='current mutable official web application captured and independently revalidated again on 17 September 2026; the date is a capture/reference boundary only and is not an inferred company event or legal-effect date'
+          e['notes']=(
+              'The mutable combined operational table underwent a second independently verified 17 September 2026 transition. '
+              'Repeated no-cache captures are byte-identical at 969,678 bytes with SHA-256 '+NEW_SHA+'. '
+              'The reviewed boundary contains 4,208 sector rows and 2,611 logical observations: 940 listed, 514 renewal/update in progress and 1,157 pending; all 2,611 identifiers are strict. '
+              'Relative to the previously approved 17 September boundary, two pending identities are newly present and three pending identities are absent; four retained pending identities are now source-explicitly listed, seven retained renewal/update identities are now listed, and four retained listed identities are now renewal/update in progress. '
+              'Absence from the mutable current view is recorded without inferring revocation, cancellation, denial or any other legal effect. '
+              'The registered-only sibling is independently stable at 558,610 bytes, SHA-256 '+REG_SHA+', and its 1,454 identities exactly match the combined non-pending identity set; it remains corroborative and is not co-ingested.'
+          )
+          p.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Monitoring provenance.
+          p=Path('data/monitoring/national_coverage.json')
+          mon=json.loads(p.read_text(encoding='utf-8'))
+          if any(c.get('authority_key')=='milano' and c.get('content_sha256')==NEW_SHA for c in mon['checks']):
+              raise SystemExit('new Milano monitoring check already present')
+          mon['checks'].append({'authority_key':'milano','at':AT,'evidence':DOC,'error':None,'content_changed':True,'content_sha256':NEW_SHA})
+          prefs=[x for x in mon['prefectures'] if x['authority_key']=='milano']
+          if len(prefs)!=1: raise SystemExit('Milano monitoring prefecture not unique')
+          m=prefs[0]
+          m['latest_source_reference_date']='2026-09-17'
+          m['last_successful_source_check_at']=AT
+          m['last_attempted_source_check_at']=AT
+          m['last_content_change_at']=AT
+          m['last_successful_investigation_on']='2026-09-17'
+          m['monitoring_status']='CURRENT'
+          for h in (NEW_SHA,REG_SHA):
+              if h not in m['known_content_sha256']: m['known_content_sha256'].append(h)
+          if DOC not in m['completion_evidence']: m['completion_evidence'].append(DOC)
+          if DOC not in m['evidence']: m['evidence'].append(DOC)
+          p.write_text(json.dumps(mon,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Source-series inventory.
+          p=Path('data/source_registry/source_series_inventory.csv')
+          with p.open(encoding='utf-8',newline='') as f:
+              rows=list(csv.DictReader(f)); fields=list(rows[0])
+          matches=[r for r in rows if r['source_key']=='milano-combined']
+          if len(matches)!=1: raise SystemExit('milano-combined inventory row not unique')
+          r=matches[0]
+          r['evidence_date']='2026-09-17'
+          r['notes']=(
+              'Current mutable combined listed/applicant table independently reverified again on 17 September 2026. '
+              'Repeated no-cache captures are byte-identical at SHA-256 '+NEW_SHA+'. Current boundary: 4,208 sector rows / 2,611 logical observations '
+              '(940 listed, 514 renewal/update, 1,157 pending), all with strict identifiers. Exact additions, removals and retained-identity status transitions are documented conservatively in '+DOC+'. '
+              'The independently stable registered-only sibling has 1,454 identities exactly equal to the combined non-pending set; it is corroborative and not co-ingested.'
+          )
+          with p.open('w',encoding='utf-8',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=fields,lineterminator='\n'); w.writeheader(); w.writerows(rows)
+
+          # Fail-closed parser denominators/status expectations. Structure and semantics are unchanged.
+          replace_once('src/white_list_archive/parsers/milano_webapp.py','PARSER_VERSION = "2"','PARSER_VERSION = "3"')
+          replace_once('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_SECTOR_ROWS = 4213','_EXPECTED_SECTOR_ROWS = 4208')
+          replace_once('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_RECORDS = 2612','_EXPECTED_RECORDS = 2611')
+          replace_once('src/white_list_archive/parsers/milano_webapp.py','    "listed": 933,\n    "renewal_update_in_progress": 517,\n    "pending": 1162,','    "listed": 940,\n    "renewal_update_in_progress": 514,\n    "pending": 1157,')
+          replace_once('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_IDENTIFIER_COVERAGE = 2612','_EXPECTED_IDENTIFIER_COVERAGE = 2611')
+
+          # Public assertions: update only Milano and the resulting national total.
+          replace_once('.github/workflows/public-pages.yml',"assert reg['meta']['record_count'] == 57969","assert reg['meta']['record_count'] == 57968")
+          replace_once('.github/workflows/public-pages.yml','assert len(milano_records) == 2612','assert len(milano_records) == 2611')
+          replace_once('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'listed' for r in milano_records) == 933","assert sum(r['source_status'] == 'listed' for r in milano_records) == 940")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 517","assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 514")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'pending' for r in milano_records) == 1162","assert sum(r['source_status'] == 'pending' for r in milano_records) == 1157")
+          replace_once('.github/workflows/public-pages.yml',"assert len({r['record_locator'] for r in milano_records}) == 2612","assert len({r['record_locator'] for r in milano_records}) == 2611")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(bool(r['identifiers']) for r in milano_records) == 2612","assert sum(bool(r['identifiers']) for r in milano_records) == 2611")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(bool(r['application_date']) for r in milano_records) == 1162","assert sum(bool(r['application_date']) for r in milano_records) == 1157")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(bool(r['observed_listing_date']) for r in milano_records) == 933","assert sum(bool(r['observed_listing_date']) for r in milano_records) == 940")
+          replace_once('.github/workflows/public-pages.yml',"assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 933","assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 940")
+          replace_once('.github/workflows/public-pages.yml',"assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-16'","assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-17'")
+          anchor="          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-17'\n"
+          extra=(
+              anchor+
+              "          current_milano = {r['identifier_field_raw']: r for r in milano_records}\n"
+              "          assert {k for k in ('06543250960','12134200968') if k in current_milano} == {'06543250960','12134200968'}\n"
+              "          assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))\n"
+              "          assert not {'12957130961','13540670968','14580020965'} & set(current_milano)\n"
+              "          assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))\n"
+              "          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','08611910152','13169050963'))\n"
+          )
+          replace_once('.github/workflows/public-pages.yml',anchor,extra)
+
+          replace_once('tests/public_portal_browser.cjs','assert.equal(stats.total,57969);','assert.equal(stats.total,57968);')
+          replace_once('tests/public_portal_browser.cjs','assert.equal(milano.length,2612);','assert.equal(milano.length,2611);')
+          replace_once('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2612);","assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2611);")
+          replace_once('tests/public_portal_browser.cjs','assert.deepEqual(statusCounts(milano),{listed:933,pending:1162,renewal_update_in_progress:517});','assert.deepEqual(statusCounts(milano),{listed:940,pending:1157,renewal_update_in_progress:514});')
+          replace_once('tests/public_portal_browser.cjs','assert.equal(new Set(milano.map(r=>r.record_locator)).size,2612);','assert.equal(new Set(milano.map(r=>r.record_locator)).size,2611);')
+          replace_once('tests/public_portal_browser.cjs','assert.equal(milano.filter(r=>r.identifiers.length>0).length,2612);','assert.equal(milano.filter(r=>r.identifiers.length>0).length,2611);')
+          replace_once('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.application_date!=='').length,1162);","assert.equal(milano.filter(r=>r.application_date!=='').length,1157);")
+          replace_once('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,933);","assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,940);")
+          replace_once('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,933);","assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,940);")
+          replace_once('tests/public_portal_browser.cjs',"assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-16'));","assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));\n      const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));\n      for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}\n      for(const k of ['12957130961','13540670968','14580020965']) assert.equal(currentMilano[k],undefined);\n      for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964']) assert.equal(currentMilano[k].source_status,'listed');\n      for(const k of ['01843860543','08402360963','08611910152','13169050963']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');")
+
+          # Append exact evidence, preserving the first same-day transition as provenance.
+          p=Path(DOC); text=p.read_text(encoding='utf-8')
+          marker='## Second verified transition on 17 September 2026'
+          if marker in text: raise SystemExit('second Milano transition already documented')
+          text += '''\n\n## Second verified transition on 17 September 2026\n\nA later public-portal build failed closed because the mutable combined view no longer matched the raw SHA approved earlier on 17 September. Two independent audit runs then captured both official views repeatedly. The combined captures were byte-identical at **969,678 bytes**, SHA-256 `51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a`; the registered-only captures were byte-identical at **558,610 bytes**, SHA-256 `e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab`.\n\nThe current combined view contains **4,208 sector rows and 2,611 logical observations: 940 listed + 514 renewal/update in progress + 1,157 pending**. All 2,611 observations have strict identifiers. The registered-only sibling contains **1,454 logical identities / 2,458 sector rows** and its identity set is exactly the combined view's non-pending set. No pending identity appears in the registered-only sibling.\n\nRelative to the earlier approved 2,612-record boundary, two pending identities are newly present: `06543250960` **VERDE 2000 SRL** and `12134200968` **LEOPROEX ITALIA S.R.L.**, both with source-explicit application date 17 September 2026. Three previously pending identities are absent from the current combined view: `12957130961` **TEEKAN CONSTRUCTION**, `13540670968` **OSSERVANZA DELLE REGOLE S.R.L.**, and `14580020965` **IDEALLIFT SRL**. Their current absence is recorded as an observation of the mutable official view only and is **not** interpreted as denial, withdrawal, cancellation or any other legal effect.\n\nAmong retained identities, seven records move from renewal/update in progress to listed (`01081040154`, `02004400996`, `04214900161`, `05561460824`, `05696960961`, `06745770963`, `08530830960`); four move from listed to renewal/update in progress (`01843860543`, `08402360963`, `08611910152`, `13169050963`); and four move from pending to listed (`10529780966`, `10732740963`, `12653840962`, `13153100964`). These are direct current-view classifications, not inferred legal outcomes. The arithmetic fully reconciles the observed status movement: listed +7, renewal/update -3, pending -5, total -1.\n\nThe parser structure and status interpretation are unchanged. Only its fail-closed version and approved denominators/status counts are advanced. `durable_evidence_verified=false` remains unchanged. Audit runs `35256361941` and `35256826285` provide independent current-source and row-level reconciliation evidence.\n'''
+          p.write_text(text,encoding='utf-8')
+          PY
+      - name: Validate Milano parser against captured official source
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from white_list_archive.parsers.milano_webapp import parse_milano_combined
+          cfg=json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
+          source=next(x for x in cfg['sources'] if x['source_key']=='milano-combined')
+          batch=parse_milano_combined(Path('/tmp/milano-apply/combined_1.html'), source)
+          assert len(batch.records)==2611
+          assert batch.diagnostics['sector_rows']==4208
+          assert batch.diagnostics['identifier_coverage']==2611
+          statuses={s:sum(r['source_status']==s for r in batch.records) for s in ('listed','renewal_update_in_progress','pending')}
+          assert statuses=={'listed':940,'renewal_update_in_progress':514,'pending':1157}, statuses
+          print('Validated Milano current boundary:', statuses)
+          PY
+      - name: Validate repository tests and syntax
+        run: |
+          pytest -q
+          node --check tests/public_portal_browser.cjs
+      - name: Check scoped permanent diff and commit checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          allowed='^(\.github/workflows/public-pages\.yml|data/monitoring/national_coverage\.json|data/publication/multi_prefecture_pilot\.json|data/source_registry/source_series_inventory\.csv|docs/sources/milano-source-transition-2026-09-17\.md|src/white_list_archive/parsers/milano_webapp\.py|tests/public_portal_browser\.cjs)$'
+          changed=$(git diff --name-only)
+          echo "$changed"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l)" -eq 7
+          if printf '%s\n' "$changed" | sed '/^$/d' | grep -Ev "$allowed"; then
+            echo 'Unrelated file leaked into Milano permanent transition' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv docs/sources/milano-source-transition-2026-09-17.md src/white_list_archive/parsers/milano_webapp.py tests/public_portal_browser.cjs
+          git commit -m 'Approve current Milano source transition'
+          git push origin HEAD:fix/milano-source-drift-2026-09-17
+      - name: Attempt candidate national build without weakening independent-source gates
+        run: |
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/milano-candidate-sources \
+            --registry-json /tmp/milano-candidate/registry.json \
+            --registry-csv /tmp/milano-candidate/registry.csv \
+            --prefectures-json /tmp/milano-candidate/prefectures.json \
+            --prefectures-csv /tmp/milano-candidate/prefectures.csv
