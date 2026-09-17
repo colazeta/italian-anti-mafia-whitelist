@@ -72,19 +72,19 @@ jobs:
           current['sources'][idx] = desired
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
-          # Monitoring: copy only Potenza's prefecture object and the reviewed
-          # Potenza check-history entries absent from current main, preserving
-          # every other authority exactly from current main.
+          # Monitoring: copy only Potenza's prefecture object and reviewed
+          # Potenza checks absent from current main, preserving every other
+          # authority exactly from current main.
           p = Path('data/monitoring/national_coverage.json')
           current = json.loads(p.read_text())
           old = json.loads(old_text(str(p)))
           desired_pref = next(x for x in old['prefectures'] if x['authority_key'] == 'potenza')
           idx = next(i for i,x in enumerate(current['prefectures']) if x['authority_key'] == 'potenza')
           current['prefectures'][idx] = desired_pref
-          existing_keys = {(x.get('authority_key'), x.get('at'), x.get('content_sha256')) for x in current.get('check_history', [])}
-          additions = [x for x in old.get('check_history', []) if x.get('authority_key') == 'potenza' and (x.get('authority_key'), x.get('at'), x.get('content_sha256')) not in existing_keys]
+          existing_keys = {(x.get('authority_key'), x.get('at'), x.get('content_sha256')) for x in current.get('checks', [])}
+          additions = [x for x in old.get('checks', []) if x.get('authority_key') == 'potenza' and (x.get('authority_key'), x.get('at'), x.get('content_sha256')) not in existing_keys]
           assert any(x.get('at') == '2026-09-17T13:11:20Z' and x.get('content_sha256') == '24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820' for x in additions)
-          current.setdefault('check_history', []).extend(additions)
+          current.setdefault('checks', []).extend(additions)
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
           # Source-series inventory: replace exactly the Potenza row using the
