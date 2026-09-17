@@ -23,6 +23,9 @@ jobs:
           set -euo pipefail
           BRANCH='fix/potenza-source-drift-2026-09-17'
           OLD_HEAD="$(git rev-parse HEAD)"
+          export OLD_HEAD
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin main
 
           # Create a real merge state so current main becomes an ancestor of the
@@ -49,14 +52,12 @@ jobs:
           import csv
           import io
           import json
+          import os
           import re
           import subprocess
           from pathlib import Path
 
-          old_head = subprocess.check_output(['git','rev-parse','HEAD^1'], text=True).strip() if False else None
-          # The workflow stores the pre-merge branch head in the environment via
-          # git's ORIG_HEAD after `git merge`.
-          old_head = subprocess.check_output(['git','rev-parse','ORIG_HEAD'], text=True).strip()
+          old_head = os.environ['OLD_HEAD']
 
           def old_text(path: str) -> str:
               return subprocess.check_output(['git','show',f'{old_head}:{path}'], text=True)
@@ -72,18 +73,18 @@ jobs:
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
           # Monitoring: copy only Potenza's prefecture object and the reviewed
-          # 17 September Potenza check-history event, preserving every other
-          # authority exactly from current main.
+          # Potenza check-history entries absent from current main, preserving
+          # every other authority exactly from current main.
           p = Path('data/monitoring/national_coverage.json')
           current = json.loads(p.read_text())
           old = json.loads(old_text(str(p)))
           desired_pref = next(x for x in old['prefectures'] if x['authority_key'] == 'potenza')
           idx = next(i for i,x in enumerate(current['prefectures']) if x['authority_key'] == 'potenza')
           current['prefectures'][idx] = desired_pref
-          desired_events = [x for x in old.get('check_history', []) if x.get('authority_key') == 'potenza' and x.get('at') == '2026-09-17T13:11:20Z']
-          assert len(desired_events) == 1
-          if not any(x.get('authority_key') == 'potenza' and x.get('at') == '2026-09-17T13:11:20Z' for x in current.get('check_history', [])):
-              current.setdefault('check_history', []).append(desired_events[0])
+          existing_keys = {(x.get('authority_key'), x.get('at'), x.get('content_sha256')) for x in current.get('check_history', [])}
+          additions = [x for x in old.get('check_history', []) if x.get('authority_key') == 'potenza' and (x.get('authority_key'), x.get('at'), x.get('content_sha256')) not in existing_keys]
+          assert any(x.get('at') == '2026-09-17T13:11:20Z' and x.get('content_sha256') == '24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820' for x in additions)
+          current.setdefault('check_history', []).extend(additions)
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
           # Source-series inventory: replace exactly the Potenza row using the
@@ -113,7 +114,8 @@ jobs:
               assert m, (start, end)
               return m.group(0)
           old_block = block(old, "          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n", "          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n")
-          cur = re.sub(re.escape("          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n") + r'.*?(?=' + re.escape("          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          cur, n = re.subn(re.escape("          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n") + r'.*?(?=' + re.escape("          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          assert n == 1
           cur, n = re.subn(r"assert reg\['meta'\]\['record_count'\] == \d+", "assert reg['meta']['record_count'] == 57969", cur, count=1)
           assert n == 1
           p.write_text(cur)
@@ -125,7 +127,8 @@ jobs:
           cur = p.read_text()
           old = old_text(path)
           old_block = block(old, "      const potenza=registry.records.filter(r=>r.authority_key==='potenza');\n", "      const sassari=registry.records.filter(r=>r.authority_key==='sassari');\n")
-          cur = re.sub(re.escape("      const potenza=registry.records.filter(r=>r.authority_key==='potenza');\n") + r'.*?(?=' + re.escape("      const sassari=registry.records.filter(r=>r.authority_key==='sassari');\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          cur, n = re.subn(re.escape("      const potenza=registry.records.filter(r=>r.authority_key==='potenza');\n") + r'.*?(?=' + re.escape("      const sassari=registry.records.filter(r=>r.authority_key==='sassari');\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
+          assert n == 1
           cur, n = re.subn(r'assert\.equal\(stats\.total,\d+\);', 'assert.equal(stats.total,57969);', cur, count=1)
           assert n == 1
           p.write_text(cur)
@@ -160,7 +163,5 @@ jobs:
           mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
           diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Reconcile Potenza transition with Aosta and Milano main'
           git push origin HEAD:"$BRANCH"
