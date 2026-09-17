@@ -341,8 +341,8 @@ jobs:
           current_milano = {r['identifier_field_raw']: r for r in milano_records}
           assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))
           assert not {'12957130961','13540670968','14580020965'} & set(current_milano)
-          assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))
-          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','08611910152','13169050963'))
+          assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))
+          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))
           pending_16 = {(r['name'], r['identifier_field_raw']) for r in milano_records if r['source_status'] == 'pending' and r['application_date'] == '2026-09-16'}
           assert pending_16 == {
               ('SV VERNICIATURE INDUSTRIALI S.R.L.', '02685280394'),
