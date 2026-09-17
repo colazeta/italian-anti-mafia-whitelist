@@ -1,0 +1,161 @@
+name: Modena integration finalisation
+
+on:
+  push:
+    branches:
+      - expansion/modena-2026-09-17
+    paths:
+      - src/white_list_archive/parsers/modena_tables.py
+      - tests/test_modena_parser_semantics.py
+      - tmp/modena_apply_integration.py
+      - .github/workflows/modena-parser-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up canonical Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Reconcile branch with current main
+        run: |
+          git fetch origin main
+          test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)" || {
+            echo "Candidate branch is behind or diverged from current main; reconcile before finalisation" >&2
+            exit 1
+          }
+      - name: Prepare runner package sources
+        run: |
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Install canonical project and test runtime
+        run: python -m pip install -e '.[dev,database,storage]'
+      - name: Reverify four official Modena source series twice
+        shell: python
+        run: |
+          from __future__ import annotations
+          import hashlib, json, urllib.request
+          from pathlib import Path
+          from white_list_archive.parsers.modena_tables import PARSERS
+
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/modena/white-list-elenchi-provinciali-ed-elenchi-ricostruzione-post-sisma'
+          sources = [
+              {'source_key':'modena-provincial-listed','parser':'modena_listed','authority_key':'modena','authority_name':'Prefettura di Modena','register_key':'modena-provincial','register_name':'White List provinciale','population_scope':'listed','reference_date':'2026-09-16','source_page_url':landing,'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritti-elenchi-wl-provinciali.pdf','sha256':'84f7ffa41f8e14b7cb1b3f5817d46e20c721b43a1a77280955999be331f2380a','expected_source_rows':1181,'expected_sector_rows':2174},
+              {'source_key':'modena-provincial-applicants','parser':'modena_applicants','authority_key':'modena','authority_name':'Prefettura di Modena','register_key':'modena-provincial','register_name':'White List provinciale','population_scope':'applicant','reference_date':'2026-09-16','source_page_url':landing,'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedenti-iscrizione-elenchi-wl-provinciali.pdf','sha256':'323c1dace295b50f4baff85545879be920dc05ef9072f34b4d98449acf11f79f','expected_source_rows':502,'expected_sector_rows':803},
+              {'source_key':'modena-post-sisma-listed','parser':'modena_listed','authority_key':'modena','authority_name':'Prefettura di Modena','register_key':'modena-post-sisma','register_name':'White List post-sisma','population_scope':'listed','reference_date':'2026-09-16','source_page_url':landing,'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscritti-elenchi-wl-ricostruzione-post-sisma_5.pdf','sha256':'658e24f8342c04dc8c16dba8d4e3660c16fbff89722507a30dfba1d9a43274d0','expected_source_rows':1679,'expected_sector_rows':2927},
+              {'source_key':'modena-post-sisma-applicants','parser':'modena_applicants','authority_key':'modena','authority_name':'Prefettura di Modena','register_key':'modena-post-sisma','register_name':'White List post-sisma','population_scope':'applicant','reference_date':'2026-09-16','source_page_url':landing,'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/richiedenti-iscrizione-elenchi-wl-ricostruzione-post-sisma_3.pdf','sha256':'e21f47c956dd355fc2400ef110916349632ad6f31eb7878c99a3d05834eb5bf1','expected_source_rows':430,'expected_sector_rows':432},
+          ]
+          root=Path('/tmp/modena-finalisation'); root.mkdir(parents=True,exist_ok=True)
+          reports=[]
+          for cfg in sources:
+              blobs=[]
+              for attempt in (1,2):
+                  req=urllib.request.Request(cfg['resource_url']+f'?finalisation={attempt}',headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 finalisation','Cache-Control':'no-cache','Pragma':'no-cache'})
+                  with urllib.request.urlopen(req,timeout=180) as response: blobs.append(response.read())
+              if blobs[0] != blobs[1]: raise RuntimeError(f"{cfg['source_key']}: independent captures differ")
+              digest=hashlib.sha256(blobs[0]).hexdigest()
+              if digest != cfg['sha256']: raise RuntimeError(f"{cfg['source_key']}: source drift {digest}")
+              path=root/(cfg['source_key']+'.pdf'); path.write_bytes(blobs[0])
+              batch=PARSERS[cfg['parser']](path,cfg)
+              reports.append({'source_key':cfg['source_key'],'sha256':digest,'records':len(batch.records),'diagnostics':batch.diagnostics})
+          assert sum(r['records'] for r in reports) == 3792
+          print(json.dumps(reports,ensure_ascii=False,indent=2))
+      - name: Apply permanent Modena integration
+        run: python tmp/modena_apply_integration.py
+      - name: Verify exact permanent integration diff
+        shell: python
+        run: |
+          import subprocess
+          expected = {
+              'data/catalog.csv',
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'data/source_registry/verified_primary_pages.csv',
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'tests/public_portal_browser.cjs',
+              'tests/test_source_population_coverage.py',
+              'tests/test_source_registry.py',
+          }
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'Unexpected Modena integration diff: {sorted(changed)} != {sorted(expected)}')
+          subprocess.run(['git','diff','--check'], check=True)
+      - name: Run repository and Modena semantic tests
+        run: python -m pytest -q
+      - name: Build and validate final national boundary
+        run: |
+          rm -rf /tmp/modena-national-build
+          mkdir -p /tmp/modena-national-build
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/modena-national-build/sources \
+            --registry-json /tmp/modena-national-build/registry.json \
+            --registry-csv /tmp/modena-national-build/registry.csv \
+            --prefectures-json /tmp/modena-national-build/prefectures.json \
+            --prefectures-csv /tmp/modena-national-build/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          root=Path('/tmp/modena-national-build')
+          reg=json.loads((root/'registry.json').read_text())
+          pref=json.loads((root/'prefectures.json').read_text())
+          assert reg['meta']['record_count'] == 57969
+          assert reg['meta']['authority_count'] == 48
+          assert reg['meta']['register_count'] == 50
+          assert pref['meta']['published_count'] == 48
+          assert pref['meta']['mapped_count'] == 48
+          modena=[r for r in reg['records'] if r['authority_key']=='modena']
+          assert len(modena) == 3792
+          assert Counter(r['source_status'] for r in modena) == Counter({'listed':1560,'renewal_update_in_progress':1300,'pending':932})
+          assert Counter(r['source_key'] for r in modena) == Counter({'modena-provincial-listed':1181,'modena-provincial-applicants':502,'modena-post-sisma-listed':1679,'modena-post-sisma-applicants':430})
+          assert len({r['record_locator'] for r in modena}) == 3792
+          assert sum(bool(r['identifiers']) for r in modena) == 3751
+          modena_pref=[r for r in pref['prefectures'] if r['authority_key']=='modena']
+          assert len(modena_pref) == 1 and modena_pref[0]['mapped'] and modena_pref[0]['published'] and modena_pref[0]['series_count'] == 4
+          print(json.dumps({'records':reg['meta']['record_count'],'authorities':reg['meta']['authority_count'],'registers':reg['meta']['register_count'],'mapped':pref['meta']['mapped_count'],'modena_records':len(modena)},indent=2))
+          PY
+      - name: Commit permanent Modena integration checkpoint
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          git diff --cached --check
+          git commit -m 'Integrate Modena provincial and post-sisma White Lists'
+          echo "FINAL_SHA=$(git rev-parse HEAD)" | tee -a "$GITHUB_ENV"
+          git push origin HEAD:expansion/modena-2026-09-17
+      - name: Report final checkpoint
+        run: |
+          echo "FINAL_SHA=$FINAL_SHA"
+          git status --short
+          test -z "$(git status --porcelain)"
