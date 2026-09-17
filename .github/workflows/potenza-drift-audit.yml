@@ -1,0 +1,114 @@
+name: Potenza source drift audit
+
+on:
+  push:
+    branches:
+      - fix/potenza-source-drift-2026-09-17
+    paths:
+      - '.github/workflows/potenza-drift-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install parser runtime
+        run: python -m pip install -e .
+      - name: Capture and compare current Potenza source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, json, time, urllib.request
+          from pathlib import Path
+          from collections import Counter
+          from white_list_archive.parsers.potenza_webapp import parse_potenza_combined
+
+          source_url = 'https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
+          public_url = 'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json'
+          headers = {'User-Agent': 'italian-anti-mafia-whitelist/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
+
+          def get(url: str) -> bytes:
+              req = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(req, timeout=45) as r:
+                  data = r.read()
+                  print('GET', url.split('?')[0], 'status', r.status, 'bytes', len(data))
+                  return data
+
+          raw1 = get(source_url)
+          time.sleep(2)
+          raw2 = get(source_url)
+          print('raw_sha256_1', hashlib.sha256(raw1).hexdigest())
+          print('raw_sha256_2', hashlib.sha256(raw2).hexdigest())
+          if raw1 != raw2:
+              raise SystemExit('independent Potenza GETs are not byte-identical')
+
+          payload = json.loads(raw1)
+          print('Result', payload.get('Result'))
+          print('TotalRecordCount', payload.get('TotalRecordCount'))
+          print('Records', len(payload.get('Records', [])))
+          ids = [str(r['id']).strip() for r in payload['Records']]
+          if len(ids) != len(set(ids)):
+              raise SystemExit('duplicate current Potenza source ids')
+
+          cfg_all = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
+          cfg = next(x for x in cfg_all['sources'] if x['source_key'] == 'potenza-combined')
+          p1 = Path('/tmp/potenza-1.json'); p1.write_bytes(raw1)
+          p2 = Path('/tmp/potenza-2.json'); p2.write_bytes(raw2)
+          b1 = parse_potenza_combined(p1, cfg)
+          b2 = parse_potenza_combined(p2, cfg)
+          print('diagnostics_1', json.dumps(b1.diagnostics, ensure_ascii=False, sort_keys=True))
+          print('diagnostics_2', json.dumps(b2.diagnostics, ensure_ascii=False, sort_keys=True))
+          if b1.diagnostics != b2.diagnostics:
+              raise SystemExit('parser diagnostics differ across independent captures')
+
+          def projection(batch):
+              rows=[]
+              for r in batch.records:
+                  rows.append({
+                      'record_locator': r['record_locator'],
+                      'name': r['name'],
+                      'identifier_field_raw': r['identifier_field_raw'],
+                      'identifiers': r['identifiers'],
+                      'source_status': r['source_status'],
+                      'application_date': r['application_date'],
+                      'observed_listing_date': r['observed_listing_date'],
+                      'observed_expiry_date': r['observed_expiry_date'],
+                      'source_fields': r['source_fields'],
+                  })
+              rows.sort(key=lambda x: x['record_locator'])
+              return rows
+          sem1 = json.dumps(projection(b1), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          sem2 = json.dumps(projection(b2), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+          print('audit_semantic_sha256_1', hashlib.sha256(sem1).hexdigest())
+          print('audit_semantic_sha256_2', hashlib.sha256(sem2).hexdigest())
+          if sem1 != sem2:
+              raise SystemExit('semantic projections differ across independent captures')
+
+          old = json.loads(get(public_url))
+          old_rows = [r for r in old['records'] if r.get('authority_key') == 'potenza']
+          old_ids = set()
+          for r in old_rows:
+              loc = r.get('source_fields', {}).get('physical_locator', '')
+              if loc.startswith('source-id:'):
+                  old_ids.add(loc.split(':', 1)[1])
+          current_ids = set(ids)
+          added = sorted(current_ids - old_ids, key=int)
+          removed = sorted(old_ids - current_ids, key=int)
+          print('published_potenza_records', len(old_rows))
+          print('published_source_ids', len(old_ids))
+          print('added_source_ids', added)
+          print('removed_source_ids', removed)
+          rows_by_id = {str(r['id']).strip(): r for r in payload['Records']}
+          for sid in added:
+              print('ADDED_RAW_ROW', sid, json.dumps(rows_by_id[sid], ensure_ascii=False, sort_keys=True))
+          print('status_pairs', json.dumps(Counter((str(r['stato_richiesta']).strip(), str(r['agg_incorso']).strip()) for r in payload['Records']), sort_keys=True, default=str))
+          print('max_source_id', max(map(int, current_ids)))
+          PY
