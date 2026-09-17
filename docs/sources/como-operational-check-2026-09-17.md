@@ -25,6 +25,17 @@ Because these are mutable HTML publication surfaces, production approval is sema
 
 A later wrapper-only HTML change may therefore be accepted only if the reviewed semantic digest remains identical. Any semantic drift fails closed and requires a new source review.
 
+### Later same-day semantic revalidation
+
+A later independent validation on 17 September 2026 fetched each official page twice again. The mutable HTML wrappers had changed relative to the first reviewed captures, but the two new GETs were byte-stable within that validation cycle and the reviewed parsed semantics remained exactly unchanged:
+
+| Population | Later raw SHA-256 (both GETs) | Semantic SHA-256 | Result |
+| --- | --- | --- | --- |
+| Registered-company page | `f4273fc06277244db3380ec3c7d2bf450b85c3820be3a7b9a04360873ff5323e` | `653dc491b25dd4afdd88c7848a42e0ea5b997b51cc2fdc4ef71dcf63bc9c9ad4` | wrapper-only drift |
+| Applicant-company page | `475d6cb07b1e73479e6bc5398a61e43dfdb8764a305696a0f9ec0084b8b978cf` | `fe4dcf2b862696df0aac87b43af0037b272c26285b87360f0d5a75cee613a24b` | wrapper-only drift |
+
+Record counts, declared-count diagnostics, status distributions, identifier coverage and malformed-date diagnostics were unchanged. This revalidation therefore supports the semantic-approval model for the mutable HTML source without treating changed wrapper bytes as new company evidence.
+
 ## Source-declared counts versus the physical table population
 
 The registered table declares `NUMERO AZIENDE ISCRITTE: 388`, but contains 391 company rows after the exact eight-column header. The applicant table declares `NUMERO AZIENDE IN FASE ISCRIZIONE: 12`, but contains 18 company rows after its exact eight-column header. Inspection of the captured DOM found no hidden or `display:none` company rows that would justify excluding the additional rows.
@@ -59,6 +70,12 @@ Only explicit valid source dates are normalised. Two registered rows contain mal
 Their malformed raw values are retained in provenance and the corresponding normalised listing date is left blank; neither typo is silently repaired. Valid slash-format and Italian abbreviated-month dates are normalised deterministically.
 
 White List activities are retained from the explicit Roman-section labels. Applicant application evidence is month-only (`apr-26`, `set-26`, etc.); it remains raw month-level provenance and is **not** expanded to an invented day or full date. The same rule applies to month-only renewal evidence in the registered table.
+
+## Integration checkpoint and external national-build blocker
+
+The Como production integration was checkpointed on the dedicated expansion branch after the Como semantic tests and the complete repository test suite passed. The scoped integration changes only the Como-related catalogue, coverage, publication/source-registry, parser binding and corresponding source-registry tests.
+
+The candidate national build is **not** considered validated yet. During the same transaction, the already integrated `potenza-combined` mutable source returned 1,035 rows while the canonical Potenza approval remains pinned to 1,034 rows. The national builder therefore failed closed on Potenza before a candidate Como public registry could be approved. No Potenza source status, completeness or legal effect is inferred from this row-count change, and Potenza is not modified or treated as Como evidence on this branch. Como publication remains implemented but not national-validated or live until that independent external source drift is reconciled on the canonical baseline and the complete national build is rerun successfully.
 
 ## Publication decision
 
