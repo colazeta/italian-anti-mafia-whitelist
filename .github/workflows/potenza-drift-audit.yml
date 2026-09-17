@@ -30,6 +30,7 @@ jobs:
           from pathlib import Path
           from collections import Counter
           from white_list_archive.parsers.potenza_webapp import parse_potenza_combined
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
 
           source_url = 'https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
           public_url = 'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json'
@@ -68,38 +69,21 @@ jobs:
           print('diagnostics_2', json.dumps(b2.diagnostics, ensure_ascii=False, sort_keys=True))
           if b1.diagnostics != b2.diagnostics:
               raise SystemExit('parser diagnostics differ across independent captures')
-
-          def projection(batch):
-              rows=[]
-              for r in batch.records:
-                  rows.append({
-                      'record_locator': r['record_locator'],
-                      'name': r['name'],
-                      'identifier_field_raw': r['identifier_field_raw'],
-                      'identifiers': r['identifiers'],
-                      'source_status': r['source_status'],
-                      'application_date': r['application_date'],
-                      'observed_listing_date': r['observed_listing_date'],
-                      'observed_expiry_date': r['observed_expiry_date'],
-                      'source_fields': r['source_fields'],
-                  })
-              rows.sort(key=lambda x: x['record_locator'])
-              return rows
-          sem1 = json.dumps(projection(b1), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
-          sem2 = json.dumps(projection(b2), ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
-          print('audit_semantic_sha256_1', hashlib.sha256(sem1).hexdigest())
-          print('audit_semantic_sha256_2', hashlib.sha256(sem2).hexdigest())
-          if sem1 != sem2:
-              raise SystemExit('semantic projections differ across independent captures')
+          print('production_semantic_sha256_1', _semantic_digest(b1.records))
+          print('production_semantic_sha256_2', _semantic_digest(b2.records))
+          if _semantic_digest(b1.records) != _semantic_digest(b2.records):
+              raise SystemExit('production semantic digests differ across independent captures')
 
           old = json.loads(get(public_url))
           old_rows = [r for r in old['records'] if r.get('authority_key') == 'potenza']
-          old_ids = set()
+          old_by_id = {}
           for r in old_rows:
               loc = r.get('source_fields', {}).get('physical_locator', '')
               if loc.startswith('source-id:'):
-                  old_ids.add(loc.split(':', 1)[1])
-          current_ids = set(ids)
+                  old_by_id[loc.split(':', 1)[1]] = r
+          current_by_id = {r['source_fields']['source_id']: r for r in b1.records}
+          old_ids = set(old_by_id)
+          current_ids = set(current_by_id)
           added = sorted(current_ids - old_ids, key=int)
           removed = sorted(old_ids - current_ids, key=int)
           print('published_potenza_records', len(old_rows))
@@ -109,6 +93,17 @@ jobs:
           rows_by_id = {str(r['id']).strip(): r for r in payload['Records']}
           for sid in added:
               print('ADDED_RAW_ROW', sid, json.dumps(rows_by_id[sid], ensure_ascii=False, sort_keys=True))
+          changes=[]
+          keys=('name','identifier_field_raw','source_status','application_date','observed_listing_date','observed_expiry_date')
+          for sid in sorted(old_ids & current_ids, key=int):
+              oldr=old_by_id[sid]; newr=current_by_id[sid]
+              delta={k: [oldr.get(k), newr.get(k)] for k in keys if oldr.get(k) != newr.get(k)}
+              if delta:
+                  changes.append((sid, delta, rows_by_id[sid]))
+          print('changed_existing_count', len(changes))
+          for sid, delta, raw in changes:
+              print('CHANGED_EXISTING', sid, json.dumps(delta, ensure_ascii=False, sort_keys=True))
+              print('CHANGED_RAW_ROW', sid, json.dumps(raw, ensure_ascii=False, sort_keys=True))
           pairs = Counter((str(r['stato_richiesta']).strip(), str(r['agg_incorso']).strip()) for r in payload['Records'])
           print('status_pairs', json.dumps({f'{k[0]}/{k[1]}': v for k, v in sorted(pairs.items())}, sort_keys=True))
           print('max_source_id', max(map(int, current_ids)))
