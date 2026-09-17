@@ -1,0 +1,85 @@
+name: Reconcile Potenza after Milano assertion correction
+
+on:
+  push:
+    branches:
+      - fix/potenza-source-drift-2026-09-17
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/potenza-source-drift-2026-09-17
+          fetch-depth: 0
+      - name: Merge current main and preserve corrected Milano assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='fix/potenza-source-drift-2026-09-17'
+          OLD_HEAD="$(git rev-parse HEAD)"
+          export OLD_HEAD
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+
+          git merge --no-commit --no-ff origin/main || true
+
+          # The existing public workflow is left byte-identical to OLD_HEAD in the
+          # Actions-authored merge commit because GITHUB_TOKEN cannot safely promote
+          # workflow-file changes. A corrected payload is emitted under tmp/ for the
+          # authorised connector to promote after this job.
+          git checkout "$OLD_HEAD" -- .github/workflows/public-pages.yml
+
+          python - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          old_head = os.environ['OLD_HEAD']
+
+          def old_text(path: str) -> str:
+              return subprocess.check_output(['git','show',f'{old_head}:{path}'], text=True)
+
+          replacements = [
+              (
+                  "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))",
+                  "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))",
+              ),
+              (
+                  "assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','08611910152','13169050963'))",
+                  "assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))",
+              ),
+          ]
+
+          def corrected(path: str) -> str:
+              text = old_text(path)
+              for old, new in replacements:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly one stale Milano assertion, found {count}: {old}')
+                  text = text.replace(old, new)
+              return text
+
+          tests = corrected('tests/public_portal_browser.cjs')
+          Path('tests/public_portal_browser.cjs').write_text(tests)
+
+          payload = corrected('.github/workflows/public-pages.yml')
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/potenza-public-pages-resolved.yml').write_text(payload)
+          PY
+
+          git add -A
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo 'Unresolved merge conflicts remain' >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+
+          git commit -m 'Reconcile Potenza with corrected Milano canonical state'
+          git push origin HEAD:"$BRANCH"
