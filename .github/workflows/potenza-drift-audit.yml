@@ -36,7 +36,6 @@ jobs:
           PUBLIC_URL = 'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json'
           RAW_SHA = 'cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30'
           SEM_SHA = '8b3a129f54dfb889740a6f16fddcd53294fc4269a7e311353e72dc9c7b81dd2e'
-          PREVIOUS_RAW_SHA = '24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820'
           PREVIOUS_SEM_SHA = '96b5227dd78fc83b78a2fd1516e8a5cfae6d482be97351f1e8c71c641e7e6316'
           CHECK_AT = '2026-09-17T22:35:08Z'
           headers = {'User-Agent': 'italian-anti-mafia-whitelist/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'}
@@ -51,7 +50,6 @@ jobs:
           def dump_json(path: Path, obj) -> None:
               path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
-          # Positive current-source evidence: two independent complete captures.
           one = get(SOURCE_URL)
           time.sleep(2)
           two = get(SOURCE_URL)
@@ -103,7 +101,6 @@ jobs:
           if actual_sem != SEM_SHA:
               raise SystemExit(f'Potenza semantic digest changed after fresh audit: {actual_sem}')
 
-          # Reconfirm that the public-relevant transition is still exactly the reviewed one.
           public = json.loads(get(PUBLIC_URL))
           old_rows = [row for row in public['records'] if row.get('authority_key') == 'potenza']
           old_by_id = {}
@@ -133,8 +130,6 @@ jobs:
           if pairs != Counter({('1','0'):376, ('1','1'):1, ('2','0'):216, ('2','1'):442}):
               raise SystemExit(f'unreviewed Potenza status-pair drift: {pairs!r}')
 
-          # Advance only the mutable-source approval evidence. The 17 September
-          # reference boundary and the already-reviewed public transition remain unchanged.
           pot['sha256'] = RAW_SHA
           pot['semantic_sha256'] = SEM_SHA
           marker = 'Fresh revalidation after midnight Europe/Rome'
@@ -208,7 +203,7 @@ jobs:
           PY
       - name: Validate reapproved boundary before commit
         run: |
-          python -m pytest -q tests/test_potenza_webapp.py tests/test_public_national_registry.py
+          python -m pytest -q
           python -m white_list_archive.publishing.public_national_registry --config data/publication/multi_prefecture_pilot.json --output /tmp/registry.json --work-dir /tmp/public-build
           python - <<'PY'
           import json
