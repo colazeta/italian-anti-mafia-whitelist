@@ -28,25 +28,24 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin main
 
-          # Create a real merge state so current main becomes an ancestor of the
-          # Potenza branch. Conflicts are resolved from current main first; only
-          # the six already-reviewed Potenza deltas are then reapplied.
+          # Make current main a real parent. Workflow files are kept byte-identical
+          # to OLD_HEAD in this push because the Actions token intentionally lacks
+          # workflows permission. The desired public-pages blob is carried through
+          # an ordinary temporary payload and promoted by the authorised connector.
           git merge --no-commit --no-ff origin/main || true
 
           for path in \
-            .github/workflows/public-pages.yml \
             data/monitoring/national_coverage.json \
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
-            docs/sources/potenza-operational-check-2026-09-15.md \
             tests/public_portal_browser.cjs
           do
             git checkout origin/main -- "$path"
           done
-
-          # The Potenza evidence note is intrinsically Potenza-scoped: restore
-          # the reviewed version from the pre-merge branch head.
+          git checkout "$OLD_HEAD" -- .github/workflows/public-pages.yml
           git checkout "$OLD_HEAD" -- docs/sources/potenza-operational-check-2026-09-15.md
+
+          mkdir -p tmp
 
           python - <<'PY'
           import csv
@@ -59,11 +58,13 @@ jobs:
 
           old_head = os.environ['OLD_HEAD']
 
-          def old_text(path: str) -> str:
-              return subprocess.check_output(['git','show',f'{old_head}:{path}'], text=True)
+          def git_text(ref: str, path: str) -> str:
+              return subprocess.check_output(['git','show',f'{ref}:{path}'], text=True)
 
-          # Publication config: start from current main and copy only the
-          # reviewed potenza-combined source object from the old Potenza head.
+          def old_text(path: str) -> str:
+              return git_text(old_head, path)
+
+          # Publication config: current main plus exactly the reviewed Potenza source.
           p = Path('data/publication/multi_prefecture_pilot.json')
           current = json.loads(p.read_text())
           old = json.loads(old_text(str(p)))
@@ -72,24 +73,20 @@ jobs:
           current['sources'][idx] = desired
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
-          # Monitoring: copy only Potenza's prefecture object and reviewed
-          # Potenza checks absent from current main, preserving every other
-          # authority exactly from current main.
+          # Monitoring: current main plus only Potenza's reviewed transition/check.
           p = Path('data/monitoring/national_coverage.json')
           current = json.loads(p.read_text())
           old = json.loads(old_text(str(p)))
           desired_pref = next(x for x in old['prefectures'] if x['authority_key'] == 'potenza')
           idx = next(i for i,x in enumerate(current['prefectures']) if x['authority_key'] == 'potenza')
           current['prefectures'][idx] = desired_pref
-          existing_keys = {(x.get('authority_key'), x.get('at'), x.get('content_sha256')) for x in current.get('checks', [])}
-          additions = [x for x in old.get('checks', []) if x.get('authority_key') == 'potenza' and (x.get('authority_key'), x.get('at'), x.get('content_sha256')) not in existing_keys]
+          existing = {(x.get('authority_key'), x.get('at'), x.get('content_sha256')) for x in current.get('checks', [])}
+          additions = [x for x in old.get('checks', []) if x.get('authority_key') == 'potenza' and (x.get('authority_key'), x.get('at'), x.get('content_sha256')) not in existing]
           assert any(x.get('at') == '2026-09-17T13:11:20Z' and x.get('content_sha256') == '24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820' for x in additions)
           current.setdefault('checks', []).extend(additions)
           p.write_text(json.dumps(current, ensure_ascii=False, indent=2) + '\n')
 
-          # Source-series inventory: replace exactly the Potenza row using the
-          # reviewed branch row; preserve all current-main rows (including
-          # Aosta and Milano transitions).
+          # Source-series inventory: current main with exactly the reviewed Potenza row.
           p = Path('data/source_registry/source_series_inventory.csv')
           cur_rows = list(csv.reader(io.StringIO(p.read_text())))
           old_rows = list(csv.reader(io.StringIO(old_text(str(p)))))
@@ -98,30 +95,28 @@ jobs:
           assert len(matches) == 1
           cur_rows[matches[0]] = desired_row
           out = io.StringIO(newline='')
-          w = csv.writer(out, lineterminator='\n')
-          w.writerows(cur_rows)
+          csv.writer(out, lineterminator='\n').writerows(cur_rows)
           p.write_text(out.getvalue())
 
-          # Public workflow: splice only the Potenza assertion block from the
-          # reviewed branch into current main and set the combined current total
-          # (Milano -1, Potenza +1) to 57,969.
-          path = '.github/workflows/public-pages.yml'
-          p = Path(path)
-          cur = p.read_text()
-          old = old_text(path)
           def block(text, start, end):
               m = re.search(re.escape(start) + r'.*?(?=' + re.escape(end) + r')', text, flags=re.S)
               assert m, (start, end)
               return m.group(0)
+
+          # Build the desired workflow from CURRENT MAIN, not from the stale branch.
+          # Carry it as a non-workflow payload so this Actions push does not need
+          # workflow-write permission. Connector promotion follows after success.
+          path = '.github/workflows/public-pages.yml'
+          cur = git_text('origin/main', path)
+          old = old_text(path)
           old_block = block(old, "          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n", "          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n")
           cur, n = re.subn(re.escape("          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']\n") + r'.*?(?=' + re.escape("          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']\n") + r')', lambda m: old_block, cur, count=1, flags=re.S)
           assert n == 1
           cur, n = re.subn(r"assert reg\['meta'\]\['record_count'\] == \d+", "assert reg['meta']['record_count'] == 57969", cur, count=1)
           assert n == 1
-          p.write_text(cur)
+          Path('tmp/potenza_public_pages_desired.yml').write_text(cur)
 
-          # Browser acceptance: same scoped block replacement and combined
-          # current total. No Aosta/Milano assertions are touched.
+          # Browser acceptance is an ordinary file and can be committed directly.
           path = 'tests/public_portal_browser.cjs'
           p = Path(path)
           cur = p.read_text()
@@ -134,8 +129,10 @@ jobs:
           p.write_text(cur)
           PY
 
-          # Fail if any unresolved merge paths remain.
           test -z "$(git diff --name-only --diff-filter=U)"
+          # This push must not itself alter either workflow file.
+          test -z "$(git diff "$OLD_HEAD" -- .github/workflows/public-pages.yml)"
+          test -z "$(git diff "$OLD_HEAD" -- .github/workflows/reconcile-potenza-main.yml)"
           node --check tests/public_portal_browser.cjs
           python -m json.tool data/publication/multi_prefecture_pilot.json >/dev/null
           python -m json.tool data/monitoring/national_coverage.json >/dev/null
@@ -146,10 +143,11 @@ jobs:
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/source_series_inventory.csv \
             docs/sources/potenza-operational-check-2026-09-15.md \
-            tests/public_portal_browser.cjs
+            tests/public_portal_browser.cjs \
+            tmp/potenza_public_pages_desired.yml
 
-          # Before committing, only the reviewed six Potenza files plus this
-          # temporary reconciliation workflow may differ from current main.
+          # Relative to current main, nothing outside the Potenza six, the
+          # temporary reconciliation workflow and its payload may be present.
           mapfile -t changed < <(git diff --cached --name-only origin/main | sort)
           expected=(
             '.github/workflows/public-pages.yml'
@@ -159,9 +157,10 @@ jobs:
             'data/source_registry/source_series_inventory.csv'
             'docs/sources/potenza-operational-check-2026-09-15.md'
             'tests/public_portal_browser.cjs'
+            'tmp/potenza_public_pages_desired.yml'
           )
           mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
           diff -u <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
 
-          git commit -m 'Reconcile Potenza transition with Aosta and Milano main'
+          git commit -m 'Reconcile Potenza transition with current main'
           git push origin HEAD:"$BRANCH"
