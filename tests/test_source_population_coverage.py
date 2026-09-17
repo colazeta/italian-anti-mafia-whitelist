@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 47
-    assert report["register_scope_count"] == 48
-    assert report["complete_register_scope_count"] == 48
+    assert report["verified_authority_count"] == 48
+    assert report["register_scope_count"] == 50
+    assert report["complete_register_scope_count"] == 50
     assert report["incomplete_register_scope_count"] == 0
 
     by_scope = {}
@@ -124,3 +124,14 @@ def test_bologna_special_register_is_a_separate_completeness_scope():
     assert all(row["listed_status"] == "COVERED_SEPARATE_SERIES" for row in bologna)
     assert all(row["applicant_status"] == "COVERED_SEPARATE_SERIES" for row in bologna)
     assert all(row["source_population_complete"] for row in bologna)
+
+def test_modena_special_register_is_a_separate_completeness_scope():
+    report = _report()
+    modena = [row for row in report["scopes"] if row["authority_key"] == "modena"]
+    assert {row["regime_code"] for row in modena} == {
+        "WL-REGIME-L190-2012",
+        "WL-REGIME-ER-SISMA-2012",
+    }
+    assert all(row["listed_status"] == "COVERED_SEPARATE_SERIES" for row in modena)
+    assert all(row["applicant_status"] == "COVERED_SEPARATE_SERIES" for row in modena)
+    assert all(row["source_population_complete"] for row in modena)
