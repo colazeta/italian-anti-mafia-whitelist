@@ -41,3 +41,16 @@ The registered-only sibling also changed byte identity from the previously corro
 ## Provenance and retention
 
 The parser remains fail-closed on source structure, denominators, statuses and configured content identity. `durable_evidence_verified` remains false: the current official web application is mutable and this transition does not claim independent immutable archival custody. The 17 September date is a capture/reference boundary, not an inferred company event or legal-effect date.
+
+
+## Second verified transition on 17 September 2026
+
+A later public-portal build failed closed because the mutable combined view no longer matched the raw SHA approved earlier on 17 September. Independent audits then captured both official views repeatedly. The combined captures were byte-identical at **969,678 bytes**, SHA-256 `51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a`; the registered-only captures were byte-identical at **558,610 bytes**, SHA-256 `e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab`.
+
+The combined view contains **4,208 sector rows and 2,611 logical observations: 940 listed + 514 renewal/update in progress + 1,157 pending**, all with strict identifiers. The registered-only sibling contains **1,454 logical identities / 2,458 sector rows**, exactly equal to the combined non-pending identity set.
+
+Two pending identities are newly present: `06543250960` **VERDE 2000 SRL** and `12134200968` **LEOPROEX ITALIA S.R.L.**, both with source-explicit application date 17 September 2026. Three previously pending identities are absent: `12957130961` **TEEKAN CONSTRUCTION**, `13540670968` **OSSERVANZA DELLE REGOLE S.R.L.**, and `14580020965` **IDEALLIFT SRL**. Current absence is an observation of the mutable official view only and is **not** interpreted as denial, withdrawal, cancellation or any other legal effect.
+
+Among retained identities, seven records move from renewal/update in progress to listed (`01081040154`, `02004400996`, `04214900161`, `05561460824`, `05696960961`, `06745770963`, `08530830960`); four move from listed to renewal/update in progress (`01843860543`, `08402360963`, `08611910152`, `13169050963`); and four move from pending to listed (`10529780966`, `10732740963`, `12653840962`, `13153100964`). These are direct current-view classifications, not inferred legal outcomes. The transition reconciles exactly to listed +7, renewal/update -3, pending -5, total -1.
+
+The parser structure and status interpretation are unchanged. Only its fail-closed version and approved denominators/status counts advance. `durable_evidence_verified=false` remains unchanged. Audit runs `35256361941` and `35256826285` provide the repeated current-source and row-level reconciliation evidence.
