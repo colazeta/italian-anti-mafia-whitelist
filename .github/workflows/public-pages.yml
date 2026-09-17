@@ -148,7 +148,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 54183
+          assert reg['meta']['record_count'] == 54177
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -323,17 +323,19 @@ jobs:
           milano = [x for x in pref['prefectures'] if x['authority_key'] == 'milano']
           assert len(milano) == 1 and milano[0]['mapped'] and milano[0]['published'] and milano[0]['series_count'] == 1
           milano_records = [r for r in reg['records'] if r['authority_key'] == 'milano']
-          assert len(milano_records) == 2618
+          assert len(milano_records) == 2612
           assert all(r['source_key'] == 'milano-combined' for r in milano_records)
-          assert sum(r['source_status'] == 'listed' for r in milano_records) == 939
+          assert sum(r['source_status'] == 'listed' for r in milano_records) == 933
           assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 517
           assert sum(r['source_status'] == 'pending' for r in milano_records) == 1162
-          assert len({r['record_locator'] for r in milano_records}) == 2618
-          assert sum(bool(r['identifiers']) for r in milano_records) == 2618
+          assert len({r['record_locator'] for r in milano_records}) == 2612
+          assert sum(bool(r['identifiers']) for r in milano_records) == 2612
+          removed_milano = {'04793740962','06960770961','07693660156','09835880155','10674330963','11016700152'}
+          assert not removed_milano & {r['identifier_field_raw'] for r in milano_records}
           assert all(r['requested_activities'] for r in milano_records)
           assert sum(bool(r['application_date']) for r in milano_records) == 1162
-          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 939
-          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 939
+          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 933
+          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 933
           assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-16'
           pending_16 = {(r['name'], r['identifier_field_raw']) for r in milano_records if r['source_status'] == 'pending' and r['application_date'] == '2026-09-16'}
           assert pending_16 == {
