@@ -1,6 +1,7 @@
 name: Como integration checkpoint
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - expansion/como-2026-09-17
