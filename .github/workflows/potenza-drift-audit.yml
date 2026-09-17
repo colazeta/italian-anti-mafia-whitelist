@@ -74,6 +74,17 @@ jobs:
           if _semantic_digest(b1.records) != _semantic_digest(b2.records):
               raise SystemExit('production semantic digests differ across independent captures')
 
+          future_cfg = dict(cfg)
+          future_cfg['reference_date'] = '2026-09-17'
+          future_cfg['sha256'] = hashlib.sha256(raw1).hexdigest()
+          future_batch = parse_potenza_combined(p1, future_cfg)
+          print('future_reference_date', future_cfg['reference_date'])
+          print('future_production_semantic_sha256', _semantic_digest(future_batch.records))
+
+          coverage = json.loads(Path('data/monitoring/national_coverage.json').read_text())
+          potenza_cov = next(x for x in coverage['prefectures'] if x['authority_key'] == 'potenza')
+          print('POTENZA_COVERAGE_BEFORE', json.dumps(potenza_cov, ensure_ascii=False, sort_keys=True))
+
           old = json.loads(get(public_url))
           old_rows = [r for r in old['records'] if r.get('authority_key') == 'potenza']
           old_by_id = {}
