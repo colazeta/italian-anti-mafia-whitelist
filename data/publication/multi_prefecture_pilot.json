@@ -1584,6 +1584,44 @@
       "last_source_update": "2026-09-17",
       "last_source_update_basis": "current mutable official web application captured and independently revalidated on 17 September 2026; the date is a capture/reference boundary only and is not an inferred company event or legal-effect date",
       "notes": "The mutable combined operational table was independently captured twice on 17 September 2026 at 970,799 bytes with SHA-256 37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215. The reviewed boundary contains 4,213 sector rows and 2,612 logical observations: 933 listed, 517 renewal/update in progress and 1,162 pending; all 2,612 identifiers are strict. Compared with the approved 16 September boundary, there are no additions and no status changes among retained identities; six previously listed identities are absent from both current official views. All six had source-explicit expiry date 17 September 2026 in the approved edition. V.M.V. Costruzioni Generali Srl previously occurred in two statutory sections, explaining the seven-row physical decrease. The registered-only sibling was also independently stable at 557,481 bytes, SHA-256 7f5c7dcc3288387d15125aee1f8aee4e271e5743ecc3a6e9da229873cc1f4848, and its 1,450 identities exactly match the combined non-pending set; it remains corroborative and is not co-ingested."
+    },
+    {
+      "source_key": "como-listed",
+      "parser": "como_html_listed",
+      "authority_key": "como",
+      "authority_name": "Prefettura di Como",
+      "register_key": "como-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
+      "sha256": "276fcec3a27893b0b57af24ff8d69ebb64338fd5bc955e4722bd48eb33535413",
+      "semantic_sha256": "653dc491b25dd4afdd88c7848a42e0ea5b997b51cc2fdc4ef71dcf63bc9c9ad4",
+      "approval_mode": "semantic_sha256",
+      "expected_source_rows": 391,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dedicated official HTML table source date/update; independently reverified 17 September 2026",
+      "notes": "Mutable official HTML table. The physical table contains 391 company observations while the source counter states 388; no hidden rows were found. Raw capture SHA remains observation provenance and approved parsed semantics fail closed on drift. Exact evidence is documented in docs/sources/como-operational-check-2026-09-17.md."
+    },
+    {
+      "source_key": "como-applicants",
+      "parser": "como_html_applicants",
+      "authority_key": "como",
+      "authority_name": "Prefettura di Como",
+      "register_key": "como-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-10",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+      "sha256": "a4ed63b8e04a277af0221288c40552027437c31064d89ddbc44da432eada42c7",
+      "semantic_sha256": "fe4dcf2b862696df0aac87b43af0037b272c26285b87360f0d5a75cee613a24b",
+      "approval_mode": "semantic_sha256",
+      "expected_source_rows": 18,
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "dedicated official HTML table source date/update; independently reverified 17 September 2026",
+      "notes": "Mutable official applicant HTML table. The physical table contains 18 positive applicant observations while the source counter states 12; no hidden rows were found. Month-only application evidence remains raw and is never expanded to an invented date. Exact evidence is documented in docs/sources/como-operational-check-2026-09-17.md."
     }
   ]
 }
