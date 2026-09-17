@@ -1,0 +1,315 @@
+name: Aosta source drift finalisation 2026-09-17 (temporary)
+
+on:
+  push:
+    branches:
+      - fix/aosta-source-drift-2026-09-17
+    paths:
+      - .github/workflows/aosta-finalise-2026-09-17.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: whitelist
+          POSTGRES_USER: whitelist
+          POSTGRES_PASSWORD: whitelist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U whitelist -d whitelist"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      PGPASSWORD: whitelist
+      TEST_DSN: postgresql://whitelist:whitelist@localhost:5432/whitelist
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/aosta-source-drift-2026-09-17
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install full validation runtime
+        run: python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Download last approved Aosta audit evidence
+        run: |
+          rm -rf /tmp/aosta-old
+          mkdir -p /tmp/aosta-old
+          gh run download 35083259611 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name aosta-source-audit-35083259611 \
+            --dir /tmp/aosta-old
+          test -f /tmp/aosta-old/summary.json
+      - name: Reverify current Aosta sources twice and validate exact transition
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          import time
+          from collections import Counter
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          from white_list_archive.parsers.multi_prefecture_tables import parse_aosta_applicants, parse_aosta_listed
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
+
+          expected = {
+              'aosta-listed': {
+                  'raw': '9e034f0e681d5352fe2c610982ca6726488e31db796e5e3d875e500edd9b18d9',
+                  'semantic': 'dce8394a53a92476f662830b10e659e3249f8ecbf9f16faa1492c792c7e250f2',
+                  'rows': 241,
+                  'statuses': {'listed': 220, 'renewal_update_in_progress': 21},
+              },
+              'aosta-applicants': {
+                  'raw': '34a6277e6b956a82d76279c283f6fb8d4fa75c7395b0897a4eefef88448db32a',
+                  'semantic': '9c27558e5506203e3f0799e1470f5526d1efa4ef19fedc183b9e81e1fe7bffd7',
+                  'rows': 141,
+                  'statuses': {'listed': 115, 'pending': 26},
+              },
+          }
+          out = Path('/tmp/aosta-current')
+          out.mkdir(parents=True, exist_ok=True)
+          cfgs = {row['source_key']: row for row in json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))['sources'] if row['source_key'] in expected}
+          assert set(cfgs) == set(expected)
+          parsers = {'aosta-listed': parse_aosta_listed, 'aosta-applicants': parse_aosta_applicants}
+          summary = {'sources': {}}
+          for source_key in ('aosta-listed', 'aosta-applicants'):
+              cfg = cfgs[source_key]
+              captures = []
+              for attempt in (1, 2):
+                  req = Request(cfg['resource_url'], headers={
+                      'User-Agent': 'italian-anti-mafia-whitelist/0.1 (+Aosta finalisation)',
+                      'Accept': 'application/pdf,*/*',
+                      'Cache-Control': 'no-cache, no-store, max-age=0',
+                      'Pragma': 'no-cache',
+                      'X-Audit-Attempt': str(attempt),
+                  })
+                  with urlopen(req, timeout=90) as response:
+                      body = response.read()
+                  path = out / f'{source_key}-{attempt}.pdf'
+                  path.write_bytes(body)
+                  raw_sha = hashlib.sha256(body).hexdigest()
+                  parse_cfg = dict(cfg)
+                  parse_cfg['sha256'] = raw_sha
+                  parse_cfg['reference_date'] = '2026-09-17'
+                  batch = parsers[source_key](path, parse_cfg)
+                  captures.append({
+                      'raw_sha256': raw_sha,
+                      'semantic_sha256': _semantic_digest(batch.records),
+                      'diagnostics': batch.diagnostics,
+                      'records': batch.records,
+                  })
+                  time.sleep(2)
+              a, b = captures
+              assert a['raw_sha256'] == b['raw_sha256'] == expected[source_key]['raw']
+              assert a['semantic_sha256'] == b['semantic_sha256'] == expected[source_key]['semantic']
+              assert a['diagnostics']['public_records'] == b['diagnostics']['public_records'] == expected[source_key]['rows']
+              assert a['diagnostics']['identifier_coverage'] == expected[source_key]['rows']
+              assert a['diagnostics']['status_counts'] == expected[source_key]['statuses']
+              summary['sources'][source_key] = captures[0]
+
+          old = json.loads(Path('/tmp/aosta-old/summary.json').read_text(encoding='utf-8'))
+          old_records = {k: v['captures'][0]['records'] for k, v in old['sources'].items()}
+          new_records = {k: v['records'] for k, v in summary['sources'].items()}
+
+          def key(record):
+              return (record['name'], record['identifier_field_raw'])
+          def keyed(records):
+              result = {key(r): r for r in records}
+              assert len(result) == len(records), 'Aosta comparison key ceased to be unique'
+              return result
+          ignored = {'record_locator', 'source_row_ordinal', 'reference_date', 'capture_sha256'}
+          def semantic_diff(left, right):
+              return {k for k in set(left) | set(right) if k not in ignored and left.get(k) != right.get(k)}
+
+          old_l, new_l = keyed(old_records['aosta-listed']), keyed(new_records['aosta-listed'])
+          removed_l = set(old_l) - set(new_l)
+          added_l = set(new_l) - set(old_l)
+          assert len(removed_l) == 1 and not added_l
+          removed = old_l[next(iter(removed_l))]
+          assert removed['identifier_field_raw'] == '01077930079'
+          assert removed['name'] == 'CHATRIAN ONORANZE FUNEBRI DI CHATRIAN EMY S.A.S. siglabile CHATRIAN ONORANZE FUNEBRI S.A.S'
+          assert removed['source_status'] == 'listed'
+          assert removed['observed_listing_date'] == '2025-09-17'
+          assert removed['observed_expiry_date'] == '2026-09-16'
+          assert all(not semantic_diff(old_l[k], new_l[k]) for k in set(old_l) & set(new_l))
+
+          old_a, new_a = keyed(old_records['aosta-applicants']), keyed(new_records['aosta-applicants'])
+          removed_a = set(old_a) - set(new_a)
+          added_a = set(new_a) - set(old_a)
+          assert not removed_a and len(added_a) == 1
+          added = new_a[next(iter(added_a))]
+          assert added['identifier_field_raw'] == '01077930079'
+          assert added['name'] == removed['name']
+          assert added['source_status'] == 'pending'
+          assert added['application_date'] == '2026-08-31'
+          assert added['requested_activities'] == ['I-bis']
+          assert added['outcome_raw'] == 'Istruttoria in corso'
+
+          changed_common = []
+          for k in set(old_a) & set(new_a):
+              diff = semantic_diff(old_a[k], new_a[k])
+              if diff:
+                  changed_common.append((k, diff, old_a[k], new_a[k]))
+          assert len(changed_common) == 1
+          _k, diff, before, after = changed_common[0]
+          assert '01121190076' in after['identifier_field_raw']
+          assert after['name'].startswith('IMPREAM DI AMATO FRANCESCO FABRIZIO')
+          assert diff == {'registered_office'}
+          assert before['registered_office'] == 'Rue Grand Chemin n. 192 int. 03 - Loc. Le Grand Chemin – 11020 Saint-Christophe'
+          assert after['registered_office'] == 'Rue Grand Chemin n. 192 int. 03 - Loc. Le Grand Chemin – 11020 Saint-Christophe (Ao)'
+          assert after['source_status'] == 'listed'
+          assert after['application_date'] == '2026-01-07'
+          assert after['outcome_raw'] == 'Iscritta dal 29/04/2026'
+
+          assert Counter(r['source_status'] for rows in new_records.values() for r in rows) == Counter({'listed': 335, 'pending': 26, 'renewal_update_in_progress': 21})
+          Path('/tmp/aosta-current/validated-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print('Validated exact Aosta transition: CHATRIAN listed→pending applicant; IMPREAM applicant office source string gained (Ao).')
+          PY
+      - name: Materialise permanent Aosta 17 September checkpoint
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          listed_raw = '9e034f0e681d5352fe2c610982ca6726488e31db796e5e3d875e500edd9b18d9'
+          listed_sem = 'dce8394a53a92476f662830b10e659e3249f8ecbf9f16faa1492c792c7e250f2'
+          applicants_raw = '34a6277e6b956a82d76279c283f6fb8d4fa75c7395b0897a4eefef88448db32a'
+          applicants_sem = '9c27558e5506203e3f0799e1470f5526d1efa4ef19fedc183b9e81e1fe7bffd7'
+
+          publication_path = Path('data/publication/multi_prefecture_pilot.json')
+          publication = json.loads(publication_path.read_text(encoding='utf-8'))
+          cfgs = {row['source_key']: row for row in publication['sources'] if row['source_key'] in {'aosta-listed','aosta-applicants'}}
+          assert cfgs['aosta-listed']['expected_source_rows'] == 242
+          assert cfgs['aosta-listed']['semantic_sha256'] == 'db0db749e75a09fce8dcdaffc6ef2c7e5d7da58bd6978e111b3d66dadc8b4f93'
+          assert cfgs['aosta-applicants']['expected_source_rows'] == 140
+          assert cfgs['aosta-applicants']['semantic_sha256'] == '1519a119b34b4b3340feaf5cf2f391de84803592060720f6c9660492d192be93'
+
+          listed = cfgs['aosta-listed']
+          listed.update({
+              'reference_date': '2026-09-17',
+              'sha256': listed_raw,
+              'expected_source_rows': 241,
+              'last_source_update': '2026-09-17',
+              'last_source_update_basis': 'current official attachment verified on this date; attachment itself is undated',
+              'notes': 'The official listed-company attachment is a mutable current resource. Independent no-cache captures on 17 September 2026 were byte- and parser-stable and exposed 241 complete source rows: 220 listed and 21 with explicit update/renewal text. Compared with the approved 16 September state, CHATRIAN ONORANZE FUNEBRI DI CHATRIAN EMY S.A.S. siglabile CHATRIAN ONORANZE FUNEBRI S.A.S (01077930079) is the only identity no longer present in the listed series; no other common listed identity changed in the audited public semantic fields. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest, and no legal effect is inferred from absence from the current listed series.',
+              'approval_mode': 'semantic_sha256',
+              'semantic_sha256': listed_sem,
+          })
+          applicants = cfgs['aosta-applicants']
+          applicants.update({
+              'reference_date': '2026-09-17',
+              'sha256': applicants_raw,
+              'expected_source_rows': 141,
+              'last_source_update': '2026-09-17',
+              'last_source_update_basis': 'current official attachment verified on this date; attachment itself is undated',
+              'notes': 'The official applicant attachment is a mutable current resource. Independent no-cache captures on 17 September 2026 were byte- and parser-stable and exposed 141 request observations: 115 with a source outcome indicating subsequent White List enrolment and 26 pending. Compared with the approved 16 September state, CHATRIAN ONORANZE FUNEBRI DI CHATRIAN EMY S.A.S. siglabile CHATRIAN ONORANZE FUNEBRI S.A.S (01077930079) is the only added applicant identity, with application date 31 August 2026, activity I-bis and explicit outcome Istruttoria in corso. The only common applicant semantic change is the official registered-office string for IMPREAM DI AMATO FRANCESCO FABRIZIO, which now includes the source suffix (Ao); its application and enrolment outcome are unchanged. Raw capture SHA-256 remains observation provenance; publication fails closed unless parsed source semantics match this separately approved digest.',
+              'approval_mode': 'semantic_sha256',
+              'semantic_sha256': applicants_sem,
+          })
+          publication_path.write_text(json.dumps(publication, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          monitoring_path = Path('data/monitoring/national_coverage.json')
+          monitoring = json.loads(monitoring_path.read_text(encoding='utf-8'))
+          aosta = next(row for row in monitoring['prefectures'] if row['authority_key'] == 'aosta')
+          now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+          aosta['latest_source_reference_date'] = '2026-09-17'
+          aosta['last_successful_source_check_at'] = now
+          aosta['last_attempted_source_check_at'] = now
+          aosta['last_content_change_at'] = now
+          aosta['last_successful_investigation_on'] = '2026-09-17'
+          aosta['monitoring_status'] = 'CURRENT'
+          known = aosta.setdefault('known_content_sha256', [])
+          for value in (listed_raw, applicants_raw):
+              if value not in known:
+                  known.append(value)
+          monitoring_path.write_text(json.dumps(monitoring, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          doc_path = Path('docs/sources/aosta-operational-check-2026-09-10.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          marker = '## Verified current-source transition — 17 September 2026'
+          assert marker not in doc
+          doc += f'''\n## Verified current-source transition — 17 September 2026\n\nThe mutable official Aosta attachments changed again after the second 16 September approval. A dedicated 17 September audit independently captured each official attachment twice without cache; both pairs were byte-identical and parser-identical, and the same exact transition was reverified before this checkpoint.\n\n- Listed: witnessed SHA-256 `{listed_raw}`; 241 complete observations = 220 `listed` + 21 `renewal_update_in_progress`; identifier coverage 241/241; approved semantic SHA-256 `{listed_sem}`.\n- Applicants: witnessed SHA-256 `{applicants_raw}`; 141 complete observations = 115 with source-explicit subsequent enrolment + 26 `pending`; identifier coverage 141/141; approved semantic SHA-256 `{applicants_sem}`.\n\nThe row-level transition is narrowly identified. `CHATRIAN ONORANZE FUNEBRI DI CHATRIAN EMY S.A.S. siglabile CHATRIAN ONORANZE FUNEBRI S.A.S` (`01077930079`) is the only identity removed from the current listed series; its previous listed observation carried listing date 17 September 2025 and expiry date 16 September 2026. The same identity is the only addition to the current applicant series, with application date 31 August 2026, requested activity `I-bis` and explicit outcome `Istruttoria in corso`. No other common listed semantic field changed. Among common applicant rows, the only semantic source-string change is the registered office of `IMPREAM DI AMATO FRANCESCO FABRIZIO (impresa individuale)` (`MTAFNC78D18A326L` / `01121190076`), where the official string now ends in `(Ao)`; its 7 January 2026 application and `Iscritta dal 29/04/2026` outcome are unchanged.\n\nThe Aosta observation total therefore remains 382, while the status composition changes from 336 listed / 25 pending / 21 renewal-update to **335 listed / 26 pending / 21 renewal-update**. Absence from the current listed attachment is not interpreted as revocation, cancellation, denial or any other legal effect. The undated attachment URLs remain mutable current resources; 17 September 2026 is a verified-current/capture reference date only. Future semantic drift continues to fail closed.\n'''
+          doc_path.write_text(doc, encoding='utf-8')
+
+          browser_path = Path('tests/public_portal_browser.cjs')
+          browser = browser_path.read_text(encoding='utf-8')
+          replacements = {
+              "assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,242);": "assert.equal(aosta.filter(r=>r.source_key==='aosta-listed').length,241);",
+              "assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,140);": "assert.equal(aosta.filter(r=>r.source_key==='aosta-applicants').length,141);",
+              "assert.deepEqual(statusCounts(aosta),{listed:336,pending:25,renewal_update_in_progress:21});": "assert.deepEqual(statusCounts(aosta),{listed:335,pending:26,renewal_update_in_progress:21});",
+          }
+          for old, new in replacements.items():
+              assert browser.count(old) == 1, old
+              browser = browser.replace(old, new)
+          browser_path.write_text(browser, encoding='utf-8')
+          PY
+          expected=$'data/monitoring/national_coverage.json\ndata/publication/multi_prefecture_pilot.json\ndocs/sources/aosta-operational-check-2026-09-10.md\ntests/public_portal_browser.cjs'
+          actual="$(git diff --name-only | sort)"
+          test "$actual" = "$expected"
+          git diff --check
+          node --check tests/public_portal_browser.cjs
+      - name: Run full repository tests
+        run: pytest -q
+      - name: Commit permanent Aosta checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/monitoring/national_coverage.json \
+                  data/publication/multi_prefecture_pilot.json \
+                  docs/sources/aosta-operational-check-2026-09-10.md \
+                  tests/public_portal_browser.cjs
+          test "$(git diff --cached --name-only | wc -l)" -eq 4
+          git commit -m 'fix(aosta): approve 17 September source transition'
+          git push origin HEAD:fix/aosta-source-drift-2026-09-17
+      - name: Attempt national build without masking unrelated fail-closed errors
+        run: |
+          set +e
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json /tmp/aosta-national/registry.json \
+            --registry-csv /tmp/aosta-national/registry.csv \
+            --prefectures-json /tmp/aosta-national/prefectures.json \
+            --prefectures-csv /tmp/aosta-national/prefectures.csv \
+            > /tmp/aosta-national-build.log 2>&1
+          rc=$?
+          set -e
+          cat /tmp/aosta-national-build.log
+          if [ "$rc" -eq 0 ]; then
+            echo 'AOSTA_NATIONAL_BUILD=success'
+            exit 0
+          fi
+          if grep -Fq 'potenza-combined: expected 1034 source rows, got 1035' /tmp/aosta-national-build.log; then
+            echo 'AOSTA_NATIONAL_BUILD=blocked_by_preexisting_potenza_drift'
+            exit 0
+          fi
+          echo 'National build failed for an unexpected reason; preserving fail-closed state.' >&2
+          exit "$rc"
+      - name: Upload finalisation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aosta-finalisation-${{ github.run_id }}
+          path: |
+            /tmp/aosta-current
+            /tmp/aosta-national-build.log
+          if-no-files-found: warn
+          retention-days: 7
