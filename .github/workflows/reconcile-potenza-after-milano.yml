@@ -46,7 +46,7 @@ jobs:
           def old_text(path: str) -> str:
               return subprocess.check_output(['git','show',f'{old_head}:{path}'], text=True)
 
-          replacements = [
+          workflow_replacements = [
               (
                   "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))",
                   "assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))",
@@ -56,8 +56,18 @@ jobs:
                   "assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))",
               ),
           ]
+          browser_replacements = [
+              (
+                  "for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964']) assert.equal(currentMilano[k].source_status,'listed');",
+                  "for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960']) assert.equal(currentMilano[k].source_status,'listed');",
+              ),
+              (
+                  "for(const k of ['01843860543','08402360963','08611910152','13169050963']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');",
+                  "for(const k of ['01843860543','08402360963','09406080961','11572370960']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');",
+              ),
+          ]
 
-          def corrected(path: str) -> str:
+          def corrected(path: str, replacements) -> str:
               text = old_text(path)
               for old, new in replacements:
                   count = text.count(old)
@@ -66,10 +76,10 @@ jobs:
                   text = text.replace(old, new)
               return text
 
-          tests = corrected('tests/public_portal_browser.cjs')
+          tests = corrected('tests/public_portal_browser.cjs', browser_replacements)
           Path('tests/public_portal_browser.cjs').write_text(tests)
 
-          payload = corrected('.github/workflows/public-pages.yml')
+          payload = corrected('.github/workflows/public-pages.yml', workflow_replacements)
           Path('tmp').mkdir(exist_ok=True)
           Path('tmp/potenza-public-pages-resolved.yml').write_text(payload)
           PY
