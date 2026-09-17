@@ -1,0 +1,114 @@
+name: Potenza current-source approval persist
+
+on:
+  push:
+    branches: [fix/potenza-source-drift-2026-09-17]
+    paths: ['.github/workflows/potenza-drift-audit.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  persist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[publication]'
+      - name: Verify reviewed Potenza source is still current and update approval evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv, hashlib, json, urllib.request
+          from pathlib import Path
+          from white_list_archive.parsers.potenza_webapp import parse_potenza_combined
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
+
+          url = 'https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
+          raw_sha = 'cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30'
+          sem_sha = '8b3a129f54dfb889740a6f16fddcd53294fc4269a7e311353e72dc9c7b81dd2e'
+          old_sem = '96b5227dd78fc83b78a2fd1516e8a5cfae6d482be97351f1e8c71c641e7e6316'
+          checked_at = '2026-09-17T22:35:08Z'
+          req = urllib.request.Request(url, headers={'User-Agent':'italian-anti-mafia-whitelist/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'})
+          with urllib.request.urlopen(req, timeout=45) as r:
+              raw = r.read()
+          if hashlib.sha256(raw).hexdigest() != raw_sha:
+              raise SystemExit('Potenza source changed after reviewed audit; refusing approval')
+          payload = json.loads(raw)
+          if payload.get('Result') != 'OK' or int(payload.get('TotalRecordCount', -1)) != 1035 or len(payload.get('Records', [])) != 1035:
+              raise SystemExit('Potenza source count/result changed after reviewed audit')
+
+          cfg_path = Path('data/publication/multi_prefecture_pilot.json')
+          cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
+          pot = next(x for x in cfg['sources'] if x['source_key']=='potenza-combined')
+          if pot.get('semantic_sha256') != old_sem or pot.get('expected_source_rows') != 1035 or pot.get('reference_date') != '2026-09-17':
+              raise SystemExit('unexpected prior Potenza approval state')
+          p = Path('/tmp/potenza.json'); p.write_bytes(raw)
+          batch = parse_potenza_combined(p, pot)
+          if _semantic_digest(batch.records) != sem_sha:
+              raise SystemExit('Potenza semantic digest changed after reviewed audit')
+          if batch.diagnostics.get('status_counts') != {'listed':216,'pending':376,'renewal_update_in_progress':443}:
+              raise SystemExit('Potenza status distribution changed after reviewed audit')
+          pot['sha256'] = raw_sha
+          pot['semantic_sha256'] = sem_sha
+          marker = 'Fresh revalidation after midnight Europe/Rome'
+          if marker not in pot.get('notes',''):
+              pot['notes'] = pot.get('notes','').rstrip() + (' ' if pot.get('notes','').strip() else '') + (
+                  marker + ': two independent complete official captures at 2026-09-17T22:35:08Z were byte-identical '
+                  '(raw SHA-256 ' + raw_sha + ') and preserved the reviewed 1,035-row public-relevant transition; '
+                  'full parsed semantic approval advanced from ' + old_sem + ' to ' + sem_sha + '. The prior raw capture '
+                  'was not retained, so the auxiliary source-field cause of the whole-source digest change is not '
+                  'reconstructed; no legal effect is inferred.'
+              )
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+
+          cov_path = Path('data/monitoring/national_coverage.json')
+          cov = json.loads(cov_path.read_text(encoding='utf-8'))
+          pcov = next(x for x in cov['prefectures'] if x['authority_key']=='potenza')
+          pcov['last_successful_source_check_at'] = checked_at
+          pcov['last_attempted_source_check_at'] = checked_at
+          pcov['last_content_change_at'] = checked_at
+          pcov['last_successful_investigation_on'] = '2026-09-18'
+          pcov['monitoring_status'] = 'CURRENT'
+          if raw_sha not in pcov['known_content_sha256']:
+              pcov['known_content_sha256'].append(raw_sha)
+          if not any(x.get('authority_key')=='potenza' and x.get('content_sha256')==raw_sha for x in cov['checks']):
+              cov['checks'].append({'authority_key':'potenza','at':checked_at,'evidence':'docs/sources/potenza-operational-check-2026-09-15.md','error':None,'content_changed':True,'content_sha256':raw_sha})
+          cov_path.write_text(json.dumps(cov, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+
+          inv_path = Path('data/source_registry/source_series_inventory.csv')
+          with inv_path.open(encoding='utf-8', newline='') as f:
+              reader = csv.DictReader(f); fields = reader.fieldnames; rows = list(reader)
+          row = next(x for x in rows if x['source_series_key']=='potenza-combined')
+          row['verified_date'] = '2026-09-18'
+          row['notes'] = ('Current official UTG Potenza web application revalidated after midnight Europe/Rome: two '
+                          'independent complete captures were byte-identical at raw SHA-256 ' + raw_sha + ' and the strict '
+                          'parser still yields 1,035 observations (216 listed, 376 pending, 443 renewal/update in progress). '
+                          'Against the currently served 1,034-row Potenza projection, the reviewed public-relevant delta '
+                          'remains source id 656 newly pending and source id 359 listed to renewal/update in progress, with '
+                          'no source-id removals. Production semantic approval is ' + sem_sha + '. The earlier raw capture '
+                          'was not retained, so the auxiliary source-field cause of the digest change is not reconstructed; '
+                          'no legal effect is inferred.')
+          with inv_path.open('w', encoding='utf-8', newline='') as f:
+              writer = csv.DictWriter(f, fieldnames=fields, lineterminator='\n'); writer.writeheader(); writer.writerows(rows)
+
+          doc_path = Path('docs/sources/potenza-operational-check-2026-09-15.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          marker = '## Fresh current-source revalidation — 18 September 2026'
+          if marker not in doc:
+              doc += f'''\n\n{marker}\n\nThe official UTG Potenza endpoint was captured twice independently at approximately 00:35 CEST. The complete responses were byte-identical at **438,471 bytes**, raw SHA-256 **`{raw_sha}`**, `Result=OK`, `TotalRecordCount=1035`, with 1,035 distinct source ids. The strict production parser returned **216 listed**, **376 pending**, and **443 renewal/update in progress**; 1,034 validated identifiers plus one conservatively retained raw-only identifier; 1,035 application dates; 659 listing dates; 659 expiry dates; and no per-company activity inference.\n\nThe full parsed source-semantic SHA-256 is **`{sem_sha}`**, replacing **`{old_sem}`**. Direct comparison with the currently served Potenza projection established that the public-relevant transition remains exactly the already-reviewed one: source id **656**, `SCAVONE & C. S.R.L.`, is the sole added id and remains pending; source id **359**, `MALASPINA S.R.L.`, is the sole existing record changing across the reviewed public fields, from `listed` to `renewal_update_in_progress`; **no source ids were removed**. The earlier raw response was not retained, so the exact auxiliary source-field value responsible for the whole-source digest drift cannot be reconstructed. The current source is therefore reapproved on fresh positive evidence rather than on an assumption of byte stability. No revocation, cancellation, denial, removal, or other legal effect is inferred.\n'''
+              doc_path.write_text(doc, encoding='utf-8')
+          print('approved_current_potenza', raw_sha, sem_sha, batch.diagnostics['status_counts'])
+          PY
+      - name: Persist and remove temporary workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/potenza-drift-audit.yml
+          git add data/publication/multi_prefecture_pilot.json data/monitoring/national_coverage.json data/source_registry/source_series_inventory.csv docs/sources/potenza-operational-check-2026-09-15.md
+          git diff --cached --check
+          git commit -m 'data(potenza): reapprove freshly verified current source'
+          git push origin HEAD:fix/potenza-source-drift-2026-09-17
