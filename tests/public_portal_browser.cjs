@@ -402,7 +402,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(sassari.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,6);
       assert.ok(sassari.every(r=>r.requested_activities.length>0));
       assert.ok(sassari.every(r=>r.parser_name==='sassari_combined'&&r.parser_version==='1'));
-      assert.ok(sassari.every(r=>r.source_fields.physical_locator.startsWith('Foglio1!'));
+      assert.ok(sassari.every(r=>r.source_fields.physical_locator.startsWith('Foglio1!')));
       const mia=sassari.filter(r=>r.name==='M.I.A. SRL');
       assert.equal(mia.length,1);
       assert.equal(mia[0].source_fields.application_date_raw,'129.01.2025');
