@@ -1,0 +1,132 @@
+name: Milano source transition checkpoint
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-17
+    paths:
+      - .github/workflows/milano-source-transition-checkpoint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/milano-source-drift-2026-09-17
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test runtime
+        run: python -m pip install -e '.[dev,database,storage]'
+      - name: Apply exact reviewed Milano transition
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv, json
+          from pathlib import Path
+
+          OLD='37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215'
+          NEW='51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a'
+          REG='e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab'
+          DOC='docs/sources/milano-source-transition-2026-09-17.md'
+          AT='2026-09-17T18:06:44Z'
+
+          def one(path,old,new):
+              p=Path(path); s=p.read_text(encoding='utf-8'); n=s.count(old)
+              if n!=1: raise SystemExit(f'{path}: expected one {old!r}, found {n}')
+              p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          p=Path('data/publication/multi_prefecture_pilot.json'); d=json.loads(p.read_text(encoding='utf-8'))
+          items=[x for x in d['sources'] if x['source_key']=='milano-combined']
+          if len(items)!=1: raise SystemExit('Milano publication entry not unique')
+          x=items[0]
+          if (x['sha256'],x['expected_sector_rows'],x['expected_source_rows'],x['reference_date'])!=(OLD,4213,2612,'2026-09-17'):
+              raise SystemExit('Milano publication precondition mismatch')
+          x.update(sha256=NEW,expected_sector_rows=4208,expected_source_rows=2611,last_source_update='2026-09-17')
+          x['last_source_update_basis']='current mutable official web application captured and independently revalidated again on 17 September 2026; the date is a capture/reference boundary only and is not an inferred company event or legal-effect date'
+          x['notes']=f'The mutable combined operational table underwent a second independently verified 17 September 2026 transition. Repeated no-cache captures are byte-identical at 969,678 bytes with SHA-256 {NEW}. The reviewed boundary contains 4,208 sector rows and 2,611 logical observations: 940 listed, 514 renewal/update in progress and 1,157 pending; all 2,611 identifiers are strict. Relative to the previously approved 17 September boundary, two pending identities are newly present and three pending identities are absent; four retained pending identities are now source-explicitly listed, seven retained renewal/update identities are now listed, and four retained listed identities are now renewal/update in progress. Absence from the mutable current view is recorded without inferring revocation, cancellation, denial or any other legal effect. The registered-only sibling is independently stable at 558,610 bytes, SHA-256 {REG}, and its 1,454 identities exactly match the combined non-pending identity set; it remains corroborative and is not co-ingested.'
+          p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          p=Path('data/monitoring/national_coverage.json'); m=json.loads(p.read_text(encoding='utf-8'))
+          if any(c.get('authority_key')=='milano' and c.get('content_sha256')==NEW for c in m['checks']): raise SystemExit('Milano check already applied')
+          m['checks'].append({'authority_key':'milano','at':AT,'evidence':DOC,'error':None,'content_changed':True,'content_sha256':NEW})
+          pref=[q for q in m['prefectures'] if q['authority_key']=='milano']
+          if len(pref)!=1: raise SystemExit('Milano monitoring entry not unique')
+          q=pref[0]
+          q.update(latest_source_reference_date='2026-09-17',last_successful_source_check_at=AT,last_attempted_source_check_at=AT,last_content_change_at=AT,last_successful_investigation_on='2026-09-17',monitoring_status='CURRENT')
+          for h in (NEW,REG):
+              if h not in q['known_content_sha256']: q['known_content_sha256'].append(h)
+          if DOC not in q['completion_evidence']: q['completion_evidence'].append(DOC)
+          if DOC not in q['evidence']: q['evidence'].append(DOC)
+          p.write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          p=Path('data/source_registry/source_series_inventory.csv')
+          with p.open(encoding='utf-8',newline='') as f:
+              rd=csv.DictReader(f); rows=list(rd); fields=rd.fieldnames
+          found=[r for r in rows if r['source_series_key']=='milano-combined']
+          if len(found)!=1: raise SystemExit('Milano inventory row not unique')
+          r=found[0]; r['verified_date']='2026-09-17'; r['notes']=f'Current mutable combined listed/applicant table independently reverified again on 17 September 2026. Repeated no-cache captures are byte-identical at SHA-256 {NEW}. Current boundary: 4,208 sector rows / 2,611 logical observations (940 listed, 514 renewal/update, 1,157 pending), all with strict identifiers. Exact additions, removals and retained-identity status transitions are documented conservatively in {DOC}. The independently stable registered-only sibling has 1,454 identities exactly equal to the combined non-pending set; it is corroborative and not co-ingested.'
+          with p.open('w',encoding='utf-8',newline='') as f:
+              wr=csv.DictWriter(f,fieldnames=fields,lineterminator='\n'); wr.writeheader(); wr.writerows(rows)
+
+          one('src/white_list_archive/parsers/milano_webapp.py','PARSER_VERSION = "2"','PARSER_VERSION = "3"')
+          one('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_SECTOR_ROWS = 4213','_EXPECTED_SECTOR_ROWS = 4208')
+          one('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_RECORDS = 2612','_EXPECTED_RECORDS = 2611')
+          one('src/white_list_archive/parsers/milano_webapp.py','    "listed": 933,\n    "renewal_update_in_progress": 517,\n    "pending": 1162,','    "listed": 940,\n    "renewal_update_in_progress": 514,\n    "pending": 1157,')
+          one('src/white_list_archive/parsers/milano_webapp.py','_EXPECTED_IDENTIFIER_COVERAGE = 2612','_EXPECTED_IDENTIFIER_COVERAGE = 2611')
+
+          one('.github/workflows/public-pages.yml',"assert reg['meta']['record_count'] == 57969","assert reg['meta']['record_count'] == 57968")
+          one('.github/workflows/public-pages.yml','assert len(milano_records) == 2612','assert len(milano_records) == 2611')
+          one('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'listed' for r in milano_records) == 933","assert sum(r['source_status'] == 'listed' for r in milano_records) == 940")
+          one('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 517","assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 514")
+          one('.github/workflows/public-pages.yml',"assert sum(r['source_status'] == 'pending' for r in milano_records) == 1162","assert sum(r['source_status'] == 'pending' for r in milano_records) == 1157")
+          one('.github/workflows/public-pages.yml',"assert len({r['record_locator'] for r in milano_records}) == 2612","assert len({r['record_locator'] for r in milano_records}) == 2611")
+          one('.github/workflows/public-pages.yml',"assert sum(bool(r['identifiers']) for r in milano_records) == 2612","assert sum(bool(r['identifiers']) for r in milano_records) == 2611")
+          one('.github/workflows/public-pages.yml',"assert sum(bool(r['application_date']) for r in milano_records) == 1162","assert sum(bool(r['application_date']) for r in milano_records) == 1157")
+          one('.github/workflows/public-pages.yml',"assert sum(bool(r['observed_listing_date']) for r in milano_records) == 933","assert sum(bool(r['observed_listing_date']) for r in milano_records) == 940")
+          one('.github/workflows/public-pages.yml',"assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 933","assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 940")
+          anchor="          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-16'\n"
+          extra="          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-17'\n          current_milano = {r['identifier_field_raw']: r for r in milano_records}\n          assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))\n          assert not {'12957130961','13540670968','14580020965'} & set(current_milano)\n          assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964'))\n          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','08611910152','13169050963'))\n"
+          one('.github/workflows/public-pages.yml',anchor,extra)
+
+          one('tests/public_portal_browser.cjs','assert.equal(stats.total,57969);','assert.equal(stats.total,57968);')
+          one('tests/public_portal_browser.cjs','assert.equal(milano.length,2612);','assert.equal(milano.length,2611);')
+          one('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2612);","assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2611);")
+          one('tests/public_portal_browser.cjs','assert.deepEqual(statusCounts(milano),{listed:933,pending:1162,renewal_update_in_progress:517});','assert.deepEqual(statusCounts(milano),{listed:940,pending:1157,renewal_update_in_progress:514});')
+          one('tests/public_portal_browser.cjs','assert.equal(new Set(milano.map(r=>r.record_locator)).size,2612);','assert.equal(new Set(milano.map(r=>r.record_locator)).size,2611);')
+          one('tests/public_portal_browser.cjs','assert.equal(milano.filter(r=>r.identifiers.length>0).length,2612);','assert.equal(milano.filter(r=>r.identifiers.length>0).length,2611);')
+          one('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.application_date!=='').length,1162);","assert.equal(milano.filter(r=>r.application_date!=='').length,1157);")
+          one('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,933);","assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,940);")
+          one('tests/public_portal_browser.cjs',"assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,933);","assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,940);")
+          one('tests/public_portal_browser.cjs',"assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-16'));","assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));\n      const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));\n      for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}\n      for(const k of ['12957130961','13540670968','14580020965']) assert.equal(currentMilano[k],undefined);\n      for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06745770963','08530830960','10529780966','10732740963','12653840962','13153100964']) assert.equal(currentMilano[k].source_status,'listed');\n      for(const k of ['01843860543','08402360963','08611910152','13169050963']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');")
+
+          p=Path(DOC); text=p.read_text(encoding='utf-8'); marker='## Second verified transition on 17 September 2026'
+          if marker in text: raise SystemExit('Milano evidence section already applied')
+          text += '''\n\n## Second verified transition on 17 September 2026\n\nA later public-portal build failed closed because the mutable combined view no longer matched the raw SHA approved earlier on 17 September. Independent audits then captured both official views repeatedly. The combined captures were byte-identical at **969,678 bytes**, SHA-256 `51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a`; the registered-only captures were byte-identical at **558,610 bytes**, SHA-256 `e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab`.\n\nThe combined view contains **4,208 sector rows and 2,611 logical observations: 940 listed + 514 renewal/update in progress + 1,157 pending**, all with strict identifiers. The registered-only sibling contains **1,454 logical identities / 2,458 sector rows**, exactly equal to the combined non-pending identity set.\n\nTwo pending identities are newly present: `06543250960` **VERDE 2000 SRL** and `12134200968` **LEOPROEX ITALIA S.R.L.**, both with source-explicit application date 17 September 2026. Three previously pending identities are absent: `12957130961` **TEEKAN CONSTRUCTION**, `13540670968` **OSSERVANZA DELLE REGOLE S.R.L.**, and `14580020965` **IDEALLIFT SRL**. Current absence is an observation of the mutable official view only and is **not** interpreted as denial, withdrawal, cancellation or any other legal effect.\n\nAmong retained identities, seven records move from renewal/update in progress to listed (`01081040154`, `02004400996`, `04214900161`, `05561460824`, `05696960961`, `06745770963`, `08530830960`); four move from listed to renewal/update in progress (`01843860543`, `08402360963`, `08611910152`, `13169050963`); and four move from pending to listed (`10529780966`, `10732740963`, `12653840962`, `13153100964`). These are direct current-view classifications, not inferred legal outcomes. The transition reconciles exactly to listed +7, renewal/update -3, pending -5, total -1.\n\nThe parser structure and status interpretation are unchanged. Only its fail-closed version and approved denominators/status counts advance. `durable_evidence_verified=false` remains unchanged. Audit runs `35256361941` and `35256826285` provide the repeated current-source and row-level reconciliation evidence.\n'''
+          p.write_text(text,encoding='utf-8')
+          PY
+      - name: Run repository tests and syntax gate
+        run: |
+          pytest -q
+          node --check tests/public_portal_browser.cjs
+      - name: Verify Milano-only permanent scope and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          allowed='^(\.github/workflows/public-pages\.yml|data/monitoring/national_coverage\.json|data/publication/multi_prefecture_pilot\.json|data/source_registry/source_series_inventory\.csv|docs/sources/milano-source-transition-2026-09-17\.md|src/white_list_archive/parsers/milano_webapp\.py|tests/public_portal_browser\.cjs)$'
+          changed=$(git diff --name-only)
+          printf '%s\n' "$changed"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l)" -eq 7
+          ! printf '%s\n' "$changed" | sed '/^$/d' | grep -Ev "$allowed"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv docs/sources/milano-source-transition-2026-09-17.md src/white_list_archive/parsers/milano_webapp.py tests/public_portal_browser.cjs
+          git commit -m 'Approve current Milano source transition'
+          git push origin HEAD:fix/milano-source-drift-2026-09-17
