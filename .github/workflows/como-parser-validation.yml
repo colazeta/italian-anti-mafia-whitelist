@@ -1,0 +1,112 @@
+name: Como parser validation
+
+on:
+  push:
+    branches:
+      - expansion/como-2026-09-17
+    paths:
+      - src/white_list_archive/parsers/como_html.py
+      - .github/workflows/como-parser-validation.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package
+        run: pip install -e .
+      - name: Re-fetch pinned Como sources and validate semantics
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib
+          import json
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          from white_list_archive.parsers.como_html import parse_como_applicants, parse_como_listed
+          from white_list_archive.publishing.public_contract import public_record
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
+
+          sources = [
+              {
+                  'source_key':'como-listed',
+                  'parser':'como_html_listed',
+                  'url':'https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list',
+                  'sha256':'276fcec3a27893b0b57af24ff8d69ebb64338fd5bc955e4722bd48eb33535413',
+                  'parse':parse_como_listed,
+                  'expected_records':391,
+                  'expected_declared':388,
+                  'expected_statuses':{'listed':359,'renewal_update_in_progress':32},
+                  'expected_identifier_coverage':387,
+                  'expected_raw_only':3,
+                  'expected_blank_identifiers':1,
+                  'expected_malformed_date_rows':2,
+              },
+              {
+                  'source_key':'como-applicants',
+                  'parser':'como_html_applicants',
+                  'url':'https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list',
+                  'sha256':'a4ed63b8e04a277af0221288c40552027437c31064d89ddbc44da432eada42c7',
+                  'parse':parse_como_applicants,
+                  'expected_records':18,
+                  'expected_declared':12,
+                  'expected_statuses':{'pending':18},
+                  'expected_identifier_coverage':18,
+                  'expected_raw_only':0,
+              },
+          ]
+          results=[]
+          for source in sources:
+              req=Request(source['url'],headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+source verification)','Accept':'text/html,*/*'})
+              with urlopen(req, timeout=90) as response:
+                  body=response.read()
+              observed=hashlib.sha256(body).hexdigest()
+              if observed != source['sha256']:
+                  raise RuntimeError(f"Como source drift for {source['source_key']}: {observed}")
+              path=Path(f"{source['source_key']}.html")
+              path.write_bytes(body)
+              cfg={
+                  'source_key':source['source_key'],
+                  'authority_key':'como',
+                  'authority_name':'Prefettura di Como',
+                  'register_key':'como-ordinary',
+                  'register_name':'White List ordinaria',
+                  'population_scope':'listed' if source['source_key']=='como-listed' else 'applicant',
+                  'reference_date':'2026-09-10',
+                  'source_page_url':source['url'],
+                  'resource_url':source['url'],
+                  'sha256':observed,
+              }
+              batch=source['parse'](path,cfg)
+              if len(batch.records) != source['expected_records']:
+                  raise RuntimeError((source['source_key'],'records',len(batch.records)))
+              d=batch.diagnostics
+              checks={
+                  'declared_count':source['expected_declared'],
+                  'status_counts':source['expected_statuses'],
+                  'identifier_coverage':source['expected_identifier_coverage'],
+                  'raw_identifier_only':source['expected_raw_only'],
+              }
+              if 'expected_blank_identifiers' in source: checks['blank_identifier_rows']=source['expected_blank_identifiers']
+              if 'expected_malformed_date_rows' in source: checks['malformed_date_rows']=source['expected_malformed_date_rows']
+              for key,expected in checks.items():
+                  if d.get(key) != expected:
+                      raise RuntimeError((source['source_key'],key,d.get(key),expected))
+              for record in batch.records:
+                  public_record(record)
+              results.append({
+                  'source_key':source['source_key'],
+                  'sha256':observed,
+                  'semantic_sha256':_semantic_digest(batch.records),
+                  'diagnostics':d,
+              })
+          print(json.dumps(results, ensure_ascii=False, indent=2, sort_keys=True))
+          PY
