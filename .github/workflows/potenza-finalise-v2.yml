@@ -24,6 +24,11 @@ jobs:
       - name: Apply and validate reviewed Potenza transition
         run: |
           python tmp/potenza_finalise.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/sources/potenza-operational-check-2026-09-15.md')
+          p.write_text(p.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
+          PY
           node --check tests/public_portal_browser.cjs
           python -m pytest -q
       - name: Commit permanent Potenza transition
