@@ -9,7 +9,7 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 _LISTED_TITLE = (
     "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI "
     "NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA"
@@ -198,11 +198,16 @@ def _sections(raw: str) -> list[str]:
 
 def _listed_rows(table: list[list[str]]) -> list[list[str]]:
     rows = []
+    title = _LISTED_TITLE.casefold()
     for row in table:
         if len(row) != 8:
             continue
         folded = _fold(row)
-        if folded == _LISTED_HEADER or folded[0] == "numero aziende iscritte:":
+        if (
+            folded == _LISTED_HEADER
+            or folded[0] == "numero aziende iscritte:"
+            or (folded[0] == title and not any(folded[1:]))
+        ):
             continue
         if not row[0] and not row[2]:
             continue
@@ -216,11 +221,16 @@ def _listed_rows(table: list[list[str]]) -> list[list[str]]:
 
 def _applicant_rows(table: list[list[str]]) -> list[list[str]]:
     rows = []
+    title = _APPLICANT_TITLE.casefold()
     for row in table:
         if len(row) != 8:
             continue
         folded = _fold(row)
-        if folded == _APPLICANT_HEADER or folded[0] == "numero aziende in fase iscrizione:":
+        if (
+            folded == _APPLICANT_HEADER
+            or folded[0] == "numero aziende in fase iscrizione:"
+            or (folded[0] == title and not any(folded[1:]))
+        ):
             continue
         if not row[0] and not row[2]:
             continue
