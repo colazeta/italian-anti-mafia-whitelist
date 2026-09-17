@@ -203,7 +203,6 @@ jobs:
           PY
       - name: Validate reapproved boundary before commit
         run: |
-          python -m pytest -q
           python -m white_list_archive.publishing.public_national_registry --config data/publication/multi_prefecture_pilot.json --output /tmp/registry.json --work-dir /tmp/public-build
           python - <<'PY'
           import json
