@@ -1,0 +1,104 @@
+name: Milano source transition checkpoint
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-17
+    paths:
+      - .github/workflows/milano-source-transition-checkpoint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  checkpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconcile with current main
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          behind=$(git rev-list --count HEAD..origin/main)
+          echo "behind_main=$behind"
+          test "$behind" = 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev,database,storage]'
+      - name: Reverify Milano transition boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/milano-checkpoint
+          capture() {
+            name="$1"; url="$2"; expected="$3"
+            code=$(curl --silent --show-error --location --retry 2 --retry-all-errors \
+              --connect-timeout 20 --max-time 120 \
+              --header 'Cache-Control: no-cache' --header 'Pragma: no-cache' \
+              --user-agent 'italian-anti-mafia-whitelist/0.1 (+source-transition-checkpoint)' \
+              --output "/tmp/milano-checkpoint/${name}.body" --write-out '%{http_code}' \
+              "${url}?checkpoint=${GITHUB_RUN_ID}-${name}")
+            test "$code" = 200
+            actual=$(sha256sum "/tmp/milano-checkpoint/${name}.body" | cut -d' ' -f1)
+            echo "$name HTTP=$code bytes=$(wc -c < /tmp/milano-checkpoint/${name}.body) sha256=$actual"
+            test "$actual" = "$expected"
+          }
+          for round in 1 2; do
+            capture "combined_${round}" 'https://whitelist.prefmi.it/elenco/elenco.php' '37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215'
+            capture "registered_${round}" 'https://whitelist.prefmi.it/elenco/elenco_iscritte.php' '7f5c7dcc3288387d15125aee1f8aee4e271e5743ecc3a6e9da229873cc1f4848'
+            sleep 2
+          done
+          cmp /tmp/milano-checkpoint/combined_1.body /tmp/milano-checkpoint/combined_2.body
+          cmp /tmp/milano-checkpoint/registered_1.body /tmp/milano-checkpoint/registered_2.body
+      - name: Apply permanent transition
+        run: python tmp/milano_apply_transition.py
+      - name: Validate exact permanent diff
+        run: |
+          set -euo pipefail
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'docs/sources/milano-source-transition-2026-09-17.md',
+              'src/white_list_archive/parsers/milano_webapp.py',
+              'tests/test_milano_parser_semantics.py',
+          }
+          lines = subprocess.check_output(['git','status','--short'], text=True).splitlines()
+          paths = {line[3:] for line in lines}
+          if paths != expected:
+              raise SystemExit(f'unexpected permanent working-tree diff: {sorted(paths)!r} != {sorted(expected)!r}')
+          print('exact six-file permanent transition diff verified')
+          PY
+      - name: Run repository and Milano semantic tests
+        run: |
+          pytest -q
+          pytest -q tests/test_milano_parser_semantics.py
+      - name: Commit permanent transition checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/milano-source-transition-2026-09-17.md \
+            src/white_list_archive/parsers/milano_webapp.py \
+            tests/test_milano_parser_semantics.py
+          test "$(git diff --cached --name-only | wc -l)" = 6
+          git commit -m 'Checkpoint 17 September Milano source transition'
+          git push origin HEAD:fix/milano-source-drift-2026-09-17
+          echo "FINAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Report checkpoint
+        run: |
+          echo "Permanent Milano checkpoint: ${FINAL_SHA}"
+          git status --short
