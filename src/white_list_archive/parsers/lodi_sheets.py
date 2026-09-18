@@ -10,9 +10,9 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "2"
-_REFERENCE_DATE = "2026-09-16"
-_LISTED_SHA256 = "c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613"
+PARSER_VERSION = "3"
+_REFERENCE_DATE = "2026-09-18"
+_LISTED_SHA256 = "a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e"
 _APPLICANT_SHA256 = "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228"
 
 _LISTED_PHYSICAL_ROWS = 324
@@ -34,12 +34,12 @@ _EXPECTED_SECTION_ROWS = {
     "X": 39,
 }
 _EXPECTED_LISTED_SOURCE_STATUS_COUNTS = {
-    "listed": 254,
-    "renewal_update_in_progress": 37,
+    "listed": 251,
+    "renewal_update_in_progress": 40,
 }
 _EXPECTED_LISTED_STATUS_COUNTS = {
-    "listed": 146,
-    "renewal_update_in_progress": 23,
+    "listed": 144,
+    "renewal_update_in_progress": 25,
 }
 _EXPECTED_GROUP_OCCURRENCES = {1: 108, 2: 32, 3: 14, 4: 5, 5: 6, 6: 2, 7: 1, 8: 1}
 _EXPECTED_APPLICANT_STATUS_COUNTS = {
