@@ -29,6 +29,7 @@ jobs:
       - name: Materialize permanent Lecce integration
         run: |
           python scripts/lecce_integration_finalizer.py
+          sed -i 's/\r$//' data/catalog.csv data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv
           rm -f scripts/lecce_source_probe.py
           rm -f .github/workflows/lecce-source-probe.yml
           rm -f tmp/lecce_probe.json
