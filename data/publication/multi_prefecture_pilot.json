@@ -1578,12 +1578,12 @@
       "reference_date": "2026-09-18",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
       "resource_url": "https://whitelist.prefmi.it/elenco/elenco.php",
-      "sha256": "8dd6ce95d933f6b892e056bdec5bc78a985bb6485504055cd7cbde0e8cbdad5c",
+      "sha256": "b92945af542b89ca99122d60a6f2d1c4c22359bb2c1bbe7c40672c7738bbc58a",
       "expected_sector_rows": 4208,
       "expected_source_rows": 2611,
       "last_source_update": "2026-09-18",
-      "last_source_update_basis": "Direct 18 September 2026 operational-source verification: repeated cache-bypassed captures of both official Milano views were byte-identical; the production parser accepted the combined view at the frozen 4,208-sector-row / 2,611-observation boundary.",
-      "notes": "The mutable combined operational table was independently re-verified on 18 September 2026 at 969,618 bytes (SHA-256 8dd6ce95d933f6b892e056bdec5bc78a985bb6485504055cd7cbde0e8cbdad5c). Identity membership remains 2,611 observations with no additions or removals against the live 17 September boundary; the source explicitly moved IMPRESA GUERINI & C. SRL (00936150150) and TECNOTER SRL (13072070157) from dated listed rows to IN AGGIORNAMENTO, yielding 938 listed, 516 renewal/update and 1,157 pending. The separate registered-only sibling was independently repeated at 558,574 bytes (SHA-256 bfad4880c80cf465d6356e7ae518149f150781de69a712c8551320f25a92b195) and its 1,454 identities exactly equal the non-pending identity set. No legal effect is inferred beyond the source-published status wording."
+      "last_source_update_basis": "Later 18 September 2026 direct operational-source verification after a fail-closed byte-identity change: two cache-bypassed captures of each official Milano view were byte-identical, and the reviewed parser boundary remained structurally stable at 4,208 sector rows / 2,611 observations.",
+      "notes": "The mutable combined operational table was re-verified later on 18 September 2026 at 969,548 bytes (SHA-256 b92945af542b89ca99122d60a6f2d1c4c22359bb2c1bbe7c40672c7738bbc58a). Identity membership remains 2,611 observations with no additions or removals against the live boundary; ten retained pending identities are now source-explicitly listed with listing date 18 September 2026 and expiry date 18 September 2027, yielding 948 listed, 516 renewal/update in progress and 1,147 pending. The registered-only sibling was independently stable at 561,860 bytes (SHA-256 20714806f285559da9bbfb51203e7329e990112224643bcb6a0bed7a473ef8e2) and its 1,464 identities exactly equal the combined non-pending identity set. No legal effect is inferred beyond the source-published status wording. See docs/sources/milano-source-transition-2026-09-18-b929.md."
     },
     {
       "source_key": "como-listed",

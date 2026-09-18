@@ -11,7 +11,7 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "4"
+PARSER_VERSION = "5"
 PARSER_NAME = "milano_combined"
 
 _REFERENCE_DATE = "2026-09-18"
@@ -20,9 +20,9 @@ _EXPECTED_TABLES = 10
 _EXPECTED_SECTOR_ROWS = 4208
 _EXPECTED_RECORDS = 2611
 _EXPECTED_STATUS_COUNTS = {
-    "listed": 938,
+    "listed": 948,
     "renewal_update_in_progress": 516,
-    "pending": 1157,
+    "pending": 1147,
 }
 _EXPECTED_IDENTIFIER_COVERAGE = 2611
 _EXPECTED_NONBLANK_NOTES = 1
