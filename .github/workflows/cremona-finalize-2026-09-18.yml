@@ -230,3 +230,5 @@ jobs:
           git diff --cached --check
           git commit -m 'Expand public White List coverage to Cremona'
           git push origin HEAD:expansion/cremona-2026-09-18
+
+# Retrigger the bounded finalizer after workflow registration.
