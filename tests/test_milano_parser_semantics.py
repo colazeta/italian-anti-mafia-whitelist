@@ -29,7 +29,7 @@ def _cfg() -> dict[str, str]:
         "register_key": "milano-ordinary",
         "register_name": "White List ordinaria",
         "population_scope": "listed_and_applicant",
-        "reference_date": "2026-09-17",
+        "reference_date": "2026-09-18",
         "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
         "resource_url": "https://whitelist.prefmi.it/elenco/elenco.php",
         "sha256": "fixture-sha",
