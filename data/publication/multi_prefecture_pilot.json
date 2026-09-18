@@ -1806,6 +1806,41 @@
       "sha256": "dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081",
       "expected_source_rows": 276,
       "notes": "Current byte-pinned 46-page applicant PDF. Fail-closed parser yields exactly 276 applicant observations, all represented conservatively as pending; the published istruttoria spelling variants are frozen as source outcomes rather than normalised into legal conclusions. Structured identifier coverage is 273/276 and the three malformed source identifiers remain raw-only. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md."
+    },
+    {
+      "source_key": "chieti-listed",
+      "parser": "chieti_legacy_listed",
+      "authority_key": "chieti",
+      "authority_name": "Prefettura di Chieti",
+      "register_key": "chieti-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-18",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/chieti/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/82/2026-09/elenco-iscritti-white-list-18-settembre-2026.doc",
+      "sha256": "09c9b3ae1b1f4145c2a3795738a8d80d872c9816752cedb31b34cd730d801ddd",
+      "expected_source_rows": 759,
+      "expected_sector_rows": 1352,
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "current official source label and two byte-identical cache-bypassed captures",
+      "approval_mode": "raw_sha256"
+    },
+    {
+      "source_key": "chieti-applicants",
+      "parser": "chieti_legacy_applicants",
+      "authority_key": "chieti",
+      "authority_name": "Prefettura di Chieti",
+      "register_key": "chieti-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-18",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/chieti/evidenza/white-list",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/82/2026-09/elenco-richiedenti-iscrizione-in-white-list-18-settembre-2026.doc",
+      "sha256": "2628230c417cf7b961d4a22490ba04f1b548c512782bd19a211890e11df54dc1",
+      "expected_source_rows": 177,
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "current official source label and two byte-identical cache-bypassed captures",
+      "approval_mode": "raw_sha256"
     }
   ]
 }
