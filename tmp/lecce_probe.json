@@ -42,94 +42,502 @@
       "CHIRIZZI Daniele - Imprssa individuale SQUINZANO 27/04/2026",
       "02062510751",
       "CITY GREEN Società a responsabilità limitata semplificata LEVERANO 05339200759 06/05/2026",
-      "CLARECO AMBIENTE S.R.L. TAURISANO 05147230758 08/09/2026",
-      "CLCNGL61D03L485B",
-      "COLUCCIA Angelo - Impr. Ind. OTRANTO 17/06/2026",
-      "02285180754",
-      "COSTRUZIONI COLELLA S.r.l. SAN CASSIANO 04820100750 22/04/2026",
-      "CRETI' EVENTS AND CONFERENCES di Creti' Emanuela CRTMNL83A60E506L",
-      "LECCE 08/09/2026",
-      "Impresa indiviudale 05322360750",
-      "D.A.M. S.r.l.",
-      "PARABITA 03076820756 23/07/2026",
-      "(DISTRIBUZIONE AUTOMATICA MEDITERRANEA S.r.l.",
-      "Elenco aggiornato al 09/09/2026 2",
-      "Prefettura di Lecce",
-      "Elenco delle imprese richiedenti l'iscrizione nella White List",
-      "DATA DI PRESENTAZIONE",
-      "RAGIONE SOCIALE SEDE LEGALE CODICE FISCALE",
-      "DELL'ISTANZA",
-      "DAMA S.r.l.s. GALATINA 05232800754 06/02/2023",
-      "DDM S.r.l. PARABITA 05120480750 29/05/2026",
-      "DE IACO SECURITY GROUP S.r.l. RUFFANO 05136690756 20/05/2026",
-      "DEK GLOBAL SERVICE",
-      "TREPUZZI 05181120758 11/06/2026",
-      "Società a responsabilità limitata semplificata",
-      "DF RISTOSERVICE - SOCIETA' COOPERATIVA NARDO' 05070410757 09/01/2026",
-      "DGA Società a responsabilità limitata semplificata SUPERSANO 05355390757 01/04/2026",
-      "DILI LAVORI S.r.l. LECCE 02802130423 29/05/2023",
-      "DOPPIOZERO S.r.l. LECCE 04831950755 04/06/2026",
-      "DS SCAVI S.r.l. NARDO' 05443910756 27/04/2026",
-      "CZZSFN89S23B180A",
-      "ECOS di Stefano Cozzella - Impr. Ind. TREPUZZI 20/05/2026",
-      "05026710755",
-      "Elenco aggiornato al 09/09/2026 3",
-      "Prefettura di Lecce",
-      "Elenco delle imprese richiedenti l'iscrizione nella White List",
-      "DATA DI PRESENTAZIONE",
-      "RAGIONE SOCIALE SEDE LEGALE CODICE FISCALE",
-      "DELL'ISTANZA",
-      "EDIL NEGRO S.r.l. GALLIPOLI 04061210755 27/03/2026",
-      "EDIL PRETASHI S.r.l. GALATINA 05412660754 31/03/2026",
-      "EDILPROGET S.r.l. SAN DONATO DI LECCE 03205190758 04/05/2026",
-      "EL.COM S.r.l. Unipersonale SQUINZANO 04541120756 23/05/2026"
+      "CLARECO AMBIENTE S.R.L. TAURISANO 05147230758 08/09/2026"
     ],
     "kind": "applicants",
     "label": "ELENCO RICHIEDENTI ISCRIZIONE AGGIORNATO 9 SETTEMBRE 2026",
     "nonblank_text_lines": 206,
     "pages": 10,
     "sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124",
+    "table_geometry": {
+      "pages": [
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "4S IMPIANTI di Sansone Sebastiano - Impr. Ind.",
+              "RACALE",
+              "SNSDDT71L13Z133V 05003150751",
+              "25/07/2026"
+            ],
+            [
+              "AGM di Emilia Balboni - Impr. Ind.",
+              "NARDO'",
+              "BLBMLE86E45A089I 05352780752",
+              "11/03/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "AZIENDA AGRICOLA BOTRUGNO MARCO - Impr. Ind.",
+              "CURSI",
+              "BTRMRC83D29E815I 04922120755",
+              "13/08/2026"
+            ],
+            [
+              "BORTONE Roberto - Impr. Ind.",
+              "TRICASE",
+              "BRTRRT85E17L419M 04525550754",
+              "28/07/2026"
+            ],
+            [
+              "CARAFA S.p.a.",
+              "NARDO'",
+              "05052910758",
+              "02/06/2026"
+            ]
+          ],
+          "nonblank_rows": 10,
+          "page": 1,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "CA.R.T.O. S.r.l.",
+              "CAVALLINO",
+              "02140260759",
+              "04/05/2026"
+            ],
+            [
+              "CDSHOTELS S.p.a.",
+              "LECCE",
+              "02475550758",
+              "19/03/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "COSTRUZIONI COLELLA S.r.l.",
+              "SAN CASSIANO",
+              "04820100750",
+              "22/04/2026"
+            ],
+            [
+              "CRETI' EVENTS AND CONFERENCES di Creti' Emanuela Impresa indiviudale",
+              "LECCE",
+              "CRTMNL83A60E506L 05322360750",
+              "08/09/2026"
+            ],
+            [
+              "D.A.M. S.r.l. (DISTRIBUZIONE AUTOMATICA MEDITERRANEA S.r.l.",
+              "PARABITA",
+              "03076820756",
+              "23/07/2026"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 2,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "DAMA S.r.l.s.",
+              "GALATINA",
+              "05232800754",
+              "06/02/2023"
+            ],
+            [
+              "DDM S.r.l.",
+              "PARABITA",
+              "05120480750",
+              "29/05/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "DOPPIOZERO S.r.l.",
+              "LECCE",
+              "04831950755",
+              "04/06/2026"
+            ],
+            [
+              "DS SCAVI S.r.l.",
+              "NARDO'",
+              "05443910756",
+              "27/04/2026"
+            ],
+            [
+              "ECOS di Stefano Cozzella - Impr. Ind.",
+              "TREPUZZI",
+              "CZZSFN89S23B180A 05026710755",
+              "20/05/2026"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 3,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "EDIL NEGRO S.r.l.",
+              "GALLIPOLI",
+              "04061210755",
+              "27/03/2026"
+            ],
+            [
+              "EDIL PRETASHI S.r.l.",
+              "GALATINA",
+              "05412660754",
+              "31/03/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "GARRUTO ENERGY SOCIETA' COOPERATIVA",
+              "LECCE",
+              "05357080752",
+              "10/04/2026"
+            ],
+            [
+              "GE.M.I. GESTIONE E MANUTENZIONI IDRICHE S.r.l.",
+              "LECCE",
+              "05317630753",
+              "30/09/2024"
+            ],
+            [
+              "-GEMAT S.r.l.",
+              "ALESSANO",
+              "03967620752",
+              "03/03/2026"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 4,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "GEO IMPIANTI S.n.c. di Cimino Umberto Carmine ed Eredi di Vincenti Dario",
+              "TAVIANO",
+              "02582030751",
+              "06/06/2023"
+            ],
+            [
+              "GLOBAL SERVICE S.r.l. Unipersonale",
+              "MELISSANO",
+              "03738160757",
+              "01/02/2021"
+            ]
+          ],
+          "last_rows": [
+            [
+              "INDUSTRIE EDILI Società a responsabilità limitata semplificata",
+              "LEQUILE",
+              "05461950759",
+              "01/04/2026"
+            ],
+            [
+              "ITAL VIGILANZA S.r.l.",
+              "CASARANO",
+              "05346470759",
+              "16/03/2026"
+            ],
+            [
+              "LANZILLI IMPIANTI ELETTRICI Società a responsabilità limitata semplificata",
+              "SURBO",
+              "05231350751",
+              "12/05/2026"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 5,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "LAS VEGAS Società a responsabilità limitata semplificata",
+              "LECCE",
+              "05042270750",
+              "21/07/2026"
+            ],
+            [
+              "LEZZI GROUP S.r.l.",
+              "SURBO",
+              "04502550751",
+              "11/05/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "MIGGIANO SMART CITY S.r.l.",
+              "SOLETO",
+              "05037170759",
+              "09/01/2023"
+            ],
+            [
+              "MILANESE Antonio - Impr. Ind.",
+              "MARTIGNANO",
+              "MLNNTN68D20E984I 05299570753",
+              "13/04/2026"
+            ],
+            [
+              "M.S.G. GROUP di Malerba Mattia - Impr. Ind.",
+              "GALATONE",
+              "MLRMTT89A01F842O 04566690758",
+              "20/05/2026"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 6,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "MY WINDOW S.r.l.",
+              "CARMIANO",
+              "05303150758",
+              "28/05/2026"
+            ],
+            [
+              "NEW CITIES LIGHTS di G.M. S.R.L.",
+              "GAGLIANO DEL CAPO",
+              "05110070751",
+              "03/09/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "PETRACCA Daniele - Impr. Ind.",
+              "PATU'",
+              "PTRDNL89L22Z133I 05392270756",
+              "04/04/2026"
+            ],
+            [
+              "PISCOPIELLO PONTEGGI S.r.l.",
+              "RACALE",
+              "03870310756",
+              "10/04/2026"
+            ],
+            [
+              "POWER OIL S.r.l.",
+              "CARMIANO",
+              "02703320594",
+              "29/06/2021"
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 7,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "PREMIERE MULTISERVIZI S.r.l.s.",
+              "CAPRARICA DI LECCE",
+              "04775600754",
+              "25/09/2023"
+            ],
+            [
+              "PROGETTO VERDE SERVIZI S.r.l.",
+              "COLLEPASSSO",
+              "04447030752",
+              "26/01/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "S.I.C. 2710 Società Ingegneria e Costruzioni S.r.l.",
+              "LECCE",
+              "08574500727",
+              "17/03/2025"
+            ],
+            [
+              "SALENTO SMART CITY S.r.l.",
+              "SOLETO",
+              "04949610756",
+              "25/01/2023"
+            ],
+            [
+              "SAMAS Società a responsabiliotà limitata semplificata",
+              "TAURISANO",
+              "05081750753",
+              "12/05/2026"
+            ]
+          ],
+          "nonblank_rows": 10,
+          "page": 8,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "SANTA CROCE RESTAURI BENI MONUMENTALI di De Dominicis Rocco Antonio - Impr. Ind.",
+              "CASTRI' DI LECCE",
+              "DDMRCN57C12E629G 03411100757",
+              "25/08/2026"
+            ],
+            [
+              "SERRA Alessandro - Impresa individuale",
+              "SQUINZANO",
+              "SRRLSN68S22I930S 03755800756",
+              "14/01/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "TNC LOGISTICA S.r.l.",
+              "RACALE",
+              "05226750759",
+              "04/03/2026"
+            ],
+            [
+              "VALENTE S.r.l.",
+              "LECCE",
+              "02029060759",
+              "06/05/2026"
+            ],
+            [
+              "VERDEGIA' - SOCIETA' COOPERATIVA",
+              "CORSANO",
+              "04207110752",
+              "07/04/2026"
+            ]
+          ],
+          "nonblank_rows": 10,
+          "page": 9,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "RAGIONE SOCIALE",
+              "SEDE LEGALE",
+              "CODICE FISCALE",
+              "DATA DI PRESENTAZIONE DELL'ISTANZA"
+            ],
+            [
+              "V.S. STRADE E CONDOTTE S.r.l.",
+              "VEGLIE",
+              "05467360755",
+              "14/04/2026"
+            ],
+            [
+              "WE BUILD S.r.l.",
+              "LECCE",
+              "05165960757",
+              "20/02/2026"
+            ]
+          ],
+          "last_rows": [
+            [
+              "V.S. STRADE E CONDOTTE S.r.l.",
+              "VEGLIE",
+              "05467360755",
+              "14/04/2026"
+            ],
+            [
+              "WE BUILD S.r.l.",
+              "LECCE",
+              "05165960757",
+              "20/02/2026"
+            ],
+            [
+              "ZACC RISTRUTTURAZIONI di Roberto Zaccaria & C. S.a.s.",
+              "SQUINZANO",
+              "05378440753",
+              "04/05/2026"
+            ]
+          ],
+          "nonblank_rows": 4,
+          "page": 10,
+          "table_count": 1,
+          "widths": [
+            4
+          ]
+        }
+      ],
+      "row_width_histogram": {
+        "4": 100
+      },
+      "total_nonblank_table_rows": 100
+    },
     "tail": [
-      "MSTDNL65T22H826M",
-      "MASTROLIA COSTRUZIONI di Mastrolia Daniele - Impr. Ind. SAN DONATO DI LECCE 31/03/2026",
-      "03087640755",
-      "MCC GENERAL CONTRACTORS",
-      "SURANO 04995530757 17/04/2026",
-      "Società a responsabilità limitata semplificata",
-      "MEDIARA SOCIETA' COOPERATIVA ARADEO 04873880753 22/04/2026",
-      "MIGGIANO SMART CITY S.r.l. SOLETO 05037170759 09/01/2023",
-      "MLNNTN68D20E984I",
-      "MILANESE Antonio - Impr. Ind. MARTIGNANO 13/04/2026",
-      "05299570753",
-      "MLRMTT89A01F842O",
-      "M.S.G. GROUP di Malerba Mattia - Impr. Ind. GALATONE 20/05/2026",
-      "04566690758",
-      "Elenco aggiornato al 09/09/2026 6",
-      "Prefettura di Lecce",
-      "Elenco delle imprese richiedenti l'iscrizione nella White List",
-      "DATA DI PRESENTAZIONE",
-      "RAGIONE SOCIALE SEDE LEGALE CODICE FISCALE",
-      "DELL'ISTANZA",
-      "MY WINDOW S.r.l. CARMIANO 05303150758 28/05/2026",
-      "NEW CITIES LIGHTS di G.M. S.R.L. GAGLIANO DEL CAPO 05110070751 03/09/2026",
-      "NEXABUILD GROUP S.r.l. TRICASE 05460270753 29/07/2026",
-      "NUOVA CORVAGLIA S.r.l. TAVIANO 04106250758 04/08/2022",
-      "NUOVA LUCE S.r.l. SOLETO 02351950445 27/01/2023",
-      "PELLEGRINO VENDING S.r.l. ZOLLINO 03207850755 05/08/2026",
-      "PETITO PAVIMENTAZIONI SOCIETA' COOPERATIVA VEGLIE 04476810751 22/04/2026",
-      "PTRDNL89L22Z133I",
-      "PETRACCA Daniele - Impr. Ind. PATU' 04/04/2026",
-      "05392270756",
-      "PISCOPIELLO PONTEGGI S.r.l. RACALE 03870310756 10/04/2026",
-      "POWER OIL S.r.l. CARMIANO 02703320594 29/06/2021",
-      "Elenco aggiornato al 09/09/2026 7",
-      "Prefettura di Lecce",
-      "Elenco delle imprese richiedenti l'iscrizione nella White List",
-      "DATA DI PRESENTAZIONE",
-      "RAGIONE SOCIALE SEDE LEGALE CODICE FISCALE",
-      "DELL'ISTANZA",
-      "PREMIERE MULTISERVIZI S.r.l.s. CAPRARICA DI LECCE 04775600754 25/09/2023",
-      "PROGETTO VERDE SERVIZI S.r.l. COLLEPASSSO 04447030752 26/01/2026",
       "RAGGIO DI SOLE - SOCIETA' COOPERATIVA - ONLUS LECCE 03972300754 28/04/2026",
       "RENI TRASPORTI S.r.l. CASARANO 04669090757 21/07/2026",
       "RENOVA",
@@ -220,94 +628,5170 @@
       "ORTELLE 25/09/2025 24/09/2026",
       "Impr. Ind. 04976020752 CORSO",
       "BASTONE SALVATORE S.r.l. NARDO’ 03715860759 24/07/2026 23/07/2027",
-      "BLLFNC54D07L485U",
-      "BELLO Francesco - Impr. Ind. OTRANTO 01/09/2025 31/08/2026",
-      "02567130758",
-      "BLLSVT65L02A184E",
-      "BELLO Salvatore - Impr. Ind. ALESSANO 31/12/2025 30/12/2026",
-      "03689860751",
-      "AGGIORNAMENTO IN",
-      "BERLOR GENERAL CONTRACTOR S.r.l. CARMIANO 05054270755 05/09/2025 04/09/2026",
-      "CORSO",
-      "AGGIORNAMENTO IN",
-      "BIEFFE COSTRUZIONI S.r.l. LECCE 04287140752 29/09/2025 28/09/2026",
-      "CORSO",
-      "BLVNTN83P23D851S AGGIORNAMENTO IN",
-      "BLEVE Antonio - Impr. Ind. ALESSANO 25/02/2025 24/02/2026",
-      "04460640750 CORSO",
-      "AGGIORNAMENTO IN",
-      "BRI.ECO S.r.l. TAVIANO 01/07/2026 30/06/2027",
-      "CORSO",
-      "BRTEK Società a responsabilità limitata semplificata TREPUZZI 05371030759 28/01/2026 27/01/2027",
-      "BUSINESS EVOLUTION S.r.l. LECCE 04605540758 22/04/2025 21/04/2026",
-      "SANTA CESAREA",
-      "CALORA S.U.R.L. 04168530758 09/04/2026 08/04/2027",
-      "TERME",
-      "CANTIERI GENERALI S.P.A. CASARANO 04515020750 13/12/2021 12/12/2022 AGGIORNAMENTO IN CORSO",
-      "CANTIERI RIUNITI DEL SALENTO S.r.l. GAGLIANO DEL CAPO 03568400752 22/07/2026 21/07/2027",
-      "AGGIORNAMENTO IN",
-      "CARLINO S.a.s. di Carlino Roberto & C. TAVIANO 02621830757 22/04/2025 21/04/2026",
-      "CORSO",
-      "AGGIORNAMENTO IN",
-      "CARRATTA DECORAZIONI & RESTAURO S.r.l. ARADEO 03866440757 05/09/2025 04/09/2026",
-      "CORSO",
-      "CSTMTT88M02C978Z",
-      "CASTORO MATTEO - Impresa individuale MONTERONI DI LECCE 20/11/2025 19/11/2026",
-      "04427320751",
-      "Elenco aggiornato al 09/09/2026",
-      "Prefettura di Lecce",
-      "Gestione Documentazione Antimafia",
-      "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
-      "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
-      "SEZIONE I – ESTRAZIONE, FORNITURA E TRASPORTO DI TERRA E MATERIALI INERTI",
-      "Sede Secondaria"
+      "BLLFNC54D07L485U"
     ],
     "kind": "listed",
     "label": "ELENCO WHITE LIST PER CATEGORIA AGGIORNATO 9 SETTEMBRE 2026",
     "nonblank_text_lines": 4009,
     "pages": 78,
     "sha256": "acbe7b735107d48735bc8d01902fc73d49f00e6d8d6ef11dc0c1f9dfd344765d",
+    "table_geometry": {
+      "pages": [
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CARLINO S.a.s. di Carlino Roberto & C.",
+              "TAVIANO",
+              "",
+              "02621830757",
+              "22/04/2025",
+              "21/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CARRATTA DECORAZIONI & RESTAURO S.r.l.",
+              "ARADEO",
+              "",
+              "03866440757",
+              "05/09/2025",
+              "04/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CASTORO MATTEO - Impresa individuale",
+              "MONTERONI DI LECCE",
+              "",
+              "CSTMTT88M02C978Z 04427320751",
+              "20/11/2025",
+              "19/11/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 40,
+          "page": 1,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "D'AMICO COSTRUZIONI S.r.l.",
+              "LIZZANELLO",
+              "",
+              "05362760752",
+              "04/07/2026",
+              "03/07/2027",
+              ""
+            ],
+            [
+              "DEFRA AMBIENTE S.R.L.",
+              "MARTIGNANO",
+              "",
+              "04284960756",
+              "29/09/2025",
+              "28/09/2026",
+              ""
+            ],
+            [
+              "DE GIORGI Giuseppe- Impr. Ind.",
+              "TAURISANO",
+              "",
+              "DGRGPP67S10L064E 03310060755",
+              "17/06/2026",
+              "16/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 41,
+          "page": 2,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "EDIL PERTICARI S.r.l.",
+              "GALATONE",
+              "",
+              "04605510751",
+              "31/12/2025",
+              "30/12/2026",
+              ""
+            ],
+            [
+              "EDIL RESTAURO S.r.l.",
+              "SQUINZANO",
+              "",
+              "02994450753",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "EDIL SCAVI MOVIMENTO TERRA di Pellè Donato - Impresa individuale",
+              "VERNOLE",
+              "",
+              "PLLDNT78T03E506I 03465320756",
+              "14/12/2025",
+              "13/12/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 41,
+          "page": 3,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FC CANTIERI S.r.l.",
+              "UGENTO",
+              "",
+              "04609580750",
+              "30/01/2026",
+              "29/01/2027",
+              ""
+            ],
+            [
+              "FELLINE S.r.l.",
+              "CASARANO",
+              "",
+              "01456910759",
+              "01/09/2025",
+              "31/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "FELLINE ENERGIE di Sergio Felline & C. S.n.c.",
+              "GIURDIGNANO",
+              "",
+              "04038370757",
+              "12/09/2025",
+              "11/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 42,
+          "page": 4,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "IGG S.r.l.",
+              "VEGLIE",
+              "",
+              "04406220758",
+              "30/01/2026",
+              "29/01/2027",
+              ""
+            ],
+            [
+              "IL LAVORO PRIMA DI TUTTO Società Cooperativa",
+              "T A URISANO",
+              "",
+              "04567370756",
+              "03/02/2026",
+              "02/02/2027",
+              ""
+            ],
+            [
+              "IM.G. S.r.l.s.",
+              "VEGLIE",
+              "",
+              "04744880750",
+              "05/09/2025",
+              "04/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 42,
+          "page": 5,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "MAROCCIA COSTRUZIONI S.r.l.",
+              "LECCE",
+              "",
+              "03304810751",
+              "22/04/2026",
+              "21/04/2027",
+              ""
+            ],
+            [
+              "MARTEDIL S.r.l.",
+              "CORSANO",
+              "",
+              "04670040759",
+              "01/09/2025",
+              "31/08/2026",
+              ""
+            ],
+            [
+              "MAS SERVICE PLUS S.r.l.s.",
+              "LECCE",
+              "",
+              "04751510753",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 41,
+          "page": 6,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "PELUSO CAVA e RECUPERO S.r.l.",
+              "LEVERANO",
+              "",
+              "05340130755",
+              "05/09/2025",
+              "04/09/2026",
+              ""
+            ],
+            [
+              "PELUSO SALVATORE ANTONIO di Peluso Fernando - Impresa Indiviuale",
+              "LEVERANO",
+              "",
+              "PLSFNN37M30E563A 04865700753",
+              "25/02/2025",
+              "24/02/2026",
+              ""
+            ],
+            [
+              "PERFOTEL S.r.l.",
+              "NARDO'",
+              "",
+              "05231750752",
+              "09/06/2025",
+              "08/06/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 41,
+          "page": 7,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SISTEMI EDILI di Damiano Patrizio - Impr. Ind.",
+              "TAURISANO",
+              "",
+              "DMNPRZ72C07B936M 04423590753",
+              "12/05/2025",
+              "11/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "SITE - Società Impianti Telefonici Elettrrici S.r.l.",
+              "NARDO'",
+              "",
+              "C.F. 01720790201 P.I. 02986830756",
+              "0 9/09/2026",
+              "08/09/2027",
+              ""
+            ],
+            [
+              "SITECO S.r.l.",
+              "LECCE",
+              "",
+              "05000940758",
+              "02/07/2026",
+              "01/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 41,
+          "page": 8,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VENNA S.R.L.",
+              "TAURISANO",
+              "",
+              "04359260751",
+              "01/09/2025",
+              "31/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "VIZZINO S.r.l.",
+              "VERNOLE",
+              "",
+              "05134490753",
+              "28/05/2025",
+              "27/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ZIS di Paolo Schiavano - Impresa individuale",
+              "UGENTO",
+              "",
+              "SCHPLA80S21L419V 03835730759",
+              "03/06/2025",
+              "02/06/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 32,
+          "page": 9,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CARLINO S.a.s. di Carlino Roberto & C.",
+              "TAVIANO",
+              "",
+              "02621830757",
+              "22/04/2025",
+              "21/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CENTO 18 AMBIENTE S.R.L.",
+              "LIZZANELLO",
+              "",
+              "03774200756",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "CIESSE COSTRUZIONI E SERVIZI S.r.l.",
+              "COPERTINO",
+              "",
+              "04358450759",
+              "20/11/2025",
+              "19/11/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 10,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "DUE EMME SERVICE S.r.l.s.",
+              "PATU'",
+              "",
+              "04926680754",
+              "15/01/2026",
+              "14/01/2027",
+              ""
+            ],
+            [
+              "ECOLVIOLA S.r.l. (già Colserviceitalia S.r.l.)",
+              "NARDO'",
+              "",
+              "02598700751",
+              "07/07/2026",
+              "06/07/2027",
+              ""
+            ],
+            [
+              "EDIL DEM di De Mitri Antonio - Impr. Ind.",
+              "COPERTINO",
+              "",
+              "DMTNTN71H10C978D 03137980755",
+              "15/11/2025",
+              "14/11/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 11,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FELLINE ENERGIE di Sergio Felline & C. S.n.c.",
+              "GIURDIGNANO",
+              "",
+              "04038370757",
+              "12/09/2025",
+              "11/09/2026",
+              ""
+            ],
+            [
+              "FG CASA 2013 S.r.l.s.",
+              "LEVERANO",
+              "",
+              "04970010759",
+              "21/08/2025",
+              "20/08/2026",
+              ""
+            ],
+            [
+              "FICES S.r.l.",
+              "LECCE",
+              "",
+              "04998560751",
+              "25/09/2025",
+              "24/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 12,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "LA MERIDIONALE COSTRUZIONI S.R.L.",
+              "ARNESANO",
+              "",
+              "03814830752",
+              "12/05/2025",
+              "11/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "LEADRI S.R.L.",
+              "STERNATIA",
+              "",
+              "00237550751",
+              "02/09/2025",
+              "01/09/2026",
+              ""
+            ],
+            [
+              "LEO VITO S.r.l.",
+              "VEGLIE",
+              "",
+              "04618810750",
+              "25/09/2025",
+              "24/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 13,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "P.L.M. COSTRUZIONI di PEZZULLA Emanuele - Impresa individuale",
+              "UGGIANO LA CHIESA",
+              "",
+              "PZZMNL72S28E815B 04641770757",
+              "29/09/2025",
+              "28/09/2026",
+              ""
+            ],
+            [
+              "PALUMBO S.r.l.",
+              "LECCE",
+              "",
+              "04621660754",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "PAVIMOD S.R.L.",
+              "LECCE",
+              "",
+              "03157370754",
+              "03/04/2025",
+              "02/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 14,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SOL.EDIL GROUP S.R.L.",
+              "MATINO",
+              "",
+              "04319720753",
+              "16/09/2025",
+              "15/09/2026",
+              ""
+            ],
+            [
+              "SPAGNA GIOVANNI GIORGIO - Impresa individuale",
+              "STERNATIA",
+              "",
+              "SPGGNN64H07I950N 02108160751",
+              "03/06/2025",
+              "02/06/2026",
+              ""
+            ],
+            [
+              "STE.MAR COSTRUZIONI S.r.l.",
+              "COPERTINO",
+              "",
+              "04340470758",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 15,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "TIZIANO COSTRUZIONI S.r.l.",
+              "COPERTINO",
+              "",
+              "04146370756",
+              "31/07/2026",
+              "30/07/2027",
+              ""
+            ],
+            [
+              "TRICO SERVICE LOOK Società a responsabilità limitata semplififcata",
+              "LEVERANO",
+              "",
+              "05248950759",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "VALSISTEM S.r.l.",
+              "MATINO",
+              "",
+              "04689400754",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 11,
+          "page": 16,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "SEZIONE II – CONFEZIONAMENTO, FORNITURA E TRASPORTO DI CALCESTRUZZO E BITUME",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Denominazione / Ragione Sociale / Ditta",
+              "Sede Legale",
+              "Sede Secondaria con rappresentanza stabile in italia",
+              "Codice fiscale",
+              "Data iscrizione",
+              "Data scadenza",
+              "Aggiornamento in corso"
+            ]
+          ],
+          "nonblank_rows": 5,
+          "page": 17,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "A.R.M.S. GROUP Società a responsabilità limitata semplificata",
+              "SAN DONATO DI LECCE",
+              "",
+              "05306980755",
+              "01/07/2026",
+              "30/06/2027",
+              ""
+            ],
+            [
+              "ATENEUM S.r.l.",
+              "GALATINA",
+              "",
+              "03902590755",
+              "25/02/2025",
+              "24/02/2026",
+              ""
+            ],
+            [
+              "ATES COSTRUZIONI S.R.L.",
+              "NARDO'",
+              "",
+              "02046150757",
+              "05/09/2025",
+              "04/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 30,
+          "page": 18,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CGF COSTRUZIONI S.r.l.",
+              "SUPERSANO",
+              "",
+              "04414540759",
+              "15/10/2025",
+              "14/10/2026",
+              ""
+            ],
+            [
+              "CHIRIACO' SOCIETA' COOPERATIVA",
+              "STERNATIA",
+              "",
+              "04323450751",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "CIENNE SCAVI Società a responsabilità limitata semplificata",
+              "PRESICCE-ACQUARICA",
+              "",
+              "05332580751",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 19,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "COSTANTINI S.r.l.",
+              "SECLI'",
+              "",
+              "03684170750",
+              "01/09/2025",
+              "31/08/2026",
+              ""
+            ],
+            [
+              "COSTRUZIONE FUTURO S.r.l.",
+              "COPERTINO",
+              "",
+              "04293150753",
+              "25/09/2025",
+              "24/09/2026",
+              ""
+            ],
+            [
+              "COSTRUZIONI FRANCESCO RAUSA S.r.l.",
+              "POGGIARDO",
+              "",
+              "04189770755",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 20,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ECOLOGICAMENTE S.r.l.",
+              "VEGLIE",
+              "",
+              "03047640754",
+              "28/01/2026",
+              "27/01/2027",
+              ""
+            ],
+            [
+              "ECOLVIOLA S.r.l. (già Colserviceitalia S.r.l.)",
+              "NARDO'",
+              "",
+              "02598700751",
+              "07/07/2026",
+              "06/07/2027",
+              ""
+            ],
+            [
+              "ECONOVA SERVIZI PER L’AMBIENTE S.R.L.",
+              "GALATINA",
+              "",
+              "03975840756",
+              "18/10/2025",
+              "17/10/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 21,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "EMMEPI S.r.l.",
+              "MELPIGNANO",
+              "",
+              "04650120753",
+              "01/09/2025",
+              "31/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ENERSUD S.R.L.",
+              "LECCE",
+              "",
+              "04126590753",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "ENGI TRADE S.r.l.",
+              "CALIMERA",
+              "",
+              "04835700750",
+              "05/09/2025",
+              "04/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 22,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FRATELLI CENTONZE S.r.l.",
+              "MATINO",
+              "",
+              "03484730753",
+              "28/01/2026",
+              "27/01/2027",
+              ""
+            ],
+            [
+              "FRATELLI CIARDO di CIARDO Roberto e C. S.a.s.",
+              "MORCIANO DI LEUCA",
+              "",
+              "04058510753",
+              "01/07/2026",
+              "30/06/2027",
+              ""
+            ],
+            [
+              "FRISULLO COSTRUZIONI S.r.l.",
+              "RUFFANO",
+              "",
+              "05444100753",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 32,
+          "page": 23,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "I.COPER S.r.l.",
+              "COPERTINO",
+              "",
+              "04458970755",
+              "31/07/2026",
+              "30/07/2027",
+              ""
+            ],
+            [
+              "I.VER S.r.l.",
+              "LECCE",
+              "",
+              "03586880753",
+              "08/08/2025",
+              "07/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "IDEAL SCAVI S.r.l.",
+              "TRICASE",
+              "",
+              "36315507570",
+              "01/09/2025",
+              "31/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 24,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "INGROSSO COSTRUZIONI S.r.l.",
+              "SAN DONATO DI LECCE",
+              "",
+              "03405380753",
+              "22/05/2025",
+              "21/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "INNOVA IMPIANTI S.r.l.",
+              "LECCE",
+              "",
+              "05363560755",
+              "21/01/2026",
+              "20/01/2027",
+              ""
+            ],
+            [
+              "INNOVATION SERVICES S.r.l.s.",
+              "MATINO",
+              "",
+              "5137360755",
+              "22/07/2025",
+              "21/07/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 25,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "MARTELLA GIANLUCA - Impr. Inmd.",
+              "TIGGIANO",
+              "",
+              "MRTGLC75T24L419U 03447450754",
+              "06/05/2025",
+              "05/05/2026",
+              ""
+            ],
+            [
+              "MCM S.r.l. (già B-EVOLUTION S.r.l.)",
+              "SURANO",
+              "",
+              "04995030758",
+              "03/06/2025",
+              "02/06/2026",
+              ""
+            ],
+            [
+              "MEDITERRANEA STRADE S.r.l.",
+              "COPERTINO",
+              "",
+              "04155180757",
+              "22/05/2025",
+              "21/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 26,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "NUOVA FISE *S.r.l.",
+              "GALATONE",
+              "",
+              "02279190751",
+              "28/08/2026",
+              "27/08/2027",
+              ""
+            ],
+            [
+              "NUOVAPANELECTTRIC S.R.L.",
+              "NARDO'",
+              "",
+              "C.F. 00736280330 P.I. 02646880753",
+              "17/10/2024",
+              "16/10/2025",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "O.A. ENERGY SOLUTION S.r.l.",
+              "GALATONE",
+              "",
+              "04926330756",
+              "06/05/2025",
+              "05/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 27,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "S.E.A. S.R.L. SERVIZI ECOLOGICI AMBIENTALI",
+              "TREPUZZI",
+              "",
+              "04043280751",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "S.M.E. WORKS S.r.l.",
+              "COPERTINO",
+              "",
+              "04897120756",
+              "12/05/2025",
+              "11/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "SAL.CO 2 Società a responsabilità limitata semplificata",
+              "RACALE",
+              "",
+              "05381200756",
+              "31/07/2026",
+              "30/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 28,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SPAGNA GIOVANNI GIORGIO - Impresa individuale",
+              "STERNATIA",
+              "",
+              "SPGGNN64H07I950N 02108160751",
+              "03/06/2025",
+              "02/06/2026",
+              ""
+            ],
+            [
+              "SPAGNOLO COSTRUZIONI di Spagnolo Nevio Cosimo - Impresa individuale",
+              "CARMIANO",
+              "",
+              "SPGNCS77P22C978F 05076780757",
+              "02/07/2026",
+              "01/07/2027",
+              ""
+            ],
+            [
+              "SPEDICATO IMPIANTI - S.r.l.",
+              "CARMIANO",
+              "",
+              "00594430753",
+              "02/07/2026",
+              "01/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 29,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VETRANO Salvatore (Impresa individuale)",
+              "VEGLIE",
+              "",
+              "VTRSVT54S28L711H 01158520757",
+              "06/05/2025",
+              "05/05/2026",
+              ""
+            ],
+            [
+              "VIZZINO S.r.l.",
+              "VERNOLE",
+              "",
+              "05134490753",
+              "28/05/2025",
+              "27/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "YOUR PARTNER S.r.l.",
+              "MELENDUGNO",
+              "",
+              "04987030758",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 31,
+          "page": 30,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CO.SE.MA. S.r.l.",
+              "LECCE",
+              "",
+              "04942180755",
+              "22/05/2025",
+              "21/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "COPA INFRASTRUTTURE S.r.l.",
+              "COLLEPASSO",
+              "",
+              "04759950753",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ],
+            [
+              "D'AMICO COSTRUZIONI S.r.l.",
+              "LIZZANELLO",
+              "",
+              "05362760752",
+              "04/07/2026",
+              "03/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 31,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "EDILGECO S.r.l.",
+              "COPERTINO",
+              "",
+              "05133000751",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "EDILIZIA VANTAGGIATO S.R.L.",
+              "CORIGLIANO D'OTRANTO",
+              "",
+              "04517960755",
+              "04/04/2023",
+              "03/04/2024",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ELCOS S.r.l.",
+              "SURBO",
+              "",
+              "02476930751",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 32,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ITOPREM S.r.l.",
+              "GALATONE",
+              "",
+              "04101400754",
+              "01/07/2026",
+              "30/06/2027",
+              ""
+            ],
+            [
+              "LA EDILLUMINA S.r.l.",
+              "SURBO",
+              "",
+              "01438080754",
+              "15/10/2025",
+              "14/10/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "LAZZARI S.R.L.",
+              "MAGLIE",
+              "",
+              "04215390750",
+              "15/10/2025",
+              "14/10/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 33,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "RUSSO INFISSI S.r.l.",
+              "LECCE",
+              "",
+              "04788750752",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "SA.EL. SALENTO ELEVATORI S.r.l.",
+              "CAVALLINO",
+              "",
+              "04098120753",
+              "25/09/2025",
+              "24/09/2026",
+              ""
+            ],
+            [
+              "SAVINA COSTRUZIONI S.r.l. (già Savina Costruzioni S.a.s. di Savina Francesco & C.)",
+              "VEGLIE",
+              "",
+              "04624260750",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 34,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VI.MA. Di Viva Cosimo e Maletesta Antonio snc",
+              "SURBO",
+              "",
+              "03711010755",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "WIGMANN S.R.L.",
+              "TIGGIANO",
+              "",
+              "04413630759",
+              "09/09/2026",
+              "08/09/2027",
+              ""
+            ],
+            [
+              "ZINCOGAM S.p.a.",
+              "GALATINA",
+              "",
+              "02442450751",
+              "22/07/2025",
+              "21/07/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 23,
+          "page": 35,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "SEZIONE IV – FORNITURA DI FERRO LAVORATO",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Denominazione / Ragione Sociale / Ditta",
+              "Sede Legale",
+              "Sede Secondaria con rappresentanza stabile in italia",
+              "Codice fiscale",
+              "Data iscrizione",
+              "Data scadenza",
+              "Aggiornamento in corso"
+            ]
+          ],
+          "nonblank_rows": 5,
+          "page": 36,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "SEZIONE IV – FORNITURA DI FERRO LAVORATO",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "Denominazione / Ragione Sociale / Ditta",
+              "Sede Legale",
+              "Sede Secondaria con rappresentanza stabile in italia",
+              "Codice fiscale",
+              "Data iscrizione",
+              "Data scadenza",
+              "Aggiornamento in corso"
+            ]
+          ],
+          "nonblank_rows": 5,
+          "page": 37,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ARMANDO MUCCIO S.R.L.",
+              "TAURISANO",
+              "",
+              "02566010753",
+              "17/02/2025",
+              "16/02/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "A.R.M.S. GROUP Società a responsabilità limitata semplificata",
+              "SAN DONATO DI LECCE",
+              "",
+              "05306980755",
+              "01/07/2026",
+              "30/06/2027",
+              ""
+            ],
+            [
+              "ATENEUM S.r.l.",
+              "GALATINA",
+              "",
+              "03902590755",
+              "25/02/2025",
+              "24/02/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 28,
+          "page": 38,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CF AMBIENTE S.r.l.",
+              "ANDRANO",
+              "",
+              "03017050752",
+              "20/06/2025",
+              "19/06/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CHIRIACO' SOCIETA' COOPERATIVA",
+              "STERNATIA",
+              "",
+              "04323450751",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "CIESSE COSTRUZIONI E SERVIZI S.r.l.",
+              "COPERTINO",
+              "",
+              "04358450759",
+              "20/11/2025",
+              "19/11/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 39,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "COSTRUZIONE FUTURO S.r.l.",
+              "COPERTINO",
+              "",
+              "04293150753",
+              "25/09/2025",
+              "24/09/2026",
+              ""
+            ],
+            [
+              "COSTRUZIONI FRANCESCO RAUSA S.r.l.",
+              "POGGIARDO",
+              "",
+              "04189770755",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "COSTRUZIONI RAUSA LUIGI S.r.l.",
+              "POGGIARDO",
+              "",
+              "04189780754",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 40,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ECOGEST SERVIZI S.R.L.",
+              "CASARANO",
+              "",
+              "04784420756",
+              "07/12/2017",
+              "07/12/2018",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ECOLOGICA INGUSCIO S.r.l.s. Unipersonale",
+              "NARDO'",
+              "",
+              "04594390751",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "ECOLOGICAMENTE S.r.l.",
+              "VEGLIE",
+              "",
+              "03047640754",
+              "28/01/2026",
+              "27/01/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 41,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "EDILSTRADE DI DE LUCA GIULIANO SALVATORE - Impr. Ind.",
+              "MATINO",
+              "",
+              "DLCGNS62M11F054T 03433360751",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "EDILTUNNEL S.p.A.",
+              "LECCE",
+              "",
+              "03061800755",
+              "14/12/2025",
+              "13/12/2026",
+              ""
+            ],
+            [
+              "ELE.MER S.r.l. IMPIANTI Unipersonale",
+              "SOLETO",
+              "",
+              "03536680758",
+              "31/10/2025",
+              "30/10/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 42,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FC CANTIERI S.r.l.",
+              "UGENTO",
+              "",
+              "04609580750",
+              "30/01/2026",
+              "29/01/2027",
+              ""
+            ],
+            [
+              "FEDERICO BALDI S.a.s. di Baldi Sergio & C.",
+              "OTRANTO",
+              "",
+              "05363980755",
+              "12/09/2025",
+              "11/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "FELLINE ENERGIE di Sergio Felline & C. S.n.c.",
+              "GIURDIGNANO",
+              "",
+              "04038370757",
+              "12/09/2025",
+              "11/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 43,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "GREEN ENERGY COSTRUZIONI S.r.l.",
+              "CARMIANO",
+              "",
+              "05042480755",
+              "22/07/2025",
+              "21/07/2026",
+              ""
+            ],
+            [
+              "GREEN-ROAD S.r.l.",
+              "LECCE",
+              "",
+              "05153100754",
+              "21/01/2026",
+              "20/01/2027",
+              ""
+            ],
+            [
+              "GRUPPO ANTONACI SUD SCAVI S.r.l.s. - Società a responsabilità limitata semplificata",
+              "TAVIANO",
+              "",
+              "04850800758",
+              "24/06/2026",
+              "23/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 44,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "IM.G. S.r.l.s.",
+              "VEGLIE",
+              "",
+              "04744880750",
+              "05/09/2025",
+              "04/09/2026",
+              ""
+            ],
+            [
+              "IMPEXA S.r.l.",
+              "NARDO'",
+              "",
+              "05335250758",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "IMPRE.GI.CO S.r.l.",
+              "CANNOLE",
+              "",
+              "04503690754",
+              "14/12/2025",
+              "13/12/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 45,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "LA FENICE S.r.l.",
+              "GALATONE",
+              "",
+              "04465640755",
+              "09/04/2026",
+              "08/04/2027",
+              ""
+            ],
+            [
+              "LA MERIDIONALE COSTRUZIONI S.R.L.",
+              "ARNESANO",
+              "",
+              "03814830752",
+              "12/05/2025",
+              "11/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "LA NUOVA LEZZI STRADE S.r.l.",
+              "COPERTINO",
+              "",
+              "04494360755",
+              "01/09/2025",
+              "31/08/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 46,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "MENGOLI ENERGY S.r.l.",
+              "SOLETO",
+              "",
+              "03965310752",
+              "31/12/2025",
+              "30/12/2026",
+              ""
+            ],
+            [
+              "MERAKI GROUP Società a responsabilità limitata semplificata",
+              "CUTROFIANO",
+              "",
+              "05277200753",
+              "01/07/2026",
+              "30/06/2027",
+              ""
+            ],
+            [
+              "MERICO - S.r.l.",
+              "POGGIARDO",
+              "",
+              "03622620759",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 47,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "OPERE URBANE Società a responsabilità limitata semplificata",
+              "POGGIARDO",
+              "",
+              "04982230759",
+              "07/03/2025",
+              "06/03/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ORNELLA GAFS Società a responsabilità limitata semplificata",
+              "LEVERANO",
+              "",
+              "05381300754",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "PAL STRADE S.R.L.",
+              "STERNATIA",
+              "",
+              "C.F. 01524930581 P.I. 02577980754",
+              "22/05/2025",
+              "21/05/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 48,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ROMAR IMPIANTI S.r.l.",
+              "MATINO",
+              "",
+              "04044900753",
+              "11/08/2026",
+              "10/08/2027",
+              ""
+            ],
+            [
+              "ROSSETTO ROSSANO - Impr. Ind.",
+              "MATINO",
+              "",
+              "RSSRSN68A03F0548 02418370751",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "RUSSO LUIGI S.r.l. Unipersonale",
+              "PARABITA",
+              "",
+              "03633090752",
+              "06/05/2025",
+              "05/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 49,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SITE - Società Impianti Telefonici Elettrrici S.r.l.",
+              "NARDO'",
+              "",
+              "C.F. 01720790201 P.I. 02986830756",
+              "09/09/2026",
+              "08/09/2027",
+              ""
+            ],
+            [
+              "SITECO S.r.l.",
+              "LECCE",
+              "",
+              "05000940758",
+              "02/07/2026",
+              "01/07/2027",
+              ""
+            ],
+            [
+              "SMART ROAD SOCIETA' COOPERATIVA",
+              "GALATONE",
+              "",
+              "05113960750",
+              "12/09/2025",
+              "11/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 28,
+          "page": 50,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "TORINO TRASPORTI S.r.l.",
+              "LECCE",
+              "",
+              "01054700750",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "TOTAL GARDEN S.r.l.",
+              "LECCE",
+              "",
+              "00579770751",
+              "22/01/2025",
+              "21/01/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "TRAFFIC ENGINEERING SYSTEMS S.R.L.",
+              "GALATONE",
+              "",
+              "04615190750",
+              "09/09/2026",
+              "08/09/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 51,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VALSISTEM S.r.l.",
+              "MATINO",
+              "",
+              "04689400754",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ],
+            [
+              "VETRANO Salvatore (Impresa individuale)",
+              "VEGLIE",
+              "",
+              "VRTSVT54S28L711H 01158520757",
+              "06/05/2025",
+              "05/05/2026",
+              ""
+            ],
+            [
+              "VIZZINO S.r.l.",
+              "VERNOLE",
+              "",
+              "05134490753",
+              "28/05/2025",
+              "27/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 12,
+          "page": 52,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "C.M. RECUPERI S.r.l.",
+              "SURBO",
+              "",
+              "03096100759",
+              "25/09/2025",
+              "24/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "C.M.L. S.r.l.",
+              "LECCE",
+              "",
+              "03349380752",
+              "09/04/2025",
+              "08/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CANTIERI RIUNITI DEL SALENTO S.r.l.",
+              "GAGLIANO DEL CAPO",
+              "",
+              "03568400752",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 53,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "D'AMICO COSTRUZIONI S.r.l.",
+              "LIZZANELLO",
+              "",
+              "05362760752",
+              "04/07/2026",
+              "03/07/2027",
+              ""
+            ],
+            [
+              "D'AMICO Emanuele - Impresa individuale",
+              "TRICASE",
+              "",
+              "DMCCMNL57T29L419K 02380280756",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ],
+            [
+              "DE RICCARDIS ALESSIO - Impr.Ind.",
+              "GALATINA",
+              "",
+              "DRCLSS83T11D862K 04489500753",
+              "21/08/2025",
+              "20/08/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 54,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ECOMAR S.r.l.",
+              "GALATINA",
+              "",
+              "04815150652",
+              "02/03/2026",
+              "01/03/2027",
+              ""
+            ],
+            [
+              "ECOM SERVIZI AMBIENTALI S.R.L.",
+              "GALATINA",
+              "",
+              "04159580754",
+              "12/09/2025",
+              "11/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ECOMET S.r.l.",
+              "SAN CESARIO DI LECCE",
+              "",
+              "03616790758",
+              "05/03/2025",
+              "04/03/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 55,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FEDERICO BALDI S.a.s. di Baldi Sergio & C.",
+              "OTRANTO",
+              "",
+              "05363980755",
+              "12/09/2025",
+              "11/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "FERCAS S.r.l.",
+              "NARDO'",
+              "",
+              "05173270751",
+              "19/03/2026",
+              "18/03/2027",
+              ""
+            ],
+            [
+              "FG CASA 2013 S.r.l.s.",
+              "LEVERANO",
+              "",
+              "04970010759",
+              "21/08/2025",
+              "20/08/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 56,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ILMA Società a Responsabilità Limitata Semplificata",
+              "NARDO'",
+              "",
+              "05232720754",
+              "26/11/2025",
+              "25/11/2026",
+              ""
+            ],
+            [
+              "IMAR di Margiotta Ivan - Impr. Ind.",
+              "GALATINA",
+              "",
+              "MRGVNI82A06D862N 03515530750",
+              "25/09/2025",
+              "24/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "IMPRESAMBIENTE S.r.l.",
+              "COPERTINO",
+              "",
+              "03922230754",
+              "15/11/2025",
+              "14/11/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 57,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "MARTIRIGGIANO TRASPORTI S.r.l.",
+              "GALATONE",
+              "",
+              "04794550758",
+              "06/05/2025",
+              "05/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "MBL S.R.L.",
+              "CUTROFIANO",
+              "",
+              "05365620755",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "MBM AMBIENTE S.R.L.",
+              "NARDO’",
+              "",
+              "03645690755",
+              "28/04/2025",
+              "27/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 58,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "RECUPERI ROMANO S.r.l.",
+              "SURANO",
+              "",
+              "04568990750",
+              "21/11/2023",
+              "20/11/2024",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "RENNA MAURO - Impresa individuale",
+              "GALATINA",
+              "",
+              "RNNMRA76C22D862Z 03051980757",
+              "21/08/2025",
+              "20/08/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "RICCARDO ANGELO ROCCO - Impresa individuale",
+              "SUPERSANO",
+              "",
+              "RCCNLR73B01L008W 03103650754",
+              "11/08/2026",
+              "10/08/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 29,
+          "page": 59,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SOLIDA S.r.l.",
+              "LECCE",
+              "",
+              "04804850750",
+              "09/09/2026",
+              "08/09/2027",
+              ""
+            ],
+            [
+              "SOTEC S.r.l.",
+              "LECCE",
+              "",
+              "04928630757",
+              "04/07/2026",
+              "03/07/2027",
+              ""
+            ],
+            [
+              "SPAGNA GIOVANNI GIORGIO - Impresa individuale",
+              "STERNATIA",
+              "",
+              "SPGGNN64H07I950N 02108160751",
+              "03/06/2025",
+              "02/06/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 28,
+          "page": 60,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VALSISTEM S.r.l.",
+              "MATINO",
+              "",
+              "04689400754",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ],
+            [
+              "VERA MULTISERVICE SOCIETà COOPERATIVA",
+              "NEVIANO",
+              "",
+              "04879910752",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "ZAMINGA RECUPERI Società a responsabilità limitata semplificata",
+              "C A R P I G N A N O SALENTINO",
+              "",
+              "04845200759",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 25,
+          "page": 61,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ISTITUTO DI VIGILANZA GGS S.r.l.",
+              "VEGLIE",
+              "",
+              "04871260750",
+              "15/10/2025",
+              "14/10/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ITS International Top Service S.r.l.",
+              "LECCE",
+              "",
+              "04613580754",
+              "15/11/2025",
+              "14/11/2026",
+              ""
+            ],
+            [
+              "LA FOLGORE S.R.L.",
+              "TRICASE",
+              "",
+              "02359310758",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 12,
+          "page": 62,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "LGP COSTRUZIONI E SERVIZI S.r.l.",
+              "MATINO",
+              "",
+              "04337180758",
+              "04/07/2026",
+              "03/07/2027",
+              ""
+            ],
+            [
+              "MAAC S.r.l.",
+              "SURANO",
+              "",
+              "04304200753",
+              "08/08/2025",
+              "07/08/2026",
+              ""
+            ],
+            [
+              "MAS SERVICE PLUS S.r.l.s.",
+              "LECCE",
+              "",
+              "004751510753",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 33,
+          "page": 63,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "SEZIONE VIII - SERVIZI FUNERARI E CIMITERIALI",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SPECOLA Società a responsabilità limitata semplificata",
+              "MINERVINO DI LECCE",
+              "",
+              "05415430759",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "TECNOLOGIE ELETTRICHE S.r.l.",
+              "SAN DONATO DI LECCE",
+              "",
+              "04789900752",
+              "06/01/2024",
+              "05/01/2025",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "TRANNE DONATO - Impresa individuale",
+              "SPECCHIA",
+              "",
+              "TRNDNT76T21L419S 03179920750",
+              "31/05/2024",
+              "30/05/2025",
+              ""
+            ]
+          ],
+          "nonblank_rows": 24,
+          "page": 64,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "IL BARRITO di Francesco PRISCO - Imp. Ind.",
+              "LECCE",
+              "",
+              "PRSFNC73E29E506N 04046670750",
+              "11/08/2026",
+              "10/08/2027",
+              ""
+            ],
+            [
+              "IMPEGNO SOLIDALE SOCIETA' COOPERATIVA",
+              "UGENTO",
+              "",
+              "03333430753",
+              "21/01/2026",
+              "20/01/2027",
+              ""
+            ],
+            [
+              "LA BOTTIGLIERIA Società a responsabilità limitata semplificata",
+              "LECCE",
+              "",
+              "04793730757",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 28,
+          "page": 65,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "LA FENICE S.r.l.",
+              "GALATONE",
+              "",
+              "04465640755",
+              "09/04/2026",
+              "08/04/2027",
+              ""
+            ],
+            [
+              "LA NATURA - SOCIETA' COOPERATIVA SOCIALE",
+              "CORSANO",
+              "",
+              "02481880751",
+              "15/10/2025",
+              "14/10/2026",
+              ""
+            ],
+            [
+              "M BAKERY INDUSTRY S.r.l.s.",
+              "SQUINZANO",
+              "",
+              "05099530759",
+              "14/12/2025",
+              "13/12/2026",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "TREGEST S.r.l.",
+              "LECCE",
+              "",
+              "05376400759",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ],
+            [
+              "TRICO SERVICE LOOK Società a responsabilità limitata semplififcata",
+              "LEVERANO",
+              "",
+              "05248950759",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "VILLA VERGINE S.r.l.",
+              "CUTROFIANO",
+              "",
+              "03911790750",
+              "03/02/2026",
+              "02/02/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 22,
+          "page": 66,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "AXA S.r.l.",
+              "LECCE",
+              "",
+              "02285190753",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ],
+            [
+              "BASTONE SALVATORE S.r.l.",
+              "NARDO’",
+              "",
+              "03715860759",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "BIANCO IGIENE AMBIENTALE S.r.l.",
+              "NARDO'",
+              "",
+              "02547730750",
+              "20/03/2025",
+              "19/03/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 67,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "CIESSE COSTRUZIONI E SERVIZI S.r.l.",
+              "COPERTINO",
+              "",
+              "04358450759",
+              "20/11/2025",
+              "19/11/2026",
+              ""
+            ],
+            [
+              "C.M. RECUPERI S.r.l.",
+              "SURBO",
+              "",
+              "03096100759",
+              "25/09/2025",
+              "24/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+              "RACALE",
+              "",
+              "03573440751",
+              "17/10/2025",
+              "16/10/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 68,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "DE PASCALI Pantaleo - Impresa Individuale",
+              "NARDO'",
+              "",
+              "DPSPTL52E02C334U 00518650759",
+              "02/09/2026",
+              "01/09/2027",
+              ""
+            ],
+            [
+              "DE RICCARDIS ALESSIO - Impr.Ind.",
+              "GALATINA",
+              "",
+              "DRCLSS83T11D862K 04489500753",
+              "21/08/2025",
+              "20/08/2026",
+              ""
+            ],
+            [
+              "DEFRA AMBIENTE S.R.L.",
+              "MARTIGNANO",
+              "",
+              "04284960756",
+              "29/09/2025",
+              "28/09/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 69,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "ECOMAR S.r.l.",
+              "GALATINA",
+              "",
+              "04815150652",
+              "02/03/2026",
+              "01/03/2027",
+              ""
+            ],
+            [
+              "ECOM SERVIZI AMBIENTALI S.R.L.",
+              "GALATINA",
+              "",
+              "04159580754",
+              "12/09/2025",
+              "11/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "ECOMET S.r.l.",
+              "SAN CESARIO DI LECCE",
+              "",
+              "03616790758",
+              "05/03/2025",
+              "04/03/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 70,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "EDILIA RESTAURI S.r.l.",
+              "CARMIANO",
+              "",
+              "03006270759",
+              "25/09/2025",
+              "24/09/2026",
+              ""
+            ],
+            [
+              "EDLIZIA SALENTINA S.r.l.",
+              "TAURISANO",
+              "",
+              "05351770754",
+              "01/04/2026",
+              "31/03/2027",
+              ""
+            ],
+            [
+              "EDILIZIA VANTAGGIATO S.R.L.",
+              "CORIGLIANO D'OTRANTO",
+              "",
+              "04517960755",
+              "04/04/2023",
+              "03/04/2024",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 71,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "FICES S.r.l.",
+              "LECCE",
+              "",
+              "04998560751",
+              "25/09/2025",
+              "24/09/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "FORTUNATO S.r.l. Unipersonale",
+              "TREPUZZI",
+              "",
+              "04365870769",
+              "06/06/2024",
+              "05/06/2025",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "FRANCO S.r.l.",
+              "CAPRARICA DI LECCE",
+              "",
+              "03484770759",
+              "30/01/2026",
+              "29/01/2027",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 24,
+          "page": 72,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "IDROVELOX DI PETRELLI FRANCO & FIGLI S.R.L.",
+              "CARMIANO",
+              "",
+              "02171530757",
+              "13/03/2025",
+              "12/03/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "IGEC S.r.l.",
+              "LECCE",
+              "",
+              "04575000759",
+              "28/08/2026",
+              "27/08/2027",
+              ""
+            ],
+            [
+              "ILLIRIA MULTISERVIZI Soc. Coop. Sociale a.r.l.",
+              "MAGLIE",
+              "",
+              "04436450755",
+              "31/12/2025",
+              "30/12/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 73,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "M.G.M. S.r.l.",
+              "SANTA CESAREA TERME",
+              "",
+              "05167760759",
+              "09/10/2025",
+              "08/10/2026",
+              ""
+            ],
+            [
+              "MACERO SUD di Luigi Chirivì & C. SAS",
+              "SOLETO",
+              "",
+              "02252360751",
+              "22/04/2025",
+              "21/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "MARTINANMBIENTE S.r.l.u.",
+              "LECCE",
+              "",
+              "04859320758",
+              "06/05/2025",
+              "05/05/2026",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 74,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "MUSCATELLO SERVIZI S.r.l.",
+              "OTRANTO",
+              "",
+              "03836310759",
+              "09/10/2025",
+              "08/10/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "NALBA SOCIETA' COOPERATIVA",
+              "TUGLIE",
+              "",
+              "04660550759",
+              "09/04/2026",
+              "08/04/2027",
+              "AGGIORNAMENTO IN CORSO PER VARIAZIONE COMPAGINE"
+            ],
+            [
+              "NEW EDIL S.r.l.",
+              "SQUINZANO",
+              "",
+              "03977010754",
+              "03/06/2025",
+              "02/06/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 75,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "S.E.A. S.R.L. SERVIZI ECOLOGICI AMBIENTALI",
+              "TREPUZZI",
+              "",
+              "04043280751",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "S.E.A.P. S.r.l.",
+              "MONTERONI DI LECCE",
+              "",
+              "03828480750",
+              "20/11/2020",
+              "19/11/2021",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "S.I.T. S.r.l.",
+              "CUTROFIANO",
+              "",
+              "03375520750",
+              "10/04/2025",
+              "09/04/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ]
+          ],
+          "nonblank_rows": 27,
+          "page": 76,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "SPURGO CANAL JET S.r.l.",
+              "CASARANO",
+              "",
+              "02092130752",
+              "28/05/2025",
+              "27/05/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "STE.MAR. COSTRUZIONI S.R.L.",
+              "COPERTINO",
+              "",
+              "04340470758",
+              "22/07/2026",
+              "21/07/2027",
+              ""
+            ],
+            [
+              "STEFANAUTO GROUP S.r.l.",
+              "CASARANO",
+              "",
+              "04629330756",
+              "21/05/2026",
+              "20/05/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 26,
+          "page": 77,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        },
+        {
+          "first_rows": [
+            [
+              "Gestione Documentazione Antimafia",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFILTRAZIONE MAFIOSA",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            [
+              "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)",
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ]
+          ],
+          "last_rows": [
+            [
+              "VERDE SALENTO S.r.l.",
+              "VEGLIE",
+              "",
+              "05201330759",
+              "13/06/2025",
+              "12/06/2026",
+              "AGGIORNAMENTO IN CORSO"
+            ],
+            [
+              "VITRUVIO TECH S.R.L.",
+              "RACALE",
+              "",
+              "05165510750",
+              "24/07/2026",
+              "23/07/2027",
+              ""
+            ],
+            [
+              "ZAMINGA RECUPERI Società a responsabilità limitata semplificata",
+              "C A R P I G N A N O SALENTINO",
+              "",
+              "04845200759",
+              "30/06/2026",
+              "29/06/2027",
+              ""
+            ]
+          ],
+          "nonblank_rows": 17,
+          "page": 78,
+          "table_count": 1,
+          "widths": [
+            7
+          ]
+        }
+      ],
+      "row_width_histogram": {
+        "7": 2167
+      },
+      "total_nonblank_table_rows": 2167
+    },
     "tail": [
-      "SANIKIL di Campa Daniele - Impr. Ind. NARDO' 28/08/2026 27/08/2027",
-      "04743470751",
-      "SAN ROCCO SOCIETA' COOPERATIVA",
-      "SPECCHIA 05131290750 09/06/2025 08/06/2026",
-      "AGRICOLA",
-      "SVNNTN66E02L711B",
-      "SAVINA ANTONIO - Impres individuale VEGLIE 22/07/2026 21/07/2027",
-      "03418280750",
-      "SAVINA COSTRUZIONI S.r.l.",
-      "(già Savina Costruzioni S.a.s. di Savina",
-      "VEGLIE 04624260750 24/07/2026 23/07/2027",
-      "Francesco & C.)",
-      "SCAVI E DEMOLIZIONI di Ciccarese Pierluigi - CCCPLG84M23C978G",
-      "COPERTINO 02/07/2026 01/07/2027",
-      "Impr. Ind. 04865390753",
-      "SCHLSS92A71E815K",
-      "SCHITO Alessia - Impr. Ind. OTRANTO 28/08/2026 27/08/2027",
-      "04844270753",
-      "SERVICES FACILITY LOGISTICS Soc. Coop. LECCE 02879320758 06/05/2025 05/05/2026",
-      "AGGIORNAMENTO IN",
-      "SERVIZI AMBIENTE LAVORO TERRITORIO S.r.l. COLLEPASSO 04639780750 30/07/2020 29/07/2021",
-      "CORSO",
-      "SIMONE ROTTAMI S.r.l. GALATONE 04407170754 11/08/2026 10/08/2027",
-      "AGGIORNAMENTO IN",
-      "SMAC MULTISERVIZI S.r.l. VEGLIE 04834400758 21/08/2025 20/08/2026",
-      "CORSO",
-      "SOCIETA' COOPERATIVA SAN GIUSEPPE CUTROFIANO 04597620758 15/11/2025 14/11/2026",
-      "AGGIORNAMENTO IN",
-      "SOCIETA' COOPERATIVA SME GROUP TAURISANO 04214230759 06/05/2025 05/05/2026",
-      "CORSO",
-      "SOCIETA' OPERE COSTRUZIONI IDRAULICHE",
-      "LECCE 04625750759 05/03/2025 04/03/2026",
-      "S.r.l. - S.O.C.I.",
-      "SOL.EDIL GROUP S.R.L. MATINO 04319720753 16/09/2025 15/09/2026",
-      "SPAGNA GIOVANNI GIORGIO - Impresa SPGGNN64H07I950N AGGIORNAMENTO IN",
-      "STERNATIA 09/01/2024 08/01/2025",
-      "individuale 02108160751 CORSO",
-      "AGGIORNAMENTO IN",
-      "SPURGO CANAL JET S.r.l. CASARANO 02092130752 28/05/2025 27/05/2026",
-      "CORSO",
       "STE.MAR. COSTRUZIONI S.R.L. COPERTINO 04340470758 22/07/2026 21/07/2027",
       "STEFANAUTO GROUP S.r.l. CASARANO 04629330756 21/05/2026 20/05/2027",
       "Elenco aggiornato al 09/09/2026",
