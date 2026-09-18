@@ -1,0 +1,29 @@
+name: Taranto source probe
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Fetch and audit current official Taranto tables
+        run: python tests/test_taranto_source_probe.py > taranto-source-probe.json
+      - name: Show compact audit result
+        run: cat taranto-source-probe.json
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taranto-source-probe
+          path: taranto-source-probe.json
+          retention-days: 1
