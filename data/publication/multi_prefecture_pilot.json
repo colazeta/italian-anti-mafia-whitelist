@@ -1622,6 +1622,43 @@
       "last_source_update": "2026-09-10",
       "last_source_update_basis": "dedicated official HTML table source date/update; independently reverified 17 September 2026",
       "notes": "Mutable official applicant HTML table. The physical table contains 18 positive applicant observations while the source counter states 12; no hidden rows were found. Month-only application evidence remains raw and is never expanded to an invented date. Exact evidence is documented in docs/sources/como-operational-check-2026-09-17.md."
+    },
+    {
+      "source_key": "firenze-listed",
+      "parser": "firenze_listed",
+      "authority_key": "firenze",
+      "authority_name": "Prefettura di Firenze",
+      "register_key": "firenze-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx",
+      "sha256": "bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0",
+      "expected_sector_rows": 989,
+      "expected_source_rows": 539,
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "official page last-updated marker and byte-pinned current attachment independently verified 18 September 2026",
+      "approval_mode": "raw_sha256",
+      "notes": "Ten statutory XLSX sheets contain 989 sector rows yielding 539 exact grouped observations: 429 listed and 110 renewal/update in progress. Identifier coverage is 537/539; two raw-only identifiers are preserved without repair. Exact evidence is documented in docs/sources/firenze-operational-check-2026-09-18.md."
+    },
+    {
+      "source_key": "firenze-applicants",
+      "parser": "firenze_applicants",
+      "authority_key": "firenze",
+      "authority_name": "Prefettura di Firenze",
+      "register_key": "firenze-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf",
+      "sha256": "6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695",
+      "expected_source_rows": 125,
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "official page last-updated marker and byte-pinned current attachment independently verified 18 September 2026",
+      "approval_mode": "raw_sha256",
+      "notes": "Nine-page official applicant PDF yields exactly 125 pending observations because Esito is blank for every row. Structured identifier coverage is 123/125; two raw-only identifiers and two blank registered offices are preserved without inference. Exact evidence is documented in docs/sources/firenze-operational-check-2026-09-18.md."
     }
   ]
 }

@@ -64,6 +64,7 @@ from white_list_archive.parsers.sassari_openxml import PARSERS as SASSARI_PARSER
 from white_list_archive.parsers.milano_webapp import PARSERS as MILANO_PARSERS
 from white_list_archive.parsers.modena_tables import PARSERS as MODENA_PARSERS
 from white_list_archive.parsers.como_html import PARSERS as COMO_PARSERS
+from white_list_archive.parsers.firenze_sources import parse_firenze_applicants, parse_firenze_listed
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -91,6 +92,10 @@ TRENTO_PARSERS = {
 TORINO_PARSERS = {
     "torino_listed": parse_torino_listed,
     "torino_applicants": parse_torino_applicants,
+}
+FIRENZE_PARSERS = {
+    "firenze_listed": parse_firenze_listed,
+    "firenze_applicants": parse_firenze_applicants,
 }
 
 
@@ -927,6 +932,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or MILANO_PARSERS.get(cfg["parser"])
         or MODENA_PARSERS.get(cfg["parser"])
         or COMO_PARSERS.get(cfg["parser"])
+        or FIRENZE_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
