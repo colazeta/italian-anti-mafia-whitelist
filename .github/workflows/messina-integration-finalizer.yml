@@ -1,0 +1,237 @@
+name: Temporary Messina integration finalizer
+
+on:
+  push:
+    branches:
+      - expansion/messina-2026-09-18
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    if: github.event.head_commit.message == 'Add Messina integration finalizer'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/messina-2026-09-18
+          fetch-depth: 0
+      - name: Integrate reviewed Messina sources
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace_once(text, old, new, label):
+              n = text.count(old)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {n}')
+              return text.replace(old, new, 1)
+
+          # National parser dispatcher.
+          p = Path('src/white_list_archive/publishing/public_national_registry.py')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              'from white_list_archive.parsers.lecce_tables import PARSERS as LECCE_PARSERS\n',
+              'from white_list_archive.parsers.lecce_tables import PARSERS as LECCE_PARSERS\nfrom white_list_archive.parsers.messina_tables import PARSERS as MESSINA_PARSERS\n',
+              'parser import',
+          )
+          s = replace_once(
+              s,
+              '        or LECCE_PARSERS.get(cfg["parser"])\n',
+              '        or LECCE_PARSERS.get(cfg["parser"])\n        or MESSINA_PARSERS.get(cfg["parser"])\n',
+              'parser binding',
+          )
+          p.write_text(s)
+
+          # Publication config: two positively published populations.
+          p = Path('data/publication/multi_prefecture_pilot.json')
+          obj = json.loads(p.read_text())
+          sources = obj['sources']
+          if any(x.get('authority_key') == 'messina' for x in sources):
+              raise SystemExit('Messina publication sources already present')
+          common = {
+              'authority_key': 'messina',
+              'authority_name': 'Prefettura di Messina',
+              'register_key': 'messina-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-11',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
+              'approval_mode': 'raw_sha256',
+          }
+          sources.extend([
+              {
+                  **common,
+                  'last_source_update': '2026-09-10',
+                  'last_source_update_basis': "listed PDF prints 'ULTIMO AGGIORNAMENTO 10/09/2026' on every page; the attachment/landing-page edition is labelled 11 September 2026; these are source reference boundaries only and no company legal-effect date is inferred",
+                  'source_key': 'messina-listed',
+                  'parser': 'messina_listed',
+                  'population_scope': 'listed',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf',
+                  'sha256': 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e',
+                  'expected_source_rows': 880,
+                  'notes': 'Current nine-page official listed-company PDF. Two independent full captures on 18 September 2026 are byte-identical. The fail-closed parser yields exactly 880 observations: 663 listed and 217 renewal/update in progress, based only on the company-level SI marker. All 880 observations contain one unique structured identifier. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md.',
+              },
+              {
+                  **common,
+                  'last_source_update': '2026-09-11',
+                  'last_source_update_basis': 'current official attachment/landing-page edition labelled 11 September 2026; used only as a source-edition/reference boundary',
+                  'source_key': 'messina-applicants',
+                  'parser': 'messina_applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf',
+                  'sha256': '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
+                  'expected_source_rows': 154,
+                  'notes': 'Current three-page official applicant PDF. Two independent full captures on 18 September 2026 are byte-identical and yield exactly 154 positive applicant observations, represented conservatively as pending because the source publishes no decision/outcome field. Structured identifier coverage is 153/154; the one genuinely blank source identifier is retained, while one company publishes two valid identifiers. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md.',
+              },
+          ])
+          p.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n')
+
+          # Verified landing-page registry.
+          p = Path('data/source_registry/verified_primary_pages.csv')
+          s = p.read_text()
+          if '\nmessina,' in s:
+              raise SystemExit('Messina verified page already present')
+          row = 'messina,https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list,2026-09-18,verified\n'
+          marker = 'milano,https://prefettura.interno.gov.it/it/prefetture/milano/'
+          i = s.find(marker)
+          if i < 0:
+              raise SystemExit('Milano verified-page insertion anchor missing')
+          s = s[:i] + row + s[i:]
+          p.write_text(s)
+
+          # Qualified recurring source-series inventory.
+          p = Path('data/source_registry/source_series_inventory.csv')
+          s = p.read_text()
+          if '\nmessina-' in s:
+              raise SystemExit('Messina source series already present')
+          rows = (
+              'messina-applicants,messina,WL-REGIME-L190-2012,applicant,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list,landing_page_resolved,2026-09-18,"Current official landing page directly verified 18 September 2026 and exposing the applicant PDF labelled 11 September 2026. Independent attachment captures are byte-identical and yield exactly 154 pending observations; structured identifier coverage is 153/154 with one reviewed blank source identifier. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md."\n'
+              'messina-listed,messina,WL-REGIME-L190-2012,listed,all,periodic_attachment,https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list,landing_page_resolved,2026-09-18,"Current official landing page directly verified 18 September 2026 and exposing the listed PDF labelled 11 September 2026; the PDF itself states last update 10 September 2026. Independent attachment captures are byte-identical and yield exactly 880 observations: 663 listed and 217 renewal/update in progress. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md."\n'
+          )
+          marker = 'milano-applicants,'
+          i = s.find(marker)
+          if i < 0:
+              raise SystemExit('Milano source-series insertion anchor missing')
+          s = s[:i] + rows + s[i:]
+          p.write_text(s)
+
+          # Catalogue denominators.
+          p = Path('data/catalog.csv')
+          s = p.read_text()
+          s = replace_once(s, 'verified_primary_page,52,false', 'verified_primary_page,53,false', 'catalog verified pages')
+          s = replace_once(s, 'source_series,103,false', 'source_series,105,false', 'catalog source series')
+          p.write_text(s)
+
+          # National coverage state for Messina only.
+          p = Path('data/monitoring/national_coverage.json')
+          obj = json.loads(p.read_text())
+          matches = [x for x in obj['authorities'] if x.get('authority_key') == 'messina']
+          if len(matches) != 1:
+              raise SystemExit(f'Messina coverage row count: {len(matches)}')
+          x = matches[0]
+          x.update({
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-11',
+              'last_successful_source_check_at': '2026-09-18T08:51:38Z',
+              'last_attempted_source_check_at': '2026-09-18T08:51:38Z',
+              'last_successful_investigation_on': '2026-09-18',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/messina-operational-check-2026-09-18.md',
+                  'src/white_list_archive/parsers/messina_tables.py',
+                  'tests/test_messina_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [
+                  'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e',
+                  '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
+              ],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/messina-operational-check-2026-09-18.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          p.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + '\n')
+
+          # Hard national registry test denominators.
+          p = Path('tests/test_source_population_coverage.py')
+          s = p.read_text()
+          s = replace_once(s, 'assert report["verified_authority_count"] == 52', 'assert report["verified_authority_count"] == 53', 'population authority count')
+          s = replace_once(s, 'assert report["register_scope_count"] == 54', 'assert report["register_scope_count"] == 55', 'population register count')
+          s = replace_once(s, 'assert report["complete_register_scope_count"] == 54', 'assert report["complete_register_scope_count"] == 55', 'population complete count')
+          p.write_text(s)
+
+          p = Path('tests/test_source_registry.py')
+          s = p.read_text()
+          s = replace_once(s, 'assert len(pages) == 52', 'assert len(pages) == 53', 'verified-page test count')
+          p.write_text(s)
+
+          # Browser acceptance assertions.
+          p = Path('tests/public_portal_browser.cjs')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Lecce'));\n",
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Lecce'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Messina'));\n",
+              'browser label',
+          )
+          s = replace_once(s, 'assert.equal(stats.total,60557);', 'assert.equal(stats.total,61591);', 'browser total')
+          s = replace_once(s, ",'taranto','lecce'].includes(r.authority_key)", ",'taranto','lecce','messina'].includes(r.authority_key)", 'browser expansion exclusion')
+          anchor = "      assert.equal(lecce.filter(r=>r.source_key==='lecce-listed'&&!r.observed_expiry_date&&r.source_fields.expiry_date_raw_variants.length>0).length,2);\n"
+          block = anchor + "      const messina=registry.records.filter(r=>r.authority_key==='messina');\n      assert.equal(messina.length,1034);\n      assert.equal(messina.filter(r=>r.source_key==='messina-listed').length,880);\n      assert.equal(messina.filter(r=>r.source_key==='messina-applicants').length,154);\n      assert.deepEqual(statusCounts(messina),{listed:663,pending:154,renewal_update_in_progress:217});\n      assert.equal(new Set(messina.map(r=>r.record_locator)).size,1034);\n      assert.equal(messina.filter(r=>r.identifiers.length>0).length,1033);\n      assert.equal(messina.filter(r=>!r.identifier_field_raw&&r.identifiers.length===0).length,1);\n      assert.equal(messina.flatMap(r=>r.identifiers).length,1034);\n"
+          s = replace_once(s, anchor, block, 'browser Messina assertions')
+          p.write_text(s)
+
+          # Generate the protected workflow candidate under tmp; connector will
+          # promote it to .github/workflows/public-pages.yml after review.
+          src = Path('.github/workflows/public-pages.yml')
+          s = src.read_text()
+          s = replace_once(
+              s,
+              "      - 'src/white_list_archive/parsers/lecce_tables.py'\n",
+              "      - 'src/white_list_archive/parsers/lecce_tables.py'\n      - 'src/white_list_archive/parsers/messina_tables.py'\n",
+              'workflow parser path',
+          )
+          s = replace_once(s, "assert reg['meta']['record_count'] == 60557", "assert reg['meta']['record_count'] == 61591", 'workflow total')
+          s = replace_once(s, ",'taranto','lecce'}", ",'taranto','lecce','messina'}", 'workflow authority set')
+          s = replace_once(s, ",'taranto-ordinary','lecce-ordinary'\n", ",'taranto-ordinary','lecce-ordinary','messina-ordinary'\n", 'workflow register set')
+          s = replace_once(s, "assert reg['meta']['authority_count'] == 52", "assert reg['meta']['authority_count'] == 53", 'workflow authority count')
+          s = replace_once(s, "assert reg['meta']['register_count'] == 54", "assert reg['meta']['register_count'] == 55", 'workflow register count')
+          s = replace_once(s, "assert pref['meta']['published_count'] == 52", "assert pref['meta']['published_count'] == 53", 'workflow published count')
+          s = replace_once(s, "assert pref['meta']['mapped_count'] == 52", "assert pref['meta']['mapped_count'] == 53", 'workflow mapped count')
+          anchor = "          assert sum(not bool(r['observed_expiry_date']) and bool(r['source_fields']['expiry_date_raw_variants']) for r in lecce_records if r['source_key'] == 'lecce-listed') == 2\n"
+          block = anchor + "          messina = [x for x in pref['prefectures'] if x['authority_key'] == 'messina']\n          assert len(messina) == 1 and messina[0]['mapped'] and messina[0]['published'] and messina[0]['series_count'] == 2\n          messina_records = [r for r in reg['records'] if r['authority_key'] == 'messina']\n          assert len(messina_records) == 1034\n          assert sum(r['source_key'] == 'messina-listed' for r in messina_records) == 880\n          assert sum(r['source_key'] == 'messina-applicants' for r in messina_records) == 154\n          assert sum(r['source_status'] == 'listed' for r in messina_records) == 663\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in messina_records) == 217\n          assert sum(r['source_status'] == 'pending' for r in messina_records) == 154\n          assert len({r['record_locator'] for r in messina_records}) == 1034\n          assert sum(bool(r['identifiers']) for r in messina_records) == 1033\n          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in messina_records) == 1\n          assert sum(len(r['identifiers']) for r in messina_records) == 1034\n"
+          s = replace_once(s, anchor, block, 'workflow Messina assertions')
+          out = Path('tmp/public-pages-messina.yml')
+          out.parent.mkdir(exist_ok=True)
+          out.write_text(s)
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/catalog.csv data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv src/white_list_archive/publishing/public_national_registry.py tests/public_portal_browser.cjs tests/test_source_population_coverage.py tests/test_source_registry.py tmp/public-pages-messina.yml
+          git diff --cached --check
+          git commit -m 'Integrate Messina public source coverage'
+          git push origin HEAD:expansion/messina-2026-09-18
