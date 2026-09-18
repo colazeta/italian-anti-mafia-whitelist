@@ -42,6 +42,7 @@ jobs:
         run: |
           pytest -q tests/test_cremona_parser_semantics.py
           python - <<'PY'
+          from collections import Counter
           from pathlib import Path
           from white_list_archive.parsers.cremona_combined import parse_cremona_combined
           cfg={
@@ -55,6 +56,6 @@ jobs:
           batch=parse_cremona_combined(Path('source1.pdf'),cfg)
           print(batch.diagnostics)
           assert len(batch.records)==187
+          assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':99,'pending':38,'renewal_update_in_progress':50})
           assert sum(bool(r['identifiers']) for r in batch.records)==183
-          assert {r['source_status'] for r in batch.records}=={'listed','pending','renewal_update_in_progress'}
           PY
