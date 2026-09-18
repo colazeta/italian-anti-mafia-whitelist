@@ -37,55 +37,62 @@ jobs:
           cmp /tmp/messina/page-1.html /tmp/messina/page-2.html
           cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf
           cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf
-          # The landing page is mutable presentation metadata. Its current pair must agree,
-          # but only the reviewed attachment bytes form the raw publication approval boundary.
           test "$(sha256sum /tmp/messina/applicants-1.pdf | cut -d' ' -f1)" = '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4'
           test "$(sha256sum /tmp/messina/listed-1.pdf | cut -d' ' -f1)" = 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e'
 
-      - name: Exercise fail-closed Messina parsers
+      - name: Parse fail-closed Messina listed source
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          from white_list_archive.parsers.messina_tables import parse_messina_applicants, parse_messina_listed
-
-          common = {
+          from white_list_archive.parsers.messina_tables import parse_messina_listed
+          cfg = {
               'authority_key': 'messina',
               'authority_name': 'Prefettura di Messina',
               'register_key': 'messina-ordinary',
               'register_name': 'White List ordinaria',
               'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
-          }
-          listed_cfg = {
-              **common,
               'source_key': 'messina-listed',
               'population_scope': 'listed',
               'reference_date': '2026-09-11',
               'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf',
               'sha256': 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e',
           }
-          applicants_cfg = {
-              **common,
+          batch = parse_messina_listed(Path('/tmp/messina/listed-1.pdf'), cfg)
+          print('listed diagnostics:', batch.diagnostics)
+          assert len(batch.records) == 880
+          PY
+
+      - name: Parse fail-closed Messina applicant source
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from white_list_archive.parsers.messina_tables import parse_messina_applicants
+          cfg = {
+              'authority_key': 'messina',
+              'authority_name': 'Prefettura di Messina',
+              'register_key': 'messina-ordinary',
+              'register_name': 'White List ordinaria',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
               'source_key': 'messina-applicants',
               'population_scope': 'applicant',
               'reference_date': '2026-09-11',
               'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf',
               'sha256': '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
           }
-          listed = parse_messina_listed(Path('/tmp/messina/listed-1.pdf'), listed_cfg)
-          applicants = parse_messina_applicants(Path('/tmp/messina/applicants-1.pdf'), applicants_cfg)
-          print('listed diagnostics:', listed.diagnostics)
-          print('applicant diagnostics:', applicants.diagnostics)
-          assert len(listed.records) == 880
-          assert len(applicants.records) == 154
-          assert len(listed.records) + len(applicants.records) == 1034
-          sitec = [r for r in applicants.records if r['name'] == 'SITEC S.R.L.']
+          batch = parse_messina_applicants(Path('/tmp/messina/applicants-1.pdf'), cfg)
+          print('applicant diagnostics:', batch.diagnostics)
+          assert len(batch.records) == 154
+          sitec = [r for r in batch.records if r['name'] == 'SITEC S.R.L.']
           assert len(sitec) == 1 and sitec[0]['identifiers'] == [] and sitec[0]['application_date']
-          avio = [r for r in applicants.records if r['name'] == 'AVIOMARKETING S.P.A. UNIPERSONALE']
+          avio = [r for r in batch.records if r['name'] == 'AVIOMARKETING S.P.A. UNIPERSONALE']
           assert len(avio) == 1 and len(avio[0]['identifiers']) == 2
           PY
 
       - name: Upload reviewed source capture
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: messina-source-capture
