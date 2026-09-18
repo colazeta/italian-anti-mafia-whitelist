@@ -102,6 +102,15 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/chieti_finalize_tmp.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in (
+              'data/source_registry/verified_primary_pages.csv',
+              'data/source_registry/source_series_inventory.csv',
+          ):
+              path = Path(name)
+              path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n'))
+          PY
 
       - name: Remove temporary expansion machinery
         run: |
