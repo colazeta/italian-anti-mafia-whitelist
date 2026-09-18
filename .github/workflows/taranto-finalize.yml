@@ -1,0 +1,56 @@
+name: Taranto integration finalizer
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - 'tmp/taranto_finalize.py'
+      - '.github/workflows/taranto-finalize.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialize permanent Taranto integration
+        run: |
+          python tmp/taranto_finalize.py
+          python -m json.tool data/publication/multi_prefecture_pilot.json >/dev/null
+          python -m json.tool data/monitoring/national_coverage.json >/dev/null
+          python -m py_compile \
+            src/white_list_archive/publishing/public_national_registry.py \
+            src/white_list_archive/parsers/taranto_html.py
+      - name: Remove temporary finalizer machinery
+        run: |
+          rm -f tmp/taranto_finalize.py .github/workflows/taranto-finalize.yml
+          test ! -e tmp/taranto_finalize.py
+          test ! -e .github/workflows/taranto-finalize.yml
+      - name: Commit permanent integration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No Taranto integration changes to commit' >&2
+            exit 1
+          fi
+          if git diff --cached --name-only | grep -E '^(tmp/taranto_finalize\.py|\.github/workflows/taranto-finalize\.yml)$'; then
+            echo 'Temporary finalizer machinery leaked into final diff' >&2
+            exit 1
+          fi
+          git commit -m 'Integrate Taranto into public national registry'
+          git push origin HEAD:expansion/taranto-2026-09-18
