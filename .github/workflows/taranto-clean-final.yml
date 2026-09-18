@@ -1,0 +1,95 @@
+name: Taranto clean finalizer
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - '.github/workflows/taranto-clean-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout current Taranto branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Apply permanent public acceptance boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('.github/workflows/public-pages.yml')
+          s = p.read_text(encoding='utf-8')
+
+          def repl(old, new, label):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected one anchor, found {count}')
+              s = s.replace(old, new, 1)
+
+          repl("      - 'src/white_list_archive/parsers/firenze_sources.py'\n", "      - 'src/white_list_archive/parsers/firenze_sources.py'\n      - 'src/white_list_archive/parsers/taranto_html.py'\n", 'parser path')
+          repl("          assert reg['meta']['record_count'] == 59042\n", "          assert reg['meta']['record_count'] == 59642\n", 'record count')
+          repl("'como','firenze'}\n", "'como','firenze','taranto'}\n", 'authority set')
+          repl("'como-ordinary','firenze-ordinary'\n", "'como-ordinary','firenze-ordinary','taranto-ordinary'\n", 'register set')
+          repl("          assert reg['meta']['authority_count'] == 50\n", "          assert reg['meta']['authority_count'] == 51\n", 'authority count')
+          repl("          assert reg['meta']['register_count'] == 52\n", "          assert reg['meta']['register_count'] == 53\n", 'register count')
+          repl("          assert pref['meta']['published_count'] == 50\n", "          assert pref['meta']['published_count'] == 51\n", 'published count')
+          repl("          assert pref['meta']['mapped_count'] == 50\n", "          assert pref['meta']['mapped_count'] == 51\n", 'mapped count')
+
+          anchor = "          assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2\n"
+          block = """          taranto = [x for x in pref['prefectures'] if x['authority_key'] == 'taranto']
+          assert len(taranto) == 1 and taranto[0]['mapped'] and taranto[0]['published'] and taranto[0]['series_count'] == 2
+          taranto_records = [r for r in reg['records'] if r['authority_key'] == 'taranto']
+          assert len(taranto_records) == 600
+          assert sum(r['source_key'] == 'taranto-listed' for r in taranto_records) == 388
+          assert sum(r['source_key'] == 'taranto-applicants' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'listed' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in taranto_records) == 176
+          assert sum(r['source_status'] == 'pending' for r in taranto_records) == 212
+          assert len({r['record_locator'] for r in taranto_records}) == 600
+          assert sum(bool(r['identifiers']) for r in taranto_records) == 592
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in taranto_records) == 8
+          assert sum(bool(r.get('source_fields', {}).get('malformed_date_pairs')) for r in taranto_records if r['source_key'] == 'taranto-listed') == 8
+"""
+          repl(anchor, anchor + block, 'Taranto assertions')
+          p.write_text(s, encoding='utf-8')
+          PY
+          python - <<'PY'
+          import yaml
+          from pathlib import Path
+          yaml.safe_load(Path('.github/workflows/public-pages.yml').read_text(encoding='utf-8'))
+          PY
+      - name: Remove all temporary Taranto machinery
+        shell: bash
+        run: |
+          rm -f \
+            .github/workflows/taranto-clean-final.yml \
+            .github/workflows/taranto-finalize.yml \
+            .github/workflows/taranto-finalise-temp.yml \
+            .github/workflows/taranto-materialise.yml \
+            tmp/taranto_finalize.py \
+            tmp/taranto_finalize_no_workflow.py
+      - name: Commit clean permanent Taranto integration
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No clean finalisation changes found' >&2
+            exit 1
+          fi
+          git commit -m 'Finalize Taranto public integration'
+          git rev-parse HEAD
+          git diff --name-only HEAD^ HEAD
+          git push origin HEAD:expansion/taranto-2026-09-18
