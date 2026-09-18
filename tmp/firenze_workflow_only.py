@@ -2,23 +2,36 @@
 from pathlib import Path
 
 
-def replace_once(text: str, old: str, new: str, label: str) -> str:
+def ensure_replace(text: str, old: str, new: str, label: str) -> str:
+    """Apply one bounded transition, tolerating an already-applied target."""
+    if new in text:
+        return text
     count = text.count(old)
     if count != 1:
-        raise SystemExit(f"{label}: expected one occurrence, got {count}")
+        raise SystemExit(f"{label}: expected one source occurrence or an existing target, got {count}")
     return text.replace(old, new, 1)
 
 
 workflow = Path('.github/workflows/public-pages.yml')
 x = workflow.read_text(encoding='utf-8')
-x = replace_once(x, "      - 'src/white_list_archive/parsers/como_html.py'\n", "      - 'src/white_list_archive/parsers/como_html.py'\n      - 'src/white_list_archive/parsers/firenze_sources.py'\n", 'Firenze parser path trigger')
-x = replace_once(x, "assert reg['meta']['record_count'] == 58378", "assert reg['meta']['record_count'] == 59042", 'record total')
-x = replace_once(x, "'milano','modena','como'}", "'milano','modena','como','firenze'}", 'authority set')
-x = replace_once(x, "'modena-post-sisma','como-ordinary'\n", "'modena-post-sisma','como-ordinary','firenze-ordinary'\n", 'register set')
-x = replace_once(x, "assert reg['meta']['authority_count'] == 49", "assert reg['meta']['authority_count'] == 50", 'authority count')
-x = replace_once(x, "assert reg['meta']['register_count'] == 51", "assert reg['meta']['register_count'] == 52", 'register count')
-x = replace_once(x, "assert pref['meta']['published_count'] == 49", "assert pref['meta']['published_count'] == 50", 'published count')
-x = replace_once(x, "assert pref['meta']['mapped_count'] == 49", "assert pref['meta']['mapped_count'] == 50", 'mapped count')
+x = ensure_replace(
+    x,
+    "      - 'src/white_list_archive/parsers/como_html.py'\n",
+    "      - 'src/white_list_archive/parsers/como_html.py'\n      - 'src/white_list_archive/parsers/firenze_sources.py'\n",
+    'Firenze parser path trigger',
+)
+x = ensure_replace(x, "assert reg['meta']['record_count'] == 58378", "assert reg['meta']['record_count'] == 59042", 'record total')
+x = ensure_replace(x, "'milano','modena','como'}", "'milano','modena','como','firenze'}", 'authority set')
+x = ensure_replace(
+    x,
+    "'modena-post-sisma','como-ordinary'\n",
+    "'modena-post-sisma','como-ordinary','firenze-ordinary'\n",
+    'register set',
+)
+x = ensure_replace(x, "assert reg['meta']['authority_count'] == 49", "assert reg['meta']['authority_count'] == 50", 'authority count')
+x = ensure_replace(x, "assert reg['meta']['register_count'] == 51", "assert reg['meta']['register_count'] == 52", 'register count')
+x = ensure_replace(x, "assert pref['meta']['published_count'] == 49", "assert pref['meta']['published_count'] == 50", 'published count')
+x = ensure_replace(x, "assert pref['meta']['mapped_count'] == 49", "assert pref['meta']['mapped_count'] == 50", 'mapped count')
 
 como_block = """          como = [x for x in pref['prefectures'] if x['authority_key'] == 'como']
           assert len(como) == 1 and como[0]['mapped'] and como[0]['published'] and como[0]['series_count'] == 2
@@ -49,5 +62,9 @@ firenze_block = """          firenze = [x for x in pref['prefectures'] if x['aut
           firenze_applicants = [r for r in firenze_records if r['source_key'] == 'firenze-applicants']
           assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2
 """
-x = replace_once(x, como_block, como_block + firenze_block, 'workflow Firenze exact assertions')
+if "firenze_records = [r for r in reg['records'] if r['authority_key'] == 'firenze']" not in x:
+    count = x.count(como_block)
+    if count != 1:
+        raise SystemExit(f"workflow Firenze exact assertions: expected one Como anchor, got {count}")
+    x = x.replace(como_block, como_block + firenze_block, 1)
 workflow.write_text(x, encoding='utf-8')
