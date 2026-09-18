@@ -397,7 +397,8 @@ jobs:
           assert sum(r['source_status'] == 'pending' for r in como_records) == 18
           assert len({r['record_locator'] for r in como_records}) == 409
           assert sum(bool(r['identifiers']) for r in como_records) == 405
-          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 4
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 3
+          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 1
           modena = [x for x in pref['prefectures'] if x['authority_key'] == 'modena']
           assert len(modena) == 1 and modena[0]['mapped'] and modena[0]['published'] and modena[0]['series_count'] == 4
           modena_records = [r for r in reg['records'] if r['authority_key'] == 'modena']
