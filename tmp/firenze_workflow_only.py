@@ -1,3 +1,4 @@
+# Bounded staging helper; remove before merge.
 from pathlib import Path
 
 
