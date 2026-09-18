@@ -54,7 +54,9 @@ firenze_block = """          firenze = [x for x in pref['prefectures'] if x['aut
           assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2
 """
 x = replace_once(x, como_block, como_block + firenze_block, 'workflow Firenze exact assertions')
-workflow.write_text(x, encoding='utf-8')
+staging = Path('staging/firenze-public-pages.yml')
+staging.parent.mkdir(parents=True, exist_ok=True)
+staging.write_text(x, encoding='utf-8')
 
 browser = Path('tests/public_portal_browser.cjs')
 y = browser.read_text(encoding='utf-8')
