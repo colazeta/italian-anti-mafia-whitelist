@@ -17,11 +17,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Persist reviewed Firenze public boundary and remove temporary machinery
+      - name: Apply reviewed Firenze public boundary
+        run: python tmp/firenze_workflow_only.py
+      - name: Verify Firenze boundary was applied
         shell: bash
         run: |
           set -euo pipefail
-          python tmp/firenze_workflow_only.py
+          grep -q "parsers/firenze_sources.py" .github/workflows/public-pages.yml
+          grep -q "record_count.*59042" .github/workflows/public-pages.yml
+          grep -q "authority_key.*firenze" .github/workflows/public-pages.yml
+      - name: Remove temporary machinery and persist final state
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .github/workflows/public-pages.yml tests/public_portal_browser.cjs
