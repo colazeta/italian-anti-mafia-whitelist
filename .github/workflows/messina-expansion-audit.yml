@@ -1,0 +1,101 @@
+name: Messina expansion audit
+
+on:
+  push:
+    branches:
+      - expansion/messina-2026-09-18
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PDF utilities
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+
+      - name: Capture and inspect current official Messina White List sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list'
+          UA='Mozilla/5.0 WhiteListArchive/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
+          mkdir -p /tmp/messina
+          for i in 1 2; do
+            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" --output "/tmp/messina/page-$i.html" "$PAGE"
+          done
+          echo '=== LANDING PAGE ==='
+          wc -c /tmp/messina/page-1.html /tmp/messina/page-2.html
+          sha256sum /tmp/messina/page-1.html /tmp/messina/page-2.html
+          cmp /tmp/messina/page-1.html /tmp/messina/page-2.html && echo 'landing_page_byte_identical=true'
+
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin
+          from pathlib import Path
+          import re
+
+          base = 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list'
+          html = Path('/tmp/messina/page-1.html').read_text(encoding='utf-8', errors='replace')
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.current=None; self.text=[]; self.rows=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag == 'a':
+                      d=dict(attrs); self.current=d.get('href'); self.text=[]
+              def handle_data(self, data):
+                  if self.current is not None: self.text.append(data)
+              def handle_endtag(self, tag):
+                  if tag == 'a' and self.current is not None:
+                      text=' '.join(''.join(self.text).split())
+                      self.rows.append((text, urljoin(base, self.current)))
+                      self.current=None; self.text=[]
+          p=Links(); p.feed(html)
+          candidates=[]
+          for text,url in p.rows:
+              low=(text+' '+url).lower()
+              if '/sites/default/files/' in url and ('.pdf' in low or '11/09/2026' in text or '11-09-2026' in low or '11 settembre 2026' in low):
+                  candidates.append((text,url))
+          print('=== OFFICIAL ATTACHMENT CANDIDATES ===')
+          for n,(text,url) in enumerate(candidates,1):
+              print(f'{n}\t{text}\t{url}')
+          # Prefer the two current population PDFs by visible link text.
+          selected=[]
+          for text,url in candidates:
+              t=text.casefold()
+              if ('richiedent' in t and '11' in t) or ('iscritt' in t and '11' in t and 'white' in t):
+                  if url not in [u for _,u in selected]: selected.append((text,url))
+          if len(selected) != 2:
+              raise SystemExit(f'Expected exactly 2 current Messina population PDFs; found {len(selected)}: {selected!r}')
+          Path('/tmp/messina/selected.tsv').write_text('\n'.join(f'{text}\t{url}' for text,url in selected)+'\n', encoding='utf-8')
+          print('=== SELECTED CURRENT POPULATIONS ===')
+          print(Path('/tmp/messina/selected.tsv').read_text())
+          PY
+
+          n=0
+          while IFS=$'\t' read -r label url; do
+            n=$((n+1))
+            echo "=== SOURCE $n: $label ==="
+            echo "URL=$url"
+            for i in 1 2; do
+              curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" --output "/tmp/messina/source-$n-$i.pdf" "$url"
+            done
+            wc -c "/tmp/messina/source-$n-1.pdf" "/tmp/messina/source-$n-2.pdf"
+            sha256sum "/tmp/messina/source-$n-1.pdf" "/tmp/messina/source-$n-2.pdf"
+            cmp "/tmp/messina/source-$n-1.pdf" "/tmp/messina/source-$n-2.pdf" && echo "source_${n}_byte_identical=true"
+            pdfinfo "/tmp/messina/source-$n-1.pdf" | grep -E '^(Pages|Page size|File size|PDF version):'
+            pdftotext -layout "/tmp/messina/source-$n-1.pdf" "/tmp/messina/source-$n.txt"
+            echo "text_bytes=$(wc -c < /tmp/messina/source-$n.txt)"
+            echo '--- first 160 extracted lines ---'
+            sed -n '1,160p' "/tmp/messina/source-$n.txt"
+            echo '--- last 80 extracted lines ---'
+            tail -n 80 "/tmp/messina/source-$n.txt"
+          done < /tmp/messina/selected.tsv
