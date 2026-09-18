@@ -1841,6 +1841,24 @@
       "last_source_update": "2026-09-18",
       "last_source_update_basis": "current official source label and two byte-identical cache-bypassed captures",
       "approval_mode": "raw_sha256"
+    },
+    {
+      "source_key": "cremona-combined",
+      "parser": "cremona_combined",
+      "authority_key": "cremona",
+      "authority_name": "Prefettura di Cremona",
+      "register_key": "cremona-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-18",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/22/2026-09/white-list-elenchi-ditte_3.pdf",
+      "sha256": "55a9498a76120f0b781f9c7ae8da7144c141551598b63a98b0bc52caac79a550",
+      "expected_source_rows": 187,
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "verified capture date; the current official attachment has no embedded edition date and the landing-page timestamp predates its September content",
+      "approval_mode": "raw_sha256",
+      "notes": "Combined official Cremona table: 187 observations = 99 listed + 50 renewal/update + 38 applicant pending; 183/187 observations have structured identifiers. See docs/sources/cremona-operational-check-2026-09-18.md."
     }
   ]
 }
