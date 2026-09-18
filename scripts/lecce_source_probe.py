@@ -9,6 +9,8 @@ from pathlib import Path
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
+import pdfplumber
+
 LANDING_URL = "https://prefettura.interno.gov.it/it/prefetture/lecce/evidenza/white-list"
 OUT = Path("tmp/lecce-probe")
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+Lecce source-boundary audit)"
@@ -70,8 +72,38 @@ def cmd(*args: str) -> str:
     return completed.stdout
 
 
+def clean(value: object) -> str:
+    return " ".join(str(value or "").split())
+
+
 def useful_lines(text: str) -> list[str]:
     return [" ".join(line.split()) for line in text.splitlines() if line.strip()]
+
+
+def table_geometry(pdf_path: Path) -> dict[str, object]:
+    pages: list[dict[str, object]] = []
+    total_rows = 0
+    widths: dict[str, int] = {}
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_number, page in enumerate(pdf.pages, 1):
+            tables = page.find_tables()
+            page_info: dict[str, object] = {"page": page_number, "table_count": len(tables)}
+            if len(tables) == 1:
+                extracted = tables[0].extract() or []
+                rows = [[clean(cell) for cell in row] for row in extracted if any(clean(cell) for cell in row)]
+                total_rows += len(rows)
+                for row in rows:
+                    widths[str(len(row))] = widths.get(str(len(row)), 0) + 1
+                page_info.update(
+                    {
+                        "nonblank_rows": len(rows),
+                        "widths": sorted({len(row) for row in rows}),
+                        "first_rows": rows[:3],
+                        "last_rows": rows[-3:],
+                    }
+                )
+            pages.append(page_info)
+    return {"total_nonblank_table_rows": total_rows, "row_width_histogram": widths, "pages": pages}
 
 
 def inspect_pdf(kind: str, label: str, url: str) -> dict[str, object]:
@@ -96,8 +128,9 @@ def inspect_pdf(kind: str, label: str, url: str) -> dict[str, object]:
         "captures_identical": True,
         "pages": int(pages_match.group(1)) if pages_match else None,
         "nonblank_text_lines": len(lines),
-        "head": lines[:80],
-        "tail": lines[-80:],
+        "head": lines[:40],
+        "tail": lines[-40:],
+        "table_geometry": table_geometry(pdf_path),
     }
 
 
