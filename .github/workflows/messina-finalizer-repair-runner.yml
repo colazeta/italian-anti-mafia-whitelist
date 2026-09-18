@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   finalise:
-    if: github.event.head_commit.message == 'Run corrected Messina integration finalizer'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -19,6 +18,7 @@ jobs:
           ref: expansion/messina-2026-09-18
           fetch-depth: 0
       - name: Execute reviewed finalizer with robust source-series insertion
+        if: github.event.head_commit.message == 'Repair Messina integration finalizer runner'
         shell: bash
         run: |
           python - <<'PY'
