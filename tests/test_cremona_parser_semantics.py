@@ -42,6 +42,10 @@ def test_cremona_identifier_exceptions_stay_raw_only():
         ["01832620197", "MMBTTL64A01D150Z"],
     )
     assert _identifier_kind("009226901930", 11) == ("reviewed_malformed_numeric_only", [])
+    assert _identifier_kind("00888170198\n01034430197", 60) == (
+        "strict_11_pair",
+        ["00888170198", "01034430197"],
+    )
 
 
 def test_cremona_sections_are_source_markers_only():

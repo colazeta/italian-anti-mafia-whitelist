@@ -24,8 +24,9 @@ _EXPECTED_STATUS_COUNTS = {
     "renewal_update_in_progress": 50,
 }
 _EXPECTED_IDENTIFIER_KIND_COUNTS = {
-    "strict_11_only": 165,
+    "strict_11_only": 163,
     "strict_11_plus_fiscal16": 18,
+    "strict_11_pair": 2,
     "reviewed_malformed_numeric_only": 4,
 }
 _REVIEWED_MALFORMED_IDENTIFIERS = {
@@ -72,6 +73,8 @@ def _identifier_kind(raw: str, ordinal: int) -> tuple[str, list[str]]:
         raise RuntimeError(f"Cremona row {ordinal}: reviewed malformed identifier changed from {reviewed!r}")
     if strict and fiscal and len(strict) == 1 and len(fiscal) == 1 and len(tokens) == 2:
         return "strict_11_plus_fiscal16", strict + fiscal
+    if len(strict) == 2 and not fiscal and len(tokens) == 2:
+        return "strict_11_pair", strict
     if len(strict) == 1 and not fiscal and len(tokens) == 1:
         return "strict_11_only", strict
     raise RuntimeError(f"Cremona row {ordinal}: unsupported identifier structure {tokens!r}")
