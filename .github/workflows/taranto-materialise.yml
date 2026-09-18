@@ -1,0 +1,48 @@
+name: Taranto materialisation worker
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - 'tmp/taranto_finalize_no_workflow.py'
+      - '.github/workflows/taranto-materialise.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Taranto branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialise permanent non-workflow integration
+        run: |
+          python tmp/taranto_finalize_no_workflow.py
+          python -m json.tool data/publication/multi_prefecture_pilot.json >/dev/null
+          python -m json.tool data/monitoring/national_coverage.json >/dev/null
+          python -m py_compile \
+            src/white_list_archive/publishing/public_national_registry.py \
+            src/white_list_archive/parsers/taranto_html.py
+      - name: Remove temporary script and commit
+        run: |
+          rm -f tmp/taranto_finalize_no_workflow.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No Taranto integration changes to commit' >&2
+            exit 1
+          fi
+          git commit -m 'Integrate Taranto source and public metadata'
+          git push origin HEAD:expansion/taranto-2026-09-18
