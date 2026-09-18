@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve current official Firenze attachments
+      - name: Resolve and inspect current official Firenze attachments
         shell: bash
         run: |
           set -euo pipefail
@@ -29,13 +29,14 @@ jobs:
           python - <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
-          from urllib.parse import urljoin
+          from urllib.parse import urljoin, urlparse
+          import hashlib, subprocess, urllib.request
 
           base='https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'
-          html=Path('/tmp/firenze-probe/page.html').read_text(encoding='utf-8', errors='replace')
+          root=Path('/tmp/firenze-probe')
+          html=root.joinpath('page.html').read_text(encoding='utf-8', errors='replace')
           class P(HTMLParser):
-              def __init__(self):
-                  super().__init__(); self.a=None; self.out=[]
+              def __init__(self): super().__init__(); self.a=None; self.out=[]
               def handle_starttag(self, tag, attrs):
                   if tag.lower()=='a':
                       d=dict(attrs); self.a={'href':d.get('href',''),'text':[]}
@@ -44,88 +45,89 @@ jobs:
               def handle_endtag(self, tag):
                   if tag.lower()=='a' and self.a is not None:
                       href=self.a['href']; text=' '.join(''.join(self.a['text']).split())
-                      if href:
-                          self.out.append((text,urljoin(base,href)))
+                      if href: self.out.append((text,urljoin(base,href)))
                       self.a=None
           p=P(); p.feed(html)
-          files=[]
-          print('=== ALL SOURCE/FILE LINKS ===')
+          wanted=[]
+          print('=== SOURCE LINKS ===')
           for text,url in p.out:
               if '/sites/default/files/' in url or 'white' in text.lower() or 'richied' in text.lower():
                   print(f'{text}\t{url}')
-              if '/sites/default/files/' in url:
-                  files.append((text,url))
-          Path('/tmp/firenze-probe/files.tsv').write_text('\n'.join(f'{t}\t{u}' for t,u in files),encoding='utf-8')
-          print(f'FILE_LINK_COUNT={len(files)}')
+              if text in {'White List Firenze','Elenco richiedenti White List'}:
+                  wanted.append((text,url))
+          if len(wanted)!=2:
+              raise SystemExit(f'Expected exactly two governed White List population attachments, got {wanted!r}')
+          opener=urllib.request.build_opener()
+          opener.addheaders=[('User-Agent','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36')]
+          manifest=[]
+          for i,(label,url) in enumerate(wanted,1):
+              suffix=Path(urlparse(url).path).suffix.lower() or '.bin'
+              out=root/f'population-{i}{suffix}'
+              with opener.open(url,timeout=120) as r:
+                  data=r.read()
+              out.write_bytes(data)
+              sha=hashlib.sha256(data).hexdigest()
+              print(f'=== POPULATION {i} ===')
+              print(f'LABEL={label}')
+              print(f'URL={url}')
+              print(f'PATH={out}')
+              print(f'BYTES={len(data)}')
+              print(f'SHA256={sha}')
+              manifest.append((label,url,str(out),len(data),sha))
+          root.joinpath('manifest.tsv').write_text('\n'.join('\t'.join(map(str,x)) for x in manifest)+'\n',encoding='utf-8')
           PY
 
-          i=0
-          while IFS=$'\t' read -r label url; do
-            [ -z "${url:-}" ] && continue
-            i=$((i+1))
-            out="/tmp/firenze-probe/file-${i}"
-            echo "=== FILE ${i} ==="
-            echo "LABEL=${label}"
-            echo "URL=${url}"
-            curl -fL --retry 2 --connect-timeout 20 --max-time 120 \
-              -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' \
-              "$url" -o "$out"
-            echo "BYTES=$(wc -c <"$out")"
-            echo "SHA256=$(sha256sum "$out" | cut -d' ' -f1)"
-            echo "FILETYPE=$(file -b "$out")"
-          done </tmp/firenze-probe/files.tsv
-
-      - name: Inspect attachment structures
-        shell: bash
-        run: |
-          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils >/dev/null
-          python -m pip install -q openpyxl python-docx pypdf
+          python -m pip install -q openpyxl pypdf
+
           python - <<'PY'
           from pathlib import Path
-          import subprocess, zipfile
+          import csv, re, subprocess
+          from openpyxl import load_workbook
+          from pypdf import PdfReader
+
           root=Path('/tmp/firenze-probe')
-          rows=root.joinpath('files.tsv').read_text(encoding='utf-8').splitlines()
-          for i,row in enumerate(rows,1):
-              if not row.strip(): continue
-              label,url=row.split('\t',1)
-              p=root/f'file-{i}'
-              b=p.read_bytes()[:8]
-              print(f'\n=== STRUCTURE {i}: {label} ===')
-              if b.startswith(b'%PDF'):
-                  subprocess.run(['pdfinfo',str(p)],check=False)
-                  txt=root/f'file-{i}.txt'
+          manifest=[]
+          for line in root.joinpath('manifest.tsv').read_text(encoding='utf-8').splitlines():
+              label,url,path,nbytes,sha=line.split('\t')
+              manifest.append((label,url,Path(path),int(nbytes),sha))
+          for label,url,p,nbytes,sha in manifest:
+              print(f'\n=== STRUCTURE: {label} ===')
+              print(subprocess.check_output(['file','-b',str(p)],text=True).strip())
+              if p.suffix.lower()=='.xlsx':
+                  wb=load_workbook(p,read_only=True,data_only=True)
+                  print('XLSX_SHEETS='+repr(wb.sheetnames))
+                  total_nonempty=0
+                  for ws in wb.worksheets:
+                      rows=[]
+                      for ri,vals in enumerate(ws.iter_rows(values_only=True),1):
+                          vals=tuple(vals)
+                          if any(v not in (None,'') for v in vals): rows.append((ri,vals))
+                      total_nonempty+=len(rows)
+                      print(f'SHEET={ws.title!r} MAX_ROW={ws.max_row} MAX_COL={ws.max_column} NONEMPTY_ROWS={len(rows)}')
+                      for ri,vals in rows[:25]: print(f'HEAD_ROW={ri} {vals!r}'[:2000])
+                      if len(rows)>30:
+                          for ri,vals in rows[-10:]: print(f'TAIL_ROW={ri} {vals!r}'[:2000])
+                  print(f'XLSX_TOTAL_NONEMPTY_ROWS={total_nonempty}')
+              elif p.suffix.lower()=='.pdf':
+                  reader=PdfReader(str(p))
+                  print(f'PDF_PAGES={len(reader.pages)}')
+                  txt=root/'applicants-layout.txt'
                   subprocess.run(['pdftotext','-layout',str(p),str(txt)],check=True)
                   lines=txt.read_text(encoding='utf-8',errors='replace').splitlines()
-                  print(f'PDF_TEXT_LINES={len(lines)}')
-                  for line in lines[:180]: print(line[:300])
-              elif b.startswith(b'PK'):
-                  names=[]
-                  with zipfile.ZipFile(p) as z: names=z.namelist()
-                  if any(n.startswith('xl/') for n in names):
-                      from openpyxl import load_workbook
-                      wb=load_workbook(p,read_only=True,data_only=True)
-                      print('XLSX_SHEETS='+repr(wb.sheetnames))
-                      for ws in wb.worksheets:
-                          print(f'SHEET={ws.title!r} MAX_ROW={ws.max_row} MAX_COL={ws.max_column}')
-                          shown=0
-                          for vals in ws.iter_rows(values_only=True):
-                              if any(v not in (None,'') for v in vals):
-                                  print('ROW='+repr(tuple(vals))[:1200])
-                                  shown+=1
-                                  if shown>=20: break
-                  elif any(n.startswith('word/') for n in names):
-                      from docx import Document
-                      doc=Document(p)
-                      print(f'DOCX_TABLES={len(doc.tables)} PARAGRAPHS={len(doc.paragraphs)}')
-                      for ti,t in enumerate(doc.tables[:4]):
-                          print(f'TABLE={ti} ROWS={len(t.rows)} COLS={len(t.columns)}')
-                          for r in t.rows[:15]: print('ROW='+repr(tuple(c.text for c in r.cells))[:1200])
-                  else:
-                      print('ZIP_CONTENT='+repr(names[:30]))
+                  nonblank=[x for x in lines if x.strip()]
+                  print(f'PDF_TEXT_LINES={len(lines)} NONBLANK={len(nonblank)}')
+                  print('--- PDF HEAD ---')
+                  for line in lines[:350]: print(line[:400])
+                  print('--- PDF TAIL ---')
+                  for line in lines[-120:]: print(line[:400])
+                  # Conservative diagnostics only: report candidate lines carrying a fiscal/VAT identifier shape.
+                  id_lines=[x for x in nonblank if re.search(r'(?<!\d)\d{11}(?!\d)|\b[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]\b',x.upper())]
+                  print(f'PDF_LINES_WITH_IDENTIFIER_SHAPE={len(id_lines)}')
+                  for line in id_lines[:30]: print('IDLINE='+line[:500])
               else:
-                  print('UNHANDLED_MAGIC='+repr(b))
+                  raise SystemExit(f'Unhandled current Firenze population format: {p}')
           PY
 
       - name: Upload bounded probe evidence
@@ -134,7 +136,7 @@ jobs:
           name: firenze-source-probe
           path: |
             /tmp/firenze-probe/page.html
-            /tmp/firenze-probe/files.tsv
-            /tmp/firenze-probe/file-*.txt
+            /tmp/firenze-probe/manifest.tsv
+            /tmp/firenze-probe/applicants-layout.txt
           if-no-files-found: warn
           retention-days: 3
