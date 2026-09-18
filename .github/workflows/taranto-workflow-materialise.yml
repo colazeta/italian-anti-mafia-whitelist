@@ -1,0 +1,36 @@
+name: Taranto workflow materialiser
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - 'tmp/generate_taranto_public_workflow.py'
+      - '.github/workflows/taranto-workflow-materialise.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Taranto branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Generate desired workflow blob
+        run: |
+          python tmp/generate_taranto_public_workflow.py
+          test -s tmp/public-pages-taranto.yml
+      - name: Commit generated non-workflow file
+        run: |
+          rm -f tmp/generate_taranto_public_workflow.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Materialise Taranto public workflow candidate'
+          git push origin HEAD:expansion/taranto-2026-09-18
