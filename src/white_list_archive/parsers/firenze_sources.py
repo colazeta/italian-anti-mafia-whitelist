@@ -192,7 +192,7 @@ def parse_firenze_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         )
 
     records: list[dict[str, Any]] = []
-    for ordinal, (page_number, name, office, identifier_raw, application_raw, outcome) in enumerate(extracted, 1):
+    for ordinal, (_page_number, name, office, identifier_raw, application_raw, outcome) in enumerate(extracted, 1):
         records.append(
             _record(
                 cfg,
@@ -204,10 +204,7 @@ def parse_firenze_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 outcome_raw=outcome,
                 application_date=application_raw,
                 primary_date_label="Data presentazione istanza",
-                source_fields={
-                    "source_page_number": page_number,
-                    "application_date_raw": application_raw,
-                },
+                source_fields={"application_date_raw": application_raw},
             )
         )
 
