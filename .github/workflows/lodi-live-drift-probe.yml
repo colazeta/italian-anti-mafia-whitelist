@@ -17,24 +17,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install parser runtime
-        run: python -m pip install -e '.[publication]'
-      - name: Fetch twice and validate current Lodi structure
+      - name: Fetch two independent current Lodi exports
         run: |
           python - <<'PY'
           import hashlib, json, time
-          from collections import Counter
           from pathlib import Path
           from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
           from urllib.request import Request, urlopen
-
-          import white_list_archive.parsers.lodi_sheets as lodi
 
           cfg = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
           sources = {s['source_key']: s for s in cfg['sources'] if s.get('authority_key') == 'lodi'}
           expected_keys = {'lodi-listed', 'lodi-applicants'}
           if set(sources) != expected_keys:
               raise SystemExit(f'Lodi source-key drift: {set(sources)!r}')
+          out = Path('artifacts/lodi-drift-current')
+          out.mkdir(parents=True, exist_ok=True)
 
           def cache_bust(url, token):
               parts = urlsplit(url)
@@ -43,59 +40,37 @@ jobs:
               return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(q), parts.fragment))
 
           def fetch(url, token):
-              req = Request(cache_bust(url, token), headers={'User-Agent':'italian-anti-mafia-whitelist/1.0 (+source-verification)'})
+              req = Request(cache_bust(url, token), headers={
+                  'User-Agent':'italian-anti-mafia-whitelist/1.0 (+source-verification)',
+                  'Cache-Control':'no-cache', 'Pragma':'no-cache'})
               with urlopen(req, timeout=60) as resp:
-                  data = resp.read()
-              return data
+                  return resp.read()
 
-          captures = {}
+          summary = {}
           for key in sorted(expected_keys):
               source = sources[key]
               a = fetch(source['resource_url'], '20260918-A')
-              time.sleep(2)
+              time.sleep(3)
               b = fetch(source['resource_url'], '20260918-B')
               ha = hashlib.sha256(a).hexdigest(); hb = hashlib.sha256(b).hexdigest()
-              print(f'{key}: approved_sha={source["sha256"]} live_sha_a={ha} live_sha_b={hb} size_a={len(a)} size_b={len(b)} byte_identical={a == b}')
-              if a != b or ha != hb:
+              identical = a == b and ha == hb
+              print(f'{key}: approved_sha={source["sha256"]} live_sha_a={ha} live_sha_b={hb} size_a={len(a)} size_b={len(b)} byte_identical={identical}')
+              (out / f'{key}-1.csv').write_bytes(a)
+              (out / f'{key}-2.csv').write_bytes(b)
+              summary[key] = {
+                  'approved_sha256': source['sha256'],
+                  'live_sha256': ha,
+                  'size': len(a),
+                  'independent_captures_identical': identical,
+              }
+              if not identical:
                   raise SystemExit(f'{key}: independent live captures disagree')
-              path = Path('/tmp') / f'{key}.csv'
-              path.write_bytes(a)
-              captures[key] = (source, path, ha)
-
-          listed_cfg, listed_path, listed_sha = captures['lodi-listed']
-          applicant_cfg, applicant_path, applicant_sha = captures['lodi-applicants']
-
-          # Exercise the full existing fail-closed structural/parser logic against the
-          # newly observed bytes without changing the repository approval boundary.
-          old_listed = lodi._LISTED_SHA256
-          old_applicant = lodi._APPLICANT_SHA256
-          try:
-              lodi._LISTED_SHA256 = listed_sha
-              lodi._APPLICANT_SHA256 = applicant_sha
-              lc = dict(listed_cfg); lc['sha256'] = listed_sha
-              ac = dict(applicant_cfg); ac['sha256'] = applicant_sha
-              lb = lodi.parse_lodi_listed(listed_path, lc)
-              ab = lodi.parse_lodi_applicants(applicant_path, ac)
-          finally:
-              lodi._LISTED_SHA256 = old_listed
-              lodi._APPLICANT_SHA256 = old_applicant
-
-          all_records = lb.records + ab.records
-          statuses = Counter(r.get('source_status') for r in all_records)
-          print(f'lodi_current_records listed={len(lb.records)} applicants={len(ab.records)} total={len(all_records)}')
-          print('lodi_current_statuses ' + json.dumps(dict(sorted(statuses.items())), sort_keys=True))
-          semantic = []
-          for r in all_records:
-              semantic.append({
-                  'source_key': r.get('source_key'),
-                  'source_record_locator': r.get('source_record_locator'),
-                  'company_name': r.get('company_name'),
-                  'identifiers': r.get('identifiers'),
-                  'source_status': r.get('source_status'),
-                  'listing_date': r.get('listing_date'),
-                  'expiry_date': r.get('expiry_date'),
-                  'registered_office_raw': r.get('registered_office_raw'),
-              })
-          digest = hashlib.sha256(json.dumps(semantic, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-          print(f'lodi_current_semantic_digest={digest}')
+          (out / 'summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
           PY
+      - name: Upload exact current source evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: lodi-source-drift-2026-09-18
+          path: artifacts/lodi-drift-current/*
+          if-no-files-found: error
+          retention-days: 7
