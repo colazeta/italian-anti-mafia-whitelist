@@ -25,8 +25,8 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install repository runtime
-        run: python -m pip install -e .
+      - name: Install publication runtime
+        run: python -m pip install -e '.[publication]'
 
       - name: Capture and audit current Milano sources
         run: python scripts/milano_drift_review_b929.py
