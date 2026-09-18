@@ -170,9 +170,16 @@ def parse_cremona_combined(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     for ordinal, row in enumerate(rows, 1):
         if len(row) != 17:
             raise RuntimeError(f"Cremona row {ordinal}: expected 17 table cells, got {len(row)}")
-        number, name, office, identifier_raw, listing_raw, expiry_raw, note_raw, *section_cells = [
-            _clean(cell) for cell in row
-        ]
+        number = _clean(row[0])
+        name = _clean(row[1])
+        office = _clean(row[2])
+        # Preserve pdfplumber's line boundary between a codice fiscale and an
+        # 11-digit VAT number. _record will normalise display whitespace later.
+        identifier_raw = str(row[3] or "").strip()
+        listing_raw = _clean(row[4])
+        expiry_raw = _clean(row[5])
+        note_raw = _clean(row[6])
+        section_cells = [_clean(cell) for cell in row[7:]]
         if number != str(ordinal):
             raise RuntimeError(f"Cremona row sequence drift at ordinal {ordinal}: source number={number!r}")
         if not name or not office:
