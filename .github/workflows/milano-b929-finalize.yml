@@ -36,6 +36,9 @@ jobs:
       - name: Reconfirm official source boundary
         run: python scripts/milano_drift_review_b929.py
 
+      - name: Remove runner-only audit output
+        run: rm -rf audit-output
+
       - name: Adapt temporary finalizer to current coverage-ledger key
         run: |
           python - <<'PY'
