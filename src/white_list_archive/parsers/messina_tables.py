@@ -81,7 +81,10 @@ def _sections(raw: str) -> list[str]:
     raw = _clean(raw)
     if not raw:
         return []
-    parts = [part for part in raw.split("-") if part]
+    # The official PDFs inconsistently add spaces around the same hyphen
+    # separator. Strip only surrounding whitespace; do not reinterpret any
+    # non-Roman source token or alternate separator.
+    parts = [part.strip() for part in raw.split("-") if part.strip()]
     if not parts or any(not re.fullmatch(r"[IVX]+", part) for part in parts):
         raise RuntimeError(f"Messina unreviewed section encoding: {raw!r}")
     return [f"Sezione {part}" for part in parts]
@@ -203,7 +206,10 @@ def parse_messina_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(
             f"Messina listed identifier-record boundary drift: {identifier_records}"
         )
-    if len(identifier_values) != _EXPECTED_LISTED_IDENTIFIER_VALUES or len(set(identifier_values)) != len(identifier_values):
+    if (
+        len(identifier_values) != _EXPECTED_LISTED_IDENTIFIER_VALUES
+        or len(set(identifier_values)) != len(identifier_values)
+    ):
         raise RuntimeError(
             "Messina listed identifier-value boundary drift: "
             f"values={len(identifier_values)}, unique={len(set(identifier_values))}"
@@ -268,7 +274,11 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         for page_number, page in enumerate(pdf.pages, 1):
             table_obj = _applicant_data_table(page, page_number)
             table = table_obj.extract()
-            company_rows = [[_clean(value) for value in row] for row in table[1:] if any(_clean(value) for value in row)]
+            company_rows = [
+                [_clean(value) for value in row]
+                for row in table[1:]
+                if any(_clean(value) for value in row)
+            ]
             dates = _applicant_dates(page, page_number)
             if len(company_rows) != len(dates):
                 raise RuntimeError(
@@ -276,7 +286,9 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     f"rows={len(company_rows)}, dates={len(dates)}"
                 )
 
-            for table_row, (cells, (_date_top, application_raw)) in enumerate(zip(company_rows, dates), 1):
+            for table_row, (cells, (_date_top, application_raw)) in enumerate(
+                zip(company_rows, dates), 1
+            ):
                 if len(cells) != 5:
                     raise RuntimeError(
                         f"Messina applicant page {page_number} row {table_row}: expected 5 cells, got {len(cells)}"
@@ -288,9 +300,13 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     )
                 identifiers = _strict_identifiers(identifier_raw)
                 if not identifiers:
-                    blank_reviewed.append((page_number, table_row, name, office, sections_raw))
+                    blank_reviewed.append(
+                        (page_number, table_row, name, office, sections_raw)
+                    )
                 _sections(sections_raw)
-                extracted.append((page_number, table_row, cells, application_raw))
+                extracted.append(
+                    (page_number, table_row, cells, application_raw)
+                )
             page_counts.append(len(company_rows))
 
     if page_counts != _EXPECTED_APPLICANT_PAGE_ROWS:
@@ -307,7 +323,9 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         )
 
     records: list[dict[str, Any]] = []
-    for ordinal, (_page_number, _table_row, cells, application_raw) in enumerate(extracted, 1):
+    for ordinal, (_page_number, _table_row, cells, application_raw) in enumerate(
+        extracted, 1
+    ):
         name, office, secondary, identifier_raw, sections_raw = cells
         record = _record(
             cfg,
@@ -330,27 +348,40 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
     statuses = Counter(record["source_status"] for record in records)
     identifier_records = sum(bool(record["identifiers"]) for record in records)
-    identifier_values = [value for record in records for value in record["identifiers"]]
+    identifier_values = [
+        value for record in records for value in record["identifiers"]
+    ]
     blank_identifier = sum(not record["identifier_field_raw"] for record in records)
     multiple_identifier_records = [
-        (record["name"], record["identifier_field_raw"], tuple(record["identifiers"]))
+        (
+            record["name"],
+            record["identifier_field_raw"],
+            tuple(record["identifiers"]),
+        )
         for record in records
         if len(record["identifiers"]) > 1
     ]
 
     if statuses != Counter({"pending": _EXPECTED_APPLICANT_RECORDS}):
-        raise RuntimeError(f"Messina applicant status boundary drift: {dict(statuses)!r}")
+        raise RuntimeError(
+            f"Messina applicant status boundary drift: {dict(statuses)!r}"
+        )
     if identifier_records != _EXPECTED_APPLICANT_IDENTIFIER_RECORDS:
         raise RuntimeError(
             f"Messina applicant identifier-record boundary drift: {identifier_records}"
         )
-    if len(identifier_values) != _EXPECTED_APPLICANT_IDENTIFIER_VALUES or len(set(identifier_values)) != len(identifier_values):
+    if (
+        len(identifier_values) != _EXPECTED_APPLICANT_IDENTIFIER_VALUES
+        or len(set(identifier_values)) != len(identifier_values)
+    ):
         raise RuntimeError(
             "Messina applicant identifier-value boundary drift: "
             f"values={len(identifier_values)}, unique={len(set(identifier_values))}"
         )
     if blank_identifier != _EXPECTED_APPLICANT_BLANK_IDENTIFIER:
-        raise RuntimeError(f"Messina applicant blank-identifier boundary drift: {blank_identifier}")
+        raise RuntimeError(
+            f"Messina applicant blank-identifier boundary drift: {blank_identifier}"
+        )
     if multiple_identifier_records != [_REVIEWED_MULTI_IDENTIFIER]:
         raise RuntimeError(
             f"Messina applicant multi-identifier boundary drift: {multiple_identifier_records!r}"
