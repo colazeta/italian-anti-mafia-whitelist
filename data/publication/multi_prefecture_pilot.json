@@ -1659,6 +1659,44 @@
       "last_source_update_basis": "official page last-updated marker and byte-pinned current attachment independently verified 18 September 2026",
       "approval_mode": "raw_sha256",
       "notes": "Nine-page official applicant PDF yields exactly 125 pending observations because Esito is blank for every row. Structured identifier coverage is 123/125; two raw-only identifiers and two blank registered offices are preserved without inference. Exact evidence is documented in docs/sources/firenze-operational-check-2026-09-18.md."
+    },
+    {
+      "source_key": "taranto-listed",
+      "parser": "taranto_html_listed",
+      "authority_key": "taranto",
+      "authority_name": "Prefettura di Taranto",
+      "register_key": "taranto-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "listed",
+      "reference_date": "2026-09-07",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+      "sha256": "545d6db44a8f68ec1e9ef460a4a8129e64d77385bfab318f8d050051219643c9",
+      "semantic_sha256": "27211daaa4734c29bc0f48d9a86e229d04671a150fcad997b8045d997e6bab92",
+      "approval_mode": "semantic_sha256",
+      "expected_source_rows": 388,
+      "last_source_update": "2026-09-07",
+      "last_source_update_basis": "official page 'Ultimo aggiornamento' (7 September 2026); independently revalidated 18 September 2026; date is a source update/reference boundary only and is not an inferred company event or legal-effect date",
+      "notes": "Mutable official registered-company HTML table. Repeated independent no-cache captures were byte-identical at 150,817 bytes. The fail-closed parser yields exactly 388 observations: 212 listed and 176 renewal/update in progress. Structured identifier coverage is 381/388 with seven raw-only identifiers; eight rows retain at least one malformed source date without repair or inference. Publication is approved against the full parsed semantic digest while raw capture SHA-256 remains observation provenance. Exact evidence is documented in docs/sources/taranto-operational-check-2026-09-18.md."
+    },
+    {
+      "source_key": "taranto-applicants",
+      "parser": "taranto_html_applicants",
+      "authority_key": "taranto",
+      "authority_name": "Prefettura di Taranto",
+      "register_key": "taranto-ordinary",
+      "register_name": "White List ordinaria",
+      "population_scope": "applicant",
+      "reference_date": "2026-09-07",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+      "sha256": "ade85a5326dc8aa99c4cc2695bad87aee897964cd4c10c59b665793ec3d900f6",
+      "semantic_sha256": "b6bfcea34e1ff19a79164b4b0b13acbd55a8985c2cec66048d719e6704155982",
+      "approval_mode": "semantic_sha256",
+      "expected_source_rows": 212,
+      "last_source_update": "2026-09-07",
+      "last_source_update_basis": "official page 'Ultimo aggiornamento' (7 September 2026); independently revalidated 18 September 2026; date is a source update/reference boundary only and is not an inferred company event or legal-effect date",
+      "notes": "Mutable official applicant HTML table. Repeated independent no-cache captures were byte-identical at 107,423 bytes. The fail-closed parser yields exactly 212 pending observations. Structured identifier coverage is 211/212 with one raw-only identifier; no malformed application dates were observed. Publication is approved against the full parsed semantic digest while raw capture SHA-256 remains observation provenance. Exact evidence is documented in docs/sources/taranto-operational-check-2026-09-18.md."
     }
   ]
 }
