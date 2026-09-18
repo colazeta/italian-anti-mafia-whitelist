@@ -39,7 +39,7 @@ _DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 _PENDING_MARKER = "ISCRITTO ELENCO RICHIEDENTI- IN ISTRUTTORIA"
 _INITIAL_APPLICATION = re.compile(r"^FATTA ISTANZA IN DATA (\d{2}/\d{2}/\d{4})$", re.I)
 _RENEWAL = re.compile(
-    r"^FATTA ISTANZA A PERM(?:ANERE|AMERE)(?: (?:(?:IN DATA|IL) )?(\d{2}/\d{2}/\d{4}))?$",
+    r"^FATTA ISTANZA A PER(?:MANERE|AMERE)(?: (?:(?:IN DATA|IL) )?(\d{2}/\d{2}/\d{4}))?$",
     re.I,
 )
 
