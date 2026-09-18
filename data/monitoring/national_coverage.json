@@ -29,6 +29,30 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215"
+    },
+    {
+      "authority_key": "milano",
+      "at": "2026-09-17T18:06:44Z",
+      "evidence": "docs/sources/milano-source-transition-2026-09-17.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a"
+    },
+    {
+      "authority_key": "potenza",
+      "at": "2026-09-17T13:11:20Z",
+      "evidence": "docs/sources/potenza-operational-check-2026-09-15.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820"
+    },
+    {
+      "authority_key": "potenza",
+      "at": "2026-09-17T22:35:08Z",
+      "evidence": "docs/sources/potenza-operational-check-2026-09-15.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30"
     }
   ],
   "prefectures": [
@@ -192,13 +216,13 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-16",
+      "latest_source_reference_date": "2026-09-17",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-16T10:08:19Z",
-      "last_attempted_source_check_at": "2026-09-16T10:08:19Z",
-      "last_content_change_at": "2026-09-16T10:08:19Z",
-      "last_successful_investigation_on": "2026-09-16",
+      "last_successful_source_check_at": "2026-09-17T15:14:42Z",
+      "last_attempted_source_check_at": "2026-09-17T15:14:42Z",
+      "last_content_change_at": "2026-09-17T15:14:42Z",
+      "last_successful_investigation_on": "2026-09-17",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/issues/16"
@@ -215,7 +239,9 @@
         "49b94a13c20354cd1c0c29c0b8ec7551813e5ec4d87ab51a1da1227ba05b298c",
         "0132bd120fd34208b8f07556bcc44a2731db390d799a72c365db952481f09344",
         "7b107f612d5336dd21a7db6fef105759e65057ef8147b165fea47e4ccab0ebc4",
-        "d514dd66b7248f0f3a46f56c582ccd9ba986a031b6676fb8aca560158b0a1e55"
+        "d514dd66b7248f0f3a46f56c582ccd9ba986a031b6676fb8aca560158b0a1e55",
+        "9e034f0e681d5352fe2c610982ca6726488e31db796e5e3d875e500edd9b18d9",
+        "34a6277e6b956a82d76279c283f6fb8d4fa75c7395b0897a4eefef88448db32a"
       ],
       "evidence": [
         "data/publication/multi_prefecture_pilot.json",
@@ -2486,9 +2512,9 @@
       "latest_source_reference_date": "2026-09-17",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-17T00:03:58Z",
-      "last_attempted_source_check_at": "2026-09-17T00:03:58Z",
-      "last_content_change_at": "2026-09-17T00:03:58Z",
+      "last_successful_source_check_at": "2026-09-17T18:06:44Z",
+      "last_attempted_source_check_at": "2026-09-17T18:06:44Z",
+      "last_content_change_at": "2026-09-17T18:06:44Z",
       "last_successful_investigation_on": "2026-09-17",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
@@ -2508,7 +2534,9 @@
         "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8",
         "37fd59b67b153dd642298c7143de4aa1bc57bb1cced0a9310bc9539a79078215",
         "4509948e4baf91ed5c92bd5940a2fca1cd5f9a6fd21f553c4864e68735e36608",
-        "7f5c7dcc3288387d15125aee1f8aee4e271e5743ecc3a6e9da229873cc1f4848"
+        "7f5c7dcc3288387d15125aee1f8aee4e271e5743ecc3a6e9da229873cc1f4848",
+        "51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a",
+        "e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
@@ -3246,14 +3274,14 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-15",
+      "latest_source_reference_date": "2026-09-17",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
-      "last_content_change_at": null,
-      "last_successful_investigation_on": "2026-09-15",
-      "monitoring_status": "NEVER_CHECKED",
+      "last_successful_source_check_at": "2026-09-17T22:35:08Z",
+      "last_attempted_source_check_at": "2026-09-17T22:35:08Z",
+      "last_content_change_at": "2026-09-17T22:35:08Z",
+      "last_successful_investigation_on": "2026-09-18",
+      "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "The combined list response does not expose per-company statutory sections; requested activities remain empty pending positive evidence from the official child section view rather than inference.",
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
@@ -3268,7 +3296,9 @@
         "data/publication/multi_prefecture_pilot.json"
       ],
       "known_content_sha256": [
-        "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6"
+        "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6",
+        "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820",
+        "cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
