@@ -60,14 +60,9 @@ jobs:
           assert sum(bool(r['identifiers']) for r in taranto_records) == 592
           assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in taranto_records) == 8
           assert sum(bool(r.get('source_fields', {}).get('malformed_date_pairs')) for r in taranto_records if r['source_key'] == 'taranto-listed') == 8
-"""
+          """
           repl(anchor, anchor + block, 'Taranto assertions')
           p.write_text(s, encoding='utf-8')
-          PY
-          python - <<'PY'
-          import yaml
-          from pathlib import Path
-          yaml.safe_load(Path('.github/workflows/public-pages.yml').read_text(encoding='utf-8'))
           PY
       - name: Remove all temporary Taranto machinery
         shell: bash
