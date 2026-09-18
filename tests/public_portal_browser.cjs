@@ -69,6 +69,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Firenze'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Taranto'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Lecce'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Messina'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
@@ -111,8 +112,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,60557);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce'].includes(r.authority_key));
+      assert.equal(stats.total,61591);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -152,6 +153,15 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(lecce.filter(r=>!r.identifier_field_raw&&r.identifiers.length===0).length,1);
       assert.equal(lecce.filter(r=>r.source_key==='lecce-listed'&&!r.observed_listing_date&&r.source_fields.listing_date_raw_variants.length>0).length,4);
       assert.equal(lecce.filter(r=>r.source_key==='lecce-listed'&&!r.observed_expiry_date&&r.source_fields.expiry_date_raw_variants.length>0).length,2);
+      const messina=registry.records.filter(r=>r.authority_key==='messina');
+      assert.equal(messina.length,1034);
+      assert.equal(messina.filter(r=>r.source_key==='messina-listed').length,880);
+      assert.equal(messina.filter(r=>r.source_key==='messina-applicants').length,154);
+      assert.deepEqual(statusCounts(messina),{listed:663,pending:154,renewal_update_in_progress:217});
+      assert.equal(new Set(messina.map(r=>r.record_locator)).size,1034);
+      assert.equal(messina.filter(r=>r.identifiers.length>0).length,1033);
+      assert.equal(messina.filter(r=>!r.identifier_field_raw&&r.identifiers.length===0).length,1);
+      assert.equal(messina.flatMap(r=>r.identifiers).length,1034);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);

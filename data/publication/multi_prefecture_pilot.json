@@ -1734,6 +1734,42 @@
       "sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124",
       "expected_source_rows": 90,
       "notes": "Current 10-page official applicant PDF. Independent captures are byte-identical and yield exactly 90 positive applicant observations, all pending because the source publishes no decision/outcome field. All 90 observations contain at least one structured identifier; 19 identifier cells contain both codice fiscale and partita IVA. Exact evidence is documented in docs/sources/lecce-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "messina",
+      "authority_name": "Prefettura di Messina",
+      "register_key": "messina-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "last_source_update": "2026-09-10",
+      "last_source_update_basis": "listed PDF prints 'ULTIMO AGGIORNAMENTO 10/09/2026' on every page; the attachment/landing-page edition is labelled 11 September 2026; these are source reference boundaries only and no company legal-effect date is inferred",
+      "source_key": "messina-listed",
+      "parser": "messina_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf",
+      "sha256": "cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e",
+      "expected_source_rows": 880,
+      "notes": "Current nine-page official listed-company PDF. Two independent full captures on 18 September 2026 are byte-identical. The fail-closed parser yields exactly 880 observations: 663 listed and 217 renewal/update in progress, based only on the company-level SI marker. All 880 observations contain one unique structured identifier. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "messina",
+      "authority_name": "Prefettura di Messina",
+      "register_key": "messina-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "current official attachment/landing-page edition labelled 11 September 2026; used only as a source-edition/reference boundary",
+      "source_key": "messina-applicants",
+      "parser": "messina_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf",
+      "sha256": "852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4",
+      "expected_source_rows": 154,
+      "notes": "Current three-page official applicant PDF. Two independent full captures on 18 September 2026 are byte-identical and yield exactly 154 positive applicant observations, represented conservatively as pending because the source publishes no decision/outcome field. Structured identifier coverage is 153/154; the one genuinely blank source identifier is retained, while one company publishes two valid identifiers. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md."
     }
   ]
 }
