@@ -356,7 +356,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(lodi.length,173);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-listed').length,169);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-applicants').length,4);
-      assert.deepEqual(statusCounts(lodi),{listed:146,pending:2,rejected_or_denied:2,renewal_update_in_progress:23});
+      assert.deepEqual(statusCounts(lodi),{listed:144,pending:2,rejected_or_denied:2,renewal_update_in_progress:25});
       assert.deepEqual(lodi.filter(r=>r.source_status==='rejected_or_denied').map(r=>r.decision_date).sort(),['2021-06-17','2022-11-17']);
       const roma=registry.records.filter(r=>r.authority_key==='roma');
       assert.equal(roma.length,4428);
@@ -467,19 +467,20 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const milano=registry.records.filter(r=>r.authority_key==='milano');
       assert.equal(milano.length,2611);
       assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2611);
-      assert.deepEqual(statusCounts(milano),{listed:940,pending:1157,renewal_update_in_progress:514});
+      assert.deepEqual(statusCounts(milano),{listed:938,pending:1157,renewal_update_in_progress:516});
       assert.equal(new Set(milano.map(r=>r.record_locator)).size,2611);
       assert.equal(milano.filter(r=>r.identifiers.length>0).length,2611);
       assert.ok(milano.every(r=>r.requested_activities.length>0));
       assert.equal(milano.filter(r=>r.application_date!=='').length,1157);
-      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,940);
-      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,940);
+      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,938);
+      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,938);
       assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));
       const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));
       for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}
       for(const k of ['12957130961','13540670968','14580020965']) assert.equal(currentMilano[k],undefined);
       for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960']) assert.equal(currentMilano[k].source_status,'listed');
       for(const k of ['01843860543','08402360963','09406080961','11572370960']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');
+      for(const k of ['00936150150','13072070157']){assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');assert.equal(currentMilano[k].observed_listing_date,'');assert.equal(currentMilano[k].observed_expiry_date,'');}
       assert.ok(milano.every(r=>Array.isArray(r.source_fields.notes)));
       const notedMilano=milano.filter(r=>r.source_fields.notes.length>0);
       assert.equal(notedMilano.length,1);

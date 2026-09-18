@@ -195,8 +195,8 @@ jobs:
           assert len(lodi_records) == 173
           assert sum(r['source_key'] == 'lodi-listed' for r in lodi_records) == 169
           assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 4
-          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 146
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 23
+          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 144
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 25
           assert sum(r['source_status'] == 'pending' for r in lodi_records) == 2
           assert sum(r['source_status'] == 'rejected_or_denied' for r in lodi_records) == 2
           assert sorted(r['decision_date'] for r in lodi_records if r['source_status'] == 'rejected_or_denied') == ['2021-06-17','2022-11-17']
@@ -343,8 +343,8 @@ jobs:
           milano_records = [r for r in reg['records'] if r['authority_key'] == 'milano']
           assert len(milano_records) == 2611
           assert all(r['source_key'] == 'milano-combined' for r in milano_records)
-          assert sum(r['source_status'] == 'listed' for r in milano_records) == 940
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 514
+          assert sum(r['source_status'] == 'listed' for r in milano_records) == 938
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 516
           assert sum(r['source_status'] == 'pending' for r in milano_records) == 1157
           assert len({r['record_locator'] for r in milano_records}) == 2611
           assert sum(bool(r['identifiers']) for r in milano_records) == 2611
@@ -352,14 +352,15 @@ jobs:
           assert not removed_milano & {r['identifier_field_raw'] for r in milano_records}
           assert all(r['requested_activities'] for r in milano_records)
           assert sum(bool(r['application_date']) for r in milano_records) == 1157
-          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 940
-          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 940
+          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 938
+          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 938
           assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-17'
           current_milano = {r['identifier_field_raw']: r for r in milano_records}
           assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))
           assert not {'12957130961','13540670968','14580020965'} & set(current_milano)
           assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))
           assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))
+          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' and not current_milano[k]['observed_listing_date'] and not current_milano[k]['observed_expiry_date'] for k in ('00936150150','13072070157'))
           pending_16 = {(r['name'], r['identifier_field_raw']) for r in milano_records if r['source_status'] == 'pending' and r['application_date'] == '2026-09-16'}
           assert pending_16 == {
               ('SV VERNICIATURE INDUSTRIALI S.R.L.', '02685280394'),
