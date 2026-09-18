@@ -14,129 +14,74 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Resolve and inspect current official Firenze attachments
+      - name: Audit current Firenze source boundaries
         shell: bash
         run: |
           set -euo pipefail
-          PAGE='https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'
-          mkdir -p /tmp/firenze-probe
-          curl -fL --retry 2 --connect-timeout 20 --max-time 90 \
-            -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' \
-            -H 'Accept: text/html,application/xhtml+xml' \
-            "$PAGE" -o /tmp/firenze-probe/page.html
-          echo "PAGE_BYTES=$(wc -c </tmp/firenze-probe/page.html)"
-          echo "PAGE_SHA256=$(sha256sum /tmp/firenze-probe/page.html | cut -d' ' -f1)"
-          python - <<'PY'
-          from html.parser import HTMLParser
-          from pathlib import Path
-          from urllib.parse import urljoin, urlparse
-          import hashlib, subprocess, urllib.request
-
-          base='https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'
-          root=Path('/tmp/firenze-probe')
-          html=root.joinpath('page.html').read_text(encoding='utf-8', errors='replace')
-          class P(HTMLParser):
-              def __init__(self): super().__init__(); self.a=None; self.out=[]
-              def handle_starttag(self, tag, attrs):
-                  if tag.lower()=='a':
-                      d=dict(attrs); self.a={'href':d.get('href',''),'text':[]}
-              def handle_data(self, data):
-                  if self.a is not None: self.a['text'].append(data)
-              def handle_endtag(self, tag):
-                  if tag.lower()=='a' and self.a is not None:
-                      href=self.a['href']; text=' '.join(''.join(self.a['text']).split())
-                      if href: self.out.append((text,urljoin(base,href)))
-                      self.a=None
-          p=P(); p.feed(html)
-          wanted=[]
-          print('=== SOURCE LINKS ===')
-          for text,url in p.out:
-              if '/sites/default/files/' in url or 'white' in text.lower() or 'richied' in text.lower():
-                  print(f'{text}\t{url}')
-              if text in {'White List Firenze','Elenco richiedenti White List'}:
-                  wanted.append((text,url))
-          if len(wanted)!=2:
-              raise SystemExit(f'Expected exactly two governed White List population attachments, got {wanted!r}')
-          opener=urllib.request.build_opener()
-          opener.addheaders=[('User-Agent','Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36')]
-          manifest=[]
-          for i,(label,url) in enumerate(wanted,1):
-              suffix=Path(urlparse(url).path).suffix.lower() or '.bin'
-              out=root/f'population-{i}{suffix}'
-              with opener.open(url,timeout=120) as r:
-                  data=r.read()
-              out.write_bytes(data)
-              sha=hashlib.sha256(data).hexdigest()
-              print(f'=== POPULATION {i} ===')
-              print(f'LABEL={label}')
-              print(f'URL={url}')
-              print(f'PATH={out}')
-              print(f'BYTES={len(data)}')
-              print(f'SHA256={sha}')
-              manifest.append((label,url,str(out),len(data),sha))
-          root.joinpath('manifest.tsv').write_text('\n'.join('\t'.join(map(str,x)) for x in manifest)+'\n',encoding='utf-8')
-          PY
-
+          mkdir -p /tmp/firenze
+          curl -fL --retry 2 --connect-timeout 20 --max-time 120 -A 'Mozilla/5.0' 'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx' -o /tmp/firenze/listed.xlsx
+          curl -fL --retry 2 --connect-timeout 20 --max-time 120 -A 'Mozilla/5.0' 'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf' -o /tmp/firenze/applicants.pdf
+          echo "LISTED_BYTES=$(wc -c </tmp/firenze/listed.xlsx)"
+          echo "LISTED_SHA256=$(sha256sum /tmp/firenze/listed.xlsx | cut -d' ' -f1)"
+          echo "APPLICANTS_BYTES=$(wc -c </tmp/firenze/applicants.pdf)"
+          echo "APPLICANTS_SHA256=$(sha256sum /tmp/firenze/applicants.pdf | cut -d' ' -f1)"
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils >/dev/null
-          python -m pip install -q openpyxl pypdf
-
-          python - <<'PY'
+          python -m pip install -q openpyxl python-docx
+          PYTHONPATH=src python - <<'PY'
           from pathlib import Path
-          import csv, re, subprocess
-          from openpyxl import load_workbook
-          from pypdf import PdfReader
+          from collections import Counter
+          import re, subprocess
+          from white_list_archive.parsers.arezzo_openxml import parse_arezzo_listed
 
-          root=Path('/tmp/firenze-probe')
-          manifest=[]
-          for line in root.joinpath('manifest.tsv').read_text(encoding='utf-8').splitlines():
-              label,url,path,nbytes,sha=line.split('\t')
-              manifest.append((label,url,Path(path),int(nbytes),sha))
-          for label,url,p,nbytes,sha in manifest:
-              print(f'\n=== STRUCTURE: {label} ===')
-              print(subprocess.check_output(['file','-b',str(p)],text=True).strip())
-              if p.suffix.lower()=='.xlsx':
-                  wb=load_workbook(p,read_only=True,data_only=True)
-                  print('XLSX_SHEETS='+repr(wb.sheetnames))
-                  total_nonempty=0
-                  for ws in wb.worksheets:
-                      rows=[]
-                      for ri,vals in enumerate(ws.iter_rows(values_only=True),1):
-                          vals=tuple(vals)
-                          if any(v not in (None,'') for v in vals): rows.append((ri,vals))
-                      total_nonempty+=len(rows)
-                      print(f'SHEET={ws.title!r} MAX_ROW={ws.max_row} MAX_COL={ws.max_column} NONEMPTY_ROWS={len(rows)}')
-                      for ri,vals in rows[:25]: print(f'HEAD_ROW={ri} {vals!r}'[:2000])
-                      if len(rows)>30:
-                          for ri,vals in rows[-10:]: print(f'TAIL_ROW={ri} {vals!r}'[:2000])
-                  print(f'XLSX_TOTAL_NONEMPTY_ROWS={total_nonempty}')
-              elif p.suffix.lower()=='.pdf':
-                  reader=PdfReader(str(p))
-                  print(f'PDF_PAGES={len(reader.pages)}')
-                  txt=root/'applicants-layout.txt'
-                  subprocess.run(['pdftotext','-layout',str(p),str(txt)],check=True)
-                  lines=txt.read_text(encoding='utf-8',errors='replace').splitlines()
-                  nonblank=[x for x in lines if x.strip()]
-                  print(f'PDF_TEXT_LINES={len(lines)} NONBLANK={len(nonblank)}')
-                  print('--- PDF HEAD ---')
-                  for line in lines[:350]: print(line[:400])
-                  print('--- PDF TAIL ---')
-                  for line in lines[-120:]: print(line[:400])
-                  # Conservative diagnostics only: report candidate lines carrying a fiscal/VAT identifier shape.
-                  id_lines=[x for x in nonblank if re.search(r'(?<!\d)\d{11}(?!\d)|\b[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]\b',x.upper())]
-                  print(f'PDF_LINES_WITH_IDENTIFIER_SHAPE={len(id_lines)}')
-                  for line in id_lines[:30]: print('IDLINE='+line[:500])
-              else:
-                  raise SystemExit(f'Unhandled current Firenze population format: {p}')
+          cfg={
+            'source_key':'firenze-listed','authority_key':'firenze','authority_name':'Prefettura di Firenze',
+            'register_key':'firenze-ordinary','register_name':'White List ordinaria','population_scope':'listed',
+            'reference_date':'2026-09-09','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte',
+            'resource_url':'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx',
+            'sha256':'bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0'}
+          batch=parse_arezzo_listed(Path('/tmp/firenze/listed.xlsx'),cfg)
+          print('LISTED_DIAGNOSTICS='+repr(batch.diagnostics))
+          print('LISTED_STATUS_COUNTS='+repr(dict(Counter(r['source_status'] for r in batch.records))))
+          print('LISTED_IDENTIFIER_COVERAGE='+str(sum(bool(r['identifiers']) for r in batch.records)))
+          print('LISTED_RAW_IDENTIFIER_ONLY='+str(sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in batch.records)))
+          print('LISTED_RECORDS='+str(len(batch.records)))
+          by_identity={}
+          for r in batch.records:
+              by_identity.setdefault((r['name'],r['identifier_field_raw']),[]).append(r)
+          conflicts={k:v for k,v in by_identity.items() if len(v)>1}
+          print('LISTED_IDENTITY_VARIANT_GROUPS='+str(len(conflicts)))
+          for k,v in conflicts.items():
+              print('LISTED_IDENTITY_VARIANT='+repr(k)+' '+repr([(x['observed_listing_date'],x['observed_expiry_date'],x['source_status']) for x in v]))
+
+          subprocess.run(['pdftotext','-layout','/tmp/firenze/applicants.pdf','/tmp/firenze/applicants.txt'],check=True)
+          raw=Path('/tmp/firenze/applicants.txt').read_text(encoding='utf-8',errors='replace')
+          rows=[]
+          for page_no,page in enumerate(raw.split('\f'),1):
+              if not page.strip(): continue
+              lines=page.splitlines(); header=None
+              for i,line in enumerate(lines):
+                  if 'Denominazione / Ragione Sociale' in line and 'Codice Fiscale' in line and 'Data Richiesta' in line:
+                      header=(i,line.index('Sede Legale'),line.index('Codice Fiscale'),line.index('Data Richiesta'),line.index('Esito')); break
+              if header is None: raise RuntimeError(f'No applicant header on page {page_no}')
+              i,office_start,id_start,date_start,outcome_start=header
+              for line_no,line in enumerate(lines[i+1:],i+2):
+                  if not line.strip() or 'Pagina ' in line or 'Totale Società' in line: continue
+                  date_raw=line[date_start:outcome_start].strip()
+                  if not re.fullmatch(r'\d{2}/\d{2}/\d{4}',date_raw): continue
+                  name=line[:office_start].strip(); office=line[office_start:id_start].strip(); identifier=line[id_start:date_start].strip(); outcome=line[outcome_start:].strip()
+                  if not name or not identifier: raise RuntimeError(f'Applicant row missing identity p{page_no}:l{line_no}')
+                  rows.append((page_no,line_no,name,office,identifier,date_raw,outcome))
+          strict11=re.compile(r'^\d{11}$'); strict16=re.compile(r'^[A-Z]{6}[0-9A-Z]{10}$')
+          malformed=[r for r in rows if not (strict11.fullmatch(r[4]) or strict16.fullmatch(r[4].upper()))]
+          print('APPLICANT_RECORDS='+str(len(rows)))
+          print('APPLICANT_IDENTIFIER_COVERAGE='+str(len(rows)-len(malformed)))
+          print('APPLICANT_RAW_IDENTIFIER_ONLY='+str(len(malformed)))
+          print('APPLICANT_OUTCOME_COUNTS='+repr(dict(Counter(r[6] for r in rows))))
+          print('APPLICANT_BLANK_OFFICE='+str(sum(not r[3] for r in rows)))
+          for r in malformed: print('APPLICANT_MALFORMED_IDENTIFIER='+repr(r))
+          for r in rows:
+              if not r[3]: print('APPLICANT_BLANK_OFFICE_ROW='+repr(r))
+          if len(rows)!=125 or len(malformed)!=2 or any(r[6] for r in rows):
+              raise RuntimeError('Firenze applicant boundary differs from reviewed source total/status/identifier set')
           PY
-
-      - name: Upload bounded probe evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: firenze-source-probe
-          path: |
-            /tmp/firenze-probe/page.html
-            /tmp/firenze-probe/manifest.tsv
-            /tmp/firenze-probe/applicants-layout.txt
-          if-no-files-found: warn
-          retention-days: 3
