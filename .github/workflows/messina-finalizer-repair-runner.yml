@@ -18,8 +18,8 @@ jobs:
           ref: expansion/messina-2026-09-18
           fetch-depth: 0
       - name: Prepare corrected finalizer
-        if: github.event.head_commit.message == 'Simplify Messina finalizer repair runner'
+        if: github.event.head_commit.message == 'Run repaired Messina finalizer against current schema'
         run: python .github/scripts/messina-finalizer-repair.py
       - name: Execute corrected finalizer
-        if: github.event.head_commit.message == 'Simplify Messina finalizer repair runner'
+        if: github.event.head_commit.message == 'Run repaired Messina finalizer against current schema'
         run: bash /tmp/messina-finalizer.sh
