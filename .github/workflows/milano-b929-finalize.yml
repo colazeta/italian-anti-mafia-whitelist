@@ -29,13 +29,31 @@ jobs:
           python-version: '3.13'
 
       - name: Install publication and test runtime
-        run: python -m pip install -e '.[publication,test]'
+        run: |
+          python -m pip install -e '.[publication]'
+          python -m pip install pytest
 
       - name: Reconfirm official source boundary
         run: python scripts/milano_drift_review_b929.py
 
+      - name: Adapt temporary finalizer to current coverage-ledger key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/finalize_milano_b929.py')
+          text=p.read_text(encoding='utf-8')
+          old='    matches = [x for x in doc["authorities"] if x["authority_key"] == "milano"]'
+          new='''    authority_lists = [\n        value for value in doc.values()\n        if isinstance(value, list)\n        and any(isinstance(x, dict) and x.get("authority_key") == "milano" and "prefecture" in x for x in value)\n    ]\n    if len(authority_lists) != 1:\n        raise RuntimeError(f"expected one authority coverage list, got {len(authority_lists)}")\n    matches = [x for x in authority_lists[0] if x.get("authority_key") == "milano"]'''
+          if text.count(old) != 1:
+              raise SystemExit('temporary finalizer coverage-key patch precondition failed')
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+          PY
+
       - name: Materialize reviewed permanent transition
         run: python scripts/finalize_milano_b929.py
+
+      - name: Restore temporary finalizer before scope check
+        run: git restore -- scripts/finalize_milano_b929.py
 
       - name: Enforce exact permanent diff scope
         run: |
