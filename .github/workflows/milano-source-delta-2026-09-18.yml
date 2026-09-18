@@ -1,0 +1,145 @@
+name: Milano source delta 2026-09-18
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-18
+    paths:
+      - .github/workflows/milano-source-delta-2026-09-18.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  delta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e '.[dev]'
+      - name: Capture current official views twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/milano-delta
+          for n in 1 2; do
+            curl --fail --silent --show-error --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 120 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              -A 'italian-anti-mafia-whitelist/0.1 (+milano-source-delta)' \
+              -o "/tmp/milano-delta/combined_${n}.html" \
+              "https://whitelist.prefmi.it/elenco/elenco.php?delta_validation=${GITHUB_RUN_ID}-${n}"
+            curl --fail --silent --show-error --location --retry 2 --retry-all-errors --connect-timeout 20 --max-time 120 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              -A 'italian-anti-mafia-whitelist/0.1 (+milano-source-delta)' \
+              -o "/tmp/milano-delta/registered_${n}.html" \
+              "https://whitelist.prefmi.it/elenco/elenco_iscritte.php?delta_validation=${GITHUB_RUN_ID}-${n}"
+            sleep 2
+          done
+          cmp /tmp/milano-delta/combined_1.html /tmp/milano-delta/combined_2.html
+          cmp /tmp/milano-delta/registered_1.html /tmp/milano-delta/registered_2.html
+          wc -c /tmp/milano-delta/*.html
+          sha256sum /tmp/milano-delta/*.html
+      - name: Reconcile exact identity and status transition
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json, re, urllib.request
+          from collections import Counter
+          from pathlib import Path
+          import white_list_archive.parsers.milano_webapp as m
+
+          def logical(path: Path, allow_pending: bool):
+              tables = m._parse_tables(m._decode(path))
+              if len(tables) != 10:
+                  raise SystemExit(f'table-count drift: {len(tables)}')
+              groups = {}
+              sector_rows = 0
+              nonblank_notes = 0
+              for sec, table in enumerate(tables, 1):
+                  if m._clean(table[0][0]) != m._EXPECTED_SECTION_PREFIXES[sec-1]:
+                      raise SystemExit(f'heading drift section {sec}')
+                  if tuple(m._clean(v) for v in table[1]) != m._HEADER:
+                      raise SystemExit(f'header drift section {sec}')
+                  for physical_row, cells in enumerate(table[2:], 3):
+                      if not any(m._clean(v) for v in cells):
+                          continue
+                      sector_rows += 1
+                      if len(cells) != 6:
+                          raise SystemExit(f'row-width drift section {sec} row {physical_row}')
+                      name, office, identifier, first, second, note = [m._clean(v) for v in cells]
+                      if not name or not office or not identifier:
+                          raise SystemExit(f'blank identity field section {sec} row {physical_row}')
+                      if not m._STRICT_IDENTIFIER.fullmatch(identifier):
+                          raise SystemExit(f'identifier drift {identifier!r}')
+                      status, app, listing, expiry = m._status_and_dates(first, second)
+                      if status == 'pending' and not allow_pending:
+                          raise SystemExit(f'pending identity in registered sibling: {identifier}')
+                      nonblank_notes += bool(note)
+                      key = (m._normalise_text(name), identifier.upper(), m._normalise_address(office), status, app, listing, expiry, m._normalise_text(note))
+                      g = groups.setdefault(key, {'name':name,'office':office,'identifier':identifier.upper(),'status':status,'application_date':app,'listing_date':listing,'expiry_date':expiry,'note':note,'sections':[]})
+                      if sec in g['sections']:
+                          raise SystemExit(f'duplicate same-section record: {identifier} section {sec}')
+                      g['sections'].append(sec)
+              by_id = {}
+              for rec in groups.values():
+                  rec['sections'].sort()
+                  if rec['identifier'] in by_id:
+                      raise SystemExit(f'identifier maps to multiple logical observations: {rec["identifier"]}')
+                  by_id[rec['identifier']] = rec
+              return by_id, sector_rows, nonblank_notes
+
+          current, sector_rows, notes = logical(Path('/tmp/milano-delta/combined_1.html'), True)
+          registered, registered_sector_rows, registered_notes = logical(Path('/tmp/milano-delta/registered_1.html'), False)
+          nonpending = {i for i,r in current.items() if r['status'] != 'pending'}
+          if nonpending != set(registered):
+              raise SystemExit(f'cross-view identity mismatch combined-only={sorted(nonpending-set(registered))} registered-only={sorted(set(registered)-nonpending)}')
+
+          req = urllib.request.Request(
+              'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json?milano_delta=20260918',
+              headers={'User-Agent':'italian-anti-mafia-whitelist/0.1 (+milano-source-delta)','Cache-Control':'no-cache','Pragma':'no-cache'},
+          )
+          with urllib.request.urlopen(req, timeout=120) as response:
+              public = json.load(response)
+          prior_records = [r for r in public['records'] if r.get('authority_key') == 'milano' and r.get('source_key') == 'milano-combined']
+          prior = {}
+          for rec in prior_records:
+              match = re.search(r':id-([A-Za-z0-9]+)$', rec.get('record_locator',''))
+              if not match:
+                  raise SystemExit(f'unexpected public locator: {rec.get("record_locator")!r}')
+              prior[match.group(1).upper()] = rec
+
+          added_ids = sorted(set(current)-set(prior))
+          removed_ids = sorted(set(prior)-set(current))
+          status_changes = []
+          field_changes = []
+          for identifier in sorted(set(current)&set(prior)):
+              now, old = current[identifier], prior[identifier]
+              old_status = old.get('source_status') or ''
+              if now['status'] != old_status:
+                  status_changes.append({'identifier':identifier,'name':now['name'],'from':old_status,'to':now['status'],'application_date':now['application_date'],'listing_date':now['listing_date'],'expiry_date':now['expiry_date']})
+              old_tuple = (old.get('company_name') or '', old.get('registered_office') or '', old.get('application_date') or '', old.get('observed_listing_date') or '', old.get('observed_expiry_date') or '')
+              now_tuple = (now['name'], now['office'], now['application_date'], now['listing_date'], now['expiry_date'])
+              if old_tuple != now_tuple and now['status'] == old_status:
+                  field_changes.append({'identifier':identifier,'name':now['name'],'old':old_tuple,'new':now_tuple})
+
+          def old_name(r):
+              return r.get('company_name') or r.get('name') or r.get('operator_name') or ''
+
+          result = {
+              'prior_total':len(prior),'current_total':len(current),
+              'prior_status_counts':dict(Counter((r.get('source_status') or '') for r in prior.values())),
+              'current_status_counts':dict(Counter(r['status'] for r in current.values())),
+              'sector_rows':sector_rows,'nonblank_sector_notes':notes,
+              'registered_total':len(registered),'registered_sector_rows':registered_sector_rows,'registered_nonblank_sector_notes':registered_notes,
+              'added':[current[i] for i in added_ids],
+              'removed':[{'identifier':i,'name':old_name(prior[i]),'status':prior[i].get('source_status') or '','application_date':prior[i].get('application_date') or '','listing_date':prior[i].get('observed_listing_date') or '','expiry_date':prior[i].get('observed_expiry_date') or ''} for i in removed_ids],
+              'status_changes':status_changes,
+              'same_status_public_field_changes':field_changes,
+              'cross_view_identity_match':True,
+          }
+          print('MILANO_EXACT_DELTA=' + json.dumps(result, ensure_ascii=False, sort_keys=True))
+          PY
