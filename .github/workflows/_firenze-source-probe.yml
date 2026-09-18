@@ -27,7 +27,7 @@ jobs:
           echo "APPLICANTS_SHA256=$(sha256sum /tmp/firenze/applicants.pdf | cut -d' ' -f1)"
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils >/dev/null
-          python -m pip install -q openpyxl python-docx
+          python -m pip install -q openpyxl python-docx pdfplumber
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           from collections import Counter
