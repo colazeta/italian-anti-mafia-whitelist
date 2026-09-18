@@ -39,9 +39,8 @@ class _NestedTableParser(HTMLParser):
     """Collect each physical HTML table independently, including nested tables.
 
     The current Taranto pages contain layout tables around the substantive White
-    List table.  A stack prevents outer layout markup from being conflated with
-    the inner evidence table while preserving the inner rows byte-for-byte at the
-    text-cell level.
+    List table. A stack prevents outer layout markup from being conflated with
+    the inner evidence table while preserving the inner rows at text-cell level.
     """
 
     def __init__(self) -> None:
@@ -247,7 +246,6 @@ def parse_taranto_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 source_fields={
                     "sections": sections,
                     "application_date_raw_variants": [row[4]] if row[4] else [],
-                    "malformed_application_date_raw": row[4] if malformed else "",
                 },
             )
         )
