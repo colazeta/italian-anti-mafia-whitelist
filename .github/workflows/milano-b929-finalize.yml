@@ -1,0 +1,76 @@
+name: Milano b929 finalizer
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-18-b929
+    paths:
+      - '.github/workflows/milano-b929-finalize.yml'
+      - 'scripts/finalize_milano_b929.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact maintenance branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/milano-source-drift-2026-09-18-b929
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install publication and test runtime
+        run: python -m pip install -e '.[publication,test]'
+
+      - name: Reconfirm official source boundary
+        run: python scripts/milano_drift_review_b929.py
+
+      - name: Materialize reviewed permanent transition
+        run: python scripts/finalize_milano_b929.py
+
+      - name: Enforce exact permanent diff scope
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/public-pages.yml',
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'docs/sources/milano-source-transition-2026-09-18-b929.md',
+              'src/white_list_archive/parsers/milano_webapp.py',
+              'tests/public_portal_browser.cjs',
+          }
+          changed = set(subprocess.check_output(['git','status','--porcelain'], text=True).splitlines())
+          paths = {line[3:] for line in changed if line}
+          if paths != expected:
+              raise SystemExit(f'unexpected finalizer diff scope: {sorted(paths)} != {sorted(expected)}')
+          PY
+
+      - name: Run Milano parser semantics
+        run: python -m pytest -q tests/test_milano_parser_semantics.py
+
+      - name: Commit reviewed permanent files only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            .github/workflows/public-pages.yml \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/milano-source-transition-2026-09-18-b929.md \
+            src/white_list_archive/parsers/milano_webapp.py \
+            tests/public_portal_browser.cjs
+          git diff --cached --check
+          git commit -m 'Approve later 18 September Milano source transition'
+          git push origin HEAD:fix/milano-source-drift-2026-09-18-b929
