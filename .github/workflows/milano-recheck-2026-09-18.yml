@@ -1,0 +1,29 @@
+name: Milano recheck 2026-09-18
+on:
+  push:
+    branches: [fix/milano-source-drift-2026-09-18]
+    paths: [.github/workflows/milano-recheck-2026-09-18.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Capture twice
+        run: |
+          set -euo pipefail
+          mkdir -p audit /tmp/m
+          for n in 1 2; do
+            curl --fail --silent --show-error --location -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' -A 'italian-anti-mafia-whitelist/0.1 (+milano-recheck)' -o /tmp/m/c$n "https://whitelist.prefmi.it/elenco/elenco.php?recheck=${GITHUB_RUN_ID}-$n"
+            curl --fail --silent --show-error --location -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' -A 'italian-anti-mafia-whitelist/0.1 (+milano-recheck)' -o /tmp/m/r$n "https://whitelist.prefmi.it/elenco/elenco_iscritte.php?recheck=${GITHUB_RUN_ID}-$n"
+            sleep 2
+          done
+          cmp /tmp/m/c1 /tmp/m/c2
+          cmp /tmp/m/r1 /tmp/m/r2
+          { wc -c /tmp/m/*; sha256sum /tmp/m/*; grep -o '<table' /tmp/m/c1 | wc -l; grep -o '<table' /tmp/m/r1 | wc -l; } | tee audit/recheck.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: milano-recheck-2026-09-18
+          path: audit/recheck.txt
+          retention-days: 1
