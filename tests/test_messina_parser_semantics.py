@@ -3,11 +3,14 @@ from __future__ import annotations
 import pytest
 
 from white_list_archive.parsers.messina_tables import (
+    _applicant_source_fields,
     _iso_if_valid,
+    _listed_source_fields,
     _listed_status,
     _sections,
     _strict_identifiers,
 )
+from white_list_archive.publishing.public_contract import SOURCE_FIELDS
 
 
 def test_messina_listed_status_mapping_uses_explicit_source_marker_only() -> None:
@@ -49,3 +52,21 @@ def test_messina_sections_are_source_encoded_and_fail_closed() -> None:
     assert _sections("III - V - IX") == ["Sezione III", "Sezione V", "Sezione IX"]
     with pytest.raises(RuntimeError, match="unreviewed section encoding"):
         _sections("I; III")
+
+
+def test_messina_source_fields_remain_inside_closed_public_contract() -> None:
+    listed = _listed_source_fields("I-III", "01/01/2026", "01/01/2027", "SI")
+    applicant = _applicant_source_fields("III-IV", "02/01/2026")
+
+    assert set(listed) <= SOURCE_FIELDS
+    assert set(applicant) <= SOURCE_FIELDS
+    assert listed == {
+        "requested_activities_source": "I-III",
+        "listing_date_raw_variants": ["01/01/2026"],
+        "expiry_date_raw_variants": ["01/01/2027"],
+        "in_aggiornamento": "SI",
+    }
+    assert applicant == {
+        "requested_activities_source": "III-IV",
+        "application_date_raw": "02/01/2026",
+    }
