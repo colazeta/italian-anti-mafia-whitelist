@@ -1770,6 +1770,42 @@
       "sha256": "852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4",
       "expected_source_rows": 154,
       "notes": "Current three-page official applicant PDF. Two independent full captures on 18 September 2026 are byte-identical and yield exactly 154 positive applicant observations, represented conservatively as pending because the source publishes no decision/outcome field. Structured identifier coverage is 153/154; the one genuinely blank source identifier is retained, while one company publishes two valid identifiers. Exact evidence is documented in docs/sources/messina-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "laquila",
+      "authority_name": "Prefettura dell'Aquila",
+      "register_key": "laquila-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese",
+      "approval_mode": "raw_sha256",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "current official landing page last updated 11 September 2026; exact current attachments independently recaptured and byte-verified 18 September 2026",
+      "source_key": "laquila-listed",
+      "parser": "laquila_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf",
+      "sha256": "15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453",
+      "expected_source_rows": 419,
+      "notes": "Current byte-pinned 24-page listed-company PDF. Fail-closed parser yields exactly 419 observations: 209 listed and 210 renewal/update in progress. Structured identifier coverage is 417/419; two malformed source identifiers remain raw-only. The single source token 28/06/207 is retained raw and its observed expiry is left blank rather than repaired. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "laquila",
+      "authority_name": "Prefettura dell'Aquila",
+      "register_key": "laquila-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese",
+      "approval_mode": "raw_sha256",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "current official landing page last updated 11 September 2026; exact current attachments independently recaptured and byte-verified 18 September 2026",
+      "source_key": "laquila-applicants",
+      "parser": "laquila_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf",
+      "sha256": "dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081",
+      "expected_source_rows": 276,
+      "notes": "Current byte-pinned 46-page applicant PDF. Fail-closed parser yields exactly 276 applicant observations, all represented conservatively as pending; the published istruttoria spelling variants are frozen as source outcomes rather than normalised into legal conclusions. Structured identifier coverage is 273/276 and the three malformed source identifiers remain raw-only. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md."
     }
   ]
 }
