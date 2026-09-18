@@ -22,9 +22,6 @@ jobs:
         run: |
           set -euo pipefail
           python tmp/firenze_finalise.py
-          mkdir -p staging
-          cp .github/workflows/public-pages.yml staging/firenze-public-pages.yml
-          git checkout -- .github/workflows/public-pages.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add staging/firenze-public-pages.yml tests/public_portal_browser.cjs
