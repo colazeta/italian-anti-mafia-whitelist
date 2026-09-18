@@ -1,0 +1,389 @@
+name: Taranto finalisation temporary worker
+
+on:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - '.github/workflows/taranto-finalise-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Taranto branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Apply permanent Taranto integration
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import csv
+          import io
+          import json
+          from pathlib import Path
+
+          ROOT = Path('.')
+
+          LISTED_URL = 'https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte'
+          APPLICANTS_URL = 'https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list'
+          LISTED_RAW = '545d6db44a8f68ec1e9ef460a4a8129e64d77385bfab318f8d050051219643c9'
+          LISTED_SEM = '27211daaa4734c29bc0f48d9a86e229d04671a150fcad997b8045d997e6bab92'
+          APPLICANTS_RAW = 'ade85a5326dc8aa99c4cc2695bad87aee897964cd4c10c59b665793ec3d900f6'
+          APPLICANTS_SEM = 'b6bfcea34e1ff19a79164b4b0b13acbd55a8985c2cec66048d719e6704155982'
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = ROOT / path
+              text = p.read_text(encoding='utf-8')
+              if new in text:
+                  return
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected exactly one replacement target, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # 1. Parser dispatch.
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'from white_list_archive.parsers.firenze_sources import parse_firenze_applicants, parse_firenze_listed\n',
+              'from white_list_archive.parsers.firenze_sources import parse_firenze_applicants, parse_firenze_listed\n'
+              'from white_list_archive.parsers.taranto_html import PARSERS as TARANTO_PARSERS\n',
+          )
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              '        or FIRENZE_PARSERS.get(cfg["parser"])\n',
+              '        or FIRENZE_PARSERS.get(cfg["parser"])\n'
+              '        or TARANTO_PARSERS.get(cfg["parser"])\n',
+          )
+
+          # 2. Publication source configuration.
+          pub_path = ROOT / 'data/publication/multi_prefecture_pilot.json'
+          publication = json.loads(pub_path.read_text(encoding='utf-8'))
+          publication['sources'] = [s for s in publication['sources'] if s.get('authority_key') != 'taranto']
+          publication['sources'].extend([
+              {
+                  'source_key': 'taranto-listed',
+                  'parser': 'taranto_html_listed',
+                  'authority_key': 'taranto',
+                  'authority_name': 'Prefettura di Taranto',
+                  'register_key': 'taranto-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'listed',
+                  'reference_date': '2026-09-07',
+                  'source_page_url': LISTED_URL,
+                  'resource_url': LISTED_URL,
+                  'sha256': LISTED_RAW,
+                  'semantic_sha256': LISTED_SEM,
+                  'approval_mode': 'semantic_sha256',
+                  'expected_source_rows': 388,
+                  'last_source_update': '2026-09-07',
+                  'last_source_update_basis': "official page 'Ultimo aggiornamento' (7 September 2026); repeated byte-identical captures and parser semantics independently verified 18 September 2026",
+                  'notes': 'Mutable official HTML table. The reviewed source boundary contains 388 observations: 212 listed and 176 renewal/update in progress. Structured identifier coverage is 381/388, with seven non-empty raw-only identifiers; eight listed rows preserve at least one malformed source date without repair. Raw capture SHA remains provenance and approved parsed semantics fail closed on drift. Exact evidence is documented in docs/sources/taranto-operational-check-2026-09-18.md.'
+              },
+              {
+                  'source_key': 'taranto-applicants',
+                  'parser': 'taranto_html_applicants',
+                  'authority_key': 'taranto',
+                  'authority_name': 'Prefettura di Taranto',
+                  'register_key': 'taranto-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'population_scope': 'applicant',
+                  'reference_date': '2026-09-07',
+                  'source_page_url': APPLICANTS_URL,
+                  'resource_url': APPLICANTS_URL,
+                  'sha256': APPLICANTS_RAW,
+                  'semantic_sha256': APPLICANTS_SEM,
+                  'approval_mode': 'semantic_sha256',
+                  'expected_source_rows': 212,
+                  'last_source_update': '2026-09-07',
+                  'last_source_update_basis': "official page 'Ultimo aggiornamento' (7 September 2026); repeated byte-identical captures and parser semantics independently verified 18 September 2026",
+                  'notes': 'Mutable official applicant HTML table. The reviewed source boundary contains exactly 212 positive applicant observations, all represented as pending; 211/212 identifiers are structured and one non-empty raw-only identifier is preserved without repair. Raw capture SHA remains provenance and approved parsed semantics fail closed on drift. Exact evidence is documented in docs/sources/taranto-operational-check-2026-09-18.md.'
+              },
+          ])
+          pub_path.write_text(json.dumps(publication, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # 3. Source registries.
+          def update_csv(path: str, mutate):
+              p = ROOT / path
+              with p.open(newline='', encoding='utf-8') as f:
+                  reader = csv.DictReader(f)
+                  fields = reader.fieldnames
+                  rows = list(reader)
+              rows = mutate(rows, fields)
+              out = io.StringIO(newline='')
+              writer = csv.DictWriter(out, fieldnames=fields, lineterminator='\n')
+              writer.writeheader()
+              writer.writerows(rows)
+              p.write_text(out.getvalue(), encoding='utf-8')
+
+          def verified(rows, fields):
+              rows = [r for r in rows if r['authority_key'] != 'taranto']
+              rows.append({
+                  'authority_key': 'taranto',
+                  'landing_page_url': LISTED_URL,
+                  'verified_on': '2026-09-18',
+                  'verification_status': 'verified',
+              })
+              return sorted(rows, key=lambda r: r['authority_key'])
+
+          update_csv('data/source_registry/verified_primary_pages.csv', verified)
+
+          def series(rows, fields):
+              rows = [r for r in rows if r['source_series_key'] not in {'taranto-listed', 'taranto-applicants'}]
+              rows.extend([
+                  {
+                      'source_series_key': 'taranto-applicants',
+                      'authority_key': 'taranto',
+                      'legal_regime_key': 'WL-REGIME-L190-2012',
+                      'population_scope': 'applicant',
+                      'sector_scope': 'all',
+                      'publication_model': 'html_table',
+                      'landing_page_url': APPLICANTS_URL,
+                      'resolution_status': 'direct_series_page_resolved',
+                      'last_verified_on': '2026-09-18',
+                      'review_notes': 'Current dedicated official applicant HTML table directly verified 18 September 2026; the page reports Ultimo aggiornamento 7 September 2026 and yields exactly 212 pending observations. Repeated byte-identical captures and the semantic approval boundary are documented in docs/sources/taranto-operational-check-2026-09-18.md.'
+                  },
+                  {
+                      'source_series_key': 'taranto-listed',
+                      'authority_key': 'taranto',
+                      'legal_regime_key': 'WL-REGIME-L190-2012',
+                      'population_scope': 'listed',
+                      'sector_scope': 'all',
+                      'publication_model': 'html_table',
+                      'landing_page_url': LISTED_URL,
+                      'resolution_status': 'direct_series_page_resolved',
+                      'last_verified_on': '2026-09-18',
+                      'review_notes': 'Current dedicated official registered-company HTML table directly verified 18 September 2026; the page reports Ultimo aggiornamento 7 September 2026 and yields 388 observations (212 listed; 176 renewal/update in progress). Repeated byte-identical captures, malformed source evidence and the semantic approval boundary are documented in docs/sources/taranto-operational-check-2026-09-18.md.'
+                  },
+              ])
+              return sorted(rows, key=lambda r: r['source_series_key'])
+
+          update_csv('data/source_registry/source_series_inventory.csv', series)
+
+          def catalog(rows, fields):
+              for row in rows:
+                  if row['dataset_id'] == 'verified-primary-pages':
+                      row['record_count'] = '51'
+                  elif row['dataset_id'] == 'source-series-inventory':
+                      row['record_count'] = '101'
+              return rows
+
+          update_csv('data/catalog.csv', catalog)
+
+          # 4. National coverage monitoring.
+          cov_path = ROOT / 'data/monitoring/national_coverage.json'
+          coverage = json.loads(cov_path.read_text(encoding='utf-8'))
+          matches = [x for x in coverage if x.get('authority_key') == 'taranto'] if isinstance(coverage, list) else [x for x in coverage.get('authorities', coverage.get('prefectures', [])) if x.get('authority_key') == 'taranto']
+          if len(matches) != 1:
+              raise RuntimeError(f'Expected exactly one Taranto coverage entry, found {len(matches)}')
+          entry = matches[0]
+          entry.update({
+              'official_landing_page': LISTED_URL,
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-07',
+              'last_successful_source_check_at': '2026-09-18T04:49:45Z',
+              'last_attempted_source_check_at': '2026-09-18T04:49:45Z',
+              'last_successful_investigation_on': '2026-09-18',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/taranto-operational-check-2026-09-18.md',
+                  'src/white_list_archive/parsers/taranto_html.py',
+                  'tests/test_taranto_html.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [LISTED_RAW, LISTED_SEM, APPLICANTS_RAW, APPLICANTS_SEM],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/taranto-operational-check-2026-09-18.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          cov_path.write_text(json.dumps(coverage, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # 5. Permanent evidence note.
+          note = f'''# Taranto — operational source check (2026-09-18)
+
+## Scope
+
+This note records the positive evidence used to integrate the Prefettura di Taranto White List into the national public pipeline. It does not infer any negative legal status from absence, malformed source values or source-access failures.
+
+## Official source surfaces
+
+The Prefettura publishes two distinct current HTML-table populations and both are required for a complete current edition:
+
+1. Listed-side series: `{LISTED_URL}`
+   - page marker observed: `Ultimo aggiornamento — Lunedì 7 Settembre 2026, ore 08:59`;
+   - repeated independent no-cache captures: `150817` bytes;
+   - repeated raw SHA-256: `{LISTED_RAW}`;
+   - approved contract-safe parsed semantic SHA-256: `{LISTED_SEM}`.
+
+2. Applicant series: `{APPLICANTS_URL}`
+   - page marker observed: `Ultimo aggiornamento — Lunedì 7 Settembre 2026, ore 10:34`;
+   - repeated independent no-cache captures: `107423` bytes;
+   - repeated raw SHA-256: `{APPLICANTS_RAW}`;
+   - approved contract-safe parsed semantic SHA-256: `{APPLICANTS_SEM}`.
+
+The official Taranto document index also positively exposes both “Elenco imprese iscritte alla white list” and “Elenco imprese richiedenti l'iscrizione alla white list”. A failed independent GET must not be treated as evidence that either population is absent.
+
+## Listed-side reviewed boundary
+
+The fail-closed HTML parser identifies exactly one table with the reviewed seven-column header and yields:
+
+- source/public observations: `388`;
+- `listed`: `212`;
+- `renewal_update_in_progress`: `176`;
+- structured identifier coverage: `381 / 388`;
+- non-empty raw identifiers that do not satisfy the strict structured-identifier contract: `7`;
+- rows containing at least one malformed source date: `8`.
+
+Only three source note lexemes are approved: blank, `In fase di rinnovo`, and `In fase di aggiornamento`. Any new note/status lexeme fails closed. Malformed dates remain in `source_fields.malformed_date_pairs`; the parser never repairs them by inference.
+
+## Applicant reviewed boundary
+
+The dedicated applicant HTML table yields exactly:
+
+- source/public observations: `212`;
+- source status: `pending` for all `212` rows because the page itself positively defines this as the applicant population;
+- structured identifier coverage: `211 / 212`;
+- non-empty raw-only identifiers: `1`;
+- malformed application dates: `0` in the reviewed edition.
+
+No applicant row is omitted merely because the population is published on a separate page.
+
+## Approval model and provenance
+
+Both sources are mutable official HTML pages. Raw capture hashes are retained as observation provenance, while publication approval uses `semantic_sha256` over the reviewed parsed contract. This tolerates irrelevant wrapper-level HTML drift only when the parser-visible evidence remains exactly unchanged. A change to table structure, row denominator, status vocabulary, identifiers, dates, sectors or other contract-visible evidence fails closed and requires a new review.
+
+The parser preserves source identifiers, sections and dates conservatively. It does not pad/truncate identifiers, invent missing date digits, or infer rejection, revocation, cancellation or any other legal consequence from absence or malformed source content.
+
+## Public-integration boundary
+
+The approved Taranto contribution is therefore `600` observations in one ordinary register:
+
+- source split: `388` listed-side + `212` applicant-side;
+- status split: `212` listed + `176` renewal/update in progress + `212` pending;
+- structured identifiers: `592 / 600`;
+- raw-only identifiers: `8 / 600`;
+- record locators must be unique across all `600` observations.
+
+From the live pre-Taranto baseline of `59,042` records / `50` published Prefectures / `52` registers / `50` mapped Prefectures, successful integration produces the candidate boundary `59,642 / 51 / 53 / 51`.
+
+## Remaining governance distinction
+
+Public-source verification, parser validation and public export do not by themselves attest independent durable-evidence storage or hosted canonical-database integration. Those remain tracked separately under the repository's governance controls. This distinction must not be collapsed merely to mark Taranto complete.
+'''
+          (ROOT / 'docs/sources/taranto-operational-check-2026-09-18.md').write_text(note, encoding='utf-8')
+
+          # 6. Public workflow exact boundary and acceptance assertions.
+          workflow = '.github/workflows/public-pages.yml'
+          replace_once(workflow,
+              "      - 'src/white_list_archive/parsers/firenze_sources.py'\n",
+              "      - 'src/white_list_archive/parsers/firenze_sources.py'\n      - 'src/white_list_archive/parsers/taranto_html.py'\n")
+          replace_once(workflow, "          assert reg['meta']['record_count'] == 59042\n", "          assert reg['meta']['record_count'] == 59642\n")
+          replace_once(workflow,
+              "'modena','como','firenze'}\n",
+              "'modena','como','firenze','taranto'}\n")
+          replace_once(workflow,
+              "'modena-provincial','modena-post-sisma','como-ordinary','firenze-ordinary'\n",
+              "'modena-provincial','modena-post-sisma','como-ordinary','firenze-ordinary','taranto-ordinary'\n")
+          replace_once(workflow, "          assert reg['meta']['authority_count'] == 50\n", "          assert reg['meta']['authority_count'] == 51\n")
+          replace_once(workflow, "          assert reg['meta']['register_count'] == 52\n", "          assert reg['meta']['register_count'] == 53\n")
+          replace_once(workflow, "          assert pref['meta']['published_count'] == 50\n", "          assert pref['meta']['published_count'] == 51\n")
+          replace_once(workflow, "          assert pref['meta']['mapped_count'] == 50\n", "          assert pref['meta']['mapped_count'] == 51\n")
+          firenze_anchor = "          assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2\n"
+          taranto_assertions = firenze_anchor + """          taranto = [x for x in pref['prefectures'] if x['authority_key'] == 'taranto']
+          assert len(taranto) == 1 and taranto[0]['mapped'] and taranto[0]['published'] and taranto[0]['series_count'] == 2
+          taranto_records = [r for r in reg['records'] if r['authority_key'] == 'taranto']
+          assert len(taranto_records) == 600
+          assert sum(r['source_key'] == 'taranto-listed' for r in taranto_records) == 388
+          assert sum(r['source_key'] == 'taranto-applicants' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'listed' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in taranto_records) == 176
+          assert sum(r['source_status'] == 'pending' for r in taranto_records) == 212
+          assert len({r['record_locator'] for r in taranto_records}) == 600
+          assert sum(bool(r['identifiers']) for r in taranto_records) == 592
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in taranto_records) == 8
+          taranto_listed = [r for r in taranto_records if r['source_key'] == 'taranto-listed']
+          assert sum(bool(r['source_fields'].get('malformed_date_pairs')) for r in taranto_listed) == 8
+"""
+          replace_once(workflow, firenze_anchor, taranto_assertions)
+
+          # 7. Browser/public acceptance boundary.
+          browser = 'tests/public_portal_browser.cjs'
+          replace_once(browser,
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Firenze'));\n",
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Firenze'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Taranto'));\n")
+          replace_once(browser, '      assert.equal(stats.total,59042);\n', '      assert.equal(stats.total,59642);\n')
+          replace_once(browser,
+              "'modena','como','firenze'].includes(r.authority_key));\n",
+              "'modena','como','firenze','taranto'].includes(r.authority_key));\n")
+          browser_anchor = "      assert.equal(firenze.filter(r=>r.source_key==='firenze-applicants'&&!r.registered_office).length,2);\n"
+          browser_taranto = browser_anchor + """      const taranto=registry.records.filter(r=>r.authority_key==='taranto');
+      assert.equal(taranto.length,600);
+      assert.equal(taranto.filter(r=>r.source_key==='taranto-listed').length,388);
+      assert.equal(taranto.filter(r=>r.source_key==='taranto-applicants').length,212);
+      assert.deepEqual(statusCounts(taranto),{listed:212,pending:212,renewal_update_in_progress:176});
+      assert.equal(new Set(taranto.map(r=>r.record_locator)).size,600);
+      assert.equal(taranto.filter(r=>r.identifiers.length>0).length,592);
+      assert.equal(taranto.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,8);
+      assert.equal(taranto.filter(r=>r.source_key==='taranto-listed'&&r.source_fields&&r.source_fields.malformed_date_pairs&&r.source_fields.malformed_date_pairs.length>0).length,8);
+"""
+          replace_once(browser, browser_anchor, browser_taranto)
+
+          # 8. Source population/registry test denominators.
+          poptest = ROOT / 'tests/test_source_population_coverage.py'
+          text = poptest.read_text(encoding='utf-8')
+          for old, new in [
+              ('assert report["verified_authority_count"] == 50', 'assert report["verified_authority_count"] == 51'),
+              ('assert report["register_scope_count"] == 52', 'assert report["register_scope_count"] == 53'),
+              ('assert report["complete_register_scope_count"] == 52', 'assert report["complete_register_scope_count"] == 53'),
+          ]:
+              if old not in text:
+                  raise RuntimeError(f'population coverage target missing: {old}')
+              text = text.replace(old, new, 1)
+          poptest.write_text(text, encoding='utf-8')
+
+          regtest = ROOT / 'tests/test_source_registry.py'
+          text = regtest.read_text(encoding='utf-8')
+          old = '    assert len(pages) == 50\n'
+          if old not in text:
+              raise RuntimeError('source registry denominator target missing')
+          regtest.write_text(text.replace(old, '    assert len(pages) == 51\n', 1), encoding='utf-8')
+
+          # Final local consistency checks before committing.
+          assert len([s for s in publication['sources'] if s.get('authority_key') == 'taranto']) == 2
+          assert (ROOT / 'docs/sources/taranto-operational-check-2026-09-18.md').exists()
+          PY
+      - name: Commit permanent Taranto integration
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data docs src tests .github/workflows/public-pages.yml
+          git status --short
+          git commit -m 'Integrate Taranto into national public registry'
+          git push origin HEAD:expansion/taranto-2026-09-18
