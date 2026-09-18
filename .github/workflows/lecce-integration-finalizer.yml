@@ -25,34 +25,22 @@ jobs:
         with:
           ref: expansion/lecce-2026-09-18
           fetch-depth: 0
-      - name: Materialize permanent non-workflow Lecce integration
+      - name: Generate reviewed public workflow candidate
         run: |
           python - <<'PY'
-          from pathlib import Path
-          p = Path("scripts/lecce_integration_finalizer.py")
-          text = p.read_text(encoding="utf-8")
-          old = "    update_publication(); update_verified_pages(); update_source_series(); update_catalog(); update_coverage(); update_dispatcher(); update_public_workflow(); update_browser()\n"
-          new = "    update_publication(); update_verified_pages(); update_source_series(); update_catalog(); update_coverage(); update_dispatcher(); update_browser()\n"
-          if old not in text:
-              raise SystemExit("expected Lecce finalizer main anchor missing")
-          p.write_text(text.replace(old, new, 1), encoding="utf-8")
+          from scripts.lecce_integration_finalizer import update_public_workflow
+          update_public_workflow()
           PY
-          python scripts/lecce_integration_finalizer.py
-          sed -i 's/\r$//' data/catalog.csv data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv
-          python -m py_compile src/white_list_archive/parsers/lecce_tables.py
+          mkdir -p tmp
+          cp .github/workflows/public-pages.yml tmp/lecce-public-pages.generated.yml
+          git checkout -- .github/workflows/public-pages.yml
           git diff --check
-      - name: Commit permanent non-workflow Lecce integration
+      - name: Commit workflow candidate as non-workflow helper
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data/catalog.csv
-          git add data/source_registry/source_series_inventory.csv
-          git add data/source_registry/verified_primary_pages.csv
-          git add data/publication/multi_prefecture_pilot.json
-          git add data/monitoring/national_coverage.json
-          git add src/white_list_archive/publishing/public_national_registry.py
-          git add tests/public_portal_browser.cjs
+          git add tmp/lecce-public-pages.generated.yml
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
-          git commit -m 'feat: integrate Lecce public source data'
+          git commit -m 'chore: stage reviewed Lecce public workflow candidate'
           git push origin HEAD:expansion/lecce-2026-09-18
