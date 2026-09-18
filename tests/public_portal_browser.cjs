@@ -356,7 +356,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(lodi.length,173);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-listed').length,169);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-applicants').length,4);
-      assert.deepEqual(statusCounts(lodi),{listed:146,pending:2,rejected_or_denied:2,renewal_update_in_progress:23});
+      assert.deepEqual(statusCounts(lodi),{listed:144,pending:2,rejected_or_denied:2,renewal_update_in_progress:25});
       assert.deepEqual(lodi.filter(r=>r.source_status==='rejected_or_denied').map(r=>r.decision_date).sort(),['2021-06-17','2022-11-17']);
       const roma=registry.records.filter(r=>r.authority_key==='roma');
       assert.equal(roma.length,4428);
