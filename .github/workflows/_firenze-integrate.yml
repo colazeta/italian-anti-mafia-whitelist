@@ -91,7 +91,7 @@ jobs:
           elif matches != [page]: raise SystemExit(f'Existing Firenze verified-page row differs: {matches!r}')
           pages.sort(key=lambda r:r['authority_key'])
           with v_path.open('w',encoding='utf-8',newline='') as fh:
-              w=csv.DictWriter(fh,fieldnames=fieldnames); w.writeheader(); w.writerows(pages)
+              w=csv.DictWriter(fh,fieldnames=fieldnames,lineterminator='\n'); w.writeheader(); w.writerows(pages)
 
           s_path=root/'data/source_registry/source_series_inventory.csv'
           with s_path.open(encoding='utf-8',newline='') as fh:
@@ -108,7 +108,7 @@ jobs:
               elif existing != row: raise SystemExit(f"Existing {row['source_series_key']} inventory row differs")
           series.sort(key=lambda r:r['source_series_key'])
           with s_path.open('w',encoding='utf-8',newline='') as fh:
-              w=csv.DictWriter(fh,fieldnames=s_fields); w.writeheader(); w.writerows(series)
+              w=csv.DictWriter(fh,fieldnames=s_fields,lineterminator='\n'); w.writeheader(); w.writerows(series)
 
           # 4. Coverage state: public integration is candidate branch state, not a claim that Pages is live.
           n_path=root/'data/monitoring/national_coverage.json'
@@ -155,7 +155,7 @@ jobs:
           for row in catalog:
               if row['dataset_id'] in counts: row['record_count']=counts[row['dataset_id']]
           with c_path.open('w',encoding='utf-8',newline='') as fh:
-              w=csv.DictWriter(fh,fieldnames=c_fields); w.writeheader(); w.writerows(catalog)
+              w=csv.DictWriter(fh,fieldnames=c_fields,lineterminator='\n'); w.writeheader(); w.writerows(catalog)
           PY
 
           git config user.name 'github-actions[bot]'
