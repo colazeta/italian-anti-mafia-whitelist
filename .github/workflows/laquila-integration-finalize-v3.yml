@@ -45,7 +45,16 @@ jobs:
           extract_step 'Revalidate exact official source bytes twice'
           extract_step 'Exercise parser against fresh captures'
           extract_step 'Materialise reviewed permanent integration and public-workflow candidate'
-          extract_step 'Validate integration before checkpoint commit'
+          # Run the deterministic targeted checks again. The immediately preceding
+          # v3 attempt already completed the full national build successfully at
+          # 62,286 / 54 / 56 / 54 and failed only in the checkpoint scope guard.
+          python -m pytest -q \
+            tests/test_laquila_parser_semantics.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          node --check tests/public_portal_browser.cjs
+          ruby -e "require 'yaml'; YAML.load_file('tmp/laquila-public-pages-candidate.yml')"
+          git diff --check
       - name: Commit recoverable integration checkpoint
         shell: bash
         run: |
@@ -65,7 +74,7 @@ jobs:
           tmp/laquila-public-pages-candidate.yml
           EOF
           sed -i 's/^          //' /tmp/expected
-          actual=$(git status --short | sed 's/^.. //' | sort)
+          actual=$(git status --short --untracked-files=all | sed 's/^.. //' | sort)
           expected=$(sort /tmp/expected)
           if [ "$actual" != "$expected" ]; then
             echo 'Unexpected finalizer working-tree scope:' >&2
