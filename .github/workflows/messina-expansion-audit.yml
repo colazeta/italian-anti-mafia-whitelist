@@ -70,7 +70,6 @@ jobs:
                           tables_meta.append((pageno,ti,len(rows),tuple(round(x,1) for x in t.bbox)))
                           for ri,row in enumerate(rows):
                               cells=[clean(v) for v in row]
-                              # All reviewed company tables place codice fiscale / partita IVA at column 4.
                               raw_id=cells[3] if len(cells)>=4 else ''
                               ids=ident_values(raw_id)
                               if ids:
@@ -80,8 +79,6 @@ jobs:
                                   noncompany.append((pageno,ti,ri,cells))
                       per_page.append(len(pcompany))
                   if label=='applicants':
-                      # Date is printed in the rightmost visual column outside pdfplumber's ruled-table bbox.
-                      # Collect all date tokens and their coordinates to verify one-to-one alignment with source rows.
                       date_words=[]
                       for pageno,page in enumerate(pdf.pages,1):
                           for w in page.extract_words():
@@ -114,3 +111,13 @@ jobs:
                   print('activity_distinct=',len(activities))
                   print('nonstandard_dates=',json.dumps(bad,ensure_ascii=False))
           PY
+
+      - name: Upload reviewed source capture
+        uses: actions/upload-artifact@v4
+        with:
+          name: messina-source-capture
+          path: |
+            /tmp/messina/page-1.html
+            /tmp/messina/applicants-1.pdf
+            /tmp/messina/listed-1.pdf
+          if-no-files-found: error
