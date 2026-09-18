@@ -14,56 +14,31 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Probe applicant PDF with production dependency
+      - name: Validate permanent parsers against current official sources
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/firenze
-          curl -fL --retry 2 --connect-timeout 20 --max-time 120 -A 'Mozilla/5.0' \
-            'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf' \
-            -o /tmp/firenze/applicants.pdf
-          echo "APPLICANTS_BYTES=$(wc -c </tmp/firenze/applicants.pdf)"
-          echo "APPLICANTS_SHA256=$(sha256sum /tmp/firenze/applicants.pdf | cut -d' ' -f1)"
-          python -m pip install -q pdfplumber
-          python - <<'PY'
-          from collections import Counter, defaultdict
+          curl -fL --retry 2 --connect-timeout 20 --max-time 120 -A 'Mozilla/5.0' 'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx' -o /tmp/firenze/listed.xlsx
+          curl -fL --retry 2 --connect-timeout 20 --max-time 120 -A 'Mozilla/5.0' 'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf' -o /tmp/firenze/applicants.pdf
+          python -m pip install -q openpyxl python-docx pdfplumber
+          PYTHONPATH=src python - <<'PY'
           from pathlib import Path
-          import re
-          import pdfplumber
+          from white_list_archive.parsers.firenze_sources import parse_firenze_listed, parse_firenze_applicants
 
-          DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
-          total_tables=0
-          total_table_rows=0
-          date_word_rows=[]
-          with pdfplumber.open('/tmp/firenze/applicants.pdf') as pdf:
-              print('PAGES='+str(len(pdf.pages)))
-              for pno,page in enumerate(pdf.pages,1):
-                  tables=page.extract_tables()
-                  print(f'PAGE={pno} TABLES={len(tables)} TABLE_SHAPES={[ (len(t), max((len(r) for r in t), default=0)) for t in tables ]}')
-                  total_tables += len(tables)
-                  total_table_rows += sum(len(t) for t in tables)
-                  for ti,t in enumerate(tables):
-                      print(f'PAGE={pno} TABLE={ti} HEAD={t[:4]!r}'[:4000])
-
-                  words=page.extract_words(x_tolerance=2,y_tolerance=2,keep_blank_chars=False)
-                  grouped=defaultdict(list)
-                  for w in words:
-                      grouped[round(float(w['top']),1)].append(w)
-                  page_date_rows=[]
-                  for top,ws in sorted(grouped.items()):
-                      ws=sorted(ws,key=lambda x:float(x['x0']))
-                      if any(DATE.fullmatch(w['text']) for w in ws):
-                          page_date_rows.append((top,ws))
-                          date_word_rows.append((pno,top,ws))
-                  print(f'PAGE={pno} DATE_WORD_ROWS={len(page_date_rows)}')
-                  if page_date_rows:
-                      for top,ws in page_date_rows[:2]+page_date_rows[-2:]:
-                          print('WORDROW='+repr([(round(float(w['x0']),1),w['text']) for w in ws])[:4000])
-                  header=[w for w in words if w['text'] in {'Denominazione','Sede','Codice','Data','Esito'}]
-                  print('HEADER_WORD_CANDIDATES='+repr([(round(float(w['x0']),1),round(float(w['top']),1),w['text']) for w in header[:30]]))
-          print('TOTAL_TABLES='+str(total_tables))
-          print('TOTAL_TABLE_ROWS='+str(total_table_rows))
-          print('TOTAL_DATE_WORD_ROWS='+str(len(date_word_rows)))
-          if len(date_word_rows)!=125:
-              raise RuntimeError(f'Expected 125 applicant date rows from pdfplumber words, got {len(date_word_rows)}')
+          common={
+            'authority_key':'firenze','authority_name':'Prefettura di Firenze',
+            'register_key':'firenze-ordinary','register_name':'White List ordinaria',
+            'reference_date':'2026-09-09','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'}
+          listed=parse_firenze_listed(Path('/tmp/firenze/listed.xlsx'), common | {
+            'source_key':'firenze-listed','population_scope':'listed',
+            'resource_url':'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx',
+            'sha256':'bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0'})
+          applicants=parse_firenze_applicants(Path('/tmp/firenze/applicants.pdf'), common | {
+            'source_key':'firenze-applicants','population_scope':'pending',
+            'resource_url':'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf',
+            'sha256':'6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695'})
+          print('LISTED='+repr(listed.diagnostics))
+          print('APPLICANTS='+repr(applicants.diagnostics))
+          print('TOTAL='+str(len(listed.records)+len(applicants.records)))
           PY
