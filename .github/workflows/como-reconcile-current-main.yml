@@ -1,0 +1,149 @@
+name: Reconcile Como expansion onto current main
+
+on:
+  push:
+    branches:
+      - expansion/como-2026-09-17
+    paths:
+      - '.github/workflows/como-reconcile-current-main.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: como-reconcile-current-main
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Como expansion
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/como-2026-09-17
+          fetch-depth: 0
+
+      - name: Merge canonical main and resolve Como-scoped conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          COMO_HEAD="$(git rev-parse HEAD)"
+          MAIN_HEAD="$(git rev-parse origin/main)"
+          echo "Como head: ${COMO_HEAD}"
+          echo "Main head: ${MAIN_HEAD}"
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_rc=$?
+          set -e
+
+          python - "$COMO_HEAD" "$MAIN_HEAD" <<'PY'
+          import csv
+          import io
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          como_head, main_head = sys.argv[1:3]
+
+          def show(ref: str, path: str) -> str:
+              return subprocess.check_output(
+                  ["git", "show", f"{ref}:{path}"], text=True
+              )
+
+          def replace_authority(node, replacement):
+              if isinstance(node, dict):
+                  if node.get("authority_key") == "como" and node.get("prefecture") == "Como":
+                      node.clear()
+                      node.update(replacement)
+                      return True
+                  return any(replace_authority(value, replacement) for value in node.values())
+              if isinstance(node, list):
+                  return any(replace_authority(value, replacement) for value in node)
+              return False
+
+          # 1. national_coverage.json: current main is authoritative globally;
+          # replace only the Como authority object with the reviewed Como object.
+          path = "data/monitoring/national_coverage.json"
+          main_obj = json.loads(show(main_head, path))
+          como_obj = json.loads(show(como_head, path))
+
+          def find_como(node):
+              if isinstance(node, dict):
+                  if node.get("authority_key") == "como" and node.get("prefecture") == "Como":
+                      return node
+                  for value in node.values():
+                      found = find_como(value)
+                      if found is not None:
+                          return found
+              elif isinstance(node, list):
+                  for value in node:
+                      found = find_como(value)
+                      if found is not None:
+                          return found
+              return None
+
+          reviewed_como = find_como(como_obj)
+          if reviewed_como is None or not replace_authority(main_obj, reviewed_como):
+              raise SystemExit("Unable to resolve Como authority object in national_coverage.json")
+          Path(path).write_text(json.dumps(main_obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+          # 2. multi_prefecture_pilot.json: current main is authoritative for all
+          # already integrated sources; add only Como's reviewed source configs.
+          path = "data/publication/multi_prefecture_pilot.json"
+          main_obj = json.loads(show(main_head, path))
+          como_obj = json.loads(show(como_head, path))
+          como_sources = [s for s in como_obj.get("sources", []) if s.get("authority_key") == "como"]
+          if {s.get("source_key") for s in como_sources} != {"como-listed", "como-applicants"}:
+              raise SystemExit(f"Unexpected Como source set: {[s.get('source_key') for s in como_sources]}")
+          main_obj["sources"] = [s for s in main_obj.get("sources", []) if s.get("authority_key") != "como"] + como_sources
+          Path(path).write_text(json.dumps(main_obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+          # 3. source_series_inventory.csv: retain current main and append only the
+          # two reviewed Como series from the expansion branch.
+          path = "data/source_registry/source_series_inventory.csv"
+          main_text = show(main_head, path)
+          como_text = show(como_head, path)
+          main_rows = list(csv.reader(io.StringIO(main_text)))
+          como_rows = list(csv.reader(io.StringIO(como_text)))
+          header = main_rows[0]
+          if header != como_rows[0] or "authority_key" not in header:
+              raise SystemExit("Unexpected source-series CSV schema")
+          authority_idx = header.index("authority_key")
+          source_idx = header.index("source_series_key")
+          reviewed = [r for r in como_rows[1:] if len(r) > authority_idx and r[authority_idx] == "como"]
+          if {r[source_idx] for r in reviewed} != {"como-listed", "como-applicants"}:
+              raise SystemExit(f"Unexpected Como series set: {[r[source_idx] for r in reviewed]}")
+          merged = [main_rows[0]] + [r for r in main_rows[1:] if len(r) <= authority_idx or r[authority_idx] != "como"] + reviewed
+          out = io.StringIO(newline="")
+          writer = csv.writer(out, lineterminator="\n")
+          writer.writerows(merged)
+          Path(path).write_text(out.getvalue(), encoding="utf-8")
+          PY
+
+          git add data/monitoring/national_coverage.json \
+                  data/publication/multi_prefecture_pilot.json \
+                  data/source_registry/source_series_inventory.csv
+
+          unresolved="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$unresolved" ]; then
+            echo "Unexpected unresolved merge conflicts:" >&2
+            echo "$unresolved" >&2
+            exit 1
+          fi
+
+          # Ensure current main really became an ancestor of the reconciled branch.
+          git commit --no-edit
+          git merge-base --is-ancestor "$MAIN_HEAD" HEAD
+
+          # The reconciliation workflow is temporary expansion machinery; remove it
+          # before pushing the final reconciled branch state.
+          git rm .github/workflows/como-reconcile-current-main.yml
+          git commit -m 'chore(como): remove temporary reconciliation workflow'
+          git push origin HEAD:expansion/como-2026-09-17
