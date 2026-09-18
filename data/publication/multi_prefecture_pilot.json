@@ -1697,6 +1697,43 @@
       "last_source_update": "2026-09-07",
       "last_source_update_basis": "official page 'Ultimo aggiornamento' (7 September 2026); independently revalidated 18 September 2026; date is a source update/reference boundary only and is not an inferred company event or legal-effect date",
       "notes": "Mutable official applicant HTML table. Repeated independent no-cache captures were byte-identical at 107,423 bytes. The fail-closed parser yields exactly 212 pending observations. Structured identifier coverage is 211/212 with one raw-only identifier; no malformed application dates were observed. Publication is approved against the full parsed semantic digest while raw capture SHA-256 remains observation provenance. Exact evidence is documented in docs/sources/taranto-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "lecce",
+      "authority_name": "Prefettura di Lecce",
+      "register_key": "lecce-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lecce/evidenza/white-list",
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "edition date printed on every current official PDF page and stated by the official landing-page attachment labels; independently verified 18 September 2026; used only as a source-edition/reference boundary",
+      "approval_mode": "raw_sha256",
+      "source_key": "lecce-listed",
+      "parser": "lecce_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-white-list-per-categoria-aggiornato-9-settembre-2026.pdf",
+      "sha256": "acbe7b735107d48735bc8d01902fc73d49f00e6d8d6ef11dc0c1f9dfd344765d",
+      "expected_sector_rows": 1783,
+      "expected_source_rows": 825,
+      "notes": "Current 78-page official listed-side PDF. Independent captures are byte-identical. The fail-closed parser groups 1,783 statutory-section rows into 825 exact source-backed observations: 582 listed and 243 renewal/update in progress. Structured identifier coverage is 804/825; 20 raw-only identifiers, one blank identifier and six malformed source-date rows are retained without repair or inference. Exact evidence is documented in docs/sources/lecce-operational-check-2026-09-18.md."
+    },
+    {
+      "authority_key": "lecce",
+      "authority_name": "Prefettura di Lecce",
+      "register_key": "lecce-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-09",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lecce/evidenza/white-list",
+      "last_source_update": "2026-09-09",
+      "last_source_update_basis": "edition date printed on every current official PDF page and stated by the official landing-page attachment labels; independently verified 18 September 2026; used only as a source-edition/reference boundary",
+      "approval_mode": "raw_sha256",
+      "source_key": "lecce-applicants",
+      "parser": "lecce_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-richiedenti-iscrizione-aggiornato-9-settembre-2026.pdf",
+      "sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124",
+      "expected_source_rows": 90,
+      "notes": "Current 10-page official applicant PDF. Independent captures are byte-identical and yield exactly 90 positive applicant observations, all pending because the source publishes no decision/outcome field. All 90 observations contain at least one structured identifier; 19 identifier cells contain both codice fiscale and partita IVA. Exact evidence is documented in docs/sources/lecce-operational-check-2026-09-18.md."
     }
   ]
 }
