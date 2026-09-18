@@ -15,76 +15,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Fetch and inspect official Cremona source
+      - name: Install PDF text tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+      - name: Fetch and inspect official Cremona publication
         shell: bash
         run: |
           set -euo pipefail
-          BASE='https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte'
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte'
+          PDF='https://prefettura.interno.gov.it/sites/default/files/22/2026-09/white-list-elenchi-ditte_3.pdf'
           UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36'
           for i in 1 2; do
-            curl --fail --location --silent --show-error \
-              --user-agent "$UA" \
+            curl --fail --location --silent --show-error --user-agent "$UA" \
               -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-              "${BASE}?wl_probe=20260918-${i}-$(date +%s%N)" \
-              -o "page${i}.html"
-            printf 'page_fetch_%s bytes=%s sha256=%s\n' "$i" "$(wc -c < "page${i}.html")" "$(sha256sum "page${i}.html" | cut -d' ' -f1)"
+              "${PAGE}?wl_probe=20260918-page-${i}-$(date +%s%N)" -o "page${i}.html"
+            curl --fail --location --silent --show-error --user-agent "$UA" \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              "${PDF}?wl_probe=20260918-pdf-${i}-$(date +%s%N)" -o "source${i}.pdf"
+            echo "PAGE_${i} bytes=$(wc -c < "page${i}.html") sha256=$(sha256sum "page${i}.html" | cut -d' ' -f1)"
+            echo "PDF_${i} bytes=$(wc -c < "source${i}.pdf") sha256=$(sha256sum "source${i}.pdf" | cut -d' ' -f1) type=$(file -b "source${i}.pdf")"
           done
+          cmp -s source1.pdf source2.pdf && echo 'PDF_BYTE_IDENTICAL=yes' || { echo 'PDF_BYTE_IDENTICAL=no'; exit 1; }
+          echo "PDF_PAGES=$(pdfinfo source1.pdf | awk -F: '/^Pages/{gsub(/ /,"",$2);print $2}')"
+          pdftotext -layout source1.pdf source.txt
+          echo "TEXT_SHA256=$(sha256sum source.txt | cut -d' ' -f1)"
           python - <<'PY'
-          from html import unescape
-          from urllib.parse import urljoin
           import re
-          base='https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte'
-          text=open('page1.html',encoding='utf-8',errors='replace').read()
-          hrefs=[]
-          for raw in re.findall(r'''href=["']([^"']+)["']''', text, flags=re.I):
-              u=urljoin(base,unescape(raw))
-              if u not in hrefs: hrefs.append(u)
-          print('ATTACHMENT_CANDIDATES_BEGIN')
-          for u in hrefs:
-              lu=u.lower().split('?',1)[0]
-              if ('/sites/default/files/' in lu or lu.endswith(('.pdf','.doc','.docx','.xls','.xlsx','.ods','.csv','.rtf'))):
-                  print(u)
-          print('ATTACHMENT_CANDIDATES_END')
-          plain=re.sub(r'<[^>]+>',' ',text)
-          plain=unescape(re.sub(r'\s+',' ',plain))
-          for token in ('richiedent','iscritt','aggiorn','rinnov','elenco'):
-              print(f'token_{token}={plain.lower().count(token)}')
+          t=open('source.txt',encoding='utf-8',errors='replace').read()
+          print('TEXT_CHARS='+str(len(t)))
+          for token in ['RICHIED','ISCRITT','IN AGGIORNAMENTO','RINNOV','AVVIO ISTRUTTORIA','SCADEN','DINIEG','CANCEL','REVOCA']:
+              print(token.replace(' ','_')+'='+str(t.upper().count(token)))
+          ids=re.findall(r'(?<!\d)\d{11}(?!\d)',t)
+          print('STRICT_11_DIGIT_TOKENS='+str(len(ids)))
+          print('STRICT_11_DIGIT_UNIQUE='+str(len(set(ids))))
+          print('DUPLICATE_STRICT_IDS='+','.join(f'{x}:{ids.count(x)}' for x in sorted(set(ids)) if ids.count(x)>1))
+          lines=[ln.rstrip() for ln in t.splitlines() if ln.strip()]
+          print('NONEMPTY_LINES='+str(len(lines)))
+          print('TEXT_HEAD_BEGIN')
+          for ln in lines[:120]: print(ln)
+          print('TEXT_HEAD_END')
+          print('MARKER_LINES_BEGIN')
+          for ln in lines:
+              u=ln.upper()
+              if any(k in u for k in ['RICHIED','IN AGGIORNAMENTO','RINNOV','AVVIO ISTRUTTORIA','DINIEG','CANCEL','REVOCA']): print(ln)
+          print('MARKER_LINES_END')
+          print('TEXT_TAIL_BEGIN')
+          for ln in lines[-80:]: print(ln)
+          print('TEXT_TAIL_END')
           PY
-          mapfile -t urls < <(python - <<'PY'
-          from html import unescape
-          from urllib.parse import urljoin
-          import re
-          base='https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte'
-          text=open('page1.html',encoding='utf-8',errors='replace').read()
-          seen=[]
-          for raw in re.findall(r'''href=["']([^"']+)["']''', text, flags=re.I):
-              u=urljoin(base,unescape(raw))
-              lu=u.lower().split('?',1)[0]
-              if ('/sites/default/files/' in lu or lu.endswith(('.pdf','.doc','.docx','.xls','.xlsx','.ods','.csv','.rtf'))) and u not in seen:
-                  seen.append(u); print(u)
-          PY
-          )
-          echo "attachment_count=${#urls[@]}"
-          idx=0
-          for u in "${urls[@]}"; do
-            idx=$((idx+1))
-            echo "ATTACHMENT_${idx}_URL=$u"
-            for i in 1 2; do
-              sep='?'; [[ "$u" == *'?'* ]] && sep='&'
-              curl --fail --location --silent --show-error --user-agent "$UA" \
-                -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
-                "${u}${sep}wl_probe=20260918-${i}-$(date +%s%N)" -o "att-${idx}-${i}"
-              echo "ATTACHMENT_${idx}_FETCH_${i} bytes=$(wc -c < "att-${idx}-${i}") sha256=$(sha256sum "att-${idx}-${i}" | cut -d' ' -f1) type=$(file -b "att-${idx}-${i}")"
-            done
-            cmp -s "att-${idx}-1" "att-${idx}-2" && echo "ATTACHMENT_${idx}_BYTE_IDENTICAL=yes" || echo "ATTACHMENT_${idx}_BYTE_IDENTICAL=no"
-            if file -b "att-${idx}-1" | grep -qi PDF; then
-              pdftotext -layout "att-${idx}-1" "att-${idx}.txt" || true
-              echo "ATTACHMENT_${idx}_PDF_PAGES=$(pdfinfo "att-${idx}-1" 2>/dev/null | awk -F: '/^Pages/{gsub(/ /,"",$2);print $2}')"
-              echo "ATTACHMENT_${idx}_TEXT_HEAD_BEGIN"
-              head -n 80 "att-${idx}.txt" || true
-              echo "ATTACHMENT_${idx}_TEXT_HEAD_END"
-              echo "ATTACHMENT_${idx}_TEXT_TAIL_BEGIN"
-              tail -n 40 "att-${idx}.txt" || true
-              echo "ATTACHMENT_${idx}_TEXT_TAIL_END"
-            fi
-          done
