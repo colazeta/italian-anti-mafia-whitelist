@@ -18,24 +18,31 @@ jobs:
         with:
           ref: expansion/cremona-2026-09-18
           fetch-depth: 0
-      - name: Preserve identifier source-cell line boundaries
+      - name: Handle explicit two-VAT source cells
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('src/white_list_archive/parsers/cremona_combined.py')
           s=p.read_text()
-          old='''        number, name, office, identifier_raw, listing_raw, expiry_raw, note_raw, *section_cells = [\n            _clean(cell) for cell in row\n        ]\n'''
-          new='''        number = _clean(row[0])\n        name = _clean(row[1])\n        office = _clean(row[2])\n        # Preserve pdfplumber's line boundary between a codice fiscale and an\n        # 11-digit VAT number. _record will normalise display whitespace later.\n        identifier_raw = str(row[3] or "").strip()\n        listing_raw = _clean(row[4])\n        expiry_raw = _clean(row[5])\n        note_raw = _clean(row[6])\n        section_cells = [_clean(cell) for cell in row[7:]]\n'''
-          if s.count(old)!=1:
-              raise SystemExit('expected parser assignment block not found exactly once')
-          p.write_text(s.replace(old,new))
+          changes=[
+          ('''_EXPECTED_IDENTIFIER_KIND_COUNTS = {\n    "strict_11_only": 165,\n    "strict_11_plus_fiscal16": 18,\n    "reviewed_malformed_numeric_only": 4,\n}\n''', '''_EXPECTED_IDENTIFIER_KIND_COUNTS = {\n    "strict_11_only": 163,\n    "strict_11_plus_fiscal16": 18,\n    "strict_11_pair": 2,\n    "reviewed_malformed_numeric_only": 4,\n}\n'''),
+          ('''    if strict and fiscal and len(strict) == 1 and len(fiscal) == 1 and len(tokens) == 2:\n        return "strict_11_plus_fiscal16", strict + fiscal\n    if len(strict) == 1 and not fiscal and len(tokens) == 1:\n        return "strict_11_only", strict\n''', '''    if strict and fiscal and len(strict) == 1 and len(fiscal) == 1 and len(tokens) == 2:\n        return "strict_11_plus_fiscal16", strict + fiscal\n    if len(strict) == 2 and not fiscal and len(tokens) == 2:\n        return "strict_11_pair", strict\n    if len(strict) == 1 and not fiscal and len(tokens) == 1:\n        return "strict_11_only", strict\n''')]
+          for old,new in changes:
+              if s.count(old)!=1: raise SystemExit('expected parser block not found exactly once')
+              s=s.replace(old,new)
+          p.write_text(s)
+          t=Path('tests/test_cremona_parser_semantics.py')
+          x=t.read_text()
+          marker='''    assert _identifier_kind("009226901930", 11) == ("reviewed_malformed_numeric_only", [])\n'''
+          addition=marker+'''    assert _identifier_kind("00888170198\\n01034430197", 60) == (\n        "strict_11_pair",\n        ["00888170198", "01034430197"],\n    )\n'''
+          if x.count(marker)!=1: raise SystemExit('identifier test marker not found exactly once')
+          t.write_text(x.replace(marker,addition))
           PY
           python -m py_compile src/white_list_archive/parsers/cremona_combined.py
           git diff --check
-          git diff -- src/white_list_archive/parsers/cremona_combined.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/white_list_archive/parsers/cremona_combined.py
-          test "$(git diff --cached --name-only)" = 'src/white_list_archive/parsers/cremona_combined.py'
-          git commit -m 'Preserve Cremona identifier cell boundaries'
+          git add src/white_list_archive/parsers/cremona_combined.py tests/test_cremona_parser_semantics.py
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git commit -m 'Handle explicit Cremona identifier pairs'
           git push origin HEAD:expansion/cremona-2026-09-18
