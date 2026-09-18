@@ -6,8 +6,6 @@ from collections import Counter
 from html.parser import HTMLParser
 from urllib.request import Request, urlopen
 
-import pytest
-
 
 SOURCES = {
     "listed": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
@@ -29,9 +27,12 @@ class TableParser(HTMLParser):
         del attrs
         tag = tag.casefold()
         if tag == "table":
-            if self._table is None:
-                self._table = []
+            if self._table is not None:
+                raise RuntimeError("nested table in Taranto source")
+            self._table = []
         elif tag == "tr" and self._table is not None:
+            if self._row is not None:
+                raise RuntimeError("nested row in Taranto source")
             self._row = []
         elif tag in {"td", "th"} and self._row is not None:
             if self._parts is None:
@@ -52,14 +53,19 @@ class TableParser(HTMLParser):
             if self._cell_depth:
                 self._cell_depth -= 1
                 return
-            if self._row is not None:
-                self._row.append(" ".join("".join(self._parts).split()))
+            if self._row is None:
+                raise RuntimeError("Taranto cell closed outside row")
+            self._row.append(" ".join("".join(self._parts).split()))
             self._parts = None
         elif tag == "tr" and self._row is not None:
-            if self._table is not None and any(self._row):
+            if self._table is None:
+                raise RuntimeError("Taranto row closed outside table")
+            if any(self._row):
                 self._table.append(self._row)
             self._row = None
         elif tag == "table" and self._table is not None:
+            if self._row is not None or self._parts is not None:
+                raise RuntimeError("Taranto table ended incomplete")
             if self._table:
                 self.tables.append(self._table)
             self._table = None
@@ -69,8 +75,9 @@ def fetch_tables(url: str) -> tuple[bytes, list[list[list[str]]]]:
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,*/*"})
     with urlopen(request, timeout=60) as response:  # noqa: S310 - fixed official sources
         body = response.read()
+    text = body.decode("utf-8")
     parser = TableParser()
-    parser.feed(body.decode("utf-8"))
+    parser.feed(text)
     parser.close()
     return body, parser.tables
 
@@ -115,7 +122,7 @@ def candidate_rows(tables: list[list[list[str]]], kind: str) -> tuple[list[str],
             if fold(row) == wanted:
                 hits.append((row, table[index + 1 :]))
     if len(hits) != 1:
-        raise AssertionError(
+        raise RuntimeError(
             json.dumps(
                 {
                     "kind": kind,
@@ -134,8 +141,7 @@ def candidate_rows(tables: list[list[list[str]]], kind: str) -> tuple[list[str],
     return header, rows, malformed_width
 
 
-@pytest.mark.parametrize("kind", ["listed", "applicants"])
-def test_taranto_source_probe(kind: str) -> None:
+def probe(kind: str) -> dict[str, object]:
     body, tables = fetch_tables(SOURCES[kind])
     header, rows, malformed_width = candidate_rows(tables, kind)
     identifier_counts = Counter(classify_identifier(row[2]) for row in rows)
@@ -148,18 +154,21 @@ def test_taranto_source_probe(kind: str) -> None:
         "first_rows": rows[:4],
         "last_rows": rows[-4:],
         "identifier_counts": dict(identifier_counts),
-        "nonstandard_identifier_rows": [row for row in rows if classify_identifier(row[2]) == "nonstandard"][:30],
+        "nonstandard_identifier_rows": [row for row in rows if classify_identifier(row[2]) == "nonstandard"],
         "malformed_width_count": len(malformed_width),
-        "malformed_width_rows": malformed_width[:20],
+        "malformed_width_rows": malformed_width,
     }
+    good = re.compile(r"^\d{2}/\d{2}/\d{4}$")
     if kind == "applicants":
-        good = re.compile(r"^\d{2}/\d{2}/\d{4}$")
         diagnostics["date_counts"] = dict(Counter("valid_format" if good.fullmatch(row[4]) else "nonstandard" for row in rows))
-        diagnostics["nonstandard_dates"] = [row for row in rows if not good.fullmatch(row[4])][:30]
+        diagnostics["nonstandard_dates"] = [row for row in rows if not good.fullmatch(row[4])]
     else:
-        good = re.compile(r"^\d{2}/\d{2}/\d{4}$")
         diagnostics["listing_date_counts"] = dict(Counter("valid_format" if good.fullmatch(row[3]) else "nonstandard" for row in rows))
         diagnostics["expiry_date_counts"] = dict(Counter("valid_format" if good.fullmatch(row[4]) else "nonstandard" for row in rows))
-        diagnostics["nonstandard_date_rows"] = [row for row in rows if not good.fullmatch(row[3]) or not good.fullmatch(row[4])][:30]
+        diagnostics["nonstandard_date_rows"] = [row for row in rows if not good.fullmatch(row[3]) or not good.fullmatch(row[4])]
         diagnostics["note_counts"] = dict(Counter(" ".join(row[6].split()) for row in rows))
-    raise AssertionError("TARANTO_SOURCE_BOUNDARY=" + json.dumps(diagnostics, ensure_ascii=False, sort_keys=True))
+    return diagnostics
+
+
+if __name__ == "__main__":
+    print(json.dumps({kind: probe(kind) for kind in ("listed", "applicants")}, ensure_ascii=False, indent=2, sort_keys=True))
