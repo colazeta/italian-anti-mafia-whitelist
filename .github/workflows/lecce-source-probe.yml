@@ -1,0 +1,50 @@
+name: Lecce source boundary probe
+
+on:
+  push:
+    branches:
+      - expansion/lecce-2026-09-18
+    paths:
+      - scripts/lecce_source_probe.py
+      - .github/workflows/lecce-source-probe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/lecce-2026-09-18
+      - name: Install PDF tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Probe official Lecce sources
+        run: python scripts/lecce_source_probe.py
+      - name: Upload transient source captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: lecce-source-captures
+          path: |
+            tmp/lecce-probe/lecce_listed.pdf
+            tmp/lecce-probe/lecce_applicants.pdf
+            tmp/lecce-probe/lecce_listed.txt
+            tmp/lecce-probe/lecce_applicants.txt
+          retention-days: 1
+      - name: Persist compact probe receipt
+        run: |
+          mkdir -p tmp
+          cp tmp/lecce-probe/lecce_probe.json tmp/lecce_probe.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tmp/lecce_probe.json
+          if git diff --cached --quiet; then
+            echo "Probe receipt unchanged"
+            exit 0
+          fi
+          git commit -m "chore: capture Lecce source probe receipt"
+          git push origin HEAD:expansion/lecce-2026-09-18
