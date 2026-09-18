@@ -1,0 +1,86 @@
+name: Cremona profile 2026-09-18
+
+on:
+  push:
+    branches:
+      - expansion/cremona-2026-09-18
+    paths:
+      - .github/workflows/cremona-profile-2026-09-18.yml
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: python -m pip install --quiet pdfplumber
+      - name: Profile source denominators
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://prefettura.interno.gov.it/sites/default/files/22/2026-09/white-list-elenchi-ditte_3.pdf'
+          for attempt in 1 2 3; do
+            if curl -fsSL -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36' -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${URL}?probe=profile-${attempt}-$(date +%s%N)" -o source.pdf; then break; fi
+            sleep 2
+          done
+          test -s source.pdf
+          echo "sha256=$(sha256sum source.pdf | cut -d' ' -f1) bytes=$(wc -c < source.pdf)"
+          python - <<'PY'
+          import pdfplumber,re
+          from collections import Counter
+          rows=[]; page_rows=[]
+          with pdfplumber.open('source.pdf') as pdf:
+              print('pages',len(pdf.pages))
+              for pn,page in enumerate(pdf.pages,1):
+                  tables=page.extract_tables()
+                  if len(tables)!=1: raise SystemExit(f'page {pn}: expected one table, got {len(tables)}')
+                  table=tables[0]
+                  data=table[2:] if pn==1 else table
+                  data=[r for r in data if any((c or '').strip() for c in r)]
+                  page_rows.append(len(data)); rows.extend(data)
+          print('page_rows',page_rows,'records',len(rows))
+          numbers=[]; statuses=Counter(); id_kinds=Counter(); note_forms=Counter(); anomalies=[]
+          for ordinal,row in enumerate(rows,1):
+              if len(row)!=17: anomalies.append((ordinal,'width',len(row))); continue
+              vals=[(x or '').strip() for x in row]
+              number,name,office,identifier,listing,expiry,note,*sections=vals
+              numbers.append(number)
+              note_one=' '.join(note.upper().split())
+              if note_one.startswith('ISCRITTO ELENCO RICHIEDENTI- IN ISTRUTTORIA'):
+                  status='pending'
+              elif note_one.startswith('FATTA ISTANZA A PERMANERE') or note_one.startswith('FATTA ISTANZA A PERAMERE'):
+                  status='renewal_update_in_progress'
+              elif listing and expiry:
+                  status='listed'
+              elif note_one:
+                  status='other_or_unknown'
+              else:
+                  status='other_or_unknown'
+              statuses[status]+=1
+              if note_one: note_forms[note_one.split(' IN DATA')[0].split(' IL ')[0]]+=1
+              tokens=[re.sub(r'[^A-Za-z0-9]','',x).upper() for x in identifier.splitlines() if x.strip()]
+              strict=[x for x in tokens if x.isdigit() and len(x)==11]
+              fiscal=[x for x in tokens if len(x)==16 and x.isalnum() and not x.isdigit()]
+              malformed=[x for x in tokens if x not in strict and x not in fiscal]
+              if strict and fiscal: id_kinds['strict_11_plus_fiscal16']+=1
+              elif strict: id_kinds['strict_11_only']+=1
+              elif fiscal: id_kinds['fiscal16_only']+=1
+              elif malformed: id_kinds['malformed_only']+=1
+              else: id_kinds['blank']+=1
+              if malformed or not strict:
+                  anomalies.append((ordinal,'identifier',identifier,tokens))
+              if bool(listing)!=bool(expiry): anomalies.append((ordinal,'asymmetric_dates',listing,expiry))
+              if status=='pending' and (listing or expiry): anomalies.append((ordinal,'pending_with_listing_dates',listing,expiry))
+              if status=='renewal_update_in_progress' and (listing or expiry): anomalies.append((ordinal,'renewal_with_listing_dates',listing,expiry))
+              badsec=[x for x in sections if x not in ('','X','x')]
+              if badsec: anomalies.append((ordinal,'section_tokens',badsec))
+          print('sequence_ok',numbers==[str(i) for i in range(1,188)])
+          print('statuses',dict(statuses))
+          print('identifier_kinds',dict(id_kinds))
+          print('note_families',dict(note_forms))
+          print('anomalies_begin')
+          for x in anomalies: print(repr(x))
+          print('anomalies_end')
+          PY
