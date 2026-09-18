@@ -1,0 +1,38 @@
+name: Cremona edge probe 2026-09-18
+
+on:
+  push:
+    branches:
+      - expansion/cremona-2026-09-18
+    paths:
+      - .github/workflows/cremona-edge-probe-2026-09-18.yml
+
+permissions:
+  contents: read
+
+jobs:
+  edge-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: python -m pip install --quiet pdfplumber
+      - name: Print reviewed edge rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://prefettura.interno.gov.it/sites/default/files/22/2026-09/white-list-elenchi-ditte_3.pdf'
+          for attempt in 1 2 3; do
+            curl -fsSL -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36' -H 'Cache-Control: no-cache' "${URL}?edge=${attempt}-$(date +%s%N)" -o source.pdf && break
+            sleep 2
+          done
+          python - <<'PY'
+          import pdfplumber
+          rows=[]
+          with pdfplumber.open('source.pdf') as pdf:
+              for pn,p in enumerate(pdf.pages,1):
+                  t=p.extract_tables()[0]
+                  rows.extend(t[2:] if pn==1 else t)
+          rows=[r for r in rows if any((x or '').strip() for x in r)]
+          for n in [11,19,63,90,128,179,180]:
+              print(n,repr(rows[n-1]))
+          PY
