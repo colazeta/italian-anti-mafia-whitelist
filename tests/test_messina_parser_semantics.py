@@ -38,5 +38,14 @@ def test_messina_sections_are_source_encoded_and_fail_closed() -> None:
         "Sezione V",
         "Sezione VI",
     ]
+    assert _sections("I -II-III-IV-V-VII") == [
+        "Sezione I",
+        "Sezione II",
+        "Sezione III",
+        "Sezione IV",
+        "Sezione V",
+        "Sezione VII",
+    ]
+    assert _sections("III - V - IX") == ["Sezione III", "Sezione V", "Sezione IX"]
     with pytest.raises(RuntimeError, match="unreviewed section encoding"):
         _sections("I; III")
