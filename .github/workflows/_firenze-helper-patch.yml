@@ -1,0 +1,44 @@
+name: Firenze helper line-ending patch
+
+on:
+  push:
+    branches:
+      - expansion/firenze-2026-09-18
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Keep generated CSVs LF-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/_firenze-integrate.yml')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              "csv.DictWriter(fh,fieldnames=fieldnames)": "csv.DictWriter(fh,fieldnames=fieldnames,lineterminator='\\n')",
+              "csv.DictWriter(fh,fieldnames=s_fields)": "csv.DictWriter(fh,fieldnames=s_fields,lineterminator='\\n')",
+              "csv.DictWriter(fh,fieldnames=c_fields)": "csv.DictWriter(fh,fieldnames=c_fields,lineterminator='\\n')",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'Missing integration-helper writer: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/_firenze-integrate.yml
+          git diff --cached --check
+          git commit -m 'Keep Firenze integration CSV outputs LF-only'
+          git push origin HEAD:expansion/firenze-2026-09-18
