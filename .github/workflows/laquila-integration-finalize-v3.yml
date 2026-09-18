@@ -95,7 +95,7 @@ jobs:
           tmp/laquila-public-pages-candidate.yml
           EOF
           sed -i 's/^          //' /tmp/expected
-          actual=$(git status --short | sed 's/^.. //' | sort)
+          actual=$(git status --short --untracked-files=all | sed 's/^.. //' | sort)
           expected=$(sort /tmp/expected)
           if [ "$actual" != "$expected" ]; then
             echo 'Unexpected finalizer working-tree scope:' >&2
