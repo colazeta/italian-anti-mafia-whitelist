@@ -1,22 +1,18 @@
-name: Lodi source transition 2026-09-18 temporary
+name: Lodi source transition temporary
 
 on:
   push:
     branches:
       - fix/lodi-source-drift-2026-09-18
     paths:
-      - '.github/workflows/lodi-live-drift-probe.yml'
+      - .github/workflows/lodi-live-drift-probe.yml
 
 permissions:
   contents: write
 
-concurrency:
-  group: lodi-source-transition-2026-09-18
-  cancel-in-progress: false
-
 jobs:
   transition:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,191 +22,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Confirm branch and current official source stability
-        shell: bash
+      - name: Confirm branch is based on current main
         run: |
-          set -euo pipefail
-          branch='fix/lodi-source-drift-2026-09-18'
-          remote_sha="$(git ls-remote origin "refs/heads/$branch" | cut -f1)"
-          test "$remote_sha" = "$GITHUB_SHA"
           git fetch origin main
           test "$(git rev-list --count HEAD..origin/main)" -eq 0
-          listed='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv'
-          applicants='https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv'
-          mkdir -p /tmp/lodi-transition
-          for n in 1 2; do
-            nonce="$(date +%s%N)-$n"
-            curl --fail --location --silent --show-error --retry 3 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${listed}&cb=${nonce}" -o "/tmp/lodi-transition/listed-$n.csv"
-            sleep 3
-            nonce="$(date +%s%N)-a-$n"
-            curl --fail --location --silent --show-error --retry 3 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "${applicants}&cb=${nonce}" -o "/tmp/lodi-transition/applicants-$n.csv"
-            sleep 3
-          done
-          cmp /tmp/lodi-transition/listed-1.csv /tmp/lodi-transition/listed-2.csv
-          cmp /tmp/lodi-transition/applicants-1.csv /tmp/lodi-transition/applicants-2.csv
-          test "$(sha256sum /tmp/lodi-transition/listed-1.csv | cut -d' ' -f1)" = 'a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e'
-          test "$(sha256sum /tmp/lodi-transition/applicants-1.csv | cut -d' ' -f1)" = '55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228'
-      - name: Apply reviewed permanent transition
-        shell: bash
+      - name: Install validation runtime
+        run: python -m pip install -e '.[dev]'
+      - name: Apply and validate reviewed transition
+        run: python scripts/lodi_transition_temp.py
+      - name: Run focused repository gates
+        run: pytest -q tests/test_lodi_parser_semantics.py tests/test_source_registry.py tests/test_source_population_coverage.py
+      - name: Commit permanent transition only
         run: |
-          set -euo pipefail
-          python - <<'PY'
-          import csv, json
-          from pathlib import Path
-
-          old_sha = 'c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613'
-          new_sha = 'a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e'
-          app_sha = '55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228'
-          date = '2026-09-18'
-
-          parser = Path('src/white_list_archive/parsers/lodi_sheets.py')
-          text = parser.read_text(encoding='utf-8')
-          replacements = [
-              ('PARSER_VERSION = "2"', 'PARSER_VERSION = "3"'),
-              ('_REFERENCE_DATE = "2026-09-16"', '_REFERENCE_DATE = "2026-09-18"'),
-              (f'_LISTED_SHA256 = "{old_sha}"', f'_LISTED_SHA256 = "{new_sha}"'),
-              ('    "listed": 254,\n    "renewal_update_in_progress": 37,', '    "listed": 251,\n    "renewal_update_in_progress": 40,'),
-              ('    "listed": 146,\n    "renewal_update_in_progress": 23,', '    "listed": 144,\n    "renewal_update_in_progress": 25,'),
-          ]
-          for old, new in replacements:
-              if text.count(old) != 1:
-                  raise SystemExit(f'expected one parser token: {old!r}; got {text.count(old)}')
-              text = text.replace(old, new)
-          parser.write_text(text, encoding='utf-8')
-
-          test = Path('tests/test_lodi_parser_semantics.py')
-          text = test.read_text(encoding='utf-8')
-          for old, new in [
-              ('assert lodi._REFERENCE_DATE == "2026-09-16"', 'assert lodi._REFERENCE_DATE == "2026-09-18"'),
-              (f'assert lodi._LISTED_SHA256 == "{old_sha}"', f'assert lodi._LISTED_SHA256 == "{new_sha}"'),
-          ]:
-              if text.count(old) != 1:
-                  raise SystemExit(f'expected one test token: {old!r}; got {text.count(old)}')
-              text = text.replace(old, new)
-          test.write_text(text, encoding='utf-8')
-
-          pilot_path = Path('data/publication/multi_prefecture_pilot.json')
-          pilot = json.loads(pilot_path.read_text(encoding='utf-8'))
-          sources = {x['source_key']: x for x in pilot['sources']}
-          listed = sources['lodi-listed']; applicants = sources['lodi-applicants']
-          if listed['sha256'] != old_sha or listed['reference_date'] != '2026-09-16' or listed['expected_source_rows'] != 169:
-              raise SystemExit('unexpected pre-transition lodi-listed config')
-          if applicants['sha256'] != app_sha or applicants['reference_date'] != '2026-09-16' or applicants['expected_source_rows'] != 4:
-              raise SystemExit('unexpected pre-transition lodi-applicants config')
-          listed.update({
-              'reference_date': date,
-              'last_source_update': date,
-              'sha256': new_sha,
-              'notes': 'Official mutable Google Sheet linked by the Prefettura di Lodi. Two independent no-cache GETs on 18 September 2026 were byte-identical at the approved SHA-256. The physical, section-membership and grouped-record denominators remain 324, 291 and 169. Exact comparison with the preserved 16 September capture identifies exactly three changed membership rows and no insertions/removals: two F.LLI BORCHIA memberships and one CENTRO EDILE LODI membership become explicitly in aggiornamento. Consequently the source-row split becomes 251 listed / 40 renewal-update and the grouped public split becomes 144 listed / 25 renewal-update. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md.'
-          })
-          applicants.update({
-              'reference_date': date,
-              'last_source_update': date,
-              'notes': 'Official applicant tab linked by the Prefettura di Lodi. Two independent no-cache GETs on 18 September 2026 are byte-identical to each other and to the approved 16 September capture. The four positively identified observations remain unchanged: two explicit denials and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md.'
-          })
-          pilot_path.write_text(json.dumps(pilot, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-
-          inv_path = Path('data/source_registry/source_series_inventory.csv')
-          with inv_path.open(encoding='utf-8', newline='') as f:
-              reader = csv.DictReader(f); rows = list(reader); fields = reader.fieldnames
-          found = set()
-          for row in rows:
-              if row['source_series_key'] == 'lodi-listed':
-                  row['verified_date'] = date
-                  row['notes'] = 'Official Lodi landing page remains the positive publication surface for the registered-company Google Sheet. Two independent no-cache CSV exports on 18 September 2026 are byte-identical at SHA-256 a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e. Exact comparison with the approved 16 September capture shows three status-marker changes only; 291 statutory-section memberships still group to 169 public observations. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md.'
-                  found.add('listed')
-              elif row['source_series_key'] == 'lodi-applicants':
-                  row['verified_date'] = date
-                  row['notes'] = 'Official Lodi landing page remains the positive publication surface for the requesting-company Google Sheet. Two independent no-cache CSV exports on 18 September 2026 remain byte-identical to SHA-256 55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228; the four source-backed applicant observations are unchanged. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md.'
-                  found.add('applicants')
-          if found != {'listed', 'applicants'}:
-              raise SystemExit(f'Lodi inventory rows not found: {found}')
-          with inv_path.open('w', encoding='utf-8', newline='') as f:
-              writer = csv.DictWriter(f, fieldnames=fields, lineterminator='\n')
-              writer.writeheader(); writer.writerows(rows)
-
-          cov_path = Path('data/monitoring/national_coverage.json')
-          cov = json.loads(cov_path.read_text(encoding='utf-8'))
-          matches = [x for x in cov['prefectures'] if x['authority_key'] == 'lodi']
-          if len(matches) != 1:
-              raise SystemExit('expected one Lodi monitoring entry')
-          entry = matches[0]
-          if entry['known_content_sha256'] != [old_sha, app_sha]:
-              raise SystemExit(f'unexpected Lodi monitoring hashes: {entry["known_content_sha256"]!r}')
-          entry['latest_source_reference_date'] = date
-          entry['last_successful_investigation_on'] = date
-          entry['known_content_sha256'] = [new_sha, app_sha]
-          entry['unresolved_issue'] = [
-              'The official Google Sheet is mutable and exposes no reliable edition date; 2026-09-18 is the current byte-pinned observation/capture boundary, not an inferred publication date.',
-              'Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'
-          ]
-          newdoc = 'docs/sources/lodi-operational-check-2026-09-18.md'
-          if newdoc not in entry['completion_evidence']:
-              entry['completion_evidence'].append(newdoc)
-          if newdoc not in entry['evidence']:
-              entry['evidence'].append(newdoc)
-          cov_path.write_text(json.dumps(cov, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-
-          doc = Path(newdoc)
-          if doc.exists():
-              raise SystemExit(f'unexpected pre-existing evidence note: {newdoc}')
-          doc.write_text('''# Lodi operational source transition — 18 September 2026
-
-## Scope
-
-This note records the evidence review required after the mutable official Lodi registered-company Google Sheet changed after the 16 September approval. The observation date is not treated as an inferred publication date.
-
-## Positive official-source evidence
-
-The Prefettura di Lodi White List publication surface remains `https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list`, which positively exposes separate registered-company and requesting-company Google Sheet populations. The source exports themselves were independently fetched twice with cache bypass on 18 September 2026.
-
-## Registered-company transition
-
-The two current listed captures are byte-identical at SHA-256 `a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e` and size 36,420 bytes. The approved 16 September capture is SHA-256 `c3695018c56ba754614eff988011e0f9b2f6cb2d8e0f22a9823275c8659da613` and size 36,372 bytes. The preserved 16 September workflow artifact (`Lodi source drift audit (temporary)`, run `35112659448`) permits an exact historical comparison.
-
-The current structure is unchanged: 324 physical CSV rows, seven columns per row, and 291 positively identifiable statutory-section memberships. Exact old/new comparison identifies three changed membership rows and no insertions or removals:
-
-1. `F.LLI BORCHIA DI FRANCO E IVANO BORCHIA & C. S.n.c.` — identifier `01495270157`, source rows 62 and 169: dates remain `21/10/2025`–`21/10/2026`; both blank status markers become `in aggiornamento`.
-2. `CENTRO EDILE LODI S.r.l.` — identifier `04301190965`, source row 103: dates remain `28/10/2025`–`28/10/2026`; the blank status marker becomes `in aggiornamento`.
-
-The source-row status denominators therefore move from 254 listed / 37 renewal-update to 251 listed / 40 renewal-update. Conservative grouping by exact identifier/date/status remains 169 observations with the same occurrence distribution; the grouped status split moves from 146 listed / 23 renewal-update to 144 listed / 25 renewal-update because the two BORCHIA memberships represent one grouped observation and the CENTRO EDILE membership represents another.
-
-No legal consequence is inferred beyond the source-explicit `in aggiornamento` marker.
-
-## Applicant population
-
-The applicant export is unchanged. Both 18 September captures are byte-identical to the approved boundary at SHA-256 `55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228`, size 1,388 bytes. The four positively identified observations remain two explicit denials and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search.
-
-## Approval boundary
-
-The Lodi public-source record denominator remains 173 observations: 169 registered-company observations plus 4 applicant observations. Only two grouped registered-company statuses change, so the national record count is unchanged. Parser version 3 freezes the new raw SHA-256 and the new source/grouped status denominators while retaining all existing structural, date, grouping and identifier checks. Durable evidence verification remains a separate governance control under issue #16.
-''', encoding='utf-8')
-          PY
-      - name: Validate reviewed transition against exact live captures
-        run: |
-          python -m pip install -e '.[dev]'
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from white_list_archive.parsers.lodi_sheets import parse_lodi_listed, parse_lodi_applicants
-          cfg = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
-          sources = {x['source_key']: x for x in cfg['sources']}
-          lb = parse_lodi_listed(Path('/tmp/lodi-transition/listed-1.csv'), sources['lodi-listed'])
-          ab = parse_lodi_applicants(Path('/tmp/lodi-transition/applicants-1.csv'), sources['lodi-applicants'])
-          assert len(lb.records) == 169
-          assert len(ab.records) == 4
-          from collections import Counter
-          assert Counter(x['source_status'] for x in lb.records) == {'listed': 144, 'renewal_update_in_progress': 25}
-          assert Counter(x['source_status'] for x in ab.records) == {'rejected_or_denied': 2, 'pending': 2}
-          print('Lodi reviewed transition validated: 173 observations; listed split 144/25; applicants unchanged 2/2')
-          PY
-          pytest -q tests/test_lodi_parser_semantics.py tests/test_source_registry.py tests/test_source_population_coverage.py
-      - name: Commit permanent Lodi transition
-        shell: bash
-        run: |
-          set -euo pipefail
-          git status --short
-          test -n "$(git status --porcelain)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv docs/sources/lodi-operational-check-2026-09-18.md src/white_list_archive/parsers/lodi_sheets.py tests/test_lodi_parser_semantics.py
