@@ -37,7 +37,8 @@ jobs:
           cmp /tmp/messina/page-1.html /tmp/messina/page-2.html
           cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf
           cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf
-          test "$(sha256sum /tmp/messina/page-1.html | cut -d' ' -f1)" = '3fbd45c92d1a863a021463f30f2a58ef40ea647888f3faaa5513f6e5ab1260d0'
+          # The landing page is mutable presentation metadata. Its current pair must agree,
+          # but only the reviewed attachment bytes form the raw publication approval boundary.
           test "$(sha256sum /tmp/messina/applicants-1.pdf | cut -d' ' -f1)" = '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4'
           test "$(sha256sum /tmp/messina/listed-1.pdf | cut -d' ' -f1)" = 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e'
 
