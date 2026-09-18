@@ -62,6 +62,7 @@ on:
       - 'src/white_list_archive/parsers/como_html.py'
       - 'src/white_list_archive/parsers/firenze_sources.py'
       - 'src/white_list_archive/parsers/taranto_html.py'
+      - 'src/white_list_archive/parsers/lecce_tables.py'
       - 'pyproject.toml'
       - '.github/workflows/public-pages.yml'
   pull_request:
@@ -152,18 +153,18 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 59642
-          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto'}
+          assert reg['meta']['record_count'] == 60557
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
-              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary','lodi-ordinary','roma-ordinary','pisa-white-list','catanzaro-ordinary','lecco-ordinary','torino-ordinary','potenza-ordinary','sassari-ordinary','milano-ordinary','modena-provincial','modena-post-sisma','como-ordinary','firenze-ordinary','taranto-ordinary'
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary','lodi-ordinary','roma-ordinary','pisa-white-list','catanzaro-ordinary','lecco-ordinary','torino-ordinary','potenza-ordinary','sassari-ordinary','milano-ordinary','modena-provincial','modena-post-sisma','como-ordinary','firenze-ordinary','taranto-ordinary','lecce-ordinary'
           }
-          assert reg['meta']['authority_count'] == 51
-          assert reg['meta']['register_count'] == 53
+          assert reg['meta']['authority_count'] == 52
+          assert reg['meta']['register_count'] == 54
           assert reg['meta']['record_count'] == len(reg['records'])
           assert pref['meta']['authority_count'] == 106
-          assert pref['meta']['published_count'] == 51
-          assert pref['meta']['mapped_count'] == 51
+          assert pref['meta']['published_count'] == 52
+          assert pref['meta']['mapped_count'] == 52
           bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
           assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['published'] and bolzano[0]['series_count'] > 0
           caserta = [x for x in pref['prefectures'] if x['authority_key'] == 'caserta']
@@ -428,6 +429,21 @@ jobs:
           assert sum(bool(r['identifiers']) for r in taranto_records) == 592
           assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in taranto_records) == 8
           assert sum(bool(r.get('source_fields', {}).get('malformed_date_pairs')) for r in taranto_records if r['source_key'] == 'taranto-listed') == 8
+          lecce = [x for x in pref['prefectures'] if x['authority_key'] == 'lecce']
+          assert len(lecce) == 1 and lecce[0]['mapped'] and lecce[0]['published'] and lecce[0]['series_count'] == 2
+          lecce_records = [r for r in reg['records'] if r['authority_key'] == 'lecce']
+          assert len(lecce_records) == 915
+          assert sum(r['source_key'] == 'lecce-listed' for r in lecce_records) == 825
+          assert sum(r['source_key'] == 'lecce-applicants' for r in lecce_records) == 90
+          assert sum(r['source_status'] == 'listed' for r in lecce_records) == 582
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lecce_records) == 243
+          assert sum(r['source_status'] == 'pending' for r in lecce_records) == 90
+          assert len({r['record_locator'] for r in lecce_records}) == 915
+          assert sum(bool(r['identifiers']) for r in lecce_records) == 894
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in lecce_records) == 20
+          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in lecce_records) == 1
+          assert sum(not bool(r['observed_listing_date']) and bool(r['source_fields']['listing_date_raw_variants']) for r in lecce_records if r['source_key'] == 'lecce-listed') == 4
+          assert sum(not bool(r['observed_expiry_date']) and bool(r['source_fields']['expiry_date_raw_variants']) for r in lecce_records if r['source_key'] == 'lecce-listed') == 2
           modena = [x for x in pref['prefectures'] if x['authority_key'] == 'modena']
           assert len(modena) == 1 and modena[0]['mapped'] and modena[0]['published'] and modena[0]['series_count'] == 4
           modena_records = [r for r in reg['records'] if r['authority_key'] == 'modena']
