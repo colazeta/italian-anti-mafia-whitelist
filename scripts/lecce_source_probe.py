@@ -134,6 +134,27 @@ def inspect_pdf(kind: str, label: str, url: str) -> dict[str, object]:
     }
 
 
+def compact_pdf(item: dict[str, object]) -> dict[str, object]:
+    geometry = item["table_geometry"]
+    assert isinstance(geometry, dict)
+    pages = geometry["pages"]
+    assert isinstance(pages, list)
+    return {
+        "label": item["label"],
+        "url": item["url"],
+        "bytes": item["bytes"],
+        "sha256": item["sha256"],
+        "captures_identical": item["captures_identical"],
+        "pdf_pages": item["pages"],
+        "nonblank_text_lines": item["nonblank_text_lines"],
+        "table_counts_by_page": [page.get("table_count") for page in pages],
+        "nonblank_table_rows_by_page": [page.get("nonblank_rows") for page in pages],
+        "row_widths_by_page": [page.get("widths") for page in pages],
+        "total_nonblank_table_rows": geometry["total_nonblank_table_rows"],
+        "row_width_histogram": geometry["row_width_histogram"],
+    }
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     landing_first = fetch(LANDING_URL)
@@ -148,6 +169,8 @@ def main() -> None:
     applicant_label, applicant_href = choose(parser.anchors, r"ELENCO\s+RICHIEDENTI\s+ISCRIZIONE")
     listed_url = urljoin(LANDING_URL, listed_href)
     applicant_url = urljoin(LANDING_URL, applicant_href)
+    listed = inspect_pdf("listed", listed_label, listed_url)
+    applicants = inspect_pdf("applicants", applicant_label, applicant_url)
 
     report = {
         "landing_url": LANDING_URL,
@@ -158,14 +181,26 @@ def main() -> None:
             "listed": {"label": listed_label, "url": listed_url},
             "applicants": {"label": applicant_label, "url": applicant_url},
         },
-        "listed": inspect_pdf("listed", listed_label, listed_url),
-        "applicants": inspect_pdf("applicants", applicant_label, applicant_url),
+        "listed": listed,
+        "applicants": applicants,
+    }
+    summary = {
+        "landing_url": LANDING_URL,
+        "landing_bytes": len(landing_first),
+        "landing_sha256": sha256(landing_first),
+        "landing_captures_identical": True,
+        "listed": compact_pdf(listed),
+        "applicants": compact_pdf(applicants),
     }
     (OUT / "lecce_probe.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+    (OUT / "lecce_probe_summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps(summary, ensure_ascii=False, sort_keys=True))
 
 
 if __name__ == "__main__":
