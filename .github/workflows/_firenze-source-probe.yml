@@ -1,0 +1,140 @@
+name: Firenze source probe
+
+on:
+  push:
+    branches:
+      - expansion/firenze-2026-09-18
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve current official Firenze attachments
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE='https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'
+          mkdir -p /tmp/firenze-probe
+          curl -fL --retry 2 --connect-timeout 20 --max-time 90 \
+            -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' \
+            -H 'Accept: text/html,application/xhtml+xml' \
+            "$PAGE" -o /tmp/firenze-probe/page.html
+          echo "PAGE_BYTES=$(wc -c </tmp/firenze-probe/page.html)"
+          echo "PAGE_SHA256=$(sha256sum /tmp/firenze-probe/page.html | cut -d' ' -f1)"
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          base='https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte'
+          html=Path('/tmp/firenze-probe/page.html').read_text(encoding='utf-8', errors='replace')
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.a=None; self.out=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower()=='a':
+                      d=dict(attrs); self.a={'href':d.get('href',''),'text':[]}
+              def handle_data(self, data):
+                  if self.a is not None: self.a['text'].append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower()=='a' and self.a is not None:
+                      href=self.a['href']; text=' '.join(''.join(self.a['text']).split())
+                      if href:
+                          self.out.append((text,urljoin(base,href)))
+                      self.a=None
+          p=P(); p.feed(html)
+          files=[]
+          print('=== ALL SOURCE/FILE LINKS ===')
+          for text,url in p.out:
+              if '/sites/default/files/' in url or 'white' in text.lower() or 'richied' in text.lower():
+                  print(f'{text}\t{url}')
+              if '/sites/default/files/' in url:
+                  files.append((text,url))
+          Path('/tmp/firenze-probe/files.tsv').write_text('\n'.join(f'{t}\t{u}' for t,u in files),encoding='utf-8')
+          print(f'FILE_LINK_COUNT={len(files)}')
+          PY
+
+          i=0
+          while IFS=$'\t' read -r label url; do
+            [ -z "${url:-}" ] && continue
+            i=$((i+1))
+            out="/tmp/firenze-probe/file-${i}"
+            echo "=== FILE ${i} ==="
+            echo "LABEL=${label}"
+            echo "URL=${url}"
+            curl -fL --retry 2 --connect-timeout 20 --max-time 120 \
+              -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36' \
+              "$url" -o "$out"
+            echo "BYTES=$(wc -c <"$out")"
+            echo "SHA256=$(sha256sum "$out" | cut -d' ' -f1)"
+            echo "FILETYPE=$(file -b "$out")"
+          done </tmp/firenze-probe/files.tsv
+
+      - name: Inspect attachment structures
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils >/dev/null
+          python -m pip install -q openpyxl python-docx pypdf
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess, zipfile
+          root=Path('/tmp/firenze-probe')
+          rows=root.joinpath('files.tsv').read_text(encoding='utf-8').splitlines()
+          for i,row in enumerate(rows,1):
+              if not row.strip(): continue
+              label,url=row.split('\t',1)
+              p=root/f'file-{i}'
+              b=p.read_bytes()[:8]
+              print(f'\n=== STRUCTURE {i}: {label} ===')
+              if b.startswith(b'%PDF'):
+                  subprocess.run(['pdfinfo',str(p)],check=False)
+                  txt=root/f'file-{i}.txt'
+                  subprocess.run(['pdftotext','-layout',str(p),str(txt)],check=True)
+                  lines=txt.read_text(encoding='utf-8',errors='replace').splitlines()
+                  print(f'PDF_TEXT_LINES={len(lines)}')
+                  for line in lines[:180]: print(line[:300])
+              elif b.startswith(b'PK'):
+                  names=[]
+                  with zipfile.ZipFile(p) as z: names=z.namelist()
+                  if any(n.startswith('xl/') for n in names):
+                      from openpyxl import load_workbook
+                      wb=load_workbook(p,read_only=True,data_only=True)
+                      print('XLSX_SHEETS='+repr(wb.sheetnames))
+                      for ws in wb.worksheets:
+                          print(f'SHEET={ws.title!r} MAX_ROW={ws.max_row} MAX_COL={ws.max_column}')
+                          shown=0
+                          for vals in ws.iter_rows(values_only=True):
+                              if any(v not in (None,'') for v in vals):
+                                  print('ROW='+repr(tuple(vals))[:1200])
+                                  shown+=1
+                                  if shown>=20: break
+                  elif any(n.startswith('word/') for n in names):
+                      from docx import Document
+                      doc=Document(p)
+                      print(f'DOCX_TABLES={len(doc.tables)} PARAGRAPHS={len(doc.paragraphs)}')
+                      for ti,t in enumerate(doc.tables[:4]):
+                          print(f'TABLE={ti} ROWS={len(t.rows)} COLS={len(t.columns)}')
+                          for r in t.rows[:15]: print('ROW='+repr(tuple(c.text for c in r.cells))[:1200])
+                  else:
+                      print('ZIP_CONTENT='+repr(names[:30]))
+              else:
+                  print('UNHANDLED_MAGIC='+repr(b))
+          PY
+
+      - name: Upload bounded probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: firenze-source-probe
+          path: |
+            /tmp/firenze-probe/page.html
+            /tmp/firenze-probe/files.tsv
+            /tmp/firenze-probe/file-*.txt
+          if-no-files-found: warn
+          retention-days: 3
