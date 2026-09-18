@@ -16,8 +16,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install project and publication parser dependencies
-        run: python -m pip install --disable-pip-version-check -q -e '.[publication]'
+      - name: Install project and parser test dependencies
+        run: python -m pip install --disable-pip-version-check -q -e '.[dev,publication]'
 
       - name: Capture verified current Messina sources
         shell: bash
@@ -40,54 +40,60 @@ jobs:
           test "$(sha256sum /tmp/messina/applicants-1.pdf | cut -d' ' -f1)" = '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4'
           test "$(sha256sum /tmp/messina/listed-1.pdf | cut -d' ' -f1)" = 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e'
 
-      - name: Capture listed parser diagnostic
+      - name: Validate fail-closed Messina parsers against current sources
         shell: bash
         run: |
-          set +e
-          python - <<'PY' > /tmp/messina/listed-diagnostic.txt 2>&1
+          python - <<'PY'
           from pathlib import Path
-          from white_list_archive.parsers.messina_tables import parse_messina_listed
-          cfg = {
-              'authority_key': 'messina', 'authority_name': 'Prefettura di Messina',
-              'register_key': 'messina-ordinary', 'register_name': 'White List ordinaria',
+          from white_list_archive.parsers.messina_tables import parse_messina_applicants, parse_messina_listed
+
+          common = {
+              'authority_key': 'messina',
+              'authority_name': 'Prefettura di Messina',
+              'register_key': 'messina-ordinary',
+              'register_name': 'White List ordinaria',
               'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
-              'source_key': 'messina-listed', 'population_scope': 'listed', 'reference_date': '2026-09-11',
+          }
+          listed = parse_messina_listed(Path('/tmp/messina/listed-1.pdf'), {
+              **common,
+              'source_key': 'messina-listed',
+              'population_scope': 'listed',
+              'reference_date': '2026-09-11',
               'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf',
               'sha256': 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e',
-          }
-          batch = parse_messina_listed(Path('/tmp/messina/listed-1.pdf'), cfg)
-          print('OK', batch.diagnostics)
+          })
+          applicants = parse_messina_applicants(Path('/tmp/messina/applicants-1.pdf'), {
+              **common,
+              'source_key': 'messina-applicants',
+              'population_scope': 'applicant',
+              'reference_date': '2026-09-11',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf',
+              'sha256': '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
+          })
+          print('listed diagnostics:', listed.diagnostics)
+          print('applicant diagnostics:', applicants.diagnostics)
+          assert len(listed.records) == 880
+          assert len(applicants.records) == 154
+          assert len(listed.records) + len(applicants.records) == 1034
           PY
-          true
 
-      - name: Capture applicant parser diagnostic
+      - name: Capture repository-test diagnostics
         shell: bash
         run: |
           set +e
-          python - <<'PY' > /tmp/messina/applicants-diagnostic.txt 2>&1
-          from pathlib import Path
-          from white_list_archive.parsers.messina_tables import parse_messina_applicants
-          cfg = {
-              'authority_key': 'messina', 'authority_name': 'Prefettura di Messina',
-              'register_key': 'messina-ordinary', 'register_name': 'White List ordinaria',
-              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
-              'source_key': 'messina-applicants', 'population_scope': 'applicant', 'reference_date': '2026-09-11',
-              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf',
-              'sha256': '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
-          }
-          batch = parse_messina_applicants(Path('/tmp/messina/applicants-1.pdf'), cfg)
-          print('OK', batch.diagnostics)
-          PY
+          python -m pytest -q > /tmp/messina/pytest.txt 2>&1
+          rc=$?
+          echo "$rc" > /tmp/messina/pytest.exit
           true
 
-      - name: Upload diagnostic source capture
+      - name: Upload reviewed source and test diagnostics
         uses: actions/upload-artifact@v4
         with:
-          name: messina-source-diagnostics
+          name: messina-validation-diagnostics
           path: |
             /tmp/messina/page-1.html
             /tmp/messina/applicants-1.pdf
             /tmp/messina/listed-1.pdf
-            /tmp/messina/listed-diagnostic.txt
-            /tmp/messina/applicants-diagnostic.txt
+            /tmp/messina/pytest.txt
+            /tmp/messina/pytest.exit
           if-no-files-found: error
