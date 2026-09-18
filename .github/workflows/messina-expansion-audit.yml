@@ -16,10 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install audit dependencies
-        run: python -m pip install --disable-pip-version-check -q pdfplumber
+      - name: Install project
+        run: python -m pip install --disable-pip-version-check -q -e .
 
-      - name: Capture and inspect current official Messina White List sources
+      - name: Capture verified current Messina sources
         shell: bash
         run: |
           set -euo pipefail
@@ -33,83 +33,55 @@ jobs:
             curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" -o "/tmp/messina/applicants-$i.pdf" "$APPLICANTS"
             curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" -o "/tmp/messina/listed-$i.pdf" "$LISTED"
           done
-          echo '=== CAPTURE INTEGRITY ==='
-          wc -c /tmp/messina/page-*.html /tmp/messina/applicants-*.pdf /tmp/messina/listed-*.pdf
           sha256sum /tmp/messina/page-*.html /tmp/messina/applicants-*.pdf /tmp/messina/listed-*.pdf
-          cmp /tmp/messina/page-1.html /tmp/messina/page-2.html && echo landing_page_byte_identical=true
-          cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf && echo applicants_byte_identical=true
-          cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf && echo listed_byte_identical=true
+          cmp /tmp/messina/page-1.html /tmp/messina/page-2.html
+          cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf
+          cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf
+          test "$(sha256sum /tmp/messina/page-1.html | cut -d' ' -f1)" = '3fbd45c92d1a863a021463f30f2a58ef40ea647888f3faaa5513f6e5ab1260d0'
+          test "$(sha256sum /tmp/messina/applicants-1.pdf | cut -d' ' -f1)" = '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4'
+          test "$(sha256sum /tmp/messina/listed-1.pdf | cut -d' ' -f1)" = 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e'
 
+      - name: Exercise fail-closed Messina parsers
+        shell: bash
+        run: |
           python - <<'PY'
-          from collections import Counter
           from pathlib import Path
-          import json, re
-          import pdfplumber
+          from white_list_archive.parsers.messina_tables import parse_messina_applicants, parse_messina_listed
 
-          DIGITS11=re.compile(r'^\d{11}$')
-          CF16=re.compile(r'^[A-Z0-9]{16}$')
-          DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
-          def clean(v): return '' if v is None else ' '.join(str(v).replace('\n',' ').split())
-          def ident_values(raw):
-              vals=[]
-              for token in re.split(r'[\s,;/]+', clean(raw).upper()):
-                  token=token.strip('()[]-')
-                  if DIGITS11.fullmatch(token) or CF16.fullmatch(token): vals.append(token)
-              return list(dict.fromkeys(vals))
-
-          for label,path in [('applicants',Path('/tmp/messina/applicants-1.pdf')),('listed',Path('/tmp/messina/listed-1.pdf'))]:
-              print(f'=== REFINED {label.upper()} ===')
-              company=[]; noncompany=[]; per_page=[]; tables_meta=[]
-              with pdfplumber.open(path) as pdf:
-                  print('pages=',len(pdf.pages))
-                  for pageno,page in enumerate(pdf.pages,1):
-                      pcompany=[]
-                      tables=page.find_tables()
-                      for ti,t in enumerate(tables,1):
-                          rows=t.extract()
-                          tables_meta.append((pageno,ti,len(rows),tuple(round(x,1) for x in t.bbox)))
-                          for ri,row in enumerate(rows):
-                              cells=[clean(v) for v in row]
-                              raw_id=cells[3] if len(cells)>=4 else ''
-                              ids=ident_values(raw_id)
-                              if ids:
-                                  item=(pageno,ti,ri,cells,ids)
-                                  company.append(item); pcompany.append(item)
-                              else:
-                                  noncompany.append((pageno,ti,ri,cells))
-                      per_page.append(len(pcompany))
-                  if label=='applicants':
-                      date_words=[]
-                      for pageno,page in enumerate(pdf.pages,1):
-                          for w in page.extract_words():
-                              text=clean(w['text'])
-                              if DATE.fullmatch(text):
-                                  date_words.append((pageno,round(float(w['top']),1),round(float(w['x0']),1),text))
-                      print('applicant_date_tokens_total=',len(date_words))
-                      print('applicant_date_tokens_per_page=',dict(Counter(x[0] for x in date_words)))
-                      print('applicant_date_x0_range=',(min(x[2] for x in date_words),max(x[2] for x in date_words)))
-                      print('applicant_date_first_last=',json.dumps(date_words[:4]+date_words[-4:],ensure_ascii=False))
-
-              print('tables_meta=',tables_meta)
-              print('company_rows_per_page=',per_page,'total=',len(company))
-              ids=[v for *_,vals in company for v in vals]
-              print('identifier_values_total=',len(ids),'unique=',len(set(ids)))
-              print('company_rows_with_multiple_identifiers=',json.dumps([(p,t,r,c[0],c[3],vals) for p,t,r,c,vals in company if len(vals)>1],ensure_ascii=False))
-              print('duplicate_identifier_values=',[(k,v) for k,v in Counter(ids).items() if v>1])
-              print('noncompany_rows_count=',len(noncompany))
-              print('noncompany_rows=',json.dumps(noncompany,ensure_ascii=False))
-              print('first_company=',json.dumps(company[:3],ensure_ascii=False))
-              print('last_company=',json.dumps(company[-3:],ensure_ascii=False))
-              if label=='listed':
-                  updates=Counter(cells[6] for _,_,_,cells,_ in company)
-                  activities=Counter(cells[7] for _,_,_,cells,_ in company)
-                  bad=[]
-                  for p,t,r,cells,_ in company:
-                      for idx,field in ((4,'listing'),(5,'expiry')):
-                          if cells[idx] and not DATE.fullmatch(cells[idx]): bad.append((p,t,r,cells[0],field,cells[idx]))
-                  print('status_column=',json.dumps(updates,ensure_ascii=False,sort_keys=True))
-                  print('activity_distinct=',len(activities))
-                  print('nonstandard_dates=',json.dumps(bad,ensure_ascii=False))
+          common = {
+              'authority_key': 'messina',
+              'authority_name': 'Prefettura di Messina',
+              'register_key': 'messina-ordinary',
+              'register_name': 'White List ordinaria',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list',
+          }
+          listed_cfg = {
+              **common,
+              'source_key': 'messina-listed',
+              'population_scope': 'listed',
+              'reference_date': '2026-09-11',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf',
+              'sha256': 'cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e',
+          }
+          applicants_cfg = {
+              **common,
+              'source_key': 'messina-applicants',
+              'population_scope': 'applicant',
+              'reference_date': '2026-09-11',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf',
+              'sha256': '852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4',
+          }
+          listed = parse_messina_listed(Path('/tmp/messina/listed-1.pdf'), listed_cfg)
+          applicants = parse_messina_applicants(Path('/tmp/messina/applicants-1.pdf'), applicants_cfg)
+          print('listed diagnostics:', listed.diagnostics)
+          print('applicant diagnostics:', applicants.diagnostics)
+          assert len(listed.records) == 880
+          assert len(applicants.records) == 154
+          assert len(listed.records) + len(applicants.records) == 1034
+          sitec = [r for r in applicants.records if r['name'] == 'SITEC S.R.L.']
+          assert len(sitec) == 1 and sitec[0]['identifiers'] == [] and sitec[0]['application_date']
+          avio = [r for r in applicants.records if r['name'] == 'AVIOMARKETING S.P.A. UNIPERSONALE']
+          assert len(avio) == 1 and len(avio[0]['identifiers']) == 2
           PY
 
       - name: Upload reviewed source capture
