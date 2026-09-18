@@ -58,4 +58,5 @@ jobs:
           assert len(batch.records)==187
           assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':99,'pending':38,'renewal_update_in_progress':50})
           assert sum(bool(r['identifiers']) for r in batch.records)==183
+          assert sum(len(r['identifiers']) for r in batch.records)==203
           PY
