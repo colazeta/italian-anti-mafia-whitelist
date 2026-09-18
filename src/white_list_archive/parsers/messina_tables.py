@@ -13,7 +13,7 @@ from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _cle
 
 LISTED_PARSER_NAME = "messina_listed"
 APPLICANT_PARSER_NAME = "messina_applicants"
-PARSER_VERSION = "1"
+PARSER_VERSION = "2"
 
 _EXPECTED_LISTED_PAGES = 9
 _EXPECTED_LISTED_PAGE_ROWS = [88, 101, 102, 102, 102, 102, 101, 102, 80]
@@ -97,6 +97,29 @@ def _listed_status(update_raw: str) -> str:
     if value == "SI":
         return "renewal_update_in_progress"
     raise RuntimeError(f"Messina unreviewed listed update marker: {value!r}")
+
+
+def _listed_source_fields(
+    sections_raw: str,
+    listing_raw: str,
+    expiry_raw: str,
+    update_raw: str,
+) -> dict[str, Any]:
+    """Map Messina raw observations onto the already approved public contract."""
+    return {
+        "requested_activities_source": _clean(sections_raw),
+        "listing_date_raw_variants": [_clean(listing_raw)] if _clean(listing_raw) else [],
+        "expiry_date_raw_variants": [_clean(expiry_raw)] if _clean(expiry_raw) else [],
+        "in_aggiornamento": _clean(update_raw),
+    }
+
+
+def _applicant_source_fields(sections_raw: str, application_raw: str) -> dict[str, Any]:
+    """Preserve applicant raw values without expanding the public field allow-list."""
+    return {
+        "requested_activities_source": _clean(sections_raw),
+        "application_date_raw": _clean(application_raw),
+    }
 
 
 def parse_messina_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
@@ -185,12 +208,12 @@ def parse_messina_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             listing_date=listing_raw,
             expiry_date=expiry_raw,
             primary_date_label="Data iscrizione",
-            source_fields={
-                "sections_raw": sections_raw,
-                "listing_date_raw": listing_raw,
-                "expiry_date_raw": expiry_raw,
-                "aggiornamento_in_corso": update_raw,
-            },
+            source_fields=_listed_source_fields(
+                sections_raw,
+                listing_raw,
+                expiry_raw,
+                update_raw,
+            ),
         )
         record["identifiers"] = _strict_identifiers(identifier_raw)
         records.append(record)
@@ -338,10 +361,7 @@ def parse_messina_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             status="pending",
             application_date=application_raw,
             primary_date_label="Data presentazione istanza",
-            source_fields={
-                "sections_raw": sections_raw,
-                "application_date_raw": application_raw,
-            },
+            source_fields=_applicant_source_fields(sections_raw, application_raw),
         )
         record["identifiers"] = _strict_identifiers(identifier_raw)
         records.append(record)
