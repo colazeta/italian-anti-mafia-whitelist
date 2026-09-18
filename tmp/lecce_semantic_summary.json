@@ -1,0 +1,893 @@
+{
+  "applicants": {
+    "blank_identifier_rows": 0,
+    "duplicate_identity_count": 0,
+    "duplicate_identity_occurrences": 0,
+    "invalid_date_count": 0,
+    "invalid_date_examples": [],
+    "multi_identifier_rows": 19,
+    "nondata_first_cell_counts": {
+      "RAGIONE SOCIALE": 10
+    },
+    "pdf_pages": 10,
+    "raw_identifier_only_rows": 0,
+    "rows": 90,
+    "structured_identifier_rows": 90,
+    "unique_identity_count": 90
+  },
+  "applicants_sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124",
+  "applicants_url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-richiedenti-iscrizione-aggiornato-9-settembre-2026.pdf",
+  "listed": {
+    "blank_identifier_rows": 0,
+    "cross_section_conflict_counts": {
+      "expiry": 11,
+      "listing": 14,
+      "name": 37,
+      "office": 11,
+      "update": 15
+    },
+    "cross_section_conflict_examples": [
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:04449050758",
+        "observations": [
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A. RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 1,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A. RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 10,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "II",
+            "update": ""
+          },
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A. RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 18,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A.RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 38,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A. RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 53,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "29/06/2027",
+            "listing": "30/06/2026",
+            "name": "A. RICCARDO S.r.l.",
+            "office": "SUPERSANO",
+            "page": 67,
+            "raw_identifier": "04449050758",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:03709170272",
+        "observations": [
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.r.l.",
+            "office": "VEGLIE",
+            "page": 1,
+            "raw_identifier": "03709170272",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.R.L.",
+            "office": "VEGLIE",
+            "page": 10,
+            "raw_identifier": "03709170272",
+            "secondary": "",
+            "section": "II",
+            "update": ""
+          },
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.R.L.",
+            "office": "VEGLIE",
+            "page": 19,
+            "raw_identifier": "03709170272",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.R.L.",
+            "office": "VEGLIE",
+            "page": 53,
+            "raw_identifier": "03709170272",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.R.L.",
+            "office": "VEGLIE",
+            "page": 67,
+            "raw_identifier": "03709170272",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:03715860759",
+        "observations": [
+          {
+            "expiry": "23/07/2027",
+            "listing": "24/07/2026",
+            "name": "BASTONE SALVATORE S.r.l.",
+            "office": "NARDO’",
+            "page": 1,
+            "raw_identifier": "03715860759",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "23/07/2027",
+            "listing": "24/07/2026",
+            "name": "BASTONE SALVATORE S.r.l.",
+            "office": "NARDO’",
+            "page": 19,
+            "raw_identifier": "03715860759",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "23/07/2027",
+            "listing": "24/07/2026",
+            "name": "BASTONE SALVATORE S.R.L.",
+            "office": "NARDO’",
+            "page": 39,
+            "raw_identifier": "03715860759",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "23/07/2027",
+            "listing": "24/07/2026",
+            "name": "BASTONE SALVATORE S.r.l.",
+            "office": "NARDO’",
+            "page": 53,
+            "raw_identifier": "03715860759",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "23/07/2027",
+            "listing": "24/07/2026",
+            "name": "BASTONE SALVATORE S.r.l.",
+            "office": "NARDO’",
+            "page": 67,
+            "raw_identifier": "03715860759",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name",
+          "office",
+          "listing",
+          "expiry",
+          "update"
+        ],
+        "identity": "ids:05054270755",
+        "observations": [
+          {
+            "expiry": "04/09/2026",
+            "listing": "05/09/2025",
+            "name": "BERLOR GENERAL CONTRACTOR S.r.l.",
+            "office": "CARMIANO",
+            "page": 1,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "I",
+            "update": "AGGIORNAMENTO IN CORSO"
+          },
+          {
+            "expiry": "04/09/2026",
+            "listing": "05/09/2025",
+            "name": "BERLOR GENERAL CONTRACTOR S.r.l.",
+            "office": "CARMIANO",
+            "page": 19,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "III",
+            "update": "AGGIORNAMENTO IN CORSO"
+          },
+          {
+            "expiry": "27/08/2027",
+            "listing": "28/08/2026",
+            "name": "ATS CONSULTING S.R.L.",
+            "office": "VEGLIE",
+            "page": 39,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "BRI.ECO S.r.l.",
+            "office": "TAVIANO",
+            "page": 53,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "04/09/2026",
+            "listing": "05/09/2025",
+            "name": "BERLOR GENERAL CONTRACTOR S.r.l.",
+            "office": "CARMIANO",
+            "page": 63,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "VIII",
+            "update": "AGGIORNAMENTO IN CORSO"
+          },
+          {
+            "expiry": "09/03/2026",
+            "listing": "10/03/2025",
+            "name": "BIOSUD S.R.L.",
+            "office": "LECCE",
+            "page": 68,
+            "raw_identifier": "05054270755",
+            "secondary": "",
+            "section": "X",
+            "update": "AGGIORNAMENTO IN CORSO"
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:04168530758",
+        "observations": [
+          {
+            "expiry": "08/04/2027",
+            "listing": "09/04/2026",
+            "name": "CALORA S.U.R.L.",
+            "office": "SANTA CESAREA TERME",
+            "page": 1,
+            "raw_identifier": "04168530758",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "08/04/2027",
+            "listing": "09/04/2026",
+            "name": "CALORA S.u.r.l.",
+            "office": "SANTA CESAREA TERME",
+            "page": 19,
+            "raw_identifier": "04168530758",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "08/04/2027",
+            "listing": "09/04/2026",
+            "name": "CALORA S.u.r.l.",
+            "office": "SANTA CESAREA TERME",
+            "page": 39,
+            "raw_identifier": "04168530758",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "08/04/2027",
+            "listing": "09/04/2026",
+            "name": "CALORA S.U.R.L.",
+            "office": "SANTA CESAREA TERME",
+            "page": 68,
+            "raw_identifier": "04168530758",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:03774200756",
+        "observations": [
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 2,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 10,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "II",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 19,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.r.l.",
+            "office": "LIZZANELLO",
+            "page": 31,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "IV",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 39,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 54,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "20/05/2027",
+            "listing": "21/05/2026",
+            "name": "CENTO 18 AMBIENTE S.R.L.",
+            "office": "LIZZANELLO",
+            "page": 68,
+            "raw_identifier": "03774200756",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "office"
+        ],
+        "identity": "ids:03573440751",
+        "observations": [
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "R A C A L E",
+            "page": 2,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "RACALE",
+            "page": 11,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "II",
+            "update": ""
+          },
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "RACALE",
+            "page": 20,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "RACALE",
+            "page": 31,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "IV",
+            "update": ""
+          },
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "RACALE",
+            "page": 40,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "16/10/2026",
+            "listing": "17/10/2025",
+            "name": "CO.GE.S. S.r.l. (già CO.GE.S. S.n.c. di Bruno Mauro e Piero)",
+            "office": "RACALE",
+            "page": 68,
+            "raw_identifier": "03573440751",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name",
+          "listing",
+          "expiry",
+          "update"
+        ],
+        "identity": "ids:03043930753|CPPGLN66E08F054L",
+        "observations": [
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "COPPOLA GIULIANO- Impr. Ind.",
+            "office": "MATINO",
+            "page": 2,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "COPPOLA GIULIANO - Impr. Ind.",
+            "office": "MATINO",
+            "page": 11,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "II",
+            "update": ""
+          },
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "COPPOLA GIULIANO - Impr. Ind.",
+            "office": "MATINO",
+            "page": 20,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "COPPOLA GIULIANO - Impr. Ind.",
+            "office": "MATINO",
+            "page": 40,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "18/11/2025",
+            "listing": "19/11/2024",
+            "name": "COPPOLA GIULIANO - Impr. Ind.",
+            "office": "MATINO",
+            "page": 54,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "VI",
+            "update": "AGGIORNAMENTO IN CORSO"
+          },
+          {
+            "expiry": "30/06/2027",
+            "listing": "01/07/2026",
+            "name": "COPPOLA GIULIANO - Impr. Ind.",
+            "office": "MATINO",
+            "page": 69,
+            "raw_identifier": "CPPGLN66E08F054L 03043930753",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name"
+        ],
+        "identity": "ids:02569500750",
+        "observations": [
+          {
+            "expiry": "20/01/2027",
+            "listing": "21/01/2026",
+            "name": "DAMIANI COSTRUZIONI S.n.c. di DAMIANI Rocco",
+            "office": "UGENTO",
+            "page": 2,
+            "raw_identifier": "02569500750",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "20/01/2027",
+            "listing": "21/01/2026",
+            "name": "DAMIANI COSTRUZIONI S.n.c. di Damiani Rocco",
+            "office": "UGENTO",
+            "page": 21,
+            "raw_identifier": "02569500750",
+            "secondary": "",
+            "section": "III",
+            "update": ""
+          },
+          {
+            "expiry": "20/01/2027",
+            "listing": "21/01/2026",
+            "name": "DAMIANI COSTRUZIONI S.n.c. di Damiani Rocco",
+            "office": "UGENTO",
+            "page": 41,
+            "raw_identifier": "02569500750",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "20/01/2027",
+            "listing": "21/01/2026",
+            "name": "DAMIANI COSTRUZIONI S.n.c. di Damiani Rocco",
+            "office": "UGENTO",
+            "page": 69,
+            "raw_identifier": "02569500750",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      },
+      {
+        "changed": [
+          "name",
+          "listing",
+          "expiry"
+        ],
+        "identity": "ids:03179920750|TRNDNT76T21L419S",
+        "observations": [
+          {
+            "expiry": "18/03/2027",
+            "listing": "19/03/2026",
+            "name": "DITTA TRANNE DONATO - Impresa individuale",
+            "office": "SPECCHIA",
+            "page": 3,
+            "raw_identifier": "TRNDNT76T21L419S 03179920750",
+            "secondary": "",
+            "section": "I",
+            "update": ""
+          },
+          {
+            "expiry": "18/03/2027",
+            "listing": "19/03/2026",
+            "name": "DITTA TRANNE DONATO - Impresa individuale",
+            "office": "SPECCHIA",
+            "page": 41,
+            "raw_identifier": "TRNDNT76T21L419S 03179920750",
+            "secondary": "",
+            "section": "V",
+            "update": ""
+          },
+          {
+            "expiry": "18/03/2027",
+            "listing": "19/03/2026",
+            "name": "DITTA TRANNE DONATO - Impresa individuale",
+            "office": "SPECCHIA",
+            "page": 55,
+            "raw_identifier": "TRNDNT76T21L419S 03179920750",
+            "secondary": "",
+            "section": "VI",
+            "update": ""
+          },
+          {
+            "expiry": "30/05/2025",
+            "listing": "31/05/2024",
+            "name": "TRANNE DONATO - Impresa individuale",
+            "office": "SPECCHIA",
+            "page": 64,
+            "raw_identifier": "TRNDNT76T21L419S 03179920750",
+            "secondary": "",
+            "section": "VIII",
+            "update": ""
+          },
+          {
+            "expiry": "18/03/2027",
+            "listing": "19/03/2026",
+            "name": "DITTA TRANNE DONATO - Impresa individuale",
+            "office": "SPECCHIA",
+            "page": 70,
+            "raw_identifier": "TRNDNT76T21L419S 03179920750",
+            "secondary": "",
+            "section": "X",
+            "update": ""
+          }
+        ]
+      }
+    ],
+    "cross_section_duplicate_rows": 1024,
+    "invalid_date_count": 6,
+    "invalid_date_examples": [
+      {
+        "field": "expiry",
+        "page": 2,
+        "raw": "16/101/2026",
+        "row": 23
+      },
+      {
+        "field": "listing",
+        "page": 5,
+        "raw": "09-apr",
+        "row": 23
+      },
+      {
+        "field": "listing",
+        "page": 8,
+        "raw": "0 9/09/2026",
+        "row": 40
+      },
+      {
+        "field": "listing",
+        "page": 23,
+        "raw": "2 8 / 0 8 /2026",
+        "row": 19
+      },
+      {
+        "field": "listing",
+        "page": 43,
+        "raw": "2 8 / 0 8 / 2 026",
+        "row": 23
+      },
+      {
+        "field": "expiry",
+        "page": 71,
+        "raw": "14//04/2025",
+        "row": 6
+      }
+    ],
+    "multi_identifier_rows": 276,
+    "nondata_first_cell_counts": {
+      "(art. 1, commi dal 52 al 57, della Legge n. 190/2012; D.P.C.M. 18 aprile 2013)": 77,
+      "Denominazione / Ragione Sociale / Ditta": 77,
+      "ELENCO DEI FORNITORI, PRESTATORI DI SERVIZI ED ESECUTORI DI LAVORI NON SOGGETTI A TENTATIVO DI INFIL": 77,
+      "Gestione Documentazione Antimafia": 76,
+      "SEZIONE I – ESTRAZIONE, FORNITURA E TRASPORTO DI TERRA E MATERIALI INERTI": 9,
+      "SEZIONE II – CONFEZIONAMENTO, FORNITURA E TRASPORTO DI CALCESTRUZZO E BITUME": 8,
+      "SEZIONE III – NOLI A FREDDO DI MACCHINARI": 13,
+      "SEZIONE IV – FORNITURA DI FERRO LAVORATO": 7,
+      "SEZIONE IX - RISTORAZIONE, GESTIONE DELLE MENSE E CATERING": 1,
+      "SEZIONE V – NOLI A CALDO": 15,
+      "SEZIONE VI – AUTOTRASPORTI PER CONTO TERZI": 9,
+      "SEZIONE VII – GUARDIANIA AI CANTIERI": 1,
+      "SEZIONE VIII - SERVIZI FUNERARI E CIMITERIALI": 2,
+      "SEZIONE X - SERVIZI AMBIENTALI ( EX SEZ. I E SEZ. II )": 12
+    },
+    "page_sections": {
+      "1": "I",
+      "2": "I",
+      "3": "I",
+      "4": "I",
+      "5": "I",
+      "6": "I",
+      "7": "I",
+      "8": "I",
+      "9": "I",
+      "10": "II",
+      "11": "II",
+      "12": "II",
+      "13": "II",
+      "14": "II",
+      "15": "II",
+      "16": "II",
+      "17": "II",
+      "18": "III",
+      "19": "III",
+      "20": "III",
+      "21": "III",
+      "22": "III",
+      "23": "III",
+      "24": "III",
+      "25": "III",
+      "26": "III",
+      "27": "III",
+      "28": "III",
+      "29": "III",
+      "30": "III",
+      "31": "IV",
+      "32": "IV",
+      "33": "IV",
+      "34": "IV",
+      "35": "IV",
+      "36": "IV",
+      "37": "IV",
+      "38": "V",
+      "39": "V",
+      "40": "V",
+      "41": "V",
+      "42": "V",
+      "43": "V",
+      "44": "V",
+      "45": "V",
+      "46": "V",
+      "47": "V",
+      "48": "V",
+      "49": "V",
+      "50": "V",
+      "51": "V",
+      "52": "V",
+      "53": "VI",
+      "54": "VI",
+      "55": "VI",
+      "56": "VI",
+      "57": "VI",
+      "58": "VI",
+      "59": "VI",
+      "60": "VI",
+      "61": "VI",
+      "62": "VII",
+      "63": "VIII",
+      "64": "VIII",
+      "65": "IX",
+      "66": "IX",
+      "67": "X",
+      "68": "X",
+      "69": "X",
+      "70": "X",
+      "71": "X",
+      "72": "X",
+      "73": "X",
+      "74": "X",
+      "75": "X",
+      "76": "X",
+      "77": "X",
+      "78": "X"
+    },
+    "pdf_pages": 78,
+    "raw_identifier_only_rows": 29,
+    "raw_sector_rows": 1783,
+    "section_cardinality_per_identity": {
+      "1": 349,
+      "2": 142,
+      "3": 90,
+      "4": 72,
+      "5": 63,
+      "6": 29,
+      "7": 11,
+      "8": 2,
+      "9": 1
+    },
+    "section_raw_rows": {
+      "I": 316,
+      "II": 136,
+      "III": 333,
+      "IV": 106,
+      "IX": 45,
+      "V": 339,
+      "VI": 209,
+      "VII": 7,
+      "VIII": 48,
+      "X": 244
+    },
+    "structured_identifier_rows": 1754,
+    "unique_identity_count": 759,
+    "update_value_counts": {
+      "": 1257,
+      "(Consorzio sottoposto alla misura del CONTROLLO GIUDIZIARIO ex art. 34 bis del D.Lgs n.159/2011, per la DURATA DI ANNI 1, a decorrere dal 24.7.2023, come da decreto del Tribunale di Lecce - Sezione Misure di Prevenzione depositato il 24.7.2023)": 1,
+      "AGGIORANMENTO IN CORSO": 1,
+      "AGGIORNAMENTO I N CORSO": 2,
+      "AGGIORNAMENTO IN CORSO": 516,
+      "AGGIORNAMENTO IN CORSO (richiesta rinnovo tramite PortaleWL del 3.8.2026)": 1,
+      "AGGIORNAMENTO IN CORSO PER VARIAZIONE COMPAGINE": 3,
+      "AGGIORNAMENTO PER VARIAZIONE COMPAGINE": 1,
+      "L’iscrizioneèstataeffettuatainvirtùdella prorogadel controllogiudiziarioexart.34 bis del D.Lgs. 159/2011 disposta dal Tribunale di Lecce – Sezione Misure di Prevenzione con provvedimento del 6.7.2023, depositato in cancelleria il 19.7.2023 per la durata di un anno a decorrere dal 26.7.2023.": 1
+    }
+  },
+  "listed_sha256": "acbe7b735107d48735bc8d01902fc73d49f00e6d8d6ef11dc0c1f9dfd344765d",
+  "listed_url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-white-list-per-categoria-aggiornato-9-settembre-2026.pdf"
+}
