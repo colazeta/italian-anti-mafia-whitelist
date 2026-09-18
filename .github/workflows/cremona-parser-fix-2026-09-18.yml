@@ -1,0 +1,41 @@
+name: Cremona parser identifier fix 2026-09-18
+
+on:
+  push:
+    branches:
+      - expansion/cremona-2026-09-18
+    paths:
+      - .github/workflows/cremona-parser-fix-2026-09-18.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cremona-2026-09-18
+          fetch-depth: 0
+      - name: Preserve identifier source-cell line boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/white_list_archive/parsers/cremona_combined.py')
+          s=p.read_text()
+          old='''        number, name, office, identifier_raw, listing_raw, expiry_raw, note_raw, *section_cells = [\n            _clean(cell) for cell in row\n        ]\n'''
+          new='''        number = _clean(row[0])\n        name = _clean(row[1])\n        office = _clean(row[2])\n        # Preserve pdfplumber's line boundary between a codice fiscale and an\n        # 11-digit VAT number. _record will normalise display whitespace later.\n        identifier_raw = str(row[3] or "").strip()\n        listing_raw = _clean(row[4])\n        expiry_raw = _clean(row[5])\n        note_raw = _clean(row[6])\n        section_cells = [_clean(cell) for cell in row[7:]]\n'''
+          if s.count(old)!=1:
+              raise SystemExit('expected parser assignment block not found exactly once')
+          p.write_text(s.replace(old,new))
+          PY
+          python -m py_compile src/white_list_archive/parsers/cremona_combined.py
+          git diff --check
+          git diff -- src/white_list_archive/parsers/cremona_combined.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/cremona_combined.py
+          test "$(git diff --cached --name-only)" = 'src/white_list_archive/parsers/cremona_combined.py'
+          git commit -m 'Preserve Cremona identifier cell boundaries'
+          git push origin HEAD:expansion/cremona-2026-09-18
