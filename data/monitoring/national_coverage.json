@@ -2555,9 +2555,9 @@
       "latest_source_reference_date": "2026-09-18",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-18T12:18:25Z",
-      "last_attempted_source_check_at": "2026-09-18T12:18:25Z",
-      "last_content_change_at": "2026-09-18T12:18:25Z",
+      "last_successful_source_check_at": "2026-09-18T17:35:50Z",
+      "last_attempted_source_check_at": "2026-09-18T17:35:50Z",
+      "last_content_change_at": "2026-09-18T17:35:50Z",
       "last_successful_investigation_on": "2026-09-18",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
@@ -2572,7 +2572,8 @@
         "tests/test_milano_parser_semantics.py",
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/milano-source-transition-2026-09-17.md",
-        "docs/sources/milano-source-transition-2026-09-18.md"
+        "docs/sources/milano-source-transition-2026-09-18.md",
+        "docs/sources/milano-source-transition-2026-09-18-b929.md"
       ],
       "known_content_sha256": [
         "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8",
@@ -2582,7 +2583,9 @@
         "51b40d3a55352ff60bcb6c677652353ab589f60156100b04efb687720497341a",
         "e7587bc35b74c11e3309597ac21dd96c48f989437a4b0103a58909b35891d8ab",
         "8dd6ce95d933f6b892e056bdec5bc78a985bb6485504055cd7cbde0e8cbdad5c",
-        "bfad4880c80cf465d6356e7ae518149f150781de69a712c8551320f25a92b195"
+        "bfad4880c80cf465d6356e7ae518149f150781de69a712c8551320f25a92b195",
+        "b92945af542b89ca99122d60a6f2d1c4c22359bb2c1bbe7c40672c7738bbc58a",
+        "20714806f285559da9bbfb51203e7329e990112224643bcb6a0bed7a473ef8e2"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
@@ -2590,7 +2593,8 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/milano-operational-check-2026-09-16.md",
         "docs/sources/milano-source-transition-2026-09-17.md",
-        "docs/sources/milano-source-transition-2026-09-18.md"
+        "docs/sources/milano-source-transition-2026-09-18.md",
+        "docs/sources/milano-source-transition-2026-09-18-b929.md"
       ],
       "last_completed_coverage_stage": "VALIDATED"
     },
@@ -4610,6 +4614,14 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "8dd6ce95d933f6b892e056bdec5bc78a985bb6485504055cd7cbde0e8cbdad5c"
+    },
+    {
+      "authority_key": "milano",
+      "at": "2026-09-18T17:35:50Z",
+      "evidence": "docs/sources/milano-source-transition-2026-09-18-b929.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "b92945af542b89ca99122d60a6f2d1c4c22359bb2c1bbe7c40672c7738bbc58a"
     }
   ]
 }
