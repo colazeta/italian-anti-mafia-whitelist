@@ -29,4 +29,11 @@ s = s.rstrip('\\n') + '\\n' + rows
 if script.count(old) != 1:
     raise SystemExit(f'Expected one stale Milano source-series anchor, found {script.count(old)}')
 script = script.replace(old, new, 1)
+
+old = "obj['authorities']"
+new = "obj['prefectures']"
+if script.count(old) != 1:
+    raise SystemExit(f'Expected one stale national coverage collection key, found {script.count(old)}')
+script = script.replace(old, new, 1)
+
 Path('/tmp/messina-finalizer.sh').write_text(script)
