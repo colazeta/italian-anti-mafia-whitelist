@@ -23,6 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
+          python -m pip install --disable-pip-version-check pdfplumber
       - name: Probe official Lecce sources
         run: python scripts/lecce_source_probe.py
       - name: Upload transient source captures
