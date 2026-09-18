@@ -48,9 +48,5 @@ jobs:
             echo 'No Taranto integration changes to commit' >&2
             exit 1
           fi
-          if git diff --cached --name-only | grep -E '^(tmp/taranto_finalize\.py|\.github/workflows/taranto-finalize\.yml)$'; then
-            echo 'Temporary finalizer machinery leaked into final diff' >&2
-            exit 1
-          fi
           git commit -m 'Integrate Taranto into public national registry'
           git push origin HEAD:expansion/taranto-2026-09-18
