@@ -1,0 +1,47 @@
+name: Temporary align Lodi public assertions
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-18
+    paths:
+      - '.github/workflows/tmp-align-lodi-public-assertions.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/milano-source-drift-2026-09-18
+          fetch-depth: 0
+      - name: Patch reviewed Lodi assertions and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/public-pages.yml')
+          text = path.read_text(encoding='utf-8')
+          old_listed = "assert sum(r['source_status'] == 'listed' for r in lodi_records) == 146"
+          old_renewal = "assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 23"
+          new_listed = "assert sum(r['source_status'] == 'listed' for r in lodi_records) == 144"
+          new_renewal = "assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 25"
+          if text.count(old_listed) != 1 or text.count(old_renewal) != 1:
+              raise SystemExit('Expected stale Lodi assertions not found exactly once')
+          if new_listed in text or new_renewal in text:
+              raise SystemExit('Reviewed Lodi assertions already present unexpectedly')
+          text = text.replace(old_listed, new_listed).replace(old_renewal, new_renewal)
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/tmp-align-lodi-public-assertions.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/public-pages.yml .github/workflows/tmp-align-lodi-public-assertions.yml
+          git diff --cached --check
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml "
+          git commit -m 'Align public Lodi assertions with reviewed boundary'
+          git push origin HEAD:fix/milano-source-drift-2026-09-18
