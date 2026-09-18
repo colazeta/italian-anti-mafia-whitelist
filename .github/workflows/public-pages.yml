@@ -195,8 +195,8 @@ jobs:
           assert len(lodi_records) == 173
           assert sum(r['source_key'] == 'lodi-listed' for r in lodi_records) == 169
           assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 4
-          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 146
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 23
+          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 144
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 25
           assert sum(r['source_status'] == 'pending' for r in lodi_records) == 2
           assert sum(r['source_status'] == 'rejected_or_denied' for r in lodi_records) == 2
           assert sorted(r['decision_date'] for r in lodi_records if r['source_status'] == 'rejected_or_denied') == ['2021-06-17','2022-11-17']
