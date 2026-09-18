@@ -1,0 +1,401 @@
+name: Temporary L'Aquila integration finalizer
+
+on:
+  push:
+    branches:
+      - expansion/laquila-2026-09-18
+    paths:
+      - '.github/workflows/laquila-integration-finalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact expansion branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/laquila-2026-09-18
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+          python -m pip install -e '.[publication]'
+      - name: Revalidate exact official source bytes twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          LISTED='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf'
+          APPLICANTS='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf'
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0; L-Aquila source verification)'
+          for n in 1 2; do
+            curl --fail --location --silent --show-error --retry 2 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' -A "$UA capture-$n" \
+              "$LISTED" -o "/tmp/laquila-listed-$n.pdf"
+            curl --fail --location --silent --show-error --retry 2 \
+              -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' -A "$UA capture-$n" \
+              "$APPLICANTS" -o "/tmp/laquila-applicants-$n.pdf"
+          done
+          cmp /tmp/laquila-listed-1.pdf /tmp/laquila-listed-2.pdf
+          cmp /tmp/laquila-applicants-1.pdf /tmp/laquila-applicants-2.pdf
+          echo '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453  /tmp/laquila-listed-1.pdf' | sha256sum -c -
+          echo '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453  /tmp/laquila-listed-2.pdf' | sha256sum -c -
+          echo 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081  /tmp/laquila-applicants-1.pdf' | sha256sum -c -
+          echo 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081  /tmp/laquila-applicants-2.pdf' | sha256sum -c -
+      - name: Exercise parser against fresh captures
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from white_list_archive.parsers.laquila_tables import parse_laquila_applicants, parse_laquila_listed
+          from white_list_archive.publishing.public_contract import public_record
+
+          common = {
+              'authority_key': 'laquila',
+              'authority_name': "Prefettura dell'Aquila",
+              'register_key': 'laquila-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-11',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese',
+          }
+          listed_cfg = common | {
+              'source_key': 'laquila-listed',
+              'population_scope': 'listed',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf',
+              'sha256': '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453',
+          }
+          applicant_cfg = common | {
+              'source_key': 'laquila-applicants',
+              'population_scope': 'applicant',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf',
+              'sha256': 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081',
+          }
+          listed = parse_laquila_listed(Path('/tmp/laquila-listed-1.pdf'), listed_cfg)
+          applicants = parse_laquila_applicants(Path('/tmp/laquila-applicants-1.pdf'), applicant_cfg)
+          assert len(listed.records) == 419
+          assert len(applicants.records) == 276
+          assert sum(r['source_status'] == 'listed' for r in listed.records) == 209
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in listed.records) == 210
+          assert all(r['source_status'] == 'pending' for r in applicants.records)
+          assert sum(bool(r['identifiers']) for r in listed.records) == 417
+          assert sum(bool(r['identifiers']) for r in applicants.records) == 273
+          for record in listed.records + applicants.records:
+              public_record(record)
+          PY
+      - name: Materialise reviewed permanent integration and public-workflow candidate
+        env:
+          SOURCE_RUN_ID: ${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import io
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          LANDING = 'https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese'
+          LISTED_URL = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf'
+          APPLICANT_URL = 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf'
+          LISTED_SHA = '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453'
+          APPLICANT_SHA = 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081'
+          RUN_ID = os.environ['SOURCE_RUN_ID']
+          now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z')
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one exact anchor, found {count}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Catalog denominators.
+          replace_once(
+              'data/catalog.csv',
+              'verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,53,false,internal_research,',
+              'verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,54,false,internal_research,',
+          )
+          replace_once(
+              'data/catalog.csv',
+              'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,105,false,internal_research,',
+              'source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,107,false,internal_research,',
+          )
+
+          # Verified primary page, inserted in authority order.
+          replace_once(
+              'data/source_registry/verified_primary_pages.csv',
+              'gorizia,https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list,2026-09-13,verified\nlecce,',
+              f'gorizia,https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list,2026-09-13,verified\nlaquila,{LANDING},2026-09-18,verified\nlecce,',
+          )
+
+          # Two source-series rows, append-only with duplicate guard.
+          series_path = Path('data/source_registry/source_series_inventory.csv')
+          series = series_path.read_text(encoding='utf-8')
+          if 'laquila-listed,' in series or 'laquila-applicants,' in series:
+              raise RuntimeError("L'Aquila source-series already present unexpectedly")
+          rows = [
+              ['laquila-applicants','laquila','WL-REGIME-L190-2012','applicant','all','periodic_attachment',LANDING,'landing_page_resolved','2026-09-18',
+               'Current official landing page directly re-verified 18 September 2026 and last updated 11 September 2026. Two independent cache-bypassed captures of the current applicant PDF are byte-identical and yield exactly 276 positive applicant observations, represented conservatively as pending because the source publishes only istruttoria text. Structured identifier coverage is 273/276; the three malformed source identifiers remain raw-only. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md.'],
+              ['laquila-listed','laquila','WL-REGIME-L190-2012','listed','all','periodic_attachment',LANDING,'landing_page_resolved','2026-09-18',
+               'Current official landing page directly re-verified 18 September 2026 and last updated 11 September 2026. Two independent cache-bypassed captures of the current listed PDF are byte-identical and yield exactly 419 observations: 209 listed and 210 renewal/update in progress. Structured identifier coverage is 417/419; two malformed source identifiers and one reviewed malformed expiry token remain unrepaired. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md.'],
+          ]
+          buf = io.StringIO()
+          writer = csv.writer(buf, lineterminator='\n')
+          for row in rows:
+              writer.writerow(row)
+          if not series.endswith('\n'):
+              series += '\n'
+          series_path.write_text(series + buf.getvalue(), encoding='utf-8')
+
+          # Publication config: two byte-pinned source editions.
+          pub_path = Path('data/publication/multi_prefecture_pilot.json')
+          pub = json.loads(pub_path.read_text(encoding='utf-8'))
+          keys = {x['source_key'] for x in pub['sources']}
+          if {'laquila-listed','laquila-applicants'} & keys:
+              raise RuntimeError("L'Aquila publication sources already present unexpectedly")
+          common = {
+              'authority_key': 'laquila',
+              'authority_name': "Prefettura dell'Aquila",
+              'register_key': 'laquila-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-11',
+              'source_page_url': LANDING,
+              'approval_mode': 'raw_sha256',
+              'last_source_update': '2026-09-11',
+              'last_source_update_basis': 'current official landing page last updated 11 September 2026; exact current attachments independently recaptured and byte-verified 18 September 2026',
+          }
+          pub['sources'].extend([
+              common | {
+                  'source_key': 'laquila-listed',
+                  'parser': 'laquila_listed',
+                  'population_scope': 'listed',
+                  'resource_url': LISTED_URL,
+                  'sha256': LISTED_SHA,
+                  'expected_source_rows': 419,
+                  'notes': 'Current byte-pinned 24-page listed-company PDF. Fail-closed parser yields exactly 419 observations: 209 listed and 210 renewal/update in progress. Structured identifier coverage is 417/419; two malformed source identifiers remain raw-only. The single source token 28/06/207 is retained raw and its observed expiry is left blank rather than repaired. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md.',
+              },
+              common | {
+                  'source_key': 'laquila-applicants',
+                  'parser': 'laquila_applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': APPLICANT_URL,
+                  'sha256': APPLICANT_SHA,
+                  'expected_source_rows': 276,
+                  'notes': 'Current byte-pinned 46-page applicant PDF. Fail-closed parser yields exactly 276 applicant observations, all represented conservatively as pending; the published istruttoria spelling variants are frozen as source outcomes rather than normalised into legal conclusions. Structured identifier coverage is 273/276 and the three malformed source identifiers remain raw-only. Exact evidence is documented in docs/sources/laquila-operational-check-2026-09-18.md.',
+              },
+          ])
+          pub_path.write_text(json.dumps(pub, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Monitoring state: update only the canonical L'Aquila authority object.
+          mon_path = Path('data/monitoring/national_coverage.json')
+          mon = json.loads(mon_path.read_text(encoding='utf-8'))
+          found = []
+          def walk(value):
+              if isinstance(value, dict):
+                  if value.get('authority_key') == 'laquila' and value.get('prefecture') == "L'Aquila":
+                      found.append(value)
+                  for child in value.values():
+                      walk(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      walk(child)
+          walk(mon)
+          if len(found) != 1:
+              raise RuntimeError(f'Expected exactly one L_Aquila monitoring authority, found {len(found)}')
+          a = found[0]
+          a.update({
+              'official_landing_page': LANDING,
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-11',
+              'last_successful_source_check_at': now,
+              'last_attempted_source_check_at': now,
+              'last_successful_investigation_on': '2026-09-18',
+              'monitoring_status': 'CURRENT',
+              'unresolved_issue': ['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/laquila-operational-check-2026-09-18.md',
+                  'src/white_list_archive/parsers/laquila_tables.py',
+                  'tests/test_laquila_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [LISTED_SHA, APPLICANT_SHA],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/laquila-operational-check-2026-09-18.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          mon_path.write_text(json.dumps(mon, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Bind parser family into national publication registry.
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              'from white_list_archive.parsers.messina_tables import PARSERS as MESSINA_PARSERS\n',
+              'from white_list_archive.parsers.messina_tables import PARSERS as MESSINA_PARSERS\nfrom white_list_archive.parsers.laquila_tables import PARSERS as LAQUILA_PARSERS\n',
+          )
+          replace_once(
+              'src/white_list_archive/publishing/public_national_registry.py',
+              '        or MESSINA_PARSERS.get(cfg["parser"])\n',
+              '        or MESSINA_PARSERS.get(cfg["parser"])\n        or LAQUILA_PARSERS.get(cfg["parser"])\n',
+          )
+
+          # Regression denominators.
+          replace_once('tests/test_source_population_coverage.py', 'assert report["verified_authority_count"] == 53', 'assert report["verified_authority_count"] == 54')
+          replace_once('tests/test_source_population_coverage.py', 'assert report["register_scope_count"] == 55', 'assert report["register_scope_count"] == 56')
+          replace_once('tests/test_source_population_coverage.py', 'assert report["complete_register_scope_count"] == 55', 'assert report["complete_register_scope_count"] == 56')
+          replace_once('tests/test_source_registry.py', 'assert len(pages) == 53', 'assert len(pages) == 54')
+
+          # L'Aquila parser semantics unit tests.
+          test_path = Path('tests/test_laquila_parser_semantics.py')
+          if test_path.exists():
+              raise RuntimeError('L_Aquila parser semantics test unexpectedly already exists')
+          test_path.write_text('''from __future__ import annotations\n\nimport pytest\n\nfrom white_list_archive.parsers.laquila_tables import (\n    PARSERS,\n    _parse_source_date,\n    _strict_identifier_coverage,\n)\n\n\ndef test_laquila_parser_bindings_are_explicit() -> None:\n    assert set(PARSERS) == {"laquila_listed", "laquila_applicants"}\n\n\ndef test_laquila_dates_are_calendar_valid_and_not_repaired() -> None:\n    assert _parse_source_date("11/09/2026", source_key="test", field="date") == "2026-09-11"\n    assert _parse_source_date("28/06/207", source_key="test", field="expiry", allow_reviewed_bad=True) == ""\n    with pytest.raises(RuntimeError, match="unreviewed date date typography"):\n        _parse_source_date("11-09-2026", source_key="test", field="date")\n\n\ndef test_laquila_identifier_boundary_does_not_repair_malformed_values() -> None:\n    rows = [\n        {"identifier_raw": "01234567890"},\n        {"identifier_raw": "1373501007"},\n        {"identifier_raw": "01234567890"},\n    ]\n    coverage, malformed, duplicates = _strict_identifier_coverage(rows)\n    assert coverage == 2\n    assert malformed == {"1373501007"}\n    assert duplicates == {"01234567890"}\n''', encoding='utf-8')
+
+          # Evidence note records positive source evidence without promoting durable-evidence status.
+          evidence = Path('docs/sources/laquila-operational-check-2026-09-18.md')
+          if evidence.exists():
+              raise RuntimeError('L_Aquila evidence note unexpectedly already exists')
+          evidence.write_text(f'''# L'Aquila White List operational check — 18 September 2026\n\n## Official source boundary\n\nThe current official Prefettura dell'Aquila landing page is `{LANDING}`. On 18 September 2026 it exposes both **Elenco imprese iscritte nella white list** and **Elenco imprese richiedenti iscrizione** and reports **Ultimo aggiornamento: 11 September 2026, 14:45**. This is positive evidence for both logical populations; no publication status is inferred from failed search.\n\nThe current listed PDF is `{LISTED_URL}` and is approved only at raw SHA-256 `{LISTED_SHA}`. The current applicant PDF is `{APPLICANT_URL}` and is approved only at raw SHA-256 `{APPLICANT_SHA}`. Two independent cache-bypassed captures of each resource in GitHub Actions run `{RUN_ID}` were byte-identical and each matched the approved digest. Earlier bounded source/export/parser verification runs were `35325002233`, `35325206429`, and `35325892149`.\n\n## Parsed population boundary\n\nThe fail-closed parser produces **695 company observations**: **419 listed-side** and **276 applicant**. The listed-side population contains **209 `listed`** and **210 `renewal_update_in_progress`** observations, based only on the source note vocabulary. All 276 applicant observations are represented conservatively as `pending`; the source outcome spellings `IN ISTRUTTORIA` (273), `IN STRUTTORIA` (1), `N ISTRUTTORIA` (1), and `IN ISTRTUTTORIA` (1) are preserved as source text and are not interpreted as legal outcomes.\n\nStructured identifier coverage is **417/419** on the listed side and **273/276** on the applicant side. Five malformed source identifiers remain raw-only rather than being repaired or guessed. The listed source contains one reviewed malformed expiry token, `28/06/207`; it is retained in the raw source field while the normalised observed expiry is deliberately left blank. The parser also freezes page count, per-page row denominators, table shape, duplicate strict-identifier sets, the exact status boundary and three source-explicit collaborative-measure notes.\n\n## Integration and evidence posture\n\nBoth populations are bound to `laquila-ordinary` with reference date `2026-09-11`. Public integration remains evidence-first and content-addressed: publication must fail closed if either raw digest or any frozen parser boundary changes. `durable_evidence_verified` remains `false`; canonical hosted-database integration and independent durable-evidence verification remain governed separately under issue #16 and are not inferred from public-source validation.\n''', encoding='utf-8')
+
+          # Browser acceptance assertions.
+          replace_once(
+              'tests/public_portal_browser.cjs',
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Messina'));\n",
+              "      assert.ok(labels.includes('White List ordinaria · Prefettura di Messina'));\n      assert.ok(labels.includes(\"White List ordinaria · Prefettura dell'Aquila\"));\n",
+          )
+          replace_once('tests/public_portal_browser.cjs', '      assert.equal(stats.total,61591);', '      assert.equal(stats.total,62286);')
+          replace_once(
+              'tests/public_portal_browser.cjs',
+              ",'messina'].includes(r.authority_key));",
+              ",'messina','laquila'].includes(r.authority_key));",
+          )
+          replace_once(
+              'tests/public_portal_browser.cjs',
+              "      assert.equal(messina.flatMap(r=>r.identifiers).length,1034);\n",
+              "      assert.equal(messina.flatMap(r=>r.identifiers).length,1034);\n      const laquila=registry.records.filter(r=>r.authority_key==='laquila');\n      assert.equal(laquila.length,695);\n      assert.equal(laquila.filter(r=>r.source_key==='laquila-listed').length,419);\n      assert.equal(laquila.filter(r=>r.source_key==='laquila-applicants').length,276);\n      assert.deepEqual(statusCounts(laquila),{listed:209,pending:276,renewal_update_in_progress:210});\n      assert.equal(new Set(laquila.map(r=>r.record_locator)).size,695);\n      assert.equal(laquila.filter(r=>r.identifiers.length>0).length,690);\n      assert.equal(laquila.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,5);\n",
+          )
+
+          # Build the public workflow candidate without asking the Actions token to mutate .github/workflows.
+          workflow_path = Path('.github/workflows/public-pages.yml')
+          wf = workflow_path.read_text(encoding='utf-8')
+          def wf_replace(old: str, new: str) -> None:
+              nonlocal_wf[0] = replace_text(nonlocal_wf[0], old, new, '.github/workflows/public-pages.yml')
+          def replace_text(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected one exact anchor, found {count}: {old[:120]!r}')
+              return text.replace(old, new, 1)
+          nonlocal_wf = [wf]
+          wf_replace("      - 'src/white_list_archive/parsers/messina_tables.py'\n", "      - 'src/white_list_archive/parsers/messina_tables.py'\n      - 'src/white_list_archive/parsers/laquila_tables.py'\n")
+          wf_replace("          assert reg['meta']['record_count'] == 61591", "          assert reg['meta']['record_count'] == 62286")
+          wf_replace(",'messina'}", ",'messina','laquila'}")
+          wf_replace("'messina-ordinary'\n          }", "'messina-ordinary','laquila-ordinary'\n          }")
+          wf_replace("          assert reg['meta']['authority_count'] == 53", "          assert reg['meta']['authority_count'] == 54")
+          wf_replace("          assert reg['meta']['register_count'] == 55", "          assert reg['meta']['register_count'] == 56")
+          wf_replace("          assert pref['meta']['published_count'] == 53", "          assert pref['meta']['published_count'] == 54")
+          wf_replace("          assert pref['meta']['mapped_count'] == 53", "          assert pref['meta']['mapped_count'] == 54")
+          wf_replace(
+              "          assert sum(len(r['identifiers']) for r in messina_records) == 1034\n",
+              "          assert sum(len(r['identifiers']) for r in messina_records) == 1034\n          laquila = [x for x in pref['prefectures'] if x['authority_key'] == 'laquila']\n          assert len(laquila) == 1 and laquila[0]['mapped'] and laquila[0]['published'] and laquila[0]['series_count'] == 2\n          laquila_records = [r for r in reg['records'] if r['authority_key'] == 'laquila']\n          assert len(laquila_records) == 695\n          assert sum(r['source_key'] == 'laquila-listed' for r in laquila_records) == 419\n          assert sum(r['source_key'] == 'laquila-applicants' for r in laquila_records) == 276\n          assert sum(r['source_status'] == 'listed' for r in laquila_records) == 209\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in laquila_records) == 210\n          assert sum(r['source_status'] == 'pending' for r in laquila_records) == 276\n          assert len({r['record_locator'] for r in laquila_records}) == 695\n          assert sum(bool(r['identifiers']) for r in laquila_records) == 690\n          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in laquila_records) == 5\n          assert sum(not bool(r['observed_expiry_date']) and r['source_fields'].get('expiry_date_raw_variants') == ['28/06/207'] for r in laquila_records if r['source_key'] == 'laquila-listed') == 1\n",
+          )
+          candidate = Path('tmp/laquila-public-pages-candidate.yml')
+          candidate.parent.mkdir(parents=True, exist_ok=True)
+          candidate.write_text(nonlocal_wf[0], encoding='utf-8')
+          PY
+      - name: Validate integration before checkpoint commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/test_laquila_parser_semantics.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          node --check tests/public_portal_browser.cjs
+          ruby -e "require 'yaml'; YAML.load_file('tmp/laquila-public-pages-candidate.yml')"
+          rm -rf /tmp/laquila-public-build
+          mkdir -p /tmp/laquila-public-build
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/laquila-public-sources \
+            --registry-json /tmp/laquila-public-build/registry.json \
+            --registry-csv /tmp/laquila-public-build/registry.csv \
+            --prefectures-json /tmp/laquila-public-build/prefectures.json \
+            --prefectures-csv /tmp/laquila-public-build/prefectures.csv
+          python - <<'PY'
+          import json
+          reg=json.load(open('/tmp/laquila-public-build/registry.json', encoding='utf-8'))
+          pref=json.load(open('/tmp/laquila-public-build/prefectures.json', encoding='utf-8'))
+          assert reg['meta']['record_count'] == 62286
+          assert reg['meta']['authority_count'] == 54
+          assert reg['meta']['register_count'] == 56
+          rows=[r for r in reg['records'] if r['authority_key']=='laquila']
+          assert len(rows)==695
+          assert sum(r['source_status']=='listed' for r in rows)==209
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==210
+          assert sum(r['source_status']=='pending' for r in rows)==276
+          p=[x for x in pref['prefectures'] if x['authority_key']=='laquila']
+          assert len(p)==1 and p[0]['mapped'] and p[0]['published'] and p[0]['series_count']==2
+          assert pref['meta']['published_count']==54 and pref['meta']['mapped_count']==54
+          PY
+          git diff --check
+      - name: Commit recoverable integration checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=$(cat <<'EOF'
+          .github/workflows/laquila-integration-finalize.yml
+          data/catalog.csv
+          data/monitoring/national_coverage.json
+          data/publication/multi_prefecture_pilot.json
+          data/source_registry/source_series_inventory.csv
+          data/source_registry/verified_primary_pages.csv
+          docs/sources/laquila-operational-check-2026-09-18.md
+          src/white_list_archive/parsers/laquila_tables.py
+          src/white_list_archive/publishing/public_national_registry.py
+          tests/public_portal_browser.cjs
+          tests/test_laquila_parser_semantics.py
+          tests/test_source_population_coverage.py
+          tests/test_source_registry.py
+          tmp/laquila-public-pages-candidate.yml
+          EOF
+          )
+          actual=$(git status --short | sed 's/^.. //' | sort)
+          if [ "$actual" != "$(printf '%s\n' "$expected" | sed 's/^          //' | sort)" ]; then
+            echo 'Unexpected finalizer working-tree scope:' >&2
+            printf '%s\n' "$actual" >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data docs src tests tmp
+          git commit -m "Integrate L'Aquila public White List sources"
+          git push origin HEAD:expansion/laquila-2026-09-18
