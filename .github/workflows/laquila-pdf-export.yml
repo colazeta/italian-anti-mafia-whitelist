@@ -1,0 +1,44 @@
+name: Temporary L'Aquila PDF export
+
+on:
+  push:
+    branches:
+      - expansion/laquila-2026-09-18
+    paths:
+      - '.github/workflows/laquila-pdf-export.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Capture current approved-source candidates twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/laquila
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0; evidence probe)'
+          LISTED='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf'
+          APPLICANT='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf'
+          for kind in listed applicant; do
+            if [ "$kind" = listed ]; then url="$LISTED"; else url="$APPLICANT"; fi
+            for i in 1 2; do
+              curl --fail --location --silent --show-error --retry 2 -A "$UA" \
+                -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$url" \
+                -o "/tmp/laquila/${kind}-${i}.pdf"
+            done
+            cmp "/tmp/laquila/${kind}-1.pdf" "/tmp/laquila/${kind}-2.pdf"
+            sha256sum "/tmp/laquila/${kind}-1.pdf" "/tmp/laquila/${kind}-2.pdf"
+          done
+      - name: Upload temporary source captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: laquila-pdfs-${{ github.run_id }}
+          path: |
+            /tmp/laquila/listed-1.pdf
+            /tmp/laquila/applicant-1.pdf
+          if-no-files-found: error
