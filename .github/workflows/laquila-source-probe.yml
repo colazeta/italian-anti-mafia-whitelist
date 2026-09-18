@@ -1,0 +1,146 @@
+name: Temporary L'Aquila source probe
+
+on:
+  push:
+    branches:
+      - expansion/laquila-2026-09-18
+    paths:
+      - '.github/workflows/laquila-source-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PDF inspection runtime
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils
+      - name: Resolve and independently capture current official sources
+        id: capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          PAGE_URL='https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese'
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0; evidence probe)'
+          mkdir -p /tmp/laquila-probe
+
+          for i in 1 2; do
+            curl --fail --location --silent --show-error --retry 2 \
+              -A "$UA" -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              "$PAGE_URL" -o "/tmp/laquila-probe/page-$i.html"
+          done
+
+          python - <<'PY' > /tmp/laquila-probe/resolved.env
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          page_url = 'https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese'
+          html = Path('/tmp/laquila-probe/page-1.html').read_text(encoding='utf-8', errors='replace')
+
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.current = None
+                  self.links = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == 'a':
+                      href = dict(attrs).get('href')
+                      self.current = [href, []] if href else None
+              def handle_data(self, data):
+                  if self.current is not None:
+                      self.current[1].append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == 'a' and self.current is not None:
+                      href, parts = self.current
+                      text = ' '.join(''.join(parts).split())
+                      self.links.append((text, urljoin(page_url, href)))
+                      self.current = None
+
+          p = P(); p.feed(html)
+          listed = [(t,u) for t,u in p.links if 'elenco imprese iscritte nella white list' in t.lower()]
+          applicants = [(t,u) for t,u in p.links if 'elenco imprese richiedenti iscrizione' in t.lower()]
+          if len(listed) != 1 or len(applicants) != 1:
+              print('Resolution failed. Relevant anchors:', file=__import__('sys').stderr)
+              for t,u in p.links:
+                  if 'impres' in t.lower() or 'white' in t.lower():
+                      print(repr(t), u, file=__import__('sys').stderr)
+              raise SystemExit(2)
+          print('LISTED_URL=' + listed[0][1])
+          print('APPLICANT_URL=' + applicants[0][1])
+          PY
+          cat /tmp/laquila-probe/resolved.env
+          source /tmp/laquila-probe/resolved.env
+
+          for kind in listed applicant; do
+            if [ "$kind" = listed ]; then url="$LISTED_URL"; else url="$APPLICANT_URL"; fi
+            for i in 1 2; do
+              curl --fail --location --silent --show-error --retry 2 \
+                -A "$UA" -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+                "$url" -o "/tmp/laquila-probe/${kind}-$i.pdf"
+            done
+            cmp "/tmp/laquila-probe/${kind}-1.pdf" "/tmp/laquila-probe/${kind}-2.pdf"
+            pdfinfo "/tmp/laquila-probe/${kind}-1.pdf" > "/tmp/laquila-probe/${kind}.pdfinfo"
+            pdftotext -layout "/tmp/laquila-probe/${kind}-1.pdf" "/tmp/laquila-probe/${kind}.txt"
+          done
+
+          python - <<'PY'
+          import hashlib, json, os, re
+          from pathlib import Path
+
+          root = Path('/tmp/laquila-probe')
+          env = dict(line.strip().split('=', 1) for line in (root/'resolved.env').read_text().splitlines() if '=' in line)
+          def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+          def pages(kind):
+              text = (root/f'{kind}.pdfinfo').read_text(errors='replace')
+              m = re.search(r'^Pages:\s*(\d+)\s*$', text, re.M)
+              return int(m.group(1)) if m else None
+          report = {
+              'landing_page': 'https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese',
+              'page_captures': [
+                  {'bytes': (root/f'page-{i}.html').stat().st_size, 'sha256': sha(root/f'page-{i}.html')}
+                  for i in (1,2)
+              ],
+              'listed': {
+                  'url': env['LISTED_URL'],
+                  'bytes': (root/'listed-1.pdf').stat().st_size,
+                  'sha256': sha(root/'listed-1.pdf'),
+                  'second_sha256': sha(root/'listed-2.pdf'),
+                  'pages': pages('listed'),
+              },
+              'applicant': {
+                  'url': env['APPLICANT_URL'],
+                  'bytes': (root/'applicant-1.pdf').stat().st_size,
+                  'sha256': sha(root/'applicant-1.pdf'),
+                  'second_sha256': sha(root/'applicant-2.pdf'),
+                  'pages': pages('applicant'),
+              },
+          }
+          (root/'report.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          print('\n--- LISTED TEXT SAMPLE ---')
+          print('\n'.join((root/'listed.txt').read_text(errors='replace').splitlines()[:120]))
+          print('\n--- APPLICANT TEXT SAMPLE ---')
+          print('\n'.join((root/'applicant.txt').read_text(errors='replace').splitlines()[:120]))
+          PY
+      - name: Upload probe evidence for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: laquila-source-probe-${{ github.run_id }}
+          path: |
+            /tmp/laquila-probe/report.json
+            /tmp/laquila-probe/listed.pdfinfo
+            /tmp/laquila-probe/applicant.pdfinfo
+            /tmp/laquila-probe/listed.txt
+            /tmp/laquila-probe/applicant.txt
+          if-no-files-found: error
