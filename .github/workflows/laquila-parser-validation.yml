@@ -1,0 +1,78 @@
+name: Temporary L'Aquila parser validation
+
+on:
+  push:
+    branches:
+      - expansion/laquila-2026-09-18
+    paths:
+      - 'src/white_list_archive/parsers/laquila_tables.py'
+      - '.github/workflows/laquila-parser-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Capture current byte-pinned source editions
+        shell: bash
+        run: |
+          set -euo pipefail
+          UA='Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0; parser validation)'
+          curl --fail --location --silent --show-error --retry 2 -A "$UA" \
+            'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf' \
+            -o /tmp/laquila-listed.pdf
+          curl --fail --location --silent --show-error --retry 2 -A "$UA" \
+            'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf' \
+            -o /tmp/laquila-applicant.pdf
+          echo '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453  /tmp/laquila-listed.pdf' | sha256sum -c -
+          echo 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081  /tmp/laquila-applicant.pdf' | sha256sum -c -
+      - name: Exercise parser and closed public record contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from white_list_archive.parsers.laquila_tables import parse_laquila_applicants, parse_laquila_listed
+          from white_list_archive.publishing.public_contract import public_record
+
+          common = {
+              'authority_key': 'laquila',
+              'authority_name': "Prefettura - Ufficio Territoriale del Governo dell'Aquila",
+              'register_key': 'laquila-ordinary',
+              'register_name': "White List della Prefettura dell'Aquila",
+              'reference_date': '2026-09-11',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese',
+          }
+          listed_cfg = common | {
+              'source_key': 'laquila-listed',
+              'population_scope': 'listed',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf',
+              'sha256': '15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453',
+          }
+          applicant_cfg = common | {
+              'source_key': 'laquila-applicants',
+              'population_scope': 'applicant',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf',
+              'sha256': 'dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081',
+          }
+          listed = parse_laquila_listed(Path('/tmp/laquila-listed.pdf'), listed_cfg)
+          applicants = parse_laquila_applicants(Path('/tmp/laquila-applicant.pdf'), applicant_cfg)
+          assert len(listed.records) == 419
+          assert len(applicants.records) == 276
+          assert sum(r['source_status'] == 'listed' for r in listed.records) == 209
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in listed.records) == 210
+          assert all(r['source_status'] == 'pending' for r in applicants.records)
+          assert sum(bool(r['identifiers']) for r in listed.records) == 417
+          assert sum(bool(r['identifiers']) for r in applicants.records) == 273
+          for record in listed.records + applicants.records:
+              public_record(record)
+          print(json.dumps({'listed': listed.diagnostics, 'applicants': applicants.diagnostics}, ensure_ascii=False, indent=2))
+          PY
