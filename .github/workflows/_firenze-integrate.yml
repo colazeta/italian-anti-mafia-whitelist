@@ -1,0 +1,171 @@
+name: Firenze bounded integration helper
+
+on:
+  push:
+    branches:
+      - expansion/firenze-2026-09-18
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Integrate reviewed Firenze sources into canonical branch state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+          import csv, json
+          from pathlib import Path
+
+          root=Path('.')
+
+          # 1. Public parser binding.
+          builder=root/'src/white_list_archive/publishing/public_national_registry.py'
+          text=builder.read_text(encoding='utf-8')
+          import_needle='from white_list_archive.parsers.como_html import PARSERS as COMO_PARSERS\n'
+          import_add=import_needle+'from white_list_archive.parsers.firenze_sources import parse_firenze_applicants, parse_firenze_listed\n'
+          if 'from white_list_archive.parsers.firenze_sources import' not in text:
+              if text.count(import_needle)!=1: raise SystemExit('Firenze builder import insertion point drift')
+              text=text.replace(import_needle,import_add,1)
+          map_needle='TORINO_PARSERS = {\n    "torino_listed": parse_torino_listed,\n    "torino_applicants": parse_torino_applicants,\n}\n'
+          map_add=map_needle+'FIRENZE_PARSERS = {\n    "firenze_listed": parse_firenze_listed,\n    "firenze_applicants": parse_firenze_applicants,\n}\n'
+          if 'FIRENZE_PARSERS = {' not in text:
+              if text.count(map_needle)!=1: raise SystemExit('Firenze parser-map insertion point drift')
+              text=text.replace(map_needle,map_add,1)
+          chain_needle='        or COMO_PARSERS.get(cfg["parser"])\n    )'
+          chain_add='        or COMO_PARSERS.get(cfg["parser"])\n        or FIRENZE_PARSERS.get(cfg["parser"])\n    )'
+          if 'or FIRENZE_PARSERS.get(cfg["parser"])' not in text:
+              if text.count(chain_needle)!=1: raise SystemExit('Firenze parser-chain insertion point drift')
+              text=text.replace(chain_needle,chain_add,1)
+          builder.write_text(text,encoding='utf-8')
+
+          # 2. Approved current publication inputs: both logical populations.
+          cfg_path=root/'data/publication/multi_prefecture_pilot.json'
+          cfg=json.loads(cfg_path.read_text(encoding='utf-8'))
+          by_key={s['source_key']:s for s in cfg['sources']}
+          additions=[
+            {
+              'source_key':'firenze-listed','parser':'firenze_listed','authority_key':'firenze','authority_name':'Prefettura di Firenze',
+              'register_key':'firenze-ordinary','register_name':'White List ordinaria','population_scope':'listed','reference_date':'2026-09-09',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx',
+              'sha256':'bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0','expected_sector_rows':989,'expected_source_rows':539,
+              'last_source_update':'2026-09-09','last_source_update_basis':'official page last-updated marker and byte-pinned current attachment independently verified 18 September 2026',
+              'approval_mode':'raw_sha256','notes':'Ten statutory XLSX sheets contain 989 sector rows yielding 539 exact grouped observations: 429 listed and 110 renewal/update in progress. Identifier coverage is 537/539; two raw-only identifiers are preserved without repair. Exact evidence is documented in docs/sources/firenze-operational-check-2026-09-18.md.'
+            },
+            {
+              'source_key':'firenze-applicants','parser':'firenze_applicants','authority_key':'firenze','authority_name':'Prefettura di Firenze',
+              'register_key':'firenze-ordinary','register_name':'White List ordinaria','population_scope':'applicant','reference_date':'2026-09-09',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf',
+              'sha256':'6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695','expected_source_rows':125,
+              'last_source_update':'2026-09-09','last_source_update_basis':'official page last-updated marker and byte-pinned current attachment independently verified 18 September 2026',
+              'approval_mode':'raw_sha256','notes':'Nine-page official applicant PDF yields exactly 125 pending observations because Esito is blank for every row. Structured identifier coverage is 123/125; two raw-only identifiers and two blank registered offices are preserved without inference. Exact evidence is documented in docs/sources/firenze-operational-check-2026-09-18.md.'
+            }
+          ]
+          for item in additions:
+              existing=by_key.get(item['source_key'])
+              if existing is None:
+                  cfg['sources'].append(item)
+              elif existing != item:
+                  raise SystemExit(f"Existing {item['source_key']} config differs from reviewed boundary")
+          cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # 3. Source-series evidence and verified page inventory.
+          v_path=root/'data/source_registry/verified_primary_pages.csv'
+          with v_path.open(encoding='utf-8',newline='') as fh:
+              pages=list(csv.DictReader(fh)); fields=fh.seek(0) or None
+          fieldnames=['authority_key','landing_url','verified_date','verification_status']
+          page={'authority_key':'firenze','landing_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte','verified_date':'2026-09-18','verification_status':'verified'}
+          matches=[r for r in pages if r['authority_key']=='firenze']
+          if not matches: pages.append(page)
+          elif matches != [page]: raise SystemExit(f'Existing Firenze verified-page row differs: {matches!r}')
+          pages.sort(key=lambda r:r['authority_key'])
+          with v_path.open('w',encoding='utf-8',newline='') as fh:
+              w=csv.DictWriter(fh,fieldnames=fieldnames); w.writeheader(); w.writerows(pages)
+
+          s_path=root/'data/source_registry/source_series_inventory.csv'
+          with s_path.open(encoding='utf-8',newline='') as fh:
+              reader=csv.DictReader(fh); series=list(reader); s_fields=reader.fieldnames
+          if not s_fields: raise SystemExit('Missing source-series CSV header')
+          series_add=[
+            {'source_series_key':'firenze-applicants','authority_key':'firenze','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte','resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-18','notes':'Current official page verified 18 September 2026; dedicated applicant PDF dated 9 September 2026 yields exactly 125 pending observations. Exact byte identity and conservative anomaly handling are documented in docs/sources/firenze-operational-check-2026-09-18.md.'},
+            {'source_series_key':'firenze-listed','authority_key':'firenze','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte','resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-18','notes':'Current official page verified 18 September 2026; dedicated listed XLSX dated 9 September 2026 contains ten statutory sheets and yields 539 grouped observations from 989 sector rows. Exact byte identity and parser boundary are documented in docs/sources/firenze-operational-check-2026-09-18.md.'}
+          ]
+          by_series={r['source_series_key']:r for r in series}
+          for row in series_add:
+              existing=by_series.get(row['source_series_key'])
+              if existing is None: series.append(row)
+              elif existing != row: raise SystemExit(f"Existing {row['source_series_key']} inventory row differs")
+          series.sort(key=lambda r:r['source_series_key'])
+          with s_path.open('w',encoding='utf-8',newline='') as fh:
+              w=csv.DictWriter(fh,fieldnames=s_fields); w.writeheader(); w.writerows(series)
+
+          # 4. Coverage state: public integration is candidate branch state, not a claim that Pages is live.
+          n_path=root/'data/monitoring/national_coverage.json'
+          national=json.loads(n_path.read_text(encoding='utf-8'))
+          rows=national.get('prefectures') or national.get('authorities') or national.get('rows')
+          if not isinstance(rows,list): raise SystemExit('National coverage rows not found')
+          matches=[r for r in rows if r.get('authority_key')=='firenze']
+          if len(matches)!=1: raise SystemExit(f'Expected exactly one Firenze coverage row, got {len(matches)}')
+          r=matches[0]
+          r.update({
+              'official_landing_page':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte',
+              'source_verified':True,'current_edition_identified':True,'capture_implemented':True,'parser_implemented':True,'parser_validated':True,
+              'company_observations_loaded':True,'observation_layer':'public_source_observations','canonical_integration_validated':False,'public_export_enabled':True,
+              'durable_evidence_verified':False,'population_scopes_complete':True,'latest_source_reference_date':'2026-09-09','latest_archived_edition':None,
+              'archived_evidence_storage_status':'not_documented','last_successful_source_check_at':'2026-09-18T02:46:58Z','last_attempted_source_check_at':'2026-09-18T02:46:58Z',
+              'last_content_change_at':None,'last_successful_investigation_on':'2026-09-18','monitoring_status':'CURRENT',
+              'unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+              'actionable_issue':False,'coverage_status':'VALIDATED','terminal_reason':None,
+              'completion_evidence':['docs/sources/firenze-operational-check-2026-09-18.md','src/white_list_archive/parsers/firenze_sources.py','data/publication/multi_prefecture_pilot.json'],
+              'known_content_sha256':['bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0','6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695'],
+              'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/firenze-operational-check-2026-09-18.md'],
+              'last_completed_coverage_stage':'VALIDATED'
+          })
+          n_path.write_text(json.dumps(national,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # 5. Fixed denominator tests follow the expanded verified surface.
+          t1=root/'tests/test_source_population_coverage.py'
+          x=t1.read_text(encoding='utf-8')
+          for old,new in [('assert report["verified_authority_count"] == 49','assert report["verified_authority_count"] == 50'),('assert report["register_scope_count"] == 51','assert report["register_scope_count"] == 52'),('assert report["complete_register_scope_count"] == 51','assert report["complete_register_scope_count"] == 52')]:
+              if old not in x: raise SystemExit(f'Missing coverage-test boundary: {old}')
+              x=x.replace(old,new,1)
+          t1.write_text(x,encoding='utf-8')
+          t2=root/'tests/test_source_registry.py'
+          x=t2.read_text(encoding='utf-8')
+          old='assert len(pages) == 49'; new='assert len(pages) == 50'
+          if old not in x: raise SystemExit('Missing verified-page test boundary')
+          t2.write_text(x.replace(old,new,1),encoding='utf-8')
+
+          # 6. Catalog counts are derived from the actual inventories after mutation.
+          c_path=root/'data/catalog.csv'
+          with c_path.open(encoding='utf-8',newline='') as fh:
+              reader=csv.DictReader(fh); catalog=list(reader); c_fields=reader.fieldnames
+          counts={'verified-primary-pages':str(len(pages)),'source-series-inventory':str(len(series))}
+          for row in catalog:
+              if row['dataset_id'] in counts: row['record_count']=counts[row['dataset_id']]
+          with c_path.open('w',encoding='utf-8',newline='') as fh:
+              w=csv.DictWriter(fh,fieldnames=c_fields); w.writeheader(); w.writerows(catalog)
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/catalog.csv data/monitoring/national_coverage.json data/publication/multi_prefecture_pilot.json data/source_registry/source_series_inventory.csv data/source_registry/verified_primary_pages.csv src/white_list_archive/publishing/public_national_registry.py tests/test_source_population_coverage.py tests/test_source_registry.py
+          git diff --cached --check
+          git diff --cached --stat
+          if git diff --cached --quiet; then
+            echo 'No integration delta to persist.'
+            exit 0
+          fi
+          git commit -m 'Integrate Firenze current White List populations'
+          git push origin HEAD:expansion/firenze-2026-09-18
