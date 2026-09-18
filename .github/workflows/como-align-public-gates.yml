@@ -6,6 +6,7 @@ on:
       - expansion/como-2026-09-17
     paths:
       - '.github/workflows/como-align-public-gates.yml'
+      - 'docs/sources/.como-align-trigger'
 
 permissions:
   contents: write
@@ -109,6 +110,6 @@ jobs:
           git diff --check
           git add .github/workflows/public-pages.yml tests/public_portal_browser.cjs
           git commit -m 'test(como): align permanent public acceptance gates'
-          git rm .github/workflows/como-align-public-gates.yml
-          git commit -m 'chore(como): remove temporary gate-alignment workflow'
+          git rm .github/workflows/como-align-public-gates.yml docs/sources/.como-align-trigger
+          git commit -m 'chore(como): remove temporary gate-alignment machinery'
           git push origin HEAD:expansion/como-2026-09-17
