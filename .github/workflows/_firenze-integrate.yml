@@ -84,8 +84,8 @@ jobs:
           v_path=root/'data/source_registry/verified_primary_pages.csv'
           with v_path.open(encoding='utf-8',newline='') as fh:
               pages=list(csv.DictReader(fh)); fields=fh.seek(0) or None
-          fieldnames=['authority_key','landing_url','verified_date','verification_status']
-          page={'authority_key':'firenze','landing_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte','verified_date':'2026-09-18','verification_status':'verified'}
+          fieldnames=['authority_key','landing_url','verification_date','verification_status']
+          page={'authority_key':'firenze','landing_url':'https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte','verification_date':'2026-09-18','verification_status':'verified'}
           matches=[r for r in pages if r['authority_key']=='firenze']
           if not matches: pages.append(page)
           elif matches != [page]: raise SystemExit(f'Existing Firenze verified-page row differs: {matches!r}')
