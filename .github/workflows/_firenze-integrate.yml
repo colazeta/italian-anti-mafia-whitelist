@@ -17,22 +17,52 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Stage reviewed Firenze public boundary
+      - name: Stage reviewed Firenze public workflow boundary
         shell: bash
         run: |
           set -euo pipefail
-          python tmp/firenze_finalise.py
-          mkdir -p staging
-          cp .github/workflows/public-pages.yml staging/firenze-public-pages.yml
-          git checkout -- .github/workflows/public-pages.yml
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('.github/workflows/public-pages.yml')
+          x=p.read_text(encoding='utf-8')
+          def r(old,new,label):
+              global x
+              if new in x: return
+              if x.count(old)!=1: raise SystemExit(f'{label}: expected one old occurrence, got {x.count(old)}')
+              x=x.replace(old,new,1)
+          r("      - 'src/white_list_archive/parsers/como_html.py'\n","      - 'src/white_list_archive/parsers/como_html.py'\n      - 'src/white_list_archive/parsers/firenze_sources.py'\n",'parser trigger')
+          r("assert reg['meta']['record_count'] == 58378","assert reg['meta']['record_count'] == 59042",'record total')
+          r("'milano','modena','como'}","'milano','modena','como','firenze'}",'authority set')
+          r("'modena-post-sisma','como-ordinary'\n","'modena-post-sisma','como-ordinary','firenze-ordinary'\n",'register set')
+          r("assert reg['meta']['authority_count'] == 49","assert reg['meta']['authority_count'] == 50",'authority count')
+          r("assert reg['meta']['register_count'] == 51","assert reg['meta']['register_count'] == 52",'register count')
+          r("assert pref['meta']['published_count'] == 49","assert pref['meta']['published_count'] == 50",'published count')
+          r("assert pref['meta']['mapped_count'] == 49","assert pref['meta']['mapped_count'] == 50",'mapped count')
+          if "firenze_records = [r for r in reg['records'] if r['authority_key'] == 'firenze']" not in x:
+              anchor="          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 1\n"
+              block="""          firenze = [x for x in pref['prefectures'] if x['authority_key'] == 'firenze']
+          assert len(firenze) == 1 and firenze[0]['mapped'] and firenze[0]['published'] and firenze[0]['series_count'] == 2
+          firenze_records = [r for r in reg['records'] if r['authority_key'] == 'firenze']
+          assert len(firenze_records) == 664
+          assert sum(r['source_key'] == 'firenze-listed' for r in firenze_records) == 539
+          assert sum(r['source_key'] == 'firenze-applicants' for r in firenze_records) == 125
+          assert sum(r['source_status'] == 'listed' for r in firenze_records) == 429
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in firenze_records) == 110
+          assert sum(r['source_status'] == 'pending' for r in firenze_records) == 125
+          assert len({r['record_locator'] for r in firenze_records}) == 664
+          assert sum(bool(r['identifiers']) for r in firenze_records) == 660
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in firenze_records) == 4
+          firenze_applicants = [r for r in firenze_records if r['source_key'] == 'firenze-applicants']
+          assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2
+"""
+              if x.count(anchor)!=1: raise SystemExit('Firenze assertion anchor drift')
+              x=x.replace(anchor,anchor+block,1)
+          out=Path('staging/firenze-public-pages.yml'); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(x,encoding='utf-8')
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add staging/firenze-public-pages.yml tests/public_portal_browser.cjs
+          git add staging/firenze-public-pages.yml
           git diff --cached --check
-          git diff --cached --stat
-          if git diff --cached --quiet; then
-            echo 'No staging delta to persist.'
-            exit 0
-          fi
-          git commit -m 'Stage Firenze public portal assertions'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Stage Firenze public workflow assertions'
           git push origin HEAD:expansion/firenze-2026-09-18
