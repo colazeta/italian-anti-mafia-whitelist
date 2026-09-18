@@ -42,6 +42,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .github/workflows/public-pages.yml .github/workflows/tmp-align-lodi-public-assertions.yml
           git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml "
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/public-pages.yml .github/workflows/tmp-align-lodi-public-assertions.yml "
           git commit -m 'Align public Lodi assertions with reviewed boundary'
           git push origin HEAD:fix/milano-source-drift-2026-09-18
