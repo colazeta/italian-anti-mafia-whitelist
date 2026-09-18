@@ -17,8 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install audit dependencies
-        run: |
-          python -m pip install --disable-pip-version-check -q pdfplumber
+        run: python -m pip install --disable-pip-version-check -q pdfplumber
 
       - name: Capture and inspect current official Messina White List sources
         shell: bash
@@ -30,16 +29,16 @@ jobs:
           UA='Mozilla/5.0 WhiteListArchive/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
           mkdir -p /tmp/messina
           for i in 1 2; do
-            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" --output "/tmp/messina/page-$i.html" "$PAGE"
-            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" --output "/tmp/messina/applicants-$i.pdf" "$APPLICANTS"
-            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" --output "/tmp/messina/listed-$i.pdf" "$LISTED"
+            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" -o "/tmp/messina/page-$i.html" "$PAGE"
+            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" -o "/tmp/messina/applicants-$i.pdf" "$APPLICANTS"
+            curl --fail --location --retry 3 --retry-delay 2 --user-agent "$UA" -o "/tmp/messina/listed-$i.pdf" "$LISTED"
           done
           echo '=== CAPTURE INTEGRITY ==='
           wc -c /tmp/messina/page-*.html /tmp/messina/applicants-*.pdf /tmp/messina/listed-*.pdf
           sha256sum /tmp/messina/page-*.html /tmp/messina/applicants-*.pdf /tmp/messina/listed-*.pdf
-          cmp /tmp/messina/page-1.html /tmp/messina/page-2.html && echo 'landing_page_byte_identical=true'
-          cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf && echo 'applicants_byte_identical=true'
-          cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf && echo 'listed_byte_identical=true'
+          cmp /tmp/messina/page-1.html /tmp/messina/page-2.html && echo landing_page_byte_identical=true
+          cmp /tmp/messina/applicants-1.pdf /tmp/messina/applicants-2.pdf && echo applicants_byte_identical=true
+          cmp /tmp/messina/listed-1.pdf /tmp/messina/listed-2.pdf && echo listed_byte_identical=true
 
           python - <<'PY'
           from collections import Counter
@@ -47,76 +46,71 @@ jobs:
           import json, re
           import pdfplumber
 
-          paths = {
-              'applicants': Path('/tmp/messina/applicants-1.pdf'),
-              'listed': Path('/tmp/messina/listed-1.pdf'),
-          }
-          ident_re = re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z0-9]{16})(?![A-Za-z0-9])')
-          date_re = re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          DIGITS11=re.compile(r'^\d{11}$')
+          CF16=re.compile(r'^[A-Z0-9]{16}$')
+          DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
+          def clean(v): return '' if v is None else ' '.join(str(v).replace('\n',' ').split())
+          def ident_values(raw):
+              vals=[]
+              for token in re.split(r'[\s,;/]+', clean(raw).upper()):
+                  token=token.strip('()[]-')
+                  if DIGITS11.fullmatch(token) or CF16.fullmatch(token): vals.append(token)
+              return list(dict.fromkeys(vals))
 
-          def clean(v):
-              if v is None: return ''
-              return ' '.join(str(v).replace('\n',' ').split())
-
-          for label, path in paths.items():
-              print(f'=== PDFPLUMBER {label.upper()} ===')
-              all_rows=[]
-              page_company_counts=[]
-              widths=Counter()
+          for label,path in [('applicants',Path('/tmp/messina/applicants-1.pdf')),('listed',Path('/tmp/messina/listed-1.pdf'))]:
+              print(f'=== REFINED {label.upper()} ===')
+              company=[]; noncompany=[]; per_page=[]; tables_meta=[]
               with pdfplumber.open(path) as pdf:
-                  print('pages=', len(pdf.pages))
+                  print('pages=',len(pdf.pages))
                   for pageno,page in enumerate(pdf.pages,1):
+                      pcompany=[]
                       tables=page.find_tables()
-                      print(f'page={pageno} tables={len(tables)}')
-                      pcount=0
                       for ti,t in enumerate(tables,1):
                           rows=t.extract()
-                          print(f' page={pageno} table={ti} rows={len(rows)} bbox={tuple(round(x,1) for x in t.bbox)}')
+                          tables_meta.append((pageno,ti,len(rows),tuple(round(x,1) for x in t.bbox)))
                           for ri,row in enumerate(rows):
-                              cells=[clean(x) for x in row]
-                              widths[len(cells)] += 1
-                              joined=' | '.join(cells)
-                              ids=ident_re.findall(joined)
-                              # The reviewed PDFs expose one identifier field per company row;
-                              # use the presence of a strict identifier only for exploratory row discovery.
+                              cells=[clean(v) for v in row]
+                              # All reviewed company tables place codice fiscale / partita IVA at column 4.
+                              raw_id=cells[3] if len(cells)>=4 else ''
+                              ids=ident_values(raw_id)
                               if ids:
-                                  pcount += 1
-                                  all_rows.append((pageno,ti,ri,cells,ids))
-                      page_company_counts.append(pcount)
-              print('table_row_widths=', dict(widths))
-              print('strict_identifier_rows_per_page=', page_company_counts)
-              print('strict_identifier_rows_total=', len(all_rows))
-              id_values=[]
-              for _,_,_,cells,ids in all_rows: id_values.extend(ids)
-              print('strict_identifiers_total=', len(id_values), 'unique=', len(set(id_values)))
-              dup=Counter(id_values)
-              print('duplicate_identifiers=', [(k,v) for k,v in dup.items() if v>1][:50])
-              print('first_rows=')
-              for row in all_rows[:4]: print(json.dumps(row, ensure_ascii=False))
-              print('last_rows=')
-              for row in all_rows[-4:]: print(json.dumps(row, ensure_ascii=False))
+                                  item=(pageno,ti,ri,cells,ids)
+                                  company.append(item); pcompany.append(item)
+                              else:
+                                  noncompany.append((pageno,ti,ri,cells))
+                      per_page.append(len(pcompany))
+                  if label=='applicants':
+                      # Date is printed in the rightmost visual column outside pdfplumber's ruled-table bbox.
+                      # Collect all date tokens and their coordinates to verify one-to-one alignment with source rows.
+                      date_words=[]
+                      for pageno,page in enumerate(pdf.pages,1):
+                          for w in page.extract_words():
+                              text=clean(w['text'])
+                              if DATE.fullmatch(text):
+                                  date_words.append((pageno,round(float(w['top']),1),round(float(w['x0']),1),text))
+                      print('applicant_date_tokens_total=',len(date_words))
+                      print('applicant_date_tokens_per_page=',dict(Counter(x[0] for x in date_words)))
+                      print('applicant_date_x0_range=',(min(x[2] for x in date_words),max(x[2] for x in date_words)))
+                      print('applicant_date_first_last=',json.dumps(date_words[:4]+date_words[-4:],ensure_ascii=False))
 
-              if label == 'listed':
-                  # Reviewed layout expected: name, office, secondary, identifier, listing, expiry, update, sections.
-                  update=Counter(); row_lengths=Counter(); dates_bad=[]
-                  for pageno,ti,ri,cells,ids in all_rows:
-                      row_lengths[len(cells)] += 1
-                      if len(cells) >= 8:
-                          update[cells[6]] += 1
-                          for idx,field in ((4,'listing'),(5,'expiry')):
-                              raw=cells[idx]
-                              if raw and not date_re.fullmatch(raw): dates_bad.append((pageno,ti,ri,cells[0],field,raw))
-                  print('listed_company_row_widths=', dict(row_lengths))
-                  print('listed_update_raw=', json.dumps(update, ensure_ascii=False, sort_keys=True))
-                  print('listed_nonstandard_dates=', json.dumps(dates_bad, ensure_ascii=False))
-              else:
-                  # Reviewed layout expected: name, office, secondary, identifier, sections, application date.
-                  row_lengths=Counter(); dates_bad=[]
-                  for pageno,ti,ri,cells,ids in all_rows:
-                      row_lengths[len(cells)] += 1
-                      if len(cells) >= 6:
-                          raw=cells[5]
-                          if raw and not date_re.fullmatch(raw): dates_bad.append((pageno,ti,ri,cells[0],raw))
-                  print('applicant_company_row_widths=', dict(row_lengths))
-                  print('applicant_nonstandard_dates=', json.dumps(dates_bad, ensure_ascii=False))
+              print('tables_meta=',tables_meta)
+              print('company_rows_per_page=',per_page,'total=',len(company))
+              ids=[v for *_,vals in company for v in vals]
+              print('identifier_values_total=',len(ids),'unique=',len(set(ids)))
+              print('company_rows_with_multiple_identifiers=',json.dumps([(p,t,r,c[0],c[3],vals) for p,t,r,c,vals in company if len(vals)>1],ensure_ascii=False))
+              print('duplicate_identifier_values=',[(k,v) for k,v in Counter(ids).items() if v>1])
+              print('noncompany_rows_count=',len(noncompany))
+              print('noncompany_rows=',json.dumps(noncompany,ensure_ascii=False))
+              print('first_company=',json.dumps(company[:3],ensure_ascii=False))
+              print('last_company=',json.dumps(company[-3:],ensure_ascii=False))
+              if label=='listed':
+                  updates=Counter(cells[6] for _,_,_,cells,_ in company)
+                  activities=Counter(cells[7] for _,_,_,cells,_ in company)
+                  bad=[]
+                  for p,t,r,cells,_ in company:
+                      for idx,field in ((4,'listing'),(5,'expiry')):
+                          if cells[idx] and not DATE.fullmatch(cells[idx]): bad.append((p,t,r,cells[0],field,cells[idx]))
+                  print('status_column=',json.dumps(updates,ensure_ascii=False,sort_keys=True))
+                  print('activity_distinct=',len(activities))
+                  print('nonstandard_dates=',json.dumps(bad,ensure_ascii=False))
           PY
