@@ -92,11 +92,10 @@ jobs:
             --prefectures-csv /tmp/trapani-national/prefectures.csv
           python tmp/trapani_candidate_assertions.py
 
-      - name: Commit permanent checkpoint only
+      - name: Commit non-workflow permanent checkpoint
         shell: bash
         run: |
           permanent=(
-            .github/workflows/public-pages.yml
             data/catalog.csv
             data/monitoring/national_coverage.json
             data/publication/multi_prefecture_pilot.json
@@ -113,9 +112,12 @@ jobs:
           git add -- "${permanent[@]}"
           git diff --cached --check
           staged="$(git diff --cached --name-only)"
-          test -n "$staged"
-          if printf '%s\n' "$staged" | grep -E '^\.github/workflows/trapani-|^scripts/(patch_trapani|trapani_shape)|^tmp/trapani'; then
-            echo 'Temporary Trapani mechanism leaked into permanent checkpoint' >&2
+          if test -z "$staged"; then
+            echo 'No non-workflow permanent changes remain to checkpoint.'
+            exit 0
+          fi
+          if printf '%s\n' "$staged" | grep -E '^\.github/workflows/|^scripts/(patch_trapani|trapani_shape)|^tmp/trapani'; then
+            echo 'Workflow or temporary Trapani mechanism leaked into non-workflow checkpoint' >&2
             exit 1
           fi
           git config user.name 'github-actions[bot]'
