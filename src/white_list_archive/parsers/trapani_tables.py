@@ -430,22 +430,26 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         expiry_date = ""
         if len(valid_expiry_dates) == 1 and len(expiry_raw_variants) == 1:
             expiry_date = valid_expiry_dates[0]
-        elif identifier == "01712150819":
+        elif identifier == "05913370820":
             expected = {
                 "rows": 1,
-                "pages": [34],
-                "names": ["SICIL AMBIENTE DI SCATURRO AGOSTINO S.R.L."],
-                "listing_raw": ["08/04/2026"],
+                "pages": ["8"],
+                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],
+                "offices": ["MARSALA"],
+                "listing_raw": ["30/08/2017"],
+                "expiry_raw": [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY],
                 "updates": [""],
             }
             observed = {
                 "rows": len(rows),
                 "pages": _ordered_unique([str(row["page"]) for row in rows]),
                 "names": name_variants,
+                "offices": office_variants,
                 "listing_raw": listing_raw_variants,
+                "expiry_raw": expiry_raw_variants,
                 "updates": [row["update_raw"] for row in rows],
             }
-            if observed != {**expected, "pages": [str(value) for value in expected["pages"]]}:
+            if observed != expected:
                 raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")
             non_date_expiry_records += 1
         else:
