@@ -22,13 +22,19 @@ jobs:
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=2-${GITHUB_RUN_ID}" -o /tmp/b.pdf
           test "$(sha256sum /tmp/a.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
           cmp /tmp/a.pdf /tmp/b.pdf
-      - name: Inspect all repeated-row field variants
+      - name: Inspect repeated variants and non-date expiries
         run: |
           python - <<'PY'
           import collections, json, re
+          from datetime import datetime
           import pdfplumber
           def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
-          groups=collections.defaultdict(list)
+          def is_date(v):
+              m=re.fullmatch(r'(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})', clean(v))
+              if not m: return False
+              try: datetime(int(m.group(3)),int(m.group(2)),int(m.group(1))); return True
+              except ValueError: return False
+          groups=collections.defaultdict(list); nondate=[]
           with pdfplumber.open('/tmp/a.pdf') as pdf:
               for pi,p in enumerate(pdf.pages,1):
                   for ti,t in enumerate(sorted(p.find_tables(), key=lambda x: float(x.bbox[1])),1):
@@ -38,7 +44,9 @@ jobs:
                           if len(row) != 7: continue
                           ident=row[3]
                           if not re.fullmatch(r'(?:\d{11}|[A-Za-z0-9]{16})', ident): continue
-                          groups[ident].append({'page':pi,'table':ti,'row':ri,'name':row[0],'office':row[1],'secondary':row[2],'listed':row[4],'expiry':row[5],'update':row[6]})
+                          item={'page':pi,'table':ti,'row':ri,'name':row[0],'office':row[1],'secondary':row[2],'identifier':ident,'listed':row[4],'expiry':row[5],'update':row[6]}
+                          groups[ident].append(item)
+                          if row[5] and not is_date(row[5]): nondate.append(item)
           field_drifts=[]
           for ident,rows in sorted(groups.items()):
               variants={}
@@ -48,9 +56,9 @@ jobs:
                       value=row[field]
                       if value not in ordered: ordered.append(value)
                   if len(ordered)>1: variants[field]=ordered
-              if variants:
-                  field_drifts.append({'identifier':ident,'variants':variants,'rows':rows})
+              if variants: field_drifts.append({'identifier':ident,'variants':variants,'rows':rows})
           print('FIELD_VARIANT_GROUP_COUNT',len(field_drifts))
-          for item in field_drifts:
-              print('FIELD_VARIANT_GROUP',json.dumps(item,ensure_ascii=False,sort_keys=True))
+          for item in field_drifts: print('FIELD_VARIANT_GROUP',json.dumps(item,ensure_ascii=False,sort_keys=True))
+          print('NONDATE_EXPIRY_COUNT',len(nondate))
+          for item in nondate: print('NONDATE_EXPIRY',json.dumps(item,ensure_ascii=False,sort_keys=True))
           PY
