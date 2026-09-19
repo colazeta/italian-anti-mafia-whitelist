@@ -97,6 +97,13 @@ _LISTED_NAME_VARIANT_NORMALISATIONS = {
         ],
         "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",
     },
+    "02483280810": {
+        "source_variants": [
+            "GIKA S.R.L.",
+            "GIKA S.r.l.",
+        ],
+        "canonical": "GIKA S.R.L.",
+    },
 }
 
 
