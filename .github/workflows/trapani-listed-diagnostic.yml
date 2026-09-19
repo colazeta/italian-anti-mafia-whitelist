@@ -24,46 +24,30 @@ jobs:
           cmp /tmp/a.pdf /tmp/b.pdf
           sha256sum /tmp/a.pdf
           stat -c '%s bytes' /tmp/a.pdf
-      - name: Inspect tables and source boundary
+      - name: Inventory all non-data rows
         run: |
           python - <<'PY'
-          import collections, json, re
+          import json, re
           import pdfplumber
           def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
-          def ids(raw): return re.findall(r'(?<![A-Z0-9])(?:\d{11}|[A-Z0-9]{16})(?![A-Z0-9])', clean(raw).upper())
+          ident = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          anomalies=[]
+          valid=0
           with pdfplumber.open('/tmp/a.pdf') as pdf:
-              print('PAGES', len(pdf.pages))
-              print('GEOMETRY', sorted({(round(float(p.width),2), round(float(p.height),2)) for p in pdf.pages}))
-              table_counts=[]; row_counts=[]; headers=collections.Counter(); last=collections.Counter(); rawonly=collections.Counter(); structured=0; examples=[]
               for pi,p in enumerate(pdf.pages,1):
-                  tables=p.find_tables(); table_counts.append(len(tables)); data=[]
-                  for ti,t in enumerate(tables,1):
-                      extracted=t.extract() or []
-                      if pi in (17, 18):
-                          print(f'PAGE{pi}_TABLE', ti, 'ROWS', len(extracted))
-                          for ri, raw in enumerate(extracted,1):
-                              print(f'PAGE{pi}_ROW', ti, ri, json.dumps([clean(x) for x in raw], ensure_ascii=False))
-                      for raw in extracted:
-                          vals=[clean(x) for x in raw]
-                          if not any(vals): continue
-                          joined=' '.join(vals).casefold()
-                          if 'ragione sociale' in joined and ('codice fiscale' in joined or 'partita i.v.a' in joined or 'partita iva' in joined):
-                              headers[tuple(vals)] += 1; continue
-                          if len(vals) >= 3 and vals[0] and vals[1]: data.append(vals)
-                  row_counts.append(len(data))
-                  for vals in data:
-                      idraw=vals[3] if len(vals)>3 else vals[2]
-                      if ids(idraw): structured += 1
-                      else: rawonly[idraw] += 1
-                      last[vals[-1]] += 1
-                      if len(examples)<20: examples.append([pi,vals])
-              print('TABLE_COUNTS',table_counts)
-              print('DATA_ROW_COUNTS',row_counts,'TOTAL',sum(row_counts))
-              print('HEADERS',json.dumps([{'count':c,'row':list(k)} for k,c in headers.items()],ensure_ascii=False))
-              print('STRUCTURED_ID_ROWS',structured,'RAW_ONLY_ROWS',sum(rawonly.values()))
-              print('RAW_ONLY_TOP',json.dumps(rawonly.most_common(50),ensure_ascii=False))
-              print('LAST_COLUMN_COUNTS',json.dumps(last.most_common(100),ensure_ascii=False))
-              print('EXAMPLES',json.dumps(examples,ensure_ascii=False))
-              print('FIRST_TEXT',clean(pdf.pages[0].extract_text() or '')[:7000])
-              print('LAST_TEXT',clean(pdf.pages[-1].extract_text() or '')[-7000:])
+                  for ti,t in enumerate(sorted(p.find_tables(), key=lambda x: float(x.bbox[1])),1):
+                      for ri,raw in enumerate(t.extract() or [],1):
+                          row=[clean(x) for x in raw]
+                          if len(row)==6: row.append('')
+                          if not any(row): continue
+                          joined=' '.join(row).casefold()
+                          if 'ragione sociale' in joined and 'codice fiscale' in joined: continue
+                          if len(row)==7 and row[0] and ident.fullmatch(row[3]):
+                              valid += 1
+                          else:
+                              anomalies.append({'page':pi,'table':ti,'row':ri,'values':row})
+              print('VALID_MEMBERSHIP_ROWS', valid)
+              print('ANOMALY_COUNT', len(anomalies))
+              for item in anomalies:
+                  print('ANOMALY', json.dumps(item, ensure_ascii=False))
           PY
