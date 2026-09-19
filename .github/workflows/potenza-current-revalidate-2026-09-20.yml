@@ -150,12 +150,3 @@ jobs:
           if len(removed) != 1 or added or status_changes:
               raise RuntimeError('Current Potenza delta is not the single-removal transition suggested by aggregate counts')
           PY
-      - name: Upload revalidation captures
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: potenza-current-source-revalidation-2026-09-20
-          path: |
-            /tmp/potenza-*.json
-            /tmp/live-registry.json
-          retention-days: 7
