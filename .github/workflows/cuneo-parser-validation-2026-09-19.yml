@@ -1,5 +1,6 @@
 name: Cuneo parser validation 2026-09-19
 
+# Transactional validator for the reviewed 15 September 2026 Cuneo source boundary.
 on:
   push:
     branches:
