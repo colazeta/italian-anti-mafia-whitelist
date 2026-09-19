@@ -101,7 +101,7 @@ jobs:
           assert batch.diagnostics['non_date_expiry_records']==1,batch.diagnostics
           assert Counter(r['source_status'] for r in batch.records)==Counter({'listed':177,'renewal_update_in_progress':156})
           row=next(r for r in batch.records if r['identifiers'] and r['identifiers'][0]=='05913370820')
-          assert row['expiry_date']==''
+          assert row['observed_expiry_date']==''
           assert row['source_fields']['expiry_date_raw_variants']==['In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa']
           print(batch.diagnostics)
           PY
