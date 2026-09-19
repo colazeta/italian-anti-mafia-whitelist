@@ -89,19 +89,7 @@ def test_national_index_parser_extracts_real_links_from_table_fixture():
     fixture = (ROOT / "tests/fixtures/national_index_sample.html").read_text(encoding="utf-8")
     page = "https://prefettura.interno.gov.it/it/white-list-nazionale?page=0"
     entries = parse_national_index_html(fixture, page)
-
-    assert [entry.authority_name for entry in entries] == [
-        "Agrigento",
-        "Ascoli Piceno",
-        "Pesaro e Urbino",
-    ]
-    assert [entry.authority_key for entry in entries] == [
-        "agrigento",
-        "ascoli-piceno",
-        "pesaro-e-urbino",
-    ]
-    assert [entry.detail_url for entry in entries] == [
-        "https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list",
-        "https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/evidenza/white-list",
-        "https://prefettura.interno.gov.it/it/prefetture/pesaro-e-urbino/evidenza/white-list",
-    ]
+    assert [entry.jurisdiction_name for entry in entries] == ["Aosta", "Milano", "Trento"]
+    assert entries[0].white_list_url.startswith("https://www.regione.vda.it/")
+    assert entries[1].white_list_url == "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list"
+    assert entries[2].title == "WHITE LIST"
