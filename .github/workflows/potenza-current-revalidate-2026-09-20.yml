@@ -55,6 +55,7 @@ jobs:
           from pathlib import Path
 
           from white_list_archive.parsers.potenza_webapp import parse_potenza_combined
+          from white_list_archive.publishing.public_national_registry import _semantic_digest
 
           config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
           cfg = next(s for s in config['sources'] if s['source_key'] == 'potenza-combined')
@@ -69,14 +70,15 @@ jobs:
               print(f'CAPTURE_{index}_BYTES={len(raw)}')
               print(f'CAPTURE_{index}_TOTAL={payload.get("TotalRecordCount")}')
               print(f'CAPTURE_{index}_DIAGNOSTICS={json.dumps(batch.diagnostics, sort_keys=True)}')
+              print(f'CAPTURE_{index}_SEMANTIC_SHA256={_semantic_digest(batch.records)}')
               batches.append(batch)
 
-          def public_projection(batch):
+          def review_projection(batch):
               rows = []
               for record in batch.records:
                   rows.append({
                       'source_id': str(record['source_fields']['source_id']),
-                      'name': record['company_name'],
+                      'name': record['name'],
                       'identifier_raw': record['identifier_field_raw'],
                       'status': record['source_status'],
                       'application_date': record['application_date'],
@@ -86,12 +88,10 @@ jobs:
                   })
               return sorted(rows, key=lambda row: int(row['source_id']))
 
-          projection1 = public_projection(batches[0])
-          projection2 = public_projection(batches[1])
+          projection1 = review_projection(batches[0])
+          projection2 = review_projection(batches[1])
           if projection1 != projection2:
               raise RuntimeError('Independent Potenza parser projections differ')
-          semantic_bytes = json.dumps(projection1, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
-          print(f'CURRENT_REVIEW_PROJECTION_SHA256={hashlib.sha256(semantic_bytes).hexdigest()}')
           print(f'CURRENT_STATUS_COUNTS={dict(Counter(row["status"] for row in projection1))}')
           print(f'CURRENT_SOURCE_IDS={len({row["source_id"] for row in projection1})}')
 
@@ -113,8 +113,10 @@ jobs:
           current_by_id = {row['source_id']: row for row in projection1}
           current_ids = set(current_by_id)
           published_ids = set(published_by_id)
-          print(f'CURRENT_MINUS_CANONICAL_IDS={sorted(current_ids - published_ids, key=int)}')
-          print(f'CANONICAL_MINUS_CURRENT_IDS={sorted(published_ids - current_ids, key=int)}')
+          removed = sorted(published_ids - current_ids, key=int)
+          added = sorted(current_ids - published_ids, key=int)
+          print(f'CURRENT_MINUS_CANONICAL_IDS={added}')
+          print(f'CANONICAL_MINUS_CURRENT_IDS={removed}')
 
           status_changes = []
           for source_id in sorted(current_ids & published_ids, key=int):
@@ -124,10 +126,22 @@ jobs:
                   status_changes.append((source_id, old, new, current_by_id[source_id]['name']))
           print(f'STATUS_CHANGES={status_changes}')
 
-          for source_id in sorted((current_ids ^ published_ids) | {sid for sid, *_ in status_changes}, key=int):
-              print('DELTA', source_id, 'CURRENT=', json.dumps(current_by_id.get(source_id), ensure_ascii=False, sort_keys=True), 'CANONICAL=', json.dumps(published_by_id.get(source_id), ensure_ascii=False, sort_keys=True))
+          for source_id in sorted(set(added) | set(removed) | {sid for sid, *_ in status_changes}, key=int):
+              current = current_by_id.get(source_id)
+              canonical = published_by_id.get(source_id)
+              canonical_review = None if canonical is None else {
+                  'name': canonical.get('name'),
+                  'identifier_raw': canonical.get('identifier_field_raw'),
+                  'status': canonical.get('source_status'),
+                  'application_date': canonical.get('application_date'),
+                  'listing_date': canonical.get('observed_listing_date'),
+                  'expiry_date': canonical.get('observed_expiry_date'),
+                  'record_locator': canonical.get('record_locator'),
+              }
+              print('DELTA', source_id, 'CURRENT=', json.dumps(current, ensure_ascii=False, sort_keys=True), 'CANONICAL=', json.dumps(canonical_review, ensure_ascii=False, sort_keys=True))
           PY
       - name: Upload revalidation captures
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: potenza-current-source-revalidation-2026-09-20
