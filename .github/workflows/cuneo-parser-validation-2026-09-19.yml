@@ -119,6 +119,10 @@ jobs:
               'renewal_update_in_progress': 66,
               'pending': 48,
           })
+          carrero = listed.records[112]
+          assert carrero['name'] == 'CARRERO TRASPORTI S.r.l.'
+          assert carrero['registered_office'] == "Via del Vecchio Mulino 10/12 Fraz. Cinzano Santa Vittoria d'Alba"
+          assert carrero['identifier_field_raw'] == '02764820045'
           baudino = listed.records[70]
           assert baudino['name'] == 'BAUDINO TRASPORTI S.r.l.'
           assert baudino['observed_listing_date'] == ''
