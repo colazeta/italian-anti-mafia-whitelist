@@ -67,6 +67,18 @@ jobs:
           if checkout_cleanup not in scripts[build_name]:
               raise SystemExit('Reviewed generated-output cleanup anchor missing')
           scripts[build_name] = scripts[build_name].replace(checkout_cleanup, remove_cleanup, 1)
+
+          # csv.DictWriter defaults to CRLF even on Linux. The reviewed materialiser
+          # rewrites two existing LF CSV registries, so the default produces a whole-file
+          # whitespace diff that the unchanged git diff --cached --check gate correctly
+          # rejects. Preserve the gate and make only those deterministic writers emit LF.
+          materialise_name = 'Materialise permanent Grosseto integration'
+          writer_anchor = "w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)"
+          writer_replacement = "w=csv.DictWriter(h,fieldnames=fields,lineterminator='\\n'); w.writeheader(); w.writerows(rows)"
+          if scripts[materialise_name].count(writer_anchor) != 2:
+              raise SystemExit('Reviewed CSV writer anchors changed unexpectedly')
+          scripts[materialise_name] = scripts[materialise_name].replace(writer_anchor, writer_replacement)
+
           Path('/tmp/grosseto-reviewed-steps.json').write_text(json.dumps(scripts), encoding='utf-8')
           PY
           cat >/tmp/run-grosseto-reviewed-step.py <<'PY'
