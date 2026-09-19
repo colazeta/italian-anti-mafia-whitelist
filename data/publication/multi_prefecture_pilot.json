@@ -1971,6 +1971,43 @@
       "expected_source_rows": 12,
       "expected_sector_rows": 35,
       "notes": "Dedicated official applicant XLSX positively exposed by the current landing page. 35 section rows conservatively group to 12 pending observations; all 12 have strict structured identifiers. No applicant population is inferred from absence or search failure."
+    },
+    {
+      "authority_key": "imperia",
+      "authority_name": "Prefettura di Imperia",
+      "register_key": "imperia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-18",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list",
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 18 September 2026, 10:54; reference_date preserves that explicit publication-surface update date and is not promoted to a company decision/legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "imperia-listed",
+      "parser": "imperia_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/46/2026-09/elenco-ditte-iscritte-white-list_3.xlsx",
+      "sha256": "9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f",
+      "expected_source_rows": 142,
+      "expected_sector_rows": 246,
+      "notes": "Official current listed XLSX. 246 section rows group only on source-visible identity, addresses, identifier, dates and update/status evidence to 142 observations: 105 listed and 37 renewal/update in progress. Structured identifier coverage is 131/142. Two malformed listing-date tokens (07/07/206 and 06/07/206 at logical-observation level) remain raw with normalised date blank."
+    },
+    {
+      "authority_key": "imperia",
+      "authority_name": "Prefettura di Imperia",
+      "register_key": "imperia-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-18",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list",
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 18 September 2026, 10:54; reference_date preserves that explicit publication-surface update date and is not promoted to a company decision/legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "imperia-applicants",
+      "parser": "imperia_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/46/2026-08/elenco-delle-ditte-che-hanno-presentato-istanza-di-iscrizione-nelle-white-lists_2.doc",
+      "sha256": "e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9",
+      "expected_source_rows": 131,
+      "notes": "Official current applicant legacy Word table positively exposed by the current landing. 337 physical table rows resolve to 131 observations after exact repeated-header/blank/activity-continuation handling: 117 explicit subsequent enrolments, 6 pending, 5 cancellation-related and 3 other/unknown. Structured identifier coverage is 126/131; two malformed application-date tokens remain raw."
     }
   ]
 }

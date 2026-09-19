@@ -2004,35 +2004,49 @@
       "region": "Liguria",
       "national_index_key": "imperia",
       "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list",
-      "source_verified": false,
-      "current_edition_identified": null,
+      "source_verified": true,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
-      "company_observations_loaded": false,
-      "observation_layer": null,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
+      "company_observations_loaded": true,
+      "observation_layer": "public_source_observations",
       "canonical_integration_validated": false,
-      "public_export_enabled": false,
+      "public_export_enabled": true,
       "durable_evidence_verified": false,
-      "population_scopes_complete": false,
-      "latest_source_reference_date": null,
+      "population_scopes_complete": true,
+      "latest_source_reference_date": "2026-09-18",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
       "last_attempted_source_check_at": null,
       "last_content_change_at": null,
-      "last_successful_investigation_on": null,
+      "last_successful_investigation_on": "2026-09-19",
       "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [],
+      "unresolved_issue": [
+        "Canonical hosted-database integration and independent durable-evidence verification remain separate infrastructure gates. The applicant attachment is a legacy Word file whose HTTP Last-Modified predates the current landing update; no attachment metadata is promoted to an edition, company-decision or legal-effect date."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/imperia-operational-check-2026-09-19.md",
+        "src/white_list_archive/parsers/imperia_sources.py",
+        "tests/test_imperia_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json"
+      ],
+      "known_content_sha256": [
+        "9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f",
+        "e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9"
+      ],
       "evidence": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/imperia-operational-check-2026-09-19.md"
+      ],
+      "last_completed_coverage_stage": "VALIDATED"
     },
     {
       "authority_key": "isernia",
