@@ -57,6 +57,18 @@ jobs:
           if missing:
               raise SystemExit(f'Missing reviewed finalizer steps: {missing!r}')
 
+          # The generated public registry artifacts are publication outputs and are
+          # intentionally not tracked in git. The reviewed v1 script attempted to
+          # restore them with `git checkout --`, which fails after the candidate has
+          # otherwise built and validated successfully. Remove only those generated
+          # outputs instead; this changes no validation or evidence gate.
+          build_name = 'Build and validate national candidate'
+          checkout_cleanup = 'git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv'
+          remove_cleanup = 'rm -f public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv'
+          if checkout_cleanup not in scripts[build_name]:
+              raise SystemExit('Reviewed generated-output cleanup anchor missing')
+          scripts[build_name] = scripts[build_name].replace(checkout_cleanup, remove_cleanup, 1)
+
           def run(name: str) -> None:
               print(f'::group::{name}')
               subprocess.run(['bash', '-c', 'set -euo pipefail\n' + scripts[name]], check=True)
