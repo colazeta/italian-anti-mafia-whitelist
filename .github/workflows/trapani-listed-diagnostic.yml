@@ -22,28 +22,31 @@ jobs:
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=2-${GITHUB_RUN_ID}" -o /tmp/b.pdf
           test "$(sha256sum /tmp/a.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
           cmp /tmp/a.pdf /tmp/b.pdf
-      - name: Inspect repeated-name spacing evidence
+      - name: Inspect all repeated-name variant evidence
         run: |
           python - <<'PY'
-          import json, re
+          import collections, json, re
           import pdfplumber
-          TARGET='02483290819'
           def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
-          matches=[]
+          groups=collections.defaultdict(list)
           with pdfplumber.open('/tmp/a.pdf') as pdf:
               for pi,p in enumerate(pdf.pages,1):
                   for ti,t in enumerate(sorted(p.find_tables(), key=lambda x: float(x.bbox[1])),1):
-                      extracted=t.extract() or []
-                      for ri,raw in enumerate(extracted,1):
+                      for ri,raw in enumerate(t.extract() or [],1):
                           row=[clean(x) for x in raw]
                           if len(row)==6: row.append('')
-                          if TARGET not in row:
-                              continue
-                          matches.append({
-                              'page':pi,'table':ti,'row':ri,'values':row,
-                              'page_text':clean(p.extract_text() or '')
-                          })
-              print('TARGET_MATCH_COUNT',len(matches))
-              for item in matches:
-                  print('TARGET_CONTEXT',json.dumps(item,ensure_ascii=False))
+                          if len(row) != 7: continue
+                          ident=row[3]
+                          if not re.fullmatch(r'(?:\d{11}|[A-Za-z0-9]{16})', ident): continue
+                          groups[ident].append({'page':pi,'table':ti,'row':ri,'name':row[0],'office':row[1],'secondary':row[2],'listed':row[4],'expiry':row[5],'update':row[6]})
+          drifts=[]
+          for ident,rows in sorted(groups.items()):
+              names=[]
+              for row in rows:
+                  if row['name'] not in names: names.append(row['name'])
+              if len(names)>1:
+                  drifts.append({'identifier':ident,'names':names,'rows':rows})
+          print('NAME_VARIANT_GROUP_COUNT',len(drifts))
+          for item in drifts:
+              print('NAME_VARIANT_GROUP',json.dumps(item,ensure_ascii=False,sort_keys=True))
           PY
