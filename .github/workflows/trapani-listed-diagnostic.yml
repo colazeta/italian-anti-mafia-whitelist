@@ -37,8 +37,13 @@ jobs:
               table_counts=[]; row_counts=[]; headers=collections.Counter(); last=collections.Counter(); rawonly=collections.Counter(); structured=0; examples=[]
               for pi,p in enumerate(pdf.pages,1):
                   tables=p.find_tables(); table_counts.append(len(tables)); data=[]
-                  for t in tables:
-                      for raw in (t.extract() or []):
+                  for ti,t in enumerate(tables,1):
+                      extracted=t.extract() or []
+                      if pi == 15:
+                          print('PAGE15_TABLE', ti, 'ROWS', len(extracted))
+                          for ri, raw in enumerate(extracted,1):
+                              print('PAGE15_ROW', ti, ri, json.dumps([clean(x) for x in raw], ensure_ascii=False))
+                      for raw in extracted:
                           vals=[clean(x) for x in raw]
                           if not any(vals): continue
                           joined=' '.join(vals).casefold()
