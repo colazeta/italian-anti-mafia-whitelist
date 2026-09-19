@@ -78,7 +78,7 @@ jobs:
               with pdfplumber.open(io.BytesIO(bodies[0])) as pdf:
                   if len(pdf.pages) != expected[pop]['pages']: raise SystemExit(f'{pop}: page-count drift {len(pdf.pages)}')
                   print('GEOMETRY',pop,sorted({(round(float(p.width),2),round(float(p.height),2)) for p in pdf.pages}))
-                  table_counts=[]; row_counts=[]; headers=collections.Counter(); status_tail=collections.Counter(); structured=0; raw_only=collections.Counter(); total_rows=0
+                  table_counts=[]; row_counts=[]; header_rows=collections.Counter(); status_tail=collections.Counter(); structured=0; raw_only=collections.Counter(); total_rows=0
                   all_examples=[]
                   for pi,p in enumerate(pdf.pages,1):
                       tables=p.find_tables(); table_counts.append(len(tables))
@@ -93,7 +93,7 @@ jobs:
                       for vals in page_rows:
                           joined=' '.join(vals).casefold()
                           if ('ragione sociale' in joined and ('codice fiscale' in joined or 'partita iva' in joined)) or joined.startswith('ragione sociale'):
-                              headers[tuple(vals)] += 1; continue
+                              header_rows[tuple(vals)] += 1; continue
                           if len(vals) >= 3 and vals[0] and vals[1]: data.append(vals)
                       row_counts.append(len(data)); total_rows += len(data)
                       for vals in data:
@@ -105,7 +105,7 @@ jobs:
                           if len(all_examples)<12: all_examples.append((pi,vals))
                   print('TABLE_COUNTS',pop,table_counts)
                   print('DATA_ROW_COUNTS',pop,row_counts,'TOTAL',total_rows)
-                  print('HEADERS',pop,json.dumps([{'count':c,'row':list(k)} for k,c in headers.items()],ensure_ascii=False))
+                  print('HEADERS',pop,json.dumps([{'count':c,'row':list(k)} for k,c in header_rows.items()],ensure_ascii=False))
                   print('STRUCTURED_IDENTIFIER_ROW_COVERAGE',pop,structured,'RAW_ONLY_ROWS',sum(raw_only.values()))
                   print('RAW_ONLY_TOP',pop,json.dumps(raw_only.most_common(40),ensure_ascii=False))
                   print('LAST_COLUMN_COUNTS',pop,json.dumps(status_tail.most_common(80),ensure_ascii=False))
