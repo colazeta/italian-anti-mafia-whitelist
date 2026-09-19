@@ -19,26 +19,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install probe dependencies
-        run: |
-          python -m pip install --disable-pip-version-check requests beautifulsoup4
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 openpyxl
       - name: Resolve and capture official Fermo sources
         env:
           LANDING: https://prefettura.interno.gov.it/it/prefetture/fermo/white-list-elenco-imprese-richiedenti-e-iscritte
         run: |
           set -euo pipefail
+          rm -rf tmp/fermo-probe
           mkdir -p tmp/fermo-probe
           python - <<'PY'
-          import hashlib, json, os, pathlib, re, time
+          import hashlib, json, os, pathlib, time
           from urllib.parse import urljoin, urlparse, parse_qsl, urlencode, urlunparse
           import requests
           from bs4 import BeautifulSoup
+          from openpyxl import load_workbook
 
           landing = os.environ['LANDING']
           headers = {
               'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8',
+              'Accept': 'text/html,application/xhtml+xml,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;q=0.9,*/*;q=0.8',
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache',
           }
@@ -52,7 +51,8 @@ jobs:
           for a in soup.find_all('a', href=True):
               href = urljoin(landing, a['href'])
               text = ' '.join(a.stripped_strings)
-              if 'white' in (text + ' ' + href).lower() or href.lower().endswith('.pdf'):
+              low = (text + ' ' + href).lower()
+              if 'white' in low or href.lower().split('?')[0].endswith(('.xlsx','.xls','.pdf')):
                   anchors.append({'text': text, 'href': href})
           pathlib.Path('tmp/fermo-probe/anchors.json').write_text(json.dumps(anchors, ensure_ascii=False, indent=2), encoding='utf-8')
           print('OFFICIAL LANDING', landing)
@@ -63,16 +63,16 @@ jobs:
           targets = []
           for a in anchors:
               low = (a['text'] + ' ' + a['href']).lower()
-              if a['href'].lower().split('?')[0].endswith('.pdf') and ('iscritt' in low or 'richiedent' in low):
+              ext = a['href'].lower().split('?')[0]
+              if ext.endswith(('.xlsx','.xls')) and ('iscritt' in low or 'richiedent' in low):
                   targets.append(a)
-          # De-duplicate preserving order.
           seen=set(); uniq=[]
           for a in targets:
               if a['href'] not in seen:
                   seen.add(a['href']); uniq.append(a)
           targets=uniq
           if len(targets) != 2:
-              raise SystemExit(f'Expected exactly 2 current listed/applicant PDFs from official page, found {len(targets)}')
+              raise SystemExit(f'Expected exactly 2 current listed/applicant XLSX publications from official page, found {len(targets)}')
 
           manifest=[]
           for idx,a in enumerate(targets,1):
@@ -89,24 +89,35 @@ jobs:
                   raise SystemExit(f'Independent captures differ for {url}')
               data=captures[0]
               sha=hashlib.sha256(data).hexdigest()
-              stem='listed' if 'iscritt' in a['text'].lower() and 'richiedent' not in a['text'].lower() else 'applicants'
-              out=pathlib.Path(f'tmp/fermo-probe/{stem}.pdf')
+              low_label=a['text'].lower()
+              stem='applicants' if 'richiedent' in low_label else 'listed'
+              out=pathlib.Path(f'tmp/fermo-probe/{stem}.xlsx')
               if out.exists():
                   raise SystemExit(f'Duplicate population classification for {a}')
               out.write_bytes(data)
               manifest.append({'population':stem,'label':a['text'],'url':url,'bytes':len(data),'sha256':sha})
               print('SOURCE', stem, 'LABEL', repr(a['text']), 'URL', url, 'BYTES', len(data), 'SHA256', sha)
+
+              wb=load_workbook(out, read_only=True, data_only=True)
+              dump=[]
+              print('WORKBOOK', stem, 'SHEETS', wb.sheetnames)
+              for ws in wb.worksheets:
+                  print('SHEET', stem, repr(ws.title), 'MAX_ROW', ws.max_row, 'MAX_COLUMN', ws.max_column)
+                  dump.append(f'### SHEET {ws.title} rows={ws.max_row} cols={ws.max_column}')
+                  nonempty=0
+                  for row_num,row in enumerate(ws.iter_rows(values_only=True),1):
+                      vals=['' if v is None else str(v).replace('\n',' ').replace('\r',' ') for v in row]
+                      if not any(v.strip() for v in vals):
+                          continue
+                      nonempty += 1
+                      line='\t'.join(vals)
+                      dump.append(f'{row_num}\t{line}')
+                      if nonempty <= 40 or row_num > max(0, ws.max_row-20):
+                          print(f'ROW {stem} {ws.title} {row_num}: {line}')
+                  print('NONEMPTY_ROWS', stem, ws.title, nonempty)
+              pathlib.Path(f'tmp/fermo-probe/{stem}.tsv').write_text('\n'.join(dump)+'\n', encoding='utf-8')
           pathlib.Path('tmp/fermo-probe/manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
           PY
-          for f in tmp/fermo-probe/*.pdf; do
-            echo "===== PDFINFO $f ====="
-            pdfinfo "$f" | sed -n '1,30p'
-            pdftotext -layout "$f" "${f%.pdf}.txt"
-            echo "===== TEXT HEAD $f ====="
-            sed -n '1,120p' "${f%.pdf}.txt"
-            echo "===== TEXT TAIL $f ====="
-            tail -n 80 "${f%.pdf}.txt"
-          done
       - name: Upload probe evidence
         uses: actions/upload-artifact@v4
         with:
