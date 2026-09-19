@@ -1,0 +1,380 @@
+name: Cuneo national integration finalizer 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-integration-2026-09-19.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cuneo-2026-09-19
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Verify branch base and parser-only permanent scope
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "daa7c0efd9c91e15b39272f93f3e6260178cea6f"
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          python - <<'PY'
+          import subprocess
+          files = set(subprocess.check_output([
+              'git','diff','--name-only','origin/main...HEAD'
+          ], text=True).splitlines())
+          expected = {
+              'src/white_list_archive/parsers/cuneo_positioned.py',
+              '.github/workflows/cuneo-integration-2026-09-19.yml',
+          }
+          if files != expected:
+              raise SystemExit(f'unexpected pre-integration branch scope: {sorted(files)}')
+          PY
+
+      - name: Apply permanent Cuneo integration
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import csv
+          import json
+          from pathlib import Path
+
+          ROOT = Path('.')
+          LANDING = 'https://prefettura.interno.gov.it/it/prefetture/cuneo/elenco-iscritti-white-liste-e-elenco-richiedenti-white-list'
+          LISTED_URL = 'https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf'
+          APPLICANTS_URL = 'https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-richiedenti-iscrizione_0.pdf'
+          LISTED_SHA = '3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7'
+          APPLICANTS_SHA = '25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea'
+
+          def rewrite_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
+              with path.open('w', encoding='utf-8', newline='') as handle:
+                  writer = csv.DictWriter(handle, fieldnames=fieldnames)
+                  writer.writeheader()
+                  writer.writerows(rows)
+
+          # Catalog denominators.
+          path = ROOT/'data/catalog.csv'
+          with path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle); rows = list(reader); fields = reader.fieldnames
+          assert fields is not None
+          by_id = {r['dataset_id']: r for r in rows}
+          assert by_id['verified-primary-pages']['record_count'] == '56'
+          assert by_id['source-series-inventory']['record_count'] == '110'
+          by_id['verified-primary-pages']['record_count'] = '57'
+          by_id['source-series-inventory']['record_count'] = '112'
+          rewrite_csv(path, rows, fields)
+
+          # Verified landing page.
+          path = ROOT/'data/source_registry/verified_primary_pages.csv'
+          with path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle); rows = list(reader); fields = reader.fieldnames
+          assert fields == ['authority_key','landing_url','verification_date','verification_status']
+          assert not any(r['authority_key'] == 'cuneo' for r in rows)
+          rows.append({
+              'authority_key':'cuneo', 'landing_url':LANDING,
+              'verification_date':'2026-09-19', 'verification_status':'verified',
+          })
+          rows.sort(key=lambda r: r['authority_key'])
+          assert len(rows) == 57
+          rewrite_csv(path, rows, fields)
+
+          # Separate listed/applicant series, both positively identified.
+          path = ROOT/'data/source_registry/source_series_inventory.csv'
+          with path.open(encoding='utf-8', newline='') as handle:
+              reader = csv.DictReader(handle); rows = list(reader); fields = reader.fieldnames
+          assert fields == ['source_series_key','authority_key','regime_code','population_scope','sector_scope','publication_model','series_url','resource_resolution_status','verified_date','notes']
+          assert not any(r['authority_key'] == 'cuneo' for r in rows)
+          rows.extend([
+              {
+                  'source_series_key':'cuneo-applicants','authority_key':'cuneo','regime_code':'WL-REGIME-L190-2012',
+                  'population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment',
+                  'series_url':LANDING,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19',
+                  'notes':'Current official Cuneo page directly reverified 19 September 2026; it positively exposes the dedicated applicant PDF. The byte-pinned 15 September 2026 edition yields exactly 48 pending observations from 93 activity rows, all with strict 11-digit identifiers. Exact evidence is documented in docs/sources/cuneo-operational-check-2026-09-19.md.'
+              },
+              {
+                  'source_series_key':'cuneo-listed','authority_key':'cuneo','regime_code':'WL-REGIME-L190-2012',
+                  'population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment',
+                  'series_url':LANDING,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19',
+                  'notes':'Current official Cuneo page directly reverified 19 September 2026; it positively exposes the dedicated listed-company PDF. The byte-pinned 15 September 2026 edition yields 468 observations from 1,063 activity rows (402 listed; 66 renewal/update in progress), with reviewed malformed identifiers and one conflicting listing-date observation retained conservatively. Exact evidence is documented in docs/sources/cuneo-operational-check-2026-09-19.md.'
+              },
+          ])
+          rows.sort(key=lambda r: r['source_series_key'])
+          assert len(rows) == 112
+          rewrite_csv(path, rows, fields)
+
+          # Publication source configuration.
+          path = ROOT/'data/publication/multi_prefecture_pilot.json'
+          config = json.loads(path.read_text(encoding='utf-8'))
+          assert not any(s['authority_key'] == 'cuneo' for s in config['sources'])
+          common = {
+              'authority_key':'cuneo', 'authority_name':'Prefettura di Cuneo',
+              'register_key':'cuneo-ordinary', 'register_name':'White List ordinaria',
+              'reference_date':'2026-09-15', 'source_page_url':LANDING,
+              'last_source_update':'2026-09-15',
+              'last_source_update_basis':'explicit embedded document date; two independent cache-bypassed captures reverified byte-identical on 19 September 2026',
+              'approval_mode':'raw_sha256',
+          }
+          config['sources'].extend([
+              {
+                  'source_key':'cuneo-listed','parser':'cuneo_listed',**common,
+                  'population_scope':'listed','resource_url':LISTED_URL,'sha256':LISTED_SHA,
+                  'expected_source_rows':468,'expected_sector_rows':1063,
+                  'notes':'Dedicated official listed-company series. 468 observations = 402 listed + 66 renewal/update in progress; 457/468 have structured identifiers. Eleven malformed numeric identifiers remain raw-only and one reviewed listing-date conflict remains unnormalised.'
+              },
+              {
+                  'source_key':'cuneo-applicants','parser':'cuneo_applicants',**common,
+                  'population_scope':'applicant','resource_url':APPLICANTS_URL,'sha256':APPLICANTS_SHA,
+                  'expected_source_rows':48,'expected_sector_rows':93,
+                  'notes':'Dedicated official applicant series. Positive applicant title evidence and 48 source records yield 48 pending observations; all have one strict 11-digit identifier.'
+              },
+          ])
+          path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Monitoring ledger: validated source/public-observation layer only; durable evidence remains separate.
+          path = ROOT/'data/monitoring/national_coverage.json'
+          ledger = json.loads(path.read_text(encoding='utf-8'))
+          target = next(r for r in ledger['prefectures'] if r['authority_key'] == 'cuneo')
+          assert target['coverage_status'] == 'SOURCE_IDENTIFIED'
+          assert target['source_verified'] is False and target['public_export_enabled'] is False
+          target.update({
+              'official_landing_page': LANDING,
+              'source_verified': True,
+              'current_edition_identified': True,
+              'capture_implemented': True,
+              'parser_implemented': True,
+              'parser_validated': True,
+              'company_observations_loaded': True,
+              'observation_layer': 'public_source_observations',
+              'canonical_integration_validated': False,
+              'public_export_enabled': True,
+              'durable_evidence_verified': False,
+              'population_scopes_complete': True,
+              'latest_source_reference_date': '2026-09-15',
+              'last_successful_source_check_at': None,
+              'last_attempted_source_check_at': None,
+              'last_content_change_at': None,
+              'last_successful_investigation_on': '2026-09-19',
+              'monitoring_status': 'NEVER_CHECKED',
+              'unresolved_issue': [],
+              'actionable_issue': False,
+              'coverage_status': 'VALIDATED',
+              'terminal_reason': None,
+              'completion_evidence': [
+                  'docs/sources/cuneo-operational-check-2026-09-19.md',
+                  'src/white_list_archive/parsers/cuneo_positioned.py',
+                  'tests/test_cuneo_parser_semantics.py',
+                  'data/publication/multi_prefecture_pilot.json',
+              ],
+              'known_content_sha256': [LISTED_SHA, APPLICANTS_SHA],
+              'evidence': [
+                  'data/source_registry/verified_primary_pages.csv',
+                  'data/source_registry/source_series_inventory.csv',
+                  'data/publication/multi_prefecture_pilot.json',
+                  'docs/sources/cuneo-operational-check-2026-09-19.md',
+              ],
+              'last_completed_coverage_stage': 'VALIDATED',
+          })
+          path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Public parser binding. Cuneo source_fields are already inside the recursively closed contract.
+          path = ROOT/'src/white_list_archive/publishing/public_national_registry.py'
+          text = path.read_text(encoding='utf-8')
+          old = 'from white_list_archive.parsers.cremona_combined import PARSERS as CREMONA_PARSERS\n'
+          assert text.count(old) == 1 and 'CUNEO_PARSERS' not in text
+          text = text.replace(old, old + 'from white_list_archive.parsers.cuneo_positioned import PARSERS as CUNEO_PARSERS\n')
+          old = '        or CREMONA_PARSERS.get(cfg["parser"])\n'
+          assert text.count(old) == 1
+          text = text.replace(old, old + '        or CUNEO_PARSERS.get(cfg["parser"])\n')
+          path.write_text(text, encoding='utf-8')
+
+          # Registry and source-population denominators.
+          path = ROOT/'tests/test_source_registry.py'
+          text = path.read_text(encoding='utf-8')
+          assert text.count('assert len(pages) == 56') == 1
+          path.write_text(text.replace('assert len(pages) == 56','assert len(pages) == 57'), encoding='utf-8')
+
+          path = ROOT/'tests/test_source_population_coverage.py'
+          text = path.read_text(encoding='utf-8')
+          for old,new in [
+              ('assert report["verified_authority_count"] == 56','assert report["verified_authority_count"] == 57'),
+              ('assert report["register_scope_count"] == 58','assert report["register_scope_count"] == 59'),
+              ('assert report["complete_register_scope_count"] == 58','assert report["complete_register_scope_count"] == 59'),
+              ('for authority in ("bari", "udine", "crotone"):','for authority in ("bari", "udine", "crotone", "cuneo"):'),
+          ]:
+              assert text.count(old) == 1, old
+              text = text.replace(old,new)
+          path.write_text(text, encoding='utf-8')
+
+          # Keep operations safety fixture on an authority that remains unadvanced.
+          path = ROOT/'tests/test_operations.py'
+          text = path.read_text(encoding='utf-8')
+          assert text.count('authority_key = "cuneo"') == 1
+          text = text.replace('authority_key = "cuneo"','authority_key = "enna"')
+          path.write_text(text, encoding='utf-8')
+
+          # Public portal workflow: exact national and Cuneo boundary gates.
+          path = ROOT/'.github/workflows/public-pages.yml'
+          text = path.read_text(encoding='utf-8')
+          old = "      - 'src/white_list_archive/parsers/cremona_combined.py'\n"
+          assert text.count(old) == 1 and 'cuneo_positioned.py' not in text
+          text = text.replace(old, old + "      - 'src/white_list_archive/parsers/cuneo_positioned.py'\n")
+          replacements = [
+              ("assert reg['meta']['record_count'] == 63409", "assert reg['meta']['record_count'] == 63925"),
+              ("'laquila','chieti','cremona'}", "'laquila','chieti','cremona','cuneo'}"),
+              ("'laquila-ordinary','chieti-ordinary','cremona-ordinary'", "'laquila-ordinary','chieti-ordinary','cremona-ordinary','cuneo-ordinary'"),
+              ("assert reg['meta']['authority_count'] == 56", "assert reg['meta']['authority_count'] == 57"),
+              ("assert reg['meta']['register_count'] == 58", "assert reg['meta']['register_count'] == 59"),
+              ("assert pref['meta']['published_count'] == 56", "assert pref['meta']['published_count'] == 57"),
+              ("assert pref['meta']['mapped_count'] == 56", "assert pref['meta']['mapped_count'] == 57"),
+          ]
+          for old,new in replacements:
+              assert text.count(old) == 1, old
+              text = text.replace(old,new)
+          marker = "          assert len({r['record_locator'] for r in cremona_records}) == 187\n"
+          assert text.count(marker) == 1
+          cuneo_gate = """          cuneo = [x for x in pref['prefectures'] if x['authority_key'] == 'cuneo']\n          assert len(cuneo) == 1 and cuneo[0]['mapped'] and cuneo[0]['published'] and cuneo[0]['series_count'] == 2\n          cuneo_records = [r for r in reg['records'] if r['authority_key'] == 'cuneo']\n          assert len(cuneo_records) == 516\n          assert sum(r['source_key'] == 'cuneo-listed' for r in cuneo_records) == 468\n          assert sum(r['source_key'] == 'cuneo-applicants' for r in cuneo_records) == 48\n          assert sum(r['source_status'] == 'listed' for r in cuneo_records) == 402\n          assert sum(r['source_status'] == 'pending' for r in cuneo_records) == 48\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in cuneo_records) == 66\n          assert sum(bool(r['identifiers']) for r in cuneo_records) == 505\n          assert len({r['record_locator'] for r in cuneo_records}) == 516\n"""
+          text = text.replace(marker, marker + cuneo_gate)
+          path.write_text(text, encoding='utf-8')
+
+          # Browser acceptance: visible authority plus source-specific denominator/semantics.
+          path = ROOT/'tests/public_portal_browser.cjs'
+          text = path.read_text(encoding='utf-8')
+          marker = "      assert.ok(labels.includes('White List ordinaria · Prefettura di Cremona'));\n"
+          assert text.count(marker) == 1 and 'Prefettura di Cuneo' not in text
+          text = text.replace(marker, marker + "      assert.ok(labels.includes('White List ordinaria · Prefettura di Cuneo'));\n")
+          assert text.count('assert.equal(stats.total,63409);') == 1
+          text = text.replace('assert.equal(stats.total,63409);','assert.equal(stats.total,63925);')
+          old = "'laquila','chieti','cremona'].includes(r.authority_key)"
+          assert text.count(old) == 1
+          text = text.replace(old, "'laquila','chieti','cremona','cuneo'].includes(r.authority_key)")
+          marker = "      assert.equal(cremona.flatMap(r=>r.identifiers).length,203);\n"
+          assert text.count(marker) == 1
+          cuneo_js = """      const cuneo=registry.records.filter(r=>r.authority_key==='cuneo');\n      assert.equal(cuneo.length,516);\n      assert.equal(cuneo.filter(r=>r.source_key==='cuneo-listed').length,468);\n      assert.equal(cuneo.filter(r=>r.source_key==='cuneo-applicants').length,48);\n      assert.deepEqual(statusCounts(cuneo),{listed:402,pending:48,renewal_update_in_progress:66});\n      assert.equal(new Set(cuneo.map(r=>r.record_locator)).size,516);\n      assert.equal(cuneo.filter(r=>r.identifiers.length>0).length,505);\n      assert.equal(cuneo.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,11);\n      assert.equal(cuneo.flatMap(r=>r.identifiers).length,505);\n      assert.equal(cuneo.filter(r=>r.source_key==='cuneo-listed'&&!r.observed_listing_date&&r.source_fields.listing_date_raw_variants.length>1).length,1);\n"""
+          text = text.replace(marker, marker + cuneo_js)
+          path.write_text(text, encoding='utf-8')
+
+          # Source-specific unit semantics.
+          (ROOT/'tests/test_cuneo_parser_semantics.py').write_text('''from white_list_archive.parsers.cuneo_positioned import (\n    _EXPECTED_MALFORMED_IDENTIFIERS,\n    _listed_status,\n    _ordered_unique,\n    _source_date,\n)\n\n\ndef test_cuneo_status_normalisation_requires_explicit_source_labels():\n    assert _listed_status("Iscritta") == "listed"\n    assert _listed_status("iscritta") == "listed"\n    assert _listed_status("Iscritto") == "listed"\n    assert _listed_status("Aggiornamento in corso") == "renewal_update_in_progress"\n    assert _listed_status("Aggiornamnto in corso") == "renewal_update_in_progress"\n\n\ndef test_cuneo_dates_preserve_source_digits_without_repair():\n    assert _source_date("15/09/2026") == "2026-09-15"\n    assert _source_date("09-07-2026") == "2026-07-09"\n    assert _source_date("") == ""\n\n\ndef test_cuneo_reviewed_identifier_exceptions_are_fixed_boundary_evidence():\n    assert len(_EXPECTED_MALFORMED_IDENTIFIERS) == 11\n    assert _EXPECTED_MALFORMED_IDENTIFIERS[184] == "027874310043"\n    assert _EXPECTED_MALFORMED_IDENTIFIERS[326] == "0329755042"\n\n\ndef test_cuneo_source_variants_are_order_preserving_only():\n    assert _ordered_unique(["07/01/2025", "07/01/2015", "07/01/2025"]) == [\n        "07/01/2025",\n        "07/01/2015",\n    ]\n''', encoding='utf-8')
+
+          # Permanent evidence note.
+          (ROOT/'docs/sources/cuneo-operational-check-2026-09-19.md').write_text(f'''# Cuneo White List operational check — 19 September 2026\n\n## Official publication surface\n\nThe current official Prefettura di Cuneo page positively exposes two separate White List populations: **Elenco iscritti White List** and **Elenco richiedenti iscrizione White List**. The source documents themselves carry the explicit marker **martedì 15 settembre 2026**. The landing-page timestamp is not used as the edition date.\n\n- Official page: {LANDING}\n- Listed PDF: {LISTED_URL}\n- Applicant PDF: {APPLICANTS_URL}\n\nTwo independent cache-bypassed captures of each attachment were byte-identical during the reviewed validation run. The approved content identities are:\n\n- listed: `{LISTED_SHA}` (653,517 bytes);\n- applicants: `{APPLICANTS_SHA}` (239,448 bytes).\n\n## Parsed boundary\n\nThe fail-closed positioned-text parser binds the two series separately. The listed document has 137 pages and yields **468 company observations from 1,063 activity rows**: **402 listed** and **66 renewal/update in progress**. The applicant document has 13 pages and yields **48 pending observations from 93 activity rows**. Combined Cuneo publication therefore contributes **516 observations**.\n\nStructured identifier coverage is **457/468** for the listed population and **48/48** for applicants, hence **505/516** overall. Eleven malformed numeric identifier strings in the listed source are retained verbatim in `identifier_field_raw` and are deliberately not padded, truncated or promoted to structured identifiers. The two strict listed identifiers observed twice remain duplicated as source evidence rather than being deduplicated across source records.\n\n## Reviewed source anomalies and conservative handling\n\nThe parser freezes page-level denominators, the exact source-status vocabulary, activity-row counts, duplicate-identifier boundary and reviewed layout exceptions. Two identity-column spillovers are accepted only at their reviewed ordinals: record 113 contributes `d'Alba` to the registered office and record 394 contributes `Cuneo`; any additional spillover fails closed.\n\nListed record 71 (BAUDINO TRASPORTI S.r.l., identifier `02905860041`) carries conflicting raw listing dates `07/01/2025` and `07/01/2015` across repeated activity rows. Both raw variants are preserved and `observed_listing_date` remains empty; no preferred date is inferred. Sixty-five listed observations have no expiry date in the source and remain empty.\n\nThe applicant population is positive evidence, not an inference from search: the document title is explicitly “elenco delle ditte richiedenti l'iscrizione nella white list”. PDF extraction splits that title across a line break, so the guard normalises whitespace and apostrophe typography only before matching the reviewed title. It does not broaden the accepted population semantics.\n\n## Publication decision\n\nThe approved publication configuration uses raw SHA-256 pinning for both attachments, retains the two source series separately under register `cuneo-ordinary`, and exposes only source-backed observations through the existing recursively closed public contract. Canonical hosted-database integration and durable evidence remain separate concerns and are not asserted by this expansion.\n''', encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Install validation runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils antiword
+          python -m pip install -e '.[dev,publication]' requests
+
+      - name: Reverify Cuneo official bytes and parser boundary
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf
+          APPLICANTS_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-richiedenti-iscrizione_0.pdf
+          LISTED_SHA256: 3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7
+          APPLICANTS_SHA256: 25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea
+        run: |
+          mkdir -p /tmp/cuneo-final
+          python - <<'PY'
+          import hashlib, os, pathlib, time
+          from collections import Counter
+          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+          import requests
+          from white_list_archive.parsers.cuneo_positioned import parse_applicants, parse_listed
+
+          def bust(url, token):
+              p=urlsplit(url); q=parse_qsl(p.query, keep_blank_values=True); q.append(('_wl_final', token))
+              return urlunsplit((p.scheme,p.netloc,p.path,urlencode(q),p.fragment))
+          out=pathlib.Path('/tmp/cuneo-final')
+          paths={}
+          for kind in ('listed','applicants'):
+              expected=os.environ[f'{kind.upper()}_SHA256']; observations=[]
+              for attempt in (1,2):
+                  r=requests.get(bust(os.environ[f'{kind.upper()}_URL'],f'{attempt}-{time.time_ns()}'), headers={
+                      'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
+                      'Accept':'application/pdf,*/*;q=0.8','Cache-Control':'no-cache','Pragma':'no-cache'}, timeout=90, allow_redirects=True)
+                  r.raise_for_status(); digest=hashlib.sha256(r.content).hexdigest(); observations.append((len(r.content),digest))
+                  p=out/f'{kind}-{attempt}.pdf'; p.write_bytes(r.content)
+                  if attempt == 1: paths[kind]=p
+              assert observations[0] == observations[1], (kind, observations)
+              assert observations[0][1] == expected, (kind, observations[0][1], expected)
+              print(kind, observations[0])
+          common={'authority_key':'cuneo','authority_name':'Prefettura di Cuneo','register_key':'cuneo-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-15','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/cuneo/elenco-iscritti-white-liste-e-elenco-richiedenti-white-list'}
+          listed=parse_listed(paths['listed'], {**common,'source_key':'cuneo-listed','population_scope':'listed','resource_url':os.environ['LISTED_URL'],'sha256':os.environ['LISTED_SHA256']})
+          applicants=parse_applicants(paths['applicants'], {**common,'source_key':'cuneo-applicants','population_scope':'applicant','resource_url':os.environ['APPLICANTS_URL'],'sha256':os.environ['APPLICANTS_SHA256']})
+          records=listed.records+applicants.records
+          assert len(records)==516 and sum(bool(r['identifiers']) for r in records)==505
+          assert Counter(r['source_status'] for r in records)==Counter({'listed':402,'renewal_update_in_progress':66,'pending':48})
+          assert listed.diagnostics['sector_rows']==1063 and applicants.diagnostics['sector_rows']==93
+          PY
+
+      - name: Run repository tests
+        run: pytest -q
+
+      - name: Build and validate national candidate
+        run: |
+          rm -rf /tmp/cuneo-national public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/cuneo-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          reg=json.load(open('public-site/data/registry.json', encoding='utf-8'))
+          pref=json.load(open('public-site/data/prefectures.json', encoding='utf-8'))
+          assert reg['meta']['record_count']==63925
+          assert reg['meta']['authority_count']==57
+          assert reg['meta']['register_count']==59
+          assert pref['meta']['published_count']==57 and pref['meta']['mapped_count']==57
+          rows=[r for r in reg['records'] if r['authority_key']=='cuneo']
+          assert len(rows)==516
+          assert Counter(r['source_status'] for r in rows)==Counter({'listed':402,'renewal_update_in_progress':66,'pending':48})
+          assert sum(bool(r['identifiers']) for r in rows)==505
+          assert len({r['record_locator'] for r in rows})==516
+          assert sum(r['identifier_field_raw'] and not r['identifiers'] for r in rows)==11
+          print('Cuneo national candidate validated:', reg['meta']['record_count'], reg['meta']['authority_count'], reg['meta']['register_count'])
+          PY
+          git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv 2>/dev/null || true
+
+      - name: Commit validated permanent integration
+        run: |
+          git diff --check
+          git status --short
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/cuneo-operational-check-2026-09-19.md \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_cuneo_parser_semantics.py \
+            tests/test_operations.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py \
+            .github/workflows/public-pages.yml
+          git diff --cached --name-only
+          test "$(git diff --cached --name-only | wc -l)" -eq 13
+          git commit -m "Integrate Cuneo White List publication"
+          git push origin HEAD:expansion/cuneo-2026-09-19
