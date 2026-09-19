@@ -381,7 +381,10 @@ def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"cuneo_applicants: expected 13 pages, got {len(page_texts)}")
     if _DOCUMENT_DATE not in page_texts[0]:
         raise RuntimeError("cuneo_applicants: approved 15 September 2026 document marker missing")
-    if "elenco delle ditte richiedenti l'iscrizione nella white list" not in page_texts[0].replace("’", "'").replace("‘", "'"):
+    applicant_title_text = " ".join(
+        page_texts[0].replace("’", "'").replace("‘", "'").split()
+    )
+    if "elenco delle ditte richiedenti l'iscrizione nella white list" not in applicant_title_text:
         raise RuntimeError("cuneo_applicants: positive applicant-population title missing")
 
     anchors = [
