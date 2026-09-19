@@ -1,0 +1,135 @@
+name: Potenza current-source revalidation 2026-09-20
+
+on:
+  push:
+    branches:
+      - fix/potenza-source-drift-2026-09-17
+    paths:
+      - .github/workflows/potenza-current-revalidate-2026-09-20.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: potenza-current-source-revalidation
+  cancel-in-progress: false
+
+jobs:
+  revalidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+      - name: Capture official endpoint twice independently
+        run: |
+          set -euo pipefail
+          base='https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
+          for i in 1 2; do
+            nonce="$(date +%s%N)-${i}"
+            curl --fail --silent --show-error --location --retry 2 --retry-delay 1 \
+              -H 'Cache-Control: no-cache, no-store' \
+              -H 'Pragma: no-cache' \
+              -H "X-White-List-Revalidation-Nonce: ${nonce}" \
+              "${base}&_cb=${nonce}" \
+              --output "/tmp/potenza-${i}.json"
+            sha256sum "/tmp/potenza-${i}.json"
+            wc -c "/tmp/potenza-${i}.json"
+          done
+          cmp /tmp/potenza-1.json /tmp/potenza-2.json
+      - name: Validate parser boundary and compare canonical Potenza projection
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import re
+          from collections import Counter
+          from pathlib import Path
+
+          from white_list_archive.parsers.potenza_webapp import parse_potenza_combined
+
+          config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
+          cfg = next(s for s in config['sources'] if s['source_key'] == 'potenza-combined')
+
+          batches = []
+          for index in (1, 2):
+              path = Path(f'/tmp/potenza-{index}.json')
+              raw = path.read_bytes()
+              payload = json.loads(raw)
+              batch = parse_potenza_combined(path, cfg)
+              print(f'CAPTURE_{index}_RAW_SHA256={hashlib.sha256(raw).hexdigest()}')
+              print(f'CAPTURE_{index}_BYTES={len(raw)}')
+              print(f'CAPTURE_{index}_TOTAL={payload.get("TotalRecordCount")}')
+              print(f'CAPTURE_{index}_DIAGNOSTICS={json.dumps(batch.diagnostics, sort_keys=True)}')
+              batches.append(batch)
+
+          def public_projection(batch):
+              rows = []
+              for record in batch.records:
+                  rows.append({
+                      'source_id': str(record['source_fields']['source_id']),
+                      'name': record['company_name'],
+                      'identifier_raw': record['identifier_field_raw'],
+                      'status': record['source_status'],
+                      'application_date': record['application_date'],
+                      'listing_date': record['observed_listing_date'],
+                      'expiry_date': record['observed_expiry_date'],
+                      'record_locator': record['record_locator'],
+                  })
+              return sorted(rows, key=lambda row: int(row['source_id']))
+
+          projection1 = public_projection(batches[0])
+          projection2 = public_projection(batches[1])
+          if projection1 != projection2:
+              raise RuntimeError('Independent Potenza parser projections differ')
+          semantic_bytes = json.dumps(projection1, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+          print(f'CURRENT_REVIEW_PROJECTION_SHA256={hashlib.sha256(semantic_bytes).hexdigest()}')
+          print(f'CURRENT_STATUS_COUNTS={dict(Counter(row["status"] for row in projection1))}')
+          print(f'CURRENT_SOURCE_IDS={len({row["source_id"] for row in projection1})}')
+
+          registry = json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          published = [r for r in registry['records'] if r.get('authority_key') == 'potenza']
+          print(f'CANONICAL_PUBLISHED_POTENZA={len(published)}')
+
+          id_re = re.compile(r':id-(\d+)$')
+          published_by_id = {}
+          for record in published:
+              match = id_re.search(str(record.get('record_locator', '')))
+              if not match:
+                  raise RuntimeError(f'Canonical Potenza locator lacks source id: {record.get("record_locator")!r}')
+              source_id = match.group(1)
+              if source_id in published_by_id:
+                  raise RuntimeError(f'Duplicate canonical Potenza source id {source_id}')
+              published_by_id[source_id] = record
+
+          current_by_id = {row['source_id']: row for row in projection1}
+          current_ids = set(current_by_id)
+          published_ids = set(published_by_id)
+          print(f'CURRENT_MINUS_CANONICAL_IDS={sorted(current_ids - published_ids, key=int)}')
+          print(f'CANONICAL_MINUS_CURRENT_IDS={sorted(published_ids - current_ids, key=int)}')
+
+          status_changes = []
+          for source_id in sorted(current_ids & published_ids, key=int):
+              old = published_by_id[source_id].get('source_status')
+              new = current_by_id[source_id]['status']
+              if old != new:
+                  status_changes.append((source_id, old, new, current_by_id[source_id]['name']))
+          print(f'STATUS_CHANGES={status_changes}')
+
+          for source_id in sorted((current_ids ^ published_ids) | {sid for sid, *_ in status_changes}, key=int):
+              print('DELTA', source_id, 'CURRENT=', json.dumps(current_by_id.get(source_id), ensure_ascii=False, sort_keys=True), 'CANONICAL=', json.dumps(published_by_id.get(source_id), ensure_ascii=False, sort_keys=True))
+          PY
+      - name: Upload revalidation captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: potenza-current-source-revalidation-2026-09-20
+          path: /tmp/potenza-*.json
+          retention-days: 7
