@@ -1,4 +1,4 @@
-name: Cuneo bounded source diagnostic 2026-09-19
+name: Cuneo reviewed applicant title repair 2026-09-19
 
 on:
   push:
@@ -8,78 +8,33 @@ on:
       - .github/workflows/cuneo-record-394-diagnostic-2026-09-19.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  repair:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      - name: Install parser runtime
-        run: python -m pip install -e .[dev] requests
-      - name: Inspect exact reviewed source boundaries
-        env:
-          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf
-          LISTED_SHA256: 3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7
-          APPLICANTS_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-richiedenti-iscrizione_0.pdf
-          APPLICANTS_SHA256: 25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea
+          ref: expansion/cuneo-2026-09-19
+      - name: Apply exact reviewed title-boundary repair
         run: |
           python - <<'PY'
-          import hashlib, os, pathlib, time
-          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-          import requests
-          from white_list_archive.parsers.cuneo_positioned import _band, _lines
+          from pathlib import Path
 
-          def bust(url):
-              p = urlsplit(url)
-              q = parse_qsl(p.query, keep_blank_values=True)
-              q.append(('_wl_diag', str(time.time_ns())))
-              return urlunsplit((p.scheme, p.netloc, p.path, urlencode(q), p.fragment))
-
-          def fetch(kind):
-              r = requests.get(
-                  bust(os.environ[f'{kind}_URL']),
-                  headers={
-                      'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
-                      'Accept': 'application/pdf,*/*;q=0.8',
-                      'Cache-Control': 'no-cache',
-                      'Pragma': 'no-cache',
-                  },
-                  timeout=90,
-                  allow_redirects=True,
-              )
-              r.raise_for_status()
-              digest = hashlib.sha256(r.content).hexdigest()
-              assert digest == os.environ[f'{kind}_SHA256'], (kind, digest, os.environ[f'{kind}_SHA256'])
-              path = pathlib.Path(f'/tmp/cuneo-{kind.lower()}.pdf')
-              path.write_bytes(r.content)
-              return path
-
-          listed_path = fetch('LISTED')
-          applicant_path = fetch('APPLICANTS')
-
-          lines, _ = _lines(listed_path)
-          headers = [line for line in lines if 'Ragione Sociale' in line.text and 'Sede legale' in line.text and 'Codice fiscale' in line.text]
-          statuses = [line for line in lines if 'Attività' in line.text and 'Data di iscrizione' in line.text]
-          for ordinal in (393, 394, 395):
-              header = headers[ordinal - 1]
-              end = headers[ordinal].pos if ordinal < len(headers) else len(lines)
-              matching = [line for line in statuses if header.pos < line.pos < end]
-              assert len(matching) == 1
-              status = matching[0]
-              identity = lines[header.pos + 1:status.pos]
-              print(f'--- listed record {ordinal} page {header.page} ---')
-              for line in identity:
-                  print('LINE', repr(line.text))
-                  print('  name_band=', repr(_band(line, 0.0, 340.0)))
-                  print('  office_band=', repr(_band(line, 340.0, 630.0)))
-                  print('  id_band=', repr(_band(line, 630.0, 841.9)))
-
-          _, page_texts = _lines(applicant_path)
-          print('--- applicant first-page text ---')
-          print(repr(page_texts[0][:3000]))
+          path = Path('src/white_list_archive/parsers/cuneo_positioned.py')
+          text = path.read_text()
+          old = '''    if "elenco delle ditte richiedenti l'iscrizione nella white list" not in page_texts[0].replace("’", "'").replace("‘", "'"):\n        raise RuntimeError("cuneo_applicants: positive applicant-population title missing")\n'''
+          new = '''    applicant_title = " ".join(\n        page_texts[0].replace("’", "'").replace("‘", "'").split()\n    )\n    if "elenco delle ditte richiedenti l'iscrizione nella white list" not in applicant_title:\n        raise RuntimeError("cuneo_applicants: positive applicant-population title missing")\n'''
+          if text.count(old) != 1:
+              raise SystemExit('expected applicant title guard not found exactly once')
+          path.write_text(text.replace(old, new))
           PY
+          git diff --check
+          git diff -- src/white_list_archive/parsers/cuneo_positioned.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/white_list_archive/parsers/cuneo_positioned.py
+          git commit -m "Normalise reviewed Cuneo applicant title whitespace"
+          git push origin HEAD:expansion/cuneo-2026-09-19
