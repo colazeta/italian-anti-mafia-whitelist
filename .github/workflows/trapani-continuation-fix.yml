@@ -30,6 +30,13 @@ jobs:
                   raise SystemExit('Trapani name-variant constant anchor drift')
               s = s.replace(const_anchor, const_repl, 1)
 
+          gika_anchor = '''        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n}\n'''
+          gika_repl = '''        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n    "02483280810": {\n        "source_variants": [\n            "GIKA S.R.L.",\n            "GIKA S.r.l.",\n        ],\n        "canonical": "GIKA S.R.L.",\n    },\n}\n'''
+          if '"02483280810": {' not in s:
+              if s.count(gika_anchor) != 1:
+                  raise SystemExit('Trapani case-variant constant anchor drift')
+              s = s.replace(gika_anchor, gika_repl, 1)
+
           old = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        if len(name_variants) != 1:\n            raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
           new = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)\n        if normalisation is None:\n            if len(name_variants) != 1:\n                raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n            output_name = name_variants[0]\n        else:\n            if name_variants != normalisation["source_variants"]:\n                raise RuntimeError(\n                    f"Trapani approved name-variant evidence drift for {identifier}: {name_variants!r}"\n                )\n            output_name = normalisation["canonical"]\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
           if 'normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)' not in s:
