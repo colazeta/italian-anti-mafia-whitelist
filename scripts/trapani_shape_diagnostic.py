@@ -45,11 +45,34 @@ def inspect(label: str, path: Path) -> None:
         if len(suffixes) > 1:
             conflicts.append((identifier, len(items), list(suffixes.items())))
     print("SUFFIX_CONFLICTS", label, len(conflicts), json.dumps(conflicts[:80], ensure_ascii=False))
+    if label == "listed":
+        marker_sets = collections.Counter()
+        marker_values = collections.Counter()
+        mixed = []
+        grouped_status = collections.Counter()
+        for identifier, items in by_id.items():
+            markers = []
+            for item in items:
+                values = item[3]
+                marker = clean(values[6]) if len(values) >= 7 else ""
+                markers.append(marker)
+                marker_values[marker] += 1
+            folded = {value.casefold() for value in markers if value}
+            marker_sets[tuple(sorted(folded))] += 1
+            nonblank = [value for value in markers if value]
+            status = "renewal_update_in_progress" if nonblank else "listed"
+            grouped_status[status] += 1
+            if nonblank and any(not value for value in markers):
+                mixed.append((identifier, markers))
+        print("LISTED_MARKER_VALUES", json.dumps(marker_values.most_common(), ensure_ascii=False))
+        print("LISTED_GROUPED_STATUS", json.dumps(grouped_status, ensure_ascii=False))
+        print("LISTED_GROUP_MARKER_SETS", json.dumps([[list(k), v] for k, v in marker_sets.items()], ensure_ascii=False))
+        print("LISTED_MIXED_BLANK_NONBLANK", len(mixed), json.dumps(mixed[:80], ensure_ascii=False))
     repeated = []
     for identifier, items in by_id.items():
         if len(items) > 1:
             repeated.append((identifier, len(items), [[x[0], x[1], x[2], x[3]] for x in items[:12]]))
-    print("REPEATED", label, json.dumps(repeated[:40], ensure_ascii=False))
+    print("REPEATED", label, json.dumps(repeated[:20], ensure_ascii=False))
 
 
 if __name__ == "__main__":
