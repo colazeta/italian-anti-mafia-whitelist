@@ -1,0 +1,116 @@
+name: Fermo source probe 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/fermo-2026-09-19
+    paths:
+      - .github/workflows/fermo-source-probe.yml
+      - tmp/fermo-probe-trigger.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install probe dependencies
+        run: |
+          python -m pip install --disable-pip-version-check requests beautifulsoup4
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+      - name: Resolve and capture official Fermo sources
+        env:
+          LANDING: https://prefettura.interno.gov.it/it/prefetture/fermo/white-list-elenco-imprese-richiedenti-e-iscritte
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/fermo-probe
+          python - <<'PY'
+          import hashlib, json, os, pathlib, re, time
+          from urllib.parse import urljoin, urlparse, parse_qsl, urlencode, urlunparse
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing = os.environ['LANDING']
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+          }
+          s = requests.Session()
+          r = s.get(landing, headers=headers, timeout=45)
+          r.raise_for_status()
+          html = r.text
+          pathlib.Path('tmp/fermo-probe/landing.html').write_text(html, encoding='utf-8')
+          soup = BeautifulSoup(html, 'html.parser')
+          anchors = []
+          for a in soup.find_all('a', href=True):
+              href = urljoin(landing, a['href'])
+              text = ' '.join(a.stripped_strings)
+              if 'white' in (text + ' ' + href).lower() or href.lower().endswith('.pdf'):
+                  anchors.append({'text': text, 'href': href})
+          pathlib.Path('tmp/fermo-probe/anchors.json').write_text(json.dumps(anchors, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('OFFICIAL LANDING', landing)
+          print('LANDING STATUS', r.status_code, 'BYTES', len(r.content))
+          for i,a in enumerate(anchors):
+              print(f'ANCHOR[{i}] {a["text"]!r} -> {a["href"]}')
+
+          targets = []
+          for a in anchors:
+              low = (a['text'] + ' ' + a['href']).lower()
+              if a['href'].lower().split('?')[0].endswith('.pdf') and ('iscritt' in low or 'richiedent' in low):
+                  targets.append(a)
+          # De-duplicate preserving order.
+          seen=set(); uniq=[]
+          for a in targets:
+              if a['href'] not in seen:
+                  seen.add(a['href']); uniq.append(a)
+          targets=uniq
+          if len(targets) != 2:
+              raise SystemExit(f'Expected exactly 2 current listed/applicant PDFs from official page, found {len(targets)}')
+
+          manifest=[]
+          for idx,a in enumerate(targets,1):
+              url=a['href']
+              captures=[]
+              for attempt in (1,2):
+                  p=urlparse(url)
+                  q=dict(parse_qsl(p.query, keep_blank_values=True)); q['_wl_probe']=f'20260919-{idx}-{attempt}-{time.time_ns()}'
+                  u=urlunparse(p._replace(query=urlencode(q)))
+                  rr=s.get(u, headers={**headers,'Referer':landing}, timeout=60)
+                  rr.raise_for_status()
+                  captures.append(rr.content)
+              if captures[0] != captures[1]:
+                  raise SystemExit(f'Independent captures differ for {url}')
+              data=captures[0]
+              sha=hashlib.sha256(data).hexdigest()
+              stem='listed' if 'iscritt' in a['text'].lower() and 'richiedent' not in a['text'].lower() else 'applicants'
+              out=pathlib.Path(f'tmp/fermo-probe/{stem}.pdf')
+              if out.exists():
+                  raise SystemExit(f'Duplicate population classification for {a}')
+              out.write_bytes(data)
+              manifest.append({'population':stem,'label':a['text'],'url':url,'bytes':len(data),'sha256':sha})
+              print('SOURCE', stem, 'LABEL', repr(a['text']), 'URL', url, 'BYTES', len(data), 'SHA256', sha)
+          pathlib.Path('tmp/fermo-probe/manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+          for f in tmp/fermo-probe/*.pdf; do
+            echo "===== PDFINFO $f ====="
+            pdfinfo "$f" | sed -n '1,30p'
+            pdftotext -layout "$f" "${f%.pdf}.txt"
+            echo "===== TEXT HEAD $f ====="
+            sed -n '1,120p' "${f%.pdf}.txt"
+            echo "===== TEXT TAIL $f ====="
+            tail -n 80 "${f%.pdf}.txt"
+          done
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: fermo-source-probe
+          path: tmp/fermo-probe/
+          if-no-files-found: error
+          retention-days: 7
