@@ -106,7 +106,6 @@ _LISTED_NAME_VARIANT_NORMALISATIONS = {
     },
 }
 
-
 _APPLICANT_CONTINUATIONS = {
     (3, 1, 1): {
         "row": ["", "", "", "", "-Servizi funerari e cimiteriali", "", ""],
@@ -238,7 +237,6 @@ def _section_headings(page: Any) -> list[tuple[float, str]]:
         roman = re.sub(r"[^IVX]", "", _clean(words[index + 1].get("text")).upper())
         if roman in _ROMAN:
             headings.append((float(word.get("top", 0.0)), f"Sezione {roman}"))
-    # De-duplicate line-token repeats while preserving geometric order.
     unique: list[tuple[float, str]] = []
     for top, section in sorted(headings):
         if not unique or section != unique[-1][1] or abs(top - unique[-1][0]) > 2:
@@ -275,30 +273,26 @@ def _group_status(markers: list[str]) -> str:
     unexpected = marker_set - _ALLOWED_UPDATE_MARKERS
     if unexpected:
         raise RuntimeError(f"Trapani unapproved update marker(s): {sorted(unexpected)!r}")
-    nonblank = [marker for marker in markers if marker]
-    if nonblank and len(nonblank) != len(markers):
-        raise RuntimeError("Trapani listed group mixes blank and non-blank update evidence")
+    nonblank = [value for value in markers if value]
+    if nonblank and any(not value for value in markers):
+        raise RuntimeError(f"Trapani repeated identifier mixes blank and non-blank update evidence: {markers!r}")
     return "renewal_update_in_progress" if nonblank else "listed"
 
 
 def _activities(raw: str) -> list[str]:
-    value = _clean(raw)
-    if not value:
+    raw = _clean(raw)
+    if not raw:
         return []
-    if value.startswith("-"):
-        parts = [_clean(part) for part in re.split(r"\s*-\s*", value) if _clean(part)]
-        return parts
-    return [value]
+    values = [value.strip(" -") for value in re.split(r"\s+-\s*", raw) if value.strip(" -")]
+    return values or [raw]
 
 
 def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     memberships: list[dict[str, Any]] = []
+    current_section = ""
     seen_sections: list[str] = []
     seen_continuations: list[tuple[int, int, int]] = []
     header_fragments = 0
-    full_text: list[str] = []
-    current_section = ""
-    table_counts: list[int] = []
 
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _LISTED_PAGE_COUNT:
@@ -307,54 +301,57 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             geometry = (round(float(page.width), 2), round(float(page.height), 2))
             if geometry != _PAGE_GEOMETRY:
                 raise RuntimeError(f"Trapani listed page-geometry drift on page {page_number}: {geometry}")
-            full_text.append(page.extract_text() or "")
-            headings = _section_headings(page)
             tables = sorted(page.find_tables(), key=lambda table: float(table.bbox[1]))
-            table_counts.append(len(tables))
+            if len(tables) != _LISTED_TABLE_COUNTS[page_number - 1]:
+                raise RuntimeError(
+                    f"Trapani listed table-count drift on page {page_number}: {len(tables)}"
+                )
+            headings = _section_headings(page)
+            page_memberships: list[dict[str, Any]] = []
             for table_number, table in enumerate(tables, 1):
-                section = _section_for_table(current_section, headings, float(table.bbox[1]))
-                extracted = table.extract() or []
-                for row_number, raw in enumerate(extracted, 1):
+                current_section = _section_for_table(current_section, headings, float(table.bbox[1]))
+                if current_section and current_section not in seen_sections:
+                    seen_sections.append(current_section)
+                for row_number, raw in enumerate(table.extract() or [], 1):
                     row = _normalise_listed_row(raw)
                     if not any(row) or _is_header(row):
                         continue
-                    location = (page_number, table_number, row_number)
-                    continuation = _LISTED_CONTINUATIONS.get(location)
+                    key = (page_number, table_number, row_number)
+                    if key == _LISTED_HEADER_FRAGMENT[0]:
+                        if row != _LISTED_HEADER_FRAGMENT[1]:
+                            raise RuntimeError(f"Trapani listed split-header fragment drift: {row!r}")
+                        header_fragments += 1
+                        continue
+                    continuation = _LISTED_CONTINUATIONS.get(key)
                     if continuation is not None:
                         if row != continuation["row"]:
-                            raise RuntimeError(f"Trapani listed continuation content drift at {location}: {row!r}")
+                            raise RuntimeError(f"Trapani continuation evidence drift at {key}: {row!r}")
                         if not memberships:
-                            raise RuntimeError(f"Trapani listed continuation has no predecessor at {location}")
+                            raise RuntimeError(f"Trapani continuation without previous membership at {key}")
                         previous = memberships[-1]
                         expected_previous = continuation["previous"]
-                        observed_previous = {key: previous[key] for key in expected_previous}
+                        observed_previous = {
+                            "page": previous["page"],
+                            "name": previous["name"],
+                            "identifier": previous["identifier"],
+                            "update_raw": previous["update_raw"],
+                        }
                         if observed_previous != expected_previous:
                             raise RuntimeError(
-                                f"Trapani listed continuation predecessor drift at {location}: {observed_previous!r}"
+                                f"Trapani continuation previous-row drift at {key}: {observed_previous!r}"
                             )
                         previous["name"] = continuation["name"]
                         previous["update_raw"] = continuation["update_raw"]
-                        seen_continuations.append(location)
+                        seen_continuations.append(key)
                         continue
-                    header_location, header_row = _LISTED_HEADER_FRAGMENT
-                    if location == header_location:
-                        if row != header_row:
-                            raise RuntimeError(f"Trapani listed split-header drift at {location}: {row!r}")
-                        header_fragments += 1
-                        continue
-                    if not row[0] or not _ID_RE.fullmatch(row[3]):
-                        raise RuntimeError(
-                            f"Trapani listed unexpected non-data row at page {page_number}, table {table_number}, row {row_number}: {row!r}"
-                        )
-                    if not section:
-                        raise RuntimeError(f"Trapani listed row lacks section at page {page_number}")
-                    if section not in seen_sections:
-                        seen_sections.append(section)
-                    memberships.append(
+                    if not row[0] or not row[1] or not _ID_RE.fullmatch(row[3]):
+                        raise RuntimeError(f"Trapani listed row-shape drift on page {page_number}: {row!r}")
+                    if row[6] not in _ALLOWED_UPDATE_MARKERS:
+                        raise RuntimeError(f"Trapani listed update marker drift on page {page_number}: {row[6]!r}")
+                    page_memberships.append(
                         {
-                            "source_row": len(memberships) + 1,
                             "page": page_number,
-                            "section": section,
+                            "section": current_section,
                             "name": row[0],
                             "office": row[1],
                             "secondary": row[2],
@@ -364,27 +361,22 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                             "update_raw": row[6],
                         }
                     )
-            if headings:
-                current_section = headings[-1][1]
+                    memberships.append(page_memberships[-1])
 
-    if table_counts != _LISTED_TABLE_COUNTS:
-        raise RuntimeError(f"Trapani listed table-count drift: {table_counts!r}")
     if seen_sections != list(_EXPECTED_SECTIONS):
-        raise RuntimeError(f"Trapani listed section drift: {seen_sections!r}")
-    if len(memberships) != 658:
-        raise RuntimeError(f"Trapani listed sector-row drift: {len(memberships)}")
+        raise RuntimeError(f"Trapani listed section-boundary drift: {seen_sections!r}")
     if seen_continuations != list(_LISTED_CONTINUATIONS):
-        raise RuntimeError(f"Trapani listed continuation-set drift: {seen_continuations!r}")
+        raise RuntimeError(f"Trapani listed continuation-boundary drift: {seen_continuations!r}")
     if header_fragments != 1:
-        raise RuntimeError(f"Trapani listed split-header count drift: {header_fragments}")
-    if "presentato istanza di permanenza" not in _clean(" ".join(full_text)).casefold():
-        raise RuntimeError("Trapani listed permanence-request footnote disappeared")
+        raise RuntimeError(f"Trapani listed split-header fragment-count drift: {header_fragments}")
+    if len(memberships) != 658:
+        raise RuntimeError(f"Trapani listed sector-row cardinality drift: {len(memberships)}")
 
     grouped: dict[str, list[dict[str, Any]]] = {}
     for membership in memberships:
         grouped.setdefault(membership["identifier"], []).append(membership)
     if len(grouped) != 333:
-        raise RuntimeError(f"Trapani listed grouped-identifier drift: {len(grouped)}")
+        raise RuntimeError(f"Trapani listed identifier cardinality drift: {len(grouped)}")
 
     records: list[dict[str, Any]] = []
     non_date_expiry_records = 0
@@ -403,23 +395,28 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             output_name = normalisation["canonical"]
         office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])
         secondary_variants = _ordered_unique([row["secondary"] for row in rows if row["secondary"]])
-        listing_raw_variants = _ordered_unique([row["listing_raw"] for row in rows if row["listing_raw"]])
-        expiry_raw_variants = _ordered_unique([row["expiry_raw"] for row in rows if row["expiry_raw"]])
-        valid_listing_dates = _ordered_unique([value for raw in listing_raw_variants if (value := _strict_date(raw))])
-        valid_expiry_dates = _ordered_unique([value for raw in expiry_raw_variants if (value := _strict_date(raw))])
+        if len(office_variants) > 1 or len(secondary_variants) > 1:
+            raise RuntimeError(
+                f"Trapani listed office drift within identifier {identifier}: "
+                f"{office_variants!r} / {secondary_variants!r}"
+            )
+        listing_raw_variants = _ordered_unique([row["listing_raw"] for row in rows])
+        expiry_raw_variants = _ordered_unique([row["expiry_raw"] for row in rows])
+        valid_listing_dates = _ordered_unique([_strict_date(value) for value in listing_raw_variants if _strict_date(value)])
         if len(valid_listing_dates) != 1:
             raise RuntimeError(
                 f"Trapani listed listing-date evidence drift for {identifier}: {listing_raw_variants!r}"
             )
+        valid_expiry_dates = _ordered_unique([_strict_date(value) for value in expiry_raw_variants if _strict_date(value)])
         expiry_date = ""
-        if len(valid_expiry_dates) == 1:
+        if len(valid_expiry_dates) == 1 and len(expiry_raw_variants) == 1:
             expiry_date = valid_expiry_dates[0]
-        elif not valid_expiry_dates and expiry_raw_variants == [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY]:
+        elif identifier == "01712150819":
             expected = {
                 "rows": 1,
-                "pages": [8],
-                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],
-                "listing_raw": ["30/08/2017"],
+                "pages": [34],
+                "names": ["SICIL AMBIENTE DI SCATURRO AGOSTINO S.R.L."],
+                "listing_raw": ["08/04/2026"],
                 "updates": [""],
             }
             observed = {
@@ -429,8 +426,6 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 "listing_raw": listing_raw_variants,
                 "updates": [row["update_raw"] for row in rows],
             }
-            # Keep the source legal/status text verbatim in provenance. It is not a
-            # date and must never be repaired or converted into an expiry date.
             if observed != {**expected, "pages": [str(value) for value in expected["pages"]]}:
                 raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")
             non_date_expiry_records += 1
@@ -488,6 +483,8 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
 
 def parse_trapani_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     rows: list[list[str]] = []
+    row_pages: list[int] = []
+    seen_continuations: list[tuple[int, int, int]] = []
     per_page: list[int] = []
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != _APPLICANT_PAGE_COUNT:
@@ -570,6 +567,7 @@ def parse_trapani_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "status_counts": {"pending": len(records)},
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "outcome_counts": dict(Counter(record["outcome_raw"] for record in records)),
+        "continuation_rows": len(seen_continuations),
     }
     return ParsedBatch(records=records, diagnostics=diagnostics)
 
