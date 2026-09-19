@@ -115,6 +115,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     memberships: list[dict[str, Any]] = []
     seen_sections: list[str] = []
     continuation_rows: list[list[str]] = []
+    wrapped_renewal_rows = 0
     full_text: list[str] = []
     current_section = ""
     table_counts: list[int] = []
@@ -136,6 +137,33 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 for row_number, raw in enumerate(extracted, 1):
                     row = _normalise_listed_row(raw)
                     if not any(row) or _is_header(row):
+                        continue
+                    # One company name and its renewal marker are wrapped across the
+                    # page 14/15 boundary in the pinned source. Bind that evidence to
+                    # the immediately preceding membership only under the exact,
+                    # source-observed shape; any drift still fails closed below.
+                    if row == ["SILVESTRO", "", "", "", "", "", "per rinnovo"]:
+                        if (page_number, table_number, row_number) != (15, 1, 1):
+                            raise RuntimeError(
+                                f"Trapani wrapped renewal row moved unexpectedly: page={page_number}, table={table_number}, row={row_number}"
+                            )
+                        if not memberships:
+                            raise RuntimeError("Trapani wrapped renewal row has no preceding membership")
+                        previous = memberships[-1]
+                        expected_previous = {
+                            "page": 14,
+                            "name": "IMPRESA EDILE DI MANGANO",
+                            "identifier": "02249310810",
+                            "update_raw": "In aggiornamento",
+                        }
+                        observed_previous = {key: previous[key] for key in expected_previous}
+                        if observed_previous != expected_previous:
+                            raise RuntimeError(
+                                f"Trapani wrapped renewal predecessor drift: {observed_previous!r}"
+                            )
+                        previous["name"] = "IMPRESA EDILE DI MANGANO SILVESTRO"
+                        previous["update_raw"] = "In aggiornamento per rinnovo"
+                        wrapped_renewal_rows += 1
                         continue
                     if not row[0] and not row[3]:
                         if any(row):
@@ -172,6 +200,8 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Trapani listed section drift: {seen_sections!r}")
     if len(memberships) != 658:
         raise RuntimeError(f"Trapani listed sector-row drift: {len(memberships)}")
+    if wrapped_renewal_rows != 1:
+        raise RuntimeError(f"Trapani wrapped-renewal row drift: {wrapped_renewal_rows}")
     if len(continuation_rows) != 1 or continuation_rows[0] != ["", "", "", "", "", "", "per rinnovo"]:
         raise RuntimeError(f"Trapani listed continuation-row drift: {continuation_rows!r}")
     if "presentato istanza di permanenza" not in _clean(" ".join(full_text)).casefold():
@@ -238,6 +268,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "source_sections": seen_sections,
         "continuation_rows": len(continuation_rows),
+        "wrapped_renewal_rows": wrapped_renewal_rows,
     }
     return ParsedBatch(records=records, diagnostics=diagnostics)
 
