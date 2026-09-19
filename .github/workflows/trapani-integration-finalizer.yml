@@ -61,10 +61,20 @@ jobs:
       - name: Materialise permanent Trapani integration
         run: python tmp/trapani_integration_materialize.py
 
-      - name: Validate repository
-        run: |
-          git diff --check
-          python -m pytest -q
+      - name: Validate diff hygiene
+        run: git diff --check
+
+      - name: Validate Trapani parser semantics
+        run: python -m pytest -q tests/test_trapani_parser_semantics.py
+
+      - name: Validate coverage and source registry
+        run: python -m pytest -q tests/test_source_population_coverage.py tests/test_source_registry.py
+
+      - name: Validate repository governance
+        run: python -m pytest -q tests/test_repository_structure.py tests/test_actions_artifact_policy.py
+
+      - name: Validate full repository
+        run: python -m pytest -q
 
       - name: Build national candidate
         shell: bash
