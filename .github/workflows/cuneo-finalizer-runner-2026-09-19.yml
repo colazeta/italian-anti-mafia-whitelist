@@ -68,6 +68,12 @@ jobs:
           for name, script in steps:
               if name == 'Verify branch is based on current main and parser-only before permanent integration':
                   continue
+              if name == 'Materialise permanent Cuneo integration':
+                  old = "'primary_page': LANDING,\n    'verified_date': '2026-09-19',"
+                  new = "'landing_url': LANDING,\n    'verification_date': '2026-09-19',"
+                  if script.count(old) != 1:
+                      raise SystemExit(f'primary-page schema repair target count: {script.count(old)}')
+                  script = script.replace(old, new, 1)
               print(f'::group::{name}', flush=True)
               subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
               print('::endgroup::', flush=True)
