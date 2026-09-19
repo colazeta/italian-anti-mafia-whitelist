@@ -13,8 +13,23 @@ def clean(value: str | None) -> str:
     return re.sub(r"\s+", " ", (value or "").replace("\u00a0", " ")).strip()
 
 
+def _is_header(values: list[str]) -> bool:
+    joined = " ".join(values).casefold()
+    return "ragione sociale" in joined
+
+
+def _is_strict_data_row(values: list[str]) -> bool:
+    return (
+        len(values) >= 4
+        and bool(values[0])
+        and bool(values[1])
+        and bool(re.fullmatch(r"(?:\d{11}|[A-Za-z0-9]{16})", values[3] or ""))
+    )
+
+
 def inspect(label: str, path: Path) -> None:
     rows = []
+    physical_rows: list[tuple[int, int, int, list[str]]] = []
     with pdfplumber.open(path) as pdf:
         for page_number, page in enumerate(pdf.pages, 1):
             tables = page.find_tables()
@@ -30,10 +45,58 @@ def inspect(label: str, path: Path) -> None:
             for table_number, table in enumerate(tables, 1):
                 for row_number, raw in enumerate(table.extract() or [], 1):
                     values = [clean(x) for x in raw]
-                    if not values or not any(values) or "ragione sociale" in " ".join(values).casefold():
+                    if not values or not any(values):
                         continue
-                    if len(values) >= 4 and values[0] and values[1] and re.fullmatch(r"(?:\d{11}|[A-Za-z0-9]{16})", values[3] or ""):
+                    physical_rows.append((page_number, table_number, row_number, values))
+                    if _is_header(values):
+                        continue
+                    if _is_strict_data_row(values):
                         rows.append((page_number, table_number, row_number, values))
+
+    if label == "applicants":
+        anomalies = []
+        for index, item in enumerate(physical_rows):
+            page_number, table_number, row_number, values = item
+            if _is_header(values) or _is_strict_data_row(values):
+                continue
+            previous = None
+            for candidate in reversed(physical_rows[:index]):
+                if _is_strict_data_row(candidate[3]):
+                    previous = candidate
+                    break
+            following = None
+            for candidate in physical_rows[index + 1 :]:
+                if _is_strict_data_row(candidate[3]):
+                    following = candidate
+                    break
+            anomalies.append(
+                {
+                    "page": page_number,
+                    "table": table_number,
+                    "row": row_number,
+                    "values": values,
+                    "previous_strict": None
+                    if previous is None
+                    else {
+                        "page": previous[0],
+                        "table": previous[1],
+                        "row": previous[2],
+                        "values": previous[3],
+                    },
+                    "next_strict": None
+                    if following is None
+                    else {
+                        "page": following[0],
+                        "table": following[1],
+                        "row": following[2],
+                        "values": following[3],
+                    },
+                }
+            )
+        print("APPLICANT_NONSTRICT_ROW_COUNT", len(anomalies))
+        for item in anomalies:
+            print("APPLICANT_NONSTRICT_ROW", json.dumps(item, ensure_ascii=False, sort_keys=True))
+
     by_id: dict[str, list] = collections.defaultdict(list)
     for row in rows:
         by_id[row[3][3]].append(row)
