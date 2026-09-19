@@ -1,0 +1,70 @@
+name: Cuneo parser repair 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-parser-repair-2026-09-19.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cuneo-2026-09-19
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply reviewed identity-column spillover fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/white_list_archive/parsers/cuneo_positioned.py')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  '    malformed: dict[int, str] = {}\n    no_expiry = 0\n',
+                  '    malformed: dict[int, str] = {}\n    identity_spillovers: dict[int, str] = {}\n    no_expiry = 0\n',
+              ),
+              (
+                  '        office = _clean(" ".join(_band(line, 340.0, 630.0) for line in identity_lines))\n        identifier_raw = _clean(" ".join(_band(line, 630.0, 841.9) for line in identity_lines))\n        raw_status = _band(status_line, 280.0, 575.0)\n',
+                  '        office = _clean(" ".join(_band(line, 340.0, 630.0) for line in identity_lines))\n        identifier_cell = _clean(" ".join(_band(line, 630.0, 841.9) for line in identity_lines))\n        identifier_match = re.fullmatch(\n            r"(?:(?P<office_suffix>.+?)\\s+)?(?P<identifier>\\d{10,12})",\n            identifier_cell,\n        )\n        if identifier_match is not None:\n            office_suffix = _clean(identifier_match.group("office_suffix") or "")\n            if office_suffix:\n                office = _clean(f"{office} {office_suffix}")\n                identity_spillovers[ordinal] = office_suffix\n            identifier_raw = identifier_match.group("identifier")\n        else:\n            identifier_raw = identifier_cell\n        raw_status = _band(status_line, 280.0, 575.0)\n',
+              ),
+              (
+                  '    if malformed != _EXPECTED_MALFORMED_IDENTIFIERS:\n',
+                  '    if identity_spillovers != {113: "d\\\'Alba"}:\n        raise RuntimeError(\n            f"cuneo_listed: reviewed identity-column spillover boundary drift: {identity_spillovers}"\n        )\n    if malformed != _EXPECTED_MALFORMED_IDENTIFIERS:\n',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one parser patch target, found {count}: {old[:80]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+
+          python -m compileall -q src/white_list_archive/parsers/cuneo_positioned.py
+          git diff --check
+          git diff -- src/white_list_archive/parsers/cuneo_positioned.py
+
+      - name: Commit parser repair only
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no | grep -v '^ M src/white_list_archive/parsers/cuneo_positioned.py$' || true)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/white_list_archive/parsers/cuneo_positioned.py
+          git commit -m "Fix Cuneo identity column spillover parsing"
+          git push origin HEAD:expansion/cuneo-2026-09-19
