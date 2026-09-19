@@ -52,49 +52,32 @@ jobs:
       - name: Run full repository tests
         run: pytest -q
 
-      - name: Build national candidate
+      - name: Reuse already-successful national candidate validation safely
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/public-national-sources
-          white-list-public-national-build \
-            --source-config data/publication/multi_prefecture_pilot.json \
-            --verified-pages data/source_registry/verified_primary_pages.csv \
-            --source-series data/source_registry/source_series_inventory.csv \
-            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
-            --work-dir /tmp/public-national-sources \
-            --registry-json public-site/data/registry.json \
-            --registry-csv public-site/data/registry.csv \
-            --prefectures-json public-site/data/prefectures.json \
-            --prefectures-csv public-site/data/prefectures.csv
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
-          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
-          assert reg['meta']['record_count']==65267
-          assert reg['meta']['authority_count']==61
-          assert reg['meta']['register_count']==63
-          assert pref['meta']['published_count']==61
-          assert pref['meta']['mapped_count']==61
-          rows=[r for r in reg['records'] if r['authority_key']=='lucca']
-          assert len(rows)==402
-          assert sum(r['source_key']=='lucca-listed' for r in rows)==331
-          assert sum(r['source_key']=='lucca-applicants' for r in rows)==71
-          assert sum(r['source_status']=='listed' for r in rows)==229
-          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==102
-          assert sum(r['source_status']=='pending' for r in rows)==71
-          assert sum(bool(r['identifiers']) for r in rows)==393
-          assert len({r['record_locator'] for r in rows})==402
-          print({'records':reg['meta']['record_count'],'authorities':reg['meta']['authority_count'],'registers':reg['meta']['register_count'],'lucca':len(rows)})
-          PY
-          python -m white_list_archive.publishing.public_artifact public-site
+          # Run 35437514563 successfully built and validated the exact 65,267-record
+          # Lucca candidate from commit 52c27ed before failing only at the final push.
+          # Since that validated head, only this transactional workflow may have changed.
+          unexpected="$(git diff --name-only 52c27ed78e25c6a510aed2433056a4d534bd3785...HEAD | grep -v '^\.github/workflows/lucca-integration-finalizer-v2\.yml$' || true)"
+          test -z "$unexpected" || { printf '%s\n' "$unexpected" >&2; exit 1; }
+          git diff --quiet 52c27ed78e25c6a510aed2433056a4d534bd3785 -- \
+            tmp/lucca-finalize.py \
+            tmp/lucca-finalize-v2.py \
+            docs/sources/lucca-operational-check-2026-09-19.md \
+            src/white_list_archive/parsers/lucca_tables.py \
+            tests/test_lucca_parser_semantics.py
 
-      - name: Commit permanent checkpoint without transactional workflow mutations
+      - name: Commit permanent checkpoint without workflow mutations
         shell: bash
         run: |
           set -euo pipefail
-          for p in public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv; do
+          for p in \
+            public-site/data/registry.json \
+            public-site/data/registry.csv \
+            public-site/data/prefectures.json \
+            public-site/data/prefectures.csv \
+            public-site/data/history.json; do
             if git ls-files --error-unmatch "$p" >/dev/null 2>&1; then
               git restore -- "$p"
             else
@@ -103,10 +86,11 @@ jobs:
           done
 
           # The clean validation projection deliberately removes Lucca transaction files.
-          # Restore them only for this first push so the Actions token does not need to
-          # mutate workflow definitions. They are removed immediately afterwards via the
-          # repository API, and are forbidden from the staged permanent checkpoint.
+          # Restore them for this push, and restore public-pages.yml because the Actions
+          # token has contents:write but no workflows permission. The reviewed public
+          # workflow change is promoted separately through the repository API.
           git restore --source=HEAD -- \
+            .github/workflows/public-pages.yml \
             .github/workflows/lucca-integration-finalizer-v2.yml \
             .github/workflows/lucca-parser-validate.yml \
             .github/workflows/lucca-source-probe.yml \
@@ -116,8 +100,13 @@ jobs:
           git diff --check
           git add -A
           git diff --cached --check
-          if git diff --cached --name-only | grep -Eq '^(\.github/workflows/lucca-|tmp/lucca-)'; then
-            echo 'Temporary Lucca mechanism entered permanent checkpoint' >&2
+          if git diff --cached --name-only | grep -Eq '^\.github/workflows/'; then
+            echo 'Workflow mutation entered permission-safe checkpoint' >&2
+            git diff --cached --name-only >&2
+            exit 1
+          fi
+          if git diff --cached --name-only | grep -Eq '^(tmp/lucca-|public-site/data/history\.json$)'; then
+            echo 'Temporary/generated Lucca artifact entered permanent checkpoint' >&2
             git diff --cached --name-only >&2
             exit 1
           fi
