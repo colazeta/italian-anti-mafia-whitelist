@@ -78,6 +78,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Grosseto'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Imperia'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Lucca'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Macerata'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
@@ -120,8 +121,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,65267);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca'].includes(r.authority_key));
+      assert.equal(stats.total,66625);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -240,6 +241,16 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(lucca.filter(r=>r.source_key==='lucca-applicants').length,71);
       assert.deepEqual(statusCounts(lucca),{listed:229,pending:71,renewal_update_in_progress:102});
       assert.equal(new Set(lucca.map(r=>r.record_locator)).size,402);
+      const macerata=registry.records.filter(r=>r.authority_key==='macerata');
+      assert.equal(macerata.length,1358);
+      assert.equal(macerata.filter(r=>r.source_key==='macerata-listed').length,1274);
+      assert.equal(macerata.filter(r=>r.source_key==='macerata-applicants').length,84);
+      assert.deepEqual(statusCounts(macerata),{listed:880,other_or_unknown:1,pending:83,renewal_update_in_progress:394});
+      assert.equal(new Set(macerata.map(r=>r.record_locator)).size,1358);
+      assert.equal(macerata.filter(r=>r.identifiers.length>0).length,1320);
+      assert.equal(macerata.filter(r=>r.source_key==='macerata-applicants'&&r.outcome_raw==='Iscritta il 14/08/2026'&&r.source_status==='listed'&&r.observed_listing_date==='2026-08-14').length,1);
+      assert.equal(macerata.filter(r=>r.source_key==='macerata-applicants'&&r.source_fields.application_date_raw_variants.includes('27/01/206')&&r.application_date==='').length,1);
+      assert.equal(macerata.filter(r=>r.source_key==='macerata-listed'&&r.source_fields.expiry_date_raw_variants.includes('ISCRIZIONE 05/01/2027')&&r.observed_expiry_date==='').length,1);
       assert.equal(lucca.filter(r=>r.identifiers.length>0).length,393);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);

@@ -76,6 +76,7 @@ from white_list_archive.parsers.fermo_openxml import PARSERS as FERMO_PARSERS
 from white_list_archive.parsers.grosseto_openxml import PARSERS as GROSSETO_PARSERS
 from white_list_archive.parsers.imperia_sources import PARSERS as IMPERIA_PARSERS
 from white_list_archive.parsers.lucca_tables import PARSERS as LUCCA_PARSERS
+from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -955,6 +956,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or GROSSETO_PARSERS.get(cfg["parser"])
         or IMPERIA_PARSERS.get(cfg["parser"])
         or LUCCA_PARSERS.get(cfg["parser"])
+        or MACERATA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")

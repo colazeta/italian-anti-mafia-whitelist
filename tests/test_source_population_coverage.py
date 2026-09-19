@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 61
-    assert report["register_scope_count"] == 63
-    assert report["complete_register_scope_count"] == 63
+    assert report["verified_authority_count"] == 62
+    assert report["register_scope_count"] == 64
+    assert report["complete_register_scope_count"] == 64
     assert report["incomplete_register_scope_count"] == 0
 
     by_scope = {}
@@ -119,6 +119,7 @@ def test_recently_resolved_current_pages_cover_both_populations():
         "grosseto",
         "imperia",
         "lucca",
+        "macerata",
     ):
         rows = {
             row["population_target"]: row
