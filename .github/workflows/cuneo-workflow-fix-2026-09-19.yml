@@ -1,0 +1,39 @@
+name: Cuneo finalizer line-ending fix 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-workflow-fix-2026-09-19.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cuneo-2026-09-19
+      - name: Patch CSV writer and self-remove
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/cuneo-integration-2026-09-19.yml')
+          text = path.read_text()
+          old = "writer = csv.DictWriter(handle, fieldnames=fieldnames)"
+          new = "writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator='\\n')"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected CSV writer expression once, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          git rm .github/workflows/cuneo-workflow-fix-2026-09-19.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/cuneo-integration-2026-09-19.yml
+          git commit -m "Preserve LF endings in Cuneo integration CSVs"
+          git push origin HEAD:expansion/cuneo-2026-09-19
