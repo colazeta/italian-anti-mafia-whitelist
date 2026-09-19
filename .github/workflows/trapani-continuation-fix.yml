@@ -1,4 +1,4 @@
-name: Trapani exact name-variant patcher
+name: Trapani exact applicant-continuation patcher
 on:
   push:
     branches: [expansion/trapani-2026-09-19]
@@ -15,7 +15,7 @@ jobs:
         with:
           ref: expansion/trapani-2026-09-19
           fetch-depth: 0
-      - name: Apply exact fail-closed name-variant model
+      - name: Apply exact fail-closed applicant continuation model
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -23,41 +23,140 @@ jobs:
           p = Path('src/white_list_archive/parsers/trapani_tables.py')
           s = p.read_text(encoding='utf-8')
 
-          const_anchor = '''_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY = "In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa"\n'''
-          const_repl = const_anchor + '''_LISTED_NAME_VARIANT_NORMALISATIONS = {\n    "02483290819": {\n        "source_variants": [\n            "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n            "STRADE E SERVIZI S.R.L.UNIPERSONALE",\n        ],\n        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n}\n'''
-          if '_LISTED_NAME_VARIANT_NORMALISATIONS =' not in s:
-              if s.count(const_anchor) != 1:
-                  raise SystemExit('Trapani name-variant constant anchor drift')
-              s = s.replace(const_anchor, const_repl, 1)
+          constant = '''_APPLICANT_CONTINUATIONS = {
+    (3, 1, 1): {
+        "row": ["", "", "", "", "-Servizi funerari e cimiteriali", "", ""],
+        "previous": {"page": 2, "name": "AMG TECH S.R.L.", "identifier": "02303880815"},
+    },
+    (5, 1, 1): {
+        "row": ["", "", "", "", "attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 4, "name": "AUTOSPURGHI LICARI S.R.L.", "identifier": "02423440813"},
+    },
+    (6, 1, 1): {
+        "row": ["", "", "", "", "attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 5, "name": "AUTOSPURGO PETROSINO DI BIONDO GIUSEPPE", "identifier": "BNDGPP84T14E974C"},
+    },
+    (7, 1, 1): {
+        "row": ["", "", "", "", "-Fornitura di ferro lavorato", "", ""],
+        "previous": {"page": 6, "name": "BENENATI BERNARDO", "identifier": "BNNBNR63R14A176Z"},
+    },
+    (11, 1, 1): {
+        "row": ["", "", "", "", "catering", "", ""],
+        "previous": {"page": 10, "name": "CIPPONERI LUIGI", "identifier": "CPPLGU81T03G208K"},
+    },
+    (12, 1, 1): {
+        "row": ["", "", "", "", "attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 11, "name": "DA.SCA. S.N.C. DI SCARAMUZZO O. & C. (in Amministrazione Giudiziaria)", "identifier": "01398850816"},
+    },
+    (15, 1, 1): {
+        "row": ["", "", "", "", "-Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 14, "name": "EUROAMBIENTE S.R.L.", "identifier": "06547530821"},
+    },
+    (16, 1, 1): {
+        "row": ["", "", "", "", "bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 15, "name": "EVOLA VITO", "identifier": "VLEVTI60M11F061P"},
+    },
+    (17, 1, 1): {
+        "row": ["", "GOLFO", "", "", "-Nolo a freddo di macchinari -Autotrasporti per conto terzi -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 16, "name": "FIAM S.R.L.", "identifier": "02312540814"},
+    },
+    (18, 1, 1): {
+        "row": ["", "", "", "", "bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 17, "name": "FILIPPO IMPASTATO & FIGLIO S.N.C.", "identifier": "01578680819"},
+    },
+    (23, 1, 1): {
+        "row": ["", "", "", "", "smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 22, "name": "LA MARMORA GIUSEPPE", "identifier": "LMRGPP74T06C286Y"},
+    },
+    (26, 1, 1): {
+        "row": ["", "", "", "", "terra e materiali inerti", "", ""],
+        "previous": {"page": 25, "name": "MICRON DI PIAZZA DOMENICO", "identifier": "PZZDNC81T24L331M"},
+    },
+    (30, 1, 1): {
+        "row": ["", "", "", "", "attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 29, "name": "PANTEL SERVICE S.R.L.", "identifier": "02753100813"},
+    },
+    (31, 1, 1): {
+        "row": ["FILINGERI DI VITO CARLO FILINGERI & C. S.A.S.", "", "", "", "catering", "", ""],
+        "previous": {"page": 30, "name": "PASTICCERIA CIOCCOLATTANDO VITO", "identifier": "02883270817"},
+    },
+    (33, 1, 1): {
+        "row": ["", "", "", "", "terra e materiali inerti -Noli a freddo di macchinari", "", ""],
+        "previous": {"page": 32, "name": "R.L.G. MONTAGGI S.R.L.", "identifier": "02840470815"},
+    },
+    (34, 1, 1): {
+        "row": ["", "", "", "", "conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 33, "name": "REAM S.R.L.", "identifier": "02854920812"},
+    },
+    (35, 1, 1): {
+        "row": ["", "", "", "", "attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 34, "name": "RENDA S.R.L.", "identifier": "02520400819"},
+    },
+    (37, 1, 1): {
+        "row": ["", "", "", "", "-Autotrasporti per conto di terzi -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 36, "name": "SCAME S.R.L.", "identifier": "02281660817"},
+    },
+    (39, 1, 1): {
+        "row": ["", "", "", "", "-Fornitura ferro lavorato -Noli a caldo -Autotrasporto per conto terzi -Servizi ambientali, comprese le attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 38, "name": "SELEMA S.R.L.", "identifier": "02582990814"},
+    },
+    (40, 1, 1): {
+        "row": ["", "", "", "", "attività di raccolta, di trasporto nazionale e transfrontaliero, anche per conto terzi, di trattamento e smaltimento dei rifiuti, nonché le attività di risanamento e di bonifica e gli altri servizi connessi alla gestione dei rifiuti", "", ""],
+        "previous": {"page": 39, "name": "SICILSPURGO S.N.C. DI MILAZZO VITO E C.", "identifier": "01615680814"},
+    },
+    (41, 1, 1): {
+        "row": ["", "", "", "", "-Noli a caldo", "", ""],
+        "previous": {"page": 40, "name": "SIRTEC S.R.L.", "identifier": "02060960818"},
+    },
+    (42, 1, 1): {
+        "row": ["", "", "", "", "-Autotrasporti conto di terzi", "", ""],
+        "previous": {"page": 41, "name": "TRAPANI SCAVI S.R.L.", "identifier": "02696620810"},
+    },
+    (44, 1, 1): {
+        "row": ["SOCIETA' A RESPONSABILITA'LIMITATA", "", "", "", "- Noli a freddo di macchinari - Noli a caldo", "", ""],
+        "previous": {"page": 43, "name": "VINCENZO EVOLA CANTIERI MAZARA", "identifier": "02810670816"},
+    },
+}
+'''
+          if '_APPLICANT_CONTINUATIONS =' not in s:
+              anchor = '\n\ndef _clean(value: Any) -> str:\n'
+              if s.count(anchor) != 1:
+                  raise SystemExit('Trapani applicant-continuation constant anchor drift')
+              s = s.replace(anchor, '\n\n' + constant + anchor, 1)
 
-          gika_anchor = '''        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n}\n'''
-          gika_repl = '''        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n    "02483280810": {\n        "source_variants": [\n            "GIKA S.R.L.",\n            "GIKA S.r.l.",\n        ],\n        "canonical": "GIKA S.R.L.",\n    },\n}\n'''
-          if '"02483280810": {' not in s:
-              if s.count(gika_anchor) != 1:
-                  raise SystemExit('Trapani case-variant constant anchor drift')
-              s = s.replace(gika_anchor, gika_repl, 1)
+          old_head = '''def parse_trapani_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:\n    rows: list[list[str]] = []\n    per_page: list[int] = []\n'''
+          new_head = '''def parse_trapani_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:\n    rows: list[list[str]] = []\n    row_pages: list[int] = []\n    seen_continuations: list[tuple[int, int, int]] = []\n    per_page: list[int] = []\n'''
+          if 'seen_continuations: list[tuple[int, int, int]]' not in s:
+              if s.count(old_head) != 1:
+                  raise SystemExit('Trapani applicant parser-head anchor drift')
+              s = s.replace(old_head, new_head, 1)
 
-          old = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        if len(name_variants) != 1:\n            raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
-          new = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)\n        if normalisation is None:\n            if len(name_variants) != 1:\n                raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n            output_name = name_variants[0]\n        else:\n            if name_variants != normalisation["source_variants"]:\n                raise RuntimeError(\n                    f"Trapani approved name-variant evidence drift for {identifier}: {name_variants!r}"\n                )\n            output_name = normalisation["canonical"]\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
-          if 'normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)' not in s:
-              if s.count(old) != 1:
-                  raise SystemExit('Trapani name-variant grouping anchor drift')
-              s = s.replace(old, new, 1)
+          old_loop = '''            page_rows: list[list[str]] = []\n            for raw in tables[0].extract() or []:\n                row = [_clean(value) for value in raw]\n                if not any(row) or _is_header(row):\n                    continue\n                if len(row) != 7 or not row[0] or not _ID_RE.fullmatch(row[3]):\n                    raise RuntimeError(f"Trapani applicant row-shape drift on page {page_number}: {row!r}")\n                if row[6] not in _ALLOWED_APPLICANT_OUTCOMES:\n                    raise RuntimeError(f"Trapani applicant outcome drift on page {page_number}: {row[6]!r}")\n                if not _strict_date(row[5]):\n                    raise RuntimeError(f"Trapani applicant application-date drift on page {page_number}: {row[5]!r}")\n                page_rows.append(row)\n            per_page.append(len(page_rows))\n            rows.extend(page_rows)\n'''
+          new_loop = '''            page_rows: list[list[str]] = []\n            for row_number, raw in enumerate(tables[0].extract() or [], 1):\n                row = [_clean(value) for value in raw]\n                if not any(row) or _is_header(row):\n                    continue\n                if len(row) == 7 and row[0] and _ID_RE.fullmatch(row[3]):\n                    if row[6] not in _ALLOWED_APPLICANT_OUTCOMES:\n                        raise RuntimeError(f"Trapani applicant outcome drift on page {page_number}: {row[6]!r}")\n                    if not _strict_date(row[5]):\n                        raise RuntimeError(f"Trapani applicant application-date drift on page {page_number}: {row[5]!r}")\n                    page_rows.append(row)\n                    rows.append(row)\n                    row_pages.append(page_number)\n                    continue\n\n                key = (page_number, 1, row_number)\n                continuation = _APPLICANT_CONTINUATIONS.get(key)\n                if continuation is None:\n                    raise RuntimeError(f"Trapani applicant row-shape drift on page {page_number}: {row!r}")\n                if row != continuation["row"]:\n                    raise RuntimeError(\n                        f"Trapani applicant continuation evidence drift at {key}: {row!r}"\n                    )\n                previous = continuation["previous"]\n                if not rows or row_pages[-1] != previous["page"]:\n                    raise RuntimeError(\n                        f"Trapani applicant continuation previous-page drift at {key}: "\n                        f"{row_pages[-1] if row_pages else None!r}"\n                    )\n                if rows[-1][0] != previous["name"] or rows[-1][3].upper() != previous["identifier"]:\n                    raise RuntimeError(\n                        f"Trapani applicant continuation previous-record drift at {key}: {rows[-1]!r}"\n                    )\n                if any(row[index] for index in (2, 3, 5, 6)):\n                    raise RuntimeError(\n                        f"Trapani applicant continuation unsupported-field drift at {key}: {row!r}"\n                    )\n                for index in (0, 1, 4):\n                    if row[index]:\n                        rows[-1][index] = _clean(f"{rows[-1][index]} {row[index]}")\n                seen_continuations.append(key)\n            per_page.append(len(page_rows))\n'''
+          if 'continuation = _APPLICANT_CONTINUATIONS.get(key)' not in s:
+              if s.count(old_loop) != 1:
+                  raise SystemExit('Trapani applicant parser-loop anchor drift')
+              s = s.replace(old_loop, new_loop, 1)
 
-          old_name = '                name=name_variants[0],\n'
-          new_name = '                name=output_name,\n'
-          if old_name in s:
-              if s.count(old_name) != 1:
-                  raise SystemExit('Trapani output-name anchor multiplicity drift')
-              s = s.replace(old_name, new_name, 1)
-          elif new_name not in s:
-              raise SystemExit('Trapani output-name anchor drift')
+          count_anchor = '''    if per_page != _APPLICANT_ROW_COUNTS:\n        raise RuntimeError(f"Trapani applicant per-page row drift: {per_page!r}")\n'''
+          count_repl = count_anchor + '''    if seen_continuations != list(_APPLICANT_CONTINUATIONS):\n        raise RuntimeError(f"Trapani applicant continuation-boundary drift: {seen_continuations!r}")\n'''
+          if 'applicant continuation-boundary drift' not in s:
+              if s.count(count_anchor) != 1:
+                  raise SystemExit('Trapani applicant continuation-count anchor drift')
+              s = s.replace(count_anchor, count_repl, 1)
+
+          diag_anchor = '''        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),\n        "outcome_counts": dict(Counter(record["outcome_raw"] for record in records)),\n'''
+          diag_repl = '''        "identifier_coverage": sum(bool(record["identifiers"]) for record in records),\n        "outcome_counts": dict(Counter(record["outcome_raw"] for record in records)),\n        "continuation_rows": len(seen_continuations),\n'''
+          if '"continuation_rows": len(seen_continuations)' not in s:
+              if s.count(diag_anchor) != 1:
+                  raise SystemExit('Trapani applicant diagnostics anchor drift')
+              s = s.replace(diag_anchor, diag_repl, 1)
 
           p.write_text(s, encoding='utf-8')
           PY
           python -m compileall -q src/white_list_archive/parsers/trapani_tables.py
           git diff --check
-      - name: Commit exact parser evidence handling
+      - name: Commit exact applicant continuation handling
         run: |
           if git diff --quiet -- src/white_list_archive/parsers/trapani_tables.py; then
             echo 'No parser change required.'
@@ -66,5 +165,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/white_list_archive/parsers/trapani_tables.py
-          git commit -m 'Preserve Trapani exact name-variant evidence'
+          git commit -m 'Preserve Trapani applicant continuation evidence'
           git push origin HEAD:expansion/trapani-2026-09-19
