@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 55
-    assert report["register_scope_count"] == 57
-    assert report["complete_register_scope_count"] == 57
+    assert report["verified_authority_count"] == 56
+    assert report["register_scope_count"] == 58
+    assert report["complete_register_scope_count"] == 58
     assert report["incomplete_register_scope_count"] == 0
 
     by_scope = {}
@@ -79,6 +79,15 @@ def test_combined_series_satisfies_both_targets_without_duplication():
     ]
     assert {row["coverage_status"] for row in milano} == {"COVERED_COMBINED_SERIES"}
     assert all(row["covering_series_keys"] == ["milano-combined"] for row in milano)
+
+    cremona = [
+        row
+        for row in report["rows"]
+        if row["authority_key"] == "cremona"
+        and row["regime_code"] == "WL-REGIME-L190-2012"
+    ]
+    assert {row["coverage_status"] for row in cremona} == {"COVERED_COMBINED_SERIES"}
+    assert all(row["covering_series_keys"] == ["cremona-combined"] for row in cremona)
 
 
 def test_separate_series_and_unresolved_gaps_are_distinguished():
