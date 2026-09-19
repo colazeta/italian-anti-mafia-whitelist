@@ -48,6 +48,16 @@ jobs:
       - name: Materialise Palermo integration
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tmp/palermo_integrate.py')
+          text = path.read_text(encoding='utf-8')
+          old = "coverage['authorities']"
+          new = "coverage['prefectures']"
+          if text.count(old) != 1:
+              raise RuntimeError(f'Palermo monitoring collection anchor drift: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           python tmp/palermo_integrate.py
           git diff --check
       - name: Run focused and full repository validation
