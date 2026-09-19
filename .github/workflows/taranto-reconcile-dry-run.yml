@@ -1,0 +1,45 @@
+name: Taranto reconcile dry run
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - expansion/taranto-2026-09-18
+    paths:
+      - '.github/workflows/taranto-reconcile-dry-run.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout existing Taranto branch
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/taranto-2026-09-18
+          fetch-depth: 0
+      - name: Inspect canonical state and merge boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "MAIN=$(git rev-parse origin/main)"
+          echo "MERGE_BASE=$(git merge-base HEAD origin/main)"
+          git status --short
+          set +e
+          git merge --no-commit --no-ff origin/main
+          rc=$?
+          set -e
+          echo "MERGE_RC=$rc"
+          echo "UNMERGED_BEGIN"
+          git diff --name-only --diff-filter=U || true
+          echo "UNMERGED_END"
+          echo "CHANGED_BEGIN"
+          git diff --name-status --cached || true
+          echo "CHANGED_END"
+          git merge --abort >/dev/null 2>&1 || true
+          exit 0
