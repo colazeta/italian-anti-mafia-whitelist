@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install -e '.[dev,publication,database,storage]'
-      - name: Capture official endpoint twice independently
+      - name: Capture official endpoint and live approved registry
         run: |
           set -euo pipefail
           base='https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
@@ -44,6 +44,10 @@ jobs:
             wc -c "/tmp/potenza-${i}.json"
           done
           cmp /tmp/potenza-1.json /tmp/potenza-2.json
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 1 \
+            -H 'Cache-Control: no-cache' \
+            'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json' \
+            --output /tmp/live-registry.json
       - name: Validate parser boundary and compare canonical Potenza projection
         run: |
           set -euo pipefail
@@ -95,9 +99,12 @@ jobs:
           print(f'CURRENT_STATUS_COUNTS={dict(Counter(row["status"] for row in projection1))}')
           print(f'CURRENT_SOURCE_IDS={len({row["source_id"] for row in projection1})}')
 
-          registry = json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          registry = json.loads(Path('/tmp/live-registry.json').read_text(encoding='utf-8'))
           published = [r for r in registry['records'] if r.get('authority_key') == 'potenza']
+          print(f'LIVE_REGISTRY_RECORD_COUNT={registry["meta"]["record_count"]}')
           print(f'CANONICAL_PUBLISHED_POTENZA={len(published)}')
+          if len(published) != 1035:
+              raise RuntimeError(f'Unexpected live approved Potenza boundary: {len(published)}')
 
           id_re = re.compile(r':id-(\d+)$')
           published_by_id = {}
@@ -126,7 +133,8 @@ jobs:
                   status_changes.append((source_id, old, new, current_by_id[source_id]['name']))
           print(f'STATUS_CHANGES={status_changes}')
 
-          for source_id in sorted(set(added) | set(removed) | {sid for sid, *_ in status_changes}, key=int):
+          delta_ids = sorted(set(added) | set(removed) | {sid for sid, *_ in status_changes}, key=int)
+          for source_id in delta_ids:
               current = current_by_id.get(source_id)
               canonical = published_by_id.get(source_id)
               canonical_review = None if canonical is None else {
@@ -139,11 +147,15 @@ jobs:
                   'record_locator': canonical.get('record_locator'),
               }
               print('DELTA', source_id, 'CURRENT=', json.dumps(current, ensure_ascii=False, sort_keys=True), 'CANONICAL=', json.dumps(canonical_review, ensure_ascii=False, sort_keys=True))
+          if len(removed) != 1 or added or status_changes:
+              raise RuntimeError('Current Potenza delta is not the single-removal transition suggested by aggregate counts')
           PY
       - name: Upload revalidation captures
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: potenza-current-source-revalidation-2026-09-20
-          path: /tmp/potenza-*.json
+          path: |
+            /tmp/potenza-*.json
+            /tmp/live-registry.json
           retention-days: 7
