@@ -1,0 +1,238 @@
+name: Cuneo source profile 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-source-profile-2026-09-19.yml
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install profile runtime
+        run: |
+          python -m pip install --disable-pip-version-check requests
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+
+      - name: Fetch byte-pinned Cuneo sources
+        env:
+          LISTED_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf
+          APPLICANTS_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-richiedenti-iscrizione_0.pdf
+          LISTED_SHA256: 3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7
+          APPLICANTS_SHA256: 25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea
+        run: |
+          mkdir -p profile
+          python - <<'PY'
+          import hashlib, os, pathlib, time
+          from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+          import requests
+
+          out = pathlib.Path('profile')
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
+              'Accept': 'application/pdf,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+          }
+          def bust(url, token):
+              p = urlsplit(url)
+              q = parse_qsl(p.query, keep_blank_values=True)
+              q.append(('_wl_profile', token))
+              return urlunsplit((p.scheme, p.netloc, p.path, urlencode(q), p.fragment))
+
+          for kind in ('listed', 'applicants'):
+              url = os.environ[f'{kind.upper()}_URL']
+              expected = os.environ[f'{kind.upper()}_SHA256']
+              digests = []
+              sizes = []
+              for i in (1, 2):
+                  r = requests.get(bust(url, f'{i}-{time.time_ns()}'), headers=headers, timeout=60, allow_redirects=True)
+                  r.raise_for_status()
+                  digest = hashlib.sha256(r.content).hexdigest()
+                  digests.append(digest)
+                  sizes.append(len(r.content))
+                  out.joinpath(f'{kind}-{i}.pdf').write_bytes(r.content)
+                  time.sleep(1)
+              assert digests == [expected, expected], (kind, digests, expected)
+              assert sizes[0] == sizes[1] > 0, (kind, sizes)
+              print(kind, sizes[0], expected)
+          PY
+
+      - name: Extract layout text
+        run: |
+          pdftotext -layout profile/listed-1.pdf profile/listed.txt
+          pdftotext -layout profile/applicants-1.pdf profile/applicants.txt
+          pdfinfo profile/listed-1.pdf > profile/listed.pdfinfo
+          pdfinfo profile/applicants-1.pdf > profile/applicants.pdfinfo
+
+      - name: Profile page and record denominators
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import re
+          import subprocess
+          from collections import Counter
+
+          root = pathlib.Path('profile')
+
+          def pdf_pages(path):
+              text = subprocess.check_output(['pdfinfo', str(path)], text=True)
+              m = re.search(r'^Pages:\s+(\d+)\s*$', text, re.M)
+              assert m, text
+              return int(m.group(1))
+
+          def page_text(path, page):
+              return subprocess.check_output(
+                  ['pdftotext', '-f', str(page), '-l', str(page), '-layout', str(path), '-'],
+                  text=True,
+                  errors='replace',
+              )
+
+          def norm(s):
+              return re.sub(r'\s+', ' ', s).strip()
+
+          listed_pdf = root/'listed-1.pdf'
+          applicants_pdf = root/'applicants-1.pdf'
+          listed_pages = pdf_pages(listed_pdf)
+          applicants_pages = pdf_pages(applicants_pdf)
+          assert listed_pages == 137, listed_pages
+          assert applicants_pages == 13, applicants_pages
+
+          listed_page_rows = []
+          listed_statuses = Counter()
+          listed_identifier_lengths = Counter()
+          listed_identifiers = []
+          listed_missing_identifier_pages = []
+          listed_footer_dates = Counter()
+          listed_company_lines = []
+
+          for page in range(1, listed_pages + 1):
+              text = page_text(listed_pdf, page)
+              lines = text.splitlines()
+              header_idxs = [i for i, line in enumerate(lines) if 'Ragione Sociale' in line and 'Sede legale' in line]
+              status_lines = []
+              for line in lines:
+                  if 'Attività' in line and 'Data di iscrizione' in line:
+                      middle = line.split('Attività', 1)[1].split('Data di iscrizione', 1)[0]
+                      middle = norm(middle)
+                      if middle:
+                          status_lines.append(middle)
+                          listed_statuses[middle] += 1
+              # The source repeats the company header for each record. Preserve both
+              # denominators so later parser work fails closed if they diverge.
+              listed_page_rows.append({
+                  'page': page,
+                  'company_headers': len(header_idxs),
+                  'status_headers': len(status_lines),
+                  'statuses': Counter(status_lines),
+              })
+              for idx in header_idxs:
+                  following = []
+                  for line in lines[idx + 1:]:
+                      if 'Attività' in line and ('Data di iscrizione' in line or 'Data scadenza' in line):
+                          break
+                      if line.strip():
+                          following.append(line)
+                      if len(following) >= 4:
+                          break
+                  combined = norm(' '.join(following))
+                  listed_company_lines.append({'page': page, 'text': combined})
+                  tokens = re.findall(r'(?<!\d)(\d{8,12})(?!\d)', combined)
+                  if tokens:
+                      token = tokens[-1]
+                      listed_identifiers.append(token)
+                      listed_identifier_lengths[len(token)] += 1
+                  else:
+                      listed_missing_identifier_pages.append({'page': page, 'text': combined})
+              for date in re.findall(r'(?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\s+[a-zà]+\s+2026', text, flags=re.I):
+                  listed_footer_dates[norm(date).lower()] += 1
+
+          listed_header_total = sum(x['company_headers'] for x in listed_page_rows)
+          listed_status_total = sum(x['status_headers'] for x in listed_page_rows)
+          assert listed_header_total == listed_status_total, (listed_header_total, listed_status_total)
+
+          applicant_page_rows = []
+          applicant_identifier_lengths = Counter()
+          applicant_identifiers = []
+          applicant_missing_identifier_pages = []
+          applicant_update_dates = Counter()
+          for page in range(1, applicants_pages + 1):
+              text = page_text(applicants_pdf, page)
+              lines = text.splitlines()
+              labels = [i for i, line in enumerate(lines) if 'Data presentazione' in line and 'istanza' in line]
+              applicant_page_rows.append({'page': page, 'application_labels': len(labels)})
+              for idx in labels:
+                  # The identifier is on the same company header line in this Access report;
+                  # if it is not, search the immediately adjacent two lines but never infer it.
+                  context = norm(' '.join(lines[max(0, idx-2):idx+2]))
+                  tokens = re.findall(r'(?<!\d)(\d{8,12})(?!\d)', context)
+                  # Drop 8-digit date fragments if a layout engine happened to remove separators.
+                  tokens = [t for t in tokens if len(t) >= 9]
+                  if tokens:
+                      token = tokens[-1]
+                      applicant_identifiers.append(token)
+                      applicant_identifier_lengths[len(token)] += 1
+                  else:
+                      applicant_missing_identifier_pages.append({'page': page, 'context': context})
+              for date in re.findall(r'(?:lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica)\s+\d{1,2}\s+[a-zà]+\s+2026', text, flags=re.I):
+                  applicant_update_dates[norm(date).lower()] += 1
+
+          applicant_total = sum(x['application_labels'] for x in applicant_page_rows)
+
+          report = {
+              'listed': {
+                  'pages': listed_pages,
+                  'records_by_company_header': listed_header_total,
+                  'records_by_status_header': listed_status_total,
+                  'page_denominators': listed_page_rows,
+                  'status_vocabulary': dict(sorted(listed_statuses.items())),
+                  'identifier_length_counts': {str(k): v for k, v in sorted(listed_identifier_lengths.items())},
+                  'identifier_count': len(listed_identifiers),
+                  'duplicate_identifier_tokens': dict(sorted((k, v) for k, v in Counter(listed_identifiers).items() if v > 1)),
+                  'missing_identifier_contexts': listed_missing_identifier_pages,
+                  'document_dates': dict(sorted(listed_footer_dates.items())),
+              },
+              'applicants': {
+                  'pages': applicants_pages,
+                  'records_by_application_label': applicant_total,
+                  'page_denominators': applicant_page_rows,
+                  'identifier_length_counts': {str(k): v for k, v in sorted(applicant_identifier_lengths.items())},
+                  'identifier_count': len(applicant_identifiers),
+                  'duplicate_identifier_tokens': dict(sorted((k, v) for k, v in Counter(applicant_identifiers).items() if v > 1)),
+                  'missing_identifier_contexts': applicant_missing_identifier_pages,
+                  'document_dates': dict(sorted(applicant_update_dates.items())),
+              },
+          }
+          root.joinpath('profile.json').write_text(json.dumps(report, ensure_ascii=False, indent=2, default=dict), encoding='utf-8')
+          print(json.dumps(report, ensure_ascii=False, indent=2, default=dict))
+          PY
+
+      - name: Inspect status and edge contexts
+        run: |
+          echo '=== LISTED STATUS HEADER LINES ==='
+          grep -E 'Attività.*(Data di iscrizione|Data scadenza)' profile/listed.txt | sed -E 's/[[:space:]]+/ /g' | sort | uniq -c | sort -nr | head -50 || true
+          echo '=== LISTED NON-11-DIGIT NUMERIC COMPANY TOKENS ==='
+          jq '.listed.identifier_length_counts, .listed.missing_identifier_contexts[:20]' profile/profile.json
+          echo '=== APPLICANT IDENTIFIER PROFILE ==='
+          jq '.applicants.identifier_length_counts, .applicants.missing_identifier_contexts[:20]' profile/profile.json
+          echo '=== DUPLICATE IDENTIFIER TOKENS ==='
+          jq '.listed.duplicate_identifier_tokens, .applicants.duplicate_identifier_tokens' profile/profile.json
+
+      - name: Save Cuneo profile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cuneo-source-profile-2026-09-19
+          path: profile/
+          if-no-files-found: error
+          retention-days: 7
