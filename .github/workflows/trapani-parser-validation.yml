@@ -64,14 +64,21 @@ jobs:
           assert Counter(r['source_status'] for r in listed.records) == Counter({'listed': 177, 'renewal_update_in_progress': 156})
           assert sum(bool(r['identifiers']) for r in listed.records) == 333
           assert len(applicants.records) == 222, applicants.diagnostics
+          assert applicants.diagnostics['continuation_rows'] == 23, applicants.diagnostics
           assert Counter(r['source_status'] for r in applicants.records) == Counter({'pending': 222})
           assert sum(bool(r['identifiers']) for r in applicants.records) == 222
           ids_l = [r['identifiers'][0] for r in listed.records]
           ids_a = [r['identifiers'][0] for r in applicants.records]
           assert len(ids_l) == len(set(ids_l)) == 333
           assert len(ids_a) == len(set(ids_a)) == 222
+
+          by_id = {r['identifiers'][0]: r for r in applicants.records}
+          assert 'Servizi funerari e cimiteriali' in by_id['02303880815']['requested_activities']
+          assert by_id['02312540814']['registered_office'] == 'CASTELLAMMARE DEL GOLFO'
+          assert by_id['02883270817']['name'] == 'PASTICCERIA CIOCCOLATTANDO VITO FILINGERI DI VITO CARLO FILINGERI & C. S.A.S.'
+          assert by_id['02810670816']['name'] == "VINCENZO EVOLA CANTIERI MAZARA SOCIETA' A RESPONSABILITA'LIMITATA"
+          assert 'Noli a caldo' in by_id['02810670816']['requested_activities']
           print({'listed': listed.diagnostics, 'applicants': applicants.diagnostics})
           PY
       - name: Run Trapani semantic tests
         run: pytest -q tests/test_trapani_parser_semantics.py
-# exact source/name-variant boundary recheck
