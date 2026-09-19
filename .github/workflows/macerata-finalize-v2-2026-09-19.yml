@@ -62,6 +62,7 @@ jobs:
       - name: Extract reviewed scripts with LF-only CSV repair
         run: |
           python - <<'PY'
+          import textwrap
           from pathlib import Path
 
           workflow = Path('.github/workflows/macerata-finalize-2026-09-19.yml').read_text(encoding='utf-8')
@@ -72,7 +73,7 @@ jobs:
               start = workflow.index(marker, step) + len(marker)
               end_marker = f"\n          PY\n\n      - name: {next_step_name}\n"
               end = workflow.index(end_marker, start)
-              return workflow[start:end]
+              return textwrap.dedent(workflow[start:end])
 
           revalidate = extract(
               'Revalidate official resources and parser boundary',
