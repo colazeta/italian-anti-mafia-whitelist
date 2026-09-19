@@ -88,6 +88,7 @@ _LISTED_HEADER_FRAGMENT = (
     (34, 1, 1),
     ["", "", "CON RAPPRESENTANZA STABILE IN ITALIA", "PARTITA IVA", "ISCRIZIONE", "SCADENZA ISCRIZIONE", "IN CORSO"],
 )
+_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY = "In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa"
 
 
 def _clean(value: Any) -> str:
@@ -274,6 +275,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Trapani listed grouped-identifier drift: {len(grouped)}")
 
     records: list[dict[str, Any]] = []
+    non_date_expiry_records = 0
     for identifier, rows in grouped.items():
         name_variants = _ordered_unique([row["name"] for row in rows])
         if len(name_variants) != 1:
@@ -284,9 +286,36 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         expiry_raw_variants = _ordered_unique([row["expiry_raw"] for row in rows if row["expiry_raw"]])
         valid_listing_dates = _ordered_unique([value for raw in listing_raw_variants if (value := _strict_date(raw))])
         valid_expiry_dates = _ordered_unique([value for raw in expiry_raw_variants if (value := _strict_date(raw))])
-        if len(valid_listing_dates) != 1 or len(valid_expiry_dates) != 1:
+        if len(valid_listing_dates) != 1:
             raise RuntimeError(
-                f"Trapani listed date evidence drift for {identifier}: listing={listing_raw_variants!r}, expiry={expiry_raw_variants!r}"
+                f"Trapani listed listing-date evidence drift for {identifier}: {listing_raw_variants!r}"
+            )
+        expiry_date = ""
+        if len(valid_expiry_dates) == 1:
+            expiry_date = valid_expiry_dates[0]
+        elif not valid_expiry_dates and expiry_raw_variants == [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY]:
+            expected = {
+                "rows": 1,
+                "pages": [8],
+                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],
+                "listing_raw": ["30/08/2017"],
+                "updates": [""],
+            }
+            observed = {
+                "rows": len(rows),
+                "pages": _ordered_unique([str(row["page"]) for row in rows]),
+                "names": name_variants,
+                "listing_raw": listing_raw_variants,
+                "updates": [row["update_raw"] for row in rows],
+            }
+            # Keep the source legal/status text verbatim in provenance. It is not a
+            # date and must never be repaired or converted into an expiry date.
+            if observed != {**expected, "pages": [str(value) for value in expected["pages"]]}:
+                raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")
+            non_date_expiry_records += 1
+        else:
+            raise RuntimeError(
+                f"Trapani listed expiry-date evidence drift for {identifier}: {expiry_raw_variants!r}"
             )
         markers = [row["update_raw"] for row in rows]
         status = _group_status(markers)
@@ -303,7 +332,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 activities=sections,
                 status=status,
                 listing_date=valid_listing_dates[0],
-                expiry_date=valid_expiry_dates[0],
+                expiry_date=expiry_date,
                 primary_date_label="Data iscrizione",
                 source_fields={
                     "sections": sections,
@@ -317,6 +346,8 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             )
         )
 
+    if non_date_expiry_records != 1:
+        raise RuntimeError(f"Trapani non-date expiry record-count drift: {non_date_expiry_records}")
     status_counts = dict(Counter(record["source_status"] for record in records))
     if status_counts != {"listed": 177, "renewal_update_in_progress": 156}:
         raise RuntimeError(f"Trapani listed status-boundary drift: {status_counts!r}")
@@ -329,6 +360,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "source_sections": seen_sections,
         "continuation_rows": len(seen_continuations),
         "split_header_fragments": header_fragments,
+        "non_date_expiry_records": non_date_expiry_records,
     }
     return ParsedBatch(records=records, diagnostics=diagnostics)
 
