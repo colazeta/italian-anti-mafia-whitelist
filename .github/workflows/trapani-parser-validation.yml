@@ -60,6 +60,7 @@ jobs:
           assert listed.diagnostics['sector_rows'] == 658, listed.diagnostics
           assert listed.diagnostics['continuation_rows'] == 10, listed.diagnostics
           assert listed.diagnostics['split_header_fragments'] == 1, listed.diagnostics
+          assert listed.diagnostics['non_date_expiry_records'] == 1, listed.diagnostics
           assert Counter(r['source_status'] for r in listed.records) == Counter({'listed': 177, 'renewal_update_in_progress': 156})
           assert sum(bool(r['identifiers']) for r in listed.records) == 333
           assert len(applicants.records) == 222, applicants.diagnostics
