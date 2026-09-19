@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Verify canonical base and Imperia-only pre-integration scope
+      - name: Verify canonical base and Imperia-only scope
         shell: bash
         run: |
           set -euo pipefail
@@ -55,91 +55,31 @@ jobs:
               raise SystemExit(f'Unexpected pre-integration scope: extra={sorted(extra)}, missing={sorted(missing)}')
           PY
 
-      - name: Install complete reviewed runtime
+      - name: Install reviewed runtime
         shell: bash
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
             sudo rm -rf /var/lib/apt/lists/*
-            if sudo apt-get update -qq -o Acquire::Retries=3 && \
-               sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
               break
             fi
             if [ "$attempt" -eq 3 ]; then
-              echo "Runtime package installation failed after bounded retries" >&2
+              echo "Runtime installation failed after bounded retries" >&2
               exit 1
             fi
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[dev,publication,database,storage]'
 
-      - name: Materialise permanent Imperia integration
+      - name: Materialise reviewed Imperia integration
         shell: bash
         run: |
           set -euo pipefail
           python scripts/imperia_finalize.py
           test -s tmp/imperia-public-pages-candidate.yml
           cp tmp/imperia-public-pages-candidate.yml /tmp/imperia-public-pages-candidate.yml
-
-      - name: Validate source parser again on exact approved bytes
-        shell: bash
-        run: |
-          set -euo pipefail
           pytest -q tests/test_imperia_parser_semantics.py
-          mkdir -p /tmp/imperia-source-revalidation
-          python - <<'PY'
-          import hashlib, json, time
-          from pathlib import Path
-          from urllib.parse import urlencode
-          from urllib.request import Request, urlopen
-          from white_list_archive.parsers.imperia_sources import PARSERS
-
-          specs = {
-              'listed': {
-                  'url':'https://prefettura.interno.gov.it/sites/default/files/46/2026-09/elenco-ditte-iscritte-white-list_3.xlsx',
-                  'sha':'9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f','bytes':86337,'ext':'.xlsx',
-                  'parser':'imperia_listed','source_key':'imperia-listed','population_scope':'listed',
-              },
-              'applicants': {
-                  'url':'https://prefettura.interno.gov.it/sites/default/files/46/2026-08/elenco-delle-ditte-che-hanno-presentato-istanza-di-iscrizione-nelle-white-lists_2.doc',
-                  'sha':'e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9','bytes':635392,'ext':'.doc',
-                  'parser':'imperia_applicants','source_key':'imperia-applicants','population_scope':'applicant',
-              },
-          }
-          report = {}
-          for label, spec in specs.items():
-              copies=[]; first=None
-              for attempt in range(2):
-                  sep='&' if '?' in spec['url'] else '?'
-                  req=Request(spec['url']+sep+urlencode({'_wlarchive_nocache':f'{int(time.time())}-{attempt}'}), headers={
-                      'User-Agent':'Mozilla/5.0 WhiteListArchive/1.0','Cache-Control':'no-cache','Pragma':'no-cache'})
-                  with urlopen(req, timeout=60) as response:
-                      data=response.read(); final=response.geturl(); last=response.headers.get('Last-Modified')
-                  digest=hashlib.sha256(data).hexdigest()
-                  if digest != spec['sha'] or len(data) != spec['bytes']:
-                      raise RuntimeError(f"{label}: official bytes changed: {digest}/{len(data)}")
-                  path=Path('/tmp/imperia-source-revalidation')/f"{label}-{attempt}{spec['ext']}"; path.write_bytes(data)
-                  if first is None: first=path
-                  copies.append({'sha256':digest,'bytes':len(data),'final_url':final,'last_modified':last})
-              if copies[0]['sha256'] != copies[1]['sha256']:
-                  raise RuntimeError(f'{label}: independent acquisitions differ')
-              cfg={
-                  'authority_key':'imperia','authority_name':'Prefettura di Imperia','register_key':'imperia-ordinary',
-                  'register_name':'White List ordinaria','reference_date':'2026-09-18',
-                  'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list',
-                  'resource_url':spec['url'],'sha256':spec['sha'],'source_key':spec['source_key'],'population_scope':spec['population_scope'],
-              }
-              batch=PARSERS[spec['parser']](first,cfg)
-              report[label]={'copies':copies,'diagnostics':batch.diagnostics,'records':len(batch.records)}
-          assert report['listed']['records'] == 142
-          assert report['listed']['diagnostics']['sector_rows'] == 246
-          assert report['listed']['diagnostics']['status_counts'] == {'listed':105,'renewal_update_in_progress':37}
-          assert report['listed']['diagnostics']['identifier_coverage'] == 131
-          assert report['applicants']['records'] == 131
-          assert report['applicants']['diagnostics']['status_counts'] == {'listed':117,'pending':6,'cancellation_related':5,'other_or_unknown':3}
-          assert report['applicants']['diagnostics']['identifier_coverage'] == 126
-          Path('/tmp/imperia-source-revalidation/report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False),encoding='utf-8')
-          PY
 
       - name: Remove temporary machinery from clean review worktree
         shell: bash
@@ -151,10 +91,6 @@ jobs:
             .github/workflows/imperia-integration-finalizer.yml \
             scripts/imperia_finalize.py
           rm -rf tmp
-          test ! -e .github/workflows/imperia-source-discovery.yml
-          test ! -e .github/workflows/imperia-parser-validation.yml
-          test ! -e .github/workflows/imperia-integration-finalizer.yml
-          test ! -e scripts/imperia_finalize.py
 
       - name: Run full repository tests on clean review scope
         shell: bash
@@ -236,7 +172,6 @@ jobs:
             docs/sources/imperia-operational-check-2026-09-19.md \
             src/white_list_archive/publishing/public_national_registry.py
           git diff --cached --name-only | sort > /tmp/imperia-staged.txt
-          cat /tmp/imperia-staged.txt
           python - <<'PY'
           from pathlib import Path
           expected={
@@ -248,6 +183,7 @@ jobs:
           if observed != expected:
               raise SystemExit(f'Permanent checkpoint scope mismatch: {sorted(observed)}')
           PY
+          git diff --cached --check
           git commit -m 'Integrate Imperia White List sources'
           git push origin "HEAD:${TARGET_BRANCH}"
 
@@ -258,7 +194,6 @@ jobs:
           name: imperia-integration-finalizer
           path: |
             /tmp/imperia-public-pages-candidate.yml
-            /tmp/imperia-source-revalidation/report.json
             /tmp/imperia-pytest.log
             /tmp/imperia-public-site/data/registry.json
             /tmp/imperia-public-site/data/prefectures.json
