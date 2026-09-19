@@ -52,6 +52,7 @@ jobs:
               'applicants': ('e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9', 635392),
           }
           urls = {'listed': listed_url, 'applicants': applicant_url}
+          extensions = {'listed': '.xlsx', 'applicants': '.doc'}
           paths = {}
           report = {}
           for label, url in urls.items():
@@ -73,7 +74,7 @@ jobs:
                       raise RuntimeError(
                           f'{label} source boundary changed: sha={digest}, bytes={len(data)}, expected={exp_sha}/{exp_bytes}'
                       )
-                  target = Path('tmp/imperia-validation') / f'{label}-{attempt}'
+                  target = Path('tmp/imperia-validation') / f'{label}-{attempt}{extensions[label]}'
                   target.write_bytes(data)
                   copies.append({'sha256': digest, 'bytes': len(data), 'final_url': final_url, 'last_modified': headers.get('Last-Modified')})
                   if attempt == 0:
