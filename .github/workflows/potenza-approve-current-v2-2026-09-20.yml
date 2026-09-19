@@ -27,7 +27,11 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install runtime
-        run: python -m pip install -e '.[dev,publication,database,storage]'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install -e '.[dev,publication,database,storage]'
       - name: Revalidate and materialise reviewed transition
         run: python tmp/potenza_approve_current_2026_09_20.py
       - name: Validate repository and national candidate
