@@ -1,5 +1,6 @@
 name: Cuneo finalizer runner 2026-09-19
 
+# Second connector commit intentionally activates this already-registered workflow.
 on:
   push:
     branches:
