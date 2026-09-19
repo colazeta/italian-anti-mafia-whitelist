@@ -254,12 +254,11 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 expiry_date=record["expiry_date"],
                 primary_date_label="Data iscrizione",
                 source_fields={
-                    "source_row": record["source_row"],
-                    "source_ordinal": record["source_ordinal"],
-                    "activity_raw": record["activity_raw"],
-                    "listing_date_raw": record["listing_raw"],
-                    "expiry_date_raw": record["expiry_raw"],
-                    "malformed_listing_date": not bool(record["listing_date"]),
+                    "sections": list(record["activities"]),
+                    "listing_date_raw_variants": [record["listing_raw"]] if record["listing_raw"] else [],
+                    "expiry_date_raw_variants": [record["expiry_raw"]] if record["expiry_raw"] else [],
+                    "notes": [record["note"]] if record["note"] else [],
+                    "malformed_date_pairs": [f"listing_date={record['listing_raw']}"] if not record["listing_date"] else [],
                 },
             )
         )
@@ -334,11 +333,9 @@ def parse_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 application_date=record["application_date"],
                 primary_date_label="Data presentazione istanza",
                 source_fields={
-                    "source_row": record["source_row"],
-                    "source_ordinal": record["source_ordinal"],
-                    "activity_raw": record["activity_raw"],
-                    "application_date_raw": record["application_raw"],
-                    "malformed_application_date": not bool(record["application_date"]),
+                    "requested_activities_source": record["activity_raw"],
+                    "application_date_raw_variants": [record["application_raw"]] if record["application_raw"] else [],
+                    "malformed_date_pairs": [f"application_date={record['application_raw']}"] if not record["application_date"] else [],
                 },
             )
         )
