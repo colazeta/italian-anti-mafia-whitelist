@@ -1,0 +1,50 @@
+name: Cuneo spillover review 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-spillover-review-2026-09-19.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cuneo-2026-09-19
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Bind the second observed spillover fail-closed
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/white_list_archive/parsers/cuneo_positioned.py')
+          text = path.read_text()
+          old = '    if identity_spillovers != {113: "d\\\'Alba"}:\n'
+          new = '    if identity_spillovers != {113: "d\\\'Alba", 394: "Cuneo"}:\n'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one spillover invariant, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          python -m compileall -q src/white_list_archive/parsers/cuneo_positioned.py
+          git diff --check
+          git diff -- src/white_list_archive/parsers/cuneo_positioned.py
+
+      - name: Commit parser invariant only
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no | grep -v '^ M src/white_list_archive/parsers/cuneo_positioned.py$' || true)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/white_list_archive/parsers/cuneo_positioned.py
+          git commit -m "Bind reviewed Cuneo identity spillovers"
+          git push origin HEAD:expansion/cuneo-2026-09-19
