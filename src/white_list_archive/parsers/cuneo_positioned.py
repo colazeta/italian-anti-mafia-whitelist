@@ -203,6 +203,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     raw_identifiers: list[str] = []
     malformed: dict[int, str] = {}
+    identity_spillovers: dict[int, str] = {}
     no_expiry = 0
     conflict_ordinals: list[int] = []
 
@@ -218,7 +219,19 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         identity_lines = lines[header.pos + 1 : status_line.pos]
         name = _clean(" ".join(_band(line, 0.0, 340.0) for line in identity_lines))
         office = _clean(" ".join(_band(line, 340.0, 630.0) for line in identity_lines))
-        identifier_raw = _clean(" ".join(_band(line, 630.0, 841.9) for line in identity_lines))
+        identifier_cell = _clean(" ".join(_band(line, 630.0, 841.9) for line in identity_lines))
+        identifier_match = re.fullmatch(
+            r"(?:(?P<office_suffix>.+?)\s+)?(?P<identifier>\d{10,12})",
+            identifier_cell,
+        )
+        if identifier_match is not None:
+            office_suffix = _clean(identifier_match.group("office_suffix") or "")
+            if office_suffix:
+                office = _clean(f"{office} {office_suffix}")
+                identity_spillovers[ordinal] = office_suffix
+            identifier_raw = identifier_match.group("identifier")
+        else:
+            identifier_raw = identifier_cell
         raw_status = _band(status_line, 280.0, 575.0)
         status = _listed_status(raw_status)
 
@@ -321,6 +334,10 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         )
         records.append(record)
 
+    if identity_spillovers != {113: "d\'Alba"}:
+        raise RuntimeError(
+            f"cuneo_listed: reviewed identity-column spillover boundary drift: {identity_spillovers}"
+        )
     if malformed != _EXPECTED_MALFORMED_IDENTIFIERS:
         raise RuntimeError(f"cuneo_listed: malformed identifier boundary drift: {malformed}")
     lengths = Counter(len(value) for value in raw_identifiers)
