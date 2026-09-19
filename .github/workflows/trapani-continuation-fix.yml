@@ -1,4 +1,4 @@
-name: Trapani evidence patcher
+name: Trapani exact name-variant patcher
 on:
   push:
     branches: [expansion/trapani-2026-09-19]
@@ -15,47 +15,38 @@ jobs:
         with:
           ref: expansion/trapani-2026-09-19
           fetch-depth: 0
-      - name: Apply exact fail-closed non-date expiry model
+      - name: Apply exact fail-closed name-variant model
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('src/white_list_archive/parsers/trapani_tables.py')
-          s=p.read_text(encoding='utf-8')
 
-          const_anchor='''_LISTED_HEADER_FRAGMENT = (\n    (34, 1, 1),\n    ["", "", "CON RAPPRESENTANZA STABILE IN ITALIA", "PARTITA IVA", "ISCRIZIONE", "SCADENZA ISCRIZIONE", "IN CORSO"],\n)\n'''
-          const_repl=const_anchor + '''_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY = "In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa"\n'''
-          if '_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY =' not in s:
+          p = Path('src/white_list_archive/parsers/trapani_tables.py')
+          s = p.read_text(encoding='utf-8')
+
+          const_anchor = '''_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY = "In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa"\n'''
+          const_repl = const_anchor + '''_LISTED_NAME_VARIANT_NORMALISATIONS = {\n    "02483290819": {\n        "source_variants": [\n            "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n            "STRADE E SERVIZI S.R.L.UNIPERSONALE",\n        ],\n        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",\n    },\n}\n'''
+          if '_LISTED_NAME_VARIANT_NORMALISATIONS =' not in s:
               if s.count(const_anchor) != 1:
-                  raise SystemExit('Trapani expiry-constant anchor drift')
-              s=s.replace(const_anchor,const_repl,1)
+                  raise SystemExit('Trapani name-variant constant anchor drift')
+              s = s.replace(const_anchor, const_repl, 1)
 
-          state_anchor='''    records: list[dict[str, Any]] = []\n    for identifier, rows in grouped.items():\n'''
-          state_repl='''    records: list[dict[str, Any]] = []\n    non_date_expiry_records = 0\n    for identifier, rows in grouped.items():\n'''
-          if 'non_date_expiry_records = 0' not in s:
-              if s.count(state_anchor) != 1:
-                  raise SystemExit('Trapani expiry-state anchor drift')
-              s=s.replace(state_anchor,state_repl,1)
+          old = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        if len(name_variants) != 1:\n            raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
+          new = '''        name_variants = _ordered_unique([row["name"] for row in rows])\n        normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)\n        if normalisation is None:\n            if len(name_variants) != 1:\n                raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")\n            output_name = name_variants[0]\n        else:\n            if name_variants != normalisation["source_variants"]:\n                raise RuntimeError(\n                    f"Trapani approved name-variant evidence drift for {identifier}: {name_variants!r}"\n                )\n            output_name = normalisation["canonical"]\n        office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])\n'''
+          if 'normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)' not in s:
+              if s.count(old) != 1:
+                  raise SystemExit('Trapani name-variant grouping anchor drift')
+              s = s.replace(old, new, 1)
 
-          old='''        valid_listing_dates = _ordered_unique([value for raw in listing_raw_variants if (value := _strict_date(raw))])\n        valid_expiry_dates = _ordered_unique([value for raw in expiry_raw_variants if (value := _strict_date(raw))])\n        if len(valid_listing_dates) != 1 or len(valid_expiry_dates) != 1:\n            raise RuntimeError(\n                f"Trapani listed date evidence drift for {identifier}: listing={listing_raw_variants!r}, expiry={expiry_raw_variants!r}"\n            )\n        markers = [row["update_raw"] for row in rows]\n'''
-          new='''        valid_listing_dates = _ordered_unique([value for raw in listing_raw_variants if (value := _strict_date(raw))])\n        valid_expiry_dates = _ordered_unique([value for raw in expiry_raw_variants if (value := _strict_date(raw))])\n        if len(valid_listing_dates) != 1:\n            raise RuntimeError(\n                f"Trapani listed listing-date evidence drift for {identifier}: {listing_raw_variants!r}"\n            )\n        expiry_date = ""\n        if len(valid_expiry_dates) == 1:\n            expiry_date = valid_expiry_dates[0]\n        elif not valid_expiry_dates and expiry_raw_variants == [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY]:\n            expected = {\n                "rows": 1,\n                "pages": [8],\n                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],\n                "listing_raw": ["30/08/2017"],\n                "updates": [""],\n            }\n            observed = {\n                "rows": len(rows),\n                "pages": _ordered_unique([str(row["page"]) for row in rows]),\n                "names": name_variants,\n                "listing_raw": listing_raw_variants,\n                "updates": [row["update_raw"] for row in rows],\n            }\n            # Keep the source legal/status text verbatim in provenance. It is not a\n            # date and must never be repaired or converted into an expiry date.\n            if observed != {**expected, "pages": [str(value) for value in expected["pages"]]}:\n                raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")\n            non_date_expiry_records += 1\n        else:\n            raise RuntimeError(\n                f"Trapani listed expiry-date evidence drift for {identifier}: {expiry_raw_variants!r}"\n            )\n        markers = [row["update_raw"] for row in rows]\n'''
-          if old not in s:
-              raise SystemExit('Trapani date-evidence block anchor drift')
-          s=s.replace(old,new,1)
-          if 'expiry_date=valid_expiry_dates[0],' in s:
-              s=s.replace('expiry_date=valid_expiry_dates[0],','expiry_date=expiry_date,',1)
-          else:
-              raise SystemExit('Trapani expiry output anchor drift')
+          old_name = '                name=name_variants[0],\n'
+          new_name = '                name=output_name,\n'
+          if old_name in s:
+              if s.count(old_name) != 1:
+                  raise SystemExit('Trapani output-name anchor multiplicity drift')
+              s = s.replace(old_name, new_name, 1)
+          elif new_name not in s:
+              raise SystemExit('Trapani output-name anchor drift')
 
-          diag_anchor='''    status_counts = dict(Counter(record["source_status"] for record in records))\n    if status_counts != {"listed": 177, "renewal_update_in_progress": 156}:\n'''
-          diag_repl='''    if non_date_expiry_records != 1:\n        raise RuntimeError(f"Trapani non-date expiry record-count drift: {non_date_expiry_records}")\n    status_counts = dict(Counter(record["source_status"] for record in records))\n    if status_counts != {"listed": 177, "renewal_update_in_progress": 156}:\n'''
-          if 'Trapani non-date expiry record-count drift' not in s:
-              if s.count(diag_anchor) != 1:
-                  raise SystemExit('Trapani expiry-diagnostic anchor drift')
-              s=s.replace(diag_anchor,diag_repl,1)
-          if '"non_date_expiry_records": non_date_expiry_records,' not in s:
-              s=s.replace('''        "split_header_fragments": header_fragments,\n''','''        "split_header_fragments": header_fragments,\n        "non_date_expiry_records": non_date_expiry_records,\n''',1)
-
-          p.write_text(s,encoding='utf-8')
+          p.write_text(s, encoding='utf-8')
           PY
           python -m compileall -q src/white_list_archive/parsers/trapani_tables.py
           git diff --check
@@ -68,5 +59,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/white_list_archive/parsers/trapani_tables.py
-          git commit -m 'Preserve Trapani non-date expiry evidence'
+          git commit -m 'Preserve Trapani exact name-variant evidence'
           git push origin HEAD:expansion/trapani-2026-09-19
