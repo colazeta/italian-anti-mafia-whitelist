@@ -219,11 +219,9 @@ def parse_lucca_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             expiry_date=expiry_date,
             primary_date_label="Data iscrizione",
             source_fields={
-                "identifier_raw_source": identifier_raw,
                 "sections": [activity_raw],
                 "listing_date_raw_variants": [listing_raw],
                 "expiry_date_raw_variants": [expiry_token] if expiry_token else [],
-                "expiry_cell_raw": expiry_raw,
                 "in_aggiornamento": expiry_raw if status == "renewal_update_in_progress" else "",
                 "notes": [expiry_raw] if status == "listed" and re.search(r"[A-Za-zÀ-ÿ]", expiry_raw) else [],
             },
@@ -296,7 +294,6 @@ def parse_lucca_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             application_date=application_raw,
             primary_date_label="Data presentazione istanza",
             source_fields={
-                "identifier_raw_source": identifier_raw,
                 "requested_activities_source": activity_raw,
                 "application_date_raw_variants": [application_raw],
             },
