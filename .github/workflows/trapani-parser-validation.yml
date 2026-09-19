@@ -83,3 +83,4 @@ jobs:
       - name: Run Trapani semantic tests
         run: pytest -q tests/test_trapani_parser_semantics.py
 # exact office-variant evidence recheck
+# patched non-date expiry evidence exact-head revalidation
