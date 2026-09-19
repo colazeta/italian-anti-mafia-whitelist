@@ -107,6 +107,7 @@ jobs:
             src/white_list_archive/publishing/public_national_registry.py
             tests/public_portal_browser.cjs
             tests/test_source_population_coverage.py
+            tests/test_source_registry.py
             tests/test_trapani_parser_semantics.py
           )
           git add -- "${permanent[@]}"
