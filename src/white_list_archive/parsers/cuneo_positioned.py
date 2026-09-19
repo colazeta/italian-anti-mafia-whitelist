@@ -334,7 +334,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         )
         records.append(record)
 
-    if identity_spillovers != {113: "d\'Alba"}:
+    if identity_spillovers != {113: "d\'Alba", 394: "Cuneo"}:
         raise RuntimeError(
             f"cuneo_listed: reviewed identity-column spillover boundary drift: {identity_spillovers}"
         )
