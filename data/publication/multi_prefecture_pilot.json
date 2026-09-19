@@ -2081,6 +2081,43 @@
       "sha256": "4d432d015c09060967da156d9ee54718645a22a623656c6def5a9fc58367aa17",
       "expected_source_rows": 84,
       "notes": "Dedicated official applicant series. Positive applicant publication evidence yields 84 observations: 83 pending and one explicitly listed by the source on 14 August 2026. Structured identifiers are available for 80 observations; the malformed application date 27/01/206 is retained raw and not normalised."
+    },
+    {
+      "authority_key": "trapani",
+      "authority_name": "Prefettura di Trapani",
+      "register_key": "trapani-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "date explicitly carried in the official attachment filenames; used as the source edition/reference boundary only and not promoted to a company decision or legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "trapani-listed",
+      "parser": "trapani_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf",
+      "sha256": "060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476",
+      "expected_source_rows": 333,
+      "expected_sector_rows": 658,
+      "notes": "Dedicated official listed PDF positively exposed by the current landing page. 658 statutory-sector rows resolve to 333 source-backed observations: 177 listed and 156 renewal/update in progress. Structured identifier coverage is 333/333. The unique non-date expiry text for CALCESTRUZZI DI ROMANO ALESSANDRO is preserved raw while observed_expiry_date remains blank; continuation rows and source variants are handled only through exact fail-closed evidence bindings."
+    },
+    {
+      "authority_key": "trapani",
+      "authority_name": "Prefettura di Trapani",
+      "register_key": "trapani-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list",
+      "last_source_update": "2026-09-11",
+      "last_source_update_basis": "date explicitly carried in the official attachment filenames; used as the source edition/reference boundary only and not promoted to a company decision or legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "trapani-applicants",
+      "parser": "trapani_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-richiedenti-iscrizione-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf",
+      "sha256": "d42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9",
+      "expected_source_rows": 222,
+      "notes": "Dedicated official applicant PDF positively exposed by the current landing page. 222 source-backed observations are pending and structured identifier coverage is 222/222. Twenty-three page-boundary continuation rows are joined only through exact fail-closed evidence bindings; applicant coverage is positive source evidence and is never inferred from absence."
     }
   ]
 }
