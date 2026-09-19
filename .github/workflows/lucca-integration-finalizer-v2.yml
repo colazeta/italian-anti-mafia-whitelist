@@ -43,8 +43,8 @@ jobs:
           sudo rm -rf /var/lib/apt/lists/*
           sudo apt-get update -qq -o Acquire::Retries=3
           sudo apt-get install -y --no-install-recommends poppler-utils antiword
-          python -m pip install -e '.[publication]'
-          python -m pip install --disable-pip-version-check requests pytest
+          python -m pip install -e '.[dev,publication,database,storage]'
+          python -m pip install --disable-pip-version-check requests
 
       - name: Materialise reviewed integration and clean temporary mechanisms
         run: python tmp/lucca-finalize-v2.py
