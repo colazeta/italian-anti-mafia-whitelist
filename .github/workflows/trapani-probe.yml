@@ -12,129 +12,107 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install probe runtime
-        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pypdf openpyxl python-docx
-      - name: Probe official Trapani sources twice
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pypdf pdfplumber
+      - name: Probe and diagnose current official Trapani PDFs
         shell: bash
         run: |
           python - <<'PY'
-          import hashlib, io, json, re, time, urllib.parse, zipfile
-          import requests
+          import collections, hashlib, io, json, re, time, urllib.parse
+          import pdfplumber, requests
           from bs4 import BeautifulSoup
 
           landing = 'https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list'
+          expected = {
+              'listed': {
+                  'sha256': '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476',
+                  'pages': 41,
+              },
+              'applicants': {
+                  'sha256': 'd42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9',
+                  'pages': 44,
+              },
+          }
           headers = {
               'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-              'Accept': 'text/html,application/xhtml+xml,application/pdf,application/octet-stream,*/*;q=0.8',
+              'Cache-Control': 'no-cache', 'Pragma': 'no-cache',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf,*/*;q=0.8',
           }
-
           def fetched(url, nonce):
-              p = urllib.parse.urlsplit(url)
-              q = urllib.parse.parse_qsl(p.query, keep_blank_values=True)
+              p=urllib.parse.urlsplit(url); q=urllib.parse.parse_qsl(p.query, keep_blank_values=True)
               q.append(('_wl_probe', nonce))
-              u = urllib.parse.urlunsplit((p.scheme, p.netloc, p.path, urllib.parse.urlencode(q), p.fragment))
-              r = requests.get(u, headers=headers, timeout=60, allow_redirects=True)
-              r.raise_for_status()
-              return r
+              u=urllib.parse.urlunsplit((p.scheme,p.netloc,p.path,urllib.parse.urlencode(q),p.fragment))
+              r=requests.get(u,headers=headers,timeout=60,allow_redirects=True); r.raise_for_status(); return r
+          def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
+          def ids(raw):
+              vals=[]
+              for token in re.findall(r'(?<![A-Z0-9])(?:\d{11}|[A-Z0-9]{16})(?![A-Z0-9])', clean(raw).upper()):
+                  if token not in vals: vals.append(token)
+              return vals
 
-          lr = fetched(landing, 'landing')
-          print('LANDING', lr.status_code, len(lr.content), hashlib.sha256(lr.content).hexdigest(), lr.url)
-          soup = BeautifulSoup(lr.text, 'html.parser')
-          candidates = []
-          for a in soup.find_all('a', href=True):
-              text = ' '.join(a.stripped_strings)
-              href = urllib.parse.urljoin(lr.url, a['href'])
-              hay = (text + ' ' + href).lower()
-              if ('white' in hay and 'list' in hay) or 'richiedent' in hay or 'iscritt' in hay:
-                  candidates.append((text, href))
-          print('CANDIDATE_LINKS_BEGIN')
-          for text, href in candidates:
-              print(json.dumps({'text': text, 'url': href}, ensure_ascii=False))
-          print('CANDIDATE_LINKS_END')
+          lr=fetched(landing,'landing-'+str(time.time_ns()))
+          soup=BeautifulSoup(lr.text,'html.parser')
+          selected={}
+          for a in soup.find_all('a',href=True):
+              text=clean(' '.join(a.stripped_strings)); href=urllib.parse.urljoin(lr.url,a['href']); h=(text+' '+href).lower()
+              if 'richiedent' in h and href.lower().endswith('.pdf'): selected.setdefault('applicants',(text,href))
+              elif ('iscritt' in h or 'iscritte' in h) and 'richiedent' not in h and href.lower().endswith('.pdf'): selected.setdefault('listed',(text,href))
+          if set(selected) != {'listed','applicants'}: raise SystemExit(f'population resolution failed: {selected}')
+          print('LANDING',lr.status_code,len(lr.content),hashlib.sha256(lr.content).hexdigest())
+          print('SELECTED',json.dumps(selected,ensure_ascii=False))
 
-          selected = {}
-          for text, href in candidates:
-              h = (text + ' ' + href).lower()
-              if 'richiedent' in h and ('allegat' in href or href.lower().endswith(('.pdf','.xlsx','.xls','.docx','.doc'))):
-                  selected.setdefault('applicants', (text, href))
-              if ('iscritt' in h or 'iscritte' in h) and 'richiedent' not in h and ('allegat' in href or href.lower().endswith(('.pdf','.xlsx','.xls','.docx','.doc'))):
-                  selected.setdefault('listed', (text, href))
-          if set(selected) != {'listed','applicants'}:
-              # Fall back to any attachment-looking links whose anchor labels carry the population identity.
-              for text, href in candidates:
-                  h = text.lower()
-                  if 'richiedent' in h:
-                      selected.setdefault('applicants', (text, href))
-                  elif 'iscritt' in h or 'iscritte' in h:
-                      selected.setdefault('listed', (text, href))
-          print('SELECTED', json.dumps(selected, ensure_ascii=False))
-          if set(selected) != {'listed','applicants'}:
-              raise SystemExit('Could not positively resolve both listed and applicant attachment links from official landing HTML')
-
-          for population, (label, url) in selected.items():
-              observations=[]
-              bodies=[]
-              for i in (1,2):
-                  r=fetched(url, f'{population}-{i}-{time.time_ns()}')
-                  body=r.content
-                  bodies.append(body)
-                  obs={
-                      'population': population,
-                      'label': label,
-                      'resolved_url': r.url.split('_wl_probe=')[0].rstrip('?&'),
-                      'status': r.status_code,
-                      'content_type': r.headers.get('content-type'),
-                      'content_disposition': r.headers.get('content-disposition'),
-                      'last_modified': r.headers.get('last-modified'),
-                      'etag': r.headers.get('etag'),
-                      'bytes': len(body),
-                      'sha256': hashlib.sha256(body).hexdigest(),
-                      'magic_hex': body[:16].hex(),
-                  }
-                  observations.append(obs)
-              print('FETCHES', json.dumps(observations, ensure_ascii=False))
-              if bodies[0] != bodies[1]:
-                  raise SystemExit(f'{population} independent fetches are not byte-identical')
-              body=bodies[0]
-              ctype=(observations[0]['content_type'] or '').lower()
-              url_l=url.lower()
-              if body.startswith(b'%PDF') or 'pdf' in ctype or url_l.endswith('.pdf'):
-                  from pypdf import PdfReader
-                  reader=PdfReader(io.BytesIO(body))
-                  print(population.upper(), 'PDF_PAGES', len(reader.pages))
-                  for idx in sorted(set([0, 1 if len(reader.pages)>1 else 0, len(reader.pages)-1])):
-                      text=(reader.pages[idx].extract_text() or '').replace('\x00',' ')
-                      print(f'{population.upper()}_PAGE_{idx+1}_TEXT_BEGIN')
-                      print(text[:12000])
-                      print(f'{population.upper()}_PAGE_{idx+1}_TEXT_END')
-              elif body[:2] == b'PK':
-                  z=zipfile.ZipFile(io.BytesIO(body))
-                  names=z.namelist()
-                  print(population.upper(), 'ZIP_MEMBERS_HEAD', names[:30])
-                  if any(n.startswith('xl/') for n in names):
-                      import openpyxl
-                      wb=openpyxl.load_workbook(io.BytesIO(body), read_only=True, data_only=False)
-                      print(population.upper(), 'XLSX_SHEETS', wb.sheetnames)
-                      for ws in wb.worksheets:
-                          print(population.upper(), 'SHEET', ws.title, ws.max_row, ws.max_column)
-                          for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row,30), values_only=True):
-                              print('ROW', repr(row))
-                  elif 'word/document.xml' in names:
-                      from docx import Document
-                      d=Document(io.BytesIO(body))
-                      print(population.upper(), 'DOCX_PARAGRAPHS', len(d.paragraphs), 'TABLES', len(d.tables))
-                      for p in d.paragraphs[:50]: print('P', repr(p.text))
-                      for ti,t in enumerate(d.tables[:5]):
-                          print('TABLE',ti,'ROWS',len(t.rows),'COLS',len(t.columns))
-                          for row in t.rows[:30]: print('ROW', repr([c.text for c in row.cells]))
-              else:
-                  print(population.upper(), 'UNKNOWN_BODY_HEAD', body[:500])
+          for pop,(label,url) in selected.items():
+              bodies=[]; obs=[]
+              for n in (1,2):
+                  r=fetched(url,f'{pop}-{n}-{time.time_ns()}'); body=r.content; bodies.append(body)
+                  obs.append({'bytes':len(body),'sha256':hashlib.sha256(body).hexdigest(),'last_modified':r.headers.get('last-modified'),'etag':r.headers.get('etag')})
+              print('FETCHES',pop,json.dumps(obs,ensure_ascii=False))
+              if bodies[0] != bodies[1]: raise SystemExit(f'{pop}: independent bytes differ')
+              if obs[0]['sha256'] != expected[pop]['sha256']: raise SystemExit(f"{pop}: source SHA drift {obs[0]['sha256']}")
+              with pdfplumber.open(io.BytesIO(bodies[0])) as pdf:
+                  if len(pdf.pages) != expected[pop]['pages']: raise SystemExit(f'{pop}: page-count drift {len(pdf.pages)}')
+                  print('GEOMETRY',pop,sorted({(round(float(p.width),2),round(float(p.height),2)) for p in pdf.pages}))
+                  table_counts=[]; row_counts=[]; headers=collections.Counter(); status_tail=collections.Counter(); structured=0; raw_only=collections.Counter(); total_rows=0
+                  all_examples=[]
+                  for pi,p in enumerate(pdf.pages,1):
+                      tables=p.find_tables(); table_counts.append(len(tables))
+                      page_rows=[]
+                      for ti,t in enumerate(tables):
+                          extracted=t.extract() or []
+                          for raw in extracted:
+                              vals=[clean(x) for x in raw]
+                              if any(vals): page_rows.append(vals)
+                      # classify repeated/header rows conservatively for diagnostics only
+                      data=[]
+                      for vals in page_rows:
+                          joined=' '.join(vals).casefold()
+                          if ('ragione sociale' in joined and ('codice fiscale' in joined or 'partita iva' in joined)) or joined.startswith('ragione sociale'):
+                              headers[tuple(vals)] += 1; continue
+                          if len(vals) >= 3 and vals[0] and vals[1]: data.append(vals)
+                      row_counts.append(len(data)); total_rows += len(data)
+                      for vals in data:
+                          idraw = vals[3] if len(vals)>3 else vals[2]
+                          found=ids(idraw)
+                          if found: structured += 1
+                          else: raw_only[idraw] += 1
+                          if vals: status_tail[vals[-1]] += 1
+                          if len(all_examples)<12: all_examples.append((pi,vals))
+                  print('TABLE_COUNTS',pop,table_counts)
+                  print('DATA_ROW_COUNTS',pop,row_counts,'TOTAL',total_rows)
+                  print('HEADERS',pop,json.dumps([{'count':c,'row':list(k)} for k,c in headers.items()],ensure_ascii=False))
+                  print('STRUCTURED_IDENTIFIER_ROW_COVERAGE',pop,structured,'RAW_ONLY_ROWS',sum(raw_only.values()))
+                  print('RAW_ONLY_TOP',pop,json.dumps(raw_only.most_common(40),ensure_ascii=False))
+                  print('LAST_COLUMN_COUNTS',pop,json.dumps(status_tail.most_common(80),ensure_ascii=False))
+                  print('EXAMPLES',pop,json.dumps(all_examples,ensure_ascii=False))
+                  # Source markers used to freeze the semantic boundary.
+                  first=clean(pdf.pages[0].extract_text() or '')
+                  last=clean(pdf.pages[-1].extract_text() or '')
+                  print('FIRST_TEXT',pop,first[:5000])
+                  print('LAST_TEXT',pop,last[-5000:])
           PY
