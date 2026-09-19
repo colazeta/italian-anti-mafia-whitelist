@@ -106,6 +106,13 @@ _LISTED_NAME_VARIANT_NORMALISATIONS = {
     },
 }
 
+_LISTED_OFFICE_VARIANT_NORMALISATIONS = {
+    "GCCNDR95R07D423B": {
+        "source_variants": ["SA LEMI", "SALEMI"],
+        "canonical": "SALEMI",
+    },
+}
+
 _APPLICANT_CONTINUATIONS = {
     (3, 1, 1): {
         "row": ["", "", "", "", "-Servizi funerari e cimiteriali", "", ""],
@@ -394,11 +401,23 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 )
             output_name = normalisation["canonical"]
         office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])
+        office_normalisation = _LISTED_OFFICE_VARIANT_NORMALISATIONS.get(identifier)
+        if office_normalisation is None:
+            if len(office_variants) > 1:
+                raise RuntimeError(
+                    f"Trapani listed office drift within identifier {identifier}: {office_variants!r}"
+                )
+            output_office = office_variants[0] if office_variants else ""
+        else:
+            if office_variants != office_normalisation["source_variants"]:
+                raise RuntimeError(
+                    f"Trapani approved office-variant evidence drift for {identifier}: {office_variants!r}"
+                )
+            output_office = office_normalisation["canonical"]
         secondary_variants = _ordered_unique([row["secondary"] for row in rows if row["secondary"]])
-        if len(office_variants) > 1 or len(secondary_variants) > 1:
+        if len(secondary_variants) > 1:
             raise RuntimeError(
-                f"Trapani listed office drift within identifier {identifier}: "
-                f"{office_variants!r} / {secondary_variants!r}"
+                f"Trapani listed secondary-office drift within identifier {identifier}: {secondary_variants!r}"
             )
         listing_raw_variants = _ordered_unique([row["listing_raw"] for row in rows])
         expiry_raw_variants = _ordered_unique([row["expiry_raw"] for row in rows])
@@ -442,7 +461,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                 cfg,
                 len(records) + 1,
                 name=output_name,
-                office=office_variants[0] if office_variants else "",
+                office=output_office,
                 secondary=secondary_variants[0] if secondary_variants else "",
                 identifier_raw=identifier,
                 activities=sections,
