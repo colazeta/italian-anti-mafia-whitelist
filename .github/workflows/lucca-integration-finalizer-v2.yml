@@ -61,7 +61,7 @@ jobs:
           # Since that validated head, only this transactional workflow may have changed.
           unexpected="$(git diff --name-only 52c27ed78e25c6a510aed2433056a4d534bd3785...HEAD | grep -v '^\.github/workflows/lucca-integration-finalizer-v2\.yml$' || true)"
           test -z "$unexpected" || { printf '%s\n' "$unexpected" >&2; exit 1; }
-          git diff --quiet 52c27ed78e25c6a510aed2433056a4d534bd3785 -- \
+          git diff --quiet 52c27ed78e25c6a510aed2433056a4d534bd3785 HEAD -- \
             tmp/lucca-finalize.py \
             tmp/lucca-finalize-v2.py \
             docs/sources/lucca-operational-check-2026-09-19.md \
