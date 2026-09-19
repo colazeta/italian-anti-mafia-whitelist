@@ -2044,6 +2044,43 @@
       "sha256": "fd9cdc163e09c411ce5fd1f716d85811a15503f3527ac0f5abdaec909de4f084",
       "expected_source_rows": 71,
       "notes": "Dedicated official applicant PDF positively exposed by the current landing page. All 71 table rows are pending observations and structured identifier coverage is 69/71; the two malformed numeric identifiers remain raw-only. Applicant coverage is positive source evidence, never inferred from absence."
+    },
+    {
+      "source_key": "macerata-listed",
+      "parser": "macerata_listed",
+      "authority_key": "macerata",
+      "authority_name": "Prefettura di Macerata",
+      "register_key": "macerata-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/macerata/white-list-elenco-imprese-iscritte",
+      "last_source_update": "2026-08-21",
+      "last_source_update_basis": "explicit attachment and landing edition date; two independent cache-bypassed captures reverified byte-identical on 19 September 2026",
+      "approval_mode": "raw_sha256",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/52/2026-08/iscrizioni-21.08.2026.pdf",
+      "sha256": "7b1518847ea0bcc6bd76bd354ded1ae0e0cc7e7092cb9b7077dbcc689bfe1bce",
+      "expected_source_rows": 1274,
+      "expected_sector_rows": 2150,
+      "notes": "Dedicated official listed-company series. Exact full-row grouping only across sector repetition yields 1,274 observations: 879 listed, 394 renewal/update in progress and one raw ambiguous status retained as other_or_unknown. Structured identifiers are available for 1,240 observations; no malformed identifier or non-standard expiry is repaired."
+    },
+    {
+      "source_key": "macerata-applicants",
+      "parser": "macerata_applicants",
+      "authority_key": "macerata",
+      "authority_name": "Prefettura di Macerata",
+      "register_key": "macerata-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-08-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/macerata/white-list-elenco-imprese-iscritte",
+      "last_source_update": "2026-08-21",
+      "last_source_update_basis": "explicit attachment and landing edition date; two independent cache-bypassed captures reverified byte-identical on 19 September 2026",
+      "approval_mode": "raw_sha256",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/52/2026-08/presentazioni-21.08.2026.pdf",
+      "sha256": "4d432d015c09060967da156d9ee54718645a22a623656c6def5a9fc58367aa17",
+      "expected_source_rows": 84,
+      "notes": "Dedicated official applicant series. Positive applicant publication evidence yields 84 observations: 83 pending and one explicitly listed by the source on 14 August 2026. Structured identifiers are available for 80 observations; the malformed application date 27/01/206 is retained raw and not normalised."
     }
   ]
 }
