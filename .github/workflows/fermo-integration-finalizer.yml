@@ -1,0 +1,281 @@
+name: Fermo integration finalizer 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/fermo-2026-09-19
+    paths:
+      - .github/workflows/fermo-integration-finalizer.yml
+      - tmp/fermo-finalize-trigger.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify branch base and scope
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "expansion/fermo-2026-09-19"
+          git fetch origin main
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          changed="$(git diff --name-only origin/main...HEAD)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -Ev '^(\.github/workflows/fermo-|tmp/fermo-|src/white_list_archive/parsers/fermo_openxml.py|tests/test_fermo_parser_semantics.py)$' | grep -q .; then
+            echo 'Unexpected pre-finalization file outside Fermo scope' >&2
+            exit 1
+          fi
+      - name: Install full validation runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils antiword
+          python -m pip install --disable-pip-version-check -e '.[dev,publication,database,storage]' requests beautifulsoup4 openpyxl
+      - name: Materialise permanent Fermo integration
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          root=Path('.')
+          landing='https://prefettura.interno.gov.it/it/prefetture/fermo/white-list-elenco-imprese-richiedenti-e-iscritte'
+          listed_url='https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-iscritte-wl-22-maggio-2026_0.xlsx'
+          applicants_url='https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-richiedenti-iscrizione-wl-22-maggio-2026.xlsx'
+          listed_sha='2ed8f867c6ee477ec0af22a827ac0ccf54e4d483eec5de5fc27c812a0c31c6dd'
+          applicants_sha='fa17e1f6676f84dc51e8abd1fd6e7627a1a2ed684a55c490708a06990e48676f'
+
+          # Keep parser evidence rich internally but project only approved public source fields.
+          p=root/'src/white_list_archive/parsers/fermo_openxml.py'
+          text=p.read_text(encoding='utf-8')
+          old='''                source_fields={\n                    "source_row": record["source_row"],\n                    "source_ordinal": record["source_ordinal"],\n                    "activity_raw": record["activity_raw"],\n                    "listing_date_raw": record["listing_raw"],\n                    "expiry_date_raw": record["expiry_raw"],\n                    "malformed_listing_date": not bool(record["listing_date"]),\n                },'''
+          new='''                source_fields={\n                    "sections": list(record["activities"]),\n                    "listing_date_raw_variants": [record["listing_raw"]] if record["listing_raw"] else [],\n                    "expiry_date_raw_variants": [record["expiry_raw"]] if record["expiry_raw"] else [],\n                    "notes": [record["note"]] if record["note"] else [],\n                    "malformed_date_pairs": [f"listing_date={record['listing_raw']}"] if not record["listing_date"] else [],\n                },'''
+          if old not in text: raise SystemExit('listed source_fields patch anchor missing')
+          text=text.replace(old,new,1)
+          old='''                source_fields={\n                    "source_row": record["source_row"],\n                    "source_ordinal": record["source_ordinal"],\n                    "activity_raw": record["activity_raw"],\n                    "application_date_raw": record["application_raw"],\n                    "malformed_application_date": not bool(record["application_date"]),\n                },'''
+          new='''                source_fields={\n                    "requested_activities_source": record["activity_raw"],\n                    "application_date_raw_variants": [record["application_raw"]] if record["application_raw"] else [],\n                    "malformed_date_pairs": [f"application_date={record['application_raw']}"] if not record["application_date"] else [],\n                },'''
+          if old not in text: raise SystemExit('applicant source_fields patch anchor missing')
+          p.write_text(text.replace(old,new,1),encoding='utf-8')
+
+          # Publication parser registry.
+          p=root/'src/white_list_archive/publishing/public_national_registry.py'
+          text=p.read_text(encoding='utf-8')
+          anchor='from white_list_archive.parsers.cuneo_positioned import PARSERS as CUNEO_PARSERS\n'
+          if anchor not in text: raise SystemExit('registry import anchor missing')
+          text=text.replace(anchor,anchor+'from white_list_archive.parsers.fermo_openxml import PARSERS as FERMO_PARSERS\n',1)
+          anchor='        or CUNEO_PARSERS.get(cfg["parser"])\n'
+          if anchor not in text: raise SystemExit('registry parser anchor missing')
+          text=text.replace(anchor,anchor+'        or FERMO_PARSERS.get(cfg["parser"])\n',1)
+          p.write_text(text,encoding='utf-8')
+
+          # Approved publication configuration.
+          p=root/'data/publication/multi_prefecture_pilot.json'
+          cfg=json.loads(p.read_text(encoding='utf-8'))
+          if any(x['source_key'].startswith('fermo-') for x in cfg['sources']): raise SystemExit('Fermo source already present')
+          common={
+            'authority_key':'fermo','authority_name':'Prefettura di Fermo',
+            'register_key':'fermo-ordinary','register_name':'White List ordinaria',
+            'reference_date':'2026-05-22','source_page_url':landing,
+            'last_source_update':'2026-05-22',
+            'last_source_update_basis':'explicit official attachment label al 22 maggio 2026; two independent cache-bypassed captures reverified byte-identical on 19 September 2026',
+            'approval_mode':'raw_sha256',
+          }
+          cfg['sources'].extend([
+            {**common,'source_key':'fermo-listed','parser':'fermo_listed','population_scope':'listed','resource_url':listed_url,'sha256':listed_sha,'expected_source_rows':174,'notes':'Dedicated official listed-company XLSX. 174 observations = 97 listed + 77 renewal/update in progress; 163/174 have structured identifiers. Source ordinals 105 and 121 are absent; one malformed listing date remains raw-only.'},
+            {**common,'source_key':'fermo-applicants','parser':'fermo_applicants','population_scope':'applicant','resource_url':applicants_url,'sha256':applicants_sha,'expected_source_rows':75,'notes':'Dedicated official applicant XLSX. Positive applicant title evidence yields 75 pending observations; 70/75 have structured identifiers. Source ordinal 38 is absent; raw numeric date token 46092 is retained without inference.'},
+          ])
+          p.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Verified primary page and source-series registry.
+          p=root/'data/source_registry/verified_primary_pages.csv'
+          with p.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['authority_key']=='fermo' for r in rows): raise SystemExit('Fermo verified page already present')
+          rows.append({'authority_key':'fermo','landing_url':landing,'verified_date':'2026-09-19','verification_status':'verified'})
+          rows.sort(key=lambda r:r['authority_key'])
+          with p.open('w',encoding='utf-8',newline='') as h:
+            w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          p=root/'data/source_registry/source_series_inventory.csv'
+          with p.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['source_series_key'].startswith('fermo-') for r in rows): raise SystemExit('Fermo series already present')
+          rows.extend([
+            {'source_series_key':'fermo-listed','authority_key':'fermo','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19','notes':'Current official Fermo page directly reverified 19 September 2026; dedicated XLSX explicitly labelled al 22 maggio 2026 yields 174 listed-side observations (97 listed; 77 renewal/update). Exact SHA and conservative anomaly handling are documented in docs/sources/fermo-operational-check-2026-09-19.md.'},
+            {'source_series_key':'fermo-applicants','authority_key':'fermo','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19','notes':'Current official Fermo page directly reverified 19 September 2026; dedicated applicant XLSX explicitly labelled al 22 maggio 2026 yields exactly 75 pending observations. Exact SHA and conservative anomaly handling are documented in docs/sources/fermo-operational-check-2026-09-19.md.'},
+          ])
+          rows.sort(key=lambda r:r['source_series_key'])
+          with p.open('w',encoding='utf-8',newline='') as h:
+            w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          # Coverage ledger: public-source validation only; do not assert hosted DB or durable archive completion.
+          p=root/'data/monitoring/national_coverage.json'
+          cov=json.loads(p.read_text(encoding='utf-8'))
+          row=next(x for x in cov['prefectures'] if x['authority_key']=='fermo')
+          row.update({
+            'official_landing_page':landing,'source_verified':True,'current_edition_identified':True,
+            'capture_implemented':True,'parser_implemented':True,'parser_validated':True,
+            'company_observations_loaded':True,'observation_layer':'public_source_observations',
+            'canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,
+            'population_scopes_complete':True,'latest_source_reference_date':'2026-05-22',
+            'last_successful_investigation_on':'2026-09-19','coverage_status':'VALIDATED','terminal_reason':None,
+            'completion_evidence':['docs/sources/fermo-operational-check-2026-09-19.md','src/white_list_archive/parsers/fermo_openxml.py','tests/test_fermo_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+            'known_content_sha256':[listed_sha,applicants_sha],
+            'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/fermo-operational-check-2026-09-19.md'],
+            'last_completed_coverage_stage':'VALIDATED',
+            'unresolved_issue':['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.'],
+            'actionable_issue':False,
+          })
+          p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Catalog denominators.
+          p=root/'data/catalog.csv'
+          text=p.read_text(encoding='utf-8')
+          text=text.replace('verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,57,','verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,58,')
+          text=text.replace('source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,112,','source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,114,')
+          p.write_text(text,encoding='utf-8')
+
+          # Test denominators and positive separate-population coverage.
+          p=root/'tests/test_source_registry.py'; text=p.read_text(encoding='utf-8')
+          text=text.replace('assert len(pages) == 57','assert len(pages) == 58',1); p.write_text(text,encoding='utf-8')
+          p=root/'tests/test_source_population_coverage.py'; text=p.read_text(encoding='utf-8')
+          text=text.replace('assert report["verified_authority_count"] == 57','assert report["verified_authority_count"] == 58',1)
+          text=text.replace('assert report["register_scope_count"] == 59','assert report["register_scope_count"] == 60',1)
+          text=text.replace('assert report["complete_register_scope_count"] == 59','assert report["complete_register_scope_count"] == 60',1)
+          text=text.replace('(\"bari\", \"udine\", \"crotone\", \"cuneo\")','(\"bari\", \"udine\", \"crotone\", \"cuneo\", \"fermo\")',1)
+          p.write_text(text,encoding='utf-8')
+
+          # Browser acceptance: current total, directory label and exact Fermo boundaries.
+          p=root/'tests/public_portal_browser.cjs'; text=p.read_text(encoding='utf-8')
+          text=text.replace("      assert.ok(labels.includes('White List ordinaria · Prefettura di Cuneo'));\n","      assert.ok(labels.includes('White List ordinaria · Prefettura di Cuneo'));\n      assert.ok(labels.includes('White List ordinaria · Prefettura di Fermo'));\n",1)
+          text=text.replace('      assert.equal(stats.total,63925);','      assert.equal(stats.total,64174);',1)
+          text=text.replace("'chieti','cremona','cuneo'].includes(r.authority_key)","'chieti','cremona','cuneo','fermo'].includes(r.authority_key)",1)
+          anchor="      assert.equal(cuneo.filter(r=>r.source_key==='cuneo-listed'&&!r.observed_listing_date&&r.source_fields.listing_date_raw_variants.length>1).length,1);\n"
+          addition="""      const fermo=registry.records.filter(r=>r.authority_key==='fermo');\n      assert.equal(fermo.length,249);\n      assert.equal(fermo.filter(r=>r.source_key==='fermo-listed').length,174);\n      assert.equal(fermo.filter(r=>r.source_key==='fermo-applicants').length,75);\n      assert.deepEqual(statusCounts(fermo),{listed:97,pending:75,renewal_update_in_progress:77});\n      assert.equal(new Set(fermo.map(r=>r.record_locator)).size,249);\n      assert.equal(fermo.filter(r=>r.identifiers.length>0).length,233);\n      assert.equal(fermo.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,16);\n      assert.equal(fermo.filter(r=>r.source_key==='fermo-listed'&&!r.observed_listing_date&&r.source_fields.malformed_date_pairs.length===1).length,1);\n      assert.equal(fermo.filter(r=>r.source_key==='fermo-applicants'&&!r.application_date&&r.source_fields.malformed_date_pairs.length===1).length,1);\n"""
+          if anchor not in text: raise SystemExit('browser Cuneo anchor missing')
+          text=text.replace(anchor,anchor+addition,1); p.write_text(text,encoding='utf-8')
+
+          # Operational evidence note.
+          p=root/'docs/sources/fermo-operational-check-2026-09-19.md'
+          p.write_text(f'''# Fermo White List operational check — 19 September 2026\n\n## Official publication surface\n\nThe current official Prefettura di Fermo page positively exposes two separate populations: **Elenco di imprese iscritte alla White list al 22 maggio 2026** and **Elenco di imprese richiedenti iscrizione alla White list al 22 maggio 2026**. Both resources are XLSX attachments. Applicant completeness is therefore based on positive official evidence, not inferred from failed discovery.\n\n- Listed XLSX: `{listed_url}`\n  - SHA-256: `{listed_sha}`\n  - two independent cache-bypassed captures on 19 September 2026 were byte-identical\n- Applicant XLSX: `{applicants_url}`\n  - SHA-256: `{applicants_sha}`\n  - two independent cache-bypassed captures on 19 September 2026 were byte-identical\n\nThe edition reference date is **22 May 2026**, taken from the explicit official attachment labels. The 19 September date is only the verification/capture date.\n\n## Reviewed parser boundary\n\nThe listed workbook has one sheet (`Foglio1`) and a reviewed physical shape of 400 rows × 12 columns. Styled trailing ordinal-only cells are not company observations. The company boundary is **174 observations**, source ordinals 1–176 with 105 and 121 absent: **97 listed** and **77 renewal/update in progress**. Structured identifier coverage is 163/174; eleven malformed numeric identifiers remain raw-only. One malformed listing-date token, `28/11/204`, remains raw with no canonical date inferred.\n\nThe applicant workbook has one sheet and a reviewed physical shape of 267 rows × 15 columns. Its company boundary is **75 pending observations**, source ordinals 1–76 with 38 absent. Structured identifier coverage is 70/75; five malformed numeric identifiers remain raw-only. The raw application-date token `46092` is retained without conversion or inference.\n\nActivity cells expose statutory section codes (`Sez. I` … `Sez. X`); the parser preserves only explicitly observed codes and fails closed on an unknown vocabulary.\n\n## Publication decision\n\nBoth official sources are kept as separate source series under register `fermo-ordinary`, approved by exact raw SHA-256. The combined public candidate contributes **249 observations**. Canonical hosted-database integration and independent durable-evidence verification remain separate governance concerns and are not asserted by this expansion.\n''',encoding='utf-8')
+
+          # Prepare a public-pages candidate separately: GITHUB_TOKEN cannot safely promote workflow edits.
+          pp=root/'.github/workflows/public-pages.yml'
+          text=pp.read_text(encoding='utf-8')
+          text=text.replace("      - 'src/white_list_archive/parsers/cuneo_positioned.py'\n","      - 'src/white_list_archive/parsers/cuneo_positioned.py'\n      - 'src/white_list_archive/parsers/fermo_openxml.py'\n",1)
+          text=text.replace("assert reg['meta']['record_count'] == 63925","assert reg['meta']['record_count'] == 64174",1)
+          text=text.replace("'chieti','cremona','cuneo'}","'chieti','cremona','cuneo','fermo'}",1)
+          text=text.replace("'chieti-ordinary','cremona-ordinary','cuneo-ordinary'","'chieti-ordinary','cremona-ordinary','cuneo-ordinary','fermo-ordinary'",1)
+          text=text.replace("assert reg['meta']['authority_count'] == 57","assert reg['meta']['authority_count'] == 58",1)
+          text=text.replace("assert reg['meta']['register_count'] == 59","assert reg['meta']['register_count'] == 60",1)
+          text=text.replace("assert pref['meta']['published_count'] == 57","assert pref['meta']['published_count'] == 58",1)
+          text=text.replace("assert pref['meta']['mapped_count'] == 57","assert pref['meta']['mapped_count'] == 58",1)
+          anchor="          assert len({r['record_locator'] for r in cuneo_records}) == 516\n"
+          addition="""          fermo = [x for x in pref['prefectures'] if x['authority_key'] == 'fermo']\n          assert len(fermo) == 1 and fermo[0]['mapped'] and fermo[0]['published'] and fermo[0]['series_count'] == 2\n          fermo_records = [r for r in reg['records'] if r['authority_key'] == 'fermo']\n          assert len(fermo_records) == 249\n          assert sum(r['source_key'] == 'fermo-listed' for r in fermo_records) == 174\n          assert sum(r['source_key'] == 'fermo-applicants' for r in fermo_records) == 75\n          assert sum(r['source_status'] == 'listed' for r in fermo_records) == 97\n          assert sum(r['source_status'] == 'pending' for r in fermo_records) == 75\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in fermo_records) == 77\n          assert sum(bool(r['identifiers']) for r in fermo_records) == 233\n          assert len({r['record_locator'] for r in fermo_records}) == 249\n"""
+          if anchor not in text: raise SystemExit('public-pages Cuneo assertion anchor missing')
+          text=text.replace(anchor,anchor+addition,1)
+          (root/'tmp/fermo-public-pages-candidate.yml').write_text(text,encoding='utf-8')
+          PY
+          git diff --check
+      - name: Reverify official Fermo sources and parser boundary
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/fermo-fresh
+          python - <<'PY'
+          import hashlib,time
+          from pathlib import Path
+          from urllib.parse import urlparse,parse_qsl,urlencode,urlunparse
+          import requests
+          from white_list_archive.parsers.fermo_openxml import parse_listed,parse_applicants
+
+          landing='https://prefettura.interno.gov.it/it/prefetture/fermo/white-list-elenco-imprese-richiedenti-e-iscritte'
+          specs=[
+            ('listed','https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-iscritte-wl-22-maggio-2026_0.xlsx','2ed8f867c6ee477ec0af22a827ac0ccf54e4d483eec5de5fc27c812a0c31c6dd',parse_listed,174,{'listed':97,'renewal_update_in_progress':77},163),
+            ('applicants','https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-richiedenti-iscrizione-wl-22-maggio-2026.xlsx','fa17e1f6676f84dc51e8abd1fd6e7627a1a2ed684a55c490708a06990e48676f',parse_applicants,75,{'pending':75},70),
+          ]
+          s=requests.Session(); headers={'User-Agent':'Mozilla/5.0 WhiteListEvidence/1.0','Cache-Control':'no-cache','Pragma':'no-cache','Referer':landing}
+          lr=s.get(landing,headers=headers,timeout=45); lr.raise_for_status()
+          for name,url,expected_sha,parser,n,statuses,ids in specs:
+            bodies=[]
+            for attempt in (1,2):
+              p=urlparse(url); q=dict(parse_qsl(p.query,keep_blank_values=True)); q['_wl_verify']=f'{attempt}-{time.time_ns()}'
+              r=s.get(urlunparse(p._replace(query=urlencode(q))),headers=headers,timeout=60); r.raise_for_status(); bodies.append(r.content)
+            if bodies[0]!=bodies[1]: raise SystemExit(f'{name}: independent captures differ')
+            sha=hashlib.sha256(bodies[0]).hexdigest()
+            if sha!=expected_sha: raise SystemExit(f'{name}: SHA drift {sha}')
+            path=Path('/tmp/fermo-fresh')/f'{name}.xlsx'; path.write_bytes(bodies[0])
+            cfg={'source_key':f'fermo-{name if name=="listed" else "applicants"}','authority_key':'fermo','authority_name':'Prefettura di Fermo','register_key':'fermo-ordinary','register_name':'White List ordinaria','population_scope':'listed' if name=='listed' else 'applicant','reference_date':'2026-05-22','source_page_url':landing,'resource_url':url,'sha256':sha}
+            batch=parser(path,cfg)
+            if len(batch.records)!=n or batch.diagnostics['status_counts']!=statuses or batch.diagnostics['identifier_coverage']!=ids:
+              raise SystemExit(f'{name}: parser boundary drift {batch.diagnostics!r}')
+            print(name,sha,batch.diagnostics)
+          PY
+      - name: Run repository tests
+        run: pytest -q
+      - name: Build and validate national candidate
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/fermo-national public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/fermo-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text())
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==64174, reg['meta']
+          assert reg['meta']['authority_count']==58, reg['meta']
+          assert reg['meta']['register_count']==60, reg['meta']
+          assert pref['meta']['published_count']==58, pref['meta']
+          assert pref['meta']['mapped_count']==58, pref['meta']
+          rows=[r for r in reg['records'] if r['authority_key']=='fermo']
+          assert len(rows)==249
+          assert sum(r['source_status']=='listed' for r in rows)==97
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==77
+          assert sum(r['source_status']=='pending' for r in rows)==75
+          assert sum(bool(r['identifiers']) for r in rows)==233
+          assert len({r['record_locator'] for r in rows})==249
+          print('CANDIDATE',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['published_count'],pref['meta']['mapped_count'])
+          PY
+          python -m white_list_archive.publishing.public_artifact public-site
+          git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+      - name: Commit permanent checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/fermo-operational-check-2026-09-19.md \
+            src/white_list_archive/parsers/fermo_openxml.py \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_fermo_parser_semantics.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          git diff --cached --check
+          git commit -m 'Integrate Fermo White List sources'
+          git push origin HEAD:expansion/fermo-2026-09-19
+      - name: Upload public-pages candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: fermo-public-pages-candidate
+          path: tmp/fermo-public-pages-candidate.yml
+          if-no-files-found: error
+          retention-days: 7
