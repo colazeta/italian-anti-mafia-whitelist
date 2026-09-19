@@ -82,3 +82,4 @@ jobs:
           PY
       - name: Run Trapani semantic tests
         run: pytest -q tests/test_trapani_parser_semantics.py
+# exact office-variant evidence recheck
