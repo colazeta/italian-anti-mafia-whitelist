@@ -39,10 +39,10 @@ jobs:
                   tables=p.find_tables(); table_counts.append(len(tables)); data=[]
                   for ti,t in enumerate(tables,1):
                       extracted=t.extract() or []
-                      if pi == 15:
-                          print('PAGE15_TABLE', ti, 'ROWS', len(extracted))
+                      if pi in (14, 15):
+                          print(f'PAGE{pi}_TABLE', ti, 'ROWS', len(extracted))
                           for ri, raw in enumerate(extracted,1):
-                              print('PAGE15_ROW', ti, ri, json.dumps([clean(x) for x in raw], ensure_ascii=False))
+                              print(f'PAGE{pi}_ROW', ti, ri, json.dumps([clean(x) for x in raw], ensure_ascii=False))
                       for raw in extracted:
                           vals=[clean(x) for x in raw]
                           if not any(vals): continue
