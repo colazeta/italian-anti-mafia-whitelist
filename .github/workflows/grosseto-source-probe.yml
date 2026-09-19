@@ -1,0 +1,192 @@
+name: Grosseto source probe 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/grosseto-2026-09-19
+    paths:
+      - .github/workflows/grosseto-source-probe.yml
+      - tmp/grosseto-probe-trigger.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install probe dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 openpyxl pypdf xlrd
+      - name: Resolve and capture official Grosseto sources
+        env:
+          LANDING: https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list
+        run: |
+          set -euo pipefail
+          rm -rf tmp/grosseto-probe
+          mkdir -p tmp/grosseto-probe
+          python - <<'PY'
+          import hashlib, io, json, os, pathlib, re, time, zipfile
+          from urllib.parse import urljoin, urlparse, parse_qsl, urlencode, urlunparse
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing = os.environ['LANDING']
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel;q=0.9,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+          }
+          session = requests.Session()
+          response = session.get(landing, headers=headers, timeout=45)
+          response.raise_for_status()
+          html = response.text
+          pathlib.Path('tmp/grosseto-probe/landing.html').write_text(html, encoding='utf-8')
+          soup = BeautifulSoup(html, 'html.parser')
+
+          anchors = []
+          for a in soup.find_all('a', href=True):
+              text = ' '.join(a.stripped_strings)
+              href = urljoin(landing, a['href'])
+              low = (text + ' ' + href).lower()
+              if 'iscritt' in low or 'richiedent' in low:
+                  anchors.append({'text': text, 'href': href})
+          pathlib.Path('tmp/grosseto-probe/anchors.json').write_text(
+              json.dumps(anchors, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+          print('OFFICIAL LANDING', landing)
+          print('LANDING STATUS', response.status_code, 'BYTES', len(response.content))
+          for i, anchor in enumerate(anchors):
+              print(f'ANCHOR[{i}] {anchor["text"]!r} -> {anchor["href"]}')
+
+          targets = []
+          for anchor in anchors:
+              low = (anchor['text'] + ' ' + anchor['href']).lower()
+              if 'elenco' in low and ('impres' in low or 'white' in low):
+                  targets.append(anchor)
+          seen = set(); unique = []
+          for anchor in targets:
+              key = anchor['href']
+              if key not in seen:
+                  seen.add(key); unique.append(anchor)
+          targets = unique
+          if len(targets) != 2:
+              raise SystemExit(f'Expected exactly 2 official listed/applicant resources, found {len(targets)}: {targets!r}')
+
+          manifest = []
+          for index, anchor in enumerate(targets, 1):
+              label_low = anchor['text'].lower()
+              population = 'applicants' if 'richiedent' in label_low else 'listed' if 'iscritt' in label_low else None
+              if population is None:
+                  raise SystemExit(f'Could not classify population from positive source label: {anchor!r}')
+              url = anchor['href']
+              captures = []
+              headers_seen = []
+              for attempt in (1, 2):
+                  parsed = urlparse(url)
+                  query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+                  query['_wl_probe'] = f'20260919-{index}-{attempt}-{time.time_ns()}'
+                  fetch_url = urlunparse(parsed._replace(query=urlencode(query)))
+                  fetched = session.get(fetch_url, headers={**headers, 'Referer': landing}, timeout=60)
+                  fetched.raise_for_status()
+                  captures.append(fetched.content)
+                  headers_seen.append({
+                      'content_type': fetched.headers.get('Content-Type'),
+                      'content_disposition': fetched.headers.get('Content-Disposition'),
+                      'last_modified': fetched.headers.get('Last-Modified'),
+                      'etag': fetched.headers.get('ETag'),
+                  })
+              if captures[0] != captures[1]:
+                  raise SystemExit(f'Independent captures differ for {population}: {url}')
+              data = captures[0]
+              sha = hashlib.sha256(data).hexdigest()
+              if data.startswith(b'%PDF-'):
+                  kind = 'pdf'; suffix = '.pdf'
+              elif data.startswith(b'PK\x03\x04'):
+                  kind = 'zip-ooxml'; suffix = '.xlsx'
+              elif data.startswith(bytes.fromhex('D0CF11E0A1B11AE1')):
+                  kind = 'ole-compound'; suffix = '.xls'
+              else:
+                  kind = 'unknown'; suffix = '.bin'
+              out = pathlib.Path(f'tmp/grosseto-probe/{population}{suffix}')
+              if out.exists():
+                  raise SystemExit(f'Duplicate population classification: {population}')
+              out.write_bytes(data)
+              item = {
+                  'population': population,
+                  'label': anchor['text'],
+                  'url': url,
+                  'bytes': len(data),
+                  'sha256': sha,
+                  'kind': kind,
+                  'headers': headers_seen,
+              }
+              manifest.append(item)
+              print('SOURCE', population, 'LABEL', repr(anchor['text']), 'URL', url)
+              print('BYTES', len(data), 'SHA256', sha, 'KIND', kind, 'HEADERS', headers_seen)
+
+              dump = []
+              if kind == 'pdf':
+                  from pypdf import PdfReader
+                  reader = PdfReader(io.BytesIO(data))
+                  print('PDF', population, 'PAGES', len(reader.pages))
+                  for page_no, page in enumerate(reader.pages, 1):
+                      text = page.extract_text() or ''
+                      dump.append(f'### PAGE {page_no}\n{text}')
+                      if page_no <= 2 or page_no > max(0, len(reader.pages)-2):
+                          compact = re.sub(r'\s+', ' ', text)[:5000]
+                          print(f'PAGE_TEXT {population} {page_no}: {compact}')
+              elif kind == 'zip-ooxml':
+                  from openpyxl import load_workbook
+                  wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+                  print('WORKBOOK', population, 'SHEETS', wb.sheetnames)
+                  for ws in wb.worksheets:
+                      print('SHEET', population, repr(ws.title), 'MAX_ROW', ws.max_row, 'MAX_COLUMN', ws.max_column)
+                      dump.append(f'### SHEET {ws.title} rows={ws.max_row} cols={ws.max_column}')
+                      nonempty = 0
+                      for row_num, row in enumerate(ws.iter_rows(values_only=True), 1):
+                          values = ['' if value is None else str(value).replace('\n',' ').replace('\r',' ') for value in row]
+                          if not any(value.strip() for value in values):
+                              continue
+                          nonempty += 1
+                          line = '\t'.join(values)
+                          dump.append(f'{row_num}\t{line}')
+                          if nonempty <= 40 or row_num > max(0, ws.max_row-20):
+                              print(f'ROW {population} {ws.title} {row_num}: {line}')
+                      print('NONEMPTY_ROWS', population, ws.title, nonempty)
+              elif kind == 'ole-compound':
+                  import xlrd
+                  wb = xlrd.open_workbook(file_contents=data)
+                  print('XLS', population, 'SHEETS', wb.sheet_names())
+                  for ws in wb.sheets():
+                      print('SHEET', population, repr(ws.name), 'NROWS', ws.nrows, 'NCOLS', ws.ncols)
+                      dump.append(f'### SHEET {ws.name} rows={ws.nrows} cols={ws.ncols}')
+                      for row_num in range(ws.nrows):
+                          values = [str(ws.cell_value(row_num, col)).replace('\n',' ').replace('\r',' ') for col in range(ws.ncols)]
+                          if not any(value.strip() for value in values):
+                              continue
+                          line = '\t'.join(values)
+                          dump.append(f'{row_num+1}\t{line}')
+                          if row_num < 40 or row_num >= max(0, ws.nrows-20):
+                              print(f'ROW {population} {ws.name} {row_num+1}: {line}')
+              else:
+                  print('UNKNOWN SOURCE MAGIC', population, data[:32].hex())
+              pathlib.Path(f'tmp/grosseto-probe/{population}.txt').write_text('\n'.join(dump)+'\n', encoding='utf-8')
+
+          populations = {item['population'] for item in manifest}
+          if populations != {'listed', 'applicants'}:
+              raise SystemExit(f'Positive population coverage incomplete: {populations!r}')
+          pathlib.Path('tmp/grosseto-probe/manifest.json').write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+          PY
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: grosseto-source-probe
+          path: tmp/grosseto-probe/
+          if-no-files-found: error
+          retention-days: 7
