@@ -1,0 +1,137 @@
+name: Imperia parser validation 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/imperia-2026-09-19
+    paths:
+      - src/white_list_archive/parsers/imperia_sources.py
+      - tests/test_imperia_parser_semantics.py
+      - .github/workflows/imperia-parser-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install reviewed runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends antiword
+          antiword -h 2>&1 | head -n 2 || true
+          python -m pip install -e '.[dev,publication]'
+      - name: Run parser semantic tests
+        run: pytest -q tests/test_imperia_parser_semantics.py
+      - name: Reverify official bytes and parse exact current sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/imperia-validation
+          python - <<'PY'
+          import hashlib
+          import json
+          import time
+          from pathlib import Path
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          from white_list_archive.parsers.imperia_sources import PARSERS
+
+          listed_url = 'https://prefettura.interno.gov.it/sites/default/files/46/2026-09/elenco-ditte-iscritte-white-list_3.xlsx'
+          applicant_url = 'https://prefettura.interno.gov.it/sites/default/files/46/2026-08/elenco-delle-ditte-che-hanno-presentato-istanza-di-iscrizione-nelle-white-lists_2.doc'
+          expected = {
+              'listed': ('9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f', 86337),
+              'applicants': ('e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9', 635392),
+          }
+          urls = {'listed': listed_url, 'applicants': applicant_url}
+          paths = {}
+          report = {}
+          for label, url in urls.items():
+              copies = []
+              for attempt in range(2):
+                  suffix = ('&' if '?' in url else '?') + urlencode({'_wlarchive_nocache': f'{int(time.time())}-{attempt}'})
+                  req = Request(url + suffix, headers={
+                      'User-Agent': 'Mozilla/5.0 WhiteListArchive/1.0',
+                      'Cache-Control': 'no-cache',
+                      'Pragma': 'no-cache',
+                  })
+                  with urlopen(req, timeout=60) as response:
+                      data = response.read()
+                      final_url = response.geturl()
+                      headers = dict(response.headers.items())
+                  digest = hashlib.sha256(data).hexdigest()
+                  exp_sha, exp_bytes = expected[label]
+                  if digest != exp_sha or len(data) != exp_bytes:
+                      raise RuntimeError(
+                          f'{label} source boundary changed: sha={digest}, bytes={len(data)}, expected={exp_sha}/{exp_bytes}'
+                      )
+                  target = Path('tmp/imperia-validation') / f'{label}-{attempt}'
+                  target.write_bytes(data)
+                  copies.append({'sha256': digest, 'bytes': len(data), 'final_url': final_url, 'last_modified': headers.get('Last-Modified')})
+                  if attempt == 0:
+                      paths[label] = target
+              if copies[0]['sha256'] != copies[1]['sha256']:
+                  raise RuntimeError(f'{label}: independent acquisitions differ')
+              report[label] = copies
+
+          common = {
+              'authority_key': 'imperia',
+              'authority_name': 'Prefettura di Imperia',
+              'register_key': 'imperia-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-18',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list',
+          }
+          listed_cfg = {
+              **common,
+              'source_key': 'imperia-listed',
+              'population_scope': 'listed',
+              'resource_url': listed_url,
+              'sha256': expected['listed'][0],
+          }
+          applicant_cfg = {
+              **common,
+              'source_key': 'imperia-applicants',
+              'population_scope': 'applicant',
+              'resource_url': applicant_url,
+              'sha256': expected['applicants'][0],
+          }
+          listed = PARSERS['imperia_listed'](paths['listed'], listed_cfg)
+          applicants = PARSERS['imperia_applicants'](paths['applicants'], applicant_cfg)
+          assert len(listed.records) == 142
+          assert listed.diagnostics['sector_rows'] == 246
+          assert listed.diagnostics['status_counts'] == {'listed': 105, 'renewal_update_in_progress': 37}
+          assert listed.diagnostics['identifier_coverage'] == 131
+          assert len(applicants.records) == 131
+          assert applicants.diagnostics['status_counts'] == {
+              'listed': 117,
+              'pending': 6,
+              'cancellation_related': 5,
+              'other_or_unknown': 3,
+          }
+          assert applicants.diagnostics['identifier_coverage'] == 126
+          assert applicants.diagnostics['application_date_diagnostics'] == {'valid': 122, 'blank': 7, 'malformed': 2}
+          assert applicants.diagnostics['explicit_subsequent_enrolment_dates'] == 117
+          combined = listed.records + applicants.records
+          assert len(combined) == 273
+          assert len({r['record_locator'] for r in combined}) == 273
+          report['parser'] = {'listed': listed.diagnostics, 'applicants': applicants.diagnostics}
+          Path('tmp/imperia-validation/report.json').write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
+          print(json.dumps(report['parser'], indent=2, ensure_ascii=False))
+          PY
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imperia-parser-validation
+          path: tmp/imperia-validation
+          if-no-files-found: error
+          retention-days: 7
