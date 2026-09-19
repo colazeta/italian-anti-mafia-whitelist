@@ -1,6 +1,5 @@
 name: Cuneo finalizer runner 2026-09-19
 
-# Second connector commit intentionally activates this already-registered workflow.
 on:
   push:
     branches:
@@ -29,20 +28,47 @@ jobs:
           test "$(git rev-parse origin/main)" = "daa7c0efd9c91e15b39272f93f3e6260178cea6f"
           test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)"
           git diff --name-only origin/main...HEAD | sort
-          python -m pip install -q pyyaml
           python - <<'PY'
           import subprocess
           from pathlib import Path
-          import yaml
 
-          workflow = yaml.safe_load(Path('.github/workflows/cuneo-integration-finalizer-2026-09-19.yml').read_text())
-          steps = workflow['jobs']['finalise']['steps']
-          for step in steps:
-              name = step.get('name', '')
-              script = step.get('run')
-              if not script or name == 'Verify branch is based on current main and parser-only before permanent integration':
+          lines = Path('.github/workflows/cuneo-integration-finalizer-2026-09-19.yml').read_text().splitlines()
+          steps = []
+          i = 0
+          while i < len(lines):
+              if lines[i].startswith('      - name: '):
+                  name = lines[i].split(': ', 1)[1]
+                  j = i + 1
+                  while j < len(lines) and lines[j] != '        run: |' and not lines[j].startswith('      - name: ') and not lines[j].startswith('      - uses: '):
+                      j += 1
+                  if j < len(lines) and lines[j] == '        run: |':
+                      j += 1
+                      block = []
+                      while j < len(lines) and not lines[j].startswith('      - name: ') and not lines[j].startswith('      - uses: '):
+                          line = lines[j]
+                          block.append(line[10:] if line.startswith('          ') else line)
+                          j += 1
+                      steps.append((name, '\n'.join(block)))
+                      i = j
+                      continue
+              i += 1
+
+          expected = {
+              'Verify branch is based on current main and parser-only before permanent integration',
+              'Materialise permanent Cuneo integration',
+              'Install publication runtime',
+              'Run targeted regression tests',
+              'Build and validate full national candidate',
+              'Commit permanent integration only',
+          }
+          observed = {name for name, _ in steps}
+          if observed != expected:
+              raise SystemExit(f'unexpected finalizer steps: {sorted(observed)}')
+
+          for name, script in steps:
+              if name == 'Verify branch is based on current main and parser-only before permanent integration':
                   continue
-              print(f'::group::{name}')
+              print(f'::group::{name}', flush=True)
               subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
-              print('::endgroup::')
+              print('::endgroup::', flush=True)
           PY
