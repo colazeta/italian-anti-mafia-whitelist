@@ -1,0 +1,27 @@
+name: Trapani shape runner
+on:
+  push:
+    branches: [expansion/trapani-2026-09-19]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pdfplumber
+      - name: Fetch reviewed sources
+        run: |
+          curl -fLsS 'https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf' -o /tmp/listed.pdf
+          curl -fLsS 'https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-richiedenti-iscrizione-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf' -o /tmp/applicants.pdf
+          test "$(sha256sum /tmp/listed.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
+          test "$(sha256sum /tmp/applicants.pdf | cut -d' ' -f1)" = 'd42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9'
+      - name: Inspect source shape
+        run: |
+          python scripts/trapani_shape_diagnostic.py listed /tmp/listed.pdf
+          python scripts/trapani_shape_diagnostic.py applicants /tmp/applicants.pdf
