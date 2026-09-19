@@ -157,7 +157,10 @@ jobs:
           test ! -e scripts/imperia_finalize.py
 
       - name: Run full repository tests on clean review scope
-        run: pytest -q
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q 2>&1 | tee /tmp/imperia-pytest.log
 
       - name: Build and validate national Imperia candidate
         shell: bash
@@ -256,6 +259,7 @@ jobs:
           path: |
             /tmp/imperia-public-pages-candidate.yml
             /tmp/imperia-source-revalidation/report.json
+            /tmp/imperia-pytest.log
             /tmp/imperia-public-site/data/registry.json
             /tmp/imperia-public-site/data/prefectures.json
             /tmp/imperia-staged.txt
