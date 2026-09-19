@@ -179,7 +179,7 @@ def test_http_availability_or_incomplete_population_cannot_advance_success(ledge
     # Keep this safety invariant attached to an authority that remains at the
     # source-identified stage. The fixture must not depend on the current primary
     # expansion Prefecture remaining unadvanced.
-    authority_key = "cuneo"
+    authority_key = "enna"
     row = next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)
     assert row["last_successful_source_check_at"] is None
     for assessment in [None, {}, {**ASSESSMENT, "listed_and_applicant_accounted_for": False}]:
