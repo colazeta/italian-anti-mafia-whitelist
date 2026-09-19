@@ -64,7 +64,7 @@ jobs:
         run: |
           sudo apt-get update -qq -o Acquire::Retries=3
           sudo apt-get install -y --no-install-recommends poppler-utils antiword
-          python -m pip install -e '.[dev,publication]' requests
+          python -m pip install -e '.[dev,publication,database,storage]' requests
 
       - name: Reverify official bytes and exact Cuneo parser boundary
         env:
