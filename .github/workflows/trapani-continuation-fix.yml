@@ -1,0 +1,56 @@
+name: Trapani continuation patcher
+on:
+  push:
+    branches: [expansion/trapani-2026-09-19]
+    paths:
+      - '.github/workflows/trapani-continuation-fix.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/trapani-2026-09-19
+          fetch-depth: 0
+      - name: Apply exact fail-closed continuation model
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/white_list_archive/parsers/trapani_tables.py')
+          s=p.read_text(encoding='utf-8')
+          anchor='_ROMAN = {value: index for index, value in enumerate(("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"), 1)}\n'
+          insert='''_ROMAN = {value: index for index, value in enumerate(("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"), 1)}\n\n_LISTED_CONTINUATIONS = {\n    (15, 1, 1): {\n        "row": ["SILVESTRO", "", "", "", "", "", "per rinnovo"],\n        "previous": {"page": 14, "name": "IMPRESA EDILE DI MANGANO", "identifier": "02249310810", "update_raw": "In aggiornamento"},\n        "name": "IMPRESA EDILE DI MANGANO SILVESTRO",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n    (18, 1, 1): {\n        "row": ["MASSIMILIANO S. N.C.", "", "", "", "", "", ""],\n        "previous": {"page": 17, "name": "TRIVELLAZIONI AMATO DI AMATO BALDASSARE, COSIMO E", "identifier": "02375070816", "update_raw": ""},\n        "name": "TRIVELLAZIONI AMATO DI AMATO BALDASSARE, COSIMO E MASSIMILIANO S. N.C.",\n        "update_raw": "",\n    },\n    (23, 1, 1): {\n        "row": ["", "", "", "", "", "", "per rinnovo"],\n        "previous": {"page": 22, "name": "EDIL AMBIENTE S.R.L.", "identifier": "02381330816", "update_raw": "In aggiornamento"},\n        "name": "EDIL AMBIENTE S.R.L.",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n    (25, 1, 1): {\n        "row": ["VITO ELIO", "", "", "", "", "", ""],\n        "previous": {"page": 24, "name": "IMPRESA EDILE STRADALE DI MILOTTA", "identifier": "MLTVTL65L21A176H", "update_raw": ""},\n        "name": "IMPRESA EDILE STRADALE DI MILOTTA VITO ELIO",\n        "update_raw": "",\n    },\n    (26, 1, 1): {\n        "row": ["VINCENZA MARIA & C.", "", "", "", "", "", ""],\n        "previous": {"page": 25, "name": "NUOVA ESIR S.N.C. DI DI GIORGI", "identifier": "01371540814", "update_raw": ""},\n        "name": "NUOVA ESIR S.N.C. DI DI GIORGI VINCENZA MARIA & C.",\n        "update_raw": "",\n    },\n    (28, 1, 1): {\n        "row": ["", "", "", "", "", "", "per rinnovo"],\n        "previous": {"page": 27, "name": "WEDRILL S.R.L.", "identifier": "02836190815", "update_raw": "In aggiornamento"},\n        "name": "WEDRILL S.R.L.",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n    (30, 1, 1): {\n        "row": ["ALESSANDRO MILAZZO & C.", "", "", "", "", "", "per rinnovo"],\n        "previous": {"page": 29, "name": "DE SIMONE & MILAZZO S.A.S. DI", "identifier": "00060160819", "update_raw": "In aggiornamento"},\n        "name": "DE SIMONE & MILAZZO S.A.S. DI ALESSANDRO MILAZZO & C.",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n    (31, 1, 1): {\n        "row": ["", "", "", "", "", "", "per rinnovo"],\n        "previous": {"page": 30, "name": "GUDDEMI S.r.l.", "identifier": "02264160819", "update_raw": "In aggiornamento"},\n        "name": "GUDDEMI S.r.l.",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n    (36, 1, 1): {\n        "row": ["RESPONSABILITA' LIMITATA SEMPLIFICATA", "", "", "", "", "", ""],\n        "previous": {"page": 35, "name": "NUOVA RISTO - SOCIETA' A", "identifier": "02850410818", "update_raw": ""},\n        "name": "NUOVA RISTO - SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICATA",\n        "update_raw": "",\n    },\n    (39, 1, 1): {\n        "row": ["SEMPLIFICATA", "", "", "", "", "", ""],\n        "previous": {"page": 38, "name": "ECOPLASTIK - SOCIETA' A RESPONSABILITA' LIMITATA", "identifier": "02605070818", "update_raw": "In aggiornamento per rinnovo"},\n        "name": "ECOPLASTIK - SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICATA",\n        "update_raw": "In aggiornamento per rinnovo",\n    },\n}\n_LISTED_HEADER_FRAGMENT = (\n    (34, 1, 1),\n    ["", "", "CON RAPPRESENTANZA STABILE IN ITALIA", "PARTITA IVA", "ISCRIZIONE", "SCADENZA ISCRIZIONE", "IN CORSO"],\n)\n'''
+          if '_LISTED_CONTINUATIONS = {' not in s:
+              if s.count(anchor)!=1: raise SystemExit('roman anchor drift')
+              s=s.replace(anchor,insert,1)
+          old='''    continuation_rows: list[list[str]] = []\n    wrapped_renewal_rows = 0\n'''
+          new='''    seen_continuations: list[tuple[int, int, int]] = []\n    header_fragments = 0\n'''
+          if old not in s: raise SystemExit('state anchor drift')
+          s=s.replace(old,new,1)
+          start='''                    # One company name and its renewal marker are wrapped across the\n                    # page 14/15 boundary in the pinned source. Bind that evidence to\n                    # the immediately preceding membership only under the exact,\n                    # source-observed shape; any drift still fails closed below.\n                    if row == ["SILVESTRO", "", "", "", "", "", "per rinnovo"]:\n                        if (page_number, table_number, row_number) != (15, 1, 1):\n                            raise RuntimeError(\n                                f"Trapani wrapped renewal row moved unexpectedly: page={page_number}, table={table_number}, row={row_number}"\n                            )\n                        if not memberships:\n                            raise RuntimeError("Trapani wrapped renewal row has no preceding membership")\n                        previous = memberships[-1]\n                        expected_previous = {\n                            "page": 14,\n                            "name": "IMPRESA EDILE DI MANGANO",\n                            "identifier": "02249310810",\n                            "update_raw": "In aggiornamento",\n                        }\n                        observed_previous = {key: previous[key] for key in expected_previous}\n                        if observed_previous != expected_previous:\n                            raise RuntimeError(\n                                f"Trapani wrapped renewal predecessor drift: {observed_previous!r}"\n                            )\n                        previous["name"] = "IMPRESA EDILE DI MANGANO SILVESTRO"\n                        previous["update_raw"] = "In aggiornamento per rinnovo"\n                        wrapped_renewal_rows += 1\n                        continue\n                    if not row[0] and not row[3]:\n                        if any(row):\n                            continuation_rows.append(row)\n                        continue\n'''
+          repl='''                    location = (page_number, table_number, row_number)\n                    continuation = _LISTED_CONTINUATIONS.get(location)\n                    if continuation is not None:\n                        if row != continuation["row"]:\n                            raise RuntimeError(f"Trapani listed continuation content drift at {location}: {row!r}")\n                        if not memberships:\n                            raise RuntimeError(f"Trapani listed continuation has no predecessor at {location}")\n                        previous = memberships[-1]\n                        expected_previous = continuation["previous"]\n                        observed_previous = {key: previous[key] for key in expected_previous}\n                        if observed_previous != expected_previous:\n                            raise RuntimeError(\n                                f"Trapani listed continuation predecessor drift at {location}: {observed_previous!r}"\n                            )\n                        previous["name"] = continuation["name"]\n                        previous["update_raw"] = continuation["update_raw"]\n                        seen_continuations.append(location)\n                        continue\n                    header_location, header_row = _LISTED_HEADER_FRAGMENT\n                    if location == header_location:\n                        if row != header_row:\n                            raise RuntimeError(f"Trapani listed split-header drift at {location}: {row!r}")\n                        header_fragments += 1\n                        continue\n'''
+          if start not in s: raise SystemExit('continuation block anchor drift')
+          s=s.replace(start,repl,1)
+          old_post='''    if wrapped_renewal_rows != 1:\n        raise RuntimeError(f"Trapani wrapped-renewal row drift: {wrapped_renewal_rows}")\n    if len(continuation_rows) != 1 or continuation_rows[0] != ["", "", "", "", "", "", "per rinnovo"]:\n        raise RuntimeError(f"Trapani listed continuation-row drift: {continuation_rows!r}")\n'''
+          new_post='''    if seen_continuations != list(_LISTED_CONTINUATIONS):\n        raise RuntimeError(f"Trapani listed continuation-set drift: {seen_continuations!r}")\n    if header_fragments != 1:\n        raise RuntimeError(f"Trapani listed split-header count drift: {header_fragments}")\n'''
+          if old_post not in s: raise SystemExit('postcondition anchor drift')
+          s=s.replace(old_post,new_post,1)
+          s=s.replace('''        "continuation_rows": len(continuation_rows),\n        "wrapped_renewal_rows": wrapped_renewal_rows,\n''','''        "continuation_rows": len(seen_continuations),\n        "split_header_fragments": header_fragments,\n''',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          python -m compileall -q src/white_list_archive/parsers/trapani_tables.py
+          git diff --check
+      - name: Commit exact parser fix
+        run: |
+          if git diff --quiet -- src/white_list_archive/parsers/trapani_tables.py; then
+            echo 'No parser change required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/parsers/trapani_tables.py
+          git commit -m 'Model Trapani page-boundary continuations exactly'
+          git push origin HEAD:expansion/trapani-2026-09-19
