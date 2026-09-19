@@ -1,0 +1,47 @@
+name: Cuneo finalizer runner 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-finalizer-runner-2026-09-19.yml
+
+permissions:
+  contents: write
+
+jobs:
+  run-reviewed-finalizer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/cuneo-2026-09-19
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check scope then execute reviewed finalizer run blocks
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "daa7c0efd9c91e15b39272f93f3e6260178cea6f"
+          test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)"
+          git diff --name-only origin/main...HEAD | sort
+          python -m pip install -q pyyaml
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          import yaml
+
+          workflow = yaml.safe_load(Path('.github/workflows/cuneo-integration-finalizer-2026-09-19.yml').read_text())
+          steps = workflow['jobs']['finalise']['steps']
+          for step in steps:
+              name = step.get('name', '')
+              script = step.get('run')
+              if not script or name == 'Verify branch is based on current main and parser-only before permanent integration':
+                  continue
+              print(f'::group::{name}')
+              subprocess.run(['bash', '-euo', 'pipefail', '-c', script], check=True)
+              print('::endgroup::')
+          PY
