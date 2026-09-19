@@ -90,7 +90,7 @@ jobs:
           PY
           python -m white_list_archive.publishing.public_artifact public-site
 
-      - name: Commit clean permanent checkpoint
+      - name: Commit permanent checkpoint without transactional workflow mutations
         shell: bash
         run: |
           set -euo pipefail
@@ -101,17 +101,26 @@ jobs:
               rm -f "$p"
             fi
           done
-          if find .github/workflows -maxdepth 1 -type f -name 'lucca-*' | grep -q .; then
-            echo 'Temporary Lucca workflow leaked into clean checkpoint' >&2
-            exit 1
-          fi
-          if find tmp -maxdepth 1 -type f -name 'lucca-*' 2>/dev/null | grep -q .; then
-            echo 'Temporary Lucca helper leaked into clean checkpoint' >&2
-            exit 1
-          fi
+
+          # The clean validation projection deliberately removes Lucca transaction files.
+          # Restore them only for this first push so the Actions token does not need to
+          # mutate workflow definitions. They are removed immediately afterwards via the
+          # repository API, and are forbidden from the staged permanent checkpoint.
+          git restore --source=HEAD -- \
+            .github/workflows/lucca-integration-finalizer-v2.yml \
+            .github/workflows/lucca-parser-validate.yml \
+            .github/workflows/lucca-source-probe.yml \
+            tmp/lucca-finalize-v2.py \
+            tmp/lucca-finalize.py
+
           git diff --check
           git add -A
           git diff --cached --check
+          if git diff --cached --name-only | grep -Eq '^(\.github/workflows/lucca-|tmp/lucca-)'; then
+            echo 'Temporary Lucca mechanism entered permanent checkpoint' >&2
+            git diff --cached --name-only >&2
+            exit 1
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'Integrate Lucca White List sources'
