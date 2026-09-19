@@ -1,0 +1,74 @@
+name: Cuneo record 394 diagnostic 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/cuneo-2026-09-19
+    paths:
+      - .github/workflows/cuneo-record-394-diagnostic-2026-09-19.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install parser runtime
+        run: python -m pip install -e . requests
+      - name: Inspect exact source identity boundary for listed record 394
+        env:
+          SOURCE_URL: https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf
+          SOURCE_SHA256: 3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7
+        run: |
+          python - <<'PY'
+          import hashlib, os, pathlib, time
+          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+          import requests
+          from white_list_archive.parsers.cuneo_positioned import _band, _lines
+
+          def bust(url):
+              p = urlsplit(url)
+              q = parse_qsl(p.query, keep_blank_values=True)
+              q.append(('_wl_diag', str(time.time_ns())))
+              return urlunsplit((p.scheme, p.netloc, p.path, urlencode(q), p.fragment))
+
+          r = requests.get(
+              bust(os.environ['SOURCE_URL']),
+              headers={
+                  'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
+                  'Accept': 'application/pdf,*/*;q=0.8',
+                  'Cache-Control': 'no-cache',
+                  'Pragma': 'no-cache',
+              },
+              timeout=90,
+              allow_redirects=True,
+          )
+          r.raise_for_status()
+          digest = hashlib.sha256(r.content).hexdigest()
+          assert digest == os.environ['SOURCE_SHA256'], (digest, os.environ['SOURCE_SHA256'])
+          path = pathlib.Path('/tmp/cuneo-listed.pdf')
+          path.write_bytes(r.content)
+
+          lines, _ = _lines(path)
+          headers = [line for line in lines if 'Ragione Sociale' in line.text and 'Sede legale' in line.text and 'Codice fiscale' in line.text]
+          statuses = [line for line in lines if 'Attività' in line.text and 'Data di iscrizione' in line.text]
+          for ordinal in (393, 394, 395):
+              header = headers[ordinal - 1]
+              end = headers[ordinal].pos if ordinal < len(headers) else len(lines)
+              matching = [line for line in statuses if header.pos < line.pos < end]
+              assert len(matching) == 1
+              status = matching[0]
+              identity = lines[header.pos + 1:status.pos]
+              print(f'--- record {ordinal} page {header.page} ---')
+              for line in identity:
+                  print('LINE', repr(line.text))
+                  print('  name_band=', repr(_band(line, 0.0, 340.0)))
+                  print('  office_band=', repr(_band(line, 340.0, 630.0)))
+                  print('  id_band=', repr(_band(line, 630.0, 841.9)))
+          PY
