@@ -1,0 +1,299 @@
+name: Grosseto integration finalizer 2026-09-19
+
+on:
+  push:
+    branches:
+      - expansion/grosseto-2026-09-19
+    paths:
+      - .github/workflows/grosseto-integration-finalizer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify branch base and scope
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "expansion/grosseto-2026-09-19"
+          git fetch origin main
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          changed="$(git diff --name-only origin/main...HEAD)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -Ev '^(\.github/workflows/grosseto-|tmp/grosseto-|src/white_list_archive/parsers/grosseto_openxml.py|tests/test_grosseto_parser_semantics.py)$' | grep -q .; then
+            echo 'Unexpected pre-finalization file outside Grosseto scope' >&2
+            exit 1
+          fi
+      - name: Install full validation runtime
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils antiword
+          python -m pip install --disable-pip-version-check -e '.[dev,publication,database,storage]' requests beautifulsoup4 openpyxl
+      - name: Materialise permanent Grosseto integration
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          root=Path('.')
+          landing='https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list'
+          listed_url='https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-iscritte-white-list.xlsx'
+          applicants_url='https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-richiedenti-iscrizione.xlsx'
+          listed_sha='4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18'
+          applicants_sha='814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248'
+
+          # Publication parser registry.
+          p=root/'src/white_list_archive/publishing/public_national_registry.py'
+          text=p.read_text(encoding='utf-8')
+          anchor='from white_list_archive.parsers.fermo_openxml import PARSERS as FERMO_PARSERS\n'
+          if anchor not in text or 'GROSSETO_PARSERS' in text: raise SystemExit('registry import anchor/state unexpected')
+          text=text.replace(anchor,anchor+'from white_list_archive.parsers.grosseto_openxml import PARSERS as GROSSETO_PARSERS\n',1)
+          anchor='        or FERMO_PARSERS.get(cfg["parser"])\n'
+          if anchor not in text: raise SystemExit('registry parser anchor missing')
+          text=text.replace(anchor,anchor+'        or GROSSETO_PARSERS.get(cfg["parser"])\n',1)
+          p.write_text(text,encoding='utf-8')
+
+          # Approved publication configuration. 19 September is an observation/capture
+          # boundary because the attachments expose no edition date; it is not an
+          # inferred publication, decision, registration or legal-effect date.
+          p=root/'data/publication/multi_prefecture_pilot.json'
+          cfg=json.loads(p.read_text(encoding='utf-8'))
+          if any(x['source_key'].startswith('grosseto-') for x in cfg['sources']): raise SystemExit('Grosseto source already present')
+          common={
+            'authority_key':'grosseto','authority_name':'Prefettura di Grosseto',
+            'register_key':'grosseto-ordinary','register_name':'White List ordinaria',
+            'reference_date':'2026-09-19','source_page_url':landing,
+            'last_source_update':'2026-08-27',
+            'last_source_update_basis':"official landing-page 'Ultimo aggiornamento' 27 August 2026; current September attachment bytes independently reverified on 19 September 2026; reference_date is an observation/capture boundary only",
+            'approval_mode':'raw_sha256',
+          }
+          cfg['sources'].extend([
+            {**common,'source_key':'grosseto-listed','parser':'grosseto_listed','population_scope':'listed','resource_url':listed_url,'sha256':listed_sha,'expected_source_rows':406,'expected_sector_rows':762,'notes':'Dedicated official listed-company XLSX resolved from the current landing page. 762 section rows conservatively group to 406 observations only when identity, addresses, dates, status and note agree: 328 listed and 78 renewal/update in progress. 371/406 observations have strict structured identifiers; 35 source identifier tokens remain raw-only. Eight grouped observations have source-blank listing and expiry dates and remain blank without inference.'},
+            {**common,'source_key':'grosseto-applicants','parser':'grosseto_applicants','population_scope':'applicant','resource_url':applicants_url,'sha256':applicants_sha,'expected_source_rows':12,'expected_sector_rows':35,'notes':'Dedicated official applicant XLSX positively exposed by the current landing page. 35 section rows conservatively group to 12 pending observations; all 12 have strict structured identifiers. No applicant population is inferred from absence or search failure.'},
+          ])
+          p.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Verified primary page.
+          p=root/'data/source_registry/verified_primary_pages.csv'
+          with p.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['authority_key']=='grosseto' for r in rows): raise SystemExit('Grosseto verified page already present')
+          rows.append({'authority_key':'grosseto','landing_url':landing,'verification_date':'2026-09-19','verification_status':'verified'})
+          rows.sort(key=lambda r:r['authority_key'])
+          with p.open('w',encoding='utf-8',newline='') as h:
+            w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          # Positive listed/applicant source series.
+          p=root/'data/source_registry/source_series_inventory.csv'
+          with p.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['source_series_key'].startswith('grosseto-') for r in rows): raise SystemExit('Grosseto series already present')
+          rows.extend([
+            {'source_series_key':'grosseto-listed','authority_key':'grosseto','regime_code':'WL-REGIME-L190-2012','population_scope':'listed','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19','notes':'Current official Grosseto page directly reverified 19 September 2026 and positively exposes the listed-company XLSX. Two independent cache-bypassed captures were byte-identical at SHA-256 4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18. Conservative repeated-section grouping yields 406 listed-side observations from 762 section rows.'},
+            {'source_series_key':'grosseto-applicants','authority_key':'grosseto','regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-19','notes':'Current official Grosseto page directly reverified 19 September 2026 and positively exposes the applicant XLSX. Two independent cache-bypassed captures were byte-identical at SHA-256 814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248. Conservative repeated-section grouping yields 12 pending observations from 35 section rows.'},
+          ])
+          rows.sort(key=lambda r:r['source_series_key'])
+          with p.open('w',encoding='utf-8',newline='') as h:
+            w=csv.DictWriter(h,fieldnames=fields); w.writeheader(); w.writerows(rows)
+
+          # Coverage ledger: public-source validation only; durable archive/hosted DB
+          # completion remains separate and is not inferred here.
+          p=root/'data/monitoring/national_coverage.json'
+          cov=json.loads(p.read_text(encoding='utf-8'))
+          row=next(x for x in cov['prefectures'] if x['authority_key']=='grosseto')
+          row.update({
+            'official_landing_page':landing,'source_verified':True,'current_edition_identified':True,
+            'capture_implemented':True,'parser_implemented':True,'parser_validated':True,
+            'company_observations_loaded':True,'observation_layer':'public_source_observations',
+            'canonical_integration_validated':False,'public_export_enabled':True,'durable_evidence_verified':False,
+            'population_scopes_complete':True,'latest_source_reference_date':'2026-09-19',
+            'last_successful_investigation_on':'2026-09-19','coverage_status':'VALIDATED','terminal_reason':None,
+            'completion_evidence':['docs/sources/grosseto-operational-check-2026-09-19.md','src/white_list_archive/parsers/grosseto_openxml.py','tests/test_grosseto_parser_semantics.py','data/publication/multi_prefecture_pilot.json'],
+            'known_content_sha256':[listed_sha,applicants_sha],
+            'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/grosseto-operational-check-2026-09-19.md'],
+            'last_completed_coverage_stage':'VALIDATED',
+            'unresolved_issue':['The official landing metadata still states 27 August 2026 while the current resolved attachments are served from the September path and carry HTTP Last-Modified 15 September 2026. No source-edition date is inferred from that discrepancy. Canonical hosted-database integration and independent durable-evidence verification remain separate infrastructure gates.'],
+            'actionable_issue':False,
+          })
+          p.write_text(json.dumps(cov,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Catalog denominators.
+          p=root/'data/catalog.csv'; text=p.read_text(encoding='utf-8')
+          old='verified-primary-pages,source_registry,data/source_registry/verified_primary_pages.csv,csv,national,in_progress,verified_primary_page,58,'
+          if old not in text: raise SystemExit('verified-primary-pages denominator anchor missing')
+          text=text.replace(old,old.replace(',58,',',59,'),1)
+          old='source-series-inventory,source_registry,data/source_registry/source_series_inventory.csv,csv,national,in_progress,source_series,114,'
+          if old not in text: raise SystemExit('source-series denominator anchor missing')
+          text=text.replace(old,old.replace(',114,',',116,'),1)
+          p.write_text(text,encoding='utf-8')
+
+          # Registry tests.
+          p=root/'tests/test_source_registry.py'; text=p.read_text(encoding='utf-8')
+          if 'assert len(pages) == 58' not in text: raise SystemExit('source registry denominator anchor missing')
+          p.write_text(text.replace('assert len(pages) == 58','assert len(pages) == 59',1),encoding='utf-8')
+          p=root/'tests/test_source_population_coverage.py'; text=p.read_text(encoding='utf-8')
+          for old,new in [
+            ('assert report["verified_authority_count"] == 58','assert report["verified_authority_count"] == 59'),
+            ('assert report["register_scope_count"] == 60','assert report["register_scope_count"] == 61'),
+            ('assert report["complete_register_scope_count"] == 60','assert report["complete_register_scope_count"] == 61'),
+            ('("bari", "udine", "crotone", "cuneo", "fermo")','("bari", "udine", "crotone", "cuneo", "fermo", "grosseto")'),
+          ]:
+            if old not in text: raise SystemExit(f'population test anchor missing: {old}')
+            text=text.replace(old,new,1)
+          p.write_text(text,encoding='utf-8')
+
+          # Browser acceptance exact boundary.
+          p=root/'tests/public_portal_browser.cjs'; text=p.read_text(encoding='utf-8')
+          anchor="      assert.ok(labels.includes('White List ordinaria · Prefettura di Fermo'));\n"
+          if anchor not in text: raise SystemExit('browser Fermo label anchor missing')
+          text=text.replace(anchor,anchor+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Grosseto'));\n",1)
+          if '      assert.equal(stats.total,64174);' not in text: raise SystemExit('browser total anchor missing')
+          text=text.replace('      assert.equal(stats.total,64174);','      assert.equal(stats.total,64592);',1)
+          old="'cremona','cuneo','fermo'].includes(r.authority_key)"
+          if old not in text: raise SystemExit('browser authority exclusion anchor missing')
+          text=text.replace(old,"'cremona','cuneo','fermo','grosseto'].includes(r.authority_key)",1)
+          anchor="      assert.equal(fermo.filter(r=>r.source_key==='fermo-applicants'&&!r.application_date&&r.source_fields.malformed_date_pairs.length===1).length,1);\n"
+          if anchor not in text: raise SystemExit('browser Fermo assertion anchor missing')
+          addition="""      const grosseto=registry.records.filter(r=>r.authority_key==='grosseto');\n      assert.equal(grosseto.length,418);\n      assert.equal(grosseto.filter(r=>r.source_key==='grosseto-listed').length,406);\n      assert.equal(grosseto.filter(r=>r.source_key==='grosseto-applicants').length,12);\n      assert.deepEqual(statusCounts(grosseto),{listed:328,pending:12,renewal_update_in_progress:78});\n      assert.equal(new Set(grosseto.map(r=>r.record_locator)).size,418);\n      assert.equal(grosseto.filter(r=>r.identifiers.length>0).length,383);\n      assert.equal(grosseto.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,34);\n      assert.equal(grosseto.filter(r=>!r.identifier_field_raw&&r.identifiers.length===0).length,1);\n      assert.equal(grosseto.filter(r=>r.source_key==='grosseto-listed'&&!r.observed_listing_date).length,8);\n      assert.equal(grosseto.filter(r=>r.source_key==='grosseto-listed'&&!r.observed_expiry_date).length,8);\n"""
+          text=text.replace(anchor,anchor+addition,1)
+          p.write_text(text,encoding='utf-8')
+
+          # Prepare public workflow candidate separately: GITHUB_TOKEN cannot safely
+          # be relied upon to mutate workflow files. The next connector-side cleanup
+          # promotes this byte-for-byte candidate while deleting temporary machinery.
+          pp=root/'.github/workflows/public-pages.yml'; text=pp.read_text(encoding='utf-8')
+          parser_anchor="      - 'src/white_list_archive/parsers/fermo_openxml.py'\n"
+          if parser_anchor not in text: raise SystemExit('public-pages parser anchor missing')
+          text=text.replace(parser_anchor,parser_anchor+"      - 'src/white_list_archive/parsers/grosseto_openxml.py'\n",1)
+          replacements=[
+            ("assert reg['meta']['record_count'] == 64174","assert reg['meta']['record_count'] == 64592"),
+            ("'cremona','cuneo','fermo'}","'cremona','cuneo','fermo','grosseto'}"),
+            ("'cremona-ordinary','cuneo-ordinary','fermo-ordinary'","'cremona-ordinary','cuneo-ordinary','fermo-ordinary','grosseto-ordinary'"),
+            ("assert reg['meta']['authority_count'] == 58","assert reg['meta']['authority_count'] == 59"),
+            ("assert reg['meta']['register_count'] == 60","assert reg['meta']['register_count'] == 61"),
+            ("assert pref['meta']['published_count'] == 58","assert pref['meta']['published_count'] == 59"),
+            ("assert pref['meta']['mapped_count'] == 58","assert pref['meta']['mapped_count'] == 59"),
+          ]
+          for old,new in replacements:
+            if old not in text: raise SystemExit(f'public-pages anchor missing: {old}')
+            text=text.replace(old,new,1)
+          anchor="          assert len({r['record_locator'] for r in fermo_records}) == 249\n"
+          if anchor not in text: raise SystemExit('public-pages Fermo assertion anchor missing')
+          addition="""          grosseto = [x for x in pref['prefectures'] if x['authority_key'] == 'grosseto']\n          assert len(grosseto) == 1 and grosseto[0]['mapped'] and grosseto[0]['published'] and grosseto[0]['series_count'] == 2\n          grosseto_records = [r for r in reg['records'] if r['authority_key'] == 'grosseto']\n          assert len(grosseto_records) == 418\n          assert sum(r['source_key'] == 'grosseto-listed' for r in grosseto_records) == 406\n          assert sum(r['source_key'] == 'grosseto-applicants' for r in grosseto_records) == 12\n          assert sum(r['source_status'] == 'listed' for r in grosseto_records) == 328\n          assert sum(r['source_status'] == 'pending' for r in grosseto_records) == 12\n          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in grosseto_records) == 78\n          assert sum(bool(r['identifiers']) for r in grosseto_records) == 383\n          assert len({r['record_locator'] for r in grosseto_records}) == 418\n"""
+          text=text.replace(anchor,anchor+addition,1)
+          (root/'tmp').mkdir(exist_ok=True)
+          (root/'tmp/grosseto-public-pages-candidate.yml').write_text(text,encoding='utf-8')
+
+          # Operational evidence note.
+          p=root/'docs/sources/grosseto-operational-check-2026-09-19.md'
+          p.write_text('''# Grosseto White List operational check — 19 September 2026\n\n## Official publication surface\n\nThe current official Prefettura di Grosseto White List page positively exposes two separate resources: **Elenco imprese iscritte** and **Elenco imprese richiedenti iscrizione**. The landing-page metadata states **Ultimo aggiornamento: 27 August 2026, 09:56**. On 19 September 2026 the page itself resolved directly from the official domain and the two current attachments resolved from the official `/2026-09/` path. Their HTTP Last-Modified headers are 15 September 2026. Because the attachment labels do not state an edition date, neither the September path nor HTTP metadata is promoted to a substantive source-edition, company-decision or legal-effect date. The publication configuration therefore uses 19 September only as the reviewed observation/capture boundary and separately preserves the landing-page update date.\n\n## Content-addressed evidence\n\nTwo independent cache-bypassed GETs for each resource were byte-identical. The listed workbook is **61,019 bytes**, SHA-256 `4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18`; the applicant workbook is **13,878 bytes**, SHA-256 `814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248`. Publication remains fail-closed on those exact hashes.\n\n## Reviewed parser boundary\n\nBoth workbooks use `Foglio1` and repeat companies across White List sections. The listed workbook has a frozen shape of 800 × 19 and 762 company-section rows. Following the existing conservative repeated-section methodology, rows are grouped only when normalised company identity, source identifier, legal and secondary offices, listing and expiry dates, source status and source note agree. This yields **406 observations: 328 listed and 78 renewal/update in progress**. There are **371/406 structured identifiers**; 35 source identifier values remain raw-only, including one blank source value. Eight grouped observations have source-blank listing dates and the same eight have source-blank expiry dates; blanks remain blanks. Source disagreements across sections are therefore retained as distinct observations rather than reconciled.\n\nThe applicant workbook has a frozen shape of 72 × 11 and positively identifies the applicant population. Its 35 company-section rows conservatively group to **12 pending observations**, all with structured identifiers. Section VIII is present in the source layout but has no applicant company row.\n\nThe resulting Grosseto public candidate contains **418 observations** with 383 structured identifiers. No applicant population, legal effect, missing date, identifier digit or address is inferred or repaired.\n''',encoding='utf-8')
+          PY
+      - name: Reverify official sources and parser boundary
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/grosseto-fresh && mkdir -p /tmp/grosseto-fresh
+          python - <<'PY'
+          import hashlib,time
+          from collections import Counter
+          from pathlib import Path
+          from urllib.parse import urlparse,parse_qsl,urlencode,urlunparse
+          import requests
+          from white_list_archive.parsers.grosseto_openxml import parse_listed,parse_applicants
+
+          landing='https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list'
+          specs=[
+            ('listed','https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-iscritte-white-list.xlsx','4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18',parse_listed,406,{'listed':328,'renewal_update_in_progress':78},371,762),
+            ('applicants','https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-richiedenti-iscrizione.xlsx','814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248',parse_applicants,12,{'pending':12},12,35),
+          ]
+          s=requests.Session(); headers={'User-Agent':'Mozilla/5.0 WhiteListEvidence/1.0','Cache-Control':'no-cache','Pragma':'no-cache','Referer':landing}
+          lr=s.get(landing,headers=headers,timeout=45); lr.raise_for_status()
+          for name,url,expected_sha,parser,n,statuses,ids,sector_rows in specs:
+            bodies=[]
+            for attempt in (1,2):
+              p=urlparse(url); q=dict(parse_qsl(p.query,keep_blank_values=True)); q['_wl_verify']=f'{attempt}-{time.time_ns()}'
+              r=s.get(urlunparse(p._replace(query=urlencode(q))),headers=headers,timeout=60); r.raise_for_status(); bodies.append(r.content)
+            if bodies[0]!=bodies[1]: raise SystemExit(f'{name}: independent captures differ')
+            sha=hashlib.sha256(bodies[0]).hexdigest()
+            if sha!=expected_sha: raise SystemExit(f'{name}: SHA drift {sha}')
+            path=Path('/tmp/grosseto-fresh')/f'{name}.xlsx'; path.write_bytes(bodies[0])
+            cfg={'source_key':f'grosseto-{name if name=="listed" else "applicants"}','authority_key':'grosseto','authority_name':'Prefettura di Grosseto','register_key':'grosseto-ordinary','register_name':'White List ordinaria','population_scope':'listed' if name=='listed' else 'applicant','reference_date':'2026-09-19','source_page_url':landing,'resource_url':url,'sha256':sha}
+            batch=parser(path,cfg)
+            if len(batch.records)!=n or batch.diagnostics['status_counts']!=statuses or batch.diagnostics['identifier_coverage']!=ids or batch.diagnostics['sector_rows']!=sector_rows:
+              raise SystemExit(f'{name}: parser boundary drift {batch.diagnostics!r}')
+            print(name,sha,batch.diagnostics)
+          PY
+      - name: Run repository tests on clean review scope
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/grosseto-source-probe.yml .github/workflows/grosseto-integration-finalizer.yml tmp/grosseto-probe-trigger.txt
+          pytest -q
+      - name: Build and validate national candidate
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/grosseto-national public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/grosseto-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text())
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==64592, reg['meta']
+          assert reg['meta']['authority_count']==59, reg['meta']
+          assert reg['meta']['register_count']==61, reg['meta']
+          assert pref['meta']['published_count']==59, pref['meta']
+          assert pref['meta']['mapped_count']==59, pref['meta']
+          rows=[r for r in reg['records'] if r['authority_key']=='grosseto']
+          assert len(rows)==418
+          assert sum(r['source_status']=='listed' for r in rows)==328
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==78
+          assert sum(r['source_status']=='pending' for r in rows)==12
+          assert sum(bool(r['identifiers']) for r in rows)==383
+          assert len({r['record_locator'] for r in rows})==418
+          print('CANDIDATE',reg['meta']['record_count'],reg['meta']['authority_count'],reg['meta']['register_count'],pref['meta']['published_count'],pref['meta']['mapped_count'])
+          PY
+          python -m white_list_archive.publishing.public_artifact public-site
+          git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+      - name: Commit permanent checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/grosseto-operational-check-2026-09-19.md \
+            src/white_list_archive/parsers/grosseto_openxml.py \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_grosseto_parser_semantics.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py \
+            tmp/grosseto-public-pages-candidate.yml
+          git diff --cached --check
+          git commit -m 'Integrate Grosseto White List sources'
+          git push origin HEAD:expansion/grosseto-2026-09-19
+      - name: Upload public-pages candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: grosseto-public-pages-candidate
+          path: tmp/grosseto-public-pages-candidate.yml
+          if-no-files-found: error
+          retention-days: 7
