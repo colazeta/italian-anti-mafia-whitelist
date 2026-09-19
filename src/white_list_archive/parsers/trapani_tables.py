@@ -89,6 +89,15 @@ _LISTED_HEADER_FRAGMENT = (
     ["", "", "CON RAPPRESENTANZA STABILE IN ITALIA", "PARTITA IVA", "ISCRIZIONE", "SCADENZA ISCRIZIONE", "IN CORSO"],
 )
 _LISTED_JUDICIAL_ADMINISTRATION_EXPIRY = "In amministrazio ne giudiziaria e fermo restando fino al permanere della stessa"
+_LISTED_NAME_VARIANT_NORMALISATIONS = {
+    "02483290819": {
+        "source_variants": [
+            "STRADE E SERVIZI S.R.L. UNIPERSONALE",
+            "STRADE E SERVIZI S.R.L.UNIPERSONALE",
+        ],
+        "canonical": "STRADE E SERVIZI S.R.L. UNIPERSONALE",
+    },
+}
 
 
 def _clean(value: Any) -> str:
@@ -278,8 +287,17 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     non_date_expiry_records = 0
     for identifier, rows in grouped.items():
         name_variants = _ordered_unique([row["name"] for row in rows])
-        if len(name_variants) != 1:
-            raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")
+        normalisation = _LISTED_NAME_VARIANT_NORMALISATIONS.get(identifier)
+        if normalisation is None:
+            if len(name_variants) != 1:
+                raise RuntimeError(f"Trapani listed name drift within identifier {identifier}: {name_variants!r}")
+            output_name = name_variants[0]
+        else:
+            if name_variants != normalisation["source_variants"]:
+                raise RuntimeError(
+                    f"Trapani approved name-variant evidence drift for {identifier}: {name_variants!r}"
+                )
+            output_name = normalisation["canonical"]
         office_variants = _ordered_unique([row["office"] for row in rows if row["office"]])
         secondary_variants = _ordered_unique([row["secondary"] for row in rows if row["secondary"]])
         listing_raw_variants = _ordered_unique([row["listing_raw"] for row in rows if row["listing_raw"]])
@@ -325,7 +343,7 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             _record(
                 cfg,
                 len(records) + 1,
-                name=name_variants[0],
+                name=output_name,
                 office=office_variants[0] if office_variants else "",
                 secondary=secondary_variants[0] if secondary_variants else "",
                 identifier_raw=identifier,
