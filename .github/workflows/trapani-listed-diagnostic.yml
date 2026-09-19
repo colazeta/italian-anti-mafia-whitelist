@@ -22,37 +22,28 @@ jobs:
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=2-${GITHUB_RUN_ID}" -o /tmp/b.pdf
           test "$(sha256sum /tmp/a.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
           cmp /tmp/a.pdf /tmp/b.pdf
-          sha256sum /tmp/a.pdf
-          stat -c '%s bytes' /tmp/a.pdf
-      - name: Inspect judicial-administration expiry rows exhaustively
+      - name: Inspect repeated-name spacing evidence
         run: |
           python - <<'PY'
           import json, re
           import pdfplumber
+          TARGET='02483290819'
           def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
           matches=[]
           with pdfplumber.open('/tmp/a.pdf') as pdf:
               for pi,p in enumerate(pdf.pages,1):
-                  tables=sorted(p.find_tables(), key=lambda x: float(x.bbox[1]))
-                  for ti,t in enumerate(tables,1):
+                  for ti,t in enumerate(sorted(p.find_tables(), key=lambda x: float(x.bbox[1])),1):
                       extracted=t.extract() or []
                       for ri,raw in enumerate(extracted,1):
                           row=[clean(x) for x in raw]
                           if len(row)==6: row.append('')
-                          joined=' '.join(row).casefold()
-                          if 'amministrazio' not in joined and 'fermo restando' not in joined:
+                          if TARGET not in row:
                               continue
-                          before=[]; after=[]
-                          for rr in extracted[max(0,ri-3):ri-1]:
-                              vals=[clean(x) for x in rr]
-                              if len(vals)==6: vals.append('')
-                              before.append(vals)
-                          for rr in extracted[ri:ri+2]:
-                              vals=[clean(x) for x in rr]
-                              if len(vals)==6: vals.append('')
-                              after.append(vals)
-                          matches.append({'page':pi,'table':ti,'row':ri,'values':row,'before':before,'after':after,'page_text':clean(p.extract_text() or '')})
-              print('JUDICIAL_EXPIRY_MATCH_COUNT',len(matches))
+                          matches.append({
+                              'page':pi,'table':ti,'row':ri,'values':row,
+                              'page_text':clean(p.extract_text() or '')
+                          })
+              print('TARGET_MATCH_COUNT',len(matches))
               for item in matches:
-                  print('JUDICIAL_EXPIRY_CONTEXT',json.dumps(item,ensure_ascii=False))
+                  print('TARGET_CONTEXT',json.dumps(item,ensure_ascii=False))
           PY
