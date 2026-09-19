@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Verify branch base and Grosseto-only pre-finalization scope
         run: |
           set -euo pipefail
@@ -31,13 +32,13 @@ jobs:
             echo 'Unexpected pre-finalization file outside Grosseto scope' >&2
             exit 1
           fi
-      - name: Execute reviewed finalizer transaction with clean test scope
+
+      - name: Prepare reviewed transaction steps
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check pyyaml
           python - <<'PY'
-          import os
-          import subprocess
+          import json
           from pathlib import Path
           import yaml
 
@@ -57,41 +58,48 @@ jobs:
           if missing:
               raise SystemExit(f'Missing reviewed finalizer steps: {missing!r}')
 
-          # The generated public registry artifacts are publication outputs and are
-          # intentionally not tracked in git. The reviewed v1 script attempted to
-          # restore them with `git checkout --`, which fails after the candidate has
-          # otherwise built and validated successfully. Remove only those generated
-          # outputs instead; this changes no validation or evidence gate.
+          # Generated public registry files are publication outputs and are not tracked.
+          # Preserve all validation while replacing only the invalid v1 git-checkout cleanup
+          # with deletion of those generated outputs after successful validation.
           build_name = 'Build and validate national candidate'
           checkout_cleanup = 'git checkout -- public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv'
           remove_cleanup = 'rm -f public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv'
           if checkout_cleanup not in scripts[build_name]:
               raise SystemExit('Reviewed generated-output cleanup anchor missing')
           scripts[build_name] = scripts[build_name].replace(checkout_cleanup, remove_cleanup, 1)
-
-          def run(name: str) -> None:
-              print(f'::group::{name}')
-              subprocess.run(['bash', '-c', 'set -euo pipefail\n' + scripts[name]], check=True)
-              print('::endgroup::')
-
-          run('Install full validation runtime')
-          run('Materialise permanent Grosseto integration')
-          run('Reverify official sources and parser boundary')
-
-          # The repository artifact-policy test must see the intended PR tree, not
-          # transactional worker machinery. Deletions stay unstaged so the reviewed
-          # permanent checkpoint can be pushed first and connector-side cleanup can
-          # subsequently remove the temporary files explicitly.
-          for path in Path('.github/workflows').glob('grosseto-*.yml'):
-              path.unlink()
-          trigger = Path('tmp/grosseto-probe-trigger.txt')
-          if trigger.exists():
-              trigger.unlink()
-
-          run('Run repository tests on clean review scope')
-          run('Build and validate national candidate')
-          run('Commit permanent checkpoint')
+          Path('/tmp/grosseto-reviewed-steps.json').write_text(json.dumps(scripts), encoding='utf-8')
           PY
+          cat >/tmp/run-grosseto-reviewed-step.py <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          scripts=json.loads(Path('/tmp/grosseto-reviewed-steps.json').read_text(encoding='utf-8'))
+          name=sys.argv[1]
+          subprocess.run(['bash','-c','set -euo pipefail\n'+scripts[name]], check=True)
+          PY
+
+      - name: Install full validation runtime
+        run: python /tmp/run-grosseto-reviewed-step.py 'Install full validation runtime'
+
+      - name: Materialise permanent Grosseto integration
+        run: python /tmp/run-grosseto-reviewed-step.py 'Materialise permanent Grosseto integration'
+
+      - name: Reverify official sources and parser boundary
+        run: python /tmp/run-grosseto-reviewed-step.py 'Reverify official sources and parser boundary'
+
+      - name: Remove transactional files from review worktree
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/grosseto-*.yml tmp/grosseto-probe-trigger.txt
+
+      - name: Run repository tests on clean review scope
+        run: python /tmp/run-grosseto-reviewed-step.py 'Run repository tests on clean review scope'
+
+      - name: Build and validate national candidate
+        run: python /tmp/run-grosseto-reviewed-step.py 'Build and validate national candidate'
+
+      - name: Commit permanent checkpoint
+        run: python /tmp/run-grosseto-reviewed-step.py 'Commit permanent checkpoint'
+
       - name: Upload reviewed public-pages candidate
         uses: actions/upload-artifact@v4
         with:
