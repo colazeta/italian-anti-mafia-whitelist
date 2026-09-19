@@ -27,7 +27,7 @@ jobs:
       - name: Install parser runtime
         run: |
           set -euo pipefail
-          python -m pip install -e .
+          python -m pip install -e '.[dev,publication,database,storage]'
       - name: Capture official endpoint twice independently
         run: |
           set -euo pipefail
