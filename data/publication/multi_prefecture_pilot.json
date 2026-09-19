@@ -2008,6 +2008,42 @@
       "sha256": "e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9",
       "expected_source_rows": 131,
       "notes": "Official current applicant legacy Word table positively exposed by the current landing. 337 physical table rows resolve to 131 observations after exact repeated-header/blank/activity-continuation handling: 117 explicit subsequent enrolments, 6 pending, 5 cancellation-related and 3 other/unknown. Structured identifier coverage is 126/131; two malformed application-date tokens remain raw."
+    },
+    {
+      "authority_key": "lucca",
+      "authority_name": "Prefettura di Lucca",
+      "register_key": "lucca-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-11",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lucca/elenco-imprese-iscritte-e-richiedenti",
+      "last_source_update": "2026-09-15",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 15 September 2026, 12:12; source reference_date follows the listed attachment marker and is not promoted to a company decision/legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "lucca-listed",
+      "parser": "lucca_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-agg-l-40-del-2020-al-11-settembre-2026.pdf",
+      "sha256": "d5a0f11c68a0a3dfb01d10b30f35130c7899795bb46e0239226ad5ea575b5c67",
+      "expected_source_rows": 331,
+      "notes": "Dedicated official listed PDF positively exposed by the current landing page. 331 table rows yield 229 listed and 102 renewal/update-in-progress observations. Structured identifier coverage is 324/331; seven source rows remain raw-only. No malformed identifier or missing expiry value is repaired inferentially."
+    },
+    {
+      "authority_key": "lucca",
+      "authority_name": "Prefettura di Lucca",
+      "register_key": "lucca-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-08",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lucca/elenco-imprese-iscritte-e-richiedenti",
+      "last_source_update": "2026-09-15",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 15 September 2026, 12:12; source reference_date follows the applicant attachment marker and is not promoted to a company decision/legal-effect date",
+      "approval_mode": "raw_sha256",
+      "source_key": "lucca-applicants",
+      "parser": "lucca_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-agg-l-40-del-2020-al-08-settembre-2026.pdf",
+      "sha256": "fd9cdc163e09c411ce5fd1f716d85811a15503f3527ac0f5abdaec909de4f084",
+      "expected_source_rows": 71,
+      "notes": "Dedicated official applicant PDF positively exposed by the current landing page. All 71 table rows are pending observations and structured identifier coverage is 69/71; the two malformed numeric identifiers remain raw-only. Applicant coverage is positive source evidence, never inferred from absence."
     }
   ]
 }
