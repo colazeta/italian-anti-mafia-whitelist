@@ -1,0 +1,140 @@
+name: Trapani source probe
+
+on:
+  push:
+    branches:
+      - expansion/trapani-2026-09-19
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install probe runtime
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pypdf openpyxl python-docx
+      - name: Probe official Trapani sources twice
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, io, json, re, time, urllib.parse, zipfile
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing = 'https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list'
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf,application/octet-stream,*/*;q=0.8',
+          }
+
+          def fetched(url, nonce):
+              p = urllib.parse.urlsplit(url)
+              q = urllib.parse.parse_qsl(p.query, keep_blank_values=True)
+              q.append(('_wl_probe', nonce))
+              u = urllib.parse.urlunsplit((p.scheme, p.netloc, p.path, urllib.parse.urlencode(q), p.fragment))
+              r = requests.get(u, headers=headers, timeout=60, allow_redirects=True)
+              r.raise_for_status()
+              return r
+
+          lr = fetched(landing, 'landing')
+          print('LANDING', lr.status_code, len(lr.content), hashlib.sha256(lr.content).hexdigest(), lr.url)
+          soup = BeautifulSoup(lr.text, 'html.parser')
+          candidates = []
+          for a in soup.find_all('a', href=True):
+              text = ' '.join(a.stripped_strings)
+              href = urllib.parse.urljoin(lr.url, a['href'])
+              hay = (text + ' ' + href).lower()
+              if ('white' in hay and 'list' in hay) or 'richiedent' in hay or 'iscritt' in hay:
+                  candidates.append((text, href))
+          print('CANDIDATE_LINKS_BEGIN')
+          for text, href in candidates:
+              print(json.dumps({'text': text, 'url': href}, ensure_ascii=False))
+          print('CANDIDATE_LINKS_END')
+
+          selected = {}
+          for text, href in candidates:
+              h = (text + ' ' + href).lower()
+              if 'richiedent' in h and ('allegat' in href or href.lower().endswith(('.pdf','.xlsx','.xls','.docx','.doc'))):
+                  selected.setdefault('applicants', (text, href))
+              if ('iscritt' in h or 'iscritte' in h) and 'richiedent' not in h and ('allegat' in href or href.lower().endswith(('.pdf','.xlsx','.xls','.docx','.doc'))):
+                  selected.setdefault('listed', (text, href))
+          if set(selected) != {'listed','applicants'}:
+              # Fall back to any attachment-looking links whose anchor labels carry the population identity.
+              for text, href in candidates:
+                  h = text.lower()
+                  if 'richiedent' in h:
+                      selected.setdefault('applicants', (text, href))
+                  elif 'iscritt' in h or 'iscritte' in h:
+                      selected.setdefault('listed', (text, href))
+          print('SELECTED', json.dumps(selected, ensure_ascii=False))
+          if set(selected) != {'listed','applicants'}:
+              raise SystemExit('Could not positively resolve both listed and applicant attachment links from official landing HTML')
+
+          for population, (label, url) in selected.items():
+              observations=[]
+              bodies=[]
+              for i in (1,2):
+                  r=fetched(url, f'{population}-{i}-{time.time_ns()}')
+                  body=r.content
+                  bodies.append(body)
+                  obs={
+                      'population': population,
+                      'label': label,
+                      'resolved_url': r.url.split('_wl_probe=')[0].rstrip('?&'),
+                      'status': r.status_code,
+                      'content_type': r.headers.get('content-type'),
+                      'content_disposition': r.headers.get('content-disposition'),
+                      'last_modified': r.headers.get('last-modified'),
+                      'etag': r.headers.get('etag'),
+                      'bytes': len(body),
+                      'sha256': hashlib.sha256(body).hexdigest(),
+                      'magic_hex': body[:16].hex(),
+                  }
+                  observations.append(obs)
+              print('FETCHES', json.dumps(observations, ensure_ascii=False))
+              if bodies[0] != bodies[1]:
+                  raise SystemExit(f'{population} independent fetches are not byte-identical')
+              body=bodies[0]
+              ctype=(observations[0]['content_type'] or '').lower()
+              url_l=url.lower()
+              if body.startswith(b'%PDF') or 'pdf' in ctype or url_l.endswith('.pdf'):
+                  from pypdf import PdfReader
+                  reader=PdfReader(io.BytesIO(body))
+                  print(population.upper(), 'PDF_PAGES', len(reader.pages))
+                  for idx in sorted(set([0, 1 if len(reader.pages)>1 else 0, len(reader.pages)-1])):
+                      text=(reader.pages[idx].extract_text() or '').replace('\x00',' ')
+                      print(f'{population.upper()}_PAGE_{idx+1}_TEXT_BEGIN')
+                      print(text[:12000])
+                      print(f'{population.upper()}_PAGE_{idx+1}_TEXT_END')
+              elif body[:2] == b'PK':
+                  z=zipfile.ZipFile(io.BytesIO(body))
+                  names=z.namelist()
+                  print(population.upper(), 'ZIP_MEMBERS_HEAD', names[:30])
+                  if any(n.startswith('xl/') for n in names):
+                      import openpyxl
+                      wb=openpyxl.load_workbook(io.BytesIO(body), read_only=True, data_only=False)
+                      print(population.upper(), 'XLSX_SHEETS', wb.sheetnames)
+                      for ws in wb.worksheets:
+                          print(population.upper(), 'SHEET', ws.title, ws.max_row, ws.max_column)
+                          for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row,30), values_only=True):
+                              print('ROW', repr(row))
+                  elif 'word/document.xml' in names:
+                      from docx import Document
+                      d=Document(io.BytesIO(body))
+                      print(population.upper(), 'DOCX_PARAGRAPHS', len(d.paragraphs), 'TABLES', len(d.tables))
+                      for p in d.paragraphs[:50]: print('P', repr(p.text))
+                      for ti,t in enumerate(d.tables[:5]):
+                          print('TABLE',ti,'ROWS',len(t.rows),'COLS',len(t.columns))
+                          for row in t.rows[:30]: print('ROW', repr([c.text for c in row.cells]))
+              else:
+                  print(population.upper(), 'UNKNOWN_BODY_HEAD', body[:500])
+          PY
