@@ -22,6 +22,73 @@ _ID_RE = re.compile(r"^(?:\d{11}|[A-Za-z0-9]{16})$")
 _DATE_RE = re.compile(r"^(\d{1,2})\s*/\s*(\d{1,2})\s*/\s*(\d{4})$")
 _ROMAN = {value: index for index, value in enumerate(("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"), 1)}
 
+_LISTED_CONTINUATIONS = {
+    (15, 1, 1): {
+        "row": ["SILVESTRO", "", "", "", "", "", "per rinnovo"],
+        "previous": {"page": 14, "name": "IMPRESA EDILE DI MANGANO", "identifier": "02249310810", "update_raw": "In aggiornamento"},
+        "name": "IMPRESA EDILE DI MANGANO SILVESTRO",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+    (18, 1, 1): {
+        "row": ["MASSIMILIANO S. N.C.", "", "", "", "", "", ""],
+        "previous": {"page": 17, "name": "TRIVELLAZIONI AMATO DI AMATO BALDASSARE, COSIMO E", "identifier": "02375070816", "update_raw": ""},
+        "name": "TRIVELLAZIONI AMATO DI AMATO BALDASSARE, COSIMO E MASSIMILIANO S. N.C.",
+        "update_raw": "",
+    },
+    (23, 1, 1): {
+        "row": ["", "", "", "", "", "", "per rinnovo"],
+        "previous": {"page": 22, "name": "EDIL AMBIENTE S.R.L.", "identifier": "02381330816", "update_raw": "In aggiornamento"},
+        "name": "EDIL AMBIENTE S.R.L.",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+    (25, 1, 1): {
+        "row": ["VITO ELIO", "", "", "", "", "", ""],
+        "previous": {"page": 24, "name": "IMPRESA EDILE STRADALE DI MILOTTA", "identifier": "MLTVTL65L21A176H", "update_raw": ""},
+        "name": "IMPRESA EDILE STRADALE DI MILOTTA VITO ELIO",
+        "update_raw": "",
+    },
+    (26, 1, 1): {
+        "row": ["VINCENZA MARIA & C.", "", "", "", "", "", ""],
+        "previous": {"page": 25, "name": "NUOVA ESIR S.N.C. DI DI GIORGI", "identifier": "01371540814", "update_raw": ""},
+        "name": "NUOVA ESIR S.N.C. DI DI GIORGI VINCENZA MARIA & C.",
+        "update_raw": "",
+    },
+    (28, 1, 1): {
+        "row": ["", "", "", "", "", "", "per rinnovo"],
+        "previous": {"page": 27, "name": "WEDRILL S.R.L.", "identifier": "02836190815", "update_raw": "In aggiornamento"},
+        "name": "WEDRILL S.R.L.",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+    (30, 1, 1): {
+        "row": ["ALESSANDRO MILAZZO & C.", "", "", "", "", "", "per rinnovo"],
+        "previous": {"page": 29, "name": "DE SIMONE & MILAZZO S.A.S. DI", "identifier": "00060160819", "update_raw": "In aggiornamento"},
+        "name": "DE SIMONE & MILAZZO S.A.S. DI ALESSANDRO MILAZZO & C.",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+    (31, 1, 1): {
+        "row": ["", "", "", "", "", "", "per rinnovo"],
+        "previous": {"page": 30, "name": "GUDDEMI S.r.l.", "identifier": "02264160819", "update_raw": "In aggiornamento"},
+        "name": "GUDDEMI S.r.l.",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+    (36, 1, 1): {
+        "row": ["RESPONSABILITA' LIMITATA SEMPLIFICATA", "", "", "", "", "", ""],
+        "previous": {"page": 35, "name": "NUOVA RISTO - SOCIETA' A", "identifier": "02850410818", "update_raw": ""},
+        "name": "NUOVA RISTO - SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICATA",
+        "update_raw": "",
+    },
+    (39, 1, 1): {
+        "row": ["SEMPLIFICATA", "", "", "", "", "", ""],
+        "previous": {"page": 38, "name": "ECOPLASTIK - SOCIETA' A RESPONSABILITA' LIMITATA", "identifier": "02605070818", "update_raw": "In aggiornamento per rinnovo"},
+        "name": "ECOPLASTIK - SOCIETA' A RESPONSABILITA' LIMITATA SEMPLIFICATA",
+        "update_raw": "In aggiornamento per rinnovo",
+    },
+}
+_LISTED_HEADER_FRAGMENT = (
+    (34, 1, 1),
+    ["", "", "CON RAPPRESENTANZA STABILE IN ITALIA", "PARTITA IVA", "ISCRIZIONE", "SCADENZA ISCRIZIONE", "IN CORSO"],
+)
+
 
 def _clean(value: Any) -> str:
     return " ".join(str(value or "").replace("\u00a0", " ").split())
@@ -114,8 +181,8 @@ def _activities(raw: str) -> list[str]:
 def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     memberships: list[dict[str, Any]] = []
     seen_sections: list[str] = []
-    continuation_rows: list[list[str]] = []
-    wrapped_renewal_rows = 0
+    seen_continuations: list[tuple[int, int, int]] = []
+    header_fragments = 0
     full_text: list[str] = []
     current_section = ""
     table_counts: list[int] = []
@@ -138,36 +205,29 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     row = _normalise_listed_row(raw)
                     if not any(row) or _is_header(row):
                         continue
-                    # One company name and its renewal marker are wrapped across the
-                    # page 14/15 boundary in the pinned source. Bind that evidence to
-                    # the immediately preceding membership only under the exact,
-                    # source-observed shape; any drift still fails closed below.
-                    if row == ["SILVESTRO", "", "", "", "", "", "per rinnovo"]:
-                        if (page_number, table_number, row_number) != (15, 1, 1):
-                            raise RuntimeError(
-                                f"Trapani wrapped renewal row moved unexpectedly: page={page_number}, table={table_number}, row={row_number}"
-                            )
+                    location = (page_number, table_number, row_number)
+                    continuation = _LISTED_CONTINUATIONS.get(location)
+                    if continuation is not None:
+                        if row != continuation["row"]:
+                            raise RuntimeError(f"Trapani listed continuation content drift at {location}: {row!r}")
                         if not memberships:
-                            raise RuntimeError("Trapani wrapped renewal row has no preceding membership")
+                            raise RuntimeError(f"Trapani listed continuation has no predecessor at {location}")
                         previous = memberships[-1]
-                        expected_previous = {
-                            "page": 14,
-                            "name": "IMPRESA EDILE DI MANGANO",
-                            "identifier": "02249310810",
-                            "update_raw": "In aggiornamento",
-                        }
+                        expected_previous = continuation["previous"]
                         observed_previous = {key: previous[key] for key in expected_previous}
                         if observed_previous != expected_previous:
                             raise RuntimeError(
-                                f"Trapani wrapped renewal predecessor drift: {observed_previous!r}"
+                                f"Trapani listed continuation predecessor drift at {location}: {observed_previous!r}"
                             )
-                        previous["name"] = "IMPRESA EDILE DI MANGANO SILVESTRO"
-                        previous["update_raw"] = "In aggiornamento per rinnovo"
-                        wrapped_renewal_rows += 1
+                        previous["name"] = continuation["name"]
+                        previous["update_raw"] = continuation["update_raw"]
+                        seen_continuations.append(location)
                         continue
-                    if not row[0] and not row[3]:
-                        if any(row):
-                            continuation_rows.append(row)
+                    header_location, header_row = _LISTED_HEADER_FRAGMENT
+                    if location == header_location:
+                        if row != header_row:
+                            raise RuntimeError(f"Trapani listed split-header drift at {location}: {row!r}")
+                        header_fragments += 1
                         continue
                     if not row[0] or not _ID_RE.fullmatch(row[3]):
                         raise RuntimeError(
@@ -200,10 +260,10 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         raise RuntimeError(f"Trapani listed section drift: {seen_sections!r}")
     if len(memberships) != 658:
         raise RuntimeError(f"Trapani listed sector-row drift: {len(memberships)}")
-    if wrapped_renewal_rows != 1:
-        raise RuntimeError(f"Trapani wrapped-renewal row drift: {wrapped_renewal_rows}")
-    if len(continuation_rows) != 1 or continuation_rows[0] != ["", "", "", "", "", "", "per rinnovo"]:
-        raise RuntimeError(f"Trapani listed continuation-row drift: {continuation_rows!r}")
+    if seen_continuations != list(_LISTED_CONTINUATIONS):
+        raise RuntimeError(f"Trapani listed continuation-set drift: {seen_continuations!r}")
+    if header_fragments != 1:
+        raise RuntimeError(f"Trapani listed split-header count drift: {header_fragments}")
     if "presentato istanza di permanenza" not in _clean(" ".join(full_text)).casefold():
         raise RuntimeError("Trapani listed permanence-request footnote disappeared")
 
@@ -267,8 +327,8 @@ def parse_trapani_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "status_counts": status_counts,
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "source_sections": seen_sections,
-        "continuation_rows": len(continuation_rows),
-        "wrapped_renewal_rows": wrapped_renewal_rows,
+        "continuation_rows": len(seen_continuations),
+        "split_header_fragments": header_fragments,
     }
     return ParsedBatch(records=records, diagnostics=diagnostics)
 
