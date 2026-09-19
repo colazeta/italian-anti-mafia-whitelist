@@ -31,7 +31,7 @@ jobs:
           test "${GITHUB_REF_NAME}" = 'expansion/trapani-2026-09-19'
           git merge-base --is-ancestor origin/main HEAD
           test "$(git rev-list --count HEAD..origin/main)" = '0'
-          test "$(git rev-parse origin/main)" = 'd4f65a5bc106db17ff934a8dc4f2424540b74942'
+          test "$(git rev-parse origin/main)" = 'e5c4b075936d786deea0d2b86a16ca259cb24af2'
 
       - name: Prepare runner package sources
         shell: bash
@@ -59,7 +59,7 @@ jobs:
           python -m pip install --disable-pip-version-check -e '.[dev,publication,storage,database]'
 
       - name: Materialise permanent Trapani integration
-        run: python tmp/trapani_integration_materialize.py
+        run: python tmp/trapani_integration_materialize_current.py
 
       - name: Validate diff hygiene
         run: git diff --check

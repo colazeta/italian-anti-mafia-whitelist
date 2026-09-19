@@ -5,11 +5,11 @@ from pathlib import Path
 reg = json.loads(Path('/tmp/trapani-national/registry.json').read_text())
 pref = json.loads(Path('/tmp/trapani-national/prefectures.json').read_text())
 
-assert reg['meta']['record_count'] == 65822, reg['meta']
-assert reg['meta']['authority_count'] == 62, reg['meta']
-assert reg['meta']['register_count'] == 64, reg['meta']
-assert pref['meta']['published_count'] == 62, pref['meta']
-assert pref['meta']['mapped_count'] == 62, pref['meta']
+assert reg['meta']['record_count'] == 67180, reg['meta']
+assert reg['meta']['authority_count'] == 63, reg['meta']
+assert reg['meta']['register_count'] == 65, reg['meta']
+assert pref['meta']['published_count'] == 63, pref['meta']
+assert pref['meta']['mapped_count'] == 63, pref['meta']
 
 rows = [row for row in reg['records'] if row['authority_key'] == 'trapani']
 assert len(rows) == 555
