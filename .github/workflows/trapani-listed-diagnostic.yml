@@ -22,32 +22,37 @@ jobs:
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=2-${GITHUB_RUN_ID}" -o /tmp/b.pdf
           test "$(sha256sum /tmp/a.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
           cmp /tmp/a.pdf /tmp/b.pdf
-          sha256sum /tmp/a.pdf
-          stat -c '%s bytes' /tmp/a.pdf
-      - name: Inventory all non-data rows
+      - name: Resolve every non-data row against its predecessor
         run: |
           python - <<'PY'
           import json, re
           import pdfplumber
           def clean(v): return re.sub(r'\s+',' ',(v or '').replace('\u00a0',' ')).strip()
           ident = re.compile(r'^(?:\d{11}|[A-Za-z0-9]{16})$')
+          last_valid=None
           anomalies=[]
-          valid=0
           with pdfplumber.open('/tmp/a.pdf') as pdf:
               for pi,p in enumerate(pdf.pages,1):
                   for ti,t in enumerate(sorted(p.find_tables(), key=lambda x: float(x.bbox[1])),1):
-                      for ri,raw in enumerate(t.extract() or [],1):
+                      extracted=t.extract() or []
+                      for ri,raw in enumerate(extracted,1):
                           row=[clean(x) for x in raw]
                           if len(row)==6: row.append('')
                           if not any(row): continue
                           joined=' '.join(row).casefold()
-                          if 'ragione sociale' in joined and 'codice fiscale' in joined: continue
+                          if 'ragione sociale' in joined and 'codice fiscale' in joined:
+                              continue
+                          current={'page':pi,'table':ti,'row':ri,'values':row}
                           if len(row)==7 and row[0] and ident.fullmatch(row[3]):
-                              valid += 1
+                              last_valid=current
                           else:
-                              anomalies.append({'page':pi,'table':ti,'row':ri,'values':row})
-              print('VALID_MEMBERSHIP_ROWS', valid)
-              print('ANOMALY_COUNT', len(anomalies))
+                              following=[]
+                              for nxt in extracted[ri:ri+2]:
+                                  vals=[clean(x) for x in nxt]
+                                  if len(vals)==6: vals.append('')
+                                  following.append(vals)
+                              anomalies.append({'anomaly':current,'previous_valid':last_valid,'following_rows':following})
+              print('ANOMALY_CONTEXT_COUNT',len(anomalies))
               for item in anomalies:
-                  print('ANOMALY', json.dumps(item, ensure_ascii=False))
+                  print('CONTEXT',json.dumps(item,ensure_ascii=False))
           PY
