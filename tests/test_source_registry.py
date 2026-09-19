@@ -34,7 +34,7 @@ def test_territorial_authority_seed_is_complete_and_unique():
 def test_verified_primary_pages_reference_seeded_authorities():
     authorities = {row["authority_key"] for row in _read_csv("territorial_authorities.csv")}
     pages = _read_csv("verified_primary_pages.csv")
-    assert len(pages) == 59
+    assert len(pages) == 60
     assert len({row["authority_key"] for row in pages}) == len(pages)
     assert {row["authority_key"] for row in pages} <= authorities
     assert all(row["verification_status"] == "verified" for row in pages)
@@ -89,7 +89,19 @@ def test_national_index_parser_extracts_real_links_from_table_fixture():
     fixture = (ROOT / "tests/fixtures/national_index_sample.html").read_text(encoding="utf-8")
     page = "https://prefettura.interno.gov.it/it/white-list-nazionale?page=0"
     entries = parse_national_index_html(fixture, page)
-    assert [entry.jurisdiction_name for entry in entries] == ["Aosta", "Milano", "Trento"]
-    assert entries[0].white_list_url.startswith("https://www.regione.vda.it/")
-    assert entries[1].white_list_url == "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list"
-    assert entries[2].title == "WHITE LIST"
+
+    assert [entry.authority_name for entry in entries] == [
+        "Agrigento",
+        "Ascoli Piceno",
+        "Pesaro e Urbino",
+    ]
+    assert [entry.authority_key for entry in entries] == [
+        "agrigento",
+        "ascoli-piceno",
+        "pesaro-e-urbino",
+    ]
+    assert [entry.detail_url for entry in entries] == [
+        "https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/pesaro-e-urbino/evidenza/white-list",
+    ]
