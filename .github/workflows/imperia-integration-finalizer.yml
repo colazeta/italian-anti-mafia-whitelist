@@ -45,6 +45,8 @@ jobs:
               'scripts/imperia_finalize.py',
               'src/white_list_archive/parsers/imperia_sources.py',
               'tests/test_imperia_parser_semantics.py',
+              'tests/test_source_population_coverage.py',
+              'tests/test_source_registry.py',
           }
           observed = {x for x in Path('/tmp/imperia-pre-scope.txt').read_text().splitlines() if x}
           extra = observed - allowed
