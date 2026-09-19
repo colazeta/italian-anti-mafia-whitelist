@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 58
-    assert report["register_scope_count"] == 60
-    assert report["complete_register_scope_count"] == 60
+    assert report["verified_authority_count"] == 59
+    assert report["register_scope_count"] == 61
+    assert report["complete_register_scope_count"] == 61
     assert report["incomplete_register_scope_count"] == 0
 
     by_scope = {}
@@ -110,7 +110,7 @@ def test_separate_series_and_unresolved_gaps_are_distinguished():
 
 def test_recently_resolved_current_pages_cover_both_populations():
     report = _report()
-    for authority in ("bari", "udine", "crotone", "cuneo", "fermo"):
+    for authority in ("bari", "udine", "crotone", "cuneo", "fermo", "grosseto"):
         rows = {
             row["population_target"]: row
             for row in report["rows"]

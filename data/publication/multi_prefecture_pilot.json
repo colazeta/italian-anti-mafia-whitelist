@@ -1933,6 +1933,44 @@
       "sha256": "fa17e1f6676f84dc51e8abd1fd6e7627a1a2ed684a55c490708a06990e48676f",
       "expected_source_rows": 75,
       "notes": "Dedicated official applicant XLSX. Positive applicant title evidence yields 75 pending observations; 70/75 have structured identifiers. Source ordinal 38 is absent; raw numeric date token 46092 is retained without inference."
+    },
+    {
+      "authority_key": "grosseto",
+      "authority_name": "Prefettura di Grosseto",
+      "register_key": "grosseto-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-19",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list",
+      "last_source_update": "2026-08-27",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 27 August 2026; current September attachment bytes independently reverified on 19 September 2026; reference_date is an observation/capture boundary only",
+      "approval_mode": "raw_sha256",
+      "source_key": "grosseto-listed",
+      "parser": "grosseto_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-iscritte-white-list.xlsx",
+      "sha256": "4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18",
+      "expected_source_rows": 406,
+      "expected_sector_rows": 762,
+      "notes": "Dedicated official listed-company XLSX resolved from the current landing page. 762 section rows conservatively group to 406 observations only when identity, addresses, dates, status and note agree: 328 listed and 78 renewal/update in progress. 371/406 observations have strict structured identifiers; 35 source identifier tokens remain raw-only. Eight grouped observations have source-blank listing and expiry dates and remain blank without inference."
+    },
+    {
+      "authority_key": "grosseto",
+      "authority_name": "Prefettura di Grosseto",
+      "register_key": "grosseto-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-19",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list",
+      "last_source_update": "2026-08-27",
+      "last_source_update_basis": "official landing-page 'Ultimo aggiornamento' 27 August 2026; current September attachment bytes independently reverified on 19 September 2026; reference_date is an observation/capture boundary only",
+      "approval_mode": "raw_sha256",
+      "source_key": "grosseto-applicants",
+      "parser": "grosseto_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-richiedenti-iscrizione.xlsx",
+      "sha256": "814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248",
+      "expected_source_rows": 12,
+      "expected_sector_rows": 35,
+      "notes": "Dedicated official applicant XLSX positively exposed by the current landing page. 35 section rows conservatively group to 12 pending observations; all 12 have strict structured identifiers. No applicant population is inferred from absence or search failure."
     }
   ]
 }
