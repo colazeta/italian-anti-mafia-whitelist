@@ -123,11 +123,16 @@ jobs:
           assert carrero['name'] == 'CARRERO TRASPORTI S.r.l.'
           assert carrero['registered_office'] == "Via del Vecchio Mulino 10/12 Fraz. Cinzano Santa Vittoria d'Alba"
           assert carrero['identifier_field_raw'] == '02764820045'
+          second_spillover = listed.records[393]
+          assert second_spillover['registered_office'].endswith('Cuneo')
+          assert second_spillover['identifier_field_raw'].isdigit()
+          assert 10 <= len(second_spillover['identifier_field_raw']) <= 12
           baudino = listed.records[70]
           assert baudino['name'] == 'BAUDINO TRASPORTI S.r.l.'
           assert baudino['observed_listing_date'] == ''
           assert set(baudino['source_fields']['listing_date_raw_variants']) == {'07/01/2025', '07/01/2015'}
           assert applicants.records[0]['name'] == 'ALPHA COSTRUZIONI - INGEGNERIA SRL'
           assert applicants.records[0]['application_date'] == '2026-07-09'
+          print('second reviewed spillover:', second_spillover['name'], second_spillover['registered_office'], second_spillover['identifier_field_raw'])
           print('Cuneo parser boundary validated:', Counter(record['source_status'] for record in records))
           PY
