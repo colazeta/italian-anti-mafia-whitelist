@@ -15,15 +15,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check -e '.[dev,publication]'
-      - name: Fetch pinned official PDF twice
+      - name: Fetch and bind exact official evidence
         run: |
           URL='https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf'
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=1-${GITHUB_RUN_ID}" -o /tmp/a.pdf
           curl --fail --location --silent --show-error -H 'Cache-Control: no-cache' "$URL?_wl_diag=2-${GITHUB_RUN_ID}" -o /tmp/b.pdf
           test "$(sha256sum /tmp/a.pdf | cut -d' ' -f1)" = '060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'
           cmp /tmp/a.pdf /tmp/b.pdf
-      - name: Verify unique non-date expiry evidence
-        run: |
           python - <<'PY'
           import json, re
           from datetime import datetime
@@ -50,74 +48,54 @@ jobs:
               raise SystemExit('Trapani unique non-date expiry evidence drift: '+json.dumps(nondate,ensure_ascii=False,sort_keys=True))
           print('TRAPANI_NONDATE_EXPIRY',json.dumps(nondate[0],ensure_ascii=False,sort_keys=True))
           PY
-      - name: Apply evidence-bound parser correction
+      - name: Patch exact parser exception
         run: |
           python - <<'PY'
           from pathlib import Path
           path=Path('src/white_list_archive/parsers/trapani_tables.py')
           text=path.read_text()
-          old='''        elif identifier == "01712150819":
-            expected = {
-                "rows": 1,
-                "pages": [34],
-                "names": ["SICIL AMBIENTE DI SCATURRO AGOSTINO S.R.L."],
-                "listing_raw": ["08/04/2026"],
-                "updates": [""],
-            }
-            observed = {
-                "rows": len(rows),
-                "pages": _ordered_unique([str(row["page"]) for row in rows]),
-                "names": name_variants,
-                "listing_raw": listing_raw_variants,
-                "updates": [row["update_raw"] for row in rows],
-            }
-            if observed != {**expected, "pages": [str(value) for value in expected["pages"]]}:
-                raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")
-            non_date_expiry_records += 1
-'''
-          new='''        elif identifier == "05913370820":
-            expected = {
-                "rows": 1,
-                "pages": ["8"],
-                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],
-                "offices": ["MARSALA"],
-                "listing_raw": ["30/08/2017"],
-                "expiry_raw": [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY],
-                "updates": [""],
-            }
-            observed = {
-                "rows": len(rows),
-                "pages": _ordered_unique([str(row["page"]) for row in rows]),
-                "names": name_variants,
-                "offices": office_variants,
-                "listing_raw": listing_raw_variants,
-                "expiry_raw": expiry_raw_variants,
-                "updates": [row["update_raw"] for row in rows],
-            }
-            if observed != expected:
-                raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")
-            non_date_expiry_records += 1
-'''
-          if old in text:
-              if text.count(old) != 1:
-                  raise SystemExit('Trapani parser patch anchor count drift')
-              path.write_text(text.replace(old,new,1))
-          elif new not in text:
-              raise SystemExit('Trapani parser patch anchor missing')
+          old_anchor='        elif identifier == "01712150819":\n'
+          new_anchor='        elif identifier == "05913370820":\n'
+          if old_anchor in text:
+              if text.count(old_anchor) != 1:
+                  raise SystemExit('Trapani old parser anchor count drift')
+              start=text.index(old_anchor)
+              end=text.index('        else:\n            raise RuntimeError(\n                f"Trapani listed expiry-date evidence drift', start)
+              new_lines=[
+                  '        elif identifier == "05913370820":',
+                  '            expected = {',
+                  '                "rows": 1,',
+                  '                "pages": ["8"],',
+                  '                "names": ["CALCESTRUZZI DI ROMANO ALESSANDRO"],',
+                  '                "offices": ["MARSALA"],',
+                  '                "listing_raw": ["30/08/2017"],',
+                  '                "expiry_raw": [_LISTED_JUDICIAL_ADMINISTRATION_EXPIRY],',
+                  '                "updates": [""],',
+                  '            }',
+                  '            observed = {',
+                  '                "rows": len(rows),',
+                  '                "pages": _ordered_unique([str(row["page"]) for row in rows]),',
+                  '                "names": name_variants,',
+                  '                "offices": office_variants,',
+                  '                "listing_raw": listing_raw_variants,',
+                  '                "expiry_raw": expiry_raw_variants,',
+                  '                "updates": [row["update_raw"] for row in rows],',
+                  '            }',
+                  '            if observed != expected:',
+                  '                raise RuntimeError(f"Trapani judicial-administration expiry evidence drift: {observed!r}")',
+                  '            non_date_expiry_records += 1',
+              ]
+              path.write_text(text[:start]+'\n'.join(new_lines)+'\n'+text[end:])
+          elif text.count(new_anchor) != 1:
+              raise SystemExit('Trapani parser correction anchor missing/drifted')
           PY
-      - name: Validate corrected parser boundary
+      - name: Validate corrected parser and repository
         run: |
           python - <<'PY'
           from collections import Counter
           from pathlib import Path
           from white_list_archive.parsers.trapani_tables import parse_trapani_listed
-          cfg={
-            'authority_key':'trapani','authority_name':'Prefettura di Trapani',
-            'register_key':'trapani-ordinary','register_name':'White List ordinaria',
-            'reference_date':'2026-09-11','source_key':'trapani-listed','population_scope':'listed',
-            'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list',
-            'resource_url':'https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf',
-            'sha256':'060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'}
+          cfg={'authority_key':'trapani','authority_name':'Prefettura di Trapani','register_key':'trapani-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-11','source_key':'trapani-listed','population_scope':'listed','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list','resource_url':'https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf','sha256':'060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476'}
           batch=parse_trapani_listed(Path('/tmp/a.pdf'),cfg)
           assert len(batch.records)==333,batch.diagnostics
           assert batch.diagnostics['non_date_expiry_records']==1,batch.diagnostics
