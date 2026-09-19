@@ -1,0 +1,116 @@
+name: Lucca integration finalizer v2
+
+on:
+  push:
+    branches:
+      - expansion/lucca-2026-09-19
+    paths:
+      - .github/workflows/lucca-integration-finalizer-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact expansion head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify branch is based on current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils antiword
+          python -m pip install -e '.[publication]'
+          python -m pip install --disable-pip-version-check requests pytest
+
+      - name: Materialise reviewed integration and clean temporary mechanisms
+        run: python tmp/lucca-finalize.py
+
+      - name: Run full repository tests
+        run: pytest -q
+
+      - name: Build national candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/public-national-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count']==65267
+          assert reg['meta']['authority_count']==61
+          assert reg['meta']['register_count']==63
+          assert pref['meta']['published_count']==61
+          assert pref['meta']['mapped_count']==61
+          rows=[r for r in reg['records'] if r['authority_key']=='lucca']
+          assert len(rows)==402
+          assert sum(r['source_key']=='lucca-listed' for r in rows)==331
+          assert sum(r['source_key']=='lucca-applicants' for r in rows)==71
+          assert sum(r['source_status']=='listed' for r in rows)==229
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==102
+          assert sum(r['source_status']=='pending' for r in rows)==71
+          assert sum(bool(r['identifiers']) for r in rows)==393
+          assert len({r['record_locator'] for r in rows})==402
+          print({'records':reg['meta']['record_count'],'authorities':reg['meta']['authority_count'],'registers':reg['meta']['register_count'],'lucca':len(rows)})
+          PY
+          python -m white_list_archive.publishing.public_artifact public-site
+
+      - name: Commit clean permanent checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv; do
+            if git ls-files --error-unmatch "$p" >/dev/null 2>&1; then
+              git restore -- "$p"
+            else
+              rm -f "$p"
+            fi
+          done
+          if find .github/workflows -maxdepth 1 -type f -name 'lucca-*' | grep -q .; then
+            echo 'Temporary Lucca workflow leaked into clean checkpoint' >&2
+            exit 1
+          fi
+          if find tmp -maxdepth 1 -type f -name 'lucca-*' 2>/dev/null | grep -q .; then
+            echo 'Temporary Lucca helper leaked into clean checkpoint' >&2
+            exit 1
+          fi
+          git diff --check
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate Lucca White List sources'
+          git push origin HEAD:expansion/lucca-2026-09-19
