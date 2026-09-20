@@ -2118,6 +2118,42 @@
       "sha256": "d42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9",
       "expected_source_rows": 222,
       "notes": "Dedicated official applicant PDF positively exposed by the current landing page. 222 source-backed observations are pending and structured identifier coverage is 222/222. Twenty-three page-boundary continuation rows are joined only through exact fail-closed evidence bindings; applicant coverage is positive source evidence and is never inferred from absence."
+    },
+    {
+      "authority_key": "palermo",
+      "authority_name": "Prefettura di Palermo",
+      "register_key": "palermo-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/palermo/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-18",
+      "last_source_update": "2026-09-18",
+      "last_source_update_basis": "explicit source marker 'Ultima modifica: 18/09/2026'; source-edition boundary only, not promoted to a company legal-effect date",
+      "source_key": "palermo-listed",
+      "parser": "palermo_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/61/2026-09/whitelistelencounicoimpreseiscritte_10.pdf",
+      "sha256": "2349d3ae3dcd37e5da7fc5fdec1326a9408e00fcc0b3b78b0a0809ad75c0837f",
+      "expected_source_rows": 929,
+      "notes": "Dedicated official listed PDF positively exposed by the current landing page. The 929 observable company rows retain source numbering gaps N° 252 and N° 316; status boundary is 486 listed and 443 renewal/update in progress, with structured identifiers for 924 observations. Nine malformed identifier fields and printed expiry values 28/072027 and 20/072027 are preserved without inferential repair."
+    },
+    {
+      "authority_key": "palermo",
+      "authority_name": "Prefettura di Palermo",
+      "register_key": "palermo-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/palermo/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-17",
+      "last_source_update": "2026-09-17",
+      "last_source_update_basis": "explicit source marker 'Ultima modifica: 17/09/2026'; source-edition boundary only, not promoted to a company decision or legal-effect date",
+      "source_key": "palermo-applicants",
+      "parser": "palermo_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/61/2026-09/elencoimpreserichiedentiliscrizione-1_0.pdf",
+      "sha256": "82dd288c21c85ea563c75cbfc8346c528b603e54c3a78283a0ae67983e97f2f5",
+      "expected_source_rows": 609,
+      "notes": "Dedicated official applicant PDF positively exposed by the current landing page. It yields 609 positive pending observations across the complete numbered source population, with structured identifiers for 606 observations. Observed spelling variants and malformed identifier fields remain source evidence; no application date is inferred because the source has no application-date column."
     }
   ]
 }
