@@ -1,0 +1,126 @@
+name: Matera integration finalizer 2026-09-20
+
+on:
+  push:
+    branches:
+      - expansion/matera-2026-09-20
+    paths:
+      - .github/workflows/matera-integration-finalizer-2026-09-20.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: matera-integration-finalizer
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/matera-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify branch, canonical base and isolated scope
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "expansion/matera-2026-09-20"
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "6d88336c0ca902eee0e37071a43da1d96c28681c"
+          git merge-base --is-ancestor origin/main HEAD
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          changed="$(git diff --name-only origin/main...HEAD)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -Ev '^(\.github/workflows/matera-(source-probe|source-probe-v2|parser-validate|integration-finalizer)-2026-09-20\.yml|tmp/matera_integrate\.py|docs/sources/matera-operational-check-2026-09-20\.md|src/white_list_archive/parsers/matera_openxml\.py|tests/test_matera_parser_semantics\.py)$' | grep -q .; then
+            echo 'Unexpected pre-integration branch scope' >&2
+            exit 1
+          fi
+      - name: Install complete validation runtime
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils antiword
+          python -m pip install -e '.[dev,publication,database,storage]'
+      - name: Materialise Matera integration
+        run: |
+          set -euo pipefail
+          python tmp/matera_integrate.py
+          git diff --check
+          test -f tmp/matera-public-pages.yml
+          if git diff --name-only | grep -E '^\.github/workflows/' | grep -v '^\.github/workflows/matera-' | grep -q .; then
+            echo 'Materializer modified a permanent workflow directly' >&2
+            exit 1
+          fi
+      - name: Run focused and full repository validation
+        run: |
+          set -euo pipefail
+          pytest -q tests/test_matera_parser_semantics.py tests/test_source_registry.py tests/test_source_population_coverage.py
+          pytest -q
+      - name: Build and validate national candidate
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/matera-national
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/matera-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          reg=json.load(open('public-site/data/registry.json',encoding='utf-8'))
+          pref=json.load(open('public-site/data/prefectures.json',encoding='utf-8'))
+          records=[x for x in reg['records'] if x['authority_key']=='matera']
+          assert reg['meta']['record_count']==69055
+          assert reg['meta']['authority_count']==65
+          assert reg['meta']['register_count']==67
+          assert pref['meta']['published_count']==65
+          assert pref['meta']['mapped_count']==65
+          assert len(records)==338
+          assert Counter(x['source_key'] for x in records)==Counter({'matera-listed':248,'matera-applicants':90})
+          assert Counter(x['source_status'] for x in records)==Counter({'listed':248,'renewal_update_in_progress':49,'pending':41})
+          assert sum(bool(x['identifiers']) for x in records)==338
+          assert sum(bool(x['application_date']) for x in records)==90
+          assert sum(bool(x['observed_listing_date']) for x in records)==248
+          assert sum(bool(x['observed_expiry_date']) for x in records)==248
+          assert len({x['record_locator'] for x in records})==338
+          notes=[x for x in records if x['source_key']=='matera-listed' and 'Art. 34 bis d.lgs 159/2011 - Controllo giudiziario.' in x['source_fields'].get('notes',[])]
+          assert len(notes)==1
+          print('MATERA_NATIONAL_OK 69055/65/67/65')
+          PY
+      - name: Commit permanent checkpoint and reviewed Pages candidate
+        run: |
+          set -euo pipefail
+          git restore public-site/data 2>/dev/null || true
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py \
+            tmp/matera-public-pages.yml
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 10
+          if git diff --cached --name-only | grep -E '^\.github/workflows/|^scripts/' | grep -q .; then
+            echo 'Temporary or workflow machinery leaked into permanent checkpoint' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate Matera White List observations'
+          git push origin HEAD:expansion/matera-2026-09-20
