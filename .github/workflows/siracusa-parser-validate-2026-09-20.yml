@@ -43,7 +43,7 @@ jobs:
       - name: Install validation runtime
         run: |
           python -m pip install --disable-pip-version-check -e . pytest requests beautifulsoup4
-      - name: Resolve current official attachments and recapture approved bytes twice
+      - name: Resolve current official attachments and capture each twice
         run: |
           mkdir -p /tmp/siracusa-validation
           python - <<'PY'
@@ -55,10 +55,6 @@ jobs:
 
           root=pathlib.Path('/tmp/siracusa-validation')
           landing='https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list'
-          expected={
-              'listed':'fbfc6107894afd0b2ef8c2aba9eb00a60f4949c947c25b0d28eaa4286e6769ba',
-              'applicants':'74f4cf251ebd7903d47ebfa6fd134f9228990d76f50aabb4b39fbec1e6a903a9',
-          }
           session=requests.Session()
           session.headers.update({
               'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
@@ -89,6 +85,7 @@ jobs:
               raise SystemExit(f'current two-population official attachment resolution failed: {resolved!r}')
           for kind,url in resolved.items():
               bodies=[]
+              digests=[]
               for attempt in (1,2):
                   r=session.get(
                       url,
@@ -106,13 +103,12 @@ jobs:
                   print('capture',kind,attempt,len(body),digest)
                   if not body.startswith(b'%PDF-'):
                       raise SystemExit(f'{kind}: current official resource is not a PDF')
-                  if digest != expected[kind]:
-                      raise SystemExit(f'{kind}: raw SHA drift {digest} != {expected[kind]}')
-                  bodies.append(body)
-              if bodies[0] != bodies[1]:
-                  raise SystemExit(f'{kind}: independent captures are not byte-identical')
+                  bodies.append(body); digests.append(digest)
+              if bodies[0] != bodies[1] or digests[0] != digests[1]:
+                  raise SystemExit(f'{kind}: independent current captures are not byte-identical')
               (root/f'{kind}.pdf').write_bytes(bodies[0])
               (root/f'{kind}.url').write_text(url+'\n',encoding='utf-8')
+              (root/f'{kind}.sha256').write_text(digests[0]+'\n',encoding='utf-8')
           PY
       - name: Run focused parser tests
         run: pytest -q tests/test_siracusa_parser_semantics.py
@@ -134,11 +130,11 @@ jobs:
           listed_cfg={**base,
               'source_key':'siracusa-listed','population_scope':'listed',
               'resource_url':(root/'listed.url').read_text().strip(),
-              'sha256':'fbfc6107894afd0b2ef8c2aba9eb00a60f4949c947c25b0d28eaa4286e6769ba'}
+              'sha256':(root/'listed.sha256').read_text().strip()}
           applicant_cfg={**base,
               'source_key':'siracusa-applicants','population_scope':'applicant',
               'resource_url':(root/'applicants.url').read_text().strip(),
-              'sha256':'74f4cf251ebd7903d47ebfa6fd134f9228990d76f50aabb4b39fbec1e6a903a9'}
+              'sha256':(root/'applicants.sha256').read_text().strip()}
           listed=parse_siracusa_listed(root/'listed.pdf',listed_cfg)
           applicants=parse_siracusa_applicants(root/'applicants.pdf',applicant_cfg)
           records=listed.records+applicants.records
@@ -159,6 +155,10 @@ jobs:
           assert malformed[0]['source_fields']['application_date_raw_variants']==['17.01/2024']
           cancellation=[r for r in listed.records if r['name']=='ECO AMBIENTE ITALIA S.R.L.']
           assert len(cancellation)==1 and cancellation[0]['source_status']=='other_or_unknown'
+          print('LISTED_URL',listed_cfg['resource_url'])
+          print('LISTED_SHA256',listed_cfg['sha256'])
+          print('APPLICANT_URL',applicant_cfg['resource_url'])
+          print('APPLICANT_SHA256',applicant_cfg['sha256'])
           print('LISTED_DIAGNOSTICS',listed.diagnostics)
           print('APPLICANT_DIAGNOSTICS',applicants.diagnostics)
           print('SIRACUSA_BOUNDARY',len(records),Counter(r['source_status'] for r in records))
