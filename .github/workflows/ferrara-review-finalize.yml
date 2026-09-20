@@ -74,7 +74,7 @@ jobs:
           assert sum(r['source_status'] == 'pending' for r in ferrara_records) == 21
           assert sum(bool(r['identifiers']) for r in ferrara_records) == 1563
           assert len({r['record_locator'] for r in ferrara_records}) == 1583
-"""
+          """
           replace_once(anchor, block + anchor)
 
           assert '69474' not in text
