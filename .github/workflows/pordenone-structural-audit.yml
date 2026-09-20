@@ -1,0 +1,86 @@
+name: Pordenone structural audit
+
+on:
+  push:
+    branches:
+      - expansion/pordenone-2026-09-20
+    paths:
+      - .github/workflows/pordenone-structural-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install PDF audit runtime
+        run: python -m pip install --disable-pip-version-check pdfplumber==0.11.7
+      - name: Audit pinned Pordenone PDF geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, io, json, re
+          from urllib.request import Request, urlopen
+          import pdfplumber
+
+          assets = [
+            ('I','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-i-estrazione-fornitura-etc_0.pdf','f4e6374e5e03daa25daedd49ada730ae39c6b77437e763e3c0308aa0a0c627de'),
+            ('II','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ii-confezionamento-fornitura-etc_0.pdf','62d63a080b3025e2ee2f37c3af1d486f12095be8f83e73cae611e2ca56bf84d5'),
+            ('III','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iii-noli-a-freddo-di-macchinari.pdf','2204fe651b733e32fe13f001c97fd2c6a93ccd9a846cc9f4ddd40d4f471e6ce9'),
+            ('IV','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iv-fornitura-di-ferro-lavorato_0.pdf','55a1edd7bcc52de101536c42091e14e040892cf1122462c36b37a861c48eeb62'),
+            ('V','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-v-noli-a-caldo_0.pdf','4fcd95954d20ba19ffcfb11e64a911a637056ba2fd794d47c5d3f19171f77803'),
+            ('VI','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vi-autotrasporti-per-conto-terzi_1.pdf','62c39abfc260ecacf59b0201867263499643fe5dc36c95500e380fa53deb87aa'),
+            ('VII','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vii-guardiania-dei-cantieri.pdf','35c5ef5ddb218e50d1f5a56007f2c1886ac73b6a91c5a13fb37e4b7f4952d2c8'),
+            ('VIII','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-08/sez-viii-servizi-funerari-e-cimiteriali.pdf','cac3354a388d87b3f7ee1fef965f7b9968d2fea4dfcbafa776fc175bee5d96b3'),
+            ('IX','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ix-ristorazione-mense-e-catering.pdf','a3b7c0b749be947692cb6ebb031e21e6c2e61913f34c1ad9f4741f3a7b9e96fa'),
+            ('X','listed','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-x-servizi-ambientali-trasporto-rifiuti-etc_0.pdf','af639b5c55ff31893bfd3906876e0c60e1e6614065efae1e5c7871ac62290c0f'),
+            ('XI','applicant','https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-xi-elenco-imprese-richiedenti_edit_0.pdf','b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1'),
+          ]
+          ua='italian-anti-mafia-whitelist/1.0 structural-audit'
+          id_re=re.compile(r'(?<!\d)\d{11}(?!\d)|\b[A-Z0-9]{16}\b', re.I)
+          date_re=re.compile(r'\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b')
+
+          all_summary=[]
+          for section,pop,url,expected in assets:
+              req=Request(url,headers={'User-Agent':ua,'Cache-Control':'no-cache'})
+              with urlopen(req,timeout=60) as r: data=r.read()
+              digest=hashlib.sha256(data).hexdigest()
+              assert digest==expected,(section,digest,expected)
+              page_summaries=[]; row_total=0; table_total=0; id_rows=0; date_rows=0; samples=[]
+              with pdfplumber.open(io.BytesIO(data)) as pdf:
+                  for pno,page in enumerate(pdf.pages,1):
+                      tables=page.extract_tables() or []
+                      text=' '.join((page.extract_text() or '').split())
+                      rows_this=sum(len(t or []) for t in tables)
+                      table_total += len(tables); row_total += rows_this
+                      page_rows=[]
+                      for t in tables:
+                          for row in (t or []):
+                              cells=[' '.join((c or '').split()) for c in row]
+                              joined=' | '.join(cells)
+                              page_rows.append(joined)
+                              if id_re.search(joined): id_rows += 1
+                              if date_re.search(joined): date_rows += 1
+                              if len(samples)<8 and joined.strip(): samples.append({'page':pno,'row':cells})
+                      page_summaries.append({'page':pno,'tables':len(tables),'rows':rows_this,'text_chars':len(text),'text_head':text[:180]})
+                  summary={
+                      'section':section,'population':pop,'pages':len(pdf.pages),'tables':table_total,
+                      'physical_table_rows':row_total,'rows_with_identifier_pattern':id_rows,
+                      'rows_with_date_pattern':date_rows,'page_summaries':page_summaries,'samples':samples,
+                  }
+              all_summary.append(summary)
+              print('SECTION_SUMMARY',json.dumps(summary,ensure_ascii=False,sort_keys=True))
+          print('AUDIT_TOTALS',json.dumps({
+              'assets':len(all_summary),
+              'listed_pages':sum(x['pages'] for x in all_summary if x['population']=='listed'),
+              'applicant_pages':sum(x['pages'] for x in all_summary if x['population']=='applicant'),
+              'listed_physical_table_rows':sum(x['physical_table_rows'] for x in all_summary if x['population']=='listed'),
+              'applicant_physical_table_rows':sum(x['physical_table_rows'] for x in all_summary if x['population']=='applicant'),
+              'listed_identifier_pattern_rows':sum(x['rows_with_identifier_pattern'] for x in all_summary if x['population']=='listed'),
+              'applicant_identifier_pattern_rows':sum(x['rows_with_identifier_pattern'] for x in all_summary if x['population']=='applicant'),
+          },sort_keys=True))
+          PY
