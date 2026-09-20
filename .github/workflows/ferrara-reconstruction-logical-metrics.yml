@@ -1,0 +1,146 @@
+name: Ferrara reconstruction logical metrics
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-reconstruction-logical-metrics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -e . requests pdfplumber==0.11.10
+      - name: Freeze current reconstruction logical metrics
+        shell: python
+        run: |
+          import collections
+          import hashlib
+          import secrets
+          import tempfile
+          from pathlib import Path
+
+          import requests
+
+          from white_list_archive.parsers.ferrara_tables import (
+              _RECONSTRUCTION_SECTORS,
+              _date_is_anomalous,
+              _normalise_date_or_blank,
+              _parse_reconstruction_physical,
+              _status,
+              _strict_identifiers,
+          )
+
+          SOURCES = {
+              'A': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf', '4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01'),
+              'B': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf', '97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec'),
+              'C': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf', '99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e'),
+              'D': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf', '07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8'),
+              'E': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf', '9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e'),
+              'F': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf', 'ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664'),
+              'G': ('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf', '0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae'),
+          }
+
+          def capture(sector, root):
+              url, expected = SOURCES[sector]
+              bodies = []
+              for _ in range(2):
+                  r = requests.get(
+                      url,
+                      headers={
+                          'User-Agent': 'italian-anti-mafia-whitelist/ferrara-logical-metrics',
+                          'Cache-Control': 'no-cache',
+                          'Pragma': 'no-cache',
+                      },
+                      params={'audit_nonce': secrets.token_hex(8)},
+                      timeout=90,
+                  )
+                  r.raise_for_status()
+                  digest = hashlib.sha256(r.content).hexdigest()
+                  assert digest == expected, (sector, digest, expected, len(r.content))
+                  bodies.append(r.content)
+              assert bodies[0] == bodies[1], f'independent capture mismatch: {sector}'
+              path = root / f'{sector}.pdf'
+              path.write_bytes(bodies[0])
+              return path
+
+          def semantic_date(raw):
+              norm = _normalise_date_or_blank(raw)
+              clean = ' '.join(str(raw or '').split())
+              return norm or (f'RAW:{clean}' if clean else '')
+
+          with tempfile.TemporaryDirectory() as directory:
+              root = Path(directory)
+              paths = {sector: capture(sector, root) for sector in SOURCES}
+              physical = _parse_reconstruction_physical(paths)
+
+              groups = collections.defaultdict(list)
+              for row in physical:
+                  key = (
+                      row['identifier_raw'].casefold(),
+                      semantic_date(row['listed_raw']),
+                      semantic_date(row['expiry_raw']),
+                      _status(row['note']),
+                  )
+                  groups[key].append(row)
+
+              statuses = collections.Counter()
+              identifier_coverage = 0
+              multi_sector_groups = 0
+              date_anomalies = 0
+              semantic_variant_groups = []
+              for key, members in sorted(groups.items(), key=lambda item: item[0]):
+                  sectors = sorted({member['sector'] for member in members})
+                  representative = sorted(
+                      members,
+                      key=lambda member: (
+                          member['sector'],
+                          member['name'].casefold(),
+                          member['office'].casefold(),
+                          member['physical_locators'][0],
+                      ),
+                  )[0]
+                  statuses[_status(representative['note'])] += 1
+                  identifier_coverage += bool(_strict_identifiers(representative['identifier_raw']))
+                  multi_sector_groups += len(sectors) > 1
+                  date_anomalies += (
+                      _date_is_anomalous(representative['listed_raw'])
+                      or _date_is_anomalous(representative['expiry_raw'])
+                  )
+                  names = sorted({' '.join(m['name'].split()) for m in members}, key=str.casefold)
+                  offices = sorted({' '.join(m['office'].split()) for m in members}, key=str.casefold)
+                  notes = sorted({' '.join(m['note'].split()) for m in members if m['note'].strip()}, key=str.casefold)
+                  if len(names) > 1 or len(offices) > 1 or len(notes) > 1:
+                      semantic_variant_groups.append({
+                          'key': key,
+                          'sectors': sectors,
+                          'names': names,
+                          'offices': offices,
+                          'notes': notes,
+                          'locators': sorted(loc for m in members for loc in m['physical_locators']),
+                      })
+
+              print('FERRARA_RECONSTRUCTION_LOGICAL_METRICS')
+              print('physical', len(physical))
+              print('logical', len(groups))
+              print('statuses', dict(statuses))
+              print('identifier_coverage', identifier_coverage)
+              print('multi_sector_groups', multi_sector_groups)
+              print('date_anomalies', date_anomalies)
+              print('semantic_variant_group_count', len(semantic_variant_groups))
+              print('semantic_variant_groups')
+              for item in semantic_variant_groups:
+                  print(repr(item))
+
+              assert len(physical) == 1161
+              assert len(groups) == 694
