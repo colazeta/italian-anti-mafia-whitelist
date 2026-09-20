@@ -39,7 +39,7 @@ jobs:
           if [ -f /etc/apt/sources.list ]; then
             sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
           fi
-      - name: Install publication runtime
+      - name: Install publication and test runtime
         run: |
           for attempt in 1 2 3; do
             sudo rm -rf /var/lib/apt/lists/*
@@ -52,7 +52,7 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[publication]'
+          python -m pip install -e '.[dev]'
       - name: Materialise Pordenone integration
         run: |
           python tmp/pordenone_integrate.py
