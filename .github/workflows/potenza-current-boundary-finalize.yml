@@ -1,0 +1,154 @@
+name: Potenza current-boundary finalizer
+
+on:
+  push:
+    branches:
+      - revalidation/potenza-2026-09-20
+    paths:
+      - '.github/workflows/potenza-current-boundary-finalize.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: potenza-current-boundary-finalizer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact branch state
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify canonical base and transaction scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          expected_main='d3f119d7aca74dc93c3be064abb9b40bc46961a9'
+          actual_main="$(git rev-parse origin/main)"
+          test "$actual_main" = "$expected_main" || { echo "main advanced: $actual_main != $expected_main" >&2; exit 1; }
+          test "$(git merge-base HEAD origin/main)" = "$expected_main" || { echo 'branch no longer based on exact canonical main' >&2; exit 1; }
+          test "$(git rev-list --count HEAD..origin/main)" = '0'
+      - name: Materialise reviewed Potenza current boundary
+        run: python tmp/potenza_reapprove_current.py
+      - name: Validate edit scope and candidate workflow syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f tmp/potenza-public-pages.yml
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          yaml.safe_load(Path('tmp/potenza-public-pages.yml').read_text(encoding='utf-8'))
+          PY
+          cp tmp/potenza-public-pages.yml .github/workflows/public-pages.yml
+          git diff --check
+          node --check tests/public_portal_browser.cjs
+          python - <<'PY'
+          import subprocess
+          allowed = {
+              '.github/workflows/public-pages.yml',
+              'data/monitoring/national_coverage.json',
+              'data/publication/multi_prefecture_pilot.json',
+              'data/source_registry/source_series_inventory.csv',
+              'docs/sources/potenza-operational-check-2026-09-15.md',
+              'tests/public_portal_browser.cjs',
+          }
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          unexpected = changed - allowed
+          missing = allowed - changed
+          if unexpected:
+              raise SystemExit(f'unexpected materialised files: {sorted(unexpected)}')
+          if missing:
+              raise SystemExit(f'expected Potenza files not materialised: {sorted(missing)}')
+          PY
+      - name: Install complete validation runtime
+        shell: bash
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils antiword
+          python -m pip install -e '.[dev,database,storage,publication]'
+      - name: Run full repository validation
+        run: pytest -q
+      - name: Build and validate current national candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/potenza-national-candidate
+          mkdir -p /tmp/potenza-national-candidate/data
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/potenza-national-sources \
+            --registry-json /tmp/potenza-national-candidate/data/registry.json \
+            --registry-csv /tmp/potenza-national-candidate/data/registry.csv \
+            --prefectures-json /tmp/potenza-national-candidate/data/prefectures.json \
+            --prefectures-csv /tmp/potenza-national-candidate/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/potenza-national-candidate/data/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/potenza-national-candidate/data/prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 67179, reg['meta']
+          assert reg['meta']['authority_count'] == 63
+          assert reg['meta']['register_count'] == 65
+          assert pref['meta']['published_count'] == 63
+          assert pref['meta']['mapped_count'] == 63
+          rows = [r for r in reg['records'] if r['authority_key'] == 'potenza']
+          assert len(rows) == 1034
+          assert sum(r['source_status'] == 'listed' for r in rows) == 215
+          assert sum(r['source_status'] == 'pending' for r in rows) == 376
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in rows) == 443
+          assert len({r['record_locator'] for r in rows}) == 1034
+          assert sum(bool(r['identifiers']) for r in rows) == 1033
+          assert sum(bool(r['application_date']) for r in rows) == 1034
+          assert sum(bool(r['observed_listing_date']) for r in rows) == 658
+          assert sum(bool(r['observed_expiry_date']) for r in rows) == 658
+          assert not [r for r in rows if r['source_fields']['physical_locator'] == 'source-id:237']
+          assert len([r for r in rows if r['source_fields']['physical_locator'] == 'source-id:656']) == 1
+          assert len([r for r in rows if r['source_fields']['physical_locator'] == 'source-id:359']) == 1
+          print(json.dumps({'national_records': len(reg['records']), 'potenza_records': len(rows)}, sort_keys=True))
+          PY
+      - name: Commit reviewed non-workflow checkpoint and Pages candidate
+        shell: bash
+        env:
+          BRANCH: revalidation/potenza-2026-09-20
+        run: |
+          set -euo pipefail
+          remote_sha="$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)"
+          test "$remote_sha" = "$GITHUB_SHA" || { echo "branch advanced during finalization: $remote_sha != $GITHUB_SHA" >&2; exit 1; }
+          # Keep Actions from rewriting the production workflow in this push.
+          git checkout "$GITHUB_SHA" -- .github/workflows/public-pages.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/potenza-operational-check-2026-09-15.md \
+            tests/public_portal_browser.cjs \
+            tmp/potenza-public-pages.yml
+          staged="$(git diff --cached --name-only)"
+          expected="$(printf '%s\n' \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/potenza-operational-check-2026-09-15.md \
+            tests/public_portal_browser.cjs \
+            tmp/potenza-public-pages.yml | sort)"
+          test "$(printf '%s\n' "$staged" | sort)" = "$expected" || { echo "unexpected staged set:" >&2; printf '%s\n' "$staged" >&2; exit 1; }
+          git commit -m 'Reapprove current Potenza source boundary'
+          git push origin "HEAD:$BRANCH"
