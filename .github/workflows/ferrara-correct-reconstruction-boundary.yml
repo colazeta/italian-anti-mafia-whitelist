@@ -29,11 +29,10 @@ jobs:
           path = Path('src/white_list_archive/parsers/ferrara_tables.py')
           text = path.read_text()
           replacements = {
-              '_EXPECTED_RECONSTRUCTION_LOGICAL = 697': '_EXPECTED_RECONSTRUCTION_LOGICAL = 694',
-              '    "listed": 542,\n    "renewal_update_in_progress": 153,\n    "other_or_unknown": 2,': '    "listed": 583,\n    "renewal_update_in_progress": 109,\n    "other_or_unknown": 2,',
-              '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 683': '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 675',
-              '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 282': '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 277',
-              '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 15': '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 51',
+              '    "listed": 583,\n    "renewal_update_in_progress": 109,\n    "other_or_unknown": 2,': '    "listed": 539,\n    "renewal_update_in_progress": 153,\n    "other_or_unknown": 2,',
+              '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 675': '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 683',
+              '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 277': '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 285',
+              '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 51': '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 4',
           }
           for old, new in replacements.items():
               count = text.count(old)
@@ -49,13 +48,13 @@ jobs:
           from white_list_archive.parsers import ferrara_tables as f
           assert f._EXPECTED_RECONSTRUCTION_LOGICAL == 694
           assert f._EXPECTED_RECONSTRUCTION_STATUS_COUNTS == {
-              'listed': 583,
-              'renewal_update_in_progress': 109,
+              'listed': 539,
+              'renewal_update_in_progress': 153,
               'other_or_unknown': 2,
           }
-          assert f._EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE == 675
-          assert f._EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS == 277
-          assert f._EXPECTED_RECONSTRUCTION_DATE_ANOMALIES == 51
+          assert f._EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE == 683
+          assert f._EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS == 285
+          assert f._EXPECTED_RECONSTRUCTION_DATE_ANOMALIES == 4
           PY
           git diff --check
       - name: Commit corrected permanent parser constants
@@ -64,5 +63,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/white_list_archive/parsers/ferrara_tables.py
-          git commit -m "Correct Ferrara reconstruction parser boundary"
+          git commit -m "Correct Ferrara reconstruction parser metrics"
           git push origin HEAD:expansion/ferrara-2026-09-20
