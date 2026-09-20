@@ -1,0 +1,737 @@
+name: Public retro portal
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public-site/**'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/source_registry/verified_primary_pages.csv'
+      - 'data/source_registry/source_series_inventory.csv'
+      - 'data/source_registry/national_index_authority_aliases.csv'
+      - 'src/white_list_archive/acquisition/national_index.py'
+      - 'src/white_list_archive/publishing/public_national_registry.py'
+      - 'src/white_list_archive/publishing/public_national_build.py'
+      - 'src/white_list_archive/publishing/public_contract.py'
+      - 'src/white_list_archive/publishing/public_artifact.py'
+      - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
+      - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
+      - 'src/white_list_archive/parsers/arezzo_openxml.py'
+      - 'src/white_list_archive/parsers/avellino_positioned.py'
+      - 'src/white_list_archive/parsers/pesaro_urbino_combined.py'
+      - 'src/white_list_archive/parsers/biella_html.py'
+      - 'src/white_list_archive/parsers/benevento_positioned.py'
+      - 'src/white_list_archive/parsers/asti_positioned.py'
+      - 'src/white_list_archive/parsers/agrigento_positioned.py'
+      - 'src/white_list_archive/parsers/belluno_combined.py'
+      - 'src/white_list_archive/parsers/ascoli_piceno_labels.py'
+      - 'src/white_list_archive/parsers/ancona_combined.py'
+      - 'src/white_list_archive/parsers/bari_tables.py'
+      - 'src/white_list_archive/parsers/udine_positioned.py'
+      - 'src/white_list_archive/parsers/bergamo_positioned.py'
+      - 'src/white_list_archive/parsers/barletta_andria_trani_tables.py'
+      - 'src/white_list_archive/parsers/brindisi_tables.py'
+      - 'src/white_list_archive/parsers/cagliari_tables.py'
+      - 'src/white_list_archive/parsers/caltanissetta_tables.py'
+      - 'src/white_list_archive/parsers/crotone_tables.py'
+      - 'src/white_list_archive/parsers/campobasso_openxml.py'
+      - 'src/white_list_archive/parsers/brescia_openxml.py'
+      - 'src/white_list_archive/parsers/bolzano_docx.py'
+      - 'src/white_list_archive/parsers/caserta_tables.py'
+      - 'src/white_list_archive/parsers/catania_openxml.py'
+      - 'src/white_list_archive/parsers/genova_tables.py'
+      - 'src/white_list_archive/parsers/foggia_tables.py'
+      - 'src/white_list_archive/parsers/forli_cesena_combined.py'
+      - 'src/white_list_archive/parsers/frosinone_tables.py'
+      - 'src/white_list_archive/parsers/gorizia_tables.py'
+      - 'src/white_list_archive/parsers/napoli_tables.py'
+      - 'src/white_list_archive/parsers/padova_tables.py'
+      - 'src/white_list_archive/parsers/perugia_tables.py'
+      - 'src/white_list_archive/parsers/trento_tables.py'
+      - 'src/white_list_archive/parsers/lodi_sheets.py'
+      - 'src/white_list_archive/parsers/roma_positioned.py'
+      - 'src/white_list_archive/parsers/pisa_tables.py'
+      - 'src/white_list_archive/parsers/catanzaro_tables.py'
+      - 'src/white_list_archive/parsers/lecco_rect_tables.py'
+      - 'src/white_list_archive/parsers/torino_tables.py'
+      - 'src/white_list_archive/parsers/potenza_webapp.py'
+      - 'src/white_list_archive/parsers/sassari_openxml.py'
+      - 'src/white_list_archive/parsers/milano_webapp.py'
+      - 'src/white_list_archive/parsers/modena_tables.py'
+      - 'src/white_list_archive/parsers/como_html.py'
+      - 'src/white_list_archive/parsers/firenze_sources.py'
+      - 'src/white_list_archive/parsers/taranto_html.py'
+      - 'src/white_list_archive/parsers/lecce_tables.py'
+      - 'src/white_list_archive/parsers/messina_tables.py'
+      - 'src/white_list_archive/parsers/laquila_tables.py'
+      - 'src/white_list_archive/parsers/chieti_legacy_doc.py'
+      - 'src/white_list_archive/parsers/cremona_combined.py'
+      - 'src/white_list_archive/parsers/cuneo_positioned.py'
+      - 'src/white_list_archive/parsers/fermo_openxml.py'
+      - 'src/white_list_archive/parsers/grosseto_openxml.py'
+      - 'src/white_list_archive/parsers/imperia_sources.py'
+      - 'src/white_list_archive/parsers/lucca_tables.py'
+      - 'src/white_list_archive/parsers/trapani_tables.py'
+      - 'src/white_list_archive/parsers/palermo_positioned.py'
+      - 'src/white_list_archive/parsers/matera_openxml.py'
+      - 'src/white_list_archive/parsers/macerata_tables.py'
+      - 'pyproject.toml'
+      - '.github/workflows/public-pages.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-portal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare runner package sources
+        run: |
+          # GitHub-hosted images can declare Chrome through either a classic .list
+          # file or a deb822 .sources file. The portal does not depend on that
+          # repository, so remove only files that actually reference it. Keep this
+          # cleanup before both our package install and Playwright's later apt work.
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          if grep -RqsE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+            echo "Chrome APT source remained after targeted cleanup" >&2
+            grep -RHnE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null || true
+            exit 1
+          fi
+      - name: Install publication runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+      - name: Build approved multi-Prefecture registry
+        run: |
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+      - name: Validate public artifact and national registry
+        id: validate_public
+        run: |
+          test -f public-site/index.html
+          test -f public-site/data/site.json
+          test -f public-site/data/registry.json
+          test -f public-site/data/registry.csv
+          test -f public-site/data/prefectures.json
+          test -f public-site/data/prefectures.csv
+          node --check public-site/app.js
+          node --check public-site/summary.js
+          python -m white_list_archive.publishing.public_artifact public-site
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('public-site')
+          site = json.loads((root/'data/site.json').read_text(encoding='utf-8'))
+          reg = json.loads((root/'data/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads((root/'data/prefectures.json').read_text(encoding='utf-8'))
+
+          assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
+          assert site['meta']['public_contract_version'] == 3
+          assert reg['meta']['contract_version'] == 3
+          assert reg['meta']['record_count'] == 69055
+          assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera'}
+          assert set(reg['meta']['register_counts']) == {
+              'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
+              'bologna-provincial','bologna-post-sisma','alessandria-ordinary','aosta-ordinary','arezzo-ordinary','avellino-ordinary','pesaro-urbino-ordinary','biella-ordinary','benevento-ordinary','asti-ordinary','agrigento-ordinary','belluno-ordinary','ascoli-piceno-ordinary','ancona-ordinary','bari-ordinary','udine-ordinary','bergamo-ordinary','barletta-andria-trani-ordinary','brindisi-ordinary','cagliari-ordinary','caltanissetta-ordinary','crotone-ordinary','campobasso-ordinary','brescia-ordinary','bolzano-bozen-ordinary','caserta-ordinary','catania-ordinary','genova-ordinary','foggia-ordinary','forli-cesena-ordinary','frosinone-ordinary','gorizia-ordinary','napoli-ordinary','padova-ordinary','perugia-ordinary','trento-ordinary','lodi-ordinary','roma-ordinary','pisa-white-list','catanzaro-ordinary','lecco-ordinary','torino-ordinary','potenza-ordinary','sassari-ordinary','milano-ordinary','modena-provincial','modena-post-sisma','como-ordinary','firenze-ordinary','taranto-ordinary','lecce-ordinary','messina-ordinary','laquila-ordinary','chieti-ordinary','cremona-ordinary','cuneo-ordinary','fermo-ordinary','grosseto-ordinary','imperia-ordinary','lucca-ordinary','macerata-ordinary','trapani-ordinary','palermo-ordinary','matera-ordinary'
+          }
+          assert reg['meta']['authority_count'] == 65
+          assert reg['meta']['register_count'] == 67
+          assert reg['meta']['record_count'] == len(reg['records'])
+          assert pref['meta']['authority_count'] == 106
+          assert pref['meta']['published_count'] == 65
+          assert pref['meta']['mapped_count'] == 65
+          cremona = [x for x in pref['prefectures'] if x['authority_key'] == 'cremona']
+          assert len(cremona) == 1 and cremona[0]['mapped'] and cremona[0]['published'] and cremona[0]['series_count'] == 1
+          cremona_records = [r for r in reg['records'] if r['authority_key'] == 'cremona']
+          assert len(cremona_records) == 187
+          assert all(r['source_key'] == 'cremona-combined' for r in cremona_records)
+          assert sum(r['source_status'] == 'listed' for r in cremona_records) == 99
+          assert sum(r['source_status'] == 'pending' for r in cremona_records) == 38
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in cremona_records) == 50
+          assert sum(bool(r['identifiers']) for r in cremona_records) == 183
+          assert len({r['record_locator'] for r in cremona_records}) == 187
+          cuneo = [x for x in pref['prefectures'] if x['authority_key'] == 'cuneo']
+          assert len(cuneo) == 1 and cuneo[0]['mapped'] and cuneo[0]['published'] and cuneo[0]['series_count'] == 2
+          cuneo_records = [r for r in reg['records'] if r['authority_key'] == 'cuneo']
+          assert len(cuneo_records) == 516
+          assert sum(r['source_key'] == 'cuneo-listed' for r in cuneo_records) == 468
+          assert sum(r['source_key'] == 'cuneo-applicants' for r in cuneo_records) == 48
+          assert sum(r['source_status'] == 'listed' for r in cuneo_records) == 402
+          assert sum(r['source_status'] == 'pending' for r in cuneo_records) == 48
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in cuneo_records) == 66
+          assert sum(bool(r['identifiers']) for r in cuneo_records) == 505
+          assert len({r['record_locator'] for r in cuneo_records}) == 516
+          fermo = [x for x in pref['prefectures'] if x['authority_key'] == 'fermo']
+          assert len(fermo) == 1 and fermo[0]['mapped'] and fermo[0]['published'] and fermo[0]['series_count'] == 2
+          fermo_records = [r for r in reg['records'] if r['authority_key'] == 'fermo']
+          assert len(fermo_records) == 249
+          assert sum(r['source_key'] == 'fermo-listed' for r in fermo_records) == 174
+          assert sum(r['source_key'] == 'fermo-applicants' for r in fermo_records) == 75
+          assert sum(r['source_status'] == 'listed' for r in fermo_records) == 97
+          assert sum(r['source_status'] == 'pending' for r in fermo_records) == 75
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in fermo_records) == 77
+          assert sum(bool(r['identifiers']) for r in fermo_records) == 233
+          assert len({r['record_locator'] for r in fermo_records}) == 249
+          grosseto = [x for x in pref['prefectures'] if x['authority_key'] == 'grosseto']
+          assert len(grosseto) == 1 and grosseto[0]['mapped'] and grosseto[0]['published'] and grosseto[0]['series_count'] == 2
+          grosseto_records = [r for r in reg['records'] if r['authority_key'] == 'grosseto']
+          assert len(grosseto_records) == 418
+          assert sum(r['source_key'] == 'grosseto-listed' for r in grosseto_records) == 406
+          assert sum(r['source_key'] == 'grosseto-applicants' for r in grosseto_records) == 12
+          assert sum(r['source_status'] == 'listed' for r in grosseto_records) == 328
+          assert sum(r['source_status'] == 'pending' for r in grosseto_records) == 12
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in grosseto_records) == 78
+          assert sum(bool(r['identifiers']) for r in grosseto_records) == 383
+          assert len({r['record_locator'] for r in grosseto_records}) == 418
+          imperia = [x for x in pref['prefectures'] if x['authority_key'] == 'imperia']
+          assert len(imperia) == 1 and imperia[0]['mapped'] and imperia[0]['published'] and imperia[0]['series_count'] == 2
+          imperia_records = [r for r in reg['records'] if r['authority_key'] == 'imperia']
+          assert len(imperia_records) == 273
+          assert sum(r['source_key'] == 'imperia-listed' for r in imperia_records) == 142
+          assert sum(r['source_key'] == 'imperia-applicants' for r in imperia_records) == 131
+          assert sum(r['source_status'] == 'listed' for r in imperia_records) == 222
+          assert sum(r['source_status'] == 'pending' for r in imperia_records) == 6
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in imperia_records) == 37
+          assert sum(r['source_status'] == 'cancellation_related' for r in imperia_records) == 5
+          assert sum(r['source_status'] == 'other_or_unknown' for r in imperia_records) == 3
+          assert sum(bool(r['identifiers']) for r in imperia_records) == 257
+          assert len({r['record_locator'] for r in imperia_records}) == 273
+          lucca = [x for x in pref['prefectures'] if x['authority_key'] == 'lucca']
+          assert len(lucca) == 1 and lucca[0]['mapped'] and lucca[0]['published'] and lucca[0]['series_count'] == 2
+          lucca_records = [r for r in reg['records'] if r['authority_key'] == 'lucca']
+          assert len(lucca_records) == 402
+          assert sum(r['source_key'] == 'lucca-listed' for r in lucca_records) == 331
+          assert sum(r['source_key'] == 'lucca-applicants' for r in lucca_records) == 71
+          assert sum(r['source_status'] == 'listed' for r in lucca_records) == 229
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lucca_records) == 102
+          assert sum(r['source_status'] == 'pending' for r in lucca_records) == 71
+          assert sum(bool(r['identifiers']) for r in lucca_records) == 393
+          assert len({r['record_locator'] for r in lucca_records}) == 402
+          trapani = [x for x in pref['prefectures'] if x['authority_key'] == 'trapani']
+          assert len(trapani) == 1 and trapani[0]['mapped'] and trapani[0]['published'] and trapani[0]['series_count'] == 2
+          trapani_records = [r for r in reg['records'] if r['authority_key'] == 'trapani']
+          assert len(trapani_records) == 555
+          assert sum(r['source_key'] == 'trapani-listed' for r in trapani_records) == 333
+          assert sum(r['source_key'] == 'trapani-applicants' for r in trapani_records) == 222
+          assert sum(r['source_status'] == 'listed' for r in trapani_records) == 177
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in trapani_records) == 156
+          assert sum(r['source_status'] == 'pending' for r in trapani_records) == 222
+          assert sum(bool(r['identifiers']) for r in trapani_records) == 555
+          assert len({r['record_locator'] for r in trapani_records}) == 555
+          palermo = [x for x in pref['prefectures'] if x['authority_key'] == 'palermo']
+          assert len(palermo) == 1 and palermo[0]['mapped'] and palermo[0]['published'] and palermo[0]['series_count'] == 2
+          palermo_records = [r for r in reg['records'] if r['authority_key'] == 'palermo']
+          assert len(palermo_records) == 1538
+          assert sum(r['source_key'] == 'palermo-listed' for r in palermo_records) == 929
+          assert sum(r['source_key'] == 'palermo-applicants' for r in palermo_records) == 609
+          assert sum(r['source_status'] == 'listed' for r in palermo_records) == 486
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in palermo_records) == 443
+          assert sum(r['source_status'] == 'pending' for r in palermo_records) == 609
+          assert sum(bool(r['identifiers']) for r in palermo_records) == 1530
+          assert len({r['record_locator'] for r in palermo_records}) == 1538
+          matera = [x for x in pref['prefectures'] if x['authority_key'] == 'matera']
+          assert len(matera) == 1 and matera[0]['mapped'] and matera[0]['published'] and matera[0]['series_count'] == 2
+          matera_records = [r for r in reg['records'] if r['authority_key'] == 'matera']
+          assert len(matera_records) == 338
+          assert sum(r['source_key'] == 'matera-listed' for r in matera_records) == 248
+          assert sum(r['source_key'] == 'matera-applicants' for r in matera_records) == 90
+          assert sum(r['source_status'] == 'listed' for r in matera_records) == 248
+          assert sum(r['source_status'] == 'pending' for r in matera_records) == 41
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in matera_records) == 49
+          assert sum(bool(r['identifiers']) for r in matera_records) == 338
+          assert sum(bool(r['application_date']) for r in matera_records) == 90
+          assert sum(bool(r['observed_listing_date']) for r in matera_records) == 248
+          assert sum(bool(r['observed_expiry_date']) for r in matera_records) == 248
+          assert len({r['record_locator'] for r in matera_records}) == 338
+          macerata = [x for x in pref['prefectures'] if x['authority_key'] == 'macerata']
+          assert len(macerata) == 1 and macerata[0]['mapped'] and macerata[0]['published'] and macerata[0]['series_count'] == 2
+          macerata_records = [r for r in reg['records'] if r['authority_key'] == 'macerata']
+          assert len(macerata_records) == 1358
+          assert sum(r['source_key'] == 'macerata-listed' for r in macerata_records) == 1274
+          assert sum(r['source_key'] == 'macerata-applicants' for r in macerata_records) == 84
+          assert sum(r['source_status'] == 'listed' for r in macerata_records) == 880
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in macerata_records) == 394
+          assert sum(r['source_status'] == 'pending' for r in macerata_records) == 83
+          assert sum(r['source_status'] == 'other_or_unknown' for r in macerata_records) == 1
+          assert sum(bool(r['identifiers']) for r in macerata_records) == 1320
+          assert len({r['record_locator'] for r in macerata_records}) == 1358
+          bolzano = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Bolzano']
+          assert len(bolzano) == 1 and bolzano[0]['mapped'] and bolzano[0]['published'] and bolzano[0]['series_count'] > 0
+          caserta = [x for x in pref['prefectures'] if x['authority_key'] == 'caserta']
+          assert len(caserta) == 1 and caserta[0]['mapped'] and caserta[0]['published'] and caserta[0]['series_count'] > 0
+          catania = [x for x in pref['prefectures'] if x['authority_key'] == 'catania']
+          assert len(catania) == 1 and catania[0]['mapped'] and catania[0]['published'] and catania[0]['series_count'] == 2
+          genova = [x for x in pref['prefectures'] if x['authority_key'] == 'genova']
+          assert len(genova) == 1 and genova[0]['mapped'] and genova[0]['published'] and genova[0]['series_count'] == 2
+          foggia = [x for x in pref['prefectures'] if x['authority_key'] == 'foggia']
+          assert len(foggia) == 1 and foggia[0]['mapped'] and foggia[0]['published'] and foggia[0]['series_count'] == 2
+          forli = [x for x in pref['prefectures'] if x['authority_key'] == 'forli-cesena']
+          assert len(forli) == 1 and forli[0]['mapped'] and forli[0]['published'] and forli[0]['series_count'] == 1
+          frosinone = [x for x in pref['prefectures'] if x['authority_key'] == 'frosinone']
+          assert len(frosinone) == 1 and frosinone[0]['mapped'] and frosinone[0]['published'] and frosinone[0]['series_count'] == 2
+          gorizia = [x for x in pref['prefectures'] if x['authority_key'] == 'gorizia']
+          assert len(gorizia) == 1 and gorizia[0]['mapped'] and gorizia[0]['published'] and gorizia[0]['series_count'] == 2
+          napoli = [x for x in pref['prefectures'] if x['authority_key'] == 'napoli']
+          assert len(napoli) == 1 and napoli[0]['mapped'] and napoli[0]['published'] and napoli[0]['series_count'] == 2
+          padova = [x for x in pref['prefectures'] if x['authority_key'] == 'padova']
+          assert len(padova) == 1 and padova[0]['mapped'] and padova[0]['published'] and padova[0]['series_count'] == 2
+          perugia = [x for x in pref['prefectures'] if x['authority_key'] == 'perugia']
+          assert len(perugia) == 1 and perugia[0]['mapped'] and perugia[0]['published'] and perugia[0]['series_count'] == 2
+          trento = [x for x in pref['prefectures'] if x['authority_key'] == 'trento']
+          assert len(trento) == 1 and trento[0]['mapped'] and trento[0]['published'] and trento[0]['series_count'] == 2
+          lodi = [x for x in pref['prefectures'] if x['authority_key'] == 'lodi']
+          assert len(lodi) == 1 and lodi[0]['mapped'] and lodi[0]['published'] and lodi[0]['series_count'] == 2
+          lodi_records = [r for r in reg['records'] if r['authority_key'] == 'lodi']
+          assert len(lodi_records) == 173
+          assert sum(r['source_key'] == 'lodi-listed' for r in lodi_records) == 169
+          assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 4
+          assert sum(r['source_status'] == 'listed' for r in lodi_records) == 144
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 25
+          assert sum(r['source_status'] == 'pending' for r in lodi_records) == 2
+          assert sum(r['source_status'] == 'rejected_or_denied' for r in lodi_records) == 2
+          assert sorted(r['decision_date'] for r in lodi_records if r['source_status'] == 'rejected_or_denied') == ['2021-06-17','2022-11-17']
+          roma = [x for x in pref['prefectures'] if x['authority_key'] == 'roma']
+          assert len(roma) == 1 and roma[0]['mapped'] and roma[0]['published'] and roma[0]['series_count'] == 2
+          roma_records = [r for r in reg['records'] if r['authority_key'] == 'roma']
+          assert len(roma_records) == 4428
+          assert sum(r['source_key'] == 'roma-listed' for r in roma_records) == 2169
+          assert sum(r['source_key'] == 'roma-applicants' for r in roma_records) == 2259
+          assert sum(r['source_status'] == 'listed' for r in roma_records) == 1215
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in roma_records) == 957
+          assert sum(r['source_status'] == 'pending' for r in roma_records) == 2256
+          assert len({r['record_locator'] for r in roma_records}) == 4428
+          pisa = [x for x in pref['prefectures'] if x['authority_key'] == 'pisa']
+          assert len(pisa) == 1 and pisa[0]['mapped'] and pisa[0]['published'] and pisa[0]['series_count'] == 3
+          pisa_records = [r for r in reg['records'] if r['authority_key'] == 'pisa']
+          assert len(pisa_records) == 449
+          assert sum(r['source_key'] == 'pisa-listed' for r in pisa_records) == 398
+          assert sum(r['source_key'] == 'pisa-applicants' for r in pisa_records) == 18
+          assert sum(r['source_key'] == 'pisa-renewal-update' for r in pisa_records) == 33
+          assert sum(r['source_status'] == 'listed' for r in pisa_records) == 398
+          assert sum(r['source_status'] == 'pending' for r in pisa_records) == 18
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in pisa_records) == 33
+          assert len({r['record_locator'] for r in pisa_records}) == 449
+          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-listed') == 397
+          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-applicants') == 18
+          assert sum(bool(r['identifiers']) for r in pisa_records if r['source_key'] == 'pisa-renewal-update') == 33
+          catanzaro = [x for x in pref['prefectures'] if x['authority_key'] == 'catanzaro']
+          assert len(catanzaro) == 1 and catanzaro[0]['mapped'] and catanzaro[0]['published'] and catanzaro[0]['series_count'] == 2
+          catanzaro_records = [r for r in reg['records'] if r['authority_key'] == 'catanzaro']
+          assert len(catanzaro_records) == 887
+          assert sum(r['source_key'] == 'catanzaro-listed' for r in catanzaro_records) == 610
+          assert sum(r['source_key'] == 'catanzaro-applicants' for r in catanzaro_records) == 277
+          assert sum(r['source_status'] == 'listed' for r in catanzaro_records) == 377
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in catanzaro_records) == 233
+          assert sum(r['source_status'] == 'pending' for r in catanzaro_records) == 277
+          assert len({r['record_locator'] for r in catanzaro_records}) == 887
+          assert sum(bool(r['identifiers']) for r in catanzaro_records if r['source_key'] == 'catanzaro-listed') == 601
+          assert sum(bool(r['identifiers']) for r in catanzaro_records if r['source_key'] == 'catanzaro-applicants') == 272
+          assert sum(
+              r['source_key'] == 'catanzaro-applicants'
+              and r.get('source_fields', {}).get('application_date_raw') == '1/8/12/2025'
+              and r.get('application_date') == ''
+              for r in catanzaro_records
+          ) == 1
+          lecco = [x for x in pref['prefectures'] if x['authority_key'] == 'lecco']
+          assert len(lecco) == 1 and lecco[0]['mapped'] and lecco[0]['published'] and lecco[0]['series_count'] == 2
+          lecco_records = [r for r in reg['records'] if r['authority_key'] == 'lecco']
+          assert len(lecco_records) == 256
+          assert sum(r['source_key'] == 'lecco-listed' for r in lecco_records) == 230
+          assert sum(r['source_key'] == 'lecco-applicants' for r in lecco_records) == 26
+          assert sum(r['source_status'] == 'listed' for r in lecco_records) == 201
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lecco_records) == 29
+          assert sum(r['source_status'] == 'pending' for r in lecco_records) == 22
+          assert sum(r['source_status'] == 'rejected_or_denied' for r in lecco_records) == 4
+          assert len({r['record_locator'] for r in lecco_records}) == 256
+          assert sum(bool(r['identifiers']) for r in lecco_records if r['source_key'] == 'lecco-listed') == 228
+          assert sum(bool(r['identifiers']) for r in lecco_records if r['source_key'] == 'lecco-applicants') == 26
+          termoidraulica = [r for r in lecco_records if r['source_key'] == 'lecco-listed' and r['name'] == 'Termoidraulica']
+          assert len(termoidraulica) == 1
+          assert termoidraulica[0]['identifier_field_raw'] == '035180050137'
+          assert termoidraulica[0]['identifiers'] == []
+          assert termoidraulica[0]['requested_activities'] == []
+          edilnord = [r for r in lecco_records if r['source_key'] == 'lecco-applicants' and r['identifier_field_raw'] == '01882770132']
+          assert len(edilnord) == 3
+          assert sorted(r['application_date'] for r in edilnord) == ['2013-12-12','2016-01-29','2017-04-18']
+          torino = [x for x in pref['prefectures'] if x['authority_key'] == 'torino']
+          assert len(torino) == 1 and torino[0]['mapped'] and torino[0]['published'] and torino[0]['series_count'] == 2
+          torino_records = [r for r in reg['records'] if r['authority_key'] == 'torino']
+          assert len(torino_records) == 1663
+          assert sum(r['source_key'] == 'torino-listed' for r in torino_records) == 1501
+          assert sum(r['source_key'] == 'torino-applicants' for r in torino_records) == 162
+          assert sum(r['source_status'] == 'listed' for r in torino_records) == 1237
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in torino_records) == 264
+          assert sum(r['source_status'] == 'pending' for r in torino_records) == 162
+          assert len({r['record_locator'] for r in torino_records}) == 1663
+          assert sum(bool(r['identifiers']) for r in torino_records if r['source_key'] == 'torino-listed') == 1496
+          assert sum(bool(r['identifiers']) for r in torino_records if r['source_key'] == 'torino-applicants') == 162
+          assert sum(r['source_key'] == 'torino-listed' and r['application_date'] == '' for r in torino_records) == 1241
+          potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']
+          assert len(potenza) == 1 and potenza[0]['mapped'] and potenza[0]['published'] and potenza[0]['series_count'] == 1
+          potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']
+          assert len(potenza_records) == 1034
+          assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)
+          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 215
+          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 376
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 443
+          assert len({r['record_locator'] for r in potenza_records}) == 1034
+          assert sum(bool(r['identifiers']) for r in potenza_records) == 1033
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1
+          assert sum(bool(r['application_date']) for r in potenza_records) == 1034
+          assert sum(bool(r['observed_listing_date']) for r in potenza_records) == 658
+          assert sum(bool(r['observed_expiry_date']) for r in potenza_records) == 658
+          assert sum(bool(r['requested_activities']) for r in potenza_records) == 0
+          assert all(r['parser_name'] == 'potenza_combined' and r['parser_version'] == '2' for r in potenza_records)
+          assert all(r['source_fields']['physical_locator'].startswith('source-id:') for r in potenza_records)
+          assert sum(bool(r['source_fields']['notes']) for r in potenza_records) == 1
+          gap = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:903']
+          assert len(gap) == 1
+          assert gap[0]['name'] == 'GAP S.R.L.S.'
+          assert gap[0]['source_status'] == 'renewal_update_in_progress'
+          assert gap[0]['observed_listing_date'] == '2024-11-28'
+          assert gap[0]['observed_expiry_date'] == '2025-11-28'
+          assert gap[0]['source_fields']['in_aggiornamento'] == '1'
+          assert not [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:237']
+          scavone = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:656']
+          assert len(scavone) == 1
+          assert scavone[0]['name'] == 'SCAVONE & C. S.R.L.'
+          assert scavone[0]['identifier_field_raw'] == '01652690767'
+          assert scavone[0]['source_status'] == 'pending'
+          assert scavone[0]['application_date'] == '2026-09-16'
+          malaspina = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:359']
+          assert len(malaspina) == 1
+          assert malaspina[0]['name'] == 'MALASPINA S.R.L.'
+          assert malaspina[0]['source_status'] == 'renewal_update_in_progress'
+          assert malaspina[0]['observed_listing_date'] == '2018-10-18'
+          assert malaspina[0]['observed_expiry_date'] == '2026-10-18'
+          assert malaspina[0]['source_fields']['in_aggiornamento'] == '1'
+          sassari = [x for x in pref['prefectures'] if x['authority_key'] == 'sassari']
+          assert len(sassari) == 1 and sassari[0]['mapped'] and sassari[0]['published'] and sassari[0]['series_count'] == 1
+          sassari_records = [r for r in reg['records'] if r['authority_key'] == 'sassari']
+          assert len(sassari_records) == 478
+          assert all(r['source_key'] == 'sassari-combined' for r in sassari_records)
+          assert sum(r['source_status'] == 'listed' for r in sassari_records) == 335
+          assert sum(r['source_status'] == 'pending' for r in sassari_records) == 129
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in sassari_records) == 12
+          assert sum(r['source_status'] == 'expired_observed' for r in sassari_records) == 1
+          assert sum(r['source_status'] == 'other_or_unknown' for r in sassari_records) == 1
+          assert len({r['record_locator'] for r in sassari_records}) == 478
+          assert sum(bool(r['identifiers']) for r in sassari_records) == 472
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in sassari_records) == 6
+          assert all(r['requested_activities'] for r in sassari_records)
+          assert all(r['parser_name'] == 'sassari_combined' and r['parser_version'] == '1' for r in sassari_records)
+          assert all(r['source_fields']['physical_locator'].startswith('Foglio1!') for r in sassari_records)
+          malformed_date = [r for r in sassari_records if r['name'] == 'M.I.A. SRL']
+          assert len(malformed_date) == 1
+          assert malformed_date[0]['source_fields']['application_date_raw'] == '129.01.2025'
+          assert malformed_date[0]['application_date'] == ''
+          column_swap = [r for r in sassari_records if r['name'] == 'DE.SCA.RI DEL GEOM. CALIA GIANLUCA']
+          assert len(column_swap) == 1
+          assert column_swap[0]['registered_office'] == 'CLAGLC74B11E736M'
+          assert column_swap[0]['identifier_field_raw'] == 'OLBIA'
+          milano = [x for x in pref['prefectures'] if x['authority_key'] == 'milano']
+          assert len(milano) == 1 and milano[0]['mapped'] and milano[0]['published'] and milano[0]['series_count'] == 1
+          milano_records = [r for r in reg['records'] if r['authority_key'] == 'milano']
+          assert len(milano_records) == 2611
+          assert all(r['source_key'] == 'milano-combined' for r in milano_records)
+          assert sum(r['source_status'] == 'listed' for r in milano_records) == 948
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 516
+          assert sum(r['source_status'] == 'pending' for r in milano_records) == 1147
+          assert len({r['record_locator'] for r in milano_records}) == 2611
+          assert sum(bool(r['identifiers']) for r in milano_records) == 2611
+          removed_milano = {'04793740962','06960770961','07693660156','09835880155','10674330963','11016700152'}
+          assert not removed_milano & {r['identifier_field_raw'] for r in milano_records}
+          assert all(r['requested_activities'] for r in milano_records)
+          assert sum(bool(r['application_date']) for r in milano_records) == 1147
+          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 948
+          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 948
+          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-17'
+          current_milano = {r['identifier_field_raw']: r for r in milano_records}
+          assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))
+          assert not {'12957130961','13540670968','14580020965'} & set(current_milano)
+          assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))
+          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' for k in ('01843860543','08402360963','09406080961','11572370960'))
+          assert all(current_milano[k]['source_status'] == 'renewal_update_in_progress' and not current_milano[k]['observed_listing_date'] and not current_milano[k]['observed_expiry_date'] for k in ('00936150150','13072070157'))
+          assert all(current_milano[k]['source_status'] == 'listed' and not current_milano[k]['application_date'] and current_milano[k]['observed_listing_date'] == '2026-09-18' and current_milano[k]['observed_expiry_date'] == '2027-09-18' for k in ('00772460150','03998810612','06363290963','06895800966','07299620158','07883430964','10899610967','11328240152','11350850969','13102060152'))
+          pending_16 = {(r['name'], r['identifier_field_raw']) for r in milano_records if r['source_status'] == 'pending' and r['application_date'] == '2026-09-16'}
+          assert pending_16 == {
+              ('SV VERNICIATURE INDUSTRIALI S.R.L.', '02685280394'),
+              ('G.B.C. INDUSTRIAL TOOLS SPA', '07639230155'),
+              ('VERNIA SRL', '11967860153'),
+              ('CARBON SUD TRASPORTI E SERVIZI S.R.L.', '14302100962'),
+          }
+          noted_milano = [r for r in milano_records if r['source_fields']['notes']]
+          assert len(noted_milano) == 1 and noted_milano[0]['name'] == 'COMOTER SRL'
+          assert noted_milano[0]['source_fields']['notes'] == ['Misura di prevenzione collaborativa ex art. 94 bis D.lgs.159/2011 in data 18/04/2024, per la durata di un anno']
+          assert all(len(r['source_fields']['sections']) == len(r['source_fields']['physical_locators']) for r in milano_records)
+          assert all(
+              r['source_fields']['application_date_raw_variants']
+              if r['source_status'] == 'pending'
+              else not r['source_fields']['application_date_raw_variants']
+              for r in milano_records
+          )
+          assert all(
+              r['source_fields']['listing_date_raw_variants'] and r['source_fields']['expiry_date_raw_variants']
+              if r['source_status'] == 'listed'
+              else not r['source_fields']['listing_date_raw_variants'] and not r['source_fields']['expiry_date_raw_variants']
+              for r in milano_records
+          )
+          assert all(
+              r['source_fields']['in_aggiornamento'] == 'IN AGGIORNAMENTO'
+              if r['source_status'] == 'renewal_update_in_progress'
+              else r['source_fields']['in_aggiornamento'] == ''
+              for r in milano_records
+          )
+          como = [x for x in pref['prefectures'] if x['authority_key'] == 'como']
+          assert len(como) == 1 and como[0]['mapped'] and como[0]['published'] and como[0]['series_count'] == 2
+          como_records = [r for r in reg['records'] if r['authority_key'] == 'como']
+          assert len(como_records) == 409
+          assert sum(r['source_key'] == 'como-listed' for r in como_records) == 391
+          assert sum(r['source_key'] == 'como-applicants' for r in como_records) == 18
+          assert sum(r['source_status'] == 'listed' for r in como_records) == 359
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in como_records) == 32
+          assert sum(r['source_status'] == 'pending' for r in como_records) == 18
+          assert len({r['record_locator'] for r in como_records}) == 409
+          assert sum(bool(r['identifiers']) for r in como_records) == 405
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 3
+          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in como_records) == 1
+          firenze = [x for x in pref['prefectures'] if x['authority_key'] == 'firenze']
+          assert len(firenze) == 1 and firenze[0]['mapped'] and firenze[0]['published'] and firenze[0]['series_count'] == 2
+          firenze_records = [r for r in reg['records'] if r['authority_key'] == 'firenze']
+          assert len(firenze_records) == 664
+          assert sum(r['source_key'] == 'firenze-listed' for r in firenze_records) == 539
+          assert sum(r['source_key'] == 'firenze-applicants' for r in firenze_records) == 125
+          assert sum(r['source_status'] == 'listed' for r in firenze_records) == 429
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in firenze_records) == 110
+          assert sum(r['source_status'] == 'pending' for r in firenze_records) == 125
+          assert len({r['record_locator'] for r in firenze_records}) == 664
+          assert sum(bool(r['identifiers']) for r in firenze_records) == 660
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in firenze_records) == 4
+          firenze_applicants = [r for r in firenze_records if r['source_key'] == 'firenze-applicants']
+          assert sum(not bool(r['registered_office']) for r in firenze_applicants) == 2
+          taranto = [x for x in pref['prefectures'] if x['authority_key'] == 'taranto']
+          assert len(taranto) == 1 and taranto[0]['mapped'] and taranto[0]['published'] and taranto[0]['series_count'] == 2
+          taranto_records = [r for r in reg['records'] if r['authority_key'] == 'taranto']
+          assert len(taranto_records) == 600
+          assert sum(r['source_key'] == 'taranto-listed' for r in taranto_records) == 388
+          assert sum(r['source_key'] == 'taranto-applicants' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'listed' for r in taranto_records) == 212
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in taranto_records) == 176
+          assert sum(r['source_status'] == 'pending' for r in taranto_records) == 212
+          assert len({r['record_locator'] for r in taranto_records}) == 600
+          assert sum(bool(r['identifiers']) for r in taranto_records) == 592
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in taranto_records) == 8
+          assert sum(bool(r.get('source_fields', {}).get('malformed_date_pairs')) for r in taranto_records if r['source_key'] == 'taranto-listed') == 8
+          lecce = [x for x in pref['prefectures'] if x['authority_key'] == 'lecce']
+          assert len(lecce) == 1 and lecce[0]['mapped'] and lecce[0]['published'] and lecce[0]['series_count'] == 2
+          lecce_records = [r for r in reg['records'] if r['authority_key'] == 'lecce']
+          assert len(lecce_records) == 915
+          assert sum(r['source_key'] == 'lecce-listed' for r in lecce_records) == 825
+          assert sum(r['source_key'] == 'lecce-applicants' for r in lecce_records) == 90
+          assert sum(r['source_status'] == 'listed' for r in lecce_records) == 582
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lecce_records) == 243
+          assert sum(r['source_status'] == 'pending' for r in lecce_records) == 90
+          assert len({r['record_locator'] for r in lecce_records}) == 915
+          assert sum(bool(r['identifiers']) for r in lecce_records) == 894
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in lecce_records) == 20
+          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in lecce_records) == 1
+          assert sum(not bool(r['observed_listing_date']) and bool(r['source_fields']['listing_date_raw_variants']) for r in lecce_records if r['source_key'] == 'lecce-listed') == 4
+          assert sum(not bool(r['observed_expiry_date']) and bool(r['source_fields']['expiry_date_raw_variants']) for r in lecce_records if r['source_key'] == 'lecce-listed') == 2
+          messina = [x for x in pref['prefectures'] if x['authority_key'] == 'messina']
+          assert len(messina) == 1 and messina[0]['mapped'] and messina[0]['published'] and messina[0]['series_count'] == 2
+          messina_records = [r for r in reg['records'] if r['authority_key'] == 'messina']
+          assert len(messina_records) == 1034
+          assert sum(r['source_key'] == 'messina-listed' for r in messina_records) == 880
+          assert sum(r['source_key'] == 'messina-applicants' for r in messina_records) == 154
+          assert sum(r['source_status'] == 'listed' for r in messina_records) == 663
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in messina_records) == 217
+          assert sum(r['source_status'] == 'pending' for r in messina_records) == 154
+          assert len({r['record_locator'] for r in messina_records}) == 1034
+          assert sum(bool(r['identifiers']) for r in messina_records) == 1033
+          assert sum(not bool(r['identifier_field_raw']) and not r['identifiers'] for r in messina_records) == 1
+          assert sum(len(r['identifiers']) for r in messina_records) == 1034
+          laquila = [x for x in pref['prefectures'] if x['authority_key'] == 'laquila']
+          assert len(laquila) == 1 and laquila[0]['mapped'] and laquila[0]['published'] and laquila[0]['series_count'] == 2
+          laquila_records = [r for r in reg['records'] if r['authority_key'] == 'laquila']
+          assert len(laquila_records) == 695
+          assert sum(r['source_key'] == 'laquila-listed' for r in laquila_records) == 419
+          assert sum(r['source_key'] == 'laquila-applicants' for r in laquila_records) == 276
+          assert sum(r['source_status'] == 'listed' for r in laquila_records) == 209
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in laquila_records) == 210
+          assert sum(r['source_status'] == 'pending' for r in laquila_records) == 276
+          assert len({r['record_locator'] for r in laquila_records}) == 695
+          assert sum(bool(r['identifiers']) for r in laquila_records) == 690
+          assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in laquila_records) == 5
+          assert sum(not bool(r['observed_expiry_date']) and r['source_fields'].get('expiry_date_raw_variants') == ['28/06/207'] for r in laquila_records if r['source_key'] == 'laquila-listed') == 1
+          modena = [x for x in pref['prefectures'] if x['authority_key'] == 'modena']
+          assert len(modena) == 1 and modena[0]['mapped'] and modena[0]['published'] and modena[0]['series_count'] == 4
+          modena_records = [r for r in reg['records'] if r['authority_key'] == 'modena']
+          assert len(modena_records) == 3792
+          assert sum(r['source_key'] == 'modena-provincial-listed' for r in modena_records) == 1181
+          assert sum(r['source_key'] == 'modena-provincial-applicants' for r in modena_records) == 502
+          assert sum(r['source_key'] == 'modena-post-sisma-listed' for r in modena_records) == 1679
+          assert sum(r['source_key'] == 'modena-post-sisma-applicants' for r in modena_records) == 430
+          assert sum(r['source_status'] == 'listed' for r in modena_records) == 1560
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in modena_records) == 1300
+          assert sum(r['source_status'] == 'pending' for r in modena_records) == 932
+          assert len({r['record_locator'] for r in modena_records}) == 3792
+          assert sum(bool(r['identifiers']) for r in modena_records) == 3751
+          alessandria = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Alessandria']
+          assert len(alessandria) == 1 and alessandria[0]['mapped'] and alessandria[0]['published']
+          aosta = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Aosta']
+          assert len(aosta) == 1 and aosta[0]['mapped'] and aosta[0]['published']
+          arezzo = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Arezzo']
+          assert len(arezzo) == 1 and arezzo[0]['mapped'] and arezzo[0]['published']
+          avellino = [x for x in pref['prefectures'] if x['jurisdiction_name'] == 'Avellino']
+          assert len(avellino) == 1 and avellino[0]['mapped'] and avellino[0]['published']
+          pesaro = [x for x in pref['prefectures'] if x['authority_key'] == 'pesaro-e-urbino']
+          assert len(pesaro) == 1 and pesaro[0]['mapped'] and pesaro[0]['published']
+          biella = [x for x in pref['prefectures'] if x['authority_key'] == 'biella']
+          assert len(biella) == 1 and biella[0]['mapped'] and biella[0]['published']
+          benevento = [x for x in pref['prefectures'] if x['authority_key'] == 'benevento']
+          assert len(benevento) == 1 and benevento[0]['mapped'] and benevento[0]['published']
+          asti = [x for x in pref['prefectures'] if x['authority_key'] == 'asti']
+          assert len(asti) == 1 and asti[0]['mapped'] and asti[0]['published']
+          agrigento = [x for x in pref['prefectures'] if x['authority_key'] == 'agrigento']
+          assert len(agrigento) == 1 and agrigento[0]['mapped'] and agrigento[0]['published']
+          belluno = [x for x in pref['prefectures'] if x['authority_key'] == 'belluno']
+          assert len(belluno) == 1 and belluno[0]['mapped'] and belluno[0]['published']
+          ascoli = [x for x in pref['prefectures'] if x['authority_key'] == 'ascoli-piceno']
+          assert len(ascoli) == 1 and ascoli[0]['mapped'] and ascoli[0]['published']
+          ancona = [x for x in pref['prefectures'] if x['authority_key'] == 'ancona']
+          assert len(ancona) == 1 and ancona[0]['mapped'] and ancona[0]['published']
+          bari = [x for x in pref['prefectures'] if x['authority_key'] == 'bari']
+          assert len(bari) == 1 and bari[0]['mapped'] and bari[0]['published']
+          udine = [x for x in pref['prefectures'] if x['authority_key'] == 'udine']
+          assert len(udine) == 1 and udine[0]['mapped'] and udine[0]['published']
+          bergamo = [x for x in pref['prefectures'] if x['authority_key'] == 'bergamo']
+          assert len(bergamo) == 1 and bergamo[0]['mapped'] and bergamo[0]['published']
+          barletta = [x for x in pref['prefectures'] if x['authority_key'] == 'barletta-andria-trani']
+          assert len(barletta) == 1 and barletta[0]['mapped'] and barletta[0]['published']
+          brindisi = [x for x in pref['prefectures'] if x['authority_key'] == 'brindisi']
+          assert len(brindisi) == 1 and brindisi[0]['mapped'] and brindisi[0]['published']
+          cagliari = [x for x in pref['prefectures'] if x['authority_key'] == 'cagliari']
+          assert len(cagliari) == 1 and cagliari[0]['mapped'] and cagliari[0]['published']
+          caltanissetta = [x for x in pref['prefectures'] if x['authority_key'] == 'caltanissetta']
+          assert len(caltanissetta) == 1 and caltanissetta[0]['mapped'] and caltanissetta[0]['published']
+          crotone = [x for x in pref['prefectures'] if x['authority_key'] == 'crotone']
+          assert len(crotone) == 1 and crotone[0]['mapped'] and crotone[0]['published']
+          campobasso = [x for x in pref['prefectures'] if x['authority_key'] == 'campobasso']
+          assert len(campobasso) == 1 and campobasso[0]['mapped'] and campobasso[0]['published']
+          brescia = [x for x in pref['prefectures'] if x['authority_key'] == 'brescia']
+          assert len(brescia) == 1 and brescia[0]['mapped'] and brescia[0]['published']
+          assert all(r.get('record_locator') for r in reg['records'])
+          assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
+          assert site['publication']['geography_policy']
+
+          for source in reg['meta']['sources']:
+              assert source['document_checked_at']
+              assert 'diagnostics' not in source
+              diagnostic = json.loads(Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json').read_text())
+              assert diagnostic['public_records'] > 0
+              assert diagnostic.get('dropped_date_rows', 0) == 0
+
+          forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
+          reg_text = (root/'data/registry.json').read_text(encoding='utf-8').casefold()
+          for token in forbidden_tokens:
+              assert token not in reg_text, token
+          names = [str(p) for p in root.rglob('*') if p.is_file()]
+          forbidden_files = ['address-review-2026-09-07.csv','table_catalog.json','source_evidence.json','data-explorer-preview-v2']
+          for token in forbidden_files:
+              if any(token in name for name in names):
+                  raise SystemExit(f'Forbidden artifact in public site: {token}')
+          print('Public national registry validated:', reg['meta']['record_count'], 'records; Prefectures:', pref['meta'])
+          PY
+      - name: Install browser acceptance test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Test public registry at desktop and mobile widths
+        run: |
+          python -m http.server 8765 --directory public-site > /tmp/public-preview-server.log 2>&1 &
+          node tests/public_portal_browser.cjs
+      - name: Save rendered acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-rendered-evidence-attempt-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+      - name: Verify official-source links
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        run: python -m white_list_archive.publishing.public_links public-site /tmp/public-link-audit.json
+      - name: Save link verification report
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-link-audit-attempt-${{ github.run_attempt }}
+          path: /tmp/public-link-audit.json
+          retention-days: 14
+      - name: Save reviewable public build
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-portal-review-attempt-${{ github.run_attempt }}
+          path: public-site/
+          retention-days: 14
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: public-site
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
