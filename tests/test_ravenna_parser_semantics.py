@@ -87,9 +87,9 @@ def test_reviewed_page_26_blank_name_repair_is_exactly_anchored():
     repaired = _repair_reviewed_extraction(26, rows)
     assert repaired[25][1] == "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."
     record = _record_from_cells(repaired[25], CFG, 643)
-    assert record["office"] == "ROTTERDAM (PAESI BASSI)"
+    assert record["registered_office"] == "ROTTERDAM (PAESI BASSI)"
     assert record["application_date"] == "2026-02-04"
-    assert record["activities"] == ["Sezione X"]
+    assert record["requested_activities"] == ["Sezione X"]
     assert record["source_fields"]["reviewed_extraction_repair"] == {
         "field": "company_identity",
         "table_raw": "",
