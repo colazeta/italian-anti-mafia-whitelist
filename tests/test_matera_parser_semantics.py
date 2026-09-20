@@ -38,9 +38,10 @@ def _write_listed(path: Path) -> None:
     for index in range(1, 249):
         identifier = f"{index:011d}"
         note = "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario" if index == 3 else ""
+        note_period = f"{note}." if note else ""
         worksheet.append([
             "MT", _formula(identifier), f"IMPRESA {index}", "ISCRITTA",
-            _formula("01/07/2026"), _formula("01/07/2027"), note, note, note, note,
+            _formula("01/07/2026"), _formula("01/07/2027"), note, note, note, note_period,
         ])
     workbook.save(path)
 
@@ -63,7 +64,7 @@ def _write_applicants(path: Path) -> None:
     workbook.save(path)
 
 
-def test_matera_listed_exact_boundary_and_note_collapse(tmp_path: Path) -> None:
+def test_matera_listed_exact_boundary_and_preserved_note_variants(tmp_path: Path) -> None:
     path = tmp_path / "listed.xlsx"
     _write_listed(path)
     batch = parse_listed(path, _cfg("matera-listed"))
@@ -75,11 +76,22 @@ def test_matera_listed_exact_boundary_and_note_collapse(tmp_path: Path) -> None:
     assert batch.diagnostics["listing_date_coverage"] == 248
     assert batch.diagnostics["expiry_date_coverage"] == 248
     assert batch.diagnostics["rows_with_judicial_control_note"] == 1
+    assert batch.diagnostics["rows_with_reviewed_note_variant"] == 1
     assert batch.records[0]["identifier_field_raw"] == "00000000001"
     assert batch.records[0]["observed_listing_date"] == "2026-07-01"
     assert batch.records[0]["observed_expiry_date"] == "2027-07-01"
-    assert batch.records[2]["source_fields"]["notes"] == ["Art. 34 bis d.lgs 159/2011 - Controllo giudiziario"]
-    assert len(batch.records[2]["source_fields"]["note_cells_raw"]) == 4
+    judicial = batch.records[2]["source_fields"]
+    assert judicial["notes"] == ["Art. 34 bis d.lgs 159/2011 - Controllo giudiziario"]
+    assert judicial["note_variants"] == [
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario",
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario.",
+    ]
+    assert judicial["note_cells_raw"] == [
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario",
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario",
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario",
+        "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario.",
+    ]
     assert len({record["record_locator"] for record in batch.records}) == 248
 
 
