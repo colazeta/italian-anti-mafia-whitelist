@@ -1,0 +1,103 @@
+{
+  "listed": {
+    "source_sha256": "6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239",
+    "table_groups": 13,
+    "section_labels": [
+      "SEZIONE IESTRAZIONE, FORNITURA E TRASPORTO DI TERRA E MATERIALI INERTI",
+      "SEZIONE IICONFEZIONAMENTO, FORNITURA E TRASPORTO DI CALCESTRUZZO E DI BITUME",
+      "SEZIONE IIINOLI A FREDDO DI MACCHINARI",
+      "SEZIONE IVFORNITURA DI FERRO LAVORATO",
+      "SEZIONE VNOLI A CALDO",
+      "SEZIONE VIAUTOTRASPORTI PER CONTO DI TERZI",
+      "SEZIONE VIIGUARDIANIA AI CANTIERI",
+      "SEZIONE VIIISERVIZI FUNERARI E CIMITERIALI",
+      "SEZIONE IXRISTORAZIONE, GESTIONE DELLE MENSE E CATERING",
+      "SEZIONE XSERVIZI AMBIENTALI, COMPRESE LE ATTIVITÀ DI RACCOLTA, DI TRASPORTO NAZIONALE E TRANSFRONTALIERO, ANCHE PER CONTO DI TERZI, DI TRATTAMENTO E DI SMALTIMENTO DEI RIFIUTI, NONCHÉ LE ATTIVITÀ DI RISANAMENTO E DI BONIFICA E GLI ALTRI SERVIZI CONNESSI ALLA GESTIONE DEI RIFIUTI"
+    ],
+    "sector_rows": 1060,
+    "logical_records_exact_row_grouping": 607,
+    "section_memberships_after_grouping": 1058,
+    "status_counts": {
+      "renewal_update_in_progress": 150,
+      "listed": 456,
+      "other_or_unknown": 1
+    },
+    "identifier_coverage": 579,
+    "raw_only_identifier_records": 28,
+    "malformed_identifiers": {
+      "1412620682": 1,
+      "0655575210": 4,
+      "022094180682": 1,
+      "023356290685": 3,
+      "0228450685": 1,
+      "0205262685": 1,
+      "0235389060": 1,
+      "0231100687": 1,
+      "0245080862": 1,
+      "019280609688": 1,
+      "0141830683": 1,
+      "0205890693": 1,
+      "0164300689": 1,
+      "016443890682": 1,
+      "0511970681": 1,
+      "0170880682": 1,
+      "0135770680": 1,
+      "017854909663": 1,
+      "0925750689": 1,
+      "0185430682": 1,
+      "0209740685": 1,
+      "0207900682": 1,
+      "0224970685": 1
+    },
+    "malformed_dates": {
+      "21/052024": 1,
+      "13/07/20222": 1,
+      "23701/2026": 1,
+      "09/06/20206": 1,
+      "22/12/202": 1,
+      "30707/2024": 1,
+      "29/10/204": 1
+    },
+    "nonstandard_status_notes": {
+      "I": 1
+    },
+    "section_membership_distribution": {
+      "1": 401,
+      "6": 11,
+      "2": 89,
+      "3": 51,
+      "4": 31,
+      "5": 18,
+      "7": 4,
+      "9": 2
+    }
+  },
+  "applicants": {
+    "source_sha256": "2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c",
+    "table_groups": 2,
+    "headers": [
+      [
+        "Ragione Sociale",
+        "Sede legale",
+        "Sede secondaria con rappresentanza stabile in Italia",
+        "Codice fiscale Partita IVA",
+        "Attività per cui è richiesta l’iscrizione",
+        "Data di presentazione dell’istanza"
+      ]
+    ],
+    "records": 36,
+    "status_counts": {
+      "pending": 36
+    },
+    "identifier_coverage": 34,
+    "raw_only_identifier_records": 1,
+    "malformed_identifiers": {
+      "0285069069": 1
+    },
+    "malformed_dates": {},
+    "blank_company_row_numbers": [
+      6
+    ],
+    "unique_rows": 36
+  }
+}
