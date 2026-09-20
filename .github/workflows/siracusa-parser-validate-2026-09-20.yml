@@ -42,7 +42,7 @@ jobs:
           PY
       - name: Install validation runtime
         run: |
-          python -m pip install --disable-pip-version-check -e . pytest requests beautifulsoup4
+          python -m pip install --disable-pip-version-check -e . pytest requests beautifulsoup4 pdfplumber
       - name: Resolve current official attachments and capture each twice
         run: |
           mkdir -p /tmp/siracusa-validation
