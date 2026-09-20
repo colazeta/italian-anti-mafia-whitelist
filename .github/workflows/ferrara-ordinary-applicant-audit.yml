@@ -108,6 +108,10 @@ jobs:
                   or 'elenco dei fornitori, prestatori di servizi' in joined
               )
 
+          def is_applicant_title(row):
+              joined = fold(' | '.join(row))
+              return 'white list' in joined and 'elenco imprese richiedenti' in joined
+
           # Ordinary listed. The official PDF visually splits some logical rows at
           # page boundaries. The identifier + expiry cells are the row anchor; a
           # fragment without identifier/listing/expiry may extend only the most
@@ -154,8 +158,6 @@ jobs:
                           ordinary.append(current)
                           continue
 
-                      # A continuation is permitted only if it carries no identity
-                      # or date anchor of its own and a prior anchored row exists.
                       if current is not None and not ident and not listed_raw and not expiry_raw:
                           fragment = [name, office, secondary, '', '', '', note]
                           if any(fragment):
@@ -174,8 +176,6 @@ jobs:
 
                       ordinary_unclassified.append({'locator': locator, 'row': row})
 
-          # Fail closed: every non-header/non-section physical row must either be
-          # an anchored observation or a conservative continuation of one.
           assert not ordinary_unclassified, ordinary_unclassified
           assert ordinary, 'no Ferrara ordinary observations parsed'
           assert all(x['name'] and x['id_raw'] and x['expiry_raw'] for x in ordinary)
@@ -191,8 +191,6 @@ jobs:
               if item['listed_state'] != 'normalised' or item['expiry_state'] != 'normalised':
                   ordinary_date_anomalies.append(item)
 
-          # Ordinary applicants. The source has two reviewed table geometries;
-          # date position provides the stable anchor. Anything else fails closed.
           applicants = []
           applicant_headers = []
           applicant_no_table = []
@@ -217,7 +215,7 @@ jobs:
                           continue
                       applicant_widths[len(row)] += 1
                       locator = f'p{pno}:r{rno}'
-                      if is_header(row):
+                      if is_header(row) or is_applicant_title(row):
                           applicant_headers.append({'locator': locator, 'row': row})
                           continue
 
