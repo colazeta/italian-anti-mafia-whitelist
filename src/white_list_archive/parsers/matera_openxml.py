@@ -23,6 +23,9 @@ _EXPECTED_LISTED_ROWS = 248
 _EXPECTED_APPLICANT_ROWS = 90
 _EXPECTED_LISTED_STATUSES = {"ISCRITTA": 248}
 _EXPECTED_APPLICANT_STATUSES = {"RICHIEDENTE_ISCRIZIONE": 41, "IN_AGGIORNAMENTO": 49}
+_JUDICIAL_CONTROL_NOTE = "Art. 34 bis d.lgs 159/2011 - Controllo giudiziario"
+_JUDICIAL_CONTROL_NOTE_PERIOD = f"{_JUDICIAL_CONTROL_NOTE}."
+_REVIEWED_MULTI_NOTE_VARIANTS = frozenset({_JUDICIAL_CONTROL_NOTE, _JUDICIAL_CONTROL_NOTE_PERIOD})
 
 _LISTED_HEADER = (
     "Prefettura Competente",
@@ -109,6 +112,16 @@ def _validate_header(rows: list[list[Any]], *, population: str) -> None:
         raise RuntimeError(f"Matera {population} header changed: expected {expected!r}, got {observed!r}")
 
 
+def _listed_note_evidence(values: list[Any], source_row_number: int) -> tuple[str, list[str], list[str]]:
+    """Preserve exact note-cell evidence while allowing only the reviewed punctuation variant family."""
+    note_values = [_source_literal(value) for value in values[6:10] if _source_literal(value)]
+    unique_notes = list(dict.fromkeys(note_values))
+    if len(unique_notes) > 1 and frozenset(unique_notes) != _REVIEWED_MULTI_NOTE_VARIANTS:
+        raise RuntimeError(f"Matera listed repeated note columns disagree at row {source_row_number}: {unique_notes!r}")
+    note = unique_notes[0] if unique_notes else ""
+    return note, note_values, unique_notes
+
+
 def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     rows, shape = _load(path, population="listed")
     _validate_header(rows, population="listed")
@@ -119,6 +132,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     source_statuses: Counter[str] = Counter()
     judicial_control_notes = 0
+    rows_with_reviewed_note_variant = 0
     for source_row_number, row in enumerate(source_rows, start=2):
         values = list(row) + [None] * max(0, 10 - len(row))
         authority = _source_literal(values[0])
@@ -127,8 +141,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         source_status = _source_literal(values[3])
         listing_raw = _source_literal(values[4])
         expiry_raw = _source_literal(values[5])
-        note_values = [_source_literal(value) for value in values[6:10] if _source_literal(value)]
-        unique_notes = list(dict.fromkeys(note_values))
+        note, note_values, unique_notes = _listed_note_evidence(values, source_row_number)
         if authority != "MT":
             raise RuntimeError(f"Matera listed authority changed at row {source_row_number}: {authority!r}")
         if not identifier or not name:
@@ -141,11 +154,10 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise RuntimeError(
                 f"Matera listed date became blank/malformed at row {source_row_number}: {listing_raw!r}, {expiry_raw!r}"
             )
-        if len(unique_notes) > 1:
-            raise RuntimeError(f"Matera listed repeated note columns disagree at row {source_row_number}: {unique_notes!r}")
-        note = unique_notes[0] if unique_notes else ""
         if note:
             judicial_control_notes += int("controllo giudiziario" in note.casefold())
+        if len(unique_notes) > 1:
+            rows_with_reviewed_note_variant += 1
         source_statuses[source_status] += 1
         records.append(
             _record(
@@ -165,6 +177,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     "listing_date_raw_variants": [listing_raw],
                     "expiry_date_raw_variants": [expiry_raw],
                     "notes": [note] if note else [],
+                    "note_variants": unique_notes,
                     "note_cells_raw": note_values,
                 },
             )
@@ -190,6 +203,7 @@ def parse_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             "listing_date_coverage": sum(bool(record["observed_listing_date"]) for record in records),
             "expiry_date_coverage": sum(bool(record["observed_expiry_date"]) for record in records),
             "rows_with_judicial_control_note": judicial_control_notes,
+            "rows_with_reviewed_note_variant": rows_with_reviewed_note_variant,
         },
     )
 
