@@ -1,0 +1,194 @@
+name: Ravenna public integration 2026-09-20
+
+on:
+  push:
+    branches: [expansion/ravenna-2026-09-20]
+    paths:
+      - '.github/workflows/ravenna-public-integration-2026-09-20.yml'
+      - 'tmp/ravenna_integrate_public.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ravenna-public-integration-2026-09-20
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/ravenna-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare runner package sources
+        run: |
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+      - name: Install complete validation runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Validation runtime installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install --disable-pip-version-check -e '.[dev,storage,database,publication]' requests beautifulsoup4 pyyaml
+      - name: Reverify current official Ravenna source twice
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
+          PDF_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf
+          EXPECTED_SHA256: 8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555
+        run: |
+          python - <<'PY'
+          import hashlib, os, time
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing=os.environ['LANDING_URL']; pdf=os.environ['PDF_URL']; expected=os.environ['EXPECTED_SHA256']
+          headers={'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-validation/1.0)','Cache-Control':'no-cache','Pragma':'no-cache'}
+          def get(url, nonce, accept):
+              h=dict(headers); h['Accept']=accept
+              sep='&' if '?' in url else '?'
+              last=None
+              for retry in range(3):
+                  try:
+                      r=requests.get(f'{url}{sep}validation={nonce}-{retry}',headers=h,timeout=(20,90),allow_redirects=True)
+                      last=r
+                      if r.status_code==200: return r
+                  except requests.RequestException as exc: last=exc
+                  time.sleep(2*(retry+1))
+              if isinstance(last,requests.Response): return last
+              raise RuntimeError(last)
+          page=get(landing,int(time.time()*1000),'text/html,*/*;q=0.8')
+          if page.status_code != 200: raise RuntimeError(f'landing HTTP {page.status_code}')
+          soup=BeautifulSoup(page.text,'html.parser')
+          exact=[]
+          for a in soup.find_all('a',href=True):
+              href=urljoin(page.url,a['href']).split('?validation=')[0]
+              if href==pdf:
+                  exact.append((' '.join(a.get_text(' ',strip=True).split()),href))
+          if exact != [('Nuova tabella unica aggiornata',pdf)]:
+              raise RuntimeError(f'official Ravenna attachment link drift: {exact!r}')
+          digests=[]
+          for attempt in (1,2):
+              r=get(pdf,f'{int(time.time()*1000)}-{attempt}','application/pdf,*/*;q=0.8')
+              if r.status_code != 200 or not r.content.startswith(b'%PDF'):
+                  raise RuntimeError(f'PDF attempt {attempt}: HTTP {r.status_code}, magic={r.content[:4]!r}')
+              digest=hashlib.sha256(r.content).hexdigest(); digests.append(digest)
+              Path(f'/tmp/ravenna-{attempt}.pdf').write_bytes(r.content)
+          if digests != [expected,expected]:
+              raise RuntimeError(f'Ravenna current-source digest drift: {digests!r}')
+          print({'landing':page.status_code,'attachment':exact[0],'digests':digests})
+          PY
+      - name: Materialise permanent Ravenna integration candidate
+        run: |
+          python tmp/ravenna_integrate_public.py
+          python - <<'PY'
+          import yaml
+          from pathlib import Path
+          candidate=Path('tmp/ravenna-public-pages-candidate.yml')
+          parsed=yaml.safe_load(candidate.read_text(encoding='utf-8'))
+          assert isinstance(parsed,dict) and 'jobs' in parsed
+          text=candidate.read_text(encoding='utf-8')
+          for token in ('72456', "'ravenna'", "'ravenna-ordinary'", 'ravenna_records'):
+              assert token in text, token
+          PY
+          python -m pytest -q tests/test_ravenna_parser_semantics.py tests/test_source_registry.py tests/test_source_population_coverage.py
+          node --check tests/public_portal_browser.cjs
+          python -m pytest -q
+      - name: Build and validate actual national candidate
+        run: |
+          set -e
+          ok=0
+          for attempt in 1 2 3; do
+            rm -rf /tmp/ravenna-public-sources public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+            if white-list-public-national-build \
+              --source-config data/publication/multi_prefecture_pilot.json \
+              --verified-pages data/source_registry/verified_primary_pages.csv \
+              --source-series data/source_registry/source_series_inventory.csv \
+              --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+              --work-dir /tmp/ravenna-public-sources \
+              --registry-json public-site/data/registry.json \
+              --registry-csv public-site/data/registry.csv \
+              --prefectures-json public-site/data/prefectures.json \
+              --prefectures-csv public-site/data/prefectures.csv; then
+              ok=1
+              break
+            fi
+            echo "National candidate attempt ${attempt} failed; retrying only after clearing all fetched work bytes" >&2
+            sleep $((attempt * 5))
+          done
+          [ "$ok" -eq 1 ] || { echo 'National candidate failed after bounded retries' >&2; exit 1; }
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          rows=[r for r in reg['records'] if r['authority_key']=='ravenna']
+          assert reg['meta']['record_count']==72456
+          assert reg['meta']['authority_count']==70
+          assert reg['meta']['register_count']==73
+          assert pref['meta']['published_count']==70
+          assert pref['meta']['mapped_count']==70
+          assert len(rows)==706
+          assert all(r['source_key']=='ravenna-combined' for r in rows)
+          assert sum(r['source_status']=='listed' for r in rows)==430
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==212
+          assert sum(r['source_status']=='pending' for r in rows)==63
+          assert sum(r['source_status']=='other_or_unknown' for r in rows)==1
+          assert sum(bool(r['identifiers']) for r in rows)==692
+          assert len({r['record_locator'] for r in rows})==706
+          repaired=[r for r in rows if r['source_fields'].get('source_progressive')=='1199']
+          assert len(repaired)==1 and repaired[0]['source_fields']['reviewed_extraction_repair']['basis']=='same_byte_pinned_page_text'
+          malformed=[r for r in rows if r['source_fields'].get('malformed_date_pairs')]
+          assert len(malformed)==1 and malformed[0]['source_fields']['malformed_date_pairs']==['application:23/06/026']
+          print('validated Ravenna national candidate: 72456 / 70 / 73 / 70')
+          PY
+      - name: Browser acceptance at desktop and mobile widths
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+          python -m http.server 8765 --directory public-site > /tmp/ravenna-preview.log 2>&1 &
+          node tests/public_portal_browser.cjs
+      - name: Commit permanent Ravenna integration checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/ravenna-operational-check-2026-09-20.md \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py \
+            tmp/ravenna-public-pages-candidate.yml
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No Ravenna integration changes to commit' >&2
+            exit 1
+          fi
+          git commit -m 'Integrate validated Ravenna public candidate [ravenna-public-integration]'
+          git push origin HEAD:expansion/ravenna-2026-09-20
