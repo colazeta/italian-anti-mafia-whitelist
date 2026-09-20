@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber==0.11.10
       - name: Audit pinned Ferrara reconstruction rows fail-closed
         shell: python
         run: |
@@ -38,6 +38,14 @@ jobs:
               ('F', 'fornitura e manutenzione impianti tecnologici', 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf', 'ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664', 14),
               ('G', 'fornitura beni necessari alla ricostruzione', 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf', '0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae', 3),
           ]
+
+          # Reviewed against the exact content-addressed source and pdfplumber 0.11.10.
+          # Sector C page 23 is an actual empty trailing PDF page: no table, text,
+          # words, date-like tokens, identifier-like tokens or status markers.
+          # Any change in source hash, extractor output or page position fails closed.
+          EXPECTED_EMPTY_PAGES = {
+              ('C', 23, '99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e'),
+          }
 
           def norm(v):
               return ' '.join((v or '').replace('\u00a0', ' ').split())
@@ -119,6 +127,7 @@ jobs:
           all_records = []
           all_unclassified = []
           table_gaps = []
+          seen_expected_empty_pages = set()
 
           for sector, activity, url, sha, expected_pages in SOURCES:
               records, headers, structural, continuations, unclassified = [], [], [], [], []
@@ -130,6 +139,20 @@ jobs:
                       tables = page.extract_tables() or []
                       if len(tables) != 1:
                           diagnostic = page_diagnostic(sector, pno, page, tables)
+                          key = (sector, pno, sha)
+                          exact_blank = (
+                              len(tables) == 0
+                              and diagnostic['text'] == ''
+                              and diagnostic['word_count'] == 0
+                              and diagnostic['date_like_tokens'] == []
+                              and diagnostic['identifier_like_tokens'] == []
+                              and diagnostic['status_markers'] == []
+                          )
+                          if key in EXPECTED_EMPTY_PAGES and exact_blank:
+                              seen_expected_empty_pages.add(key)
+                              print('FERRARA_RECONSTRUCTION_REVIEWED_EMPTY_PAGE_JSON')
+                              print(json.dumps(diagnostic, ensure_ascii=False, indent=2))
+                              continue
                           table_gaps.append(diagnostic)
                           print('FERRARA_RECONSTRUCTION_PAGE_DIAGNOSTIC_JSON')
                           print(json.dumps(diagnostic, ensure_ascii=False, indent=2))
@@ -160,9 +183,9 @@ jobs:
                                   records.append(current)
                                   continue
                               if current is not None and not ident and not listed_raw and not expiry_raw and any((name, office, note)):
-                                  for key, value in (('name', name), ('office', office), ('note', note)):
+                                  for key_name, value in (('name', name), ('office', office), ('note', note)):
                                       if value:
-                                          current[key] = norm(f"{current[key]} {value}")
+                                          current[key_name] = norm(f"{current[key_name]} {value}")
                                   current['source_locators'].append(loc)
                                   continuations.append({'locator': loc, 'attached_to': current['locator'], 'row': row})
                                   continue
@@ -201,11 +224,13 @@ jobs:
               'status_counts': dict(Counter(x['status'] for x in all_records)),
               'strict_id_rows': sum(bool(x['ids']) for x in all_records),
               'multi_sector_identity_counts': dict(Counter(x['id_raw'].casefold() for x in all_records)),
+              'reviewed_empty_pages': sorted(seen_expected_empty_pages),
               'table_gaps': table_gaps,
               'unclassified': all_unclassified,
           }
           print('FERRARA_RECONSTRUCTION_AUDIT_JSON')
           print(json.dumps(report, ensure_ascii=False, indent=2))
+          assert seen_expected_empty_pages == EXPECTED_EMPTY_PAGES, (seen_expected_empty_pages, EXPECTED_EMPTY_PAGES)
           assert not table_gaps, table_gaps
           assert not all_unclassified, all_unclassified
           assert all_records, 'no reconstruction observations parsed'
