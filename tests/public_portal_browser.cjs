@@ -81,6 +81,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Trapani'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Palermo'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Matera'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Siracusa'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Macerata'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
@@ -124,8 +125,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,69055);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera'].includes(r.authority_key));
+      assert.equal(stats.total,69474);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -280,6 +281,16 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(matera.filter(r=>r.source_key==='matera-applicants'&&r.application_date).length,90);
       assert.equal(matera.filter(r=>r.source_key==='matera-listed'&&r.observed_listing_date&&r.observed_expiry_date).length,248);
       assert.equal(matera.filter(r=>r.source_key==='matera-listed'&&r.source_fields.notes.includes('Art. 34 bis d.lgs 159/2011 - Controllo giudiziario.')).length,1);
+      const siracusa=registry.records.filter(r=>r.authority_key==='siracusa');
+      assert.equal(siracusa.length,419);
+      assert.equal(siracusa.filter(r=>r.source_key==='siracusa-listed').length,315);
+      assert.equal(siracusa.filter(r=>r.source_key==='siracusa-applicants').length,104);
+      assert.deepEqual(statusCounts(siracusa),{listed:246,other_or_unknown:2,pending:104,renewal_update_in_progress:67});
+      assert.equal(new Set(siracusa.map(r=>r.record_locator)).size,419);
+      assert.equal(siracusa.filter(r=>r.identifiers.length>0).length,414);
+      assert.equal(siracusa.filter(r=>r.source_key==='siracusa-listed'&&r.observed_expiry_date).length,315);
+      assert.equal(siracusa.filter(r=>r.source_key==='siracusa-applicants'&&r.application_date).length,103);
+      assert.equal(siracusa.filter(r=>r.source_key==='siracusa-applicants'&&r.source_fields.application_date_raw_variants.includes('17.01/2024')&&r.application_date==='').length,1);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
