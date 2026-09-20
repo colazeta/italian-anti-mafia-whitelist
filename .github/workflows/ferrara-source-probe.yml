@@ -1,0 +1,131 @@
+name: Ferrara source probe
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-source-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install probe runtime
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pypdf
+      - name: Verify official Ferrara publication surfaces and attachments
+        shell: python
+        run: |
+          import hashlib
+          import io
+          import json
+          import re
+          import time
+          from urllib.parse import urljoin
+
+          import requests
+          from bs4 import BeautifulSoup
+          from pypdf import PdfReader
+
+          pages = {
+              "ordinary_listed": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-iscritte",
+              "ordinary_applicants": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-richiedenti",
+              "reconstruction_listed": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte",
+          }
+          expected_pdf_counts = {
+              "ordinary_listed": 1,
+              "ordinary_applicants": 1,
+              "reconstruction_listed": 7,
+          }
+          ua = "Mozilla/5.0 (compatible; italian-anti-mafia-whitelist evidence probe/1.0)"
+          session = requests.Session()
+          session.headers.update({"User-Agent": ua, "Accept": "text/html,application/pdf,*/*"})
+
+          def get(url, *, no_cache=False):
+              headers = {}
+              if no_cache:
+                  headers.update({"Cache-Control": "no-cache, no-store", "Pragma": "no-cache"})
+              last = None
+              for attempt in range(3):
+                  try:
+                      r = session.get(url, headers=headers, timeout=45, allow_redirects=True)
+                      r.raise_for_status()
+                      return r
+                  except Exception as exc:
+                      last = exc
+                      if attempt < 2:
+                          time.sleep(2 * (attempt + 1))
+              raise last
+
+          report = {"authority_key": "ferrara", "pages": {}, "resources": []}
+          for key, page_url in pages.items():
+              r = get(page_url, no_cache=True)
+              ctype = r.headers.get("content-type", "")
+              assert "html" in ctype.lower() or r.text.lstrip().startswith("<"), (key, ctype)
+              soup = BeautifulSoup(r.text, "html.parser")
+              pdfs = []
+              for a in soup.select("a[href]"):
+                  href = urljoin(r.url, a.get("href"))
+                  path = href.split("?", 1)[0].lower()
+                  if path.endswith(".pdf"):
+                      pdfs.append((href, " ".join(a.stripped_strings)))
+              # Preserve source order while de-duplicating repeated rendered links.
+              dedup = []
+              seen = set()
+              for href, label in pdfs:
+                  if href not in seen:
+                      seen.add(href)
+                      dedup.append((href, label))
+              assert len(dedup) == expected_pdf_counts[key], (key, len(dedup), dedup)
+              page_text = " ".join(soup.stripped_strings)
+              report["pages"][key] = {
+                  "requested_url": page_url,
+                  "final_url": r.url,
+                  "status": r.status_code,
+                  "html_bytes": len(r.content),
+                  "pdf_count": len(dedup),
+                  "labels": [label for _, label in dedup],
+                  "mentions_24_aug_2026": bool(re.search(r"24\s+Agosto\s+2026", page_text, re.I)),
+                  "mentions_1_aug_2026": bool(re.search(r"1\s+Agosto\s+2026", page_text, re.I)),
+              }
+
+              for href, label in dedup:
+                  a = get(href, no_cache=True)
+                  b = get(href, no_cache=True)
+                  assert a.content == b.content, f"independent captures differ: {href}"
+                  assert a.content.startswith(b"%PDF"), (href, a.headers.get("content-type"), a.content[:20])
+                  digest = hashlib.sha256(a.content).hexdigest()
+                  reader = PdfReader(io.BytesIO(a.content))
+                  texts = []
+                  for p in reader.pages:
+                      try:
+                          texts.append(p.extract_text() or "")
+                      except Exception as exc:
+                          raise AssertionError(f"PDF text extraction failed for {href}: {exc}") from exc
+                  text = "\n".join(texts)
+                  lines = [" ".join(x.split()) for x in text.splitlines() if x.strip()]
+                  item = {
+                      "page_key": key,
+                      "url": href,
+                      "label": label,
+                      "bytes": len(a.content),
+                      "sha256": digest,
+                      "pages": len(reader.pages),
+                      "text_chars": len(text),
+                      "nonempty_lines": len(lines),
+                      "first_lines": lines[:18],
+                      "last_lines": lines[-18:],
+                  }
+                  report["resources"].append(item)
+
+          print("FERRARA_SOURCE_PROBE_JSON")
+          print(json.dumps(report, ensure_ascii=False, indent=2))
