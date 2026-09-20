@@ -83,9 +83,19 @@ def test_identity_extracts_only_structurally_valid_visible_tokens():
 
 def test_reviewed_page_26_blank_name_repair_is_exactly_anchored():
     rows = [[str(index + 1174), "COMPANY", "ADDRESS", "01/01/2025", "01/01/2026", "", *([""] * 10)] for index in range(26)]
-    rows[25] = ["1199", "", "MAASKADE 1199 BG ROTTERDAM", "10/12/2025", "", "", "", "", "", "", "", "", "", "X", "", ""]
+    rows[25] = ["1199", "", "ROTTERDAM (PAESI BASSI)", "04/02/2026", "", "", "", "", "", "", "", "", "", "", "", "X"]
     repaired = _repair_reviewed_extraction(26, rows)
-    assert repaired[25][1] == "LOGLI MASSIMO DELLA MAASKADE RECQUIN BV"
+    assert repaired[25][1] == "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."
+    record = _record_from_cells(repaired[25], CFG, 643)
+    assert record["office"] == "ROTTERDAM (PAESI BASSI)"
+    assert record["application_date"] == "2026-02-04"
+    assert record["activities"] == ["Sezione X"]
+    assert record["source_fields"]["reviewed_extraction_repair"] == {
+        "field": "company_identity",
+        "table_raw": "",
+        "page_text_value": "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.",
+        "basis": "same_byte_pinned_page_text",
+    }
     rows[25][2] = "CHANGED"
     with pytest.raises(RuntimeError, match="reviewed extraction repair no longer matches"):
         _repair_reviewed_extraction(26, rows)
