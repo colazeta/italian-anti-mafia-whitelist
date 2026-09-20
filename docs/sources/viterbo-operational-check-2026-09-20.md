@@ -20,3 +20,9 @@
 
 ## Methodological boundary
 This checkpoint establishes current first-party listed/applicant source availability and byte identity only. It does not yet assert parser denominators, legal status beyond source text, canonical completeness, or public integration. Malformed values must remain uninterpreted until parser validation.
+
+## Parser boundary
+
+Production validation freezes 237 listed observations plus 23 applicant observations (260 total). Listed statuses are 190 `listed` and 47 `renewal_update_in_progress`; all 23 applicants are `pending`. Structured identifier coverage is 235/237 listed and 23/23 applicants. The two nonconforming listed source identifiers `BNMGLC74C265C773P` and `0226497056` are preserved raw and are not padded, truncated or otherwise repaired. Source page 96 repeats `Sez 05 - Noli a caldo` exactly; the parser collapses only that exact same-section/same-text duplicate within the single company form, and fails closed if a repeated section carries different text or if the frozen duplicate boundary changes.
+
+The national candidate builder subsequently validates exactly 260 Viterbo public observations with 258 structured identifiers, unique record locators, two source series and one ordinary register.

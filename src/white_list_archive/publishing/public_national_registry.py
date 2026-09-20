@@ -89,6 +89,7 @@ from white_list_archive.parsers.pordenone_tables import (
     PARSERS as PORDENONE_PARSERS,
     parse_pordenone_listed_bundle,
 )
+from white_list_archive.parsers.viterbo_pages import PARSERS as VITERBO_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -1172,6 +1173,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or MACERATA_PARSERS.get(cfg["parser"])
         or FERRARA_PARSERS.get(cfg["parser"])
         or PORDENONE_PARSERS.get(cfg["parser"])
+        or VITERBO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")

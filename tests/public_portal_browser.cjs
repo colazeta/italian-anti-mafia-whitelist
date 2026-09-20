@@ -85,6 +85,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Ferrara'));
       assert.ok(labels.includes('White List ricostruzione · Prefettura di Ferrara'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Pordenone'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Viterbo'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Macerata'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
@@ -128,8 +129,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,71490);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone'].includes(r.authority_key));
+      assert.equal(stats.total,71750);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -310,6 +311,13 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(new Set(pordenone.map(r=>r.record_locator)).size,433);
       assert.equal(pordenone.filter(r=>r.identifiers.length>0).length,266);
       assert.equal(pordenone.filter(r=>r.source_key==='pordenone-provincial-applicants'&&!r.name&&r.registered_office==='SEQUALS - VIA CECILIA DANIELI, 7'&&r.identifiers.includes('01456650934')).length,1);
+      const viterbo=registry.records.filter(r=>r.authority_key==='viterbo');
+      assert.equal(viterbo.length,260);
+      assert.equal(viterbo.filter(r=>r.source_key==='viterbo-listed').length,237);
+      assert.equal(viterbo.filter(r=>r.source_key==='viterbo-applicants').length,23);
+      assert.deepEqual(statusCounts(viterbo),{listed:190,pending:23,renewal_update_in_progress:47});
+      assert.equal(new Set(viterbo.map(r=>r.record_locator)).size,260);
+      assert.equal(viterbo.filter(r=>r.identifiers.length>0).length,258);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
