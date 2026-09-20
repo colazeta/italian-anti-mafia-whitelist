@@ -1,0 +1,57 @@
+name: Ferrara non-workflow identifier correction
+
+on:
+  push:
+    branches: [expansion/ferrara-2026-09-20]
+    paths:
+      - .github/workflows/ferrara-nonworkflow-id-correction.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply reviewed parser and evidence correction
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one reviewed anchor, found {count}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'src/white_list_archive/parsers/ferrara_tables.py',
+              '_EXPECTED_ORDINARY_IDENTIFIER_COVERAGE = 860',
+              '_EXPECTED_ORDINARY_IDENTIFIER_COVERAGE = 859',
+          )
+          replace_once(
+              'docs/sources/ferrara-operational-check-2026-09-20.md',
+              '- ordinary listed contains the 12-digit raw identifier `010215770387`; it must not be padded, truncated or reinterpreted merely to satisfy an identifier format;\n',
+              '- ordinary listed contains the 12-digit raw identifier `010215770387`; it must not be padded, truncated or reinterpreted merely to satisfy an identifier format;\n- ordinary listed also contains the raw 11-character value `O1909990382` for `COSTRUZIONI MUSTEATA ALEXANDRU`; because it contains a letter it is neither a valid 11-digit VAT number nor a 16-character Italian tax code, so it remains raw evidence and is not promoted to a structured identifier;\n',
+          )
+      - name: Commit reviewed non-workflow correction
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git branch --show-current)" = "expansion/ferrara-2026-09-20"
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=("docs/sources/ferrara-operational-check-2026-09-20.md" "src/white_list_archive/parsers/ferrara_tables.py")
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = "${expected[0]}"
+          test "${changed[1]}" = "${expected[1]}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${expected[@]}"
+          git commit -m "Correct Ferrara structured identifier coverage"
+          git push origin HEAD:expansion/ferrara-2026-09-20
