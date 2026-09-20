@@ -39,6 +39,8 @@ def patch_monitoring() -> None:
             "durable_evidence_verified": False,
             "population_scopes_complete": True,
             "latest_source_reference_date": "2026-09-16",
+            "last_successful_source_check_at": "2026-09-20T22:34:42Z",
+            "last_attempted_source_check_at": "2026-09-20T22:34:42Z",
             "last_successful_investigation_on": "2026-09-21",
             "monitoring_status": "CURRENT",
             "unresolved_issue": [
