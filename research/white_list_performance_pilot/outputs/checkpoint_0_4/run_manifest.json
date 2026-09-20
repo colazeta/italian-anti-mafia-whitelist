@@ -1,0 +1,56 @@
+{
+  "analysis_id": "white-list-performance-pilot",
+  "analysis_version": "0.4.0-source-diagnostic",
+  "status": "completed_experimental_source_diagnostic",
+  "execution_commit": "3ad0e832599adc5eba793cb5268ad888d7327d02",
+  "run_id": 35531034683,
+  "research_job_id": 106131532620,
+  "research_job_conclusion": "success",
+  "general_ci_run_id": 35531034558,
+  "general_ci_job_id": 106131532108,
+  "general_ci_job_conclusion": "success",
+  "artifact_id": 10610754815,
+  "artifact_zip_sha256": "e7e8bf2d20180f27283f5e5e53de54e645e531b9838c26e4585d1186924dfade",
+  "diagnostic_json_sha256": "09534d58740652d16ffc772bfd34138c3e827bc01c13130285c01af9f7fc0c9e",
+  "input_sha256": {
+    "data/publication/multi_prefecture_pilot.json": "9dcbe1ee6314567af64cc54c0cb7f24554a2a5defb4f0042e1e60914ca3fe2d4",
+    "data/source_registry/cosenza_historical_editions.csv": "6d2885219ddb21b6b5198641a7c28cc53bb4132f499c8b1bd3858ce476aac58c"
+  },
+  "started_at": "2026-09-20T19:04:06.721691+00:00",
+  "completed_at": "2026-09-20T19:09:48.338269+00:00",
+  "run_summary": {
+    "authorities_requested": 20,
+    "current_sources_requested": 39,
+    "current_sources_parsed": 35,
+    "authorities_with_approved_source_results": 18,
+    "historical_editions_requested": 19,
+    "historical_editions_exploratory_parsed": 19,
+    "historical_editions_longitudinally_used": 19,
+    "current_source_observations": 31795,
+    "historical_source_observations": 22969
+  },
+  "validation": {
+    "named_research_regression_tests_passed": 24,
+    "completion_self_tests": "passed",
+    "offline_aggregate_assertion_groups_passed": 345,
+    "offline_aggregate_failures": [],
+    "historical_independent_row_recall_review": "not_completed",
+    "administrative_episode_validation": "not_completed"
+  },
+  "checkpoint_catalog": [
+    {"path": "RESULTS.md", "role": "interpretation_and_scope"},
+    {"path": "pending_age.csv", "rows": 19, "unit": "source_register_reference_date", "role": "compact_projection_of_delivered_pending_age"},
+    {"path": "cosenza_history.csv", "rows": 19, "unit": "historical_edition", "role": "compact_projection_with_source_hash"},
+    {"path": "observed_pending_cohorts.csv", "rows": 19, "unit": "first_pending_observation_cohort"},
+    {"path": "linked_lag_summary.json", "role": "conditional_lag_diagnostic_and_null_estimands"}
+  ],
+  "dissemination": {
+    "repository_visibility": "public",
+    "company_level_data_in_checkpoint": false,
+    "raw_documents_retained_in_checkpoint": false,
+    "canonical_writes": 0,
+    "production_deployment": false,
+    "main_merge": false,
+    "note": "Full non-identifying diagnostic output and extended tables are preserved in the delivered offline bundle. Compact repository projections do not contain all columns of that bundle. Raw-source byte availability is required for independent re-extraction."
+  }
+}
