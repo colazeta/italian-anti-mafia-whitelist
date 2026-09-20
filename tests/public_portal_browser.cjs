@@ -84,6 +84,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ordinaria · Prefettura di Siracusa'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Ferrara'));
       assert.ok(labels.includes('White List ricostruzione · Prefettura di Ferrara'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Pordenone'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Macerata'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
@@ -127,8 +128,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,71057);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara'].includes(r.authority_key));
+      assert.equal(stats.total,71490);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -301,6 +302,14 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.deepEqual(statusCounts(ferrara),{listed:1256,other_or_unknown:3,pending:21,renewal_update_in_progress:303});
       assert.equal(new Set(ferrara.map(r=>r.record_locator)).size,1583);
       assert.equal(ferrara.filter(r=>r.identifiers.length>0).length,1563);
+      const pordenone=registry.records.filter(r=>r.authority_key==='pordenone');
+      assert.equal(pordenone.length,433);
+      assert.equal(pordenone.filter(r=>r.source_key==='pordenone-provincial-listed').length,401);
+      assert.equal(pordenone.filter(r=>r.source_key==='pordenone-provincial-applicants').length,32);
+      assert.deepEqual(statusCounts(pordenone),{listed:335,other_or_unknown:1,pending:31,renewal_update_in_progress:66});
+      assert.equal(new Set(pordenone.map(r=>r.record_locator)).size,433);
+      assert.equal(pordenone.filter(r=>r.identifiers.length>0).length,266);
+      assert.equal(pordenone.filter(r=>r.source_key==='pordenone-provincial-applicants'&&!r.name&&r.registered_office==='SEQUALS - VIA CECILIA DANIELI, 7'&&r.identifiers.includes('01456650934')).length,1);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);
