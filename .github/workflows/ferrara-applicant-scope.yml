@@ -1,0 +1,73 @@
+name: Ferrara applicant scope profile
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-applicant-scope.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Inspect applicant activity scope
+        shell: python
+        run: |
+          import hashlib, io, json, re
+          import pdfplumber, requests
+
+          url = "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-elenco-imprese-richiedenti_0.pdf"
+          expected = "c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7"
+          r = requests.get(url, headers={"User-Agent":"Mozilla/5.0 (compatible; whitelist applicant scope/1.0)", "Cache-Control":"no-cache"}, timeout=60)
+          r.raise_for_status()
+          assert hashlib.sha256(r.content).hexdigest() == expected
+          dateish = re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$")
+          rows = []
+          no_table = []
+          with pdfplumber.open(io.BytesIO(r.content)) as pdf:
+              for page in pdf.pages:
+                  tables = page.extract_tables()
+                  if not tables:
+                      no_table.append({"page":page.page_number,"text":[" ".join(x.split()) for x in (page.extract_text() or "").splitlines() if x.strip()]})
+                      continue
+                  for t, table in enumerate(tables,1):
+                      for n, raw in enumerate(table,1):
+                          cells=[" ".join(str(v or "").replace("\u00a0"," ").split()) for v in raw]
+                          positions=[i for i,v in enumerate(cells) if dateish.fullmatch(v)]
+                          if len(positions)!=1: continue
+                          i=positions[0]
+                          if len(cells)==6 and i==4:
+                              name,office,secondary,ident,app_date,activities=cells
+                          elif len(cells)==8 and i==5 and not cells[0] and not cells[-1]:
+                              _,name,office,secondary,ident,app_date,activities,_=cells
+                          else:
+                              raise AssertionError((page.page_number,n,cells))
+                          rows.append({"page":page.page_number,"row":n,"name":name,"identifier":ident,"application_date":app_date,"activities":activities})
+          special_terms = {
+              "A_moduli_prefabbricati": ("moduli prefabbricati",),
+              "B_demolizione": ("demolizion",),
+              "C_movimenti_terra": ("movimenti di terra","movimento terra"),
+              "D_mezzi_speciali": ("mezzi speciali",),
+              "E_fotovoltaici": ("fotovolta",),
+              "F_impianti_tecnologici": ("impianti tecnologici",),
+              "G_beni_ricostruzione": ("beni necessari", "ricostruzion"),
+          }
+          hits={k:[] for k in special_terms}
+          for row in rows:
+              folded=row["activities"].casefold()
+              for key,terms in special_terms.items():
+                  if any(term in folded for term in terms):
+                      hits[key].append(row["name"])
+          print("FERRARA_APPLICANT_SCOPE_JSON")
+          print(json.dumps({"rows":rows,"special_term_hits":hits,"no_table_pages":no_table},ensure_ascii=False,indent=2))
