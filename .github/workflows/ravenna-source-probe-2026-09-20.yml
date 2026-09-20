@@ -1,0 +1,242 @@
+name: Ravenna source probe 2026-09-20
+
+on:
+  push:
+    branches:
+      - expansion/ravenna-2026-09-20
+    paths:
+      - '.github/workflows/ravenna-source-probe-2026-09-20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ravenna-source-probe-2026-09-20
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/ravenna-2026-09-20
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install probe runtime
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
+
+      - name: Probe official Ravenna source and freeze extraction diagnostics
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
+          EXPECTED_PDF_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica.pdf
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import os
+          import re
+          import time
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          import pdfplumber
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing_url = os.environ['LANDING_URL']
+          expected_pdf_url = os.environ['EXPECTED_PDF_URL']
+          out_dir = Path('tmp')
+          out_dir.mkdir(exist_ok=True)
+
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.0)',
+              'Accept': 'text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+          }
+
+          def fetch(url: str, *, accept: str, attempt: int) -> requests.Response:
+              h = dict(headers)
+              h['Accept'] = accept
+              sep = '&' if '?' in url else '?'
+              target = f"{url}{sep}probe={int(time.time()*1000)}-{attempt}"
+              last = None
+              for retry in range(3):
+                  try:
+                      r = requests.get(target, headers=h, timeout=(20, 90), allow_redirects=True)
+                      last = r
+                      if r.status_code == 200:
+                          return r
+                  except requests.RequestException as exc:
+                      last = exc
+                  time.sleep(2 * (retry + 1))
+              if isinstance(last, requests.Response):
+                  return last
+              raise RuntimeError(f'GET failed for {url}: {last!r}')
+
+          landing = None
+          landing_error = None
+          attachment_links = []
+          try:
+              landing = fetch(landing_url, accept='text/html,*/*;q=0.8', attempt=1)
+              if landing.status_code == 200:
+                  soup = BeautifulSoup(landing.text, 'html.parser')
+                  for a in soup.find_all('a', href=True):
+                      href = urljoin(landing.url, a['href'])
+                      label = ' '.join(a.get_text(' ', strip=True).split())
+                      if href.lower().endswith(('.pdf', '.xlsx', '.xls', '.csv')) or '/sites/default/files/' in href:
+                          attachment_links.append({'label': label, 'url': href})
+              else:
+                  landing_error = f'HTTP {landing.status_code}'
+          except Exception as exc:
+              landing_error = repr(exc)
+
+          current_attachment = None
+          for item in attachment_links:
+              if item['url'] == expected_pdf_url:
+                  current_attachment = item
+                  break
+          if current_attachment is None:
+              for item in attachment_links:
+                  if 'nuova_tabella_unica' in item['url'].lower() or 'tabella unica' in item['label'].lower():
+                      current_attachment = item
+                      break
+
+          pdf_copies = []
+          for attempt in (1, 2):
+              r = fetch(expected_pdf_url, accept='application/pdf,*/*;q=0.8', attempt=attempt)
+              if r.status_code != 200:
+                  raise RuntimeError(f'Ravenna PDF fetch {attempt} returned HTTP {r.status_code}')
+              content = r.content
+              if not content.startswith(b'%PDF'):
+                  raise RuntimeError(f'Ravenna PDF fetch {attempt} did not return PDF bytes')
+              pdf_copies.append({
+                  'attempt': attempt,
+                  'url': r.url.split('?probe=')[0],
+                  'bytes': len(content),
+                  'sha256': hashlib.sha256(content).hexdigest(),
+                  'content': content,
+              })
+
+          if pdf_copies[0]['sha256'] != pdf_copies[1]['sha256']:
+              raise RuntimeError('Independent Ravenna PDF fetches are not byte-identical')
+
+          pdf_bytes = pdf_copies[0]['content']
+          page_diagnostics = []
+          all_tables = []
+          all_text = []
+          date_re = re.compile(r'\b\d{2}/\d{2}/\d{4}\b')
+          numeric_first_rows = 0
+          renewal_marked_rows = 0
+          blank_listing_candidate_rows = 0
+
+          with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+              page_count = len(pdf.pages)
+              for page_number, page in enumerate(pdf.pages, 1):
+                  text = page.extract_text(x_tolerance=2, y_tolerance=3) or ''
+                  all_text.append(f'===== PAGE {page_number} =====\n{text}\n')
+                  tables = page.extract_tables()
+                  table_meta = []
+                  serial_tables = []
+                  for table_number, table in enumerate(tables, 1):
+                      rows = []
+                      widths = []
+                      for raw_row in table or []:
+                          row = [(' '.join((cell or '').split())) for cell in raw_row]
+                          if not any(row):
+                              continue
+                          rows.append(row)
+                          widths.append(len(row))
+                          first = row[0].strip() if row else ''
+                          if re.fullmatch(r'\d+', first):
+                              numeric_first_rows += 1
+                              joined = ' | '.join(row)
+                              if 'Richiesto rinnovo' in joined or 'Aggiornamento in corso' in joined:
+                                  renewal_marked_rows += 1
+                              dates = date_re.findall(joined)
+                              if len(dates) == 1:
+                                  blank_listing_candidate_rows += 1
+                      serial_tables.append(rows)
+                      table_meta.append({
+                          'table_number': table_number,
+                          'rows': len(rows),
+                          'widths': sorted(set(widths)),
+                          'first_rows': rows[:3],
+                          'last_rows': rows[-3:],
+                      })
+                  all_tables.append({'page': page_number, 'tables': serial_tables})
+                  page_diagnostics.append({
+                      'page': page_number,
+                      'text_chars': len(text),
+                      'table_count': len(tables),
+                      'tables': table_meta,
+                  })
+
+          (out_dir / 'ravenna-page-text.txt').write_text(''.join(all_text), encoding='utf-8')
+          (out_dir / 'ravenna-extracted-tables.json').write_text(
+              json.dumps(all_tables, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+
+          result = {
+              'authority_key': 'ravenna',
+              'landing_url': landing_url,
+              'landing_http_status': getattr(landing, 'status_code', None),
+              'landing_error': landing_error,
+              'landing_final_url': getattr(landing, 'url', None),
+              'attachment_links': attachment_links,
+              'expected_pdf_url': expected_pdf_url,
+              'expected_attachment_present_on_landing': bool(current_attachment and current_attachment['url'] == expected_pdf_url),
+              'selected_attachment': current_attachment,
+              'independent_pdf_fetches': [
+                  {k: v for k, v in item.items() if k != 'content'} for item in pdf_copies
+              ],
+              'byte_identical': True,
+              'page_count': page_count,
+              'page_diagnostics': page_diagnostics,
+              'numeric_first_rows': numeric_first_rows,
+              'renewal_marked_rows_heuristic': renewal_marked_rows,
+              'single_date_numeric_rows_heuristic': blank_listing_candidate_rows,
+              'page_text_sha256': hashlib.sha256(''.join(all_text).encode('utf-8')).hexdigest(),
+          }
+          (out_dir / 'ravenna-source-probe.json').write_text(
+              json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8'
+          )
+
+          print(json.dumps({
+              'landing_http_status': result['landing_http_status'],
+              'landing_error': result['landing_error'],
+              'attachment_count': len(attachment_links),
+              'expected_attachment_present_on_landing': result['expected_attachment_present_on_landing'],
+              'pdf_sha256': result['independent_pdf_fetches'][0]['sha256'],
+              'pdf_bytes': result['independent_pdf_fetches'][0]['bytes'],
+              'page_count': page_count,
+              'numeric_first_rows': numeric_first_rows,
+              'renewal_marked_rows_heuristic': renewal_marked_rows,
+              'single_date_numeric_rows_heuristic': blank_listing_candidate_rows,
+          }, indent=2))
+          PY
+
+      - name: Commit recoverable Ravenna source checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/ravenna-source-probe.json tmp/ravenna-extracted-tables.json tmp/ravenna-page-text.txt
+          if git diff --cached --quiet; then
+            echo 'No Ravenna probe changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Checkpoint Ravenna official-source probe'
+          git push origin HEAD:expansion/ravenna-2026-09-20
