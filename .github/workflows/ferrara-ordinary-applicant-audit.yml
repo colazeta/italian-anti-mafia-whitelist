@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber==0.11.10
       - name: Audit pinned ordinary and applicant rows structurally
         shell: python
         run: |
@@ -39,6 +39,30 @@ jobs:
                   'c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7',
               ),
           }
+          EXPECTED = {
+              'ordinary_pages': 87,
+              'ordinary_candidates': 868,
+              'ordinary_statuses': {
+                  'listed': 717,
+                  'renewal_update_in_progress': 150,
+                  'other_or_unknown': 1,
+              },
+              'ordinary_strict_id_rows': 860,
+              'ordinary_blank_office_rows': 1,
+              'ordinary_date_anomalies': 2,
+              'ordinary_header_rows': 10,
+              'ordinary_structural_rows': 10,
+              'ordinary_continuation_rows': 28,
+              'applicant_pages': 5,
+              'applicant_candidates': 21,
+              'applicant_strict_id_rows': 21,
+              'applicant_date_anomalies': 0,
+              'applicant_header_rows': 4,
+              'applicant_widths': {6: 10, 8: 15},
+          }
+          # Reviewed against exact applicant SHA and pdfplumber 0.11.10. Page 5 is
+          # an actual empty trailing page. Any non-empty extraction fails closed.
+          EXPECTED_EMPTY_APPLICANT_PAGES = {5}
 
           def norm(v):
               return ' '.join((v or '').replace('\u00a0', ' ').split())
@@ -77,20 +101,24 @@ jobs:
 
           def get(label):
               url, expected = SOURCES[label]
-              r = requests.get(
-                  url,
-                  headers={
-                      'User-Agent': 'italian-anti-mafia-whitelist/ferrara-completeness-audit',
-                      'Cache-Control': 'no-cache',
-                      'Pragma': 'no-cache',
-                  },
-                  params={'audit_nonce': secrets.token_hex(8)},
-                  timeout=90,
-              )
-              r.raise_for_status()
-              actual = hashlib.sha256(r.content).hexdigest()
-              assert actual == expected, (label, expected, actual, len(r.content))
-              return r.content
+              bodies = []
+              for _ in range(2):
+                  r = requests.get(
+                      url,
+                      headers={
+                          'User-Agent': 'italian-anti-mafia-whitelist/ferrara-completeness-audit',
+                          'Cache-Control': 'no-cache',
+                          'Pragma': 'no-cache',
+                      },
+                      params={'audit_nonce': secrets.token_hex(8)},
+                      timeout=90,
+                  )
+                  r.raise_for_status()
+                  actual = hashlib.sha256(r.content).hexdigest()
+                  assert actual == expected, (label, expected, actual, len(r.content))
+                  bodies.append(r.content)
+              assert bodies[0] == bodies[1], f'{label} independent fetches differ'
+              return bodies[0]
 
           def is_header(row):
               joined = fold(' | '.join(row))
@@ -112,10 +140,6 @@ jobs:
               joined = fold(' | '.join(row))
               return 'white list' in joined and 'elenco imprese richiedenti' in joined
 
-          # Ordinary listed. The official PDF visually splits some logical rows at
-          # page boundaries. The identifier + expiry cells are the row anchor; a
-          # fragment without identifier/listing/expiry may extend only the most
-          # recent anchored row. Headers and section/title rows are never merged.
           ordinary = []
           ordinary_headers = []
           ordinary_structural = []
@@ -124,7 +148,7 @@ jobs:
           current = None
 
           with pdfplumber.open(io.BytesIO(get('ordinary'))) as pdf:
-              assert len(pdf.pages) == 87
+              assert len(pdf.pages) == EXPECTED['ordinary_pages']
               for pno, page in enumerate(pdf.pages, 1):
                   tables = page.extract_tables() or []
                   assert len(tables) == 1, (pno, len(tables))
@@ -136,14 +160,15 @@ jobs:
                       locator = f'p{pno}:r{rno}'
                       if is_header(row):
                           ordinary_headers.append({'locator': locator, 'row': row})
+                          current = None
                           continue
                       if is_structural(row):
                           ordinary_structural.append({'locator': locator, 'row': row})
+                          current = None
                           continue
 
                       name, office, secondary, ident, listed_raw, expiry_raw, note = row
-                      anchored = bool(ident and expiry_raw)
-                      if anchored:
+                      if ident and expiry_raw:
                           current = {
                               'locator': locator,
                               'source_locators': [locator],
@@ -193,20 +218,21 @@ jobs:
 
           applicants = []
           applicant_headers = []
-          applicant_no_table = []
+          applicant_empty_pages = set()
           applicant_widths = Counter()
           applicant_unclassified = []
           applicant_date_anomalies = []
 
           with pdfplumber.open(io.BytesIO(get('applicants'))) as pdf:
-              assert len(pdf.pages) == 5
+              assert len(pdf.pages) == EXPECTED['applicant_pages']
               for pno, page in enumerate(pdf.pages, 1):
                   tables = page.extract_tables() or []
                   if not tables:
-                      applicant_no_table.append({
-                          'page': pno,
-                          'text': [norm(x) for x in (page.extract_text() or '').splitlines() if norm(x)],
-                      })
+                      text = norm(page.extract_text() or '')
+                      words = page.extract_words() or []
+                      assert pno in EXPECTED_EMPTY_APPLICANT_PAGES, (pno, text, len(words))
+                      assert text == '' and not words, (pno, text, words)
+                      applicant_empty_pages.add(pno)
                       continue
                   assert len(tables) == 1, (pno, len(tables))
                   for rno, raw in enumerate(tables[0] or [], 1):
@@ -246,6 +272,7 @@ jobs:
                       if item['application_state'] != 'normalised':
                           applicant_date_anomalies.append(item)
 
+          assert applicant_empty_pages == EXPECTED_EMPTY_APPLICANT_PAGES, applicant_empty_pages
           assert not applicant_unclassified, applicant_unclassified
           assert applicants, 'no Ferrara applicant observations parsed'
 
@@ -265,8 +292,18 @@ jobs:
               'applicant_strict_id_rows': sum(bool(x['ids']) for x in applicants),
               'applicant_date_anomalies': len(applicant_date_anomalies),
               'applicant_header_rows': len(applicant_headers),
-              'applicant_no_table_pages': applicant_no_table,
+              'applicant_empty_pages': sorted(applicant_empty_pages),
               'applicant_date_anomaly_rows': applicant_date_anomalies,
           }
           print('FERRARA_ORDINARY_APPLICANT_AUDIT_JSON')
           print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+          for key in (
+              'ordinary_candidates', 'ordinary_strict_id_rows', 'ordinary_blank_office_rows',
+              'ordinary_date_anomalies', 'ordinary_header_rows', 'ordinary_structural_rows',
+              'ordinary_continuation_rows', 'applicant_candidates', 'applicant_strict_id_rows',
+              'applicant_date_anomalies', 'applicant_header_rows',
+          ):
+              assert summary[key] == EXPECTED[key], (key, summary[key], EXPECTED[key])
+          assert summary['ordinary_statuses'] == EXPECTED['ordinary_statuses'], summary['ordinary_statuses']
+          assert summary['applicant_widths'] == EXPECTED['applicant_widths'], summary['applicant_widths']
