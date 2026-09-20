@@ -1,0 +1,197 @@
+name: Pescara integration candidate
+
+on:
+  push:
+    branches: [expansion/pescara-2026-09-21]
+    paths: [.github/workflows/pescara-integration.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/pescara-2026-09-21
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Materialise permanent Pescara integration candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          root=Path('.')
+          registry=root/'src/white_list_archive/publishing/public_national_registry.py'
+          text=registry.read_text(encoding='utf-8')
+          import_line='from white_list_archive.parsers.pescara_legacy_doc import PARSERS as PESCARA_PARSERS\n'
+          anchor='from white_list_archive.parsers.ravenna_combined import PARSERS as RAVENNA_PARSERS\n'
+          if import_line not in text:
+              if anchor not in text: raise SystemExit('Ravenna import anchor drift')
+              text=text.replace(anchor,anchor+import_line,1)
+          chain='        or RAVENNA_PARSERS.get(cfg["parser"])\n'
+          pescara_chain='        or PESCARA_PARSERS.get(cfg["parser"])\n'
+          if pescara_chain not in text:
+              if chain not in text: raise SystemExit('parser-chain anchor drift')
+              text=text.replace(chain,chain+pescara_chain,1)
+          registry.write_text(text,encoding='utf-8')
+
+          config_path=root/'data/publication/multi_prefecture_pilot.json'
+          config=json.loads(config_path.read_text(encoding='utf-8'))
+          if any(s['source_key'].startswith('pescara-') for s in config['sources']):
+              raise SystemExit('Pescara publication source already exists unexpectedly')
+          common={
+              'authority_key':'pescara','authority_name':'Prefettura di Pescara',
+              'register_key':'pescara-ordinary','register_name':'White List ordinaria',
+          }
+          config['sources'] += [
+            {**common,
+             'source_key':'pescara-listed','parser':'pescara_legacy_listed','population_scope':'listed',
+             'reference_date':'2026-09-16',
+             'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/pescara/evidenza/white-list',
+             'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-2026.doc',
+             'sha256':'6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239',
+             'expected_sector_rows':1060,'expected_source_rows':607,
+             'last_source_update':'2026-09-16','last_source_update_basis':'dated official resource directly repeat-fetched and byte-pinned 21 September 2026',
+             'notes':'Byte-pinned legacy Word listed series. Exact source-row grouping yields 607 observations from 1,060 sector rows: 456 listed, 150 renewal/update in progress and one other/unknown source marker. Reviewed malformed identifiers/dates remain raw and uninferred.'},
+            {**common,
+             'source_key':'pescara-applicants','parser':'pescara_legacy_applicants','population_scope':'applicant',
+             'reference_date':'2026-09-04',
+             'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/pescara/elenco-imprese-richiedenti-liscrizione-nelle-white-list',
+             'resource_url':'https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_richiedenti_white-list_04.09.2026.doc',
+             'sha256':'2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c',
+             'expected_source_rows':35,
+             'last_source_update':'2026-09-04','last_source_update_basis':'dated official resource directly repeat-fetched and byte-pinned 21 September 2026',
+             'notes':'Byte-pinned legacy Word applicant series. Thirty-six physical data rows yield 35 observations after one exact reviewed continuation row for CALISTA IMPIANTI SRL; all 35 are source-positive pending applicants. One malformed identifier remains raw-only.'},
+          ]
+          config_path.write_text(json.dumps(config,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          verified=root/'data/source_registry/verified_primary_pages.csv'
+          with verified.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['authority_key']=='pescara' for r in rows): raise SystemExit('Pescara verified-page row already exists unexpectedly')
+          rows.append({'authority_key':'pescara','landing_url':'https://prefettura.interno.gov.it/it/prefetture/pescara/evidenza/white-list','verification_date':'2026-09-21','verification_status':'verified'})
+          rows.sort(key=lambda r:r['authority_key'])
+          with verified.open('w',encoding='utf-8',newline='') as h:
+              w=csv.DictWriter(h,fieldnames=fields);w.writeheader();w.writerows(rows)
+
+          series=root/'data/source_registry/source_series_inventory.csv'
+          with series.open(encoding='utf-8',newline='') as h: rows=list(csv.DictReader(h)); fields=list(rows[0])
+          if any(r['authority_key']=='pescara' for r in rows): raise SystemExit('Pescara source-series row already exists unexpectedly')
+          additions=[
+            {'source_series_key':'pescara-listed','authority_key':'pescara','register_regime_code':'WL-REGIME-L190-2012','population_scope':'listed','activity_scope':'all','publication_model':'periodic_attachment','landing_url':'https://prefettura.interno.gov.it/it/prefetture/pescara/evidenza/white-list','resolution_status':'landing_page_resolved','verified_on':'2026-09-21','notes':'Current official Pescara listed landing directly verified 21 September 2026 and positively exposes White list 16/09/2026. Two independent captures of the legacy Word attachment are byte-identical at SHA-256 6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239. Exact-row grouping yields 607 observations from 1,060 sector rows; raw malformed identifiers/dates and the single nonstandard status token are not repaired by inference.'},
+            {'source_series_key':'pescara-applicants','authority_key':'pescara','register_regime_code':'WL-REGIME-L190-2012','population_scope':'applicant','activity_scope':'all','publication_model':'periodic_attachment','landing_url':'https://prefettura.interno.gov.it/it/prefetture/pescara/elenco-imprese-richiedenti-liscrizione-nelle-white-list','resolution_status':'direct_series_page_resolved','verified_on':'2026-09-21','notes':'Current official Pescara applicant page directly verified 21 September 2026 and positively exposes Elenco richiedenti White List - 04.09.2026. Two independent captures are byte-identical at SHA-256 2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c. Thirty-six physical rows yield 35 applicant observations after one exact reviewed continuation; no applicant status is inferred from absence.'},
+          ]
+          rows.extend(additions); rows.sort(key=lambda r:r['source_series_key'])
+          with series.open('w',encoding='utf-8',newline='') as h:
+              w=csv.DictWriter(h,fieldnames=fields);w.writeheader();w.writerows(rows)
+
+          doc=root/'docs/sources/pescara-operational-check-2026-09-21.md'
+          doc.write_text('''# Pescara White List operational check — 21 September 2026
+
+## Official publication evidence
+
+The current official Prefettura di Pescara surfaces positively expose both populations. The listed landing is `https://prefettura.interno.gov.it/it/prefetture/pescara/evidenza/white-list` and, on direct verification, exposed the attachment labelled **White list 16/09/2026**. The applicant page is `https://prefettura.interno.gov.it/it/prefetture/pescara/elenco-imprese-richiedenti-liscrizione-nelle-white-list` and exposed **Elenco richiedenti White List - 04.09.2026**. A separate client returning HTTP 403 is not negative publication evidence; the source identity below was established by successful official-site retrieval in the validation runner.
+
+Two independent downloads of each current resource were byte-identical. Both are legacy Microsoft Word/OLE documents and are parsed with `antiword` in fail-closed mode.
+
+| population | resource | bytes | SHA-256 |
+|---|---|---:|---|
+| listed | `white-list-2026.doc` | 1,967,616 | `6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239` |
+| applicants | `elenco_richiedenti_white-list_04.09.2026.doc` | 350,720 | `2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c` |
+
+## Listed population
+
+The source contains ten statutory White List sections represented through 13 seven-column table groups and 1,060 physical company×section rows. Exact full-row grouping only produces **607 logical observations** and 1,058 unique section memberships; two exact repeated memberships inside the same section are treated as source duplicates rather than additional activities.
+
+The frozen status boundary is **456 listed, 150 renewal/update in progress, and 1 other/unknown**. Only a blank update field maps to `listed`; exact `IN RINNOVO` maps to `renewal_update_in_progress`; the single source token `I` is deliberately retained as `other_or_unknown`. Any new status token fails validation.
+
+Structured identifier coverage is **579/607**. Twenty-eight observations contain source identifiers that do not satisfy the accepted 11-digit/16-character shapes and remain raw-only. Seven malformed source date tokens are likewise retained as raw evidence and are not repaired: `21/052024`, `13/07/20222`, `23701/2026`, `09/06/20206`, `22/12/202`, `30707/2024`, `29/10/204`.
+
+## Applicant population
+
+The applicant source contains two six-column table groups, one exact header and **36 physical data rows**. Physical row 6 is a source continuation of the preceding `CALISTA IMPIANTI SRL` row: the first physical fragment contains company/office/identifier while the second carries the requested activity and application date `01.10.2025`. The parser permits that merge only for this exact reviewed owner/shape and therefore emits **35 applicant observations**, all `pending` on positive applicant-source evidence.
+
+Structured identifier coverage is **34/35**; the source value `0285069069` remains raw-only. Applicant dates contain no reviewed malformed values. Blank names elsewhere, row-width/header drift, a changed continuation shape, or any unreviewed malformed applicant date fail closed.
+
+## Publication boundary
+
+Pescara contributes **642 observations** to one ordinary register: 607 listed-side observations plus 35 applicant observations. Parser validation is byte-pinned to the two hashes above. The public projection uses only already-approved source-field keys; source anomalies stay provenance rather than being silently normalised.
+''',encoding='utf-8')
+
+          test=root/'tests/test_pescara_legacy_doc.py'
+          test.write_text('''from __future__ import annotations\n\nfrom pathlib import Path\n\nimport pytest\n\nfrom white_list_archive.parsers.pescara_legacy_doc import PARSERS, parse_pescara_listed\n\n\ndef test_pescara_parsers_registered() -> None:\n    assert set(PARSERS) == {"pescara_legacy_listed", "pescara_legacy_applicants"}\n\n\ndef test_pescara_listed_reference_date_fails_closed_before_io() -> None:\n    cfg = {\n        "source_key": "pescara-listed", "authority_key": "pescara",\n        "reference_date": "2026-09-15",\n    }\n    with pytest.raises(RuntimeError, match="reference-date drift"):\n        parse_pescara_listed(Path("does-not-exist.doc"), cfg)\n''',encoding='utf-8')
+          PY
+      - name: Install integration runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then break; fi
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+      - name: Run focused Pescara tests and full suite
+        run: |
+          pytest -q tests/test_pescara_legacy_doc.py
+          pytest -q
+      - name: Build and validate actual national candidate
+        run: |
+          rm -rf /tmp/pescara-national /tmp/pescara-site
+          mkdir -p /tmp/pescara-site/data
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/pescara-national \
+            --registry-json /tmp/pescara-site/data/registry.json \
+            --registry-csv /tmp/pescara-site/data/registry.csv \
+            --prefectures-json /tmp/pescara-site/data/prefectures.json \
+            --prefectures-csv /tmp/pescara-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/pescara-site/data/registry.json').read_text())
+          pref=json.loads(Path('/tmp/pescara-site/data/prefectures.json').read_text())
+          rows=[r for r in reg['records'] if r['authority_key']=='pescara']
+          assert len(rows)==642, len(rows)
+          assert sum(r['source_key']=='pescara-listed' for r in rows)==607
+          assert sum(r['source_key']=='pescara-applicants' for r in rows)==35
+          assert sum(r['source_status']=='listed' for r in rows)==456
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==150
+          assert sum(r['source_status']=='other_or_unknown' for r in rows)==1
+          assert sum(r['source_status']=='pending' for r in rows)==35
+          assert sum(bool(r['identifiers']) for r in rows)==613
+          p=[x for x in pref['prefectures'] if x['authority_key']=='pescara']
+          assert len(p)==1 and p[0]['mapped'] and p[0]['published'] and p[0]['series_count']==2
+          summary={
+              'registry_records':reg['meta']['record_count'],
+              'authorities_published':reg['meta']['authority_count'],
+              'registers_published':reg['meta']['register_count'],
+              'mapped_prefectures':pref['meta']['mapped_count'],
+              'published_prefectures':pref['meta']['published_count'],
+              'pescara_records':len(rows),
+          }
+          print(json.dumps(summary,indent=2))
+          Path('docs/sources/pescara-national-candidate-2026-09-21.json').write_text(json.dumps(summary,indent=2)+'\n')
+          PY
+      - name: Commit permanent candidate checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/publishing/public_national_registry.py \
+                  data/publication/multi_prefecture_pilot.json \
+                  data/source_registry/verified_primary_pages.csv \
+                  data/source_registry/source_series_inventory.csv \
+                  docs/sources/pescara-operational-check-2026-09-21.md \
+                  docs/sources/pescara-national-candidate-2026-09-21.json \
+                  tests/test_pescara_legacy_doc.py
+          git commit -m 'Integrate Pescara White List candidate'
+          git push origin HEAD:expansion/pescara-2026-09-21
