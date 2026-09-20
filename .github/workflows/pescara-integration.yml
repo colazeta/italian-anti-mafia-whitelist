@@ -6,6 +6,9 @@ on:
       - expansion/pescara-2026-09-21
     paths:
       - .github/workflows/pescara-integration.yml
+      - tmp/pescara_denominators.py
+      - tmp/pescara_integrate.py
+      - tmp/pescara_source_registry.py
 
 permissions:
   contents: write
