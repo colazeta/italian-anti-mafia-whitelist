@@ -26,6 +26,7 @@ CHECK_FIELDS = frozenset({"edition_id", "checked_at", "kind"})
 COMPARISON_FIELDS = frozenset("before_id after_id basis added disappeared common content_changed status_changed unresolved_before unresolved_after transition_counts evidence".split())
 CONTENT_FIELDS = ("name", "registered_office", "secondary_office", "identifier_field_raw", "requested_activities", "requested_activities_raw", "source_status", "outcome_raw", "application_date", "observed_listing_date", "decision_date", "registration_date", "observed_expiry_date")
 HEX = re.compile(r"^[0-9a-f]{64}$")
+BUNDLE_CAPTURE = re.compile(r"^bundle:([0-9a-f]{64})$")
 
 
 def empty_history() -> dict:
@@ -34,6 +35,18 @@ def empty_history() -> dict:
 
 def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _history_document_sha256(capture_identity: str) -> str:
+    """Return the content digest represented by an approved scalar or bundle capture identity."""
+    if not isinstance(capture_identity, str):
+        raise ValueError("Public capture content identity must be a string")
+    if HEX.fullmatch(capture_identity):
+        return capture_identity
+    match = BUNDLE_CAPTURE.fullmatch(capture_identity)
+    if match:
+        return match.group(1)
+    raise ValueError("Invalid public capture content identity")
 
 
 def _normal(value: Any) -> Any:
@@ -185,7 +198,7 @@ def aggregate_registry(registry: dict) -> dict:
         if len(signatures) != 1 or any(scope(r) != scope(first) for r in rows):
             raise ValueError("One public edition cannot mix scope or parser versions")
         edition = {k: first[k] for k in ("source_key", "authority_key", "authority_name", "register_key", "register_name", "population_scope", "source_page_url", "resource_url")}
-        edition.update(reference_date=iso_date(first["reference_date"]), reference_date_raw=first["reference_date"], document_sha256=first["capture_sha256"], parser_signature=next(iter(signatures)), total=len(rows), status_counts=dict(sorted(Counter(r["source_status"] for r in rows).items())), data_fingerprint=_digest(sorted(_digest(_content(r)) for r in rows)), evidence=["approved-public-registry"])
+        edition.update(reference_date=iso_date(first["reference_date"]), reference_date_raw=first["reference_date"], document_sha256=_history_document_sha256(first["capture_sha256"]), parser_signature=next(iter(signatures)), total=len(rows), status_counts=dict(sorted(Counter(r["source_status"] for r in rows).items())), data_fingerprint=_digest(sorted(_digest(_content(r)) for r in rows)), evidence=["approved-public-registry"])
         edition["id"] = edition_id(edition)
         result["editions"].append(edition)
         if report.get("document_checked_at"):
@@ -281,7 +294,7 @@ def compare_releases(previous: dict, current: dict) -> dict:
     for edition in old["editions"]:
         old_by_scope[scope(edition)].append(edition)
     def rows_for(registry: dict, edition: dict) -> list[dict]:
-        return [r for r in registry["records"] if (r["source_key"], r["reference_date"], r["capture_sha256"]) == (edition["source_key"], edition["reference_date_raw"], edition["document_sha256"])]
+        return [r for r in registry["records"] if (r["source_key"], r["reference_date"], _history_document_sha256(r["capture_sha256"])) == (edition["source_key"], edition["reference_date_raw"], edition["document_sha256"])]
     for after in new["editions"]:
         candidates = [e for e in old_by_scope[scope(after)] if e["reference_date"] and after["reference_date"] and e["reference_date"] < after["reference_date"] and e["parser_signature"] == after["parser_signature"]]
         if not candidates:

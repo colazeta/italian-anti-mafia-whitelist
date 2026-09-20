@@ -81,6 +81,10 @@ from white_list_archive.parsers.palermo_positioned import PARSERS as PALERMO_PAR
 from white_list_archive.parsers.matera_openxml import PARSERS as MATERA_PARSERS
 from white_list_archive.parsers.siracusa_tables import PARSERS as SIRACUSA_PARSERS
 from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS
+from white_list_archive.parsers.ferrara_tables import (
+    PARSERS as FERRARA_PARSERS,
+    parse_ferrara_reconstruction_bundle,
+)
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -113,6 +117,7 @@ FIRENZE_PARSERS = {
     "firenze_listed": parse_firenze_listed,
     "firenze_applicants": parse_firenze_applicants,
 }
+FERRARA_RECONSTRUCTION_PARSER = "ferrara-reconstruction-listed"
 
 
 
@@ -952,7 +957,92 @@ def _adapt_matera_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedB
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
-def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
+def _adapt_ferrara_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Ferrara source_fields must be a mapping")
+
+        if parser_name == "ferrara-provincial-listed":
+            expected = {"listing_date_raw", "expiry_date_raw", "notes", "physical_locators"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara ordinary source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["notes"], list) or any(not isinstance(value, str) for value in fields["notes"]):
+                raise RuntimeError("Ferrara ordinary notes type drift")
+            if not isinstance(fields["physical_locators"], list) or not fields["physical_locators"] or any(not isinstance(value, str) for value in fields["physical_locators"]):
+                raise RuntimeError("Ferrara ordinary physical-locator type/cardinality drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Ferrara ordinary raw-date type drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+
+        elif parser_name == "ferrara-provincial-applicants":
+            expected = {
+                "application_date_raw", "requested_activities_source", "physical_locators",
+                "shared_publication_no_duplicate_ingest", "logical_series",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara applicant source-field drift: {sorted(fields)!r}")
+            if fields["shared_publication_no_duplicate_ingest"] is not True:
+                raise RuntimeError("Ferrara shared-publication flag drift")
+            if fields["logical_series"] != ["ferrara-provincial-applicants", "ferrara-reconstruction-applicants"]:
+                raise RuntimeError("Ferrara logical applicant-series binding drift")
+            if not isinstance(fields["physical_locators"], list) or len(fields["physical_locators"]) != 1 or any(not isinstance(value, str) for value in fields["physical_locators"]):
+                raise RuntimeError("Ferrara applicant physical-locator type/cardinality drift")
+            if any(not isinstance(fields[key], str) for key in ("application_date_raw", "requested_activities_source")):
+                raise RuntimeError("Ferrara applicant source-field scalar drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+
+        elif parser_name == FERRARA_RECONSTRUCTION_PARSER:
+            expected = {
+                "listing_date_raw", "expiry_date_raw", "sectors", "name_variants",
+                "office_variants", "notes", "physical_locators", "physical_sector_observations",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara reconstruction source-field drift: {sorted(fields)!r}")
+            for key in ("sectors", "name_variants", "office_variants", "notes", "physical_locators"):
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Ferrara reconstruction source-list type drift: {key}")
+            if not fields["sectors"] or not fields["physical_locators"]:
+                raise RuntimeError("Ferrara reconstruction empty sector/provenance evidence")
+            if type(fields["physical_sector_observations"]) is not int or fields["physical_sector_observations"] < len(fields["sectors"]):
+                raise RuntimeError("Ferrara reconstruction physical-sector denominator drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Ferrara reconstruction raw-date type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sectors"]),
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "registered_office_variants": list(fields["office_variants"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Ferrara parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:
+    if cfg["parser"] == FERRARA_RECONSTRUCTION_PARSER:
+        if not isinstance(path, dict):
+            raise RuntimeError("Ferrara reconstruction requires an explicitly acquired source bundle")
+        batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])
+        for record in batch.records:
+            record["parser_name"] = cfg["parser"]
+            record["parser_version"] = "1"
+        return batch
+    if not isinstance(path, Path):
+        raise RuntimeError(f"Scalar parser received a source bundle: {cfg['parser']!r}")
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
     parser = (
@@ -1017,6 +1107,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or MATERA_PARSERS.get(cfg["parser"])
         or SIRACUSA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
+        or FERRARA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1047,6 +1138,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_roma_public_fields(batch, cfg["parser"])
     if cfg["parser"] in MATERA_PARSERS:
         batch = _adapt_matera_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in FERRARA_PARSERS:
+        batch = _adapt_ferrara_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
@@ -1136,13 +1229,58 @@ def _validate_batch(cfg: dict[str, Any], batch: ParsedBatch) -> None:
         raise RuntimeError(f"{cfg['source_key']}: no public records parsed")
 
 
+def _bundle_digest(member_hashes: dict[str, str]) -> str:
+    if not member_hashes:
+        raise RuntimeError("Source bundle must contain at least one member")
+    for label, digest in member_hashes.items():
+        if not isinstance(label, str) or not label or re.fullmatch(r"[A-Za-z0-9._-]+", label) is None:
+            raise RuntimeError(f"Invalid source-bundle label: {label!r}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise RuntimeError(f"Invalid source-bundle SHA-256 for {label!r}: {digest!r}")
+    payload = "".join(member_hashes[label] for label in sorted(member_hashes)).encode("ascii")
+    return "bundle:" + hashlib.sha256(payload).hexdigest()
+
+
+def _acquire_source_input(cfg: dict[str, Any], work_dir: Path) -> tuple[Path | dict[str, Path], str]:
+    resources = cfg.get("resources")
+    if resources is None:
+        suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"
+        local_path = work_dir / f"{cfg['source_key']}{suffix}"
+        return local_path, _download(cfg["resource_url"], local_path)
+
+    if not isinstance(resources, dict) or not resources:
+        raise RuntimeError(f"{cfg['source_key']}: resources must be a non-empty mapping")
+    paths: dict[str, Path] = {}
+    member_hashes: dict[str, str] = {}
+    for label in sorted(resources):
+        member = resources[label]
+        if not isinstance(member, dict) or set(member) != {"resource_url", "sha256"}:
+            raise RuntimeError(f"{cfg['source_key']}: source-bundle member shape drift for {label!r}")
+        url = member["resource_url"]
+        expected_sha = member["sha256"]
+        if not isinstance(url, str) or not url.startswith("https://"):
+            raise RuntimeError(f"{cfg['source_key']}: invalid source-bundle URL for {label!r}")
+        if not isinstance(expected_sha, str) or re.fullmatch(r"[0-9a-f]{64}", expected_sha) is None:
+            raise RuntimeError(f"{cfg['source_key']}: invalid source-bundle SHA-256 for {label!r}")
+        suffix = Path(urlparse(url).path).suffix or ".bin"
+        local_path = work_dir / f"{cfg['source_key']}-{label}{suffix}"
+        actual_sha = _download(url, local_path)
+        if actual_sha != expected_sha:
+            raise RuntimeError(f"{cfg['source_key']}: bundle member {label!r} SHA mismatch; expected {expected_sha}, got {actual_sha}")
+        paths[label] = local_path
+        member_hashes[label] = actual_sha
+
+    actual_bundle_sha = _bundle_digest(member_hashes)
+    expected_bundle_sha = cfg.get("sha256")
+    if actual_bundle_sha != expected_bundle_sha:
+        raise RuntimeError(f"{cfg['source_key']}: bundle manifest SHA mismatch; expected {expected_bundle_sha}, got {actual_bundle_sha}")
+    return paths, actual_bundle_sha
+
 def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
     all_records: list[dict[str, Any]] = []
     source_reports: list[dict[str, Any]] = []
     for cfg in config["sources"]:
-        suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"
-        local_path = work_dir / f"{cfg['source_key']}{suffix}"
-        actual_sha = _download(cfg["resource_url"], local_path)
+        source_input, actual_sha = _acquire_source_input(cfg, work_dir)
         approval_mode = str(cfg.get("approval_mode") or "raw_sha256")
         if approval_mode not in {"raw_sha256", "semantic_sha256"}:
             raise RuntimeError(f"{cfg['source_key']}: unsupported approval mode {approval_mode!r}")
@@ -1155,7 +1293,7 @@ def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
         # this remains identical to the approved raw hash.
         parse_cfg = dict(cfg)
         parse_cfg["sha256"] = actual_sha
-        batch = _parse_source(local_path, parse_cfg)
+        batch = _parse_source(source_input, parse_cfg)
         _validate_batch(cfg, batch)
         if approval_mode == "semantic_sha256":
             expected_semantic_sha = str(cfg.get("semantic_sha256") or "")
