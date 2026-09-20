@@ -1,0 +1,52 @@
+name: Pordenone anomaly probe
+
+on:
+  push:
+    branches:
+      - expansion/pordenone-2026-09-20
+    paths:
+      - .github/workflows/pordenone-anomaly-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - run: python -m pip install --disable-pip-version-check pdfplumber==0.11.7
+      - name: Inspect reviewed anomalous rows only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, io, json
+          from urllib.request import Request, urlopen
+          import pdfplumber
+
+          assets={
+            'I':('https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-i-estrazione-fornitura-etc_0.pdf','f4e6374e5e03daa25daedd49ada730ae39c6b77437e763e3c0308aa0a0c627de',[1,3,4]),
+            'III':('https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iii-noli-a-freddo-di-macchinari.pdf','2204fe651b733e32fe13f001c97fd2c6a93ccd9a846cc9f4ddd40d4f471e6ce9',[2,3]),
+            'VI':('https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vi-autotrasporti-per-conto-terzi_1.pdf','62c39abfc260ecacf59b0201867263499643fe5dc36c95500e380fa53deb87aa',[1]),
+            'X':('https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-x-servizi-ambientali-trasporto-rifiuti-etc_0.pdf','af639b5c55ff31893bfd3906876e0c60e1e6614065efae1e5c7871ac62290c0f',[2]),
+            'XI':('https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-xi-elenco-imprese-richiedenti_edit_0.pdf','b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1',[2,3]),
+          }
+          ua='italian-anti-mafia-whitelist/1.0 anomaly-probe'
+          for sec,(url,expected,pages) in assets.items():
+            with urlopen(Request(url,headers={'User-Agent':ua,'Cache-Control':'no-cache'}),timeout=60) as r: data=r.read()
+            assert hashlib.sha256(data).hexdigest()==expected
+            with pdfplumber.open(io.BytesIO(data)) as pdf:
+              for pno in pages:
+                page=pdf.pages[pno-1]
+                print(f'===== {sec} PAGE {pno} TEXT =====')
+                print(page.extract_text() or '')
+                print(f'===== {sec} PAGE {pno} TABLE =====')
+                for i,row in enumerate((page.extract_table() or []),1):
+                  print('ROW',i,json.dumps([' '.join((c or '').split()) for c in row],ensure_ascii=False))
+                if sec=='XI' and pno==3:
+                  print('===== XI PAGE 3 WORDS =====')
+                  for w in page.extract_words(use_text_flow=False,keep_blank_chars=False):
+                    print('WORD',json.dumps({k:w[k] for k in ('text','x0','x1','top','bottom')},ensure_ascii=False))
+          PY
