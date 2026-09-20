@@ -1,0 +1,81 @@
+version: 0.1.0
+status: experimental_internal_research
+analysis_boundary:
+  production_source_of_truth:
+    - source.*
+    - semantic.*
+    - core.*
+    - whitelist.*
+  research_outputs_must_not_mutate_canonical_facts: true
+  public_release: false
+
+decision_time:
+  exact_administrative_date:
+    definition: "Use only when an administrative decision date is explicitly supported by source evidence and provenance."
+    precision: day
+  source_listing_date_proxy:
+    definition: "Source-supported listing/registration date used as a labelled proxy only when it is on or after the application date."
+    exact_administrative_date: false
+  interval_censored:
+    definition: "Procedure is observed open at one edition and completed at a later edition without an exact/proxy decision date."
+    lower_bound_semantics: "decision occurred strictly after the last open observation"
+    upper_bound_semantics: "decision occurred on or before the first completed observation"
+  right_censored:
+    definition: "Procedure remains non-completed at the last usable observation."
+    censor_date: "last usable observation date"
+
+processing_time:
+  primary_unit: days
+  preferred_statistics:
+    - median
+    - p25
+    - p75
+    - p90
+    - share_completed_within_30_days
+    - share_completed_within_60_days
+    - share_completed_within_90_days
+    - share_completed_within_180_days
+    - share_completed_within_365_days
+  methodology:
+    - "Do not restrict the analysis to completed procedures."
+    - "Use survival methods for right-censored observations."
+    - "Use interval-censoring methods when only transition bounds are observed."
+    - "Report source-listing-date proxies separately from exact administrative dates."
+
+clearance_rate:
+  formula: "resolved_procedures_in_period / incoming_applications_in_period"
+  gate:
+    requires_applicant_population_coverage: true
+    requires_longitudinal_observation_window: true
+    requires_resolution_period_assignability: true
+  interpretation:
+    "100_percent": "resolved inflow equals incoming inflow"
+    "above_100_percent": "the period also absorbs older stock"
+    "below_100_percent": "pending stock tends to accumulate, all else equal"
+
+backlog:
+  definition: "Applications submitted by the reference date and not yet resolved by that date."
+  ageing_buckets_days:
+    - 90
+    - 180
+    - 365
+  gate:
+    requires_applicant_population_coverage: true
+    requires_longitudinal_observation_window: true
+
+disposition_time:
+  formula: "pending_end_of_period / resolved_in_period * days_in_period"
+  interpretation: "stock-flow indicator; not an observed individual processing time"
+
+cohort_completion:
+  cohort_key: "application year-quarter"
+  horizons_days:
+    - 30
+    - 60
+    - 90
+    - 180
+    - 365
+
+metric_eligibility:
+  scope: "authority x register/regime x metric x period"
+  missing_or_unresolved: "NA, never zero"
