@@ -1,0 +1,35 @@
+name: Pescara monitoring snapshot
+
+on:
+  push:
+    branches: [expansion/pescara-2026-09-21]
+    paths: [.github/workflows/pescara-monitoring-snapshot.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: expansion/pescara-2026-09-21, fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Snapshot current Pescara ledger row
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          ledger=json.loads(Path('data/monitoring/national_coverage.json').read_text())
+          rows=[r for r in ledger['prefectures'] if r['authority_key']=='pescara']
+          if len(rows)!=1: raise SystemExit(f'Pescara ledger row count {len(rows)}')
+          Path('tmp/pescara-monitoring-before.json').write_text(json.dumps(rows[0],ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Commit snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/pescara-monitoring-before.json
+          git commit -m 'Checkpoint Pescara monitoring baseline'
+          git push origin HEAD:expansion/pescara-2026-09-21
