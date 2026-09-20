@@ -105,11 +105,11 @@ jobs:
           assert len(repaired)==1
           repaired=repaired[0]
           assert repaired['name']=='RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.'
-          assert repaired['office']=='ROTTERDAM (PAESI BASSI)'
+          assert repaired['registered_office']=='ROTTERDAM (PAESI BASSI)'
           assert repaired['application_date']=='2026-02-04'
           assert repaired['observed_listing_date']==''
           assert repaired['source_status']=='pending'
-          assert repaired['activities']==['Sezione X']
+          assert repaired['requested_activities']==['Sezione X']
           assert repaired['identifiers']==[]
           assert repaired['source_fields']['reviewed_extraction_repair']=={
               'field':'company_identity',
