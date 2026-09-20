@@ -33,6 +33,7 @@ jobs:
           allowed={
               '.github/workflows/siracusa-source-probe-2026-09-20.yml',
               '.github/workflows/siracusa-parser-validate-2026-09-20.yml',
+              'docs/sources/siracusa-operational-check-2026-09-20.md',
               'src/white_list_archive/parsers/siracusa_tables.py',
               'tests/test_siracusa_parser_semantics.py',
           }
