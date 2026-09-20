@@ -1,0 +1,267 @@
+name: Viterbo public integration 2026-09-20
+
+on:
+  push:
+    branches:
+      - expansion/viterbo-2026-09-20
+    paths:
+      - .github/workflows/viterbo-public-integration-2026-09-20.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: viterbo-public-integration-2026-09-20
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/viterbo-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Materialise permanent Viterbo integration candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+
+          landing='https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte'
+          listed_url='https://prefettura.interno.gov.it/sites/default/files/87/2026-09/iscritte_4.pdf'
+          applicant_url='https://prefettura.interno.gov.it/sites/default/files/87/2026-09/richiedenti_4.pdf'
+          listed_sha='ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78'
+          applicant_sha='a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545'
+
+          # Public parser binding: exact, additive scalar parser family.
+          p=Path('src/white_list_archive/publishing/public_national_registry.py')
+          text=p.read_text(encoding='utf-8')
+          import_marker='from white_list_archive.parsers.pordenone_tables import (\n    PARSERS as PORDENONE_PARSERS,\n    parse_pordenone_listed_bundle,\n)\n'
+          if 'VITERBO_PARSERS' not in text:
+              if text.count(import_marker)!=1: raise RuntimeError('Viterbo import anchor drift')
+              text=text.replace(import_marker, import_marker+'from white_list_archive.parsers.viterbo_pages import PARSERS as VITERBO_PARSERS\n')
+          dispatch='        or PORDENONE_PARSERS.get(cfg["parser"])\n    )'
+          if 'or VITERBO_PARSERS.get(cfg["parser"])' not in text:
+              if text.count(dispatch)!=1: raise RuntimeError('Viterbo dispatch anchor drift')
+              text=text.replace(dispatch,'        or PORDENONE_PARSERS.get(cfg["parser"])\n        or VITERBO_PARSERS.get(cfg["parser"])\n    )')
+          p.write_text(text,encoding='utf-8')
+
+          # Publication config: exactly two scalar acquisitions.
+          p=Path('data/publication/multi_prefecture_pilot.json')
+          cfg=json.loads(p.read_text(encoding='utf-8'))
+          if any(x.get('authority_key')=='viterbo' for x in cfg['sources']):
+              raise RuntimeError('Viterbo already exists in publication config')
+          common={
+              'authority_key':'viterbo','authority_name':'Prefettura di Viterbo',
+              'approval_mode':'raw_sha256','reference_date':'2026-09-02',
+              'last_source_update':'2026-09-02',
+              'last_source_update_basis':'official Prefecture page metadata observed during verified 20 September 2026 source capture',
+              'register_key':'viterbo-ordinary','register_name':'White List ordinaria',
+              'source_page_url':landing,
+          }
+          listed=dict(common,source_key='viterbo-listed',parser='viterbo_listed',population_scope='listed',resource_url=listed_url,sha256=listed_sha,expected_source_rows=237,notes='Byte-pinned 237-page listed-company PDF; exactly one source company form per numbered page. Fail-closed parser yields 237 observations: 190 listed and 47 renewal/update in progress, with 235 structured identifiers. Two malformed source identifier strings and one exact duplicated section-05 activity row on page 96 are preserved/audited without inferential repair.')
+          applicants=dict(common,source_key='viterbo-applicants',parser='viterbo_applicants',population_scope='applicant',resource_url=applicant_url,sha256=applicant_sha,expected_source_rows=23,notes='Byte-pinned 23-page applicant PDF; exactly one source company form per numbered page. Fail-closed parser yields 23 pending observations with structured identifiers on every record.')
+          cfg['sources'].extend([listed,applicants])
+          p.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Verified primary page, sorted and unique by authority.
+          p=Path('data/source_registry/verified_primary_pages.csv')
+          with p.open(newline='',encoding='utf-8') as f:
+              rows=list(csv.DictReader(f)); fields=f.seek(0) or None
+          if any(r['authority_key']=='viterbo' for r in rows): raise RuntimeError('Viterbo verified page already present')
+          rows.append({'authority_key':'viterbo','landing_url':landing,'verification_date':'2026-09-20','verification_status':'verified'})
+          rows.sort(key=lambda r:r['authority_key'])
+          with p.open('w',newline='',encoding='utf-8') as f:
+              w=csv.DictWriter(f,fieldnames=['authority_key','landing_url','verification_date','verification_status'],lineterminator='\n'); w.writeheader(); w.writerows(rows)
+
+          # Source-series inventory, sorted by stable series key.
+          p=Path('data/source_registry/source_series_inventory.csv')
+          with p.open(newline='',encoding='utf-8') as f:
+              reader=csv.DictReader(f); rows=list(reader); fieldnames=reader.fieldnames
+          if not fieldnames: raise RuntimeError('source-series header missing')
+          if any(r['authority_key']=='viterbo' for r in rows): raise RuntimeError('Viterbo source series already present')
+          base={'authority_key':'viterbo','regime_code':'WL-REGIME-L190-2012','sector_scope':'all','publication_model':'periodic_attachment','series_url':landing,'resource_resolution_status':'landing_page_resolved','verified_date':'2026-09-20'}
+          rows.extend([
+              dict(base,source_series_key='viterbo-listed',population_scope='listed',notes='Current official Viterbo page verified 20 September 2026 positively exposes the listed-company PDF; the byte-pinned 237-page edition yields 237 observations. Exact immutable evidence and fail-closed parser boundaries are documented in docs/sources/viterbo-operational-check-2026-09-20.md.'),
+              dict(base,source_series_key='viterbo-applicants',population_scope='applicant',notes='Current official Viterbo page verified 20 September 2026 positively exposes the applicant-company PDF; the byte-pinned 23-page edition yields 23 pending observations. Exact immutable evidence and fail-closed parser boundaries are documented in docs/sources/viterbo-operational-check-2026-09-20.md.'),
+          ])
+          rows.sort(key=lambda r:r['source_series_key'])
+          with p.open('w',newline='',encoding='utf-8') as f:
+              w=csv.DictWriter(f,fieldnames=fieldnames,lineterminator='\n'); w.writeheader(); w.writerows(rows)
+
+          # Catalog denominators are inventory counts, not public-record counts.
+          p=Path('data/catalog.csv'); lines=p.read_text(encoding='utf-8').splitlines()
+          changed=[]
+          for line in lines:
+              if line.startswith('verified-primary-pages,'):
+                  parts=line.split(','); parts[7]='69'; line=','.join(parts)
+              elif line.startswith('source-series-inventory,'):
+                  parts=line.split(','); parts[7]='138'; line=','.join(parts)
+              changed.append(line)
+          p.write_text('\n'.join(changed)+'\n',encoding='utf-8')
+          PY
+      - name: Install publication runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y --no-install-recommends poppler-utils antiword
+          python -m pip install -e '.[publication]'
+          python -m pip install pytest
+      - name: Run repository suite before national build
+        run: pytest -q
+      - name: Build and validate actual national candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/viterbo-public /tmp/viterbo-work
+          mkdir -p /tmp/viterbo-public
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/viterbo-work \
+            --registry-json /tmp/viterbo-public/registry.json \
+            --registry-csv /tmp/viterbo-public/registry.csv \
+            --prefectures-json /tmp/viterbo-public/prefectures.json \
+            --prefectures-csv /tmp/viterbo-public/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/viterbo-public/registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('/tmp/viterbo-public/prefectures.json').read_text(encoding='utf-8'))
+          rows=[r for r in reg['records'] if r['authority_key']=='viterbo']
+          assert reg['meta']['record_count']==71750, reg['meta']
+          assert reg['meta']['authority_count']==69, reg['meta']
+          assert reg['meta']['register_count']==72, reg['meta']
+          assert len(rows)==260
+          assert sum(r['source_key']=='viterbo-listed' for r in rows)==237
+          assert sum(r['source_key']=='viterbo-applicants' for r in rows)==23
+          assert sum(r['source_status']=='listed' for r in rows)==190
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==47
+          assert sum(r['source_status']=='pending' for r in rows)==23
+          assert sum(bool(r['identifiers']) for r in rows)==258
+          assert len({r['record_locator'] for r in rows})==260
+          v=[x for x in pref['prefectures'] if x['authority_key']=='viterbo']
+          assert len(v)==1 and v[0]['mapped'] and v[0]['published'] and v[0]['series_count']==2
+          assert pref['meta']['published_count']==69 and pref['meta']['mapped_count']==69
+          receipt={'record_count':reg['meta']['record_count'],'authority_count':reg['meta']['authority_count'],'register_count':reg['meta']['register_count'],'published_count':pref['meta']['published_count'],'mapped_count':pref['meta']['mapped_count'],'viterbo_records':len(rows),'viterbo_identified':sum(bool(r['identifiers']) for r in rows),'viterbo_status_counts':{s:sum(r['source_status']==s for r in rows) for s in sorted({r['source_status'] for r in rows})}}
+          Path('tmp/viterbo-national-candidate.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt,indent=2))
+          PY
+      - name: Promote validated candidate gates and monitoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          # Monitoring state is promoted only after actual national build validation.
+          p=Path('data/monitoring/national_coverage.json'); doc=json.loads(p.read_text(encoding='utf-8'))
+          item=next((x for x in doc['prefectures'] if x['authority_key']=='viterbo'),None)
+          if item is None: raise RuntimeError('Viterbo monitoring row missing')
+          item.update({
+            'official_landing_page':'https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte',
+            'source_verified':True,'current_edition_identified':True,'capture_implemented':True,
+            'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,
+            'observation_layer':'public_source_observations','canonical_integration_validated':False,
+            'public_export_enabled':True,'population_scopes_complete':True,
+            'latest_source_reference_date':'2026-09-02','last_successful_investigation_on':'2026-09-20',
+            'coverage_status':'VALIDATED','terminal_reason':None,'actionable_issue':False,
+            'completion_evidence':['docs/sources/viterbo-operational-check-2026-09-20.md','src/white_list_archive/parsers/viterbo_pages.py','data/publication/multi_prefecture_pilot.json'],
+            'known_content_sha256':['ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78','a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545'],
+            'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/viterbo-operational-check-2026-09-20.md'],
+            'last_completed_coverage_stage':'VALIDATED',
+          })
+          item['unresolved_issue']=['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.']
+          p.write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Freeze the builder-validated public boundary and Viterbo regressions.
+          p=Path('.github/workflows/public-pages.yml'); text=p.read_text(encoding='utf-8')
+          if "'src/white_list_archive/parsers/viterbo_pages.py'" not in text:
+              anchor="      - 'src/white_list_archive/parsers/pordenone_tables.py'\n"
+              if text.count(anchor)!=1: raise RuntimeError('public-pages parser trigger anchor drift')
+              text=text.replace(anchor,anchor+"      - 'src/white_list_archive/parsers/viterbo_pages.py'\n")
+          text=text.replace("assert reg['meta']['record_count'] == 71490","assert reg['meta']['record_count'] == 71750")
+          text=text.replace("'ferrara','pordenone'}","'ferrara','pordenone','viterbo'}")
+          text=text.replace("'ferrara-reconstruction','pordenone-ordinary'\n", "'ferrara-reconstruction','pordenone-ordinary','viterbo-ordinary'\n")
+          text=text.replace("assert reg['meta']['authority_count'] == 68","assert reg['meta']['authority_count'] == 69")
+          text=text.replace("assert reg['meta']['register_count'] == 71","assert reg['meta']['register_count'] == 72")
+          text=text.replace("assert pref['meta']['published_count'] == 68","assert pref['meta']['published_count'] == 69")
+          text=text.replace("assert pref['meta']['mapped_count'] == 68","assert pref['meta']['mapped_count'] == 69")
+          anchor="          assert len({r['record_locator'] for r in pordenone_records}) == 433\n"
+          if 'viterbo_records = ' not in text:
+              if text.count(anchor)!=1: raise RuntimeError('public-pages Viterbo assertion anchor drift')
+              block=("          viterbo = [x for x in pref['prefectures'] if x['authority_key'] == 'viterbo']\n"
+                     "          assert len(viterbo) == 1 and viterbo[0]['mapped'] and viterbo[0]['published'] and viterbo[0]['series_count'] == 2\n"
+                     "          viterbo_records = [r for r in reg['records'] if r['authority_key'] == 'viterbo']\n"
+                     "          assert len(viterbo_records) == 260\n"
+                     "          assert sum(r['source_key'] == 'viterbo-listed' for r in viterbo_records) == 237\n"
+                     "          assert sum(r['source_key'] == 'viterbo-applicants' for r in viterbo_records) == 23\n"
+                     "          assert sum(r['source_status'] == 'listed' for r in viterbo_records) == 190\n"
+                     "          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in viterbo_records) == 47\n"
+                     "          assert sum(r['source_status'] == 'pending' for r in viterbo_records) == 23\n"
+                     "          assert sum(bool(r['identifiers']) for r in viterbo_records) == 258\n"
+                     "          assert len({r['record_locator'] for r in viterbo_records}) == 260\n")
+              text=text.replace(anchor,anchor+block)
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('tests/public_portal_browser.cjs'); text=p.read_text(encoding='utf-8')
+          label="      assert.ok(labels.includes('White List ordinaria · Prefettura di Pordenone'));\n"
+          if "Prefettura di Viterbo" not in text:
+              if text.count(label)!=1: raise RuntimeError('browser label anchor drift')
+              text=text.replace(label,label+"      assert.ok(labels.includes('White List ordinaria · Prefettura di Viterbo'));\n")
+          text=text.replace('assert.equal(stats.total,71490);','assert.equal(stats.total,71750);')
+          text=text.replace("'pordenone'].includes(r.authority_key)","'pordenone','viterbo'].includes(r.authority_key)")
+          anchor="      assert.equal(pordenone.filter(r=>r.source_key==='pordenone-provincial-applicants'&&!r.name&&r.registered_office==='SEQUALS - VIA CECILIA DANIELI, 7'&&r.identifiers.includes('01456650934')).length,1);\n"
+          if "const viterbo=registry.records.filter" not in text:
+              if text.count(anchor)!=1: raise RuntimeError('browser Viterbo assertion anchor drift')
+              block=("      const viterbo=registry.records.filter(r=>r.authority_key==='viterbo');\n"
+                     "      assert.equal(viterbo.length,260);\n"
+                     "      assert.equal(viterbo.filter(r=>r.source_key==='viterbo-listed').length,237);\n"
+                     "      assert.equal(viterbo.filter(r=>r.source_key==='viterbo-applicants').length,23);\n"
+                     "      assert.deepEqual(statusCounts(viterbo),{listed:190,pending:23,renewal_update_in_progress:47});\n"
+                     "      assert.equal(new Set(viterbo.map(r=>r.record_locator)).size,260);\n"
+                     "      assert.equal(viterbo.filter(r=>r.identifiers.length>0).length,258);\n")
+              text=text.replace(anchor,anchor+block)
+          p.write_text(text,encoding='utf-8')
+
+          # Enrich permanent source note with the parser boundary now actually validated.
+          p=Path('docs/sources/viterbo-operational-check-2026-09-20.md'); text=p.read_text(encoding='utf-8')
+          if '## Parser boundary' not in text:
+              text += "\n## Parser boundary\n\nProduction validation freezes 237 listed observations plus 23 applicant observations (260 total). Listed statuses are 190 `listed` and 47 `renewal_update_in_progress`; all 23 applicants are `pending`. Structured identifier coverage is 235/237 listed and 23/23 applicants. The two nonconforming listed source identifiers `BNMGLC74C265C773P` and `0226497056` are preserved raw and are not padded, truncated or otherwise repaired. Source page 96 repeats `Sez 05 - Noli a caldo` exactly; the parser collapses only that exact same-section/same-text duplicate within the single company form, and fails closed if a repeated section carries different text or if the frozen duplicate boundary changes.\n\nThe national candidate builder subsequently validates exactly 260 Viterbo public observations with 258 structured identifiers, unique record locators, two source series and one ordinary register.\n"
+          p.write_text(text,encoding='utf-8')
+          PY
+      - name: Re-run suite against promoted permanent gates
+        run: pytest -q
+      - name: Commit permanent integration checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            .github/workflows/public-pages.yml \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            docs/sources/viterbo-operational-check-2026-09-20.md \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/public_portal_browser.cjs \
+            tmp/viterbo-national-candidate.json
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Integrate Viterbo public White List coverage'
+          git push origin HEAD:expansion/viterbo-2026-09-20
