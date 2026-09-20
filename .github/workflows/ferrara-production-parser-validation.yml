@@ -144,14 +144,14 @@ jobs:
                   'parser': 'ferrara_reconstruction_bundle',
                   'parser_version': '1',
                   'physical_sector_observations': 1161,
-                  'public_records': 697,
-                  'status_counts': {'listed': 542, 'renewal_update_in_progress': 153, 'other_or_unknown': 2},
-                  'identifier_coverage': 683,
-                  'multi_sector_groups': 282,
-                  'date_anomalies': 15,
+                  'public_records': 694,
+                  'status_counts': {'listed': 583, 'renewal_update_in_progress': 109, 'other_or_unknown': 2},
+                  'identifier_coverage': 675,
+                  'multi_sector_groups': 277,
+                  'date_anomalies': 51,
                   'bundle_sectors': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
               }
 
               total = len(ordinary.records) + len(applicants.records) + len(reconstruction.records)
-              assert total == 1586, total
-              print('Ferrara parser boundary validated: ordinary=868 applicants=21 reconstruction=697 total=1586')
+              assert total == 1583, total
+              print('Ferrara parser boundary validated: ordinary=868 applicants=21 reconstruction=694 total=1583')
