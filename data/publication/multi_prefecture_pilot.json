@@ -2424,6 +2424,24 @@
       "sha256": "a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545",
       "expected_source_rows": 23,
       "notes": "Byte-pinned 23-page applicant PDF; exactly one source company form per numbered page. Fail-closed parser yields 23 pending observations with structured identifiers on every record."
+    },
+    {
+      "authority_key": "ravenna",
+      "authority_name": "Prefettura di Ravenna",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-17",
+      "last_source_update": "2026-09-17",
+      "last_source_update_basis": "dated current official attachment reverified twice on 20 September 2026",
+      "register_key": "ravenna-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list",
+      "source_key": "ravenna-combined",
+      "parser": "ravenna_combined",
+      "population_scope": "listed_and_applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf",
+      "sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555",
+      "expected_source_rows": 706,
+      "notes": "The current official Ravenna surface exposes one combined 29-page table. The byte-pinned parser yields 706 observations: 430 listed, 212 renewal/update in progress, 63 pending and 1 other/unknown. Pending status requires the positive DATA PRIMA RICHIESTA field together with an absent listing/renewal date; no separate applicant population is inferred from search failure. 692 observations contain structured identifiers. One reviewed table-boundary extraction miss is repaired only from the same byte-pinned page text and one malformed date token remains unnormalised."
     }
   ]
 }

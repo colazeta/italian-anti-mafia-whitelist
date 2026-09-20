@@ -86,6 +86,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(labels.includes('White List ricostruzione · Prefettura di Ferrara'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Pordenone'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Viterbo'));
+      assert.ok(labels.includes('White List ordinaria · Prefettura di Ravenna'));
       assert.ok(labels.includes('White List ordinaria · Prefettura di Macerata'));
       assert.ok(labels.includes('White List provinciale · Prefettura di Modena'));
       assert.ok(labels.includes('White List post-sisma · Prefettura di Modena'));
@@ -129,8 +130,8 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,71750);
-      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo'].includes(r.authority_key));
+      assert.equal(stats.total,72456);
+      const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
         cancellation_related:2,expired_observed:171,listed:2229,other_or_unknown:5,
@@ -318,6 +319,15 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.deepEqual(statusCounts(viterbo),{listed:190,pending:23,renewal_update_in_progress:47});
       assert.equal(new Set(viterbo.map(r=>r.record_locator)).size,260);
       assert.equal(viterbo.filter(r=>r.identifiers.length>0).length,258);
+      const ravenna=registry.records.filter(r=>r.authority_key==='ravenna');
+      assert.equal(ravenna.length,706);
+      assert.equal(ravenna.filter(r=>r.source_key==='ravenna-combined').length,706);
+      assert.deepEqual(statusCounts(ravenna),{listed:430,other_or_unknown:1,pending:63,renewal_update_in_progress:212});
+      assert.equal(new Set(ravenna.map(r=>r.record_locator)).size,706);
+      assert.equal(ravenna.filter(r=>r.identifiers.length>0).length,692);
+      assert.equal(ravenna.filter(r=>r.source_fields.malformed_date_pairs.includes('application:23/06/026')&&r.application_date==='').length,1);
+      assert.equal(ravenna.filter(r=>r.source_fields.physical_locator==='1199'&&r.name==='RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.'&&r.source_status==='pending'&&r.application_date==='2026-02-04'&&r.requested_activities.includes('Sezione X')).length,1);
+      assert.equal(ravenna.filter(r=>Object.prototype.hasOwnProperty.call(r.source_fields,'source_progressive')||Object.prototype.hasOwnProperty.call(r.source_fields,'reviewed_extraction_repair')).length,0);
       const alessandria=registry.records.filter(r=>r.authority_key==='alessandria');
       assert.equal(alessandria.length,434);
       assert.equal(alessandria.filter(r=>r.source_key==='alessandria-listed').length,363);

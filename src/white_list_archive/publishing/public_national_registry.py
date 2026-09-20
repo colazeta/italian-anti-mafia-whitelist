@@ -90,6 +90,7 @@ from white_list_archive.parsers.pordenone_tables import (
     parse_pordenone_listed_bundle,
 )
 from white_list_archive.parsers.viterbo_pages import PARSERS as VITERBO_PARSERS
+from white_list_archive.parsers.ravenna_combined import PARSERS as RAVENNA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -1174,6 +1175,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or FERRARA_PARSERS.get(cfg["parser"])
         or PORDENONE_PARSERS.get(cfg["parser"])
         or VITERBO_PARSERS.get(cfg["parser"])
+        or RAVENNA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1208,11 +1210,86 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_ferrara_public_fields(batch, cfg["parser"])
     if cfg["parser"] in PORDENONE_PARSERS:
         batch = _adapt_pordenone_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in RAVENNA_PARSERS:
+        batch = _adapt_ravenna_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
     return batch
 
+
+
+def _adapt_ravenna_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Ravenna evidence onto the recursively closed public contract.
+
+    The parser intentionally retains review-only extraction evidence. Publication
+    exposes only source facts already admitted by the public contract and fails
+    closed on any source-field or reviewed-repair drift.
+    """
+    if parser_name != "ravenna_combined":
+        raise RuntimeError(f"Unexpected Ravenna parser: {parser_name!r}")
+    base = {
+        "source_progressive",
+        "company_identity_raw",
+        "registered_office_variants",
+        "application_date_raw_variants",
+        "listing_date_raw_variants",
+        "normalised_application_date_variants",
+        "normalised_listing_date_variants",
+        "note_raw",
+        "sections",
+        "section_markers",
+        "malformed_date_pairs",
+    }
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Ravenna source_fields must be a mapping")
+        keys = set(fields)
+        if keys not in (base, base | {"reviewed_extraction_repair"}):
+            raise RuntimeError(f"Ravenna source-field drift: {sorted(keys)!r}")
+        for key in (
+            "registered_office_variants",
+            "application_date_raw_variants",
+            "listing_date_raw_variants",
+            "normalised_application_date_variants",
+            "normalised_listing_date_variants",
+            "sections",
+            "section_markers",
+            "malformed_date_pairs",
+        ):
+            value = fields[key]
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                raise RuntimeError(f"Ravenna source-list type drift: {key}")
+        for key in ("source_progressive", "company_identity_raw", "note_raw"):
+            if not isinstance(fields[key], str):
+                raise RuntimeError(f"Ravenna source-scalar type drift: {key}")
+        repair = fields.get("reviewed_extraction_repair")
+        if repair is not None:
+            expected_repair = {
+                "field": "company_identity",
+                "table_raw": "",
+                "page_text_value": "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.",
+                "basis": "same_byte_pinned_page_text",
+            }
+            if fields["source_progressive"] != "1199" or repair != expected_repair:
+                raise RuntimeError("Ravenna reviewed extraction-repair evidence drift")
+        elif fields["source_progressive"] == "1199":
+            raise RuntimeError("Ravenna reviewed row 1199 lost extraction-repair evidence")
+        record["source_fields"] = {
+            "physical_locator": fields["source_progressive"],
+            "sections": list(fields["sections"]),
+            "registered_office_variants": list(fields["registered_office_variants"]),
+            "application_date_raw_variants": list(fields["application_date_raw_variants"]),
+            "listing_date_raw_variants": list(fields["listing_date_raw_variants"]),
+            "normalised_listing_date_variants": list(fields["normalised_listing_date_variants"]),
+            "malformed_date_pairs": list(fields["malformed_date_pairs"]),
+            "notes": [fields["note_raw"]] if fields["note_raw"] else [],
+        }
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 def _adapt_genova_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
     """Project audited Genova parser evidence onto the closed public contract.
