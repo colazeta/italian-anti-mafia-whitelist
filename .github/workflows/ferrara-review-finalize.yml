@@ -27,13 +27,13 @@ jobs:
           git fetch origin main
           test "$(git rev-list --count HEAD..origin/main)" = "0"
           test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)"
-      - name: Promote Ferrara public gate
+      - name: Stage Ferrara public gate candidate
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('.github/workflows/public-pages.yml')
-          text = path.read_text(encoding='utf-8')
+          source = Path('.github/workflows/public-pages.yml')
+          text = source.read_text(encoding='utf-8')
 
           def replace_once(old: str, new: str) -> None:
               global text
@@ -74,7 +74,7 @@ jobs:
           assert sum(r['source_status'] == 'pending' for r in ferrara_records) == 21
           assert sum(bool(r['identifiers']) for r in ferrara_records) == 1563
           assert len({r['record_locator'] for r in ferrara_records}) == 1583
-          """
+"""
           replace_once(anchor, block + anchor)
 
           assert '69474' not in text
@@ -82,15 +82,11 @@ jobs:
           assert text.count("authority_key'] == 'ferrara'") == 2
           assert text.count("ferrara-ordinary") >= 1
           assert text.count("ferrara-reconstruction") >= 1
-          path.write_text(text, encoding='utf-8')
+          target = Path('tmp/ferrara-public-pages-candidate.yml')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_text(text, encoding='utf-8')
           PY
-      - name: Remove Ferrara transaction mechanisms
-        run: |
-          rm -f .github/workflows/ferrara-*.yml
-          rm -f tmp/ferrara*
-          test -z "$(find .github/workflows -maxdepth 1 -type f -name 'ferrara-*.yml' -print -quit)"
-          test -z "$(find tmp -maxdepth 1 -type f -name 'ferrara*' -print -quit 2>/dev/null || true)"
-          git diff --check
+          git diff --check -- tmp/ferrara-public-pages-candidate.yml
       - name: Validate permanent Ferrara surface
         run: |
           python -m pip install --disable-pip-version-check -e '.[dev]'
@@ -100,12 +96,11 @@ jobs:
             tests/test_public_history.py \
             tests/test_source_registry.py \
             tests/test_source_population_coverage.py
-      - name: Checkpoint review-clean Ferrara branch
+      - name: Publish candidate blob for atomic review cleanup
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add tmp/ferrara-public-pages-candidate.yml
           git diff --cached --check
-          test -n "$(git diff --cached --name-only)"
-          git commit -m 'Prepare Ferrara expansion for review'
+          git commit -m 'Stage validated Ferrara public gate candidate'
           git push origin HEAD:expansion/ferrara-2026-09-20
