@@ -1,179 +1,108 @@
 #!/usr/bin/env python3
-"""Build a deterministic White List performance-pilot eligibility matrix.
-
-This script is deliberately repository-only: it reads the source registry and
-the small manual pilot configuration, and writes no canonical or database data.
-"""
-
+"""Research discovery ledger; source discovery never certifies flow completeness."""
 from __future__ import annotations
-
 import argparse
 import csv
+import hashlib
+import io
+import json
+import subprocess
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_OUTPUT = ROOT / "research" / "white_list_performance_pilot" / "outputs" / "eligibility_baseline.csv"
-
-TERRITORIAL = ROOT / "data" / "source_registry" / "territorial_authorities.csv"
-SERIES = ROOT / "data" / "source_registry" / "source_series_inventory.csv"
-PROFILES = ROOT / "data" / "source_registry" / "pilot_source_profiles.csv"
-PILOT = ROOT / "research" / "white_list_performance_pilot" / "config" / "pilot_authorities.csv"
-
-OUTPUT_FIELDS = [
-    "authority_key",
-    "pilot_stage",
-    "pilot_role",
-    "canonical_ingestion_ready",
-    "longitudinal_ingestion_ready",
-    "source_series_count",
-    "has_listed_population",
-    "has_applicant_population",
-    "source_population_complete",
-    "application_date_signal",
-    "outcome_signal",
-    "longitudinal_signal",
-    "processing_time_status",
-    "flow_metrics_status",
-    "primary_blocker",
-]
+VERSION = '0.2.0'
+ORDINARY = 'WL-REGIME-L190-2012'
+FIELDS = ['authority_key', 'regime_code', 'scope_key', 'pilot_stage', 'source_series_count',
+          'listed_discovered', 'applicant_discovered', 'both_populations_discovered',
+          'canonical_ingestion_review', 'application_date_signal', 'outcome_signal',
+          'processing_time_eligibility', 'snapshot_pending_age_eligibility',
+          'clearance_rate_eligibility', 'total_backlog_eligibility', 'reason']
+INPUTS = ['data/source_registry/territorial_authorities.csv',
+          'data/source_registry/source_series_inventory.csv',
+          'research/white_list_performance_pilot/config/pilot_authorities.csv']
 
 
-def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
+def read_csv(path):
+    with path.open(encoding='utf-8', newline='') as handle:
         return list(csv.DictReader(handle))
 
 
-def yes(value: str | None) -> bool:
-    return (value or "").strip().lower() == "yes"
-
-
-def build_rows() -> list[dict[str, str]]:
-    authorities = read_csv(TERRITORIAL)
-    series = read_csv(SERIES)
-    profiles = {row["authority_key"]: row for row in read_csv(PROFILES)}
-    pilot = {row["authority_key"]: row for row in read_csv(PILOT)}
-
-    by_authority: dict[str, list[dict[str, str]]] = {}
+def assess(authorities, series, pilot):
+    """Keep ordinary/special registers separate; never infer absence from discovery."""
+    configs = {row['authority_key']: row for row in pilot}
+    known = {row['authority_key'] for row in authorities}
+    if len(known) != len(authorities):
+        raise ValueError('Duplicate authority keys')
+    grouped = defaultdict(list)
     for row in series:
-        by_authority.setdefault(row["authority_key"], []).append(row)
-
-    output: list[dict[str, str]] = []
-    for authority in sorted(authorities, key=lambda row: row["authority_key"]):
-        key = authority["authority_key"]
-        source_rows = by_authority.get(key, [])
-        scopes = {row.get("population_scope", "") for row in source_rows}
-
-        has_listed = bool({"listed", "listed_and_applicant"} & scopes)
-        has_applicant = bool({"applicant", "listed_and_applicant"} & scopes)
-        source_complete = has_listed and has_applicant
-
-        manual = pilot.get(key, {})
-        profile = profiles.get(key, {})
-
-        canonical_ready = yes(manual.get("canonical_ingestion_ready"))
-        longitudinal_ready = yes(manual.get("longitudinal_ingestion_ready"))
-        application_signal = manual.get("application_date_signal") or "unknown"
-        outcome_signal = manual.get("outcome_signal") or "unknown"
-        longitudinal_signal = (
-            manual.get("longitudinal_signal")
-            or profile.get("historical_snapshot_signal")
-            or "unknown"
-        )
-
-        if not canonical_ready:
-            processing_status = "blocked_canonical_ingestion"
-        elif application_signal != "yes" or outcome_signal != "yes":
-            processing_status = "blocked_field_support"
-        else:
-            processing_status = "ready_for_spell_validation"
-
-        if not source_complete:
-            flow_status = "blocked_population_coverage"
-        elif not canonical_ready:
-            flow_status = "blocked_canonical_ingestion"
-        elif not longitudinal_ready:
-            flow_status = "blocked_longitudinal_ingestion"
-        elif application_signal != "yes" or outcome_signal != "yes":
-            flow_status = "blocked_field_support"
-        else:
-            flow_status = "ready_for_flow_validation"
-
-        blockers = []
-        if not source_complete:
-            blockers.append("population_coverage")
-        if not canonical_ready:
-            blockers.append("canonical_ingestion")
-        if canonical_ready and not longitudinal_ready:
-            blockers.append("longitudinal_ingestion")
-        if application_signal != "yes":
-            blockers.append("application_date_support")
-        if outcome_signal != "yes":
-            blockers.append("outcome_support")
-
-        output.append(
-            {
-                "authority_key": key,
-                "pilot_stage": manual.get("pilot_stage") or "expansion_pool",
-                "pilot_role": manual.get("pilot_role") or "unassessed",
-                "canonical_ingestion_ready": "yes" if canonical_ready else "no",
-                "longitudinal_ingestion_ready": "yes" if longitudinal_ready else "no",
-                "source_series_count": str(len(source_rows)),
-                "has_listed_population": "yes" if has_listed else "no",
-                "has_applicant_population": "yes" if has_applicant else "no",
-                "source_population_complete": "yes" if source_complete else "no",
-                "application_date_signal": application_signal,
-                "outcome_signal": outcome_signal,
-                "longitudinal_signal": longitudinal_signal,
-                "processing_time_status": processing_status,
-                "flow_metrics_status": flow_status,
-                "primary_blocker": ";".join(blockers) if blockers else "none",
-            }
-        )
-    return output
+        if row['authority_key'] not in known:
+            raise ValueError('Unresolved authority in source inventory')
+        if not row.get('regime_code'):
+            raise ValueError('Source regime missing')
+        grouped[(row['authority_key'], row['regime_code'])].append(row)
+    keys = set(grouped) | {(key, ORDINARY) for key in known}
+    rows = []
+    for authority, regime in sorted(keys):
+        source_rows = grouped.get((authority, regime), [])
+        populations = {row['population_scope'] for row in source_rows}
+        listed = bool(populations & {'listed', 'listed_and_applicant'})
+        applicant = bool(populations & {'applicant', 'listed_and_applicant'})
+        cfg = configs.get(authority, {})
+        applicable = regime == ORDINARY
+        app = cfg.get('application_date_signal', 'unknown') if applicable else 'unknown'
+        outcome = cfg.get('outcome_signal', 'unknown') if applicable else 'unknown'
+        canonical = cfg.get('canonical_ingestion_ready', 'unknown') if applicable else 'unknown'
+        rows.append({
+            'authority_key': authority, 'regime_code': regime,
+            'scope_key': authority + '::' + regime,
+            'pilot_stage': cfg.get('pilot_stage', 'expansion_pool'),
+            'source_series_count': len(source_rows),
+            'listed_discovered': 'yes' if listed else 'unresolved',
+            'applicant_discovered': 'yes' if applicant else 'unresolved',
+            'both_populations_discovered': 'yes' if listed and applicant else 'unresolved',
+            'canonical_ingestion_review': 'candidate_for_validation' if canonical == 'yes' else 'not_verified_for_research',
+            'application_date_signal': app, 'outcome_signal': outcome,
+            'processing_time_eligibility': 'not_verified_same_procedure_and_date_semantics',
+            'snapshot_pending_age_eligibility': 'candidate_for_row_validation' if applicant and app == 'yes' else 'not_verified',
+            'clearance_rate_eligibility': 'not_verified_inflows_all_outcomes_and_window',
+            'total_backlog_eligibility': 'not_verified_full_pending_population',
+            'reason': 'Discovery is not completeness of administrative applications or outcomes'
+        })
+    return rows
 
 
-def write_rows(rows: list[dict[str, str]], output: Path) -> None:
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def render_rows(rows: list[dict[str, str]]) -> str:
-    import io
-
-    buffer = io.StringIO()
-    writer = csv.DictWriter(buffer, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
+def render(rows):
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=FIELDS, lineterminator='\n')
     writer.writeheader()
     writer.writerows(rows)
-    return buffer.getvalue()
+    return buf.getvalue()
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="Fail if the generated content differs from the existing output.",
-    )
-    args = parser.parse_args()
-
-    rows = build_rows()
-
+def main():
+    cli = argparse.ArgumentParser()
+    cli.add_argument('--output', type=Path, required=True,
+                     help='Explicit destination; frozen v0.1 outputs are never overwritten by default')
+    cli.add_argument('--check', action='store_true')
+    args = cli.parse_args()
+    rows = assess(*(read_csv(ROOT / path) for path in INPUTS))
+    text = render(rows)
     if args.check:
-        if not args.output.exists():
-            raise SystemExit(f"Missing baseline: {args.output}")
-        expected = render_rows(rows)
-        actual = args.output.read_text(encoding="utf-8")
-        if actual != expected:
-            raise SystemExit("Eligibility baseline is stale; regenerate it.")
-        return 0
+        if not args.output.exists() or args.output.read_text() != text:
+            raise SystemExit('Research discovery ledger differs from the requested file')
+        return
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(text, encoding='utf-8')
+    metadata = {'analysis_version': VERSION,
+                'code_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
+                'source_sha256': {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in INPUTS},
+                'output_sha256': hashlib.sha256(text.encode()).hexdigest(),
+                'scope_count': len(rows),
+                'both_populations_discovered': sum(r['both_populations_discovered'] == 'yes' for r in rows),
+                'flow_eligible_scopes': 0}
+    args.output.with_suffix('.metadata.json').write_text(json.dumps(metadata, indent=2) + '\n')
+    print(json.dumps(metadata))
 
-    write_rows(rows, args.output)
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == '__main__':
+    main()
