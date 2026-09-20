@@ -60,6 +60,13 @@ jobs:
       - name: Run focused and full repository validation
         run: |
           set -euo pipefail
+          # The probe/parser workflows are transaction-local diagnostics. Validate the
+          # permanent candidate with those temporary upload-artifact surfaces absent,
+          # which is the exact review-clean state produced before opening a PR.
+          rm -f \
+            .github/workflows/matera-source-probe-2026-09-20.yml \
+            .github/workflows/matera-source-probe-v2-2026-09-20.yml \
+            .github/workflows/matera-parser-validate-2026-09-20.yml
           pytest -q tests/test_matera_parser_semantics.py tests/test_source_registry.py tests/test_source_population_coverage.py
           pytest -q
       - name: Build and validate national candidate
