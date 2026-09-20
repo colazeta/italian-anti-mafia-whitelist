@@ -1,0 +1,609 @@
+name: Ferrara public bundle integration
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-public-bundle-integration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install repository and publication runtime
+        run: |
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+      - name: Implement fail-closed bundle acquisition and Ferrara public binding
+        shell: python
+        run: |
+          from __future__ import annotations
+
+          import csv
+          import json
+          from pathlib import Path
+
+          registry_path = Path('src/white_list_archive/publishing/public_national_registry.py')
+          text = registry_path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'public_national_registry anchor cardinality drift: {count} for {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              'from white_list_archive.parsers.siracusa_tables import PARSERS as SIRACUSA_PARSERS\nfrom white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS\n',
+              'from white_list_archive.parsers.siracusa_tables import PARSERS as SIRACUSA_PARSERS\n'
+              'from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS\n'
+              'from white_list_archive.parsers.ferrara_tables import (\n'
+              '    PARSERS as FERRARA_PARSERS,\n'
+              '    parse_ferrara_reconstruction_bundle,\n'
+              ')\n',
+          )
+          replace_once(
+              'FIRENZE_PARSERS = {\n    "firenze_listed": parse_firenze_listed,\n    "firenze_applicants": parse_firenze_applicants,\n}\n\n\n',
+              'FIRENZE_PARSERS = {\n    "firenze_listed": parse_firenze_listed,\n    "firenze_applicants": parse_firenze_applicants,\n}\n'
+              'FERRARA_RECONSTRUCTION_PARSER = "ferrara-reconstruction-listed"\n\n\n',
+          )
+
+          adapter = r'''
+
+def _adapt_ferrara_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Ferrara source diagnostics onto the closed public contract.
+
+    The parser deliberately retains richer provenance for validation. Publication
+    validates that richer shape exactly, then projects only already-approved public
+    source fields. No source value is repaired or inferred here.
+    """
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Ferrara source_fields must be a mapping")
+
+        if parser_name == "ferrara-provincial-listed":
+            expected = {"listing_date_raw", "expiry_date_raw", "notes", "physical_locators"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara ordinary source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["notes"], list) or any(not isinstance(value, str) for value in fields["notes"]):
+                raise RuntimeError("Ferrara ordinary notes type drift")
+            if not isinstance(fields["physical_locators"], list) or not fields["physical_locators"] or any(not isinstance(value, str) for value in fields["physical_locators"]):
+                raise RuntimeError("Ferrara ordinary physical-locator type/cardinality drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Ferrara ordinary raw-date type drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        elif parser_name == "ferrara-provincial-applicants":
+            expected = {
+                "application_date_raw", "requested_activities_source", "physical_locators",
+                "shared_publication_no_duplicate_ingest", "logical_series",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara applicant source-field drift: {sorted(fields)!r}")
+            if fields["shared_publication_no_duplicate_ingest"] is not True:
+                raise RuntimeError("Ferrara shared-publication flag drift")
+            if fields["logical_series"] != [
+                "ferrara-provincial-applicants", "ferrara-reconstruction-applicants"
+            ]:
+                raise RuntimeError("Ferrara logical applicant-series binding drift")
+            if not isinstance(fields["physical_locators"], list) or len(fields["physical_locators"]) != 1 or any(not isinstance(value, str) for value in fields["physical_locators"]):
+                raise RuntimeError("Ferrara applicant physical-locator type/cardinality drift")
+            if any(not isinstance(fields[key], str) for key in ("application_date_raw", "requested_activities_source")):
+                raise RuntimeError("Ferrara applicant source-field scalar drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        elif parser_name == FERRARA_RECONSTRUCTION_PARSER:
+            expected = {
+                "listing_date_raw", "expiry_date_raw", "sectors", "name_variants",
+                "office_variants", "notes", "physical_locators", "physical_sector_observations",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Ferrara reconstruction source-field drift: {sorted(fields)!r}")
+            for key in ("sectors", "name_variants", "office_variants", "notes", "physical_locators"):
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Ferrara reconstruction source-list type drift: {key}")
+            if not fields["sectors"] or not fields["physical_locators"]:
+                raise RuntimeError("Ferrara reconstruction empty sector/provenance evidence")
+            if type(fields["physical_sector_observations"]) is not int or fields["physical_sector_observations"] < len(fields["sectors"]):
+                raise RuntimeError("Ferrara reconstruction physical-sector denominator drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Ferrara reconstruction raw-date type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sectors"]),
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "registered_office_variants": list(fields["office_variants"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Ferrara parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+'''
+          replace_once(
+              '\ndef _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:\n',
+              adapter + '\n\ndef _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:\n'
+          )
+          replace_once(
+              'def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:\n    if cfg["parser"] == "cosenza_combined_v2":\n',
+              'def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:\n'
+              '    if cfg["parser"] == FERRARA_RECONSTRUCTION_PARSER:\n'
+              '        if not isinstance(path, dict):\n'
+              '            raise RuntimeError("Ferrara reconstruction requires an explicitly acquired source bundle")\n'
+              '        batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])\n'
+              '        for record in batch.records:\n'
+              '            record["parser_name"] = cfg["parser"]\n'
+              '            record["parser_version"] = "1"\n'
+              '        return batch\n'
+              '    if not isinstance(path, Path):\n'
+              '        raise RuntimeError(f"Scalar parser received a source bundle: {cfg[\'parser\']!r}")\n'
+              '    if cfg["parser"] == "cosenza_combined_v2":\n'
+          )
+          replace_once(
+              '        or SIRACUSA_PARSERS.get(cfg["parser"])\n        or MACERATA_PARSERS.get(cfg["parser"])\n',
+              '        or SIRACUSA_PARSERS.get(cfg["parser"])\n'
+              '        or MACERATA_PARSERS.get(cfg["parser"])\n'
+              '        or FERRARA_PARSERS.get(cfg["parser"])\n',
+          )
+          replace_once(
+              '    if cfg["parser"] in MATERA_PARSERS:\n        batch = _adapt_matera_public_fields(batch, cfg["parser"])\n    for record in batch.records:\n',
+              '    if cfg["parser"] in MATERA_PARSERS:\n'
+              '        batch = _adapt_matera_public_fields(batch, cfg["parser"])\n'
+              '    if cfg["parser"] in FERRARA_PARSERS:\n'
+              '        batch = _adapt_ferrara_public_fields(batch, cfg["parser"])\n'
+              '    for record in batch.records:\n',
+          )
+
+          bundle_helpers = r'''
+
+def _bundle_digest(member_hashes: dict[str, str]) -> str:
+    """Return the deterministic logical identity of an explicitly ordered hash bundle."""
+    if not member_hashes:
+        raise RuntimeError("Source bundle must contain at least one member")
+    for label, digest in member_hashes.items():
+        if not isinstance(label, str) or not label or re.fullmatch(r"[A-Za-z0-9._-]+", label) is None:
+            raise RuntimeError(f"Invalid source-bundle label: {label!r}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise RuntimeError(f"Invalid source-bundle SHA-256 for {label!r}: {digest!r}")
+    payload = "".join(member_hashes[label] for label in sorted(member_hashes)).encode("ascii")
+    return "bundle:" + hashlib.sha256(payload).hexdigest()
+
+
+def _acquire_source_input(
+    cfg: dict[str, Any], work_dir: Path
+) -> tuple[Path | dict[str, Path], str]:
+    """Acquire one scalar resource or an explicit content-addressed resource bundle.
+
+    Scalar-source behaviour is intentionally unchanged. Bundle members are each
+    downloaded and byte-verified before the parser receives any path mapping.
+    """
+    resources = cfg.get("resources")
+    if resources is None:
+        suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"
+        local_path = work_dir / f"{cfg['source_key']}{suffix}"
+        return local_path, _download(cfg["resource_url"], local_path)
+
+    if not isinstance(resources, dict) or not resources:
+        raise RuntimeError(f"{cfg['source_key']}: resources must be a non-empty mapping")
+    paths: dict[str, Path] = {}
+    member_hashes: dict[str, str] = {}
+    for label in sorted(resources):
+        member = resources[label]
+        if not isinstance(member, dict) or set(member) != {"resource_url", "sha256"}:
+            raise RuntimeError(f"{cfg['source_key']}: source-bundle member shape drift for {label!r}")
+        url = member["resource_url"]
+        expected_sha = member["sha256"]
+        if not isinstance(url, str) or not url.startswith("https://"):
+            raise RuntimeError(f"{cfg['source_key']}: invalid source-bundle URL for {label!r}")
+        if not isinstance(expected_sha, str) or re.fullmatch(r"[0-9a-f]{64}", expected_sha) is None:
+            raise RuntimeError(f"{cfg['source_key']}: invalid source-bundle SHA-256 for {label!r}")
+        suffix = Path(urlparse(url).path).suffix or ".bin"
+        local_path = work_dir / f"{cfg['source_key']}-{label}{suffix}"
+        actual_sha = _download(url, local_path)
+        if actual_sha != expected_sha:
+            raise RuntimeError(
+                f"{cfg['source_key']}: bundle member {label!r} SHA mismatch; expected {expected_sha}, got {actual_sha}"
+            )
+        paths[label] = local_path
+        member_hashes[label] = actual_sha
+
+    actual_bundle_sha = _bundle_digest(member_hashes)
+    expected_bundle_sha = cfg.get("sha256")
+    if actual_bundle_sha != expected_bundle_sha:
+        raise RuntimeError(
+            f"{cfg['source_key']}: bundle manifest SHA mismatch; expected {expected_bundle_sha}, got {actual_bundle_sha}"
+        )
+    return paths, actual_bundle_sha
+'''
+          replace_once(
+              '\ndef build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:\n',
+              bundle_helpers + '\n\ndef build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:\n',
+          )
+          replace_once(
+              '    for cfg in config["sources"]:\n'
+              '        suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"\n'
+              '        local_path = work_dir / f"{cfg[\'source_key\']}{suffix}"\n'
+              '        actual_sha = _download(cfg["resource_url"], local_path)\n'
+              '        approval_mode = str(cfg.get("approval_mode") or "raw_sha256")\n',
+              '    for cfg in config["sources"]:\n'
+              '        source_input, actual_sha = _acquire_source_input(cfg, work_dir)\n'
+              '        approval_mode = str(cfg.get("approval_mode") or "raw_sha256")\n',
+          )
+          replace_once(
+              '        batch = _parse_source(local_path, parse_cfg)\n',
+              '        batch = _parse_source(source_input, parse_cfg)\n',
+          )
+          registry_path.write_text(text, encoding='utf-8')
+
+          config_path = Path('data/publication/multi_prefecture_pilot.json')
+          config = json.loads(config_path.read_text(encoding='utf-8'))
+          existing = {item['source_key'] for item in config['sources']}
+          expected_absent = {
+              'ferrara-provincial-listed',
+              'ferrara-provincial-applicants',
+              'ferrara-reconstruction-listed',
+          }
+          overlap = existing & expected_absent
+          if overlap:
+              raise SystemExit(f'Ferrara source config already partially present: {sorted(overlap)}')
+
+          reconstruction_resources = {
+              'A': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf',
+                  'sha256': '4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01',
+              },
+              'B': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf',
+                  'sha256': '97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec',
+              },
+              'C': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf',
+                  'sha256': '99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e',
+              },
+              'D': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf',
+                  'sha256': '07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8',
+              },
+              'E': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf',
+                  'sha256': '9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e',
+              },
+              'F': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf',
+                  'sha256': 'ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664',
+              },
+              'G': {
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf',
+                  'sha256': '0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae',
+              },
+          }
+          import hashlib
+          bundle_sha = 'bundle:' + hashlib.sha256(
+              ''.join(reconstruction_resources[k]['sha256'] for k in sorted(reconstruction_resources)).encode('ascii')
+          ).hexdigest()
+          assert bundle_sha == 'bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283'
+
+          config['sources'].extend([
+              {
+                  'authority_key': 'ferrara',
+                  'authority_name': 'Prefettura di Ferrara',
+                  'register_key': 'ferrara-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-iscritte',
+                  'approval_mode': 'raw_sha256',
+                  'reference_date': '2026-09-20',
+                  'last_source_update': '2026-08-24',
+                  'last_source_update_basis': 'page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date',
+                  'source_key': 'ferrara-provincial-listed',
+                  'parser': 'ferrara-provincial-listed',
+                  'population_scope': 'listed',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-provinciali-elenco-imprese-iscritte-agg11112024_0.pdf',
+                  'sha256': '0d631e678b7f85bb84d265b09b8de6fcffa09cc4a49b84be37c6c1d7b9dcd6d9',
+                  'expected_source_rows': 868,
+                  'notes': 'Current official ordinary listed PDF, twice independently captured byte-identically on 20 September 2026. The fail-closed parser yields 868 observations (717 listed, 150 renewal/update in progress, 1 other/unknown), preserves 28 deterministic continuation rows and two malformed raw dates without inferential repair.',
+              },
+              {
+                  'authority_key': 'ferrara',
+                  'authority_name': 'Prefettura di Ferrara',
+                  'register_key': 'ferrara-ordinary',
+                  'register_name': 'White List ordinaria',
+                  'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-richiedenti',
+                  'approval_mode': 'raw_sha256',
+                  'reference_date': '2026-09-20',
+                  'last_source_update': '2026-08-24',
+                  'last_source_update_basis': 'page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date',
+                  'source_key': 'ferrara-provincial-applicants',
+                  'parser': 'ferrara-provincial-applicants',
+                  'population_scope': 'applicant',
+                  'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-elenco-imprese-richiedenti_0.pdf',
+                  'sha256': 'c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7',
+                  'expected_source_rows': 21,
+                  'notes': 'Single current official applicant publication, twice independently captured byte-identically on 20 September 2026. Its 21 observations are ingested once physically. Requested-activity text positively includes categories corresponding to reconstruction sectors B-F, so the same physical publication is also accounted for as the logical reconstruction-applicant series without duplicate public observations.',
+              },
+              {
+                  'authority_key': 'ferrara',
+                  'authority_name': 'Prefettura di Ferrara',
+                  'register_key': 'ferrara-reconstruction',
+                  'register_name': 'White List ricostruzione',
+                  'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte',
+                  'approval_mode': 'raw_sha256',
+                  'reference_date': '2026-09-20',
+                  'last_source_update': '2026-08-24',
+                  'last_source_update_basis': 'page-rendered update metadata observed on the official current reconstruction series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date',
+                  'source_key': 'ferrara-reconstruction-listed',
+                  'parser': 'ferrara-reconstruction-listed',
+                  'population_scope': 'listed',
+                  'resource_url': 'https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte',
+                  'sha256': bundle_sha,
+                  'resources': reconstruction_resources,
+                  'expected_source_rows': 694,
+                  'notes': 'Seven official reconstruction sector PDFs A-G are acquired and SHA-256 verified independently before parsing. Their deterministic ordered hash bundle identifies the logical source edition. The parser freezes 1,161 physical sector observations into 694 compatible logical observations (539 listed, 153 renewal/update in progress, 2 other/unknown) without collapsing conflicting date/status identities.',
+              },
+          ])
+          config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          inventory_path = Path('data/source_registry/source_series_inventory.csv')
+          inventory = inventory_path.read_text(encoding='utf-8')
+          old = ('The same current official unified applicant PDF positively contains requests for reconstruction-regime h-bis activities as well as ordinary White List activities. '
+                 'This logical source-series binding accounts for the special-regime applicant population without duplicating public applicant observations.')
+          new = ('The same current official unified applicant PDF has requested-activity descriptions that positively correspond to reconstruction taxonomy categories B-F as well as ordinary White List activities; the PDF itself is not separately labelled as a reconstruction/h-bis applicant publication. '
+                 'This logical source-series binding accounts for the evidenced special-regime applicant scope without creating a second physical publication or duplicate public observations.')
+          if inventory.count(old) != 1:
+              raise SystemExit(f'Ferrara inventory wording anchor drift: {inventory.count(old)}')
+          inventory_path.write_text(inventory.replace(old, new, 1), encoding='utf-8')
+
+          doc_path = Path('docs/sources/ferrara-operational-check-2026-09-20.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          heading = '## Subsequent applicant-scope and parser validation\n'
+          if heading in doc:
+              raise SystemExit('Ferrara subsequent-validation section already present unexpectedly')
+          addition = '''
+
+## Subsequent applicant-scope and parser validation
+
+After the initial source-surface check, the byte-pinned unified applicant PDF was reviewed at row/activity level. Its requested-activity descriptions positively include categories corresponding to reconstruction taxonomy sectors B-F (demolition, earthmoving, special-vehicle hire, photovoltaic systems and technological systems). The PDF itself is **not** separately labelled as a reconstruction or h-bis applicant publication. The defensible treatment is therefore one physical applicant publication ingested once, with two logical source-series bindings (`ferrara-provincial-applicants` and `ferrara-reconstruction-applicants`) and no duplicate public observations.
+
+Production parser validation on the pinned resources freezes these boundaries:
+
+- ordinary listed: 868 logical observations from the 87-page PDF — 717 `listed`, 150 `renewal_update_in_progress`, 1 `other_or_unknown`; 859 observations with structured identifiers, 28 deterministic continuation rows and two preserved raw date anomalies;
+- unified applicants: 21 pending observations, 21/21 with structured identifiers; one physical ingest only;
+- reconstruction listed: 1,161 physical sector observations across A-G grouped into 694 logical observations — 539 `listed`, 153 `renewal_update_in_progress`, 2 `other_or_unknown`; 683/694 with structured identifiers, 285 multi-sector groups and four preserved raw date anomalies.
+
+The reconstruction grouping key includes identifier, source date semantics and status. Matching identifiers with conflicting date/status evidence therefore remain separate observations. Sector C page 23 and applicant page 5 are accepted as empty only under their exact reviewed source/hash/page conditions; any source drift remains fail-closed.
+'''
+          doc_path.write_text(doc.rstrip() + addition + '\n', encoding='utf-8')
+
+          test_path = Path('tests/test_ferrara_public_bundle.py')
+          if test_path.exists():
+              raise SystemExit('Ferrara public bundle test unexpectedly already exists')
+          test_path.write_text(r'''from pathlib import Path
+
+import pytest
+
+from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch
+from white_list_archive.publishing.public_national_registry import (
+    FERRARA_RECONSTRUCTION_PARSER,
+    _adapt_ferrara_public_fields,
+    _bundle_digest,
+)
+
+
+MEMBER_HASHES = {
+    "A": "4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01",
+    "B": "97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec",
+    "C": "99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e",
+    "D": "07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8",
+    "E": "9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e",
+    "F": "ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664",
+    "G": "0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae",
+}
+
+
+def test_ferrara_bundle_identity_is_order_stable_and_content_addressed():
+    expected = "bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283"
+    assert _bundle_digest(MEMBER_HASHES) == expected
+    assert _bundle_digest(dict(reversed(list(MEMBER_HASHES.items())))) == expected
+    changed = dict(MEMBER_HASHES)
+    changed["G"] = "0" * 64
+    assert _bundle_digest(changed) != expected
+    with pytest.raises(RuntimeError):
+        _bundle_digest({"A": "not-a-sha"})
+
+
+def _batch(fields):
+    return ParsedBatch(records=[{"source_fields": fields}], diagnostics={"public_records": 1})
+
+
+def test_ferrara_public_adapter_closes_ordinary_fields():
+    batch = _adapt_ferrara_public_fields(
+        _batch({
+            "listing_date_raw": "01/02/2026",
+            "expiry_date_raw": "01/02/2027",
+            "notes": ["RINNOVO IN CORSO"],
+            "physical_locators": ["p1:r2", "p2:r1"],
+        }),
+        "ferrara-provincial-listed",
+    )
+    assert batch.records[0]["source_fields"] == {
+        "physical_locators": ["p1:r2", "p2:r1"],
+        "notes": ["RINNOVO IN CORSO"],
+        "listing_date_raw_variants": ["01/02/2026"],
+        "expiry_date_raw_variants": ["01/02/2027"],
+    }
+
+
+def test_ferrara_public_adapter_closes_shared_applicant_fields_without_duplication_marker_leak():
+    batch = _adapt_ferrara_public_fields(
+        _batch({
+            "application_date_raw": "03/04/2026",
+            "requested_activities_source": "demolizione edifici",
+            "physical_locators": ["p1:r4"],
+            "shared_publication_no_duplicate_ingest": True,
+            "logical_series": ["ferrara-provincial-applicants", "ferrara-reconstruction-applicants"],
+        }),
+        "ferrara-provincial-applicants",
+    )
+    assert batch.records[0]["source_fields"] == {
+        "physical_locators": ["p1:r4"],
+        "requested_activities_source": "demolizione edifici",
+        "application_date_raw_variants": ["03/04/2026"],
+    }
+
+
+def test_ferrara_public_adapter_preserves_reconstruction_sector_provenance_in_approved_fields():
+    batch = _adapt_ferrara_public_fields(
+        _batch({
+            "listing_date_raw": "01/01/2026",
+            "expiry_date_raw": "01/01/2027",
+            "sectors": ["B", "C"],
+            "name_variants": ["Example S.r.l."],
+            "office_variants": ["Ferrara"],
+            "notes": [],
+            "physical_locators": ["B:p1:t1:r2", "C:p1:t1:r2"],
+            "physical_sector_observations": 2,
+        }),
+        FERRARA_RECONSTRUCTION_PARSER,
+    )
+    assert batch.records[0]["source_fields"] == {
+        "sections": ["B", "C"],
+        "physical_locators": ["B:p1:t1:r2", "C:p1:t1:r2"],
+        "notes": [],
+        "registered_office_variants": ["Ferrara"],
+        "listing_date_raw_variants": ["01/01/2026"],
+        "expiry_date_raw_variants": ["01/01/2027"],
+    }
+''', encoding='utf-8')
+      - name: Validate implementation before checkpoint
+        run: |
+          git diff --check
+          pytest -q tests/test_ferrara_public_bundle.py tests/test_source_registry.py tests/test_source_population_coverage.py
+          pytest -q
+      - name: Checkpoint permanent implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/white_list_archive/publishing/public_national_registry.py \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            docs/sources/ferrara-operational-check-2026-09-20.md \
+            tests/test_ferrara_public_bundle.py
+          git diff --cached --check
+          git commit -m 'Integrate Ferrara source bundles into public builder [ferrara-public-bundle]'
+          git push origin HEAD:expansion/ferrara-2026-09-20
+      - name: Build and validate national candidate
+        run: |
+          rm -rf /tmp/ferrara-public-national public-site/data/registry.json public-site/data/registry.csv public-site/data/prefectures.json public-site/data/prefectures.csv
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/ferrara-public-national \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+
+          reg = json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          assert reg['meta']['record_count'] == 71057, reg['meta']
+          assert reg['meta']['authority_count'] == 67, reg['meta']
+          assert reg['meta']['register_count'] == 70, reg['meta']
+          assert len(reg['records']) == 71057
+          assert set(reg['meta']['authority_counts']) >= {'ferrara'}
+          assert {'ferrara-ordinary', 'ferrara-reconstruction'} <= set(reg['meta']['register_counts'])
+
+          ferrara = [r for r in reg['records'] if r['authority_key'] == 'ferrara']
+          assert len(ferrara) == 1583
+          assert Counter(r['source_key'] for r in ferrara) == {
+              'ferrara-provincial-listed': 868,
+              'ferrara-provincial-applicants': 21,
+              'ferrara-reconstruction-listed': 694,
+          }
+          assert Counter(r['source_status'] for r in ferrara) == {
+              'listed': 1256,
+              'renewal_update_in_progress': 303,
+              'other_or_unknown': 3,
+              'pending': 21,
+          }
+          assert sum(bool(r['identifiers']) for r in ferrara) == 1563
+          assert len({r['record_locator'] for r in ferrara}) == 1583
+          applicant = [r for r in ferrara if r['source_key'] == 'ferrara-provincial-applicants']
+          assert len(applicant) == 21 and all(r['source_status'] == 'pending' for r in applicant)
+          assert not any('shared_publication_no_duplicate_ingest' in r.get('source_fields', {}) for r in applicant)
+
+          ferrara_pref = [x for x in pref['prefectures'] if x['authority_key'] == 'ferrara']
+          assert len(ferrara_pref) == 1
+          assert ferrara_pref[0]['mapped'] and ferrara_pref[0]['published']
+          assert ferrara_pref[0]['series_count'] == 4
+          assert pref['meta']['published_count'] == 67
+          assert pref['meta']['mapped_count'] == 67
+
+          metrics = {
+              'record_count': reg['meta']['record_count'],
+              'authority_count': reg['meta']['authority_count'],
+              'register_count': reg['meta']['register_count'],
+              'published_count': pref['meta']['published_count'],
+              'mapped_count': pref['meta']['mapped_count'],
+              'ferrara_record_count': len(ferrara),
+              'ferrara_source_counts': dict(Counter(r['source_key'] for r in ferrara)),
+              'ferrara_status_counts': dict(Counter(r['source_status'] for r in ferrara)),
+              'ferrara_identifier_coverage': sum(bool(r['identifiers']) for r in ferrara),
+              'bundle_sha256': 'bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283',
+          }
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/ferrara-public-candidate-metrics.json').write_text(
+              json.dumps(metrics, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(metrics, indent=2, sort_keys=True))
+          PY
+      - name: Checkpoint validated candidate metrics
+        run: |
+          git add tmp/ferrara-public-candidate-metrics.json
+          git diff --cached --check
+          git commit -m 'Checkpoint validated Ferrara national candidate [ferrara-candidate]'
+          git push origin HEAD:expansion/ferrara-2026-09-20
