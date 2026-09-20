@@ -26,6 +26,7 @@ _LISTED_SECTIONS = Counter(
 )
 _APPLICANT_SECTIONS = Counter({"01": 5, "02": 2, "03": 6, "04": 6, "05": 6, "06": 10, "08": 1, "10": 5})
 _EXPECTED_MALFORMED_LISTED_IDS = {"BNMGLC74C265C773P", "0226497056"}
+_EXPECTED_LISTED_DUPLICATE_ACTIVITIES = ["96:05:Noli a caldo"]
 _STRICT_ID = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
 _DMY = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 _SECTION = re.compile(
@@ -73,22 +74,30 @@ def _band(
     return _clean(" ".join(str(word["text"]) for word in selected))
 
 
-def _activities(text: str, page_number: int) -> tuple[list[str], list[str]]:
+def _activities(text: str, page_number: int) -> tuple[list[str], list[str], list[str]]:
     matches = list(_SECTION.finditer(text))
     if not matches:
         raise RuntimeError(f"Viterbo page {page_number}: no source activity sections found")
     sections: list[str] = []
     descriptions: list[str] = []
+    by_section: dict[str, str] = {}
+    duplicates: list[str] = []
     for match in matches:
         section = match.group(1)
         description = _clean(match.group(2))
-        if section in sections:
-            raise RuntimeError(f"Viterbo page {page_number}: duplicate section {section}")
         if not description:
             raise RuntimeError(f"Viterbo page {page_number}: empty section {section} description")
+        if section in by_section:
+            if by_section[section] != description:
+                raise RuntimeError(
+                    f"Viterbo page {page_number}: section {section} repeats with different text"
+                )
+            duplicates.append(f"{page_number}:{section}:{description}")
+            continue
+        by_section[section] = description
         sections.append(section)
         descriptions.append(f"Sez {section} - {description}")
-    return sections, descriptions
+    return sections, descriptions, duplicates
 
 
 def _status(kind: str, note: str, page_number: int) -> str:
@@ -110,6 +119,7 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
     status_counts: Counter[str] = Counter()
     section_counts: Counter[str] = Counter()
     raw_ids: list[str] = []
+    duplicate_activities: list[str] = []
 
     with pdfplumber.open(path) as pdf:
         if len(pdf.pages) != expected_pages:
@@ -124,7 +134,12 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
             indirizzo = _unique(words, "Indirizzo", page_number)
             note_label = _unique(words, "Note", page_number)
             activity_label = _topmost(words, "Attività", page_number)
-            if not (float(ragione["top"]) < float(indirizzo["top"]) < float(note_label["top"]) < float(activity_label["top"])):
+            if not (
+                float(ragione["top"])
+                < float(indirizzo["top"])
+                < float(note_label["top"])
+                < float(activity_label["top"])
+            ):
                 raise RuntimeError(f"Viterbo {kind}: label-order drift on page {page_number}")
 
             name = _band(
@@ -151,20 +166,25 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
             if not name or not office:
                 raise RuntimeError(f"Viterbo {kind}: incomplete identity fields on page {page_number}")
 
-            id_match = re.search(r"Codice\s+Fiscale(?:\s+o\s+P\.I:|/pIVA)\s+([A-Z0-9]+)", text, re.I)
+            id_match = re.search(
+                r"Codice\s+Fiscale(?:\s+o\s+P\.I:|/pIVA)\s+([A-Z0-9]+)", text, re.I
+            )
             if id_match is None:
                 raise RuntimeError(f"Viterbo {kind}: identifier field unresolved on page {page_number}")
             identifier = _clean(id_match.group(1)).upper()
             raw_ids.append(identifier)
 
-            sections, activities = _activities(text, page_number)
+            sections, activities, page_duplicates = _activities(text, page_number)
+            duplicate_activities.extend(page_duplicates)
             section_counts.update(sections)
             source_status = _status(kind, note, page_number)
             note_counts[note] += 1
             status_counts[source_status] += 1
 
             if kind == "listed":
-                listing_match = re.search(r"Data\s+Prima\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})", text, re.I)
+                listing_match = re.search(
+                    r"Data\s+Prima\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})", text, re.I
+                )
                 expiry_match = re.search(r"Scadenza\s+(\d{2}/\d{2}/\d{4})", text, re.I)
                 if listing_match is None or expiry_match is None:
                     raise RuntimeError(f"Viterbo listed: date field unresolved on page {page_number}")
@@ -192,9 +212,13 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
                     },
                 )
             else:
-                application_match = re.search(r"Data\s+Richiesta\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})", text, re.I)
+                application_match = re.search(
+                    r"Data\s+Richiesta\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})", text, re.I
+                )
                 if application_match is None:
-                    raise RuntimeError(f"Viterbo applicant: application date unresolved on page {page_number}")
+                    raise RuntimeError(
+                        f"Viterbo applicant: application date unresolved on page {page_number}"
+                    )
                 application_raw = application_match.group(1)
                 if not _DMY.fullmatch(application_raw):
                     raise RuntimeError(f"Viterbo applicant: date-shape drift on page {page_number}")
@@ -220,20 +244,29 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
     expected_notes = _LISTED_NOTES if kind == "listed" else _APPLICANT_NOTES
     expected_status = _LISTED_STATUS if kind == "listed" else _APPLICANT_STATUS
     expected_sections = _LISTED_SECTIONS if kind == "listed" else _APPLICANT_SECTIONS
+    expected_duplicates = _EXPECTED_LISTED_DUPLICATE_ACTIVITIES if kind == "listed" else []
     if note_counts != expected_notes:
         raise RuntimeError(f"Viterbo {kind}: note-count drift: {dict(note_counts)!r}")
     if status_counts != expected_status:
         raise RuntimeError(f"Viterbo {kind}: status-count drift: {dict(status_counts)!r}")
     if section_counts != expected_sections:
         raise RuntimeError(f"Viterbo {kind}: section-count drift: {dict(section_counts)!r}")
+    if duplicate_activities != expected_duplicates:
+        raise RuntimeError(
+            f"Viterbo {kind}: duplicate-activity boundary drift: {duplicate_activities!r}"
+        )
     duplicate_ids = [value for value, count in Counter(raw_ids).items() if value and count > 1]
     if duplicate_ids:
         raise RuntimeError(f"Viterbo {kind}: duplicate source identifiers: {duplicate_ids!r}")
     malformed = {value for value in raw_ids if not _STRICT_ID.fullmatch(value)}
     if kind == "listed" and malformed != _EXPECTED_MALFORMED_LISTED_IDS:
-        raise RuntimeError(f"Viterbo listed: malformed identifier boundary drift: {sorted(malformed)!r}")
+        raise RuntimeError(
+            f"Viterbo listed: malformed identifier boundary drift: {sorted(malformed)!r}"
+        )
     if kind == "applicant" and malformed:
-        raise RuntimeError(f"Viterbo applicant: malformed identifier boundary drift: {sorted(malformed)!r}")
+        raise RuntimeError(
+            f"Viterbo applicant: malformed identifier boundary drift: {sorted(malformed)!r}"
+        )
 
     diagnostics = {
         "parser": f"viterbo_{kind}",
@@ -248,6 +281,7 @@ def _parse(path: Path, cfg: dict[str, Any], kind: str) -> ParsedBatch:
         "office_coverage": sum(bool(record["registered_office"]) for record in records),
         "activities_coverage": sum(bool(record["requested_activities"]) for record in records),
         "malformed_identifier_values": sorted(malformed),
+        "duplicate_activity_rows": list(duplicate_activities),
     }
     expected_identifier_coverage = 235 if kind == "listed" else 23
     if len(records) != expected_pages or diagnostics["identifier_coverage"] != expected_identifier_coverage:
