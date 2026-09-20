@@ -74,6 +74,14 @@
       "name": "public-portal-review-attempt-${{ github.run_attempt }}",
       "path": "public-site/",
       "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/research-performance-pilot.yml",
+      "name": "research-performance-aggregate-${{ github.run_id }}",
+      "path": "artifacts/public-actions/research-performance/",
+      "classification": "public_operational_verification",
+      "scope": "Only research/white-list-performance-pilot branch; never deployed to the public portal",
+      "content_boundary": "Non-identifying aggregate diagnostics, source hashes and official source URLs, discovery eligibility, synthetic-test receipts and already-public research code. No company-level records, source documents or canonical database exports. Experimental diagnostics are not validated administrative-performance estimates."
     }
   ],
   "pages_artifact": {
