@@ -85,6 +85,10 @@ from white_list_archive.parsers.ferrara_tables import (
     PARSERS as FERRARA_PARSERS,
     parse_ferrara_reconstruction_bundle,
 )
+from white_list_archive.parsers.pordenone_tables import (
+    PARSERS as PORDENONE_PARSERS,
+    parse_pordenone_listed_bundle,
+)
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -118,6 +122,7 @@ FIRENZE_PARSERS = {
     "firenze_applicants": parse_firenze_applicants,
 }
 FERRARA_RECONSTRUCTION_PARSER = "ferrara-reconstruction-listed"
+PORDENONE_LISTED_PARSER = "pordenone-provincial-listed"
 
 
 
@@ -1032,7 +1037,65 @@ def _adapt_ferrara_public_fields(batch: ParsedBatch, parser_name: str) -> Parsed
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+def _adapt_pordenone_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Pordenone source_fields must be a mapping")
+        if parser_name == PORDENONE_LISTED_PARSER:
+            expected = {"sections", "physical_locators", "physical_sector_observations", "name_variants", "office_variants", "secondary_office_variants", "listing_date_raw", "expiry_date_raw", "notes"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Pordenone listed source-field drift: {sorted(fields)!r}")
+            for key in ("sections", "physical_locators", "name_variants", "office_variants", "secondary_office_variants", "notes"):
+                if not isinstance(fields[key], list) or any(not isinstance(v, str) for v in fields[key]):
+                    raise RuntimeError(f"Pordenone listed source-list type drift: {key}")
+            if not fields["sections"] or not fields["physical_locators"]:
+                raise RuntimeError("Pordenone listed empty sector/provenance evidence")
+            if type(fields["physical_sector_observations"]) is not int or fields["physical_sector_observations"] < len(fields["sections"]):
+                raise RuntimeError("Pordenone listed physical-sector denominator drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Pordenone listed raw-date type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "registered_office_variants": list(fields["office_variants"]),
+                "secondary_office_variants": list(fields["secondary_office_variants"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        elif parser_name == "pordenone-provincial-applicants":
+            expected = {"application_date_raw", "requested_activities_source", "physical_locators", "source_row_raw", "source_name_missing"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Pordenone applicant source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["physical_locators"], list) or len(fields["physical_locators"]) != 1 or any(not isinstance(v, str) for v in fields["physical_locators"]):
+                raise RuntimeError("Pordenone applicant physical-locator drift")
+            if not isinstance(fields["application_date_raw"], str) or not isinstance(fields["requested_activities_source"], str):
+                raise RuntimeError("Pordenone applicant scalar drift")
+            if not isinstance(fields["source_name_missing"], bool) or not isinstance(fields["source_row_raw"], list):
+                raise RuntimeError("Pordenone applicant reviewed-source evidence drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Pordenone parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:
+    if cfg["parser"] == PORDENONE_LISTED_PARSER:
+        if not isinstance(path, dict):
+            raise RuntimeError("Pordenone listed source requires an explicitly acquired bundle")
+        batch = _adapt_pordenone_public_fields(parse_pordenone_listed_bundle(path, cfg), cfg["parser"])
+        for record in batch.records:
+            record["parser_name"] = cfg["parser"]
+            record["parser_version"] = "1"
+        return batch
     if cfg["parser"] == FERRARA_RECONSTRUCTION_PARSER:
         if not isinstance(path, dict):
             raise RuntimeError("Ferrara reconstruction requires an explicitly acquired source bundle")
@@ -1108,6 +1171,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or SIRACUSA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
         or FERRARA_PARSERS.get(cfg["parser"])
+        or PORDENONE_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1140,6 +1204,8 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_matera_public_fields(batch, cfg["parser"])
     if cfg["parser"] in FERRARA_PARSERS:
         batch = _adapt_ferrara_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in PORDENONE_PARSERS:
+        batch = _adapt_pordenone_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
