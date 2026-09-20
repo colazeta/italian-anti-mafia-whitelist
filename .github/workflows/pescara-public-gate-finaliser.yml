@@ -1,0 +1,91 @@
+name: Pescara public gate finaliser
+
+on:
+  push:
+    branches:
+      - expansion/pescara-2026-09-21
+    paths:
+      - .github/workflows/pescara-public-gate-finaliser.yml
+      - tmp/pescara_public_gates.py
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/pescara-2026-09-21
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Stage fail-closed public gate candidates
+        run: python tmp/pescara_public_gates.py
+      - name: Validate candidate syntax and national boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tmp/pescara-public-pages-candidate.yml .github/workflows/public-pages.yml
+          cp tmp/pescara-public-browser-candidate.cjs tests/public_portal_browser.cjs
+          node --check tests/public_portal_browser.cjs
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+          rm -rf /tmp/pescara-final-public
+          mkdir -p /tmp/pescara-final-public/data
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/pescara-final-sources \
+            --registry-json /tmp/pescara-final-public/data/registry.json \
+            --registry-csv /tmp/pescara-final-public/data/registry.csv \
+            --prefectures-json /tmp/pescara-final-public/data/prefectures.json \
+            --prefectures-csv /tmp/pescara-final-public/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/pescara-final-public/data/registry.json').read_text())
+          pref=json.loads(Path('/tmp/pescara-final-public/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==73098
+          assert reg['meta']['authority_count']==71
+          assert reg['meta']['register_count']==74
+          assert pref['meta']['mapped_count']==71
+          assert pref['meta']['published_count']==71
+          rows=[r for r in reg['records'] if r['authority_key']=='pescara']
+          assert len(rows)==642
+          assert sum(r['source_key']=='pescara-listed' for r in rows)==607
+          assert sum(r['source_key']=='pescara-applicants' for r in rows)==35
+          assert sum(r['source_status']=='listed' for r in rows)==456
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==150
+          assert sum(r['source_status']=='other_or_unknown' for r in rows)==1
+          assert sum(r['source_status']=='pending' for r in rows)==35
+          assert sum(bool(r['identifiers']) for r in rows)==613
+          assert len({r['record_locator'] for r in rows})==642
+          print('Pescara public candidate boundary validated')
+          PY
+      - name: Commit ordinary candidate files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- .github/workflows/public-pages.yml tests/public_portal_browser.cjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/pescara-public-pages-candidate.yml tmp/pescara-public-browser-candidate.cjs
+          git diff --cached --quiet && exit 0
+          git commit -m 'Stage validated Pescara public gate candidates'
+          git push origin HEAD:expansion/pescara-2026-09-21
