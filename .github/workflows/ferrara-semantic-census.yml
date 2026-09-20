@@ -1,0 +1,321 @@
+name: Ferrara semantic census
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-semantic-census.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install census runtime
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Census pinned Ferrara source semantics
+        shell: python
+        run: |
+          import collections
+          import hashlib
+          import io
+          import json
+          import re
+          from datetime import date
+
+          import pdfplumber
+          import requests
+
+          ordinary_listed = (
+              "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-provinciali-elenco-imprese-iscritte-agg11112024_0.pdf",
+              "0d631e678b7f85bb84d265b09b8de6fcffa09cc4a49b84be37c6c1d7b9dcd6d9",
+          )
+          ordinary_applicants = (
+              "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-elenco-imprese-richiedenti_0.pdf",
+              "c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7",
+          )
+          reconstruction = [
+              ("A", "fornitura moduli prefabbricati e relativi arredi", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf", "4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01"),
+              ("B", "demolizione edifici e altre strutture", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf", "97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec"),
+              ("C", "movimenti di terra", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf", "99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e"),
+              ("D", "noleggio con conducente mezzi speciali", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf", "07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8"),
+              ("E", "fornitura e posa impianti fotovoltaici", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf", "9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e"),
+              ("F", "fornitura e manutenzione impianti tecnologici", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf", "ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664"),
+              ("G", "fornitura beni necessari alla ricostruzione", "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf", "0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae"),
+          ]
+
+          session = requests.Session()
+          session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; whitelist semantic census/1.0)", "Cache-Control": "no-cache"})
+          dateish = re.compile(r"^\d{1,2}/\d{1,2}/\d{3,5}$")
+          strict_id = re.compile(r"^(?:\d{11}|[A-Z0-9]{16})$")
+
+          def clean(value):
+              return " ".join(str(value or "").replace("\u00a0", " ").split())
+
+          def load(url, expected_sha):
+              r = session.get(url, timeout=60)
+              r.raise_for_status()
+              digest = hashlib.sha256(r.content).hexdigest()
+              assert digest == expected_sha, (url, digest, expected_sha)
+              return r.content
+
+          def iso_or_raw(value):
+              raw = clean(value)
+              if not raw:
+                  return ""
+              m = re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw)
+              if not m:
+                  return f"RAW:{raw}"
+              day, month, year = map(int, m.groups())
+              try:
+                  return date(year, month, day).isoformat()
+              except ValueError:
+                  return f"RAW:{raw}"
+
+          def identifiers(raw):
+              vals = []
+              for token in re.split(r"[\s/·;,]+", clean(raw).upper()):
+                  token = re.sub(r"[^A-Z0-9]", "", token)
+                  if token and strict_id.fullmatch(token) and token not in vals:
+                      vals.append(token)
+              return vals
+
+          def status(note):
+              folded = clean(note).casefold()
+              if not folded:
+                  return "listed"
+              if "rinnovo" in folded or "rinovo" in folded:
+                  return "renewal_update_in_progress"
+              return "other_or_unknown"
+
+          def row_locator(page, table_no, row_no):
+              return f"p{page}:t{table_no}:r{row_no}"
+
+          report = {}
+
+          # Ordinary listed: preserve all non-data rows for audit and establish exact row semantics.
+          blob = load(*ordinary_listed)
+          listed = []
+          nondata = []
+          with pdfplumber.open(io.BytesIO(blob)) as pdf:
+              assert len(pdf.pages) == 87
+              for page in pdf.pages:
+                  tables = page.extract_tables()
+                  assert len(tables) == 1, ("ordinary-listed table count", page.page_number, len(tables))
+                  for table_no, table in enumerate(tables, 1):
+                      for row_no, raw in enumerate(table, 1):
+                          cells = [clean(v) for v in (raw or [])]
+                          assert len(cells) == 7
+                          if not any(cells):
+                              continue
+                          name, office, secondary, ident, listed_raw, expiry_raw, note = cells
+                          candidate = bool(name and ident and (dateish.fullmatch(listed_raw) or dateish.fullmatch(expiry_raw)))
+                          if not candidate:
+                              nondata.append({"loc": row_locator(page.page_number, table_no, row_no), "cells": cells})
+                              continue
+                          listed.append({
+                              "loc": row_locator(page.page_number, table_no, row_no),
+                              "name": name,
+                              "office": office,
+                              "secondary": secondary,
+                              "id_raw": ident,
+                              "ids": identifiers(ident),
+                              "listing_raw": listed_raw,
+                              "listing": iso_or_raw(listed_raw),
+                              "expiry_raw": expiry_raw,
+                              "expiry": iso_or_raw(expiry_raw),
+                              "note": note,
+                              "status": status(note),
+                          })
+          report["ordinary_listed"] = {
+              "candidate_rows": len(listed),
+              "status_counts": dict(collections.Counter(x["status"] for x in listed)),
+              "strict_identifier_coverage": sum(bool(x["ids"]) for x in listed),
+              "identifier_count_distribution": dict(collections.Counter(len(x["ids"]) for x in listed)),
+              "listing_date_blank": sum(not x["listing_raw"] for x in listed),
+              "listing_date_raw_or_malformed": [x for x in listed if x["listing"].startswith("RAW:")],
+              "expiry_date_blank": sum(not x["expiry_raw"] for x in listed),
+              "expiry_date_raw_or_malformed": [x for x in listed if x["expiry"].startswith("RAW:")],
+              "identifier_anomalies": [{"loc": x["loc"], "name": x["name"], "raw": x["id_raw"]} for x in listed if not x["ids"]],
+              "nondata_count": len(nondata),
+              "nondata_rows": nondata,
+              "note_counts": dict(collections.Counter(x["note"] for x in listed)),
+          }
+
+          # Ordinary applicants: date position is the stable anchor across two PDF table geometries.
+          blob = load(*ordinary_applicants)
+          applicant_rows = []
+          applicant_nondata = []
+          no_table_pages = []
+          with pdfplumber.open(io.BytesIO(blob)) as pdf:
+              assert len(pdf.pages) == 5
+              for page in pdf.pages:
+                  tables = page.extract_tables()
+                  if not tables:
+                      no_table_pages.append({"page": page.page_number, "text": [clean(x) for x in (page.extract_text() or "").splitlines() if clean(x)]})
+                      continue
+                  for table_no, table in enumerate(tables, 1):
+                      for row_no, raw in enumerate(table, 1):
+                          cells = [clean(v) for v in (raw or [])]
+                          if not any(cells):
+                              continue
+                          positions = [i for i, value in enumerate(cells) if dateish.fullmatch(value)]
+                          if len(positions) != 1:
+                              applicant_nondata.append({"loc": row_locator(page.page_number, table_no, row_no), "width": len(cells), "date_positions": positions, "cells": cells})
+                              continue
+                          di = positions[0]
+                          # The source has either 6 cells (date at 4) or 8 cells with one leading/trailing layout cell (date at 5).
+                          if len(cells) == 6 and di == 4:
+                              name, office, secondary, ident, application_raw, activities = cells
+                          elif len(cells) == 8 and di == 5 and not cells[0] and not cells[7]:
+                              _, name, office, secondary, ident, application_raw, activities, _ = cells
+                          else:
+                              raise RuntimeError(f"Unreviewed Ferrara applicant row geometry at {row_locator(page.page_number, table_no, row_no)}: {cells!r}")
+                          if not name or not office or not ident or not activities:
+                              raise RuntimeError(f"Incomplete Ferrara applicant row at {row_locator(page.page_number, table_no, row_no)}: {cells!r}")
+                          applicant_rows.append({
+                              "loc": row_locator(page.page_number, table_no, row_no),
+                              "width": len(cells),
+                              "name": name,
+                              "office": office,
+                              "secondary": secondary,
+                              "id_raw": ident,
+                              "ids": identifiers(ident),
+                              "application_raw": application_raw,
+                              "application": iso_or_raw(application_raw),
+                              "activities": activities,
+                          })
+          report["ordinary_applicants"] = {
+              "candidate_rows": len(applicant_rows),
+              "row_width_counts": dict(collections.Counter(x["width"] for x in applicant_rows)),
+              "strict_identifier_coverage": sum(bool(x["ids"]) for x in applicant_rows),
+              "identifier_count_distribution": dict(collections.Counter(len(x["ids"]) for x in applicant_rows)),
+              "date_raw_or_malformed": [x for x in applicant_rows if x["application"].startswith("RAW:")],
+              "identifier_anomalies": [{"loc": x["loc"], "name": x["name"], "raw": x["id_raw"]} for x in applicant_rows if not x["ids"]],
+              "nondata_count": len(applicant_nondata),
+              "nondata_rows": applicant_nondata,
+              "no_table_pages": no_table_pages,
+          }
+
+          # Reconstruction: seven positively verified listed-sector PDFs. Keep physical sector provenance, then profile defensible grouping.
+          recon_rows = []
+          recon_nondata = []
+          per_sector = {}
+          for sector, activity, url, expected_sha in reconstruction:
+              blob = load(url, expected_sha)
+              local = []
+              no_table_pages = []
+              with pdfplumber.open(io.BytesIO(blob)) as pdf:
+                  for page in pdf.pages:
+                      tables = page.extract_tables()
+                      if not tables:
+                          no_table_pages.append({"page": page.page_number, "text": [clean(x) for x in (page.extract_text() or "").splitlines() if clean(x)]})
+                          continue
+                      assert len(tables) == 1, (sector, page.page_number, len(tables))
+                      for table_no, table in enumerate(tables, 1):
+                          for row_no, raw in enumerate(table, 1):
+                              cells = [clean(v) for v in (raw or [])]
+                              assert len(cells) == 6, (sector, page.page_number, row_no, cells)
+                              if not any(cells):
+                                  continue
+                              name, office, ident, listing_raw, expiry_raw, note = cells
+                              candidate = bool(name and ident and dateish.fullmatch(expiry_raw) and (not listing_raw or dateish.fullmatch(listing_raw)))
+                              if not candidate:
+                                  recon_nondata.append({"sector": sector, "loc": row_locator(page.page_number, table_no, row_no), "cells": cells})
+                                  continue
+                              item = {
+                                  "sector": sector,
+                                  "activity": activity,
+                                  "loc": row_locator(page.page_number, table_no, row_no),
+                                  "name": name,
+                                  "office": office,
+                                  "id_raw": ident,
+                                  "ids": identifiers(ident),
+                                  "listing_raw": listing_raw,
+                                  "listing": iso_or_raw(listing_raw),
+                                  "expiry_raw": expiry_raw,
+                                  "expiry": iso_or_raw(expiry_raw),
+                                  "note": note,
+                                  "status": status(note),
+                              }
+                              local.append(item)
+                              recon_rows.append(item)
+              per_sector[sector] = {
+                  "activity": activity,
+                  "candidate_rows": len(local),
+                  "status_counts": dict(collections.Counter(x["status"] for x in local)),
+                  "strict_identifier_coverage": sum(bool(x["ids"]) for x in local),
+                  "blank_listing_dates": sum(not x["listing_raw"] for x in local),
+                  "malformed_listing_dates": [{"loc": x["loc"], "name": x["name"], "raw": x["listing_raw"]} for x in local if x["listing"].startswith("RAW:")],
+                  "malformed_expiry_dates": [{"loc": x["loc"], "name": x["name"], "raw": x["expiry_raw"]} for x in local if x["expiry"].startswith("RAW:")],
+                  "no_table_pages": no_table_pages,
+              }
+
+          # Exact raw-id + date-pair + status grouping is conservative: it merges repeated sector manifestations only where
+          # all status/date semantics agree, and intentionally does not repair identifier or date typography.
+          groups = collections.defaultdict(list)
+          for row in recon_rows:
+              key = (row["id_raw"].casefold(), row["listing"], row["expiry"], row["status"])
+              groups[key].append(row)
+
+          grouped = []
+          for key, rows in groups.items():
+              grouped.append({
+                  "key": key,
+                  "sectors": sorted({x["sector"] for x in rows}),
+                  "names": sorted({x["name"] for x in rows}),
+                  "offices": sorted({x["office"] for x in rows}),
+                  "locators": [f"{x['sector']}:{x['loc']}" for x in rows],
+                  "ids": rows[0]["ids"],
+                  "status": rows[0]["status"],
+                  "listing": rows[0]["listing"],
+                  "expiry": rows[0]["expiry"],
+              })
+
+          # Same raw identifier/name with multiple date/status semantics is not merged; enumerate those conflict families.
+          conflict_families = collections.defaultdict(list)
+          for group in grouped:
+              representative_name = group["names"][0].casefold() if group["names"] else ""
+              conflict_families[(group["key"][0], representative_name)].append(group)
+          conflicts = []
+          for identity, gs in conflict_families.items():
+              semantic_pairs = {(g["listing"], g["expiry"], g["status"]) for g in gs}
+              if len(semantic_pairs) > 1:
+                  conflicts.append({
+                      "identity": identity,
+                      "variants": [{"listing": g["listing"], "expiry": g["expiry"], "status": g["status"], "sectors": g["sectors"], "names": g["names"], "offices": g["offices"]} for g in gs],
+                  })
+
+          report["reconstruction_listed"] = {
+              "physical_candidate_rows": len(recon_rows),
+              "per_sector": per_sector,
+              "physical_status_counts": dict(collections.Counter(x["status"] for x in recon_rows)),
+              "physical_strict_identifier_coverage": sum(bool(x["ids"]) for x in recon_rows),
+              "physical_identifier_count_distribution": dict(collections.Counter(len(x["ids"]) for x in recon_rows)),
+              "physical_blank_listing_dates": sum(not x["listing_raw"] for x in recon_rows),
+              "physical_malformed_listing_dates": [{"sector": x["sector"], "loc": x["loc"], "name": x["name"], "raw": x["listing_raw"]} for x in recon_rows if x["listing"].startswith("RAW:")],
+              "physical_malformed_expiry_dates": [{"sector": x["sector"], "loc": x["loc"], "name": x["name"], "raw": x["expiry_raw"]} for x in recon_rows if x["expiry"].startswith("RAW:")],
+              "physical_identifier_anomalies": [{"sector": x["sector"], "loc": x["loc"], "name": x["name"], "raw": x["id_raw"]} for x in recon_rows if not x["ids"]],
+              "nondata_count": len(recon_nondata),
+              "nondata_rows": recon_nondata,
+              "conservative_group_count": len(grouped),
+              "grouped_status_counts": dict(collections.Counter(x["status"] for x in grouped)),
+              "grouped_strict_identifier_coverage": sum(bool(x["ids"]) for x in grouped),
+              "multi_sector_groups": sum(len(x["sectors"]) > 1 for x in grouped),
+              "name_variant_groups": [{"key": x["key"], "names": x["names"], "sectors": x["sectors"]} for x in grouped if len(x["names"]) > 1],
+              "office_variant_group_count": sum(len(x["offices"]) > 1 for x in grouped),
+              "semantic_conflict_family_count": len(conflicts),
+              "semantic_conflict_families": conflicts,
+          }
+
+          print("FERRARA_SEMANTIC_CENSUS_JSON")
+          print(json.dumps(report, ensure_ascii=False, indent=2))
