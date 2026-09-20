@@ -1,0 +1,68 @@
+{
+  "listed": {
+    "parser": "viterbo_listed",
+    "source_pages": 237,
+    "public_records": 237,
+    "status_counts": {
+      "listed": 190,
+      "renewal_update_in_progress": 47
+    },
+    "note_counts": {
+      "": 96,
+      "Istanza di mantenimento dell’iscrizione nella White List attualmente in istruttoria": 47,
+      "Iscritta a seguito di istanza di mantenimento": 94
+    },
+    "section_counts": {
+      "03": 99,
+      "06": 78,
+      "05": 98,
+      "01": 94,
+      "02": 35,
+      "10": 76,
+      "04": 33,
+      "09": 7,
+      "07": 4,
+      "08": 4
+    },
+    "identifier_coverage": 235,
+    "raw_identifier_coverage": 237,
+    "name_coverage": 237,
+    "office_coverage": 237,
+    "activities_coverage": 237,
+    "malformed_identifier_values": [
+      "0226497056",
+      "BNMGLC74C265C773P"
+    ],
+    "duplicate_activity_rows": [
+      "96:05:Noli a caldo"
+    ]
+  },
+  "applicants": {
+    "parser": "viterbo_applicant",
+    "source_pages": 23,
+    "public_records": 23,
+    "status_counts": {
+      "pending": 23
+    },
+    "note_counts": {
+      "In Istruttoria": 23
+    },
+    "section_counts": {
+      "03": 6,
+      "10": 5,
+      "01": 5,
+      "06": 10,
+      "05": 6,
+      "04": 6,
+      "02": 2,
+      "08": 1
+    },
+    "identifier_coverage": 23,
+    "raw_identifier_coverage": 23,
+    "name_coverage": 23,
+    "office_coverage": 23,
+    "activities_coverage": 23,
+    "malformed_identifier_values": [],
+    "duplicate_activity_rows": []
+  }
+}
