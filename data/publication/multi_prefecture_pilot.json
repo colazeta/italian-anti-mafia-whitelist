@@ -2388,6 +2388,42 @@
       "sha256": "b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1",
       "expected_source_rows": 32,
       "notes": "Section XI is positively labelled elenco imprese richiedenti. The fail-closed parser yields 32 observations: 31 pending and 1 renewal/update in progress, all with strict identifiers and valid application dates; the source-missing company name on XI:p3:r9 remains missing rather than being inferred."
+    },
+    {
+      "authority_key": "viterbo",
+      "authority_name": "Prefettura di Viterbo",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-02",
+      "last_source_update": "2026-09-02",
+      "last_source_update_basis": "official Prefecture page metadata observed during verified 20 September 2026 source capture",
+      "register_key": "viterbo-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte",
+      "source_key": "viterbo-listed",
+      "parser": "viterbo_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/87/2026-09/iscritte_4.pdf",
+      "sha256": "ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78",
+      "expected_source_rows": 237,
+      "notes": "Byte-pinned 237-page listed-company PDF; exactly one source company form per numbered page. Fail-closed parser yields 237 observations: 190 listed and 47 renewal/update in progress, with 235 structured identifiers. Two malformed source identifier strings and one exact duplicated section-05 activity row on page 96 are preserved/audited without inferential repair."
+    },
+    {
+      "authority_key": "viterbo",
+      "authority_name": "Prefettura di Viterbo",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-02",
+      "last_source_update": "2026-09-02",
+      "last_source_update_basis": "official Prefecture page metadata observed during verified 20 September 2026 source capture",
+      "register_key": "viterbo-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte",
+      "source_key": "viterbo-applicants",
+      "parser": "viterbo_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/87/2026-09/richiedenti_4.pdf",
+      "sha256": "a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545",
+      "expected_source_rows": 23,
+      "notes": "Byte-pinned 23-page applicant PDF; exactly one source company form per numbered page. Fail-closed parser yields 23 pending observations with structured identifiers on every record."
     }
   ]
 }
