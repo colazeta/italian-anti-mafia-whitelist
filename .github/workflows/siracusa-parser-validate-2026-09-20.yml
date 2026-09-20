@@ -52,6 +52,7 @@ jobs:
           import requests
 
           root=pathlib.Path('/tmp/siracusa-validation')
+          landing='https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list'
           sources={
               'listed': (
                   'https://prefettura.interno.gov.it/sites/default/files/94/2026-08/Elenco%20societ%C3%A0%20iscritte%20White%20List_0.pdf',
@@ -65,19 +66,25 @@ jobs:
           session=requests.Session()
           session.headers.update({
               'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
-              'Cache-Control':'no-cache', 'Pragma':'no-cache', 'Accept':'application/pdf,*/*;q=0.8',
+              'Cache-Control':'no-cache', 'Pragma':'no-cache',
           })
+          # Prime the same official-site session used by the successful source
+          # probe. The static attachment layer intermittently rejects hot-link
+          # requests made without a preceding landing-page transaction.
+          prime=session.get(landing,headers={'Accept':'text/html,application/xhtml+xml,*/*;q=0.8'},timeout=90,allow_redirects=True)
+          print('landing-prime',prime.status_code,len(prime.content),prime.url)
+          if prime.status_code >= 400:
+              raise SystemExit(f'landing prime unavailable: HTTP {prime.status_code}')
           for kind,(url,expected) in sources.items():
               bodies=[]
               for attempt in (1,2):
-                  # The Interior Ministry static-file layer returns 404 when an
-                  # arbitrary query parameter is appended. Keep the canonical
-                  # official URL unchanged and make the two retrievals
-                  # independent through no-cache request headers plus a unique
-                  # diagnostic header instead.
                   r=session.get(
                       url,
-                      headers={'X-WL-Validation-Attempt':f'{attempt}-{time.time_ns()}'},
+                      headers={
+                          'Accept':'application/pdf,*/*;q=0.8',
+                          'Referer':landing,
+                          'X-WL-Validation-Attempt':f'{attempt}-{time.time_ns()}',
+                      },
                       timeout=90,
                       allow_redirects=True,
                   )
