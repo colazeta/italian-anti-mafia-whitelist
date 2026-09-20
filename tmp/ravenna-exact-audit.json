@@ -1,0 +1,161 @@
+{
+  "source_url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf",
+  "source_sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555",
+  "source_bytes": 2235879,
+  "pages": 29,
+  "page_rows": [
+    22,
+    24,
+    26,
+    24,
+    24,
+    23,
+    23,
+    24,
+    25,
+    25,
+    25,
+    25,
+    26,
+    26,
+    24,
+    24,
+    26,
+    25,
+    26,
+    25,
+    26,
+    24,
+    24,
+    25,
+    26,
+    26,
+    25,
+    26,
+    12
+  ],
+  "records": 706,
+  "status_counts": {
+    "listed": 430,
+    "renewal_update_in_progress": 211,
+    "other_or_unknown": 2,
+    "pending": 63
+  },
+  "note_counts": {
+    "": 493,
+    "Richiesto rinnovo - Aggiornamento in corso": 211,
+    "Richiesta rinnovo - aggiornamento in corso": 1,
+    "Iscrizione temporanea per effetto del controllo giudiziario, conclusosi, ex art. 34/bis del D.Lgs 159/2011 Aggiornamento in corso": 1
+  },
+  "section_cell_counts": {
+    "": 5732,
+    "X": 1317,
+    "X*": 11
+  },
+  "identifier_row_coverage": 692,
+  "rows_without_structured_identifier": 14,
+  "rows_without_structured_identifier_examples": [
+    {
+      "page": 1,
+      "ordinal": 13,
+      "prog": "25",
+      "company_raw": "ASTRA SOC. CONS. A R.L. 014772900396"
+    },
+    {
+      "page": 5,
+      "ordinal": 116,
+      "prog": "245",
+      "company_raw": "COOPERATIVA SOCIALE RICICLAGGIO E SOLIDARIETÀ FAENZA 2057150339"
+    },
+    {
+      "page": 9,
+      "ordinal": 191,
+      "prog": "415",
+      "company_raw": "FG TRASPORTI DI MADRASAN IOAN FLORIN E C. S.N.C."
+    },
+    {
+      "page": 10,
+      "ordinal": 230,
+      "prog": "508",
+      "company_raw": "ECOFERT S.R.L."
+    },
+    {
+      "page": 12,
+      "ordinal": 268,
+      "prog": "604",
+      "company_raw": "TRANSCHEM S.R.L. VIA VICOLI 93/A, 48124 RAVENNA (RA)"
+    },
+    {
+      "page": 14,
+      "ordinal": 339,
+      "prog": "773",
+      "company_raw": "TRASPORTI GALLO S.A.S."
+    },
+    {
+      "page": 21,
+      "ordinal": 504,
+      "prog": "1031",
+      "company_raw": "DIANA TRASPORTI S.R.L. 0277930394"
+    },
+    {
+      "page": 23,
+      "ordinal": 562,
+      "prog": "1116",
+      "company_raw": "GIARDINAGGIO DI PASI PIETRO E LUCA S.N.C."
+    },
+    {
+      "page": 24,
+      "ordinal": 579,
+      "prog": "1133",
+      "company_raw": "AGM IMPRESA EDILE COSTRUZIONE DI GIRALDI GEOM. GIUSEPPE & C. S.A.S."
+    },
+    {
+      "page": 26,
+      "ordinal": 643,
+      "prog": "1199",
+      "company_raw": ""
+    },
+    {
+      "page": 27,
+      "ordinal": 664,
+      "prog": "1220",
+      "company_raw": "NEMESI S.R.L.S."
+    },
+    {
+      "page": 27,
+      "ordinal": 665,
+      "prog": "1221",
+      "company_raw": "SOLUZIONI AMBIENTALI - ECOLOGY SOLUTION S.R.L.S."
+    },
+    {
+      "page": 27,
+      "ordinal": 666,
+      "prog": "1222",
+      "company_raw": "CRIMI SALVATORE"
+    },
+    {
+      "page": 29,
+      "ordinal": 703,
+      "prog": "1260",
+      "company_raw": "ELLE AMBIENTE S.R.L."
+    }
+  ],
+  "malformed_dates": [
+    {
+      "page": 28,
+      "ordinal": 682,
+      "field": "application",
+      "raw": "23/06/026"
+    }
+  ],
+  "blank_name_rows": [
+    {
+      "page": 26,
+      "ordinal": 643,
+      "prog": "1199"
+    }
+  ],
+  "blank_address_rows": [],
+  "nonnumeric_progressive_rows": [],
+  "duplicate_progressive_values": {}
+}
