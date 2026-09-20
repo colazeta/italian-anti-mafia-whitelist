@@ -51,125 +51,224 @@ jobs:
               upper = (v or '').upper()
               compact = re.sub(r'[^0-9A-Z]', '', upper)
               out = re.findall(r'(?<![0-9A-Z])(?:[0-9]{11}|[A-Z0-9]{16})(?![0-9A-Z])', upper)
-              if len(compact) in (11,16) and compact not in out:
+              if len(compact) in (11, 16) and compact not in out:
                   out.append(compact)
               return tuple(dict.fromkeys(out))
 
           def date_state(v):
               v = norm(v)
-              if not v: return 'blank'
-              if not re.fullmatch(r'\d{2}/\d{2}/\d{4}', v): return 'raw_noncanonical'
-              try: datetime.strptime(v, '%d/%m/%Y')
-              except ValueError: return 'raw_invalid'
+              if not v:
+                  return 'blank'
+              if not re.fullmatch(r'\d{2}/\d{2}/\d{4}', v):
+                  return 'raw_noncanonical'
+              try:
+                  datetime.strptime(v, '%d/%m/%Y')
+              except ValueError:
+                  return 'raw_invalid'
               return 'normalised'
 
           def status(note):
               n = fold(note)
-              if not n: return 'listed'
-              if 'rinnovo' in n or 'rinovo' in n: return 'renewal_update_in_progress'
+              if not n:
+                  return 'listed'
+              if 'rinnovo' in n or 'rinovo' in n:
+                  return 'renewal_update_in_progress'
               return 'other_or_unknown'
 
           def get(label):
               url, expected = SOURCES[label]
-              r = requests.get(url, headers={
-                  'User-Agent':'italian-anti-mafia-whitelist/ferrara-completeness-audit',
-                  'Cache-Control':'no-cache','Pragma':'no-cache'},
-                  params={'audit_nonce':secrets.token_hex(8)}, timeout=90)
+              r = requests.get(
+                  url,
+                  headers={
+                      'User-Agent': 'italian-anti-mafia-whitelist/ferrara-completeness-audit',
+                      'Cache-Control': 'no-cache',
+                      'Pragma': 'no-cache',
+                  },
+                  params={'audit_nonce': secrets.token_hex(8)},
+                  timeout=90,
+              )
               r.raise_for_status()
               actual = hashlib.sha256(r.content).hexdigest()
               assert actual == expected, (label, expected, actual, len(r.content))
               return r.content
 
+          def is_header(row):
+              joined = fold(' | '.join(row))
+              return (
+                  ('denominazione' in joined or 'ragione sociale' in joined)
+                  and ('c.f' in joined or 'p.iva' in joined or 'partita iva' in joined)
+              )
+
+          def is_structural(row):
+              first = fold(row[0]) if row else ''
+              joined = fold(' | '.join(row))
+              return (
+                  first.startswith('prefettura di ferrara')
+                  or first.startswith('sezione ')
+                  or 'elenco dei fornitori, prestatori di servizi' in joined
+              )
+
+          # Ordinary listed. The official PDF visually splits some logical rows at
+          # page boundaries. The identifier + expiry cells are the row anchor; a
+          # fragment without identifier/listing/expiry may extend only the most
+          # recent anchored row. Headers and section/title rows are never merged.
           ordinary = []
-          ordinary_nondata = []
-          ordinary_date_anomalies = []
-          ordinary_status = Counter()
+          ordinary_headers = []
+          ordinary_structural = []
+          ordinary_continuations = []
+          ordinary_unclassified = []
+          current = None
+
           with pdfplumber.open(io.BytesIO(get('ordinary'))) as pdf:
               assert len(pdf.pages) == 87
-              for pno,page in enumerate(pdf.pages,1):
+              for pno, page in enumerate(pdf.pages, 1):
                   tables = page.extract_tables() or []
-                  assert len(tables) == 1, (pno,len(tables))
-                  for rno,raw in enumerate(tables[0] or [],1):
-                      row=[norm(x) for x in raw]
-                      if not any(row): continue
-                      assert len(row)==7, (pno,rno,row)
-                      joined=fold(' | '.join(row))
-                      if 'denominazione' in joined or 'ragione sociale' in joined or 'c.f' in joined or 'p.iva' in joined:
-                          ordinary_nondata.append({'locator':f'p{pno}:r{rno}','kind':'header','row':row})
+                  assert len(tables) == 1, (pno, len(tables))
+                  for rno, raw in enumerate(tables[0] or [], 1):
+                      row = [norm(x) for x in raw]
+                      if not any(row):
                           continue
-                      name,office,secondary,ident,listed_raw,expiry_raw,note=row
-                      if not (name and office and ident and expiry_raw):
-                          ordinary_nondata.append({'locator':f'p{pno}:r{rno}','kind':'partial','row':row})
+                      assert len(row) == 7, (pno, rno, row)
+                      locator = f'p{pno}:r{rno}'
+                      if is_header(row):
+                          ordinary_headers.append({'locator': locator, 'row': row})
                           continue
-                      item={'locator':f'p{pno}:r{rno}','name':name,'office':office,'secondary':secondary,
-                            'id_raw':ident,'ids':strict_ids(ident),'listed_raw':listed_raw,
-                            'expiry_raw':expiry_raw,'note':note,'status':status(note),
-                            'listed_state':date_state(listed_raw),'expiry_state':date_state(expiry_raw)}
-                      ordinary.append(item)
-                      ordinary_status[item['status']]+=1
-                      if item['listed_state']!='normalised' or item['expiry_state']!='normalised':
-                          ordinary_date_anomalies.append(item)
+                      if is_structural(row):
+                          ordinary_structural.append({'locator': locator, 'row': row})
+                          continue
 
-          applicants=[]
-          applicant_nondata=[]
-          applicant_no_table=[]
-          applicant_widths=Counter()
-          applicant_date_anomalies=[]
+                      name, office, secondary, ident, listed_raw, expiry_raw, note = row
+                      anchored = bool(ident and expiry_raw)
+                      if anchored:
+                          current = {
+                              'locator': locator,
+                              'source_locators': [locator],
+                              'name': name,
+                              'office': office,
+                              'secondary': secondary,
+                              'id_raw': ident,
+                              'listed_raw': listed_raw,
+                              'expiry_raw': expiry_raw,
+                              'note': note,
+                          }
+                          ordinary.append(current)
+                          continue
+
+                      # A continuation is permitted only if it carries no identity
+                      # or date anchor of its own and a prior anchored row exists.
+                      if current is not None and not ident and not listed_raw and not expiry_raw:
+                          fragment = [name, office, secondary, '', '', '', note]
+                          if any(fragment):
+                              for key, value in (
+                                  ('name', name), ('office', office), ('secondary', secondary), ('note', note)
+                              ):
+                                  if value:
+                                      current[key] = norm(f"{current[key]} {value}")
+                              current['source_locators'].append(locator)
+                              ordinary_continuations.append({
+                                  'locator': locator,
+                                  'attached_to': current['locator'],
+                                  'row': row,
+                              })
+                              continue
+
+                      ordinary_unclassified.append({'locator': locator, 'row': row})
+
+          # Fail closed: every non-header/non-section physical row must either be
+          # an anchored observation or a conservative continuation of one.
+          assert not ordinary_unclassified, ordinary_unclassified
+          assert ordinary, 'no Ferrara ordinary observations parsed'
+          assert all(x['name'] and x['id_raw'] and x['expiry_raw'] for x in ordinary)
+
+          ordinary_status = Counter()
+          ordinary_date_anomalies = []
+          for item in ordinary:
+              item['ids'] = strict_ids(item['id_raw'])
+              item['listed_state'] = date_state(item['listed_raw'])
+              item['expiry_state'] = date_state(item['expiry_raw'])
+              item['status'] = status(item['note'])
+              ordinary_status[item['status']] += 1
+              if item['listed_state'] != 'normalised' or item['expiry_state'] != 'normalised':
+                  ordinary_date_anomalies.append(item)
+
+          # Ordinary applicants. The source has two reviewed table geometries;
+          # date position provides the stable anchor. Anything else fails closed.
+          applicants = []
+          applicant_headers = []
+          applicant_no_table = []
+          applicant_widths = Counter()
+          applicant_unclassified = []
+          applicant_date_anomalies = []
+
           with pdfplumber.open(io.BytesIO(get('applicants'))) as pdf:
-              assert len(pdf.pages)==5
-              for pno,page in enumerate(pdf.pages,1):
-                  tables=page.extract_tables() or []
+              assert len(pdf.pages) == 5
+              for pno, page in enumerate(pdf.pages, 1):
+                  tables = page.extract_tables() or []
                   if not tables:
-                      applicant_no_table.append({'page':pno,'text':[norm(x) for x in (page.extract_text() or '').splitlines() if norm(x)]})
+                      applicant_no_table.append({
+                          'page': pno,
+                          'text': [norm(x) for x in (page.extract_text() or '').splitlines() if norm(x)],
+                      })
                       continue
-                  assert len(tables)==1, (pno,len(tables))
-                  for rno,raw in enumerate(tables[0] or [],1):
-                      row=[norm(x) for x in raw]
-                      if not any(row): continue
-                      applicant_widths[len(row)]+=1
-                      joined=fold(' | '.join(row))
-                      if 'denominazione' in joined or 'ragione sociale' in joined or 'c.f' in joined or 'p.iva' in joined:
-                          applicant_nondata.append({'locator':f'p{pno}:r{rno}','kind':'header','row':row})
+                  assert len(tables) == 1, (pno, len(tables))
+                  for rno, raw in enumerate(tables[0] or [], 1):
+                      row = [norm(x) for x in raw]
+                      if not any(row):
                           continue
-                      if len(row)==6:
-                          name,office,secondary,ident,app_raw,activities=row
-                      elif len(row)==8 and not row[0] and not row[-1]:
-                          _,name,office,secondary,ident,app_raw,activities,_=row
+                      applicant_widths[len(row)] += 1
+                      locator = f'p{pno}:r{rno}'
+                      if is_header(row):
+                          applicant_headers.append({'locator': locator, 'row': row})
+                          continue
+
+                      if len(row) == 6:
+                          name, office, secondary, ident, app_raw, activities = row
+                      elif len(row) == 8 and not row[0] and not row[-1]:
+                          _, name, office, secondary, ident, app_raw, activities, _ = row
                       else:
-                          applicant_nondata.append({'locator':f'p{pno}:r{rno}','kind':'unexpected-layout','row':row})
+                          applicant_unclassified.append({'locator': locator, 'row': row})
                           continue
-                      if not (name and office and ident and app_raw):
-                          applicant_nondata.append({'locator':f'p{pno}:r{rno}','kind':'partial','row':row})
+
+                      if not (name and office and ident and app_raw and activities):
+                          applicant_unclassified.append({'locator': locator, 'row': row})
                           continue
-                      item={'locator':f'p{pno}:r{rno}','name':name,'office':office,'secondary':secondary,
-                            'id_raw':ident,'ids':strict_ids(ident),'application_raw':app_raw,
-                            'application_state':date_state(app_raw),'activities':activities}
+
+                      item = {
+                          'locator': locator,
+                          'name': name,
+                          'office': office,
+                          'secondary': secondary,
+                          'id_raw': ident,
+                          'ids': strict_ids(ident),
+                          'application_raw': app_raw,
+                          'application_state': date_state(app_raw),
+                          'activities': activities,
+                      }
                       applicants.append(item)
-                      if item['application_state']!='normalised': applicant_date_anomalies.append(item)
+                      if item['application_state'] != 'normalised':
+                          applicant_date_anomalies.append(item)
 
-          ordinary_partial=[x for x in ordinary_nondata if x['kind']!='header']
-          applicant_partial=[x for x in applicant_nondata if x['kind']!='header']
-          assert not ordinary_partial, ordinary_partial
-          assert not applicant_partial, applicant_partial
-          assert all(not x['secondary'] for x in ordinary), sorted({x['secondary'] for x in ordinary if x['secondary']})
-          assert all(not x['secondary'] for x in applicants), sorted({x['secondary'] for x in applicants if x['secondary']})
+          assert not applicant_unclassified, applicant_unclassified
+          assert applicants, 'no Ferrara applicant observations parsed'
 
-          summary={
-              'ordinary_candidates':len(ordinary),
-              'ordinary_statuses':dict(ordinary_status),
-              'ordinary_strict_id_rows':sum(bool(x['ids']) for x in ordinary),
-              'ordinary_date_anomalies':len(ordinary_date_anomalies),
-              'ordinary_header_rows':sum(x['kind']=='header' for x in ordinary_nondata),
-              'ordinary_partial_rows':len(ordinary_partial),
-              'applicant_candidates':len(applicants),
-              'applicant_widths':dict(applicant_widths),
-              'applicant_strict_id_rows':sum(bool(x['ids']) for x in applicants),
-              'applicant_date_anomalies':len(applicant_date_anomalies),
-              'applicant_header_rows':sum(x['kind']=='header' for x in applicant_nondata),
-              'applicant_partial_rows':len(applicant_partial),
-              'applicant_no_table_pages':applicant_no_table,
-              'ordinary_date_anomaly_rows':ordinary_date_anomalies,
-              'applicant_date_anomaly_rows':applicant_date_anomalies,
+          summary = {
+              'ordinary_candidates': len(ordinary),
+              'ordinary_statuses': dict(ordinary_status),
+              'ordinary_strict_id_rows': sum(bool(x['ids']) for x in ordinary),
+              'ordinary_blank_office_rows': sum(not x['office'] for x in ordinary),
+              'ordinary_date_anomalies': len(ordinary_date_anomalies),
+              'ordinary_header_rows': len(ordinary_headers),
+              'ordinary_structural_rows': len(ordinary_structural),
+              'ordinary_continuation_rows': len(ordinary_continuations),
+              'ordinary_continuations': ordinary_continuations,
+              'ordinary_date_anomaly_rows': ordinary_date_anomalies,
+              'applicant_candidates': len(applicants),
+              'applicant_widths': dict(applicant_widths),
+              'applicant_strict_id_rows': sum(bool(x['ids']) for x in applicants),
+              'applicant_date_anomalies': len(applicant_date_anomalies),
+              'applicant_header_rows': len(applicant_headers),
+              'applicant_no_table_pages': applicant_no_table,
+              'applicant_date_anomaly_rows': applicant_date_anomalies,
           }
           print('FERRARA_ORDINARY_APPLICANT_AUDIT_JSON')
-          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          print(json.dumps(summary, ensure_ascii=False, indent=2))
