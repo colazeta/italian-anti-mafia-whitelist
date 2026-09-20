@@ -40,6 +40,7 @@ jobs:
           module.write_test()
           PY
           python tmp/pescara_source_registry.py
+          python tmp/pescara_denominators.py
       - name: Install integration runtime
         shell: bash
         run: |
@@ -55,9 +56,9 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[dev]'
+          python -m pip install -e '.[dev,storage,database]'
       - name: Run focused Pescara tests
-        run: pytest -q tests/test_pescara_legacy_doc.py
+        run: pytest -q tests/test_pescara_legacy_doc.py tests/test_source_registry.py tests/test_source_population_coverage.py tests/test_operations.py tests/test_repository_governance.py
       - name: Run full repository suite
         run: pytest -q
       - name: Build and validate actual national candidate
@@ -91,9 +92,13 @@ jobs:
             data/publication/multi_prefecture_pilot.json \
             data/source_registry/verified_primary_pages.csv \
             data/source_registry/source_series_inventory.csv \
+            data/monitoring/national_coverage.json \
+            data/catalog.csv \
             docs/sources/pescara-operational-check-2026-09-21.md \
             docs/sources/pescara-national-candidate-2026-09-21.json \
-            tests/test_pescara_legacy_doc.py
+            tests/test_pescara_legacy_doc.py \
+            tests/test_source_registry.py \
+            tests/test_source_population_coverage.py
           if git diff --cached --quiet; then
             echo 'Permanent Pescara candidate already checkpointed.'
             exit 0
