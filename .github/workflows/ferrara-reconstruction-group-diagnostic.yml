@@ -1,0 +1,74 @@
+name: Ferrara reconstruction grouping diagnostic
+
+on:
+  push:
+    branches: [expansion/ferrara-2026-09-20]
+    paths: [.github/workflows/ferrara-reconstruction-group-diagnostic.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -e . requests pdfplumber==0.11.10
+      - name: Compare reconstruction grouping semantics
+        shell: python
+        run: |
+          import collections, hashlib, secrets, tempfile, re
+          from datetime import date
+          from pathlib import Path
+          import requests
+          from white_list_archive.parsers.ferrara_tables import _parse_reconstruction_physical, _normalise_date_or_blank, _status
+
+          SOURCES={
+            'A':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf','4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01'),
+            'B':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf','97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec'),
+            'C':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf','99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e'),
+            'D':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf','07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8'),
+            'E':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf','9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e'),
+            'F':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf','ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664'),
+            'G':('https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf','0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae'),
+          }
+          def capture(s,root):
+            url,expected=SOURCES[s]
+            r=requests.get(url,headers={'User-Agent':'italian-anti-mafia-whitelist/ferrara-group-diagnostic','Cache-Control':'no-cache'},params={'n':secrets.token_hex(8)},timeout=90); r.raise_for_status()
+            got=hashlib.sha256(r.content).hexdigest(); assert got==expected,(s,got,expected)
+            p=root/f'{s}.pdf';p.write_bytes(r.content);return p
+          def old_iso(raw):
+            raw=' '.join(str(raw or '').split())
+            if not raw:return ''
+            m=re.fullmatch(r'(\d{1,2})/(\d{1,2})/(\d{4})',raw)
+            if not m:return f'RAW:{raw}'
+            d,mn,y=map(int,m.groups())
+            try:return date(y,mn,d).isoformat()
+            except ValueError:return f'RAW:{raw}'
+          def new_sem(raw):
+            norm=_normalise_date_or_blank(raw)
+            return norm or (f"RAW:{' '.join(str(raw or '').split())}" if str(raw or '').strip() else '')
+          with tempfile.TemporaryDirectory() as d:
+            root=Path(d); rows=_parse_reconstruction_physical({s:capture(s,root) for s in SOURCES})
+            old=collections.defaultdict(list); new=collections.defaultdict(list)
+            for r in rows:
+              old[(r['identifier_raw'].casefold(),old_iso(r['listed_raw']),old_iso(r['expiry_raw']),_status(r['note']))].append(r)
+              new[(r['identifier_raw'].casefold(),new_sem(r['listed_raw']),new_sem(r['expiry_raw']),_status(r['note']))].append(r)
+            print('COUNTS',len(rows),len(old),len(new))
+            old_members={tuple(sorted(x['sector']+':'+x['physical_locators'][0] for x in v)):k for k,v in old.items()}
+            new_members={tuple(sorted(x['sector']+':'+x['physical_locators'][0] for x in v)):k for k,v in new.items()}
+            print('OLD_NOT_NEW_MEMBERS')
+            for members,key in old_members.items():
+              if members not in new_members: print(repr((key,members)))
+            print('NEW_NOT_OLD_MEMBERS')
+            for members,key in new_members.items():
+              if members not in old_members: print(repr((key,members)))
+            # show raw date forms where old/new semantic key differs
+            print('DATE_SEMANTIC_DIFF_ROWS')
+            for r in rows:
+              if old_iso(r['listed_raw'])!=new_sem(r['listed_raw']) or old_iso(r['expiry_raw'])!=new_sem(r['expiry_raw']):
+                print(repr((r['sector'],r['name'],r['identifier_raw'],r['listed_raw'],old_iso(r['listed_raw']),new_sem(r['listed_raw']),r['expiry_raw'],old_iso(r['expiry_raw']),new_sem(r['expiry_raw']),r['note'],r['physical_locators'])))
