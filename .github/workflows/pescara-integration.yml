@@ -55,7 +55,7 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[publication]'
+          python -m pip install -e '.[dev]'
       - name: Run focused Pescara tests
         run: pytest -q tests/test_pescara_legacy_doc.py
       - name: Run full repository suite
