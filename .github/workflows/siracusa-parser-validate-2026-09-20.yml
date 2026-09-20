@@ -1,0 +1,137 @@
+name: Siracusa parser validation 2026-09-20
+
+on:
+  push:
+    branches:
+      - expansion/siracusa-2026-09-20
+    paths:
+      - .github/workflows/siracusa-parser-validate-2026-09-20.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/siracusa-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify canonical base and isolated Siracusa scope
+        run: |
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "547b24cacba57a8b9cd437f655244013de640560"
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          python - <<'PY'
+          import subprocess
+          files=set(subprocess.check_output(['git','diff','--name-only','origin/main...HEAD'],text=True).splitlines())
+          allowed={
+              '.github/workflows/siracusa-source-probe-2026-09-20.yml',
+              '.github/workflows/siracusa-parser-validate-2026-09-20.yml',
+              'src/white_list_archive/parsers/siracusa_tables.py',
+              'tests/test_siracusa_parser_semantics.py',
+          }
+          if files != allowed:
+              raise SystemExit(f'unexpected Siracusa parser-validation scope: {sorted(files)}')
+          PY
+      - name: Install validation runtime
+        run: |
+          python -m pip install --disable-pip-version-check -e . pytest requests
+      - name: Recapture exact approved official resources twice
+        run: |
+          mkdir -p /tmp/siracusa-validation
+          python - <<'PY'
+          from __future__ import annotations
+          import hashlib, pathlib, time
+          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+          import requests
+
+          root=pathlib.Path('/tmp/siracusa-validation')
+          sources={
+              'listed': (
+                  'https://prefettura.interno.gov.it/sites/default/files/94/2026-08/Elenco%20societ%C3%A0%20iscritte%20White%20List_0.pdf',
+                  'fbfc6107894afd0b2ef8c2aba9eb00a60f4949c947c25b0d28eaa4286e6769ba',
+              ),
+              'applicants': (
+                  'https://prefettura.interno.gov.it/sites/default/files/94/2026-09/ELENCO%20RICHIEDENTI%20ISCRIZIONE-W.L_1.pdf',
+                  '74f4cf251ebd7903d47ebfa6fd134f9228990d76f50aabb4b39fbec1e6a903a9',
+              ),
+          }
+          session=requests.Session()
+          session.headers.update({
+              'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
+              'Cache-Control':'no-cache', 'Pragma':'no-cache', 'Accept':'application/pdf,*/*;q=0.8',
+          })
+          def bust(url, token):
+              p=urlsplit(url); q=parse_qsl(p.query,keep_blank_values=True); q.append(('_wl_validate',token))
+              return urlunsplit((p.scheme,p.netloc,p.path,urlencode(q),p.fragment))
+          for kind,(url,expected) in sources.items():
+              bodies=[]
+              for attempt in (1,2):
+                  r=session.get(bust(url,f'{attempt}-{time.time_ns()}'),timeout=90,allow_redirects=True)
+                  r.raise_for_status(); body=r.content
+                  digest=hashlib.sha256(body).hexdigest()
+                  print(kind,attempt,r.status_code,len(body),digest,r.headers.get('content-type',''))
+                  if not body.startswith(b'%PDF-'):
+                      raise SystemExit(f'{kind}: current official resource is not a PDF')
+                  if digest != expected:
+                      raise SystemExit(f'{kind}: raw SHA drift {digest} != {expected}')
+                  bodies.append(body)
+              if bodies[0] != bodies[1]:
+                  raise SystemExit(f'{kind}: independent captures are not byte-identical')
+              (root/f'{kind}.pdf').write_bytes(bodies[0])
+          PY
+      - name: Run focused parser tests
+        run: pytest -q tests/test_siracusa_parser_semantics.py
+      - name: Validate full current Siracusa observation boundary
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.parsers.siracusa_tables import parse_siracusa_applicants, parse_siracusa_listed
+          from white_list_archive.publishing.public_contract import public_record
+
+          root=Path('/tmp/siracusa-validation')
+          page='https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list'
+          base={
+              'authority_key':'siracusa', 'authority_name':'Prefettura di Siracusa',
+              'register_key':'siracusa-ordinary', 'register_name':'White List ordinaria',
+              'reference_date':'2026-09-03', 'source_page_url':page,
+          }
+          listed_cfg={**base,
+              'source_key':'siracusa-listed','population_scope':'listed',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/94/2026-08/Elenco%20societ%C3%A0%20iscritte%20White%20List_0.pdf',
+              'sha256':'fbfc6107894afd0b2ef8c2aba9eb00a60f4949c947c25b0d28eaa4286e6769ba'}
+          applicant_cfg={**base,
+              'source_key':'siracusa-applicants','population_scope':'applicant',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/94/2026-09/ELENCO%20RICHIEDENTI%20ISCRIZIONE-W.L_1.pdf',
+              'sha256':'74f4cf251ebd7903d47ebfa6fd134f9228990d76f50aabb4b39fbec1e6a903a9'}
+          listed=parse_siracusa_listed(root/'listed.pdf',listed_cfg)
+          applicants=parse_siracusa_applicants(root/'applicants.pdf',applicant_cfg)
+          records=listed.records+applicants.records
+          assert len(listed.records)==315, listed.diagnostics
+          assert len(applicants.records)==104, applicants.diagnostics
+          assert len(records)==419
+          assert Counter(r['source_status'] for r in records)==Counter({
+              'listed':246,'renewal_update_in_progress':67,'other_or_unknown':2,'pending':104})
+          assert sum(bool(r['identifiers']) for r in listed.records)==312
+          assert sum(bool(r['identifiers']) for r in applicants.records)==102
+          assert sum(bool(r['observed_expiry_date']) for r in listed.records)==315
+          assert sum(bool(r['application_date']) for r in applicants.records)==103
+          assert len({r['record_locator'] for r in records})==419
+          for record in records:
+              public_record(record)
+          malformed=[r for r in applicants.records if r['name']=='DI TOMMASI FRANCESCO S.R.L.']
+          assert len(malformed)==1 and malformed[0]['application_date']==''
+          assert malformed[0]['source_fields']['application_date_raw_variants']==['17.01/2024']
+          cancellation=[r for r in listed.records if r['name']=='ECO AMBIENTE ITALIA S.R.L.']
+          assert len(cancellation)==1 and cancellation[0]['source_status']=='other_or_unknown'
+          print('LISTED_DIAGNOSTICS',listed.diagnostics)
+          print('APPLICANT_DIAGNOSTICS',applicants.diagnostics)
+          print('SIRACUSA_BOUNDARY',len(records),Counter(r['source_status'] for r in records))
+          PY
