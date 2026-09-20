@@ -108,6 +108,7 @@ The same company can recur across reconstruction sectors. Repetitions must not b
 The following anomalies were positively observed during source verification and must be preserved or explicitly reviewed rather than silently repaired:
 
 - ordinary listed contains the 12-digit raw identifier `010215770387`; it must not be padded, truncated or reinterpreted merely to satisfy an identifier format;
+- ordinary listed also contains the raw 11-character value `O1909990382` for `COSTRUZIONI MUSTEATA ALEXANDRU`; because it contains a letter it is neither a valid 11-digit VAT number nor a 16-character Italian tax code, so it remains raw evidence and is not promoted to a structured identifier;
 - reconstruction sector B contains `05/03/204` for `W.E.W.S. DI MUSAKU ESMIRALDA`; the malformed date must not be silently changed to a guessed year;
 - listed and reconstruction rows can explicitly carry `RINNOVO IN CORSO`; this is evidence for the repository's `renewal_update_in_progress` outcome rather than a reason to drop the row;
 - sector PDFs can contain the same company with different registration/expiry pairs; those conflicts are substantive source variation and must remain visible;
