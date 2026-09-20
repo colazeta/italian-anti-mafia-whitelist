@@ -130,13 +130,14 @@ jobs:
           git add .github/workflows/public-pages.yml
           git rm -f tmp/pordenone-public-pages.yml .github/workflows/pordenone-pr-prep.yml
           git diff --cached --check
-          if git diff --cached --name-only | grep -E '(^tmp/|^\.github/workflows/pordenone-)'; then
-            echo 'Temporary Pordenone mechanism remains staged unexpectedly' >&2
+          actual="$(git diff --cached --name-status | sort)"
+          expected="$(printf 'D\t.github/workflows/pordenone-pr-prep.yml\nM\t.github/workflows/public-pages.yml\nD\ttmp/pordenone-public-pages.yml\n' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo 'Unexpected staged files in Pordenone final cleanup:' >&2
+            printf '%s\n' "$actual" >&2
             exit 1
           fi
-          if git diff --cached --quiet; then
-            echo 'No final cleanup changes to commit' >&2
-            exit 1
-          fi
+          test ! -e tmp/pordenone-public-pages.yml
+          test ! -e .github/workflows/pordenone-pr-prep.yml
           git commit -m 'Promote validated Pordenone public gates and remove temporary machinery'
           git push origin HEAD:expansion/pordenone-2026-09-20
