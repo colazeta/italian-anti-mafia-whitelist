@@ -2154,6 +2154,42 @@
       "sha256": "82dd288c21c85ea563c75cbfc8346c528b603e54c3a78283a0ae67983e97f2f5",
       "expected_source_rows": 609,
       "notes": "Dedicated official applicant PDF positively exposed by the current landing page. It yields 609 positive pending observations across the complete numbered source population, with structured identifiers for 606 observations. Observed spelling variants and malformed identifier fields remain source evidence; no application date is inferred because the source has no application-date column."
+    },
+    {
+      "authority_key": "matera",
+      "authority_name": "Prefettura di Matera",
+      "register_key": "matera-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/matera/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-07-31",
+      "last_source_update": "2026-07-31",
+      "last_source_update_basis": "official landing attachment label 'aggiornato al 31 Luglio 2026'; source-edition boundary only, not promoted to a company legal-effect date",
+      "source_key": "matera-listed",
+      "parser": "matera_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/54/2026-08/iscritte-luglio-2026.xlsx",
+      "sha256": "4a2a3fad0711f9d3c159d78c93210983b9f1699c2810d8154b60d8fc5d958d3f",
+      "expected_source_rows": 248,
+      "notes": "Dedicated official listed XLSX positively exposed by the current landing page. Exact workbook shape is 249x10 with 248 source rows, all explicit ISCRITTA. Structured identifiers and explicit listing/expiry dates cover 248/248 observations. Formula-literal cells are decoded only from the exact =\"literal\" wrapper. One reviewed judicial-control note appears with and without a final full stop across repeated spill cells; both exact variants are preserved and any unreviewed multi-note disagreement fails closed."
+    },
+    {
+      "authority_key": "matera",
+      "authority_name": "Prefettura di Matera",
+      "register_key": "matera-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/matera/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-07-31",
+      "last_source_update": "2026-07-31",
+      "last_source_update_basis": "official landing attachment label 'aggiornato al 31 Luglio 2026'; source-edition boundary only, not promoted to a company legal-effect date",
+      "source_key": "matera-applicants",
+      "parser": "matera_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/54/2026-08/elenco-richiedenti-iscrizione.xlsx",
+      "sha256": "e4dae926800d1c513e1274b8ae45267337987eaa5b62b1581cbbcc56f6da898c",
+      "expected_source_rows": 90,
+      "notes": "Dedicated official request/update XLSX positively exposed by the current landing page. Exact workbook shape is 91x7 with 90 source rows: 41 RICHIEDENTE_ISCRIZIONE mapped to pending and 49 IN_AGGIORNAMENTO mapped to renewal/update in progress. Structured identifiers and explicit application dates cover 90/90 observations; two source dates are true Excel date cells and all others use the exact literal-formula wrapper."
     }
   ]
 }

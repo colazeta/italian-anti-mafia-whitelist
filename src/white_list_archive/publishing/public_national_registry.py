@@ -78,6 +78,7 @@ from white_list_archive.parsers.imperia_sources import PARSERS as IMPERIA_PARSER
 from white_list_archive.parsers.lucca_tables import PARSERS as LUCCA_PARSERS
 from white_list_archive.parsers.trapani_tables import PARSERS as TRAPANI_PARSERS
 from white_list_archive.parsers.palermo_positioned import PARSERS as PALERMO_PARSERS
+from white_list_archive.parsers.matera_openxml import PARSERS as MATERA_PARSERS
 from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
@@ -898,6 +899,58 @@ def _adapt_roma_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBat
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+def _adapt_matera_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Matera workbook evidence onto the closed public contract."""
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Matera source_fields must be a mapping")
+        if parser_name == "matera_listed":
+            expected = {
+                "source_row", "source_authority_code", "source_status_raw",
+                "listing_date_raw_variants", "expiry_date_raw_variants",
+                "notes", "note_variants", "note_cells_raw",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Matera listed source-field drift: {sorted(fields)!r}")
+            for key in ("listing_date_raw_variants", "expiry_date_raw_variants", "notes", "note_variants", "note_cells_raw"):
+                if not isinstance(fields[key], list) or any(not isinstance(value, str) for value in fields[key]):
+                    raise RuntimeError(f"Matera listed source-field type drift: {key}")
+            if type(fields["source_row"]) is not int or any(not isinstance(fields[key], str) for key in ("source_authority_code", "source_status_raw")):
+                raise RuntimeError("Matera listed source-locator/status type drift")
+            record["source_fields"] = {
+                "notes": list(fields["note_variants"]),
+                "listing_date_raw_variants": list(fields["listing_date_raw_variants"]),
+                "expiry_date_raw_variants": list(fields["expiry_date_raw_variants"]),
+            }
+        elif parser_name == "matera_applicants":
+            expected = {
+                "source_row", "source_authority_code", "source_status_raw",
+                "application_date_raw_variants", "requested_sections_raw",
+                "protocol_request", "application_date_cell_type",
+            }
+            if set(fields) != expected:
+                raise RuntimeError(f"Matera applicant source-field drift: {sorted(fields)!r}")
+            if type(fields["source_row"]) is not int:
+                raise RuntimeError("Matera applicant source-row type drift")
+            if not isinstance(fields["application_date_raw_variants"], list) or any(not isinstance(value, str) for value in fields["application_date_raw_variants"]):
+                raise RuntimeError("Matera applicant application-date evidence type drift")
+            for key in ("source_authority_code", "source_status_raw", "requested_sections_raw", "protocol_request", "application_date_cell_type"):
+                if not isinstance(fields[key], str):
+                    raise RuntimeError(f"Matera applicant source-field scalar drift: {key}")
+            record["source_fields"] = {
+                "sections": list(record.get("requested_activities", [])),
+                "requested_activities_source": fields["requested_sections_raw"],
+                "application_date_raw_variants": list(fields["application_date_raw_variants"]),
+            }
+        else:
+            raise RuntimeError(f"Unexpected Matera parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
 def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == "cosenza_combined_v2":
         return _adapt_cosenza(path, cfg)
@@ -960,6 +1013,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or LUCCA_PARSERS.get(cfg["parser"])
         or TRAPANI_PARSERS.get(cfg["parser"])
         or PALERMO_PARSERS.get(cfg["parser"])
+        or MATERA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
@@ -989,6 +1043,8 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         batch = _adapt_lodi_public_fields(batch, cfg["parser"])
     if cfg["parser"] in ROMA_PARSERS:
         batch = _adapt_roma_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in MATERA_PARSERS:
+        batch = _adapt_matera_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
