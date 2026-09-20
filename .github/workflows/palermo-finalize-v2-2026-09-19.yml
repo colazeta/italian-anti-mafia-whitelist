@@ -56,7 +56,7 @@ jobs:
           replacements = [
               ("coverage['authorities']", "coverage['prefectures']", 1, 'monitoring collection'),
               ('67180', '67179', 2, 'post-Potenza canonical total'),
-              ('68718', '68717', 2, 'post-Potenza Palermo candidate total'),
+              ('68718', '68717', 3, 'post-Potenza Palermo candidate total'),
           ]
           for old, new, expected, label in replacements:
               count = text.count(old)
