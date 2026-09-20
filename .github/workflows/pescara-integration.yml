@@ -23,7 +23,23 @@ jobs:
         with:
           python-version: '3.12'
       - name: Materialise permanent Pescara candidate
-        run: python tmp/pescara_integrate.py materialise
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          path = Path('tmp/pescara_integrate.py')
+          spec = importlib.util.spec_from_file_location('pescara_integrate', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec.loader is not None
+          spec.loader.exec_module(module)
+          module.patch_registry()
+          module.patch_publication_config()
+          module.write_operational_doc()
+          module.write_test()
+          PY
+          python tmp/pescara_source_registry.py
       - name: Install integration runtime
         shell: bash
         run: |
