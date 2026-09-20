@@ -1,0 +1,57 @@
+name: Ferrara correct reconstruction boundary
+
+on:
+  push:
+    branches:
+      - expansion/ferrara-2026-09-20
+    paths:
+      - .github/workflows/ferrara-correct-reconstruction-boundary.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/ferrara-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Correct only frozen reconstruction metrics
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/white_list_archive/parsers/ferrara_tables.py')
+          text = path.read_text()
+          replacements = {
+              '_EXPECTED_RECONSTRUCTION_LOGICAL = 697': '_EXPECTED_RECONSTRUCTION_LOGICAL = 694',
+              '    "listed": 542,\n    "renewal_update_in_progress": 153,\n    "other_or_unknown": 2,': '    "listed": 583,\n    "renewal_update_in_progress": 109,\n    "other_or_unknown": 2,',
+              '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 683': '_EXPECTED_RECONSTRUCTION_IDENTIFIER_COVERAGE = 675',
+              '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 282': '_EXPECTED_RECONSTRUCTION_MULTI_SECTOR_GROUPS = 277',
+              '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 15': '_EXPECTED_RECONSTRUCTION_DATE_ANOMALIES = 51',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'fail closed: expected exactly one occurrence of {old!r}, found {count}')
+              text = text.replace(old, new)
+          path.write_text(text)
+      - run: python -m pip install --disable-pip-version-check -e . pytest requests pdfplumber==0.11.10
+      - name: Repository validation
+        run: |
+          python -m compileall -q src tests
+          pytest -q
+      - name: Commit corrected permanent parser constants
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no | grep -v '^ M src/white_list_archive/parsers/ferrara_tables.py$' || true)"
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/white_list_archive/parsers/ferrara_tables.py
+          git commit -m "Correct Ferrara reconstruction parser boundary"
+          git push origin HEAD:expansion/ferrara-2026-09-20
