@@ -18,10 +18,14 @@ concurrency:
 jobs:
   revalidate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact branch state
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Capture and compare current Potenza source
         shell: bash
         run: |
@@ -31,9 +35,9 @@ jobs:
           import collections
           import hashlib
           import json
+          from pathlib import Path
           import re
           import time
-          import urllib.error
           import urllib.request
 
           SOURCE = (
@@ -140,6 +144,10 @@ jobs:
               }, sort_keys=True))
               raise SystemExit('Two independent Potenza captures were not byte-identical; fail closed')
 
+          current_capture = Path('tmp/potenza-current-revalidation.json')
+          current_capture.parent.mkdir(parents=True, exist_ok=True)
+          current_capture.write_bytes(raw1)
+
           current_by_id = {str(row['id']).strip(): row for row in rows1}
           current_status = {sid: classify(row) for sid, row in current_by_id.items()}
           status_counts = dict(collections.Counter(current_status.values()))
@@ -155,10 +163,6 @@ jobs:
           }
           print('CURRENT_SOURCE_SUMMARY=' + json.dumps(current_summary, sort_keys=True))
 
-          # Compare the current official source with the currently published approved
-          # Potenza projection when Pages is reachable. Pages unavailability is
-          # recorded but does not turn a successful two-capture source check into a
-          # false source failure.
           try:
               live_raw = get(PUBLIC_REGISTRY, 'potenza-live-public-registry')
               registry = json.loads(live_raw.decode('utf-8'))
@@ -188,24 +192,66 @@ jobs:
                           'published': published_status,
                           'current': current_status[sid],
                       })
+              missing_ids = sorted(public_ids - ids1, key=int)
+              missing_details = []
+              for sid in missing_ids:
+                  row = public_by_id[sid]
+                  missing_details.append({
+                      'source_id': sid,
+                      'name': row.get('name'),
+                      'identifier_field_raw': row.get('identifier_field_raw'),
+                      'source_status': row.get('source_status'),
+                      'application_date': row.get('application_date'),
+                      'observed_listing_date': row.get('observed_listing_date'),
+                      'observed_expiry_date': row.get('observed_expiry_date'),
+                  })
               comparison = {
                   'pages_available': True,
                   'public_potenza_rows': len(public_rows),
                   'public_distinct_source_ids': len(public_ids),
                   'current_distinct_source_ids': len(ids1),
-                  'missing_from_current_vs_public': sorted(public_ids - ids1, key=int),
+                  'missing_from_current_vs_public': missing_ids,
+                  'missing_public_record_details': missing_details,
                   'new_in_current_vs_public': sorted(ids1 - public_ids, key=int),
                   'status_changes_vs_public': status_changes,
               }
-              print('PUBLIC_COMPARISON=' + json.dumps(comparison, sort_keys=True))
+              print('PUBLIC_COMPARISON=' + json.dumps(comparison, ensure_ascii=False, sort_keys=True))
           except Exception as exc:
               print('PUBLIC_COMPARISON=' + json.dumps({
                   'pages_available': False,
                   'error_type': type(exc).__name__,
                   'error': str(exc),
               }, sort_keys=True))
+          PY
+      - name: Install production parser runtime
+        run: python -m pip install -e '.[publication]'
+      - name: Derive fail-closed production semantic boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
 
-          # A stable changed boundary is a successful observation, not a validation
-          # bypass. Any permanent approval change remains a separate Potenza-only
-          # transaction guarded by the normal repository and public-build gates.
+          from white_list_archive.publishing.public_national_registry import _parse_source, _semantic_digest, _validate_batch
+
+          capture = Path('tmp/potenza-current-revalidation.json')
+          raw = capture.read_bytes()
+          config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text(encoding='utf-8'))
+          matches = [cfg for cfg in config['sources'] if cfg['source_key'] == 'potenza-combined']
+          if len(matches) != 1:
+              raise RuntimeError(f'Expected one Potenza source config, got {len(matches)}')
+          cfg = dict(matches[0])
+          cfg['reference_date'] = '2026-09-20'
+          cfg['sha256'] = hashlib.sha256(raw).hexdigest()
+          cfg['expected_source_rows'] = 1034
+          batch = _parse_source(capture, cfg)
+          _validate_batch(cfg, batch)
+          semantic = _semantic_digest(batch.records)
+          print('PRODUCTION_SEMANTIC_BOUNDARY=' + json.dumps({
+              'reference_date': cfg['reference_date'],
+              'raw_sha256': cfg['sha256'],
+              'semantic_sha256': semantic,
+              'diagnostics': batch.diagnostics,
+          }, ensure_ascii=False, sort_keys=True))
           PY
