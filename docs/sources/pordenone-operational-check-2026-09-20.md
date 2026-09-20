@@ -95,14 +95,20 @@ All byte counts and SHA-256 values below are from two independent byte-identical
 - bytes: `193,090`
 - SHA-256: `b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1`
 
-## Parser boundary to establish
+## Audited parser boundary
 
-The listed population is physically split across ten activity-sector PDFs. The same company may therefore recur across sections. Parser and integration work must preserve section membership as provenance and must not deduplicate merely on name or identifier. Any eventual grouping across sections requires compatible company identity, source status and date semantics; conflicting evidence must remain separate observations.
+A fail-closed audit against the exact byte-pinned resources classifies every non-structural table row. The listed population has `595` physical sector observations. Conservative grouping across Sections I–X is allowed only when company identity, raw listing/expiry dates and source outcome are compatible; section membership remains provenance. This yields `401` logical listed observations:
 
-Section XI is positively identified by the authority as the applicant population. It must be ingested as applicant evidence rather than inferred from listed-series gaps.
+- `335` listed;
+- `65` renewal/update in progress;
+- `1` other/unknown (`TRASFERITA - COMPETENZA PREFETTURA DI` is retained without inventing the destination authority).
 
-No source-row, logical-observation, identifier-coverage or outcome denominator is approved by this source-surface check. Those values become authoritative only after a fail-closed structural audit and parser validation against these exact content-addressed resources.
+Of the `401` logical listed observations, `234` carry a strict structured identifier. Across the `595` physical sector rows, `379` carry a strict structured identifier. Source identifier strings that are malformed or truncated by the official PDF text/table geometry are preserved raw and are never padded or repaired. There are `105` logical observations spanning more than one sector and `20` source identity groups with conflicting date/status states; those conflicting states remain separate observations. Five non-empty listed date values are malformed and four listed date fields are blank. Both are preserved without inferential repair.
+
+Section XI yields `32` applicant observations: `31` pending/in istruttoria and `1` renewal/update in progress. All `32` have a strict structured identifier and a valid application date. The row `XI:p3:r2` for `MGDSCAVI SRL`, identifier `01975030931`, has table-column text overlap: the immutable page text/word geometry positively establishes `07/01/2026` and `IN ISTRUTTORIA`; this is the only reviewed geometry exception and must fail closed if the pinned source changes. The row `XI:p3:r9`, identifier `01456650934`, contains the address `SEQUALS - VIA CECILIA DANIELI, 7`, date `29/09/2025` and `IN AGGIORNAMENTO`, but the PDF does not expose a company-name token in that row. A permanent parser must preserve the source name as missing rather than silently substituting a name from another row or series; cross-series identity enrichment, if later performed, must remain separate provenance.
+
+The approved source boundary for implementation is therefore `433` logical observations: `401` listed-series observations plus `32` applicant-series observations. This is a parser boundary, not yet a canonical/public integration count. It becomes integrated only after permanent parser binding, company-observation loading and national build gates succeed.
 
 ## Evidence boundary
 
-This check establishes the current official publication identities and immutable byte identities needed for parser work. It does not infer legal effect from dates, disappearance from a later edition, missing rows, future source drift or failed retrieval. Any source drift must fail closed and be reviewed rather than absorbed automatically.
+This check establishes the current official publication identities, immutable byte identities and reviewed row semantics needed for parser work. It does not infer legal effect from dates, disappearance from a later edition, missing rows, future source drift or failed retrieval. Any source drift must fail closed and be reviewed rather than absorbed automatically.
