@@ -102,8 +102,21 @@ jobs:
           assert len({r['record_locator'] for r in records})==706
           assert batch.diagnostics['dropped_rows']==0
           repaired=[r for r in records if r['source_fields']['source_progressive']=='1199']
-          assert len(repaired)==1 and repaired[0]['name']=='LOGLI MASSIMO DELLA MAASKADE RECQUIN BV'
-          assert repaired[0]['source_fields']['company_identity_raw']=='LOGLI MASSIMO DELLA MAASKADE RECQUIN BV'
+          assert len(repaired)==1
+          repaired=repaired[0]
+          assert repaired['name']=='RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.'
+          assert repaired['office']=='ROTTERDAM (PAESI BASSI)'
+          assert repaired['application_date']=='2026-02-04'
+          assert repaired['observed_listing_date']==''
+          assert repaired['source_status']=='pending'
+          assert repaired['activities']==['Sezione X']
+          assert repaired['identifiers']==[]
+          assert repaired['source_fields']['reviewed_extraction_repair']=={
+              'field':'company_identity',
+              'table_raw':'',
+              'page_text_value':'RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.',
+              'basis':'same_byte_pinned_page_text',
+          }
           malformed=[r for r in records if r['source_fields']['malformed_date_pairs']]
           assert len(malformed)==1
           assert malformed[0]['source_fields']['malformed_date_pairs']==['application:23/06/026']
