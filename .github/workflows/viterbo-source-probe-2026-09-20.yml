@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: viterbo-source-probe-2026-09-20
@@ -21,118 +21,74 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: expansion/viterbo-2026-09-20
+          fetch-depth: 0
       - name: Probe official landing and positive source populations
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib
-          import html
-          import json
-          import re
-          import time
-          import urllib.parse
-          import urllib.request
+          import hashlib, html, json, re, time, urllib.parse, urllib.request
           from html.parser import HTMLParser
+          from pathlib import Path
 
-          LANDING = 'https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte'
-          UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
-
-          def get(url, attempt_tag):
-              last = None
+          LANDING='https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte'
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
+          def get(url, tag):
+              last=None
               for i in range(3):
                   try:
-                      req = urllib.request.Request(
-                          url,
-                          headers={
-                              'User-Agent': UA,
-                              'Accept': '*/*',
-                              'Cache-Control': 'no-cache',
-                              'Pragma': 'no-cache',
-                              'X-White-List-Probe': f'{attempt_tag}-{i}',
-                          },
-                      )
-                      with urllib.request.urlopen(req, timeout=30) as r:
-                          return r.geturl(), r.headers.get_content_type(), r.read()
+                      req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'*/*','Cache-Control':'no-cache','Pragma':'no-cache','X-White-List-Probe':f'{tag}-{i}'})
+                      with urllib.request.urlopen(req,timeout=30) as r: return r.geturl(),r.headers.get_content_type(),r.read()
                   except Exception as exc:
-                      last = repr(exc)
-                      time.sleep(i + 1)
+                      last=repr(exc); time.sleep(i+1)
               raise RuntimeError(f'GET failed {url}: {last}')
+          class A(HTMLParser):
+              def __init__(self): super().__init__(); self.items=[]; self.href=None; self.text=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag.lower()=='a': self.href=dict(attrs).get('href'); self.text=[]
+              def handle_data(self,data):
+                  if self.href is not None: self.text.append(data)
+              def handle_endtag(self,tag):
+                  if tag.lower()=='a' and self.href is not None:
+                      self.items.append((' '.join(''.join(self.text).split()),self.href)); self.href=None; self.text=[]
 
-          class Anchors(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.items=[]
-                  self.href=None
-                  self.text=[]
-              def handle_starttag(self, tag, attrs):
-                  if tag.lower() == 'a':
-                      self.href=dict(attrs).get('href')
-                      self.text=[]
-              def handle_data(self, data):
-                  if self.href is not None:
-                      self.text.append(data)
-              def handle_endtag(self, tag):
-                  if tag.lower() == 'a' and self.href is not None:
-                      txt=' '.join(''.join(self.text).split())
-                      self.items.append((txt,self.href))
-                      self.href=None
-                      self.text=[]
-
-          final, ctype, raw = get(LANDING, 'landing-a')
-          final2, ctype2, raw2 = get(LANDING + ('&' if '?' in LANDING else '?') + 'wl_probe=2', 'landing-b')
-          print('LANDING', json.dumps({
-              'url': final,
-              'content_type': ctype,
-              'bytes': len(raw),
-              'sha256': hashlib.sha256(raw).hexdigest(),
-              'second_bytes': len(raw2),
-              'second_sha256': hashlib.sha256(raw2).hexdigest(),
-              'byte_identical': raw == raw2,
-          }, sort_keys=True))
-
-          p=Anchors(); p.feed(raw.decode('utf-8','replace'))
+          final,ctype,raw=get(LANDING,'landing-a')
+          _,_,raw2=get(LANDING+'?wl_probe=2','landing-b')
+          p=A(); p.feed(raw.decode('utf-8','replace'))
           candidates=[]
-          for text, href in p.items:
-              t=html.unescape(text).lower()
-              u=urllib.parse.urljoin(final, html.unescape(href))
-              if ('richiedent' in t or 'iscritt' in t or 'richiedent' in u.lower() or 'iscritt' in u.lower()):
-                  if '/sites/default/files/' in u or re.search(r'\.(pdf|xlsx?|docx?)(?:\?|$)',u,re.I):
-                      candidates.append((text,u))
-          # Preserve order while de-duplicating URLs.
+          for text,href in p.items:
+              t=html.unescape(text).lower(); u=urllib.parse.urljoin(final,html.unescape(href))
+              if ('richiedent' in t or 'iscritt' in t or 'richiedent' in u.lower() or 'iscritt' in u.lower()) and ('/sites/default/files/' in u or re.search(r'\.(pdf|xlsx?|docx?)(?:\?|$)',u,re.I)):
+                  candidates.append((text,u))
           seen=set(); candidates=[x for x in candidates if not (x[1] in seen or seen.add(x[1]))]
-          print('CANDIDATES', json.dumps(candidates, ensure_ascii=False))
-          if len(candidates) < 2:
-              # Print all same-domain downloadable anchors for diagnosis; do not infer absence.
-              all_downloads=[]
-              for text, href in p.items:
-                  u=urllib.parse.urljoin(final, html.unescape(href))
-                  if '/sites/default/files/' in u:
-                      all_downloads.append((text,u))
-              print('ALL_DOWNLOADS', json.dumps(all_downloads, ensure_ascii=False))
-              raise RuntimeError('fewer than two positively identified listed/applicant attachment candidates')
-
+          if len(candidates)<2: raise RuntimeError(f'fewer than two positive attachment candidates: {candidates!r}')
           outputs=[]
-          for text, url in candidates:
-              u1, ct1, b1=get(url, 'source-a')
-              sep='&' if '?' in url else '?'
-              u2, ct2, b2=get(url+sep+'wl_probe=2', 'source-b')
-              item={
-                  'anchor_text': text,
-                  'url': u1,
-                  'content_type': ct1,
-                  'bytes': len(b1),
-                  'sha256': hashlib.sha256(b1).hexdigest(),
-                  'second_bytes': len(b2),
-                  'second_sha256': hashlib.sha256(b2).hexdigest(),
-                  'byte_identical': b1 == b2,
-                  'magic_hex': b1[:8].hex(),
-              }
-              outputs.append(item)
-              print('SOURCE', json.dumps(item, ensure_ascii=False, sort_keys=True))
-          if not all(x['byte_identical'] for x in outputs):
-              raise RuntimeError('independent source acquisitions were not byte-identical')
+          for text,url in candidates:
+              u1,ct1,b1=get(url,'source-a'); sep='&' if '?' in url else '?'; _,_,b2=get(url+sep+'wl_probe=2','source-b')
+              item={'anchor_text':text,'url':u1,'content_type':ct1,'bytes':len(b1),'sha256':hashlib.sha256(b1).hexdigest(),'second_sha256':hashlib.sha256(b2).hexdigest(),'byte_identical':b1==b2,'magic_hex':b1[:8].hex()}
+              outputs.append(item); print('SOURCE',json.dumps(item,ensure_ascii=False,sort_keys=True))
+          if not all(x['byte_identical'] for x in outputs): raise RuntimeError('independent source acquisitions were not byte-identical')
           labels=' '.join(x['anchor_text'].lower() for x in outputs)
-          if 'richiedent' not in labels or 'iscritt' not in labels:
-              raise RuntimeError('positive listed/applicant labels not both established')
+          if 'richiedent' not in labels or 'iscritt' not in labels: raise RuntimeError('positive listed/applicant labels not both established')
+          landing_identity={'url':final,'content_type':ctype,'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest(),'second_sha256':hashlib.sha256(raw2).hexdigest(),'byte_identical':raw==raw2}
+          rows=['# Viterbo White List operational check — 2026-09-20','','## Positive official-source evidence',f'- Official landing: `{final}`',f'- Landing content type: `{ctype}`; first SHA-256 `{landing_identity["sha256"]}`; cache-bypassed second SHA-256 `{landing_identity["second_sha256"]}`.','- The official page positively labels both `imprese richiedenti iscrizione` and `imprese iscritte`; no population is inferred from failed discovery.','- Public page metadata reports last update 2 September 2026.','','## Independently re-fetched attachments']
+          for x in outputs:
+              rows += [f'- **{x["anchor_text"]}**',f'  - URL: `{x["url"]}`',f'  - content type: `{x["content_type"]}`; bytes: `{x["bytes"]}`; magic: `{x["magic_hex"]}`',f'  - SHA-256: `{x["sha256"]}`',f'  - independent second SHA-256: `{x["second_sha256"]}`; byte-identical: `{str(x["byte_identical"]).lower()}`']
+          rows += ['','## Methodological boundary','This checkpoint establishes current first-party listed/applicant source availability and byte identity only. It does not yet assert parser denominators, legal status beyond source text, canonical completeness, or public integration. Malformed values must remain uninterpreted until parser validation.','']
+          Path('docs/sources').mkdir(parents=True,exist_ok=True)
+          Path('docs/sources/viterbo-operational-check-2026-09-20.md').write_text('\n'.join(rows),encoding='utf-8')
+          print('LANDING',json.dumps(landing_identity,sort_keys=True)); print('CANDIDATES',json.dumps(candidates,ensure_ascii=False))
           PY
+      - name: Commit source checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add docs/sources/viterbo-operational-check-2026-09-20.md
+          git diff --cached --check
+          test "$(git diff --cached --name-only)" = "docs/sources/viterbo-operational-check-2026-09-20.md"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Record Viterbo official White List sources'
+          git push origin HEAD:expansion/viterbo-2026-09-20
