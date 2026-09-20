@@ -1,0 +1,211 @@
+name: Potenza current-source revalidation
+
+on:
+  push:
+    branches:
+      - revalidation/potenza-2026-09-20
+    paths:
+      - '.github/workflows/potenza-current-source-revalidation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: potenza-current-source-revalidation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  revalidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch state
+        uses: actions/checkout@v4
+      - name: Capture and compare current Potenza source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import collections
+          import hashlib
+          import json
+          import re
+          import time
+          import urllib.error
+          import urllib.request
+
+          SOURCE = (
+              'https://www.utgpotenza.it/data/vis_imprese.php?'
+              'action=list&jtStartIndex=0&jtPageSize=2000&'
+              'jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&'
+              'cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0'
+          )
+          PUBLIC_REGISTRY = 'https://colazeta.github.io/italian-anti-mafia-whitelist/data/registry.json'
+          EXPECTED_APPROVED_ROWS = 1035
+          EXPECTED_APPROVED_STATUSES = {
+              'listed': 216,
+              'pending': 376,
+              'renewal_update_in_progress': 443,
+          }
+          EXPECTED_APPROVED_RAW_SHA256 = 'cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30'
+          NUMERIC = re.compile(r'^[1-9][0-9]*$')
+
+          def get(url: str, label: str) -> bytes:
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      'User-Agent': f'italian-anti-mafia-whitelist/{label}',
+                      'Cache-Control': 'no-cache, no-store, max-age=0',
+                      'Pragma': 'no-cache',
+                      'Accept': 'application/json,text/plain,*/*',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=45) as response:
+                  if response.status != 200:
+                      raise RuntimeError(f'{label}: HTTP {response.status}')
+                  return response.read()
+
+          def parse_capture(raw: bytes, label: str):
+              try:
+                  payload = json.loads(raw.decode('utf-8'))
+              except Exception as exc:
+                  raise RuntimeError(f'{label}: invalid UTF-8 JSON') from exc
+              if payload.get('Result') != 'OK':
+                  raise RuntimeError(f"{label}: Result={payload.get('Result')!r}")
+              records = payload.get('Records')
+              if not isinstance(records, list):
+                  raise RuntimeError(f'{label}: Records is not a list')
+              total = int(payload.get('TotalRecordCount'))
+              if total != len(records):
+                  raise RuntimeError(f'{label}: TotalRecordCount={total}, Records={len(records)}')
+              ids = []
+              for row in records:
+                  sid = str(row.get('id', '')).strip()
+                  if not NUMERIC.fullmatch(sid):
+                      raise RuntimeError(f'{label}: invalid source id {sid!r}')
+                  ids.append(sid)
+              if len(ids) != len(set(ids)):
+                  raise RuntimeError(f'{label}: duplicate source ids')
+              return payload, records, set(ids)
+
+          def classify(row: dict) -> str:
+              state = str(row.get('stato_richiesta', '')).strip()
+              update = str(row.get('agg_incorso', '')).strip()
+              listing = str(row.get('data_iscriz') or '').strip()
+              expiry = str(row.get('data_scad_iscriz') or '').strip()
+              if state == '1' and update == '0':
+                  return 'pending'
+              if state == '2' and update == '0':
+                  return 'listed'
+              if state == '2' and update == '1':
+                  return 'renewal_update_in_progress'
+              if state == '1' and update == '1' and listing and expiry:
+                  return 'renewal_update_in_progress'
+              raise RuntimeError(
+                  'unreviewed Potenza status combination for source id '
+                  f"{row.get('id')}: stato_richiesta={state!r}, agg_incorso={update!r}, "
+                  f'listing={listing!r}, expiry={expiry!r}'
+              )
+
+          captures = []
+          for n in (1, 2):
+              raw = get(SOURCE, f'potenza-revalidation-{n}')
+              payload, rows, ids = parse_capture(raw, f'capture-{n}')
+              captures.append((raw, payload, rows, ids))
+              print(json.dumps({
+                  'capture': n,
+                  'bytes': len(raw),
+                  'sha256': hashlib.sha256(raw).hexdigest(),
+                  'rows': len(rows),
+                  'distinct_source_ids': len(ids),
+              }, sort_keys=True))
+              if n == 1:
+                  time.sleep(3)
+
+          raw1, _, rows1, ids1 = captures[0]
+          raw2, _, rows2, ids2 = captures[1]
+          sha1 = hashlib.sha256(raw1).hexdigest()
+          sha2 = hashlib.sha256(raw2).hexdigest()
+          if raw1 != raw2:
+              print(json.dumps({
+                  'stable': False,
+                  'sha256_1': sha1,
+                  'sha256_2': sha2,
+                  'rows_1': len(rows1),
+                  'rows_2': len(rows2),
+                  'ids_only_in_1': sorted(ids1 - ids2, key=int),
+                  'ids_only_in_2': sorted(ids2 - ids1, key=int),
+              }, sort_keys=True))
+              raise SystemExit('Two independent Potenza captures were not byte-identical; fail closed')
+
+          current_by_id = {str(row['id']).strip(): row for row in rows1}
+          current_status = {sid: classify(row) for sid, row in current_by_id.items()}
+          status_counts = dict(collections.Counter(current_status.values()))
+          current_summary = {
+              'stable': True,
+              'rows': len(rows1),
+              'distinct_source_ids': len(ids1),
+              'raw_sha256': sha1,
+              'matches_approved_raw_sha256': sha1 == EXPECTED_APPROVED_RAW_SHA256,
+              'matches_approved_row_count': len(rows1) == EXPECTED_APPROVED_ROWS,
+              'status_counts': status_counts,
+              'matches_approved_status_counts': status_counts == EXPECTED_APPROVED_STATUSES,
+          }
+          print('CURRENT_SOURCE_SUMMARY=' + json.dumps(current_summary, sort_keys=True))
+
+          # Compare the current official source with the currently published approved
+          # Potenza projection when Pages is reachable. Pages unavailability is
+          # recorded but does not turn a successful two-capture source check into a
+          # false source failure.
+          try:
+              live_raw = get(PUBLIC_REGISTRY, 'potenza-live-public-registry')
+              registry = json.loads(live_raw.decode('utf-8'))
+              public_rows = [r for r in registry.get('records', []) if r.get('authority_key') == 'potenza']
+              public_by_id = {}
+              for row in public_rows:
+                  fields = row.get('source_fields') or {}
+                  locator = str(fields.get('physical_locator') or '')
+                  match = re.fullmatch(r'source-id:([1-9][0-9]*)', locator)
+                  if not match:
+                      record_locator = str(row.get('record_locator') or '')
+                      match = re.search(r':id-([1-9][0-9]*)$', record_locator)
+                  if not match:
+                      raise RuntimeError(f'Cannot recover Potenza source id from public row locator: {row.get("record_locator")!r}')
+                  sid = match.group(1)
+                  if sid in public_by_id:
+                      raise RuntimeError(f'Duplicate Potenza source id in public registry: {sid}')
+                  public_by_id[sid] = row
+
+              public_ids = set(public_by_id)
+              status_changes = []
+              for sid in sorted(ids1 & public_ids, key=int):
+                  published_status = public_by_id[sid].get('source_status')
+                  if published_status != current_status[sid]:
+                      status_changes.append({
+                          'source_id': sid,
+                          'published': published_status,
+                          'current': current_status[sid],
+                      })
+              comparison = {
+                  'pages_available': True,
+                  'public_potenza_rows': len(public_rows),
+                  'public_distinct_source_ids': len(public_ids),
+                  'current_distinct_source_ids': len(ids1),
+                  'missing_from_current_vs_public': sorted(public_ids - ids1, key=int),
+                  'new_in_current_vs_public': sorted(ids1 - public_ids, key=int),
+                  'status_changes_vs_public': status_changes,
+              }
+              print('PUBLIC_COMPARISON=' + json.dumps(comparison, sort_keys=True))
+          except Exception as exc:
+              print('PUBLIC_COMPARISON=' + json.dumps({
+                  'pages_available': False,
+                  'error_type': type(exc).__name__,
+                  'error': str(exc),
+              }, sort_keys=True))
+
+          # A stable changed boundary is a successful observation, not a validation
+          # bypass. Any permanent approval change remains a separate Potenza-only
+          # transaction guarded by the normal repository and public-build gates.
+          PY
