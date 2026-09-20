@@ -81,34 +81,59 @@ jobs:
           def is_structural(row):
               j = fold(' | '.join(row))
               return (
-                  'prefettura' in j and 'ferrara' in j
+                  ('prefettura' in j and 'ferrara' in j)
                   or 'white list' in j
-                  or 'art. 1' in j and 'legge' in j
-                  or 'elenco' in j and ('imprese' in j or 'fornitori' in j)
+                  or ('art. 1' in j and 'legge' in j)
+                  or ('elenco' in j and ('imprese' in j or 'fornitori' in j))
               )
 
-          def get(url, expected):
-              r = requests.get(url, headers={
-                  'User-Agent': 'italian-anti-mafia-whitelist/ferrara-reconstruction-audit',
-                  'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
-                  params={'audit_nonce': secrets.token_hex(8)}, timeout=90)
-              r.raise_for_status()
-              actual = hashlib.sha256(r.content).hexdigest()
-              assert actual == expected, (expected, actual, len(r.content))
-              return r.content
+          def fetch_twice(url, expected):
+              bodies = []
+              for _ in range(2):
+                  r = requests.get(url, headers={
+                      'User-Agent': 'italian-anti-mafia-whitelist/ferrara-reconstruction-audit',
+                      'Cache-Control': 'no-cache', 'Pragma': 'no-cache'},
+                      params={'audit_nonce': secrets.token_hex(8)}, timeout=90)
+                  r.raise_for_status()
+                  bodies.append(r.content)
+              assert bodies[0] == bodies[1], 'independent fetches differ'
+              actual = hashlib.sha256(bodies[0]).hexdigest()
+              assert actual == expected, (expected, actual, len(bodies[0]))
+              return bodies[0]
+
+          def page_diagnostic(sector, pno, page, tables):
+              text = norm(page.extract_text() or '')
+              words = page.extract_words() or []
+              return {
+                  'sector': sector,
+                  'page': pno,
+                  'table_count': len(tables),
+                  'text': text,
+                  'word_count': len(words),
+                  'date_like_tokens': re.findall(r'(?<!\d)\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?(?!\d)', text),
+                  'identifier_like_tokens': re.findall(r'(?<![0-9A-Z])(?:\d{11}|[A-Z0-9]{16})(?![0-9A-Z])', text.upper()),
+                  'status_markers': [m for m in ('rinnovo', 'aggiornamento', 'corso') if m in fold(text)],
+              }
 
           summary = {}
           all_records = []
           all_unclassified = []
+          table_gaps = []
 
           for sector, activity, url, sha, expected_pages in SOURCES:
               records, headers, structural, continuations, unclassified = [], [], [], [], []
               current = None
-              with pdfplumber.open(io.BytesIO(get(url, sha))) as pdf:
+              body = fetch_twice(url, sha)
+              with pdfplumber.open(io.BytesIO(body)) as pdf:
                   assert len(pdf.pages) == expected_pages, (sector, len(pdf.pages), expected_pages)
                   for pno, page in enumerate(pdf.pages, 1):
                       tables = page.extract_tables() or []
-                      assert len(tables) == 1, (sector, pno, 'table_count', len(tables))
+                      if len(tables) != 1:
+                          diagnostic = page_diagnostic(sector, pno, page, tables)
+                          table_gaps.append(diagnostic)
+                          print('FERRARA_RECONSTRUCTION_PAGE_DIAGNOSTIC_JSON')
+                          print(json.dumps(diagnostic, ensure_ascii=False, indent=2))
+                          continue
                       for tno, table in enumerate(tables, 1):
                           for rno, raw in enumerate(table or [], 1):
                               row = [norm(x) for x in (raw or [])]
@@ -124,7 +149,6 @@ jobs:
                                   structural.append({'locator': loc, 'row': row})
                                   current = None
                                   continue
-
                               name, office, ident, listed_raw, expiry_raw, note = row
                               if name and ident and expiry_raw:
                                   current = {
@@ -135,9 +159,6 @@ jobs:
                                   }
                                   records.append(current)
                                   continue
-
-                              # Conservative physical continuation: no independent
-                              # identifier/date anchor, directly after a data row.
                               if current is not None and not ident and not listed_raw and not expiry_raw and any((name, office, note)):
                                   for key, value in (('name', name), ('office', office), ('note', note)):
                                       if value:
@@ -145,7 +166,6 @@ jobs:
                                   current['source_locators'].append(loc)
                                   continuations.append({'locator': loc, 'attached_to': current['locator'], 'row': row})
                                   continue
-
                               unclassified.append({'locator': loc, 'row': row})
 
               for x in records:
@@ -181,9 +201,11 @@ jobs:
               'status_counts': dict(Counter(x['status'] for x in all_records)),
               'strict_id_rows': sum(bool(x['ids']) for x in all_records),
               'multi_sector_identity_counts': dict(Counter(x['id_raw'].casefold() for x in all_records)),
+              'table_gaps': table_gaps,
               'unclassified': all_unclassified,
           }
           print('FERRARA_RECONSTRUCTION_AUDIT_JSON')
           print(json.dumps(report, ensure_ascii=False, indent=2))
+          assert not table_gaps, table_gaps
           assert not all_unclassified, all_unclassified
           assert all_records, 'no reconstruction observations parsed'
