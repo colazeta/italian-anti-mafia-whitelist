@@ -4,18 +4,18 @@
 
 Official landing page: `https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list`.
 
-The current official landing was directly resolved on 20 September 2026. It positively and separately exposes `Elenco società iscritte` and `Elenco società richiedenti`. The landing reports an update on 3 September 2026. That landing-update date is used as the observation/reference boundary for this current-source snapshot; it is not treated as an individual legal-effect date and no registration date is inferred from PDF creation metadata or URL paths.
+The current official landing was directly re-resolved on 20 September 2026. It positively and separately exposes `Elenco società iscritte` and `Elenco società richiedenti`. The landing reports an update on 3 September 2026. That landing-update date is used as the observation/reference boundary for this current-source snapshot; it is not treated as an individual legal-effect date and no registration date is inferred from PDF creation metadata or URL paths.
 
-Two independent no-cache GETs of the landing were byte-identical (113,004 bytes; SHA-256 `2c0b5f2752f93151ef28c2f9c0c2a2ffc177b8131233b46547a5d65ac96be0b9`). Each resolved attachment was then independently fetched twice and required to be byte-identical before parser work proceeded. Failed future fetches must not be interpreted as evidence that either population is unpublished.
+The current re-resolution returned the landing with HTTP 200 (119,792 bytes; SHA-256 `24286e557fa433323666c255db56fefd74a1102b668193d57d17ba559fab8dc6`) and resolved the two attachment URLs below. Each resolved attachment was independently fetched twice with no-cache request semantics and required to be byte-identical before the current parser validation proceeded. Earlier diagnostic resolution had reached superseded Ministry static-file paths under `/sites/default/files/94/`; those paths are not the approved current resources below. Failed future fetches must not be interpreted as evidence that either population is unpublished.
 
 ## Approved current resources
 
 ### Registered-company population
 
-- resource: `https://prefettura.interno.gov.it/sites/default/files/94/2026-08/Elenco%20societ%C3%A0%20iscritte%20White%20List_0.pdf`
+- resource: `https://prefettura.interno.gov.it/sites/default/files/10/2026-09/elenco-societa-iscritte-in-white-list-e-indicate-in-sezioni_02092026.pdf`
 - observation/reference date: 3 September 2026 (official landing update)
-- SHA-256: `fbfc6107894afd0b2ef8c2aba9eb00a60f4949c947c25b0d28eaa4286e6769ba`
-- bytes: 759,667
+- SHA-256: `90e6bc87e6a3c6cfc46871473565fae8858d252e4be7787915a21978b0b963a9`
+- bytes: 759,663
 - pages: 81
 - reviewed raw table segments after headers: 317
 - reviewed company observations after merging two note-only continuation segments into their immediately preceding source rows: 315
@@ -31,10 +31,10 @@ The two `other_or_unknown` observations are intentionally not converted into a l
 
 ### Applicant population
 
-- resource: `https://prefettura.interno.gov.it/sites/default/files/94/2026-09/ELENCO%20RICHIEDENTI%20ISCRIZIONE-W.L_1.pdf`
+- resource: `https://prefettura.interno.gov.it/sites/default/files/10/2026-09/societa-richiedenti-iscrizione-white-list-provinciale_31082026.pdf`
 - observation/reference date: 3 September 2026 (official landing update)
-- SHA-256: `74f4cf251ebd7903d47ebfa6fd134f9228990d76f50aabb4b39fbec1e6a903a9`
-- bytes: 311,715
+- SHA-256: `c2e49fa6dc16da383c017b1c4ebed7c493d8013d53ea58d813fe4b4187375ba2`
+- bytes: 311,716
 - pages: 27
 - reviewed observations: 104
 - status: 104 `pending`, supported by the explicit applicant-publication identity
@@ -51,7 +51,7 @@ The registered-company PDF is a stable seven-column table repeated on 81 pages: 
 
 The applicant PDF is a stable six-column table repeated on 27 pages: company name, registered office, secondary office, identifier, requested sections and application-date cell. The parser requires exactly 104 observations and freezes the reviewed annotated/malformed date variants, identifier coverage and application-date coverage. Applicant status comes from the positively identified applicant publication rather than from row-level inference.
 
-Both resources are raw-byte pinned before parsing.
+Both current resources are raw-byte pinned before parsing. The current candidate observation boundary is 419 observations: 246 `listed`, 67 `renewal_update_in_progress`, 2 `other_or_unknown` and 104 `pending`; strict identifier coverage is 414/419.
 
 ## Evidence boundary
 
