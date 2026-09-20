@@ -1,0 +1,118 @@
+name: Ravenna parser validation 2026-09-20
+
+on:
+  push:
+    branches: [expansion/ravenna-2026-09-20]
+    paths:
+      - '.github/workflows/ravenna-parser-validation-2026-09-20.yml'
+      - 'src/white_list_archive/parsers/ravenna_combined.py'
+      - 'tests/test_ravenna_parser_semantics.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/ravenna-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install complete validation runtime
+        run: python -m pip install --disable-pip-version-check -e '.[dev,storage,database]' requests beautifulsoup4
+      - name: Independently fetch current official Ravenna attachment twice
+        env:
+          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
+          PDF_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf
+          EXPECTED_SHA256: 8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555
+        run: |
+          python - <<'PY'
+          import hashlib, os, time
+          from pathlib import Path
+          from urllib.parse import urljoin
+          import requests
+          from bs4 import BeautifulSoup
+
+          landing=os.environ['LANDING_URL']; pdf=os.environ['PDF_URL']; expected=os.environ['EXPECTED_SHA256']
+          headers={'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-validation/1.0)','Cache-Control':'no-cache','Pragma':'no-cache'}
+          def get(url, nonce, accept):
+              h=dict(headers); h['Accept']=accept
+              sep='&' if '?' in url else '?'
+              last=None
+              for retry in range(3):
+                  try:
+                      r=requests.get(f'{url}{sep}validation={nonce}-{retry}',headers=h,timeout=(20,90),allow_redirects=True)
+                      last=r
+                      if r.status_code==200: return r
+                  except requests.RequestException as exc: last=exc
+                  time.sleep(2*(retry+1))
+              if isinstance(last,requests.Response): return last
+              raise RuntimeError(last)
+          page=get(landing,int(time.time()*1000),'text/html,*/*;q=0.8')
+          if page.status_code != 200: raise RuntimeError(f'landing HTTP {page.status_code}')
+          soup=BeautifulSoup(page.text,'html.parser')
+          exact=[]
+          for a in soup.find_all('a',href=True):
+              href=urljoin(page.url,a['href']).split('?validation=')[0]
+              if href==pdf:
+                  exact.append((' '.join(a.get_text(' ',strip=True).split()),href))
+          if exact != [('Nuova tabella unica aggiornata',pdf)]:
+              raise RuntimeError(f'official Ravenna attachment link drift: {exact!r}')
+          digests=[]
+          for attempt in (1,2):
+              r=get(pdf,f'{int(time.time()*1000)}-{attempt}','application/pdf,*/*;q=0.8')
+              if r.status_code != 200 or not r.content.startswith(b'%PDF'):
+                  raise RuntimeError(f'PDF attempt {attempt}: HTTP {r.status_code}, magic={r.content[:4]!r}')
+              digest=hashlib.sha256(r.content).hexdigest(); digests.append(digest)
+              Path(f'/tmp/ravenna-{attempt}.pdf').write_bytes(r.content)
+          if digests != [expected,expected]:
+              raise RuntimeError(f'Ravenna current-source digest drift: {digests!r}')
+          print({'landing':page.status_code,'attachment':exact[0],'digests':digests})
+          PY
+      - name: Validate permanent parser on official bytes
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          from white_list_archive.parsers.ravenna_combined import EXPECTED_SHA256, parse_ravenna_combined
+
+          cfg={
+              'source_key':'ravenna-combined-2026-09-17',
+              'authority_key':'ravenna',
+              'authority_name':'Prefettura di Ravenna',
+              'register_key':'ravenna-ordinary',
+              'register_name':'White List ordinaria',
+              'population_scope':'listed_and_applicant',
+              'reference_date':'2026-09-17',
+              'source_page_url':'https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list',
+              'resource_url':'https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf',
+              'sha256':EXPECTED_SHA256,
+          }
+          batch=parse_ravenna_combined(Path('/tmp/ravenna-1.pdf'),cfg)
+          records=batch.records
+          assert len(records)==706, len(records)
+          assert Counter(r['source_status'] for r in records)==Counter({'listed':430,'renewal_update_in_progress':212,'pending':63,'other_or_unknown':1})
+          assert sum(bool(r['identifiers']) for r in records)==692
+          assert len({r['record_locator'] for r in records})==706
+          assert batch.diagnostics['dropped_rows']==0
+          repaired=[r for r in records if r['source_fields']['source_progressive']=='1199']
+          assert len(repaired)==1 and repaired[0]['name']=='LOGLI MASSIMO DELLA MAASKADE RECQUIN BV'
+          assert repaired[0]['source_fields']['company_identity_raw']=='LOGLI MASSIMO DELLA MAASKADE RECQUIN BV'
+          malformed=[r for r in records if r['source_fields']['malformed_date_pairs']]
+          assert len(malformed)==1
+          assert malformed[0]['source_fields']['malformed_date_pairs']==['application:23/06/026']
+          assert malformed[0]['application_date']==''
+          special=[r for r in records if 'controllo giudiziario' in r['outcome_raw']]
+          assert len(special)==1 and special[0]['source_status']=='other_or_unknown'
+          print(batch.diagnostics)
+          PY
+      - name: Focused Ravenna tests
+        run: pytest -q tests/test_ravenna_parser_semantics.py
+      - name: Full repository test suite
+        run: pytest -q
