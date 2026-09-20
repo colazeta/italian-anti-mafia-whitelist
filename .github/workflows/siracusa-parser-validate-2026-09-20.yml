@@ -49,7 +49,6 @@ jobs:
           python - <<'PY'
           from __future__ import annotations
           import hashlib, pathlib, time
-          from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
           import requests
 
           root=pathlib.Path('/tmp/siracusa-validation')
@@ -68,13 +67,20 @@ jobs:
               'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-verification/1.0)',
               'Cache-Control':'no-cache', 'Pragma':'no-cache', 'Accept':'application/pdf,*/*;q=0.8',
           })
-          def bust(url, token):
-              p=urlsplit(url); q=parse_qsl(p.query,keep_blank_values=True); q.append(('_wl_validate',token))
-              return urlunsplit((p.scheme,p.netloc,p.path,urlencode(q),p.fragment))
           for kind,(url,expected) in sources.items():
               bodies=[]
               for attempt in (1,2):
-                  r=session.get(bust(url,f'{attempt}-{time.time_ns()}'),timeout=90,allow_redirects=True)
+                  # The Interior Ministry static-file layer returns 404 when an
+                  # arbitrary query parameter is appended. Keep the canonical
+                  # official URL unchanged and make the two retrievals
+                  # independent through no-cache request headers plus a unique
+                  # diagnostic header instead.
+                  r=session.get(
+                      url,
+                      headers={'X-WL-Validation-Attempt':f'{attempt}-{time.time_ns()}'},
+                      timeout=90,
+                      allow_redirects=True,
+                  )
                   r.raise_for_status(); body=r.content
                   digest=hashlib.sha256(body).hexdigest()
                   print(kind,attempt,r.status_code,len(body),digest,r.headers.get('content-type',''))
