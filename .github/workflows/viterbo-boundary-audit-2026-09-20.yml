@@ -44,104 +44,81 @@ jobs:
           STRICT_ID=re.compile(r'^(?:\d{11}|[A-Z0-9]{16})$')
           DATE=re.compile(r'^\d{2}/\d{2}/\d{4}$')
           def clean(s): return ' '.join((s or '').split())
-          def date_ok(raw):
+          def valid_date(raw):
             if not DATE.fullmatch(raw): return False
             try: datetime.strptime(raw,'%d/%m/%Y'); return True
             except ValueError: return False
-          def phrase_word(words,text):
-            hits=[w for w in words if str(w['text']).casefold()==text.casefold()]
-            if len(hits)!=1: raise RuntimeError(f'label {text!r} count {len(hits)}')
-            return hits[0]
-          def band(words,x0,x1,y0,y1):
-            ws=[w for w in words if x0 <= float(w['x0']) < x1 and y0 <= float(w['top']) < y1]
+          def unique_word(words,value):
+            hits=[w for w in words if str(w['text']).casefold()==value.casefold()]
+            if len(hits)!=1: return None, len(hits)
+            return hits[0],1
+          def right_note(words,note_label,activity_label):
+            ws=[w for w in words if float(w['x0']) > float(note_label['x1'])+5 and float(note_label['top'])-4 <= float(w['top']) < float(activity_label['top'])-5]
             ws.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
             return clean(' '.join(str(w['text']) for w in ws))
-          def lines(words,y0,y1):
-            ws=[w for w in words if y0 <= float(w['top']) < y1]
-            ws.sort(key=lambda w:(float(w['top']),float(w['x0'])))
-            groups=[]
-            for w in ws:
-              top=float(w['top'])
-              if not groups or abs(top-groups[-1][0])>2.0: groups.append([top,[w]])
-              else: groups[-1][1].append(w)
-            return [clean(' '.join(str(w['text']) for w in g)) for _,g in groups]
 
           report={}
           for kind,(url,sha,pages_expected) in SOURCES.items():
             req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Cache-Control':'no-cache'})
             raw=urllib.request.urlopen(req,timeout=30).read()
-            if hashlib.sha256(raw).hexdigest()!=sha: raise RuntimeError(f'{kind} sha drift')
+            actual=hashlib.sha256(raw).hexdigest()
+            if actual!=sha: raise RuntimeError(f'{kind} sha drift: {actual}')
             path=Path(f'/tmp/viterbo-{kind}.pdf'); path.write_bytes(raw)
-            recs=[]; note_counts=Counter(); section_counts=Counter(); anomalies=[]
+            note_counts=Counter(); status_counts=Counter(); section_counts=Counter(); identifiers=[]; anomalies=[]; page_summaries=[]
             with pdfplumber.open(path) as pdf:
-              if len(pdf.pages)!=pages_expected: raise RuntimeError(f'{kind} page drift')
+              if len(pdf.pages)!=pages_expected: raise RuntimeError(f'{kind} page drift {len(pdf.pages)} != {pages_expected}')
               for page_no,page in enumerate(pdf.pages,1):
                 text=page.extract_text(layout=True,x_tolerance=1,y_tolerance=2) or ''
                 marker=f'Ditta/Società {page_no} di {pages_expected}'
-                if marker not in text: raise RuntimeError(f'{kind} marker drift page {page_no}')
+                if marker not in text: anomalies.append({'page':page_no,'kind':'marker','expected':marker})
                 words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                rag=phrase_word(words,'RagioneSociale'); indir=phrase_word(words,'Indirizzo'); note_label=phrase_word(words,'Note'); act=phrase_word(words,'Attività')
-                code=phrase_word(words,'Codice')
-                right_boundary=float(code['x0'])-5
-                name=band(words,float(rag['x1'])+8,right_boundary,float(rag['top'])-4,float(indir['top'])-5)
-                office=band(words,float(indir['x1'])+8,right_boundary,float(indir['top'])-4,float(note_label['top'])-5)
-                note=band(words,float(note_label['x1'])+6,840,float(note_label['top'])-4,float(act['top'])-5)
-                activity_lines=lines(words,float(act['top'])+18,540)
-                activity_lines=[ln for ln in activity_lines if not ln.startswith('Ditta/Società')]
-                activities=[]; current=''
-                for ln in activity_lines:
-                  if re.match(r'^Sez\s+\d{2}\s+-\s+',ln):
-                    if current: activities.append(current)
-                    current=ln
-                  elif current:
-                    current=clean(current+' '+ln)
-                  elif ln:
-                    anomalies.append({'page':page_no,'kind':'orphan_activity_text','raw':ln})
-                if current: activities.append(current)
-                for a in activities:
-                  m=re.match(r'^Sez\s+(\d{2})\s+-\s+',a)
-                  if not m: anomalies.append({'page':page_no,'kind':'activity_format','raw':a})
-                  else: section_counts[m.group(1)]+=1
+                note_label,n_note=unique_word(words,'Note'); activity_label,n_activity=unique_word(words,'Attività')
+                if note_label is None or activity_label is None:
+                  anomalies.append({'page':page_no,'kind':'label_geometry','note_count':n_note,'activity_count':n_activity})
+                  note=''
+                else:
+                  note=right_note(words,note_label,activity_label)
+                note_counts[note]+=1
                 id_match=re.search(r'Codice\s+Fiscale(?:\s+o\s+P\.I:|/pIVA)\s+([A-Z0-9]+)',text,re.I)
-                if not id_match: raise RuntimeError(f'{kind} identifier label/value unresolved page {page_no}')
-                identifier=clean(id_match.group(1)).upper()
+                identifier=clean(id_match.group(1)).upper() if id_match else ''
+                identifiers.append(identifier)
+                if not STRICT_ID.fullmatch(identifier): anomalies.append({'page':page_no,'kind':'identifier','raw':identifier})
+                sections=sorted(set(re.findall(r'\bSez\s+(\d{2})\s+-',text,re.I)))
+                if not sections: anomalies.append({'page':page_no,'kind':'sections_empty'})
+                for section in sections: section_counts[section]+=1
                 if kind=='listed':
-                  listing=re.search(r'Data\s+Prima\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})',text,re.I)
+                  listed=re.search(r'Data\s+Prima\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})',text,re.I)
                   expiry=re.search(r'Scadenza\s+(\d{2}/\d{2}/\d{4})',text,re.I)
-                  if not listing or not expiry: raise RuntimeError(f'listed date unresolved page {page_no}')
-                  dates=[listing.group(1),expiry.group(1)]
-                  status='renewal_update_in_progress' if 'istruttoria' in note.casefold() else 'listed'
+                  dates=[listed.group(1) if listed else '',expiry.group(1) if expiry else '']
+                  for label,value in zip(('listing_date','expiry_date'),dates):
+                    if not valid_date(value): anomalies.append({'page':page_no,'kind':label,'raw':value})
+                  folded=note.casefold()
+                  if 'attualmente in istruttoria' in folded:
+                    status='renewal_update_in_progress'
+                  elif not note or 'iscritta a seguito di istanza di mantenimento' in folded:
+                    status='listed'
+                  else:
+                    status='other_or_unknown'
                 else:
                   requested=re.search(r'Data\s+Richiesta\s+Iscrizione\s+(\d{2}/\d{2}/\d{4})',text,re.I)
-                  if not requested: raise RuntimeError(f'applicant request date unresolved page {page_no}')
-                  dates=[requested.group(1)]
-                  status='pending'
-                if not name: anomalies.append({'page':page_no,'kind':'empty_name'})
-                if not office: anomalies.append({'page':page_no,'kind':'empty_office'})
-                if not activities: anomalies.append({'page':page_no,'kind':'empty_activities'})
-                if not STRICT_ID.fullmatch(identifier): anomalies.append({'page':page_no,'kind':'non_strict_identifier','raw':identifier})
-                for d in dates:
-                  if not date_ok(d): anomalies.append({'page':page_no,'kind':'invalid_date','raw':d})
-                note_counts[note]+=1
-                recs.append({'page':page_no,'name':name,'identifier':identifier,'office':office,'note':note,'dates':dates,'activities':activities,'status':status})
-            identities=Counter((r['name'].casefold(),r['identifier']) for r in recs)
-            duplicates=[{'name':k[0],'identifier':k[1],'count':v} for k,v in identities.items() if v>1]
+                  dates=[requested.group(1) if requested else '']
+                  if not valid_date(dates[0]): anomalies.append({'page':page_no,'kind':'application_date','raw':dates[0]})
+                  folded=note.casefold()
+                  status='pending' if 'in istruttoria' in folded else 'other_or_unknown'
+                status_counts[status]+=1
+                page_summaries.append({'page':page_no,'identifier':identifier,'dates':dates,'sections':sections,'note':note,'status':status})
+            duplicates=[{'identifier':k,'count':v} for k,v in Counter(identifiers).items() if k and v>1]
             report[kind]={
-              'records':len(recs),
-              'strict_identifier_coverage':sum(bool(STRICT_ID.fullmatch(r['identifier'])) for r in recs),
-              'nonempty_office_coverage':sum(bool(r['office']) for r in recs),
-              'nonempty_activity_coverage':sum(bool(r['activities']) for r in recs),
-              'status_counts':dict(Counter(r['status'] for r in recs)),
-              'note_counts':dict(note_counts),
-              'section_counts':dict(section_counts),
-              'duplicate_identity_pairs':duplicates,
-              'anomalies':anomalies,
-              'first_record':recs[0],
-              'last_record':recs[-1],
+              'sha256':sha,'pages':pages_expected,'records':len(page_summaries),
+              'strict_identifier_coverage':sum(bool(STRICT_ID.fullmatch(x)) for x in identifiers),
+              'status_counts':dict(status_counts),'note_counts':dict(note_counts),'section_counts':dict(section_counts),
+              'duplicate_identifiers':duplicates,'anomalies':anomalies,
+              'first_page':page_summaries[0],'last_page':page_summaries[-1],
+              'audit_ok':not anomalies,
             }
           Path('tmp').mkdir(exist_ok=True)
           Path('tmp/viterbo-boundary-audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
-          print(json.dumps({k:{kk:vv for kk,vv in v.items() if kk not in ('first_record','last_record')} for k,v in report.items()},ensure_ascii=False,indent=2))
+          print(json.dumps(report,ensure_ascii=False,indent=2))
           PY
       - name: Commit boundary checkpoint
         run: |
