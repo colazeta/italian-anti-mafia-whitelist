@@ -135,9 +135,19 @@ def build_rows() -> list[dict[str, str]]:
 def write_rows(rows: list[dict[str, str]], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS)
+        writer = csv.DictWriter(handle, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def render_rows(rows: list[dict[str, str]]) -> str:
+    import io
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue()
 
 
 def main() -> int:
@@ -155,13 +165,7 @@ def main() -> int:
     if args.check:
         if not args.output.exists():
             raise SystemExit(f"Missing baseline: {args.output}")
-        import io
-
-        buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=OUTPUT_FIELDS, lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
-        expected = buffer.getvalue()
+        expected = render_rows(rows)
         actual = args.output.read_text(encoding="utf-8")
         if actual != expected:
             raise SystemExit("Eligibility baseline is stale; regenerate it.")
