@@ -45,6 +45,23 @@ def test_frozen_cosenza_counts_and_evidence_reconcile():
     assert all(x['evidence'] for x in e.values())
 
 
+def test_bundle_capture_identity_keeps_history_sha_contract_and_comparisons():
+    digest_a, digest_b = "b" * 64, "c" * 64
+    previous = fixture_registry("2026-06-01", f"bundle:{digest_a}")
+    current = fixture_registry("2026-07-01", f"bundle:{digest_b}", ("listed", "listed", "pending"))
+    aggregated = aggregate_registry(previous)
+    assert aggregated["editions"][0]["document_sha256"] == digest_a
+    validate_history_registry(aggregated, previous)
+    compared = compare_releases(previous, current)
+    assert compared["comparisons"][0]["common"] == 2
+    assert compared["comparisons"][0]["added"] == 1
+
+
+def test_malformed_bundle_capture_identity_fails_closed():
+    with pytest.raises(ValueError, match="Invalid public capture content identity"):
+        aggregate_registry(fixture_registry(sha="bundle:not-a-sha256"))
+
+
 def test_repeating_an_edition_is_idempotent_but_keeps_new_checks():
     reg = fixture_registry()
     h = aggregate_registry(reg)

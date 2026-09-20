@@ -2226,6 +2226,90 @@
       "sha256": "c2e49fa6dc16da383c017b1c4ebed7c493d8013d53ea58d813fe4b4187375ba2",
       "expected_source_rows": 104,
       "notes": "Dedicated official applicant PDF positively exposed by the current landing page. All 104 reviewed observations are positive pending observations; strict identifiers cover 102/104 and normalised application dates 103/104. The malformed date 17.01/2024 and malformed identifier fields remain raw; annotated cells contribute only their source-explicit leading application date."
+    },
+    {
+      "authority_key": "ferrara",
+      "authority_name": "Prefettura di Ferrara",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-20",
+      "last_source_update": "2026-08-24",
+      "last_source_update_basis": "page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date",
+      "register_key": "ferrara-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-iscritte",
+      "source_key": "ferrara-provincial-listed",
+      "parser": "ferrara-provincial-listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-provinciali-elenco-imprese-iscritte-agg11112024_0.pdf",
+      "sha256": "0d631e678b7f85bb84d265b09b8de6fcffa09cc4a49b84be37c6c1d7b9dcd6d9",
+      "expected_source_rows": 868,
+      "notes": "Current official ordinary listed PDF, twice independently captured byte-identically on 20 September 2026. The fail-closed parser yields 868 observations (717 listed, 150 renewal/update in progress, 1 other/unknown), preserves 28 deterministic continuation rows and two malformed raw dates without inferential repair."
+    },
+    {
+      "authority_key": "ferrara",
+      "authority_name": "Prefettura di Ferrara",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-20",
+      "last_source_update": "2026-08-24",
+      "last_source_update_basis": "page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date",
+      "register_key": "ferrara-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-richiedenti",
+      "source_key": "ferrara-provincial-applicants",
+      "parser": "ferrara-provincial-applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-elenco-imprese-richiedenti_0.pdf",
+      "sha256": "c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7",
+      "expected_source_rows": 21,
+      "notes": "Single current official applicant publication, twice independently captured byte-identically on 20 September 2026. Its 21 observations are ingested once physically. Requested-activity text positively corresponds to reconstruction taxonomy categories B-F, so the same physical publication is accounted for as the logical reconstruction-applicant series without duplicate public observations."
+    },
+    {
+      "authority_key": "ferrara",
+      "authority_name": "Prefettura di Ferrara",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-20",
+      "last_source_update": "2026-08-24",
+      "last_source_update_basis": "page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date",
+      "register_key": "ferrara-reconstruction",
+      "register_name": "White List ricostruzione",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte",
+      "source_key": "ferrara-reconstruction-listed",
+      "parser": "ferrara-reconstruction-listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte",
+      "sha256": "bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283",
+      "resources": {
+        "A": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf",
+          "sha256": "4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01"
+        },
+        "B": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf",
+          "sha256": "97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec"
+        },
+        "C": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf",
+          "sha256": "99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e"
+        },
+        "D": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf",
+          "sha256": "07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8"
+        },
+        "E": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf",
+          "sha256": "9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e"
+        },
+        "F": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf",
+          "sha256": "ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664"
+        },
+        "G": {
+          "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf",
+          "sha256": "0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae"
+        }
+      },
+      "expected_source_rows": 694,
+      "notes": "Seven official reconstruction sector PDFs A-G are acquired and SHA-256 verified independently before parsing. Their deterministic ordered hash bundle identifies the logical source edition. The parser freezes 1,161 physical sector observations into 694 compatible logical observations (539 listed, 153 renewal/update in progress, 2 other/unknown) without collapsing conflicting date/status identities."
     }
   ]
 }

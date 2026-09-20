@@ -119,3 +119,15 @@ No source-row, logical-observation or outcome denominator is approved by this do
 ## Evidence boundary
 
 This check verifies the current official source surface and immutable byte identities needed for parser work. It does not infer legal effects from expiry dates, renewal notes, missing rows or future source changes. It does not infer completeness beyond the positively verified series and attachments. Any later source drift must fail closed and be reviewed rather than absorbed automatically.
+
+## Subsequent applicant-scope and parser validation
+
+After the initial source-surface check, the byte-pinned unified applicant PDF was reviewed at row/activity level. Its requested-activity descriptions positively include categories corresponding to reconstruction taxonomy sectors B-F (demolition, earthmoving, special-vehicle hire, photovoltaic systems and technological systems). The PDF itself is **not** separately labelled as a reconstruction or h-bis applicant publication. The defensible treatment is therefore one physical applicant publication ingested once, with two logical source-series bindings (`ferrara-provincial-applicants` and `ferrara-reconstruction-applicants`) and no duplicate public observations.
+
+Production parser validation on the pinned resources freezes these boundaries:
+
+- ordinary listed: 868 logical observations from the 87-page PDF — 717 `listed`, 150 `renewal_update_in_progress`, 1 `other_or_unknown`; 859 observations with structured identifiers, 28 deterministic continuation rows and two preserved raw date anomalies;
+- unified applicants: 21 pending observations, 21/21 with structured identifiers; one physical ingest only;
+- reconstruction listed: 1,161 physical sector observations across A-G grouped into 694 logical observations — 539 `listed`, 153 `renewal_update_in_progress`, 2 `other_or_unknown`; 683/694 with structured identifiers, 285 multi-sector groups and four preserved raw date anomalies.
+
+The reconstruction grouping key includes identifier, source date semantics and status. Matching identifiers with conflicting date/status evidence therefore remain separate observations. Sector C page 23 and applicant page 5 are accepted as empty only under their exact reviewed source/hash/page conditions; any source drift remains fail-closed.
