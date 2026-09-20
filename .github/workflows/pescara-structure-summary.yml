@@ -1,0 +1,88 @@
+name: Pescara structure summary
+
+on:
+  push:
+    branches: [expansion/pescara-2026-09-21]
+    paths: [.github/workflows/pescara-structure-summary.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  summarise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/pescara-2026-09-21
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq antiword
+          python -m pip install --disable-pip-version-check requests
+      - name: Build compact structural summary
+        run: |
+          python - <<'PY'
+          import collections, hashlib, json, re, subprocess, xml.etree.ElementTree as ET
+          from pathlib import Path
+          import requests
+
+          sources={
+            'listed':('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-2026.doc','6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239'),
+            'applicants':('https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_richiedenti_white-list_04.09.2026.doc','2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c'),
+          }
+          clean=lambda x:re.sub(r'\s+',' ',x or '').strip()
+          strict_id=re.compile(r'(?<![A-Za-z0-9])(?:\d{11}|[A-Za-z]{6}[0-9A-Za-z]{10})(?![A-Za-z0-9])')
+          report={}
+          for key,(url,sha) in sources.items():
+            body=requests.get(url,timeout=60,headers={'User-Agent':'Mozilla/5.0 (compatible; ItalianAntiMafiaWhitelist/1.0)'}).content
+            got=hashlib.sha256(body).hexdigest()
+            if got!=sha: raise RuntimeError(f'{key} hash drift {got}')
+            p=Path(f'/tmp/{key}.doc');p.write_bytes(body)
+            proc=subprocess.run(['antiword','-x','db',str(p)],stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True)
+            db=proc.stdout.decode('utf-8','replace')
+            xml=re.sub(r'<!DOCTYPE book PUBLIC.*?docbookx\.dtd">\s*','',db,flags=re.S)
+            root=ET.fromstring(xml)
+            paras=[]
+            for para in root.findall('.//para'):
+              text=clean(''.join(para.itertext()))
+              if text and para.find('.//informaltable') is None: paras.append(text)
+            tables=[]; all_data=[]
+            for ti,table in enumerate(root.findall('.//informaltable'),1):
+              for gi,tg in enumerate(table.findall('.//tgroup'),1):
+                rows=[]
+                for row in tg.findall('.//row'):
+                  cells=[clean(''.join(e.itertext())) for e in row.findall('./entry')]
+                  if any(cells): rows.append(cells)
+                header_rows=[r for r in rows if 'ragione sociale' in ' | '.join(r).casefold() or 'denominaz' in ' | '.join(r).casefold()]
+                data_rows=[r for r in rows if r not in header_rows]
+                all_data.extend(data_rows)
+                tables.append({
+                  'table':ti,'group':gi,'declared_cols':tg.get('cols'),'rows':len(rows),'data_rows':len(data_rows),
+                  'widths':dict(collections.Counter(map(len,rows))),
+                  'headers':header_rows,
+                  'first_data':data_rows[:2], 'last_data':data_rows[-2:],
+                })
+            width_counts=collections.Counter(map(len,all_data))
+            identifier_coverage=sum(bool(strict_id.search(' | '.join(r))) for r in all_data)
+            exact_duplicates=len(all_data)-len({tuple(r) for r in all_data})
+            last_values=collections.Counter(r[-1] if r else '' for r in all_data)
+            report[key]={
+              'sha256':sha,'bytes':len(body),'paragraphs_outside_tables':paras,
+              'table_groups':len(tables),'tables':tables,'all_data_rows':len(all_data),
+              'data_widths':dict(width_counts),'exact_duplicate_rows':exact_duplicates,
+              'rows_with_strict_identifier_somewhere':identifier_coverage,
+              'last_cell_top':last_values.most_common(30),
+            }
+          Path('docs/sources/pescara-structure-summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Commit summary
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/sources/pescara-structure-summary.json
+          git commit -m 'Checkpoint Pescara source structure summary'
+          git push origin HEAD:expansion/pescara-2026-09-21
