@@ -52,6 +52,9 @@ jobs:
             hits=[w for w in words if str(w['text']).casefold()==value.casefold()]
             if len(hits)!=1: return None, len(hits)
             return hits[0],1
+          def first_word(words,value):
+            hits=[w for w in words if str(w['text']).casefold()==value.casefold()]
+            return (min(hits,key=lambda w: float(w['top'])) if hits else None),len(hits)
           def right_note(words,note_label,activity_label):
             ws=[w for w in words if float(w['x0']) > float(note_label['x1'])+5 and float(note_label['top'])-4 <= float(w['top']) < float(activity_label['top'])-5]
             ws.sort(key=lambda w:(round(float(w['top']),1),float(w['x0'])))
@@ -72,7 +75,7 @@ jobs:
                 marker=f'Ditta/Società {page_no} di {pages_expected}'
                 if marker not in text: anomalies.append({'page':page_no,'kind':'marker','expected':marker})
                 words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False,use_text_flow=False)
-                note_label,n_note=unique_word(words,'Note'); activity_label,n_activity=unique_word(words,'Attività')
+                note_label,n_note=unique_word(words,'Note'); activity_label,n_activity=first_word(words,'Attività')
                 if note_label is None or activity_label is None:
                   anomalies.append({'page':page_no,'kind':'label_geometry','note_count':n_note,'activity_count':n_activity})
                   note=''
