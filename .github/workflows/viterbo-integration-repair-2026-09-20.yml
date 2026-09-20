@@ -1,0 +1,132 @@
+name: Viterbo integration repair 2026-09-20
+
+on:
+  push:
+    branches:
+      - expansion/viterbo-2026-09-20
+    paths:
+      - .github/workflows/viterbo-integration-repair-2026-09-20.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: viterbo-integration-repair-2026-09-20
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/viterbo-2026-09-20
+          fetch-depth: 0
+      - name: Verify resumable branch state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor origin/main HEAD
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          test -f .github/workflows/viterbo-public-integration-2026-09-20.yml
+      - name: Repair deterministic Viterbo integration failures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('.github/workflows/viterbo-public-integration-2026-09-20.yml')
+          text = p.read_text(encoding='utf-8')
+
+          old_install = "          python -m pip install -e '.[publication]'\n          python -m pip install pytest\n"
+          new_install = "          python -m pip install -e '.[dev,publication,database,storage]'\n"
+          if old_install not in text:
+              raise RuntimeError('Viterbo runtime install anchor drift')
+          text = text.replace(old_install, new_install, 1)
+
+          suite_anchor = "      - name: Run repository suite before national build\n        run: pytest -q\n"
+          if suite_anchor not in text:
+              raise RuntimeError('Viterbo pre-build suite anchor drift')
+          candidate_step = r'''      - name: Stage coherent Viterbo candidate metadata and regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          # This candidate state exists only in the runner until the national builder
+          # validates the full public candidate. Nothing is committed on build failure.
+          p=Path('data/monitoring/national_coverage.json')
+          doc=json.loads(p.read_text(encoding='utf-8'))
+          item=next((x for x in doc['prefectures'] if x['authority_key']=='viterbo'),None)
+          if item is None:
+              raise RuntimeError('Viterbo monitoring row missing')
+          item.update({
+            'official_landing_page':'https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte',
+            'source_verified':True,'current_edition_identified':True,'capture_implemented':True,
+            'parser_implemented':True,'parser_validated':True,'company_observations_loaded':True,
+            'observation_layer':'public_source_observations','canonical_integration_validated':False,
+            'public_export_enabled':True,'population_scopes_complete':True,
+            'latest_source_reference_date':'2026-09-02','last_successful_investigation_on':'2026-09-20',
+            'coverage_status':'VALIDATED','terminal_reason':None,'actionable_issue':False,
+            'completion_evidence':['docs/sources/viterbo-operational-check-2026-09-20.md','src/white_list_archive/parsers/viterbo_pages.py','data/publication/multi_prefecture_pilot.json'],
+            'known_content_sha256':['ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78','a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545'],
+            'evidence':['data/source_registry/verified_primary_pages.csv','data/source_registry/source_series_inventory.csv','data/publication/multi_prefecture_pilot.json','docs/sources/viterbo-operational-check-2026-09-20.md'],
+            'last_completed_coverage_stage':'VALIDATED',
+          })
+          item['unresolved_issue']=['Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure.']
+          p.write_text(json.dumps(doc,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          p=Path('tests/test_source_population_coverage.py')
+          t=p.read_text(encoding='utf-8')
+          replacements={
+            'assert report["verified_authority_count"] == 68':'assert report["verified_authority_count"] == 69',
+            'assert report["register_scope_count"] == 71':'assert report["register_scope_count"] == 72',
+            'assert report["complete_register_scope_count"] == 71':'assert report["complete_register_scope_count"] == 72',
+          }
+          for old,new in replacements.items():
+              if t.count(old)!=1:
+                  raise RuntimeError(f'coverage test anchor drift: {old}')
+              t=t.replace(old,new,1)
+          if '        "viterbo",\n' not in t:
+              anchor='        "siracusa",\n'
+              if t.count(anchor)!=1:
+                  raise RuntimeError('Viterbo coverage regression anchor drift')
+              t=t.replace(anchor,anchor+'        "viterbo",\n',1)
+          p.write_text(t,encoding='utf-8')
+
+          p=Path('tests/test_source_registry.py')
+          t=p.read_text(encoding='utf-8')
+          old='    assert len(pages) == 68\n'
+          if t.count(old)!=1:
+              raise RuntimeError('verified-primary-pages test anchor drift')
+          p.write_text(t.replace(old,'    assert len(pages) == 69\n',1),encoding='utf-8')
+          PY
+'''
+          text = text.replace(suite_anchor, candidate_step + suite_anchor, 1)
+
+          stage_anchor = "            tests/public_portal_browser.cjs \\\n            tmp/viterbo-national-candidate.json\n"
+          stage_replacement = "            tests/public_portal_browser.cjs \\\n            tests/test_source_population_coverage.py \\\n            tests/test_source_registry.py \\\n            tmp/viterbo-national-candidate.json\n"
+          if stage_anchor not in text:
+              raise RuntimeError('Viterbo final-stage anchor drift')
+          text = text.replace(stage_anchor, stage_replacement, 1)
+
+          p.write_text(text,encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- .github/workflows/viterbo-public-integration-2026-09-20.yml
+      - name: Commit repair and retrigger integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add .github/workflows/viterbo-public-integration-2026-09-20.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix Viterbo integration validation sequencing'
+          git push origin HEAD:expansion/viterbo-2026-09-20
