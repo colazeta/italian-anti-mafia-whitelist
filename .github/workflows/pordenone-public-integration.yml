@@ -1,0 +1,132 @@
+name: Pordenone public integration
+
+on:
+  push:
+    branches:
+      - expansion/pordenone-2026-09-20
+    paths:
+      - 'tmp/pordenone_integrate.py'
+      - 'tests/test_pordenone_public_bundle.py'
+      - '.github/workflows/pordenone-public-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pordenone-public-integration
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: expansion/pordenone-2026-09-20
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare runner package sources
+        run: |
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+      - name: Install publication runtime
+        run: |
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+      - name: Materialise Pordenone integration
+        run: |
+          python tmp/pordenone_integrate.py
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p = Path('data/source_registry/verified_primary_pages.csv')
+          with p.open(newline='', encoding='utf-8') as f:
+              rows = list(csv.DictReader(f)); fields = list(rows[0])
+          row = next(r for r in rows if r['authority_key'] == 'pordenone')
+          row['landing_url'] = 'https://prefettura.interno.gov.it/it/prefetture/pordenone/evidenza/white-list'
+          with p.open('w', newline='', encoding='utf-8') as f:
+              w = csv.DictWriter(f, fieldnames=fields, lineterminator='\n'); w.writeheader(); w.writerows(rows)
+          PY
+      - name: Run focused Pordenone integration tests
+        run: |
+          python -m pytest -q tests/test_pordenone_public_bundle.py tests/test_source_registry.py tests/test_source_population_coverage.py
+      - name: Run full repository suite
+        run: python -m pytest -q
+      - name: Build and validate national candidate
+        run: |
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/pordenone-public-sources \
+            --registry-json /tmp/pordenone-registry.json \
+            --registry-csv /tmp/pordenone-registry.csv \
+            --prefectures-json /tmp/pordenone-prefectures.json \
+            --prefectures-csv /tmp/pordenone-prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg = json.loads(Path('/tmp/pordenone-registry.json').read_text(encoding='utf-8'))
+          pref = json.loads(Path('/tmp/pordenone-prefectures.json').read_text(encoding='utf-8'))
+          records = [r for r in reg['records'] if r['authority_key'] == 'pordenone']
+          assert reg['meta']['record_count'] == 71490, reg['meta']
+          assert reg['meta']['authority_count'] == 68, reg['meta']
+          assert reg['meta']['register_count'] == 72, reg['meta']
+          assert pref['meta']['published_count'] == 68, pref['meta']
+          assert pref['meta']['mapped_count'] == 68, pref['meta']
+          assert len(records) == 433
+          assert sum(r['source_key'] == 'pordenone-provincial-listed' for r in records) == 401
+          assert sum(r['source_key'] == 'pordenone-provincial-applicants' for r in records) == 32
+          assert sum(r['source_status'] == 'listed' for r in records) == 335
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in records) == 66
+          assert sum(r['source_status'] == 'other_or_unknown' for r in records) == 1
+          assert sum(r['source_status'] == 'pending' for r in records) == 31
+          assert sum(bool(r['identifiers']) for r in records) == 266
+          assert len({r['record_locator'] for r in records}) == 433
+          missing_name = [r for r in records if r['source_key'] == 'pordenone-provincial-applicants' and not r['name']]
+          assert len(missing_name) == 1
+          assert missing_name[0]['registered_office'] == 'SEQUALS - VIA CECILIA DANIELI, 7'
+          assert missing_name[0]['identifiers'] == ['01456650934']
+          print('validated Pordenone candidate: 71490 / 68 / 72 / 68')
+          PY
+      - name: Commit permanent Pordenone integration checkpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            data/catalog.csv \
+            data/monitoring/national_coverage.json \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/source_registry/verified_primary_pages.csv \
+            src/white_list_archive/publishing/public_national_registry.py \
+            tests/test_source_population_coverage.py \
+            tests/test_source_registry.py
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No permanent integration changes to commit' >&2
+            exit 1
+          fi
+          git commit -m 'Integrate validated Pordenone public candidate [pordenone-public-bundle]'
+          git push origin HEAD:expansion/pordenone-2026-09-20
