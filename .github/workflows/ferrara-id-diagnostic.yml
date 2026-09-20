@@ -1,0 +1,43 @@
+name: Ferrara identifier diagnostic
+
+on:
+  push:
+    branches: [expansion/ferrara-2026-09-20]
+    paths:
+      - .github/workflows/ferrara-id-diagnostic.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check requests pdfplumber==0.11.10
+      - name: Print ordinary identifier edge cases
+        shell: python
+        run: |
+          import io, re, requests, pdfplumber
+          url='https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-provinciali-elenco-imprese-iscritte-agg11112024_0.pdf'
+          r=requests.get(url, headers={'User-Agent':'italian-anti-mafia-whitelist/ferrara-id-diagnostic'}, timeout=90); r.raise_for_status()
+          edge=[]
+          with pdfplumber.open(io.BytesIO(r.content)) as pdf:
+            for pno,page in enumerate(pdf.pages,1):
+              for table in page.extract_tables() or []:
+                for rno,raw in enumerate(table or [],1):
+                  row=[' '.join(str(x or '').split()) for x in raw]
+                  if len(row)!=7: continue
+                  ident=row[3]
+                  compact=re.sub(r'[^0-9A-Z]','',ident.upper())
+                  strict=bool(re.fullmatch(r'(?:[0-9]{11}|[A-Z0-9]{16})',compact))
+                  legacy=bool(len(compact) in (11,16))
+                  if ident and legacy and not strict:
+                    edge.append((pno,rno,row[0],ident,compact))
+          print('FERRARA_IDENTIFIER_EDGE_CASES', repr(edge))
+          assert edge, 'expected at least one legacy-only identifier edge case'
