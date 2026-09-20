@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install publication runtime
+      - name: Install complete validation runtime
         run: |
           while IFS= read -r source_file; do
             [ -n "$source_file" ] && sudo rm -f "$source_file"
@@ -36,35 +36,27 @@ jobs:
               break
             fi
             if [ "$attempt" -eq 3 ]; then
-              echo "Publication runtime package installation failed after bounded retries" >&2
+              echo "Validation runtime package installation failed after bounded retries" >&2
               exit 1
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install --disable-pip-version-check -e '.[dev,publication]'
+          python -m pip install --disable-pip-version-check -e '.[dev,publication,database,storage]'
       - name: Materialise permanent Ferrara public integration
         run: |
-          python -m py_compile tmp/ferrara_integrate_public.py
+          python -m py_compile tmp/ferrara_integrate_public.py tmp/ferrara_patch_ledger.py
           python tmp/ferrara_integrate_public.py
+          python tmp/ferrara_patch_ledger.py
           git diff --check
       - name: Validate focused integration tests
         run: |
-          pytest -q tests/test_ferrara_public_bundle.py tests/test_source_registry.py tests/test_source_population_coverage.py
+          pytest -q \
+            tests/test_ferrara_public_bundle.py \
+            tests/test_source_registry.py \
+            tests/test_source_population_coverage.py \
+            tests/test_operations.py
       - name: Validate full repository suite
         run: pytest -q
-      - name: Checkpoint permanent implementation
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add \
-            src/white_list_archive/publishing/public_national_registry.py \
-            data/publication/multi_prefecture_pilot.json \
-            data/source_registry/source_series_inventory.csv \
-            docs/sources/ferrara-operational-check-2026-09-20.md \
-            tests/test_ferrara_public_bundle.py
-          git diff --cached --check
-          git commit -m 'Integrate Ferrara source bundles into public builder [ferrara-public-bundle]'
-          git push origin HEAD:expansion/ferrara-2026-09-20
       - name: Build and validate national candidate
         run: |
           rm -rf /tmp/ferrara-public-national
@@ -139,9 +131,36 @@ jobs:
           )
           print(json.dumps(metrics, indent=2, sort_keys=True))
           PY
-      - name: Checkpoint validated candidate metrics
+      - name: Mark candidate integration validated and recheck ledger
         run: |
-          git add tmp/ferrara-public-candidate-metrics.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('data/monitoring/national_coverage.json')
+          ledger = json.loads(path.read_text(encoding='utf-8'))
+          rows = [r for r in ledger['prefectures'] if r['authority_key'] == 'ferrara']
+          assert len(rows) == 1
+          row = rows[0]
+          assert row['public_export_enabled'] is True
+          assert row['canonical_integration_validated'] is False
+          assert row['coverage_status'] == 'VALIDATED'
+          row['canonical_integration_validated'] = True
+          path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          pytest -q tests/test_operations.py tests/test_ferrara_public_bundle.py
+          git diff --check
+      - name: Checkpoint validated permanent implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            src/white_list_archive/publishing/public_national_registry.py \
+            data/publication/multi_prefecture_pilot.json \
+            data/source_registry/source_series_inventory.csv \
+            data/monitoring/national_coverage.json \
+            docs/sources/ferrara-operational-check-2026-09-20.md \
+            tests/test_ferrara_public_bundle.py \
+            tmp/ferrara-public-candidate-metrics.json
           git diff --cached --check
-          git commit -m 'Checkpoint validated Ferrara national candidate [ferrara-candidate]'
+          git commit -m 'Integrate validated Ferrara public candidate [ferrara-public-bundle]'
           git push origin HEAD:expansion/ferrara-2026-09-20
