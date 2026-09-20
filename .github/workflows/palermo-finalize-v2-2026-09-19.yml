@@ -52,11 +52,17 @@ jobs:
           from pathlib import Path
           path = Path('tmp/palermo_integrate.py')
           text = path.read_text(encoding='utf-8')
-          old = "coverage['authorities']"
-          new = "coverage['prefectures']"
-          if text.count(old) != 1:
-              raise RuntimeError(f'Palermo monitoring collection anchor drift: {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          replacements = [
+              ("coverage['authorities']", "coverage['prefectures']", 1, 'monitoring collection'),
+              ('67180', '67179', 2, 'post-Potenza canonical total'),
+              ('68718', '68717', 2, 'post-Potenza Palermo candidate total'),
+          ]
+          for old, new, expected, label in replacements:
+              count = text.count(old)
+              if count != expected:
+                  raise RuntimeError(f'Palermo {label} anchor drift: expected {expected}, got {count}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
           PY
           python tmp/palermo_integrate.py
           git diff --check
@@ -79,7 +85,7 @@ jobs:
             --registry-csv public-site/data/registry.csv \
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
-          python -c "import json; from collections import Counter; reg=json.load(open('public-site/data/registry.json',encoding='utf-8')); pref=json.load(open('public-site/data/prefectures.json',encoding='utf-8')); r=[x for x in reg['records'] if x['authority_key']=='palermo']; assert reg['meta']['record_count']==68718; assert reg['meta']['authority_count']==64; assert reg['meta']['register_count']==66; assert pref['meta']['published_count']==64; assert pref['meta']['mapped_count']==64; assert len(r)==1538; assert Counter(x['source_key'] for x in r)==Counter({'palermo-listed':929,'palermo-applicants':609}); assert Counter(x['source_status'] for x in r)==Counter({'pending':609,'listed':486,'renewal_update_in_progress':443}); assert sum(bool(x['identifiers']) for x in r)==1530; assert len({x['record_locator'] for x in r})==1538; print('PALERMO_NATIONAL_OK 68718/64/66/64')"
+          python -c "import json; from collections import Counter; reg=json.load(open('public-site/data/registry.json',encoding='utf-8')); pref=json.load(open('public-site/data/prefectures.json',encoding='utf-8')); r=[x for x in reg['records'] if x['authority_key']=='palermo']; assert reg['meta']['record_count']==68717; assert reg['meta']['authority_count']==64; assert reg['meta']['register_count']==66; assert pref['meta']['published_count']==64; assert pref['meta']['mapped_count']==64; assert len(r)==1538; assert Counter(x['source_key'] for x in r)==Counter({'palermo-listed':929,'palermo-applicants':609}); assert Counter(x['source_status'] for x in r)==Counter({'pending':609,'listed':486,'renewal_update_in_progress':443}); assert sum(bool(x['identifiers']) for x in r)==1530; assert len({x['record_locator'] for x in r})==1538; print('PALERMO_NATIONAL_OK 68717/64/66/64')"
       - name: Commit permanent checkpoint and review candidate
         run: |
           set -euo pipefail
