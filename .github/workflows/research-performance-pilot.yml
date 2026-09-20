@@ -35,7 +35,9 @@ jobs:
           python -m pip install -e '.[publication]'
           bash scripts/install_ci_ubuntu_packages.sh poppler-utils
       - name: Run synthetic research regression tests
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p artifacts/research-performance-aggregate/code
           python -m unittest discover \
             -s research/white_list_performance_pilot/tests -v \
@@ -54,19 +56,53 @@ jobs:
           cp research/white_list_performance_pilot/tests/test_research_contract.py artifacts/research-performance-aggregate/code/
           cp research/white_list_performance_pilot/METHODOLOGICAL_REVIEW.md artifacts/research-performance-aggregate/
           python -m pip freeze > artifacts/research-performance-aggregate/dependencies.txt
+      - name: Stage only classified non-identifying research outputs
+        run: |
+          python - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          source = Path('artifacts/research-performance-aggregate')
+          target = Path('artifacts/public-actions/research-performance')
+          allowed = [
+              'source_diagnostics_v3.json', 'eligibility_v2.csv',
+              'eligibility_v2.metadata.json', 'tests.txt', 'dependencies.txt',
+              'METHODOLOGICAL_REVIEW.md', 'code/run_source_pilot.py',
+              'code/run_followup.py', 'code/build_eligibility.py',
+              'code/test_research_contract.py',
+          ]
+          payload = json.loads((source / 'source_diagnostics_v3.json').read_text())
+          forbidden = {'records', 'record_locator', 'identifiers', 'legal_entity_id',
+                       'relationship_id', 'procedure_id', 'entity_name', 'registered_office'}
+          def audit(value):
+              if isinstance(value, dict):
+                  if forbidden & value.keys():
+                      raise SystemExit('Entity-level data found in aggregate payload')
+                  for item in value.values():
+                      audit(item)
+              elif isinstance(value, list):
+                  for item in value:
+                      audit(item)
+          audit(payload)
+          if target.exists():
+              raise SystemExit('Refusing to reuse a nonempty publication stage')
+          for name in allowed:
+              src = source / name
+              if not src.is_file():
+                  raise SystemExit('Expected research output missing: ' + name)
+              dst = target / name
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copyfile(src, dst)
+          actual = {str(p.relative_to(target)) for p in target.rglob('*') if p.is_file()}
+          if actual != set(allowed):
+              raise SystemExit('Research publication allowlist mismatch')
+          print('Research aggregate allowlist and no-row-data checks passed')
+          PY
       - name: Verify that tracked repository inputs are unchanged
         run: git diff --exit-code
-      - name: Retain only explicitly allowed non-identifying research outputs
+      - name: Retain classified experimental aggregate verification
         uses: actions/upload-artifact@v4
         with:
           name: research-performance-aggregate-${{ github.run_id }}
-          path: |
-            artifacts/research-performance-aggregate/source_diagnostics_v3.json
-            artifacts/research-performance-aggregate/eligibility_v2.csv
-            artifacts/research-performance-aggregate/eligibility_v2.metadata.json
-            artifacts/research-performance-aggregate/tests.txt
-            artifacts/research-performance-aggregate/dependencies.txt
-            artifacts/research-performance-aggregate/METHODOLOGICAL_REVIEW.md
-            artifacts/research-performance-aggregate/code/*.py
+          path: artifacts/public-actions/research-performance/
           if-no-files-found: error
           retention-days: 7
