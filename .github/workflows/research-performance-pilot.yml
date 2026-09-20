@@ -7,6 +7,7 @@ on:
     paths:
       - research/white_list_performance_pilot/scripts/run_source_pilot.py
       - research/white_list_performance_pilot/scripts/run_followup.py
+      - research/white_list_performance_pilot/scripts/run_completion.py
       - research/white_list_performance_pilot/tests/**
       - .github/workflows/research-performance-pilot.yml
   workflow_dispatch:
@@ -46,9 +47,9 @@ jobs:
         run: |
           python research/white_list_performance_pilot/scripts/build_eligibility.py \
             --output artifacts/research-performance-aggregate/eligibility_v2.csv
-      - name: Run research-only source checks and aggregates
+      - name: Run expanded research-only source checks and aggregates
         run: |
-          python research/white_list_performance_pilot/scripts/run_followup.py \
+          python research/white_list_performance_pilot/scripts/run_completion.py \
             --output-dir artifacts/research-performance-aggregate
       - name: Preserve inspected research code alongside the safe output
         run: |
@@ -67,7 +68,7 @@ jobs:
               'source_diagnostics_v3.json', 'eligibility_v2.csv',
               'eligibility_v2.metadata.json', 'tests.txt', 'dependencies.txt',
               'METHODOLOGICAL_REVIEW.md', 'code/run_source_pilot.py',
-              'code/run_followup.py', 'code/build_eligibility.py',
+              'code/run_followup.py', 'code/run_completion.py', 'code/build_eligibility.py',
               'code/test_research_contract.py',
           ]
           payload = json.loads((source / 'source_diagnostics_v3.json').read_text())
