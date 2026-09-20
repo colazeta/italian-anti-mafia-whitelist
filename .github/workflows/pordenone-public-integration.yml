@@ -58,6 +58,7 @@ jobs:
           python tmp/pordenone_integrate.py
           python - <<'PY'
           import csv
+          import json
           from pathlib import Path
           p = Path('data/source_registry/verified_primary_pages.csv')
           with p.open(newline='', encoding='utf-8') as f:
@@ -66,6 +67,14 @@ jobs:
           row['landing_url'] = 'https://prefettura.interno.gov.it/it/prefetture/pordenone/evidenza/white-list'
           with p.open('w', newline='', encoding='utf-8') as f:
               w = csv.DictWriter(f, fieldnames=fields, lineterminator='\n'); w.writeheader(); w.writerows(rows)
+          cfg_path = Path('data/publication/multi_prefecture_pilot.json')
+          cfg = json.loads(cfg_path.read_text(encoding='utf-8'))
+          pordenone = [s for s in cfg['sources'] if s.get('authority_key') == 'pordenone']
+          assert len(pordenone) == 2
+          for source in pordenone:
+              source['register_key'] = 'pordenone-ordinary'
+              source['register_name'] = 'White List ordinaria'
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           test_path = Path('tests/test_source_population_coverage.py')
           text = test_path.read_text(encoding='utf-8')
           text = text.replace('assert report["register_scope_count"] == 72', 'assert report["register_scope_count"] == 71')
@@ -97,7 +106,7 @@ jobs:
           records = [r for r in reg['records'] if r['authority_key'] == 'pordenone']
           assert reg['meta']['record_count'] == 71490, reg['meta']
           assert reg['meta']['authority_count'] == 68, reg['meta']
-          assert reg['meta']['register_count'] == 72, reg['meta']
+          assert reg['meta']['register_count'] == 71, reg['meta']
           assert pref['meta']['published_count'] == 68, pref['meta']
           assert pref['meta']['mapped_count'] == 68, pref['meta']
           assert len(records) == 433
@@ -113,7 +122,7 @@ jobs:
           assert len(missing_name) == 1
           assert missing_name[0]['registered_office'] == 'SEQUALS - VIA CECILIA DANIELI, 7'
           assert missing_name[0]['identifiers'] == ['01456650934']
-          print('validated Pordenone candidate: 71490 / 68 / 72 / 68')
+          print('validated Pordenone candidate: 71490 / 68 / 71 / 68')
           PY
       - name: Commit permanent Pordenone integration checkpoint
         run: |
