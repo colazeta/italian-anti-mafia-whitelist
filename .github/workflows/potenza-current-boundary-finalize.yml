@@ -45,6 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f tmp/potenza-public-pages.yml
+          python -m pip install 'PyYAML==6.0.2'
           python - <<'PY'
           from pathlib import Path
           import yaml
