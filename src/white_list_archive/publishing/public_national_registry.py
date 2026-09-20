@@ -79,6 +79,7 @@ from white_list_archive.parsers.lucca_tables import PARSERS as LUCCA_PARSERS
 from white_list_archive.parsers.trapani_tables import PARSERS as TRAPANI_PARSERS
 from white_list_archive.parsers.palermo_positioned import PARSERS as PALERMO_PARSERS
 from white_list_archive.parsers.matera_openxml import PARSERS as MATERA_PARSERS
+from white_list_archive.parsers.siracusa_tables import PARSERS as SIRACUSA_PARSERS
 from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
@@ -1014,6 +1015,7 @@ def _parse_source(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         or TRAPANI_PARSERS.get(cfg["parser"])
         or PALERMO_PARSERS.get(cfg["parser"])
         or MATERA_PARSERS.get(cfg["parser"])
+        or SIRACUSA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
     )
     if parser is None:

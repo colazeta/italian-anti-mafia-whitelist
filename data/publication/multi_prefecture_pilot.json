@@ -2190,6 +2190,42 @@
       "sha256": "e4dae926800d1c513e1274b8ae45267337987eaa5b62b1581cbbcc56f6da898c",
       "expected_source_rows": 90,
       "notes": "Dedicated official request/update XLSX positively exposed by the current landing page. Exact workbook shape is 91x7 with 90 source rows: 41 RICHIEDENTE_ISCRIZIONE mapped to pending and 49 IN_AGGIORNAMENTO mapped to renewal/update in progress. Structured identifiers and explicit application dates cover 90/90 observations; two source dates are true Excel date cells and all others use the exact literal-formula wrapper."
+    },
+    {
+      "authority_key": "siracusa",
+      "authority_name": "Prefettura di Siracusa",
+      "register_key": "siracusa-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-03",
+      "last_source_update": "2026-09-03",
+      "last_source_update_basis": "official landing reports update on 3 September 2026; source-observation boundary only, not promoted to a company legal-effect date",
+      "source_key": "siracusa-listed",
+      "parser": "siracusa_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/10/2026-09/elenco-societa-iscritte-in-white-list-e-indicate-in-sezioni_02092026.pdf",
+      "sha256": "90e6bc87e6a3c6cfc46871473565fae8858d252e4be7787915a21978b0b963a9",
+      "expected_source_rows": 315,
+      "notes": "Dedicated official registered-company PDF positively exposed by the current landing page. The reviewed 81-page table contains 317 nonblank source segments and 315 company observations after exactly two approved note-only continuations are retained with their preceding company. Status boundary is 246 listed, 67 renewal/update in progress and 2 other/unknown; strict identifiers cover 312/315 and explicit expiry dates 315/315. Malformed identifiers and the two non-dispositive notes remain raw without legal inference."
+    },
+    {
+      "authority_key": "siracusa",
+      "authority_name": "Prefettura di Siracusa",
+      "register_key": "siracusa-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-03",
+      "last_source_update": "2026-09-03",
+      "last_source_update_basis": "official landing reports update on 3 September 2026; source-observation boundary only, not promoted to a company legal-effect date",
+      "source_key": "siracusa-applicants",
+      "parser": "siracusa_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/10/2026-09/societa-richiedenti-iscrizione-white-list-provinciale_31082026.pdf",
+      "sha256": "c2e49fa6dc16da383c017b1c4ebed7c493d8013d53ea58d813fe4b4187375ba2",
+      "expected_source_rows": 104,
+      "notes": "Dedicated official applicant PDF positively exposed by the current landing page. All 104 reviewed observations are positive pending observations; strict identifiers cover 102/104 and normalised application dates 103/104. The malformed date 17.01/2024 and malformed identifier fields remain raw; annotated cells contribute only their source-explicit leading application date."
     }
   ]
 }
