@@ -54,6 +54,7 @@ _EXPECTED_STATUSES = Counter({
     "other_or_unknown": 1,
 })
 _EXPECTED_IDENTIFIER_COVERAGE = 692
+_REVIEWED_1199_NAME = "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."
 
 
 def _source_date(raw: str, *, field: str, ordinal: int) -> str:
@@ -149,11 +150,11 @@ def _repair_reviewed_extraction(page_number: int, rows: list[list[str]]) -> list
     expected = {
         0: "1199",
         1: "",
-        2: "MAASKADE 1199 BG ROTTERDAM",
-        3: "10/12/2025",
+        2: "ROTTERDAM (PAESI BASSI)",
+        3: "04/02/2026",
         4: "",
         5: "",
-        13: "X",
+        15: "X",
     }
     for index, value in expected.items():
         if row[index] != value:
@@ -161,9 +162,9 @@ def _repair_reviewed_extraction(page_number: int, rows: list[list[str]]) -> list
                 f"Ravenna reviewed extraction repair no longer matches page 26 row 26 cell {index}: "
                 f"expected {value!r}, got {row[index]!r}"
             )
-    if any(row[index] for index in (6, 7, 8, 9, 10, 11, 12, 14, 15)):
+    if any(row[index] for index in range(6, 15)):
         raise RuntimeError("Ravenna reviewed extraction repair no longer matches page 26 row 26 section signature")
-    row[1] = "LOGLI MASSIMO DELLA MAASKADE RECQUIN BV"
+    row[1] = _REVIEWED_1199_NAME
     return out
 
 
@@ -194,7 +195,7 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
             malformed.append(f"{field}:{raw}")
 
     primary_label = "Data iscrizione" if listing_raw else ("Data presentazione istanza" if application_raw else "")
-    source_fields = {
+    source_fields: dict[str, Any] = {
         "source_progressive": progressive,
         "company_identity_raw": company_raw,
         "registered_office_variants": [office],
@@ -207,6 +208,15 @@ def _record_from_cells(row: list[Any], cfg: dict[str, Any], ordinal: int) -> dic
         "section_markers": section_markers,
         "malformed_date_pairs": malformed,
     }
+    if progressive == "1199":
+        if company_raw != _REVIEWED_1199_NAME or office != "ROTTERDAM (PAESI BASSI)" or application_raw != "04/02/2026":
+            raise RuntimeError("Ravenna reviewed row 1199 semantic signature drift")
+        source_fields["reviewed_extraction_repair"] = {
+            "field": "company_identity",
+            "table_raw": "",
+            "page_text_value": _REVIEWED_1199_NAME,
+            "basis": "same_byte_pinned_page_text",
+        }
     record = _record(
         cfg,
         ordinal,
