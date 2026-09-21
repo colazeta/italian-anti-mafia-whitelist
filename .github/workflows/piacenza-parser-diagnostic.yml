@@ -1,0 +1,54 @@
+name: Piacenza parser diagnostic
+
+on:
+  push:
+    branches: [expansion/piacenza-2026-09-21]
+    paths: [.github/workflows/piacenza-parser-diagnostic.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[publication,dev]'
+      - name: Run parser with traceback capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/piacenza-diagnostic
+          curl -L -f -sS --retry 2 -o tmp/piacenza-diagnostic/listed.zip 'https://prefettura.interno.gov.it/sites/default/files/65/2026-09/ditte-white-list-copia_2.zip'
+          curl -L -f -sS --retry 2 -o tmp/piacenza-diagnostic/applicants.zip 'https://prefettura.interno.gov.it/sites/default/files/65/2026-02/elenco_imprese_richiedenti_l-iscrizione_nell-elenco_dei_fornitori-prestatori_di_servizi_ed_esecutori_di_lavori_non_soggetti_a_tentativi_di_infiltrazione_mafiosa-i.zip'
+          set +e
+          python - <<'PY' > tmp/piacenza-diagnostic/parser.log 2>&1
+          from pathlib import Path
+          import json, traceback
+          from white_list_archive.parsers.piacenza_legacy_xls import parse_piacenza_listed, parse_piacenza_applicants
+          common={'authority_key':'piacenza','authority_name':'Prefettura di Piacenza','register_key':'piacenza-ordinary','register_name':'White List ordinaria','reference_date':'2026-09-21','source_page_url':'https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list'}
+          try:
+              listed=parse_piacenza_listed(Path('tmp/piacenza-diagnostic/listed.zip'),{**common,'source_key':'piacenza-listed','population_scope':'listed','resource_url':'listed','sha256':'e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8'})
+              print('LISTED',json.dumps(listed.diagnostics,ensure_ascii=False,indent=2))
+              applicants=parse_piacenza_applicants(Path('tmp/piacenza-diagnostic/applicants.zip'),{**common,'source_key':'piacenza-applicants','population_scope':'applicant','resource_url':'applicants','sha256':'99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335'})
+              print('APPLICANTS',json.dumps(applicants.diagnostics,ensure_ascii=False,indent=2))
+          except Exception:
+              traceback.print_exc()
+              raise
+          PY
+          status=$?
+          set -e
+          cat tmp/piacenza-diagnostic/parser.log
+          exit $status
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: piacenza-parser-diagnostic
+          path: tmp/piacenza-diagnostic/
+          retention-days: 2
