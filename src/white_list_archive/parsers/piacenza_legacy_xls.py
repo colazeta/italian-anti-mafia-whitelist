@@ -120,19 +120,50 @@ def _activities(raw: str) -> list[str]:
     return [f"Sezione {token}" if token in _ROMAN else token for token in values]
 
 
+def _sheet_has_values(book: xlrd.book.Book, sheet: xlrd.sheet.Sheet) -> bool:
+    return any(
+        _cell_text(book, sheet, row, col)
+        for row in range(sheet.nrows)
+        for col in range(sheet.ncols)
+    )
+
+
 def _assert_empty_sheets(book: xlrd.book.Book, names: tuple[str, ...]) -> None:
     for name in names:
         sheet = book.sheet_by_name(name)
-        if sheet.nrows or sheet.ncols:
+        if _sheet_has_values(book, sheet):
             raise ValueError(f"Piacenza workbook sheet {name!r} is no longer empty")
+
+
+def _assert_no_values_outside(
+    book: xlrd.book.Book,
+    sheet: xlrd.sheet.Sheet,
+    *,
+    logical_rows: int,
+    logical_cols: int,
+) -> None:
+    if sheet.nrows < logical_rows or sheet.ncols < logical_cols:
+        raise ValueError(
+            f"Piacenza logical table shrank: requires at least {logical_rows}x{logical_cols}, "
+            f"got {sheet.nrows}x{sheet.ncols}"
+        )
+    for row in range(sheet.nrows):
+        for col in range(sheet.ncols):
+            if row < logical_rows and col < logical_cols:
+                continue
+            value = _cell_text(book, sheet, row, col)
+            if value:
+                raise ValueError(
+                    f"Piacenza unexpected value outside audited logical table at "
+                    f"row {row + 1}, column {col + 1}: {value!r}"
+                )
 
 
 def parse_piacenza_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _require_cfg(cfg, "piacenza-listed", "listed")
     book = _open_zip_workbook(path, _LISTED_MEMBER, _LISTED_SHEETS)
     sheet = book.sheet_by_name("Foglio1")
-    if (sheet.nrows, sheet.ncols) != (555, 9):
-        raise ValueError(f"Piacenza listed layout drift: expected 555x9, got {sheet.nrows}x{sheet.ncols}")
+    _assert_no_values_outside(book, sheet, logical_rows=555, logical_cols=9)
     _assert_empty_sheets(book, ("Foglio2", "Foglio3"))
     header = tuple(_cell_text(book, sheet, 1, col) for col in range(9))
     if header != _LISTED_HEADER:
@@ -143,7 +174,7 @@ def parse_piacenza_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     records: list[dict[str, Any]] = []
     malformed_listing = 0
     malformed_expiry = 0
-    for row in range(3, sheet.nrows):
+    for row in range(3, 555):
         values = [_cell_text(book, sheet, row, col) for col in range(9)]
         if not any(values):
             raise ValueError(f"Piacenza listed unexpected blank row at source row {row + 1}")
@@ -177,21 +208,21 @@ def parse_piacenza_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
                     "listing_date_raw_variants": [listing_raw],
                     "expiry_date_raw_variants": [expiry_raw],
                     "malformed_date_pairs": [
-                        f"listing_date={listing_raw}" if not listing_date else "",
-                        f"expiry_date={expiry_raw}" if not expiry_date else "",
+                        value
+                        for value in (
+                            f"listing_date={listing_raw}" if not listing_date else "",
+                            f"expiry_date={expiry_raw}" if not expiry_date else "",
+                        )
+                        if value
                     ],
                 },
             )
         )
-        records[-1]["source_fields"]["malformed_date_pairs"] = [
-            value for value in records[-1]["source_fields"]["malformed_date_pairs"] if value
-        ]
 
-    status_counts = Counter(record["source_status"] for record in records)
     diagnostics = {
         "parser": "piacenza_legacy_listed",
         "public_records": len(records),
-        "status_counts": dict(status_counts),
+        "status_counts": dict(Counter(record["source_status"] for record in records)),
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
         "malformed_listing_dates_preserved": malformed_listing,
@@ -213,8 +244,7 @@ def parse_piacenza_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     _require_cfg(cfg, "piacenza-applicants", "applicant")
     book = _open_zip_workbook(path, _APPLICANTS_MEMBER, _APPLICANT_SHEETS)
     sheet = book.sheet_by_name("Foglio1")
-    if (sheet.nrows, sheet.ncols) != (22, 6):
-        raise ValueError(f"Piacenza applicant layout drift: expected 22x6, got {sheet.nrows}x{sheet.ncols}")
+    _assert_no_values_outside(book, sheet, logical_rows=22, logical_cols=6)
     _assert_empty_sheets(book, ("Foglio2", "Foglio3"))
     if _cell_text(book, sheet, 0, 0) != _APPLICANT_TITLE:
         raise ValueError("Piacenza applicant title changed")
@@ -223,7 +253,7 @@ def parse_piacenza_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             raise ValueError(f"Piacenza applicant spacer row {row + 1} changed")
 
     records: list[dict[str, Any]] = []
-    for row in range(4, sheet.nrows):
+    for row in range(4, 22):
         values = [_cell_text(book, sheet, row, col) for col in range(6)]
         if not any(values):
             raise ValueError(f"Piacenza applicant unexpected blank row at source row {row + 1}")
