@@ -1,4 +1,4 @@
-name: Piacenza source probe
+name: Piacenza source validation
 
 on:
   push:
@@ -6,13 +6,16 @@ on:
       - expansion/piacenza-2026-09-21
     paths:
       - .github/workflows/piacenza-source-probe.yml
+      - src/white_list_archive/parsers/piacenza_legacy_xls.py
+      - tests/test_piacenza_legacy_xls.py
+      - pyproject.toml
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  probe:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,247 +25,78 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install legacy workbook reader
-        run: python -m pip install 'xlrd>=2.0,<3'
+      - name: Install publication runtime
+        run: python -m pip install -e '.[publication,dev]'
 
-      - name: Probe official landing and published populations
+      - name: Fetch official Piacenza source bytes twice
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p tmp/piacenza-probe
-          cd tmp/piacenza-probe
+          mkdir -p tmp/piacenza-validation
+          listed='https://prefettura.interno.gov.it/sites/default/files/65/2026-09/ditte-white-list-copia_2.zip'
+          applicants='https://prefettura.interno.gov.it/sites/default/files/65/2026-02/elenco_imprese_richiedenti_l-iscrizione_nell-elenco_dei_fornitori-prestatori_di_servizi_ed_esecutori_di_lavori_non_soggetti_a_tentativi_di_infiltrazione_mafiosa-i.zip'
+          for pass in 1 2; do
+            curl -L -f -sS --retry 2 --connect-timeout 20 --max-time 120 \
+              -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-validation/1.0)' \
+              -H 'Cache-Control: no-cache' -o "tmp/piacenza-validation/listed-${pass}.zip" "$listed"
+            curl -L -f -sS --retry 2 --connect-timeout 20 --max-time 120 \
+              -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-validation/1.0)' \
+              -H 'Cache-Control: no-cache' -o "tmp/piacenza-validation/applicants-${pass}.zip" "$applicants"
+          done
+          cmp tmp/piacenza-validation/listed-1.zip tmp/piacenza-validation/listed-2.zip
+          cmp tmp/piacenza-validation/applicants-1.zip tmp/piacenza-validation/applicants-2.zip
+          echo 'e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8  tmp/piacenza-validation/listed-1.zip' | sha256sum -c -
+          echo '99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335  tmp/piacenza-validation/applicants-1.zip' | sha256sum -c -
 
-          landing='https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list'
-          code=$(curl -L -sS --retry 2 --connect-timeout 20 --max-time 60 \
-            -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.0)' \
-            -H 'Cache-Control: no-cache' -D landing.headers -o landing.html -w '%{http_code}' "$landing" || true)
-
-          {
-            echo "official_landing=$landing"
-            echo "landing_http=$code"
-            echo "observed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } > report.txt
-
-          if [ "$code" != "200" ]; then
-            echo 'landing_status=unavailable; no negative publication inference made' >> report.txt
-            exit 0
-          fi
-
+      - name: Validate parser against byte-pinned official sources
+        run: |
           python - <<'PY'
-          from html.parser import HTMLParser
-          from urllib.parse import urljoin
-          from pathlib import Path
-
-          base = 'https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list'
-          html = Path('landing.html').read_text('utf-8', errors='replace')
-
-          class P(HTMLParser):
-              def __init__(self):
-                  super().__init__(); self.links=[]; self._href=None; self._text=[]
-              def handle_starttag(self, tag, attrs):
-                  if tag.lower() == 'a':
-                      self._href = dict(attrs).get('href'); self._text=[]
-              def handle_data(self, data):
-                  if self._href is not None: self._text.append(data)
-              def handle_endtag(self, tag):
-                  if tag.lower() == 'a' and self._href is not None:
-                      self.links.append((urljoin(base, self._href), ' '.join(''.join(self._text).split())))
-                      self._href=None; self._text=[]
-
-          p=P(); p.feed(html)
-          selected=[]
-          for url,text in p.links:
-              u=url.lower()
-              if u.endswith('.zip') or '.zip?' in u or 'ditte-white-list-copia' in u or 'imprese_richiedenti' in u:
-                  selected.append((url,text))
-          Path('links.tsv').write_text('\n'.join(f'{u}\t{t}' for u,t in selected) + ('\n' if selected else ''), 'utf-8')
-          print(f'selected_links={len(selected)}')
-          for u,t in selected: print(u, '\t', t)
-          PY
-
-          count=$(wc -l < links.tsv | tr -d ' ')
-          echo "selected_links=$count" >> report.txt
-          if [ "$count" -lt 2 ]; then
-            echo 'population_gate=insufficient-positive-links; no completeness inference made' >> report.txt
-            exit 0
-          fi
-
-          i=0
-          while IFS=$'\t' read -r url label; do
-            [ -n "$url" ] || continue
-            i=$((i+1))
-            for pass in 1 2; do
-              curl -L -f -sS --retry 2 --connect-timeout 20 --max-time 120 \
-                -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.0)' \
-                -H 'Cache-Control: no-cache' -o "source-${i}-${pass}.zip" "$url"
-            done
-            sha1=$(sha256sum "source-${i}-1.zip" | awk '{print $1}')
-            sha2=$(sha256sum "source-${i}-2.zip" | awk '{print $1}')
-            bytes1=$(stat -c %s "source-${i}-1.zip")
-            bytes2=$(stat -c %s "source-${i}-2.zip")
-            same=false; cmp -s "source-${i}-1.zip" "source-${i}-2.zip" && same=true
-            {
-              echo "source_${i}_url=$url"
-              echo "source_${i}_label=$label"
-              echo "source_${i}_sha256_a=$sha1"
-              echo "source_${i}_sha256_b=$sha2"
-              echo "source_${i}_bytes_a=$bytes1"
-              echo "source_${i}_bytes_b=$bytes2"
-              echo "source_${i}_byte_identical=$same"
-            } >> report.txt
-            unzip -t "source-${i}-1.zip" > "source-${i}-zip-test.txt"
-            mkdir -p "source-${i}-extracted"
-            unzip -q "source-${i}-1.zip" -d "source-${i}-extracted"
-            find "source-${i}-extracted" -type f -print0 | while IFS= read -r -d '' f; do
-              printf '%s\t%s\t%s\n' "$f" "$(stat -c %s "$f")" "$(file -b "$f")"
-            done > "source-${i}-files.tsv"
-          done < links.tsv
-
-          if grep -q 'byte_identical=false' report.txt; then
-            echo 'capture_gate=failed-byte-identity' >> report.txt
-          else
-            echo 'capture_gate=passed-byte-identity' >> report.txt
-          fi
-
-          python - <<'PY'
-          import collections
           import json
-          import re
-          import zipfile
-          from datetime import datetime
           from pathlib import Path
-          import xlrd
+          from white_list_archive.parsers.piacenza_legacy_xls import parse_piacenza_listed, parse_piacenza_applicants
 
-          def clean(value):
-              return ' '.join(str(value or '').replace('\u00a0', ' ').split())
-
-          def valid_identifier(raw):
-              token = re.sub(r'[^A-Za-z0-9]', '', clean(raw)).upper()
-              return (token.isdigit() and len(token) == 11) or (len(token) == 16 and token.isalnum())
-
-          def date_value(book, sheet, row, col):
-              cell = sheet.cell(row, col)
-              raw = clean(cell.value)
-              if cell.ctype == xlrd.XL_CELL_DATE:
-                  try:
-                      return xlrd.xldate_as_datetime(cell.value, book.datemode).date().isoformat(), raw, cell.ctype
-                  except Exception:
-                      return '', raw, cell.ctype
-              for fmt in ('%m/%d/%Y', '%d/%m/%Y'):
-                  try:
-                      return datetime.strptime(raw, fmt).date().isoformat(), raw, cell.ctype
-                  except ValueError:
-                      pass
-              return '', raw, cell.ctype
-
-          diagnostics = {}
-          for index in (1, 2):
-              zpath = Path(f'source-{index}-1.zip')
-              with zipfile.ZipFile(zpath) as archive:
-                  members = [n for n in archive.namelist() if not n.endswith('/')]
-                  if len(members) != 1 or not members[0].lower().endswith('.xls'):
-                      raise SystemExit(f'source {index}: expected exactly one XLS member, got {members!r}')
-                  payload = archive.read(members[0])
-              book = xlrd.open_workbook(file_contents=payload)
-              source = {
-                  'zip_member': members[0],
-                  'datemode': book.datemode,
-                  'sheet_names': book.sheet_names(),
-                  'sheets': [],
-              }
-              for sheet in book.sheets():
-                  source['sheets'].append({'name': sheet.name, 'nrows': sheet.nrows, 'ncols': sheet.ncols})
-              diagnostics[f'source_{index}'] = source
-
-              sheet = book.sheet_by_index(0)
-              if index == 1:
-                  header = [clean(sheet.cell_value(1, c)) for c in range(sheet.ncols)]
-                  records=[]; nonempty_other=[]
-                  for r in range(3, sheet.nrows):
-                      values=[clean(sheet.cell_value(r,c)) for c in range(sheet.ncols)]
-                      if not any(values):
-                          continue
-                      if len(values) < 9:
-                          nonempty_other.append({'row':r+1,'values':values}); continue
-                      name, identifier = values[2], values[5]
-                      listing, listing_raw, listing_type = date_value(book,sheet,r,6)
-                      expiry, expiry_raw, expiry_type = date_value(book,sheet,r,7)
-                      records.append({
-                          'row':r+1,'number':values[1],'name':name,'office':values[3],
-                          'activities':values[4],'identifier_raw':identifier,
-                          'identifier_valid':valid_identifier(identifier),
-                          'listing_date':listing,'listing_raw':listing_raw,'listing_type':listing_type,
-                          'expiry_date':expiry,'expiry_raw':expiry_raw,'expiry_type':expiry_type,
-                          'note':values[8],
-                      })
-                  source.update({
-                      'header': header,
-                      'records': len(records),
-                      'nonempty_other_rows': nonempty_other,
-                      'notes': dict(collections.Counter(x['note'] for x in records)),
-                      'activity_values': sorted(set(x['activities'] for x in records)),
-                      'identifier_valid': sum(x['identifier_valid'] for x in records),
-                      'identifier_raw_only': [x for x in records if not x['identifier_valid']],
-                      'listing_date_missing': [x for x in records if not x['listing_date']],
-                      'expiry_date_missing': [x for x in records if not x['expiry_date']],
-                  })
-              else:
-                  records=[]; nonempty_other=[]
-                  title = clean(sheet.cell_value(0,0)) if sheet.nrows else ''
-                  for r in range(4, sheet.nrows):
-                      values=[clean(sheet.cell_value(r,c)) for c in range(sheet.ncols)]
-                      if not any(values):
-                          continue
-                      if len(values) < 6:
-                          nonempty_other.append({'row':r+1,'values':values}); continue
-                      application, application_raw, application_type = date_value(book,sheet,r,5)
-                      records.append({
-                          'row':r+1,'name':values[1],'office':values[2],
-                          'identifier_raw':values[3], 'identifier_valid':valid_identifier(values[3]),
-                          'activities':values[4], 'application_date':application,
-                          'application_raw':application_raw, 'application_type':application_type,
-                      })
-                  source.update({
-                      'title': title,
-                      'records': len(records),
-                      'nonempty_other_rows': nonempty_other,
-                      'activity_values': sorted(set(x['activities'] for x in records)),
-                      'identifier_valid': sum(x['identifier_valid'] for x in records),
-                      'identifier_raw_only': [x for x in records if not x['identifier_valid']],
-                      'application_date_missing': [x for x in records if not x['application_date']],
-                  })
-
-          Path('xls-audit.json').write_text(json.dumps(diagnostics, ensure_ascii=False, indent=2), 'utf-8')
-          summary = {
-              key: {
-                  'zip_member': value['zip_member'],
-                  'datemode': value['datemode'],
-                  'sheet_names': value['sheet_names'],
-                  'sheets': value['sheets'],
-                  'records': value.get('records'),
-                  'identifier_valid': value.get('identifier_valid'),
-                  'notes': value.get('notes'),
-                  'raw_only_identifiers': len(value.get('identifier_raw_only', [])),
-                  'missing_listing_dates': len(value.get('listing_date_missing', [])),
-                  'missing_expiry_dates': len(value.get('expiry_date_missing', [])),
-                  'missing_application_dates': len(value.get('application_date_missing', [])),
-                  'nonempty_other_rows': len(value.get('nonempty_other_rows', [])),
-              }
-              for key,value in diagnostics.items()
+          common = {
+              'authority_key': 'piacenza',
+              'authority_name': 'Prefettura di Piacenza',
+              'register_key': 'piacenza-ordinary',
+              'register_name': 'White List ordinaria',
+              'reference_date': '2026-09-21',
+              'source_page_url': 'https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list',
           }
-          Path('xls-audit-summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), 'utf-8')
-          print(json.dumps(summary, ensure_ascii=False, indent=2))
+          listed_cfg = {
+              **common,
+              'source_key': 'piacenza-listed',
+              'population_scope': 'listed',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/65/2026-09/ditte-white-list-copia_2.zip',
+              'sha256': 'e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8',
+          }
+          applicant_cfg = {
+              **common,
+              'source_key': 'piacenza-applicants',
+              'population_scope': 'applicant',
+              'resource_url': 'https://prefettura.interno.gov.it/sites/default/files/65/2026-02/elenco_imprese_richiedenti_l-iscrizione_nell-elenco_dei_fornitori-prestatori_di_servizi_ed_esecutori_di_lavori_non_soggetti_a_tentativi_di_infiltrazione_mafiosa-i.zip',
+              'sha256': '99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335',
+          }
+          listed = parse_piacenza_listed(Path('tmp/piacenza-validation/listed-1.zip'), listed_cfg)
+          applicants = parse_piacenza_applicants(Path('tmp/piacenza-validation/applicants-1.zip'), applicant_cfg)
+          assert len(listed.records) == 552
+          assert len(applicants.records) == 18
+          assert listed.diagnostics['status_counts'] == {'listed': 455, 'renewal_update_in_progress': 97}
+          assert applicants.diagnostics['status_counts'] == {'pending': 18}
+          assert len({r['record_locator'] for r in listed.records + applicants.records}) == 570
+          result = {'listed': listed.diagnostics, 'applicants': applicants.diagnostics, 'total_records': 570}
+          Path('tmp/piacenza-validation/parser-diagnostics.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), 'utf-8')
+          print(json.dumps(result, ensure_ascii=False, indent=2))
           PY
 
-          cat report.txt
-          cat xls-audit-summary.json
-          for f in source-*-files.tsv; do echo "--- $f"; cat "$f"; done
+      - name: Run focused tests
+        run: pytest -q tests/test_piacenza_legacy_xls.py
 
-      - name: Upload source-probe evidence
+      - name: Upload validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: piacenza-source-probe
-          path: tmp/piacenza-probe/
+          name: piacenza-source-validation
+          path: tmp/piacenza-validation/
           if-no-files-found: error
           retention-days: 7
