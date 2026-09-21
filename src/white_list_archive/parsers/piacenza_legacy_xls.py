@@ -231,6 +231,8 @@ def parse_piacenza_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     expected = {
         "public_records": 552,
         "status_counts": {"listed": 455, "renewal_update_in_progress": 97},
+        "identifier_coverage": 540,
+        "raw_identifier_only": 12,
         "malformed_listing_dates_preserved": 7,
         "malformed_expiry_dates_preserved": 7,
     }
@@ -290,7 +292,12 @@ def parse_piacenza_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         "identifier_coverage": sum(bool(record["identifiers"]) for record in records),
         "raw_identifier_only": sum(bool(record["identifier_field_raw"]) and not record["identifiers"] for record in records),
     }
-    expected = {"public_records": 18, "status_counts": {"pending": 18}, "identifier_coverage": 18}
+    expected = {
+        "public_records": 18,
+        "status_counts": {"pending": 18},
+        "identifier_coverage": 18,
+        "raw_identifier_only": 0,
+    }
     for key, value in expected.items():
         if diagnostics[key] != value:
             raise ValueError(f"Piacenza applicant audited-boundary drift for {key}: {diagnostics[key]!r} != {value!r}")
