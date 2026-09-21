@@ -82,7 +82,10 @@ jobs:
           assert len(listed.records) == 552
           assert len(applicants.records) == 18
           assert listed.diagnostics['status_counts'] == {'listed': 455, 'renewal_update_in_progress': 97}
+          assert listed.diagnostics['identifier_coverage'] == 540
+          assert listed.diagnostics['raw_identifier_only'] == 12
           assert applicants.diagnostics['status_counts'] == {'pending': 18}
+          assert applicants.diagnostics['identifier_coverage'] == 18
           assert len({r['record_locator'] for r in listed.records + applicants.records}) == 570
           result = {'listed': listed.diagnostics, 'applicants': applicants.diagnostics, 'total_records': 570}
           Path('tmp/piacenza-validation/parser-diagnostics.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), 'utf-8')
@@ -91,6 +94,16 @@ jobs:
 
       - name: Run focused tests
         run: pytest -q tests/test_piacenza_legacy_xls.py
+
+      - name: Run full repository suite with diagnostics
+        shell: bash
+        run: |
+          set +e
+          pytest -q > tmp/piacenza-validation/full-suite.log 2>&1
+          status=$?
+          set -e
+          cat tmp/piacenza-validation/full-suite.log
+          exit "$status"
 
       - name: Upload validation evidence
         if: always()
