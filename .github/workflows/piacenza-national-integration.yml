@@ -38,6 +38,7 @@ jobs:
           test "$(git rev-list --count HEAD..origin/main)" = 0
           test -f tmp/piacenza_integrate.py
           test -f src/white_list_archive/parsers/piacenza_legacy_xls.py
+          test ! -e .github/workflows/piacenza-source-probe.yml
 
       - name: Install full runtime
         shell: bash
