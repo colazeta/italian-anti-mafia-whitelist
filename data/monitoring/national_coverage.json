@@ -61,6 +61,14 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "aeac0b690c28fa84d317d52d79382b4b9e51de9a4c7cbfef2a841bd9a7aa1d6a"
+    },
+    {
+      "authority_key": "potenza",
+      "at": "2026-09-21T11:12:33Z",
+      "evidence": "docs/sources/potenza-operational-check-2026-09-15.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "53b1792ff14c6dd99013bee525fd8064667ec25742fd9ee12a52fe258e7c82ca"
     }
   ],
   "prefectures": [
@@ -3557,13 +3565,13 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-20",
+      "latest_source_reference_date": "2026-09-21",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-20T00:05:33Z",
-      "last_attempted_source_check_at": "2026-09-20T00:05:33Z",
-      "last_content_change_at": "2026-09-20T00:05:33Z",
-      "last_successful_investigation_on": "2026-09-20",
+      "last_successful_source_check_at": "2026-09-21T15:13:27Z",
+      "last_attempted_source_check_at": "2026-09-21T15:13:27Z",
+      "last_content_change_at": "2026-09-21T15:13:27Z",
+      "last_successful_investigation_on": "2026-09-21",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "The combined list response does not expose per-company statutory sections; requested activities remain empty pending positive evidence from the official child section view rather than inference.",
@@ -3582,7 +3590,8 @@
         "483f71b0481573651dc62e382e3e3e7a45cfd84509ec79f51a07194dbb3af0a6",
         "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820",
         "cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30",
-        "aeac0b690c28fa84d317d52d79382b4b9e51de9a4c7cbfef2a841bd9a7aa1d6a"
+        "aeac0b690c28fa84d317d52d79382b4b9e51de9a4c7cbfef2a841bd9a7aa1d6a",
+        "53b1792ff14c6dd99013bee525fd8064667ec25742fd9ee12a52fe258e7c82ca"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
@@ -3590,7 +3599,10 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/potenza-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "observed_source_hashes": [
+        "44a242d7fa8c3e7af0b5df779430a20e7ab61939aaca9cd5ac005025ddf07420"
+      ]
     },
     {
       "authority_key": "prato",

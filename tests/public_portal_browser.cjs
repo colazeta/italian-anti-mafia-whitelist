@@ -132,7 +132,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,73668);
+      assert.equal(stats.total,73670);
       const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
@@ -604,13 +604,13 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(torino.filter(r=>r.source_key==='torino-applicants'&&r.identifiers.length>0).length,162);
       assert.equal(torino.filter(r=>r.source_key==='torino-listed'&&r.application_date==='').length,1241);
       const potenza=registry.records.filter(r=>r.authority_key==='potenza');
-      assert.equal(potenza.length,1034);
-      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1034);
-      assert.deepEqual(statusCounts(potenza),{listed:215,pending:376,renewal_update_in_progress:443});
-      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1034);
-      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1033);
+      assert.equal(potenza.length,1036);
+      assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1036);
+      assert.deepEqual(statusCounts(potenza),{listed:214,pending:378,renewal_update_in_progress:444});
+      assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1036);
+      assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1035);
       assert.equal(potenza.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,1);
-      assert.equal(potenza.filter(r=>r.application_date!=='').length,1034);
+      assert.equal(potenza.filter(r=>r.application_date!=='').length,1036);
       assert.equal(potenza.filter(r=>r.observed_listing_date!=='').length,658);
       assert.equal(potenza.filter(r=>r.observed_expiry_date!=='').length,658);
       assert.equal(potenza.filter(r=>r.requested_activities.length>0).length,0);
@@ -626,6 +626,24 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(gap[0].observed_expiry_date,'2025-11-28');
       assert.equal(gap[0].source_fields.in_aggiornamento,'1');
       assert.equal(potenza.filter(r=>r.source_fields.physical_locator==='source-id:237').length,0);
+      const labella=potenza.filter(r=>r.source_fields.physical_locator==='source-id:399');
+      assert.equal(labella.length,1);
+      assert.equal(labella[0].name,'LABELLA TRASPORTI S.R.L.');
+      assert.equal(labella[0].identifier_field_raw,'01720980760');
+      assert.equal(labella[0].source_status,'pending');
+      assert.equal(labella[0].application_date,'2026-09-17');
+      const solaro=potenza.filter(r=>r.source_fields.physical_locator==='source-id:1584');
+      assert.equal(solaro.length,1);
+      assert.equal(solaro[0].name,'SOLARO S.R.L.');
+      assert.equal(solaro[0].identifier_field_raw,'05974780651');
+      assert.equal(solaro[0].source_status,'pending');
+      assert.equal(solaro[0].application_date,'2026-09-12');
+      const duec=potenza.filter(r=>r.source_fields.physical_locator==='source-id:887');
+      assert.equal(duec.length,1);
+      assert.equal(duec[0].name,'2 C COSTRUZIONI S.R.L.');
+      assert.equal(duec[0].identifier_field_raw,'01643430760');
+      assert.equal(duec[0].source_status,'renewal_update_in_progress');
+      assert.equal(duec[0].source_fields.in_aggiornamento,'1');
       const scavone=potenza.filter(r=>r.source_fields.physical_locator==='source-id:656');
       assert.equal(scavone.length,1);
       assert.equal(scavone[0].name,'SCAVONE & C. S.R.L.');

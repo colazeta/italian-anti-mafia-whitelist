@@ -173,7 +173,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 73668
+          assert reg['meta']['record_count'] == 73670
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -498,15 +498,15 @@ jobs:
           potenza = [x for x in pref['prefectures'] if x['authority_key'] == 'potenza']
           assert len(potenza) == 1 and potenza[0]['mapped'] and potenza[0]['published'] and potenza[0]['series_count'] == 1
           potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']
-          assert len(potenza_records) == 1034
+          assert len(potenza_records) == 1036
           assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)
-          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 215
-          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 376
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 443
-          assert len({r['record_locator'] for r in potenza_records}) == 1034
-          assert sum(bool(r['identifiers']) for r in potenza_records) == 1033
+          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 214
+          assert sum(r['source_status'] == 'pending' for r in potenza_records) == 378
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 444
+          assert len({r['record_locator'] for r in potenza_records}) == 1036
+          assert sum(bool(r['identifiers']) for r in potenza_records) == 1035
           assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1
-          assert sum(bool(r['application_date']) for r in potenza_records) == 1034
+          assert sum(bool(r['application_date']) for r in potenza_records) == 1036
           assert sum(bool(r['observed_listing_date']) for r in potenza_records) == 658
           assert sum(bool(r['observed_expiry_date']) for r in potenza_records) == 658
           assert sum(bool(r['requested_activities']) for r in potenza_records) == 0
@@ -521,6 +521,24 @@ jobs:
           assert gap[0]['observed_expiry_date'] == '2025-11-28'
           assert gap[0]['source_fields']['in_aggiornamento'] == '1'
           assert not [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:237']
+          labella = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:399']
+          assert len(labella) == 1
+          assert labella[0]['name'] == 'LABELLA TRASPORTI S.R.L.'
+          assert labella[0]['identifier_field_raw'] == '01720980760'
+          assert labella[0]['source_status'] == 'pending'
+          assert labella[0]['application_date'] == '2026-09-17'
+          solaro = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:1584']
+          assert len(solaro) == 1
+          assert solaro[0]['name'] == 'SOLARO S.R.L.'
+          assert solaro[0]['identifier_field_raw'] == '05974780651'
+          assert solaro[0]['source_status'] == 'pending'
+          assert solaro[0]['application_date'] == '2026-09-12'
+          duec = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:887']
+          assert len(duec) == 1
+          assert duec[0]['name'] == '2 C COSTRUZIONI S.R.L.'
+          assert duec[0]['identifier_field_raw'] == '01643430760'
+          assert duec[0]['source_status'] == 'renewal_update_in_progress'
+          assert duec[0]['source_fields']['in_aggiornamento'] == '1'
           scavone = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:656']
           assert len(scavone) == 1
           assert scavone[0]['name'] == 'SCAVONE & C. S.R.L.'
