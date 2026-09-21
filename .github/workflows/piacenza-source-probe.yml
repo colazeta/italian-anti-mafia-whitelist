@@ -1,0 +1,130 @@
+name: Piacenza source probe
+
+on:
+  push:
+    branches:
+      - expansion/piacenza-2026-09-21
+    paths:
+      - .github/workflows/piacenza-source-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe official landing and published populations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tmp/piacenza-probe
+          cd tmp/piacenza-probe
+
+          landing='https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list'
+          code=$(curl -L -sS --retry 2 --connect-timeout 20 --max-time 60 \
+            -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.0)' \
+            -H 'Cache-Control: no-cache' -D landing.headers -o landing.html -w '%{http_code}' "$landing" || true)
+
+          {
+            echo "official_landing=$landing"
+            echo "landing_http=$code"
+            echo "observed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > report.txt
+
+          if [ "$code" != "200" ]; then
+            echo 'landing_status=unavailable; no negative publication inference made' >> report.txt
+            exit 0
+          fi
+
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin
+          from pathlib import Path
+
+          base = 'https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list'
+          html = Path('landing.html').read_text('utf-8', errors='replace')
+
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.links=[]; self._href=None; self._text=[]
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == 'a':
+                      self._href = dict(attrs).get('href'); self._text=[]
+              def handle_data(self, data):
+                  if self._href is not None: self._text.append(data)
+              def handle_endtag(self, tag):
+                  if tag.lower() == 'a' and self._href is not None:
+                      self.links.append((urljoin(base, self._href), ' '.join(''.join(self._text).split())))
+                      self._href=None; self._text=[]
+
+          p=P(); p.feed(html)
+          selected=[]
+          for url,text in p.links:
+              u=url.lower(); t=text.lower()
+              if u.endswith('.zip') or '.zip?' in u or 'ditte-white-list-copia' in u or 'imprese_richiedenti' in u:
+                  selected.append((url,text))
+          Path('links.tsv').write_text('\n'.join(f'{u}\t{t}' for u,t in selected) + ('\n' if selected else ''), 'utf-8')
+          print(f'selected_links={len(selected)}')
+          for u,t in selected: print(u, '\t', t)
+          PY
+
+          count=$(wc -l < links.tsv | tr -d ' ')
+          echo "selected_links=$count" >> report.txt
+          if [ "$count" -lt 2 ]; then
+            echo 'population_gate=insufficient-positive-links; no completeness inference made' >> report.txt
+            exit 0
+          fi
+
+          i=0
+          while IFS=$'\t' read -r url label; do
+            [ -n "$url" ] || continue
+            i=$((i+1))
+            for pass in 1 2; do
+              curl -L -f -sS --retry 2 --connect-timeout 20 --max-time 120 \
+                -A 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.0)' \
+                -H 'Cache-Control: no-cache' -o "source-${i}-${pass}.zip" "$url"
+            done
+            sha1=$(sha256sum "source-${i}-1.zip" | awk '{print $1}')
+            sha2=$(sha256sum "source-${i}-2.zip" | awk '{print $1}')
+            bytes1=$(stat -c %s "source-${i}-1.zip")
+            bytes2=$(stat -c %s "source-${i}-2.zip")
+            same=false; cmp -s "source-${i}-1.zip" "source-${i}-2.zip" && same=true
+            {
+              echo "source_${i}_url=$url"
+              echo "source_${i}_label=$label"
+              echo "source_${i}_sha256_a=$sha1"
+              echo "source_${i}_sha256_b=$sha2"
+              echo "source_${i}_bytes_a=$bytes1"
+              echo "source_${i}_bytes_b=$bytes2"
+              echo "source_${i}_byte_identical=$same"
+            } >> report.txt
+            unzip -t "source-${i}-1.zip" > "source-${i}-zip-test.txt"
+            mkdir -p "source-${i}-extracted"
+            unzip -q "source-${i}-1.zip" -d "source-${i}-extracted"
+            find "source-${i}-extracted" -type f -print0 | while IFS= read -r -d '' f; do
+              printf '%s\t%s\t%s\n' "$f" "$(stat -c %s "$f")" "$(file -b "$f")"
+            done > "source-${i}-files.tsv"
+          done < links.tsv
+
+          if grep -q 'byte_identical=false' report.txt; then
+            echo 'capture_gate=failed-byte-identity' >> report.txt
+          else
+            echo 'capture_gate=passed-byte-identity' >> report.txt
+          fi
+
+          cat report.txt
+          for f in source-*-files.tsv; do echo "--- $f"; cat "$f"; done
+
+      - name: Upload source-probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: piacenza-source-probe
+          path: tmp/piacenza-probe/
+          if-no-files-found: error
+          retention-days: 7
