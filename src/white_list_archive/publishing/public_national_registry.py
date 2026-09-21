@@ -92,6 +92,7 @@ from white_list_archive.parsers.pordenone_tables import (
 from white_list_archive.parsers.viterbo_pages import PARSERS as VITERBO_PARSERS
 from white_list_archive.parsers.ravenna_combined import PARSERS as RAVENNA_PARSERS
 from white_list_archive.parsers.pescara_legacy_doc import PARSERS as PESCARA_PARSERS
+from white_list_archive.parsers.piacenza_legacy_xls import PARSERS as PIACENZA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -1090,6 +1091,25 @@ def _adapt_pordenone_public_fields(batch: ParsedBatch, parser_name: str) -> Pars
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 
+
+def _adapt_piacenza_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    adapted: list[dict[str, Any]] = []
+    for original in batch.records:
+        record = dict(original)
+        fields = dict(record.get("source_fields", {}))
+        if parser_name == "piacenza_legacy_listed":
+            registration = fields.pop("registration_number", None)
+            if not isinstance(registration, str) or not registration:
+                raise RuntimeError("Piacenza listed registration-number evidence drift")
+        elif parser_name == "piacenza_legacy_applicants":
+            if "registration_number" in fields:
+                raise RuntimeError("Piacenza applicant unexpected registration-number field")
+        else:
+            raise RuntimeError(f"Unexpected Piacenza parser: {parser_name!r}")
+        record["source_fields"] = fields
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
 def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == PORDENONE_LISTED_PARSER:
         if not isinstance(path, dict):
@@ -1178,6 +1198,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or VITERBO_PARSERS.get(cfg["parser"])
         or RAVENNA_PARSERS.get(cfg["parser"])
         or PESCARA_PARSERS.get(cfg["parser"])
+        or PIACENZA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1214,6 +1235,8 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_pordenone_public_fields(batch, cfg["parser"])
     if cfg["parser"] in RAVENNA_PARSERS:
         batch = _adapt_ravenna_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in PIACENZA_PARSERS:
+        batch = _adapt_piacenza_public_fields(batch, cfg["parser"])
     for record in batch.records:
         record["parser_name"] = cfg["parser"]
         record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
