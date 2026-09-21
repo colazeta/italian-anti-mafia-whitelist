@@ -1,0 +1,90 @@
+name: Piacenza public gate finaliser
+
+on:
+  push:
+    branches:
+      - expansion/piacenza-2026-09-21
+    paths:
+      - .github/workflows/piacenza-public-gate-finaliser.yml
+      - tmp/piacenza_public_gates.py
+
+permissions:
+  contents: write
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/piacenza-2026-09-21
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Stage fail-closed public gate candidates
+        run: python tmp/piacenza_public_gates.py
+      - name: Validate candidate syntax and national boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp tmp/piacenza-public-pages-candidate.yml .github/workflows/public-pages.yml
+          cp tmp/piacenza-public-browser-candidate.cjs tests/public_portal_browser.cjs
+          node --check tests/public_portal_browser.cjs
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Publication runtime package installation failed after bounded retries" >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication]'
+          rm -rf /tmp/piacenza-final-public /tmp/piacenza-final-sources
+          mkdir -p /tmp/piacenza-final-public/data
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/piacenza-final-sources \
+            --registry-json /tmp/piacenza-final-public/data/registry.json \
+            --registry-csv /tmp/piacenza-final-public/data/registry.csv \
+            --prefectures-json /tmp/piacenza-final-public/data/prefectures.json \
+            --prefectures-csv /tmp/piacenza-final-public/data/prefectures.csv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('/tmp/piacenza-final-public/data/registry.json').read_text())
+          pref=json.loads(Path('/tmp/piacenza-final-public/data/prefectures.json').read_text())
+          assert reg['meta']['record_count']==73668
+          assert reg['meta']['authority_count']==72
+          assert reg['meta']['register_count']==75
+          assert pref['meta']['mapped_count']==72
+          assert pref['meta']['published_count']==72
+          rows=[r for r in reg['records'] if r['authority_key']=='piacenza']
+          assert len(rows)==570
+          assert sum(r['source_key']=='piacenza-listed' for r in rows)==552
+          assert sum(r['source_key']=='piacenza-applicants' for r in rows)==18
+          assert sum(r['source_status']=='listed' for r in rows)==455
+          assert sum(r['source_status']=='renewal_update_in_progress' for r in rows)==97
+          assert sum(r['source_status']=='pending' for r in rows)==18
+          assert sum(bool(r['identifiers']) for r in rows)==558
+          assert len({r['record_locator'] for r in rows})==570
+          print('Piacenza public candidate boundary validated')
+          PY
+      - name: Commit ordinary candidate files only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- .github/workflows/public-pages.yml tests/public_portal_browser.cjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tmp/piacenza-public-pages-candidate.yml tmp/piacenza-public-browser-candidate.cjs
+          git diff --cached --quiet && exit 0
+          git commit -m 'Stage validated Piacenza public gate candidates'
+          git push origin HEAD:expansion/piacenza-2026-09-21
