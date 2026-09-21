@@ -2477,6 +2477,42 @@
       "last_source_update": "2026-09-04",
       "last_source_update_basis": "dated official resource directly repeat-fetched and byte-pinned 21 September 2026",
       "notes": "Byte-pinned legacy Word applicant series. Thirty-six physical data rows yield 35 observations after one exact reviewed continuation row for CALISTA IMPIANTI SRL; all 35 are source-positive pending applicants. One malformed identifier remains raw-only."
+    },
+    {
+      "source_key": "piacenza-listed",
+      "parser": "piacenza_legacy_listed",
+      "authority_key": "piacenza",
+      "authority_name": "Prefettura di Piacenza",
+      "register_key": "piacenza-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list",
+      "last_source_update": "2026-09-21",
+      "approval_mode": "raw_sha256",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/65/2026-09/ditte-white-list-copia_2.zip",
+      "sha256": "e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8",
+      "expected_source_rows": 552,
+      "last_source_update_basis": "current official mutable resource observed, repeat-fetched and byte-pinned on 21 September 2026; no legal or publication date inferred from page or workbook metadata",
+      "notes": "552 source observations; 455 listed and 97 renewal/update in progress; 540 structured identifiers, 12 raw-only identifiers; seven listing and seven expiry date strings preserved raw."
+    },
+    {
+      "source_key": "piacenza-applicants",
+      "parser": "piacenza_legacy_applicants",
+      "authority_key": "piacenza",
+      "authority_name": "Prefettura di Piacenza",
+      "register_key": "piacenza-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list",
+      "last_source_update": "2026-09-21",
+      "approval_mode": "raw_sha256",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/65/2026-02/elenco_imprese_richiedenti_l-iscrizione_nell-elenco_dei_fornitori-prestatori_di_servizi_ed_esecutori_di_lavori_non_soggetti_a_tentativi_di_infiltrazione_mafiosa-i.zip",
+      "sha256": "99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335",
+      "expected_source_rows": 18,
+      "last_source_update_basis": "current official mutable resource observed, repeat-fetched and byte-pinned on 21 September 2026; resource path date is not treated as a legal/publication date",
+      "notes": "18 source-positive applicant observations, all pending and all with structured identifiers."
     }
   ]
 }
