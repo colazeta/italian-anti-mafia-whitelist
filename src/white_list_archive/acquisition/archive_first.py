@@ -1,9 +1,9 @@
 """Archive-first acquisition for official White List source payloads.
 
 The parser boundary is deliberately after both ContentObject persistence/readback and
-capture-provenance persistence/readback. Failed parsing or release construction may
-therefore leave a quarantined durable capture, but can never make an acquired original
-disappear merely because downstream processing failed.
+capture-provenance persistence/readback. Failed parsing, relational persistence or
+release construction may therefore leave a quarantined durable capture, but can never
+make an acquired original disappear merely because downstream processing failed.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Callable
 from urllib.request import Request, urlopen
@@ -57,6 +58,9 @@ def archive_payload(
     http_status: int | None = None,
     etag: str | None = None,
     last_modified: str | None = None,
+    origin_type: str | None = None,
+    authority_rank_code: str | None = None,
+    resource_type_code: str | None = None,
 ) -> ArchivedCapture:
     """Durably freeze bytes and acquisition provenance before returning parser input."""
     if not isinstance(data, bytes) or not data:
@@ -84,6 +88,16 @@ def archive_payload(
         "sha256": digest,
         "byte_size": len(data),
     }
+    optional_provenance = {
+        "origin_type": origin_type,
+        "authority_rank_code": authority_rank_code,
+        "resource_type_code": resource_type_code,
+    }
+    for field, value in optional_provenance.items():
+        if value is not None:
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field} must be a non-blank string when supplied")
+            manifest[field] = value
 
     # A staging path is not document identity. Use a fresh path even when a caller
     # deliberately reuses capture_id while testing immutability; never delete or
@@ -121,6 +135,9 @@ def acquire_and_archive(
     work_dir: Path,
     fetch: Callable | None = None,
     now: Callable[[], datetime] | None = None,
+    origin_type: str | None = None,
+    authority_rank_code: str | None = None,
+    resource_type_code: str | None = None,
 ) -> ArchivedCapture:
     """Retrieve one official URL and archive it before exposing a local parser path.
 
@@ -154,15 +171,29 @@ def acquire_and_archive(
         http_status=status,
         etag=etag,
         last_modified=last_modified,
+        origin_type=origin_type,
+        authority_rank_code=authority_rank_code,
+        resource_type_code=resource_type_code,
     )
 
 
-def public_capture_receipt(result: ArchivedCapture) -> dict:
-    """Return capture metadata safe for a public-repository Actions artifact.
+def public_capture_receipt(
+    result: ArchivedCapture,
+    *,
+    database_persistence_state: str = "not_attempted",
+) -> dict:
+    """Return capture metadata safe for the public-repository workflow log.
 
     Provider endpoint, bucket, policy locator and private storage URI are deliberately
     absent. The private catalogue already contains the full immutable capture record.
     """
+    if database_persistence_state not in {
+        "not_attempted",
+        "writer_unavailable",
+        "persisted",
+        "failed",
+    }:
+        raise ValueError("Unsupported database persistence state")
     manifest = result.manifest
     return {
         "schema_version": 1,
@@ -176,11 +207,35 @@ def public_capture_receipt(result: ArchivedCapture) -> dict:
         "sha256": manifest["sha256"],
         "byte_size": manifest["byte_size"],
         "http_status": manifest["http_status"],
+        "origin_type": manifest.get("origin_type"),
+        "authority_rank_code": manifest.get("authority_rank_code"),
+        "resource_type_code": manifest.get("resource_type_code"),
         "durable_content_readback_verified": True,
         "durable_capture_provenance_readback_verified": True,
         "content_object_created": bool(result.content_receipt["created"]),
         "capture_record_created": bool(result.catalogue_receipt["created"]),
+        "database_capture_persistence_state": database_persistence_state,
+        "database_capture_persisted": database_persistence_state == "persisted",
     }
+
+
+def _persist_if_configured(result: ArchivedCapture, store: EvidenceStore) -> tuple[str, bool]:
+    """Persist relational provenance when a writer exists; never endanger archived bytes."""
+    dsn = os.environ.get("EVIDENCE_DATABASE_URL")
+    if not dsn:
+        return "writer_unavailable", False
+    try:
+        import psycopg
+        from white_list_archive.persistence.archived_capture import persist_archived_capture
+
+        with psycopg.connect(dsn) as conn:
+            persist_archived_capture(conn, result, store)
+            conn.commit()
+    except Exception:
+        # Do not echo a connection exception: it can contain private provider or DB
+        # coordinates. The durable provider objects remain intact and recoverable.
+        return "failed", True
+    return "persisted", False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -190,6 +245,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--reference-date",
         help="Declared source reference date (YYYY-MM-DD). Omit when unknown; capture time is separate.",
+    )
+    parser.add_argument(
+        "--origin-type",
+        default="official_current",
+        help="Explicit evidence-origin classification stored with this capture.",
+    )
+    parser.add_argument(
+        "--authority-rank-code",
+        default="primary_official",
+        help="Explicit evidence-authority rank stored with this capture.",
+    )
+    parser.add_argument(
+        "--resource-type-code",
+        default="other",
+        help="Explicit locator/resource type; use 'other' when no narrower reviewed type is known.",
     )
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument(
@@ -203,18 +273,42 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Public receipt path already exists; capture metadata is append-only")
 
     config = StoreConfig.from_env()
+    store = EvidenceStore(client_for(config), config)
     result = acquire_and_archive(
         source_key=args.source_key,
         resource_url=args.resource_url,
         reference_date=args.reference_date or None,
-        store=EvidenceStore(client_for(config), config),
+        store=store,
         work_dir=args.work_dir,
+        origin_type=args.origin_type,
+        authority_rank_code=args.authority_rank_code,
+        resource_type_code=args.resource_type_code,
     )
+    database_state, database_failed = _persist_if_configured(result, store)
+
     args.public_receipt.parent.mkdir(parents=True, exist_ok=True)
     with args.public_receipt.open("x", encoding="utf-8") as handle:
-        json.dump(public_capture_receipt(result), handle, ensure_ascii=False, indent=2)
+        json.dump(
+            public_capture_receipt(result, database_persistence_state=database_state),
+            handle,
+            ensure_ascii=False,
+            indent=2,
+        )
         handle.write("\n")
-    print("Source bytes and capture provenance archived and independently read back.")
+
+    if database_failed:
+        print(
+            "Source bytes and capture provenance are durably archived, but relational "
+            "capture persistence failed after readback; no downstream completion may be claimed."
+        )
+        return 2
+    if database_state == "writer_unavailable":
+        print(
+            "Source bytes and capture provenance are durably archived; relational writer "
+            "is unavailable, so database persistence remains an explicit debt."
+        )
+    else:
+        print("Source bytes, capture provenance and relational capture were archived and read back.")
     return 0
 
 
