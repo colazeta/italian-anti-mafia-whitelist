@@ -173,7 +173,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 73670
+          assert reg['meta']['record_count'] == 73672
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -411,14 +411,16 @@ jobs:
           lodi = [x for x in pref['prefectures'] if x['authority_key'] == 'lodi']
           assert len(lodi) == 1 and lodi[0]['mapped'] and lodi[0]['published'] and lodi[0]['series_count'] == 2
           lodi_records = [r for r in reg['records'] if r['authority_key'] == 'lodi']
-          assert len(lodi_records) == 173
+          assert len(lodi_records) == 175
           assert sum(r['source_key'] == 'lodi-listed' for r in lodi_records) == 169
-          assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 4
+          assert sum(r['source_key'] == 'lodi-applicants' for r in lodi_records) == 6
           assert sum(r['source_status'] == 'listed' for r in lodi_records) == 144
           assert sum(r['source_status'] == 'renewal_update_in_progress' for r in lodi_records) == 25
-          assert sum(r['source_status'] == 'pending' for r in lodi_records) == 2
+          assert sum(r['source_status'] == 'pending' for r in lodi_records) == 4
           assert sum(r['source_status'] == 'rejected_or_denied' for r in lodi_records) == 2
           assert sorted(r['decision_date'] for r in lodi_records if r['source_status'] == 'rejected_or_denied') == ['2021-06-17','2022-11-17']
+          assert sum(r['name'] == 'ARS CHEMICA S.r.l.' and r['identifier_field_raw'] == '04087190965' and r['application_date'] == '2026-09-18' and r['source_status'] == 'pending' for r in lodi_records) == 1
+          assert sum(r['name'] == 'BRONCO COPERTURE S.r.l.' and r['identifier_field_raw'] == '01711850220' and r['application_date'] == '2026-09-21' and r['source_status'] == 'pending' for r in lodi_records) == 1
           roma = [x for x in pref['prefectures'] if x['authority_key'] == 'roma']
           assert len(roma) == 1 and roma[0]['mapped'] and roma[0]['published'] and roma[0]['series_count'] == 2
           roma_records = [r for r in reg['records'] if r['authority_key'] == 'roma']

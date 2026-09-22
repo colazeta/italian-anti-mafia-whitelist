@@ -9,15 +9,16 @@ def test_lodi_source_and_record_denominators_are_frozen() -> None:
     assert lodi._LISTED_PHYSICAL_ROWS == 324
     assert lodi._LISTED_SOURCE_ROWS == 291
     assert lodi._LISTED_RECORDS == 169
-    assert lodi._APPLICANT_PHYSICAL_ROWS == 8
-    assert lodi._APPLICANT_RECORDS == 4
-    assert lodi._LISTED_RECORDS + lodi._APPLICANT_RECORDS == 173
+    assert lodi._APPLICANT_PHYSICAL_ROWS == 10
+    assert lodi._APPLICANT_RECORDS == 6
+    assert lodi._LISTED_RECORDS + lodi._APPLICANT_RECORDS == 175
 
 
 def test_lodi_content_identity_and_observation_date_are_frozen() -> None:
-    assert lodi._REFERENCE_DATE == "2026-09-18"
+    assert lodi._LISTED_REFERENCE_DATE == "2026-09-18"
+    assert lodi._APPLICANT_REFERENCE_DATE == "2026-09-21"
     assert lodi._LISTED_SHA256 == "a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e"
-    assert lodi._APPLICANT_SHA256 == "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228"
+    assert lodi._APPLICANT_SHA256 == "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16"
 
 
 def test_lodi_listed_section_and_status_boundaries_are_frozen() -> None:
@@ -43,7 +44,7 @@ def test_lodi_listed_section_and_status_boundaries_are_frozen() -> None:
     }
     assert lodi._EXPECTED_APPLICANT_STATUS_COUNTS == {
         "rejected_or_denied": 2,
-        "pending": 2,
+        "pending": 4,
     }
 
 

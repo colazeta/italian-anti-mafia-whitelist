@@ -132,7 +132,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,73670);
+      assert.equal(stats.total,73672);
       const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
@@ -545,11 +545,13 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(trento.filter(r=>r.source_key==='trento-listed'&&r.source_fields&&Array.isArray(r.source_fields.listing_date_raw_variants)&&r.source_fields.listing_date_raw_variants.includes('14.04.206')&&r.observed_listing_date==='').length,1);
       assert.equal(trento.filter(r=>r.source_key==='trento-applicants'&&r.name==='ROMANI DE MOLL S.R.L. IMPRESA SOCIALE'&&r.application_date==='2026-06-29'&&r.source_fields.application_date_raw_variants.includes('29.06.2026 (integrata il 02.07.2026)')).length,1);
       const lodi=registry.records.filter(r=>r.authority_key==='lodi');
-      assert.equal(lodi.length,173);
+      assert.equal(lodi.length,175);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-listed').length,169);
-      assert.equal(lodi.filter(r=>r.source_key==='lodi-applicants').length,4);
-      assert.deepEqual(statusCounts(lodi),{listed:144,pending:2,rejected_or_denied:2,renewal_update_in_progress:25});
+      assert.equal(lodi.filter(r=>r.source_key==='lodi-applicants').length,6);
+      assert.deepEqual(statusCounts(lodi),{listed:144,pending:4,rejected_or_denied:2,renewal_update_in_progress:25});
       assert.deepEqual(lodi.filter(r=>r.source_status==='rejected_or_denied').map(r=>r.decision_date).sort(),['2021-06-17','2022-11-17']);
+      assert.equal(lodi.filter(r=>r.name==='ARS CHEMICA S.r.l.'&&r.identifier_field_raw==='04087190965'&&r.application_date==='2026-09-18'&&r.source_status==='pending').length,1);
+      assert.equal(lodi.filter(r=>r.name==='BRONCO COPERTURE S.r.l.'&&r.identifier_field_raw==='01711850220'&&r.application_date==='2026-09-21'&&r.source_status==='pending').length,1);
       const roma=registry.records.filter(r=>r.authority_key==='roma');
       assert.equal(roma.length,4428);
       assert.equal(roma.filter(r=>r.source_key==='roma-listed').length,2169);

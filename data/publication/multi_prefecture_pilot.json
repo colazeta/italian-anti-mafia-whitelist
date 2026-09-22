@@ -1332,17 +1332,17 @@
       "authority_name": "Prefettura di Lodi",
       "register_key": "lodi-ordinary",
       "register_name": "White List ordinaria",
-      "reference_date": "2026-09-18",
+      "reference_date": "2026-09-21",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list",
-      "last_source_update": "2026-09-18",
+      "last_source_update": "2026-09-21",
       "last_source_update_basis": "observation/capture date of the mutable official Google Sheets publication; the sheet does not expose a reliable edition date, so no publication date is inferred",
       "source_key": "lodi-applicants",
       "parser": "lodi_applicants",
       "population_scope": "applicant",
       "resource_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv",
-      "sha256": "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228",
-      "expected_source_rows": 4,
-      "notes": "Official applicant tab linked by the Prefettura di Lodi. Two independent no-cache GETs on 18 September 2026 are byte-identical to each other and to the approved 16 September capture. The four positively identified observations remain unchanged: two explicit denials and two records explicitly in istruttoria. No applicant status or completeness is inferred from failed search. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md."
+      "sha256": "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16",
+      "expected_source_rows": 6,
+      "notes": "Official applicant tab linked by the Prefettura di Lodi. On 21 September 2026 the official landing page positively exposed the requesting-company series. An earlier same-day stable snapshot contained five applicant observations, but before canonical promotion the mutable Sheet advanced again; four later independent cache-bypassed CSV captures across two workflow attempts were byte-identical at the current approved boundary. The current reviewed source contains six positively identified applicant observations: two explicit denials and four records explicitly in istruttoria, including ARS CHEMICA S.r.l. (application 18/09/2026) and BRONCO COPERTURE S.r.l. (application 21/09/2026). The 21 September value is an observation/capture boundary, not an inferred publication date. No legal status or completeness is inferred beyond the published source. Exact evidence is documented in docs/sources/lodi-source-transition-2026-09-21.md."
     },
     {
       "authority_key": "roma",
