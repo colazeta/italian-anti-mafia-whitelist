@@ -1,0 +1,765 @@
+{
+  "authority_key": "ravenna",
+  "compared_at_utc": "2026-09-22T08:18:40Z",
+  "old": {
+    "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf",
+    "sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555",
+    "row_count": 706,
+    "page_rows": [
+      22,
+      24,
+      26,
+      24,
+      24,
+      23,
+      23,
+      24,
+      25,
+      25,
+      25,
+      25,
+      26,
+      26,
+      24,
+      24,
+      26,
+      25,
+      26,
+      25,
+      26,
+      24,
+      24,
+      25,
+      26,
+      26,
+      25,
+      26,
+      12
+    ]
+  },
+  "new": {
+    "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_18sett26.pdf",
+    "sha256": "0ce84f5b90d8f820318c1acdc4cd082ee29ce671134e6e2c62dd19aed8ad4d4a",
+    "row_count": 703,
+    "page_rows": [
+      22,
+      24,
+      26,
+      24,
+      24,
+      23,
+      23,
+      24,
+      25,
+      25,
+      25,
+      26,
+      25,
+      25,
+      24,
+      24,
+      25,
+      25,
+      25,
+      25,
+      26,
+      24,
+      24,
+      24,
+      26,
+      25,
+      25,
+      25,
+      15
+    ]
+  },
+  "added_progressives": [],
+  "removed_progressives": [
+    "332",
+    "380",
+    "1132"
+  ],
+  "changed_row_count": 45,
+  "changed_rows": [
+    {
+      "progressive": "21",
+      "old_page": 1,
+      "new_page": 1,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "29",
+      "old_page": 1,
+      "new_page": 1,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "40",
+      "old_page": 1,
+      "new_page": 1,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "11/02/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "57",
+      "old_page": 2,
+      "new_page": 2,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "59",
+      "old_page": 2,
+      "new_page": 2,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "04/06/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "74",
+      "old_page": 2,
+      "new_page": 2,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "84",
+      "old_page": 2,
+      "new_page": 2,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "103",
+      "old_page": 3,
+      "new_page": 3,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "109",
+      "old_page": 3,
+      "new_page": 3,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "163",
+      "old_page": 4,
+      "new_page": 4,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "174",
+      "old_page": 4,
+      "new_page": 4,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "178",
+      "old_page": 4,
+      "new_page": 4,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "277",
+      "old_page": 6,
+      "new_page": 6,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "286",
+      "old_page": 6,
+      "new_page": 6,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "05/03/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "325",
+      "old_page": 7,
+      "new_page": 7,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/10/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        },
+        {
+          "field": "III",
+          "old": "X*",
+          "new": "X"
+        },
+        {
+          "field": "V",
+          "old": "X*",
+          "new": "X"
+        }
+      ]
+    },
+    {
+      "progressive": "437",
+      "old_page": 9,
+      "new_page": 9,
+      "field_diffs": [
+        {
+          "field": "note",
+          "old": "",
+          "new": "Richiesto rinnovo - Aggiornamento in corso"
+        }
+      ]
+    },
+    {
+      "progressive": "466",
+      "old_page": 10,
+      "new_page": 10,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "519",
+      "old_page": 10,
+      "new_page": 10,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "530",
+      "old_page": 11,
+      "new_page": 10,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "24/03/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "637",
+      "old_page": 12,
+      "new_page": 12,
+      "field_diffs": [
+        {
+          "field": "note",
+          "old": "",
+          "new": "Richiesto rinnovo - Aggiornamento in corso"
+        }
+      ]
+    },
+    {
+      "progressive": "669",
+      "old_page": 13,
+      "new_page": 13,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "675",
+      "old_page": 13,
+      "new_page": 13,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "760",
+      "old_page": 14,
+      "new_page": 14,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "04/11/2024",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "777",
+      "old_page": 14,
+      "new_page": 14,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "813",
+      "old_page": 15,
+      "new_page": 15,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "10/04/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "993",
+      "old_page": 20,
+      "new_page": 20,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "02/10/2024",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "1091",
+      "old_page": 22,
+      "new_page": 23,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "18/03/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "1120",
+      "old_page": 23,
+      "new_page": 24,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "18/07/2025",
+          "new": "15/09/2026"
+        },
+        {
+          "field": "note",
+          "old": "Richiesto rinnovo - Aggiornamento in corso",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "progressive": "1153",
+      "old_page": 25,
+      "new_page": 25,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1176",
+      "old_page": 26,
+      "new_page": 26,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1182",
+      "old_page": 26,
+      "new_page": 26,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1185",
+      "old_page": 26,
+      "new_page": 26,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1188",
+      "old_page": 26,
+      "new_page": 26,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1198",
+      "old_page": 26,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1199",
+      "old_page": 26,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "company",
+          "old": "",
+          "new": "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."
+        }
+      ]
+    },
+    {
+      "progressive": "1200",
+      "old_page": 27,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1202",
+      "old_page": 27,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1208",
+      "old_page": 27,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1213",
+      "old_page": 27,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1222",
+      "old_page": 27,
+      "new_page": 27,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1224",
+      "old_page": 27,
+      "new_page": 28,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1228",
+      "old_page": 28,
+      "new_page": 28,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1229",
+      "old_page": 28,
+      "new_page": 28,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1232",
+      "old_page": 28,
+      "new_page": 28,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    },
+    {
+      "progressive": "1246",
+      "old_page": 28,
+      "new_page": 28,
+      "field_diffs": [
+        {
+          "field": "listing",
+          "old": "",
+          "new": "15/09/2026"
+        }
+      ]
+    }
+  ]
+}
