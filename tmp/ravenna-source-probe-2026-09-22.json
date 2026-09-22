@@ -1,0 +1,107 @@
+{
+  "authority_key": "ravenna",
+  "verified_at_utc": "2026-09-22T08:17:07Z",
+  "landing_url": "https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list",
+  "landing_http_status": 200,
+  "current_selected_attachment": {
+    "label": "Nuova tabella unica aggiornata",
+    "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_18sett26.pdf"
+  },
+  "attachment_links": [
+    {
+      "label": "Nuova tabella unica aggiornata",
+      "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_18sett26.pdf"
+    }
+  ],
+  "previous_reviewed_attachment": {
+    "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf",
+    "sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555"
+  },
+  "source_url_changed": true,
+  "source_sha256_changed": true,
+  "independent_current_fetches": [
+    {
+      "attempt": 1,
+      "http_status": 200,
+      "bytes": 398339,
+      "sha256": "0ce84f5b90d8f820318c1acdc4cd082ee29ce671134e6e2c62dd19aed8ad4d4a"
+    },
+    {
+      "attempt": 2,
+      "http_status": 200,
+      "bytes": 398339,
+      "sha256": "0ce84f5b90d8f820318c1acdc4cd082ee29ce671134e6e2c62dd19aed8ad4d4a"
+    }
+  ],
+  "byte_identical": true,
+  "page_count": 29,
+  "recognised_table_count": 29,
+  "page_rows": [
+    22,
+    24,
+    26,
+    24,
+    24,
+    23,
+    23,
+    24,
+    25,
+    25,
+    25,
+    26,
+    25,
+    25,
+    24,
+    24,
+    25,
+    25,
+    25,
+    25,
+    26,
+    24,
+    24,
+    24,
+    26,
+    25,
+    25,
+    25,
+    15
+  ],
+  "numeric_rows": 703,
+  "status_counts": {
+    "listed": 467,
+    "renewal_update_in_progress": 188,
+    "other_or_unknown": 1,
+    "pending": 47
+  },
+  "identifier_coverage": 689,
+  "malformed_dates": [
+    {
+      "page": 28,
+      "progressive": "1238",
+      "field": "application",
+      "raw": "23/06/026"
+    }
+  ],
+  "progressive_1199_signature": {
+    "page": 27,
+    "row": [
+      "1199",
+      "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.",
+      "ROTTERDAM (PAESI BASSI)",
+      "04/02/2026",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "X"
+    ]
+  }
+}
