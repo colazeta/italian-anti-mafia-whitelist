@@ -680,13 +680,13 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const milano=registry.records.filter(r=>r.authority_key==='milano');
       assert.equal(milano.length,2611);
       assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2611);
-      assert.deepEqual(statusCounts(milano),{listed:948,pending:1147,renewal_update_in_progress:516});
+      assert.deepEqual(statusCounts(milano),{listed:944,pending:1147,renewal_update_in_progress:520});
       assert.equal(new Set(milano.map(r=>r.record_locator)).size,2611);
       assert.equal(milano.filter(r=>r.identifiers.length>0).length,2611);
       assert.ok(milano.every(r=>r.requested_activities.length>0));
       assert.equal(milano.filter(r=>r.application_date!=='').length,1147);
-      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,948);
-      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,948);
+      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,944);
+      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,944);
       assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));
       const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));
       for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}
@@ -694,7 +694,12 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960']) assert.equal(currentMilano[k].source_status,'listed');
       for(const k of ['01843860543','08402360963','09406080961','11572370960']) assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');
       for(const k of ['00936150150','13072070157']){assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');assert.equal(currentMilano[k].observed_listing_date,'');assert.equal(currentMilano[k].observed_expiry_date,'');}
-      for(const k of ['00772460150','03998810612','06363290963','06895800966','07299620158','07883430964','10899610967','11328240152','11350850969','13102060152']){assert.equal(currentMilano[k].source_status,'listed');assert.equal(currentMilano[k].application_date,'');assert.equal(currentMilano[k].observed_listing_date,'2026-09-18');assert.equal(currentMilano[k].observed_expiry_date,'2027-09-18');}
+      assert.equal(currentMilano['03998810612'],undefined);
+      assert.equal(currentMilano['14304140966'],undefined);
+      assert.equal(currentMilano['06602310960'].source_status,'pending');
+      assert.equal(currentMilano['06602310960'].application_date,'2026-09-21');
+      assert.ok(['02079720161','02470450962','10253070964','13167930968'].every(k=>currentMilano[k].source_status==='renewal_update_in_progress'&&currentMilano[k].observed_listing_date===''&&currentMilano[k].observed_expiry_date===''));
+      for(const k of ['00772460150','KHLWDS89B03Z336P','06363290963','06895800966','07299620158','07883430964','10899610967','11328240152','11350850969','13102060152']){assert.equal(currentMilano[k].source_status,'listed');assert.equal(currentMilano[k].application_date,'');assert.equal(currentMilano[k].observed_listing_date,'2026-09-18');assert.equal(currentMilano[k].observed_expiry_date,'2027-09-18');}
       assert.ok(milano.every(r=>Array.isArray(r.source_fields.notes)));
       const notedMilano=milano.filter(r=>r.source_fields.notes.length>0);
       assert.equal(notedMilano.length,1);
