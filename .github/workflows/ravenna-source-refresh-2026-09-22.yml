@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  probe:
+  compare:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -26,127 +26,74 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install probe runtime
-        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Capture current official Ravenna boundary
+        run: python -m pip install --disable-pip-version-check requests pdfplumber
+      - name: Compare reviewed and current Ravenna rows
         env:
-          LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
-          PREVIOUS_PDF_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf
-          PREVIOUS_SHA256: 8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555
+          OLD_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf
+          OLD_SHA: 8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555
+          NEW_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_18sett26.pdf
+          NEW_SHA: 0ce84f5b90d8f820318c1acdc4cd082ee29ce671134e6e2c62dd19aed8ad4d4a
         run: |
           python - <<'PY'
           from __future__ import annotations
           import hashlib, io, json, os, re, time
-          from collections import Counter
           from pathlib import Path
-          from urllib.parse import urljoin
           import pdfplumber, requests
-          from bs4 import BeautifulSoup
 
-          landing_url=os.environ['LANDING_URL']
-          previous_url=os.environ['PREVIOUS_PDF_URL']
-          previous_sha=os.environ['PREVIOUS_SHA256']
-          headers={'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.3)','Cache-Control':'no-cache','Pragma':'no-cache'}
           header_expected=(
               'N. prog.','Ragione sociale e p. iva / cf','Indirizzo sede legale','DATA PRIMA RICHIESTA',
               'DATA ISCRIZIONE/ RINNOVO','NOTE','sez. I','sez.II','sez. III','sez. IV','sez. V',
               'sez. VI','sez. VII','sez. VIII','sez. IX','sez. X')
-          renewal_notes={'Richiesto rinnovo - Aggiornamento in corso','Richiesta rinnovo - aggiornamento in corso'}
-          id_re=re.compile(r'(?<![A-Z0-9])([A-Z0-9]{16}|\d{11})(?![A-Z0-9])',re.I)
-          date_re=re.compile(r'^\d{1,2}/\d{1,2}/\d{4}$')
           def clean(v): return ' '.join((v or '').split())
-          def get(url, accept, nonce):
-              h=dict(headers); h['Accept']=accept
-              sep='&' if '?' in url else '?'
-              last=None
-              for retry in range(3):
-                  try:
-                      r=requests.get(f'{url}{sep}probe={nonce}-{retry}',headers=h,timeout=(20,90),allow_redirects=True)
-                      last=r
-                      if r.status_code==200: return r
-                  except requests.RequestException as exc:
-                      last=exc
-                  time.sleep(2*(retry+1))
-              if isinstance(last,requests.Response): return last
-              raise RuntimeError(f'GET failed: {last!r}')
+          def fetch(url, expected_sha, label):
+              r=requests.get(url,headers={'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-diff/1.0)','Cache-Control':'no-cache','Pragma':'no-cache'},timeout=(20,90))
+              if r.status_code!=200 or not r.content.startswith(b'%PDF'): raise RuntimeError(f'{label} fetch invalid HTTP {r.status_code}')
+              sha=hashlib.sha256(r.content).hexdigest()
+              if sha!=expected_sha: raise RuntimeError(f'{label} digest drift: expected {expected_sha}, got {sha}')
+              return r.content
+          def extract(payload,label):
+              by_progressive={}; page_rows=[]
+              with pdfplumber.open(io.BytesIO(payload)) as pdf:
+                  for pno,page in enumerate(pdf.pages,1):
+                      matches=[]
+                      for table in page.extract_tables():
+                          if table and table[0] and tuple(clean(x) for x in table[0])==header_expected: matches.append(table)
+                      if len(matches)!=1: raise RuntimeError(f'{label} page {pno}: expected one exact table, got {len(matches)}')
+                      rows=[[clean(x) for x in row] for row in matches[0][1:] if any(clean(x) for x in row)]
+                      page_rows.append(len(rows))
+                      for row in rows:
+                          if len(row)!=16 or not row[0].isdigit(): raise RuntimeError(f'{label} page {pno}: malformed row {row!r}')
+                          if row[0] in by_progressive: raise RuntimeError(f'{label}: duplicate progressive {row[0]}')
+                          by_progressive[row[0]]={'page':pno,'row':row}
+              return by_progressive,page_rows
 
-          landing=get(landing_url,'text/html,*/*;q=0.8',int(time.time()*1000))
-          if landing.status_code!=200:
-              raise RuntimeError(f'official landing unavailable for positive current-source resolution: HTTP {landing.status_code}')
-          soup=BeautifulSoup(landing.text,'html.parser')
-          links=[]
-          for a in soup.find_all('a',href=True):
-              href=urljoin(landing.url,a['href']).split('?probe=')[0]
-              label=clean(a.get_text(' ',strip=True))
-              if '/sites/default/files/' in href: links.append({'label':label,'url':href})
-          candidates=[x for x in links if x['label']=='Nuova tabella unica aggiornata']
-          if len(candidates)!=1:
-              raise RuntimeError(f'expected one positively labelled current Ravenna attachment, got {candidates!r}; links={links!r}')
-          selected=candidates[0]
-
-          payloads=[]; copies=[]
-          for attempt in (1,2):
-              r=get(selected['url'],'application/pdf,*/*;q=0.8',f'{int(time.time()*1000)}-{attempt}')
-              digest=hashlib.sha256(r.content).hexdigest() if r.status_code==200 else None
-              copies.append({'attempt':attempt,'http_status':r.status_code,'bytes':len(r.content),'sha256':digest})
-              if r.status_code!=200 or not r.content.startswith(b'%PDF'):
-                  raise RuntimeError(f'current Ravenna PDF fetch {attempt} invalid: {copies[-1]!r}')
-              payloads.append(r.content)
-          if payloads[0]!=payloads[1]: raise RuntimeError(f'independent current Ravenna fetches differ: {copies!r}')
-
-          page_rows=[]; statuses=Counter(); identifier_coverage=0; malformed_dates=[]; row1199=None
-          numeric_rows=0; recognised_tables=0; header_shapes=[]
-          with pdfplumber.open(io.BytesIO(payloads[0])) as pdf:
-              page_count=len(pdf.pages)
-              for pno,page in enumerate(pdf.pages,1):
-                  matches=[]
-                  for table in page.extract_tables():
-                      if not table or not table[0]: continue
-                      header=tuple(clean(x) for x in table[0])
-                      header_shapes.append({'page':pno,'header':list(header)})
-                      if header==header_expected: matches.append(table)
-                  if len(matches)!=1:
-                      raise RuntimeError(f'Ravenna current page {pno}: expected one exact known company table, found {len(matches)}')
-                  recognised_tables += 1
-                  rows=[[clean(x) for x in row] for row in matches[0][1:] if any(clean(x) for x in row)]
-                  page_rows.append(len(rows))
-                  for row in rows:
-                      if len(row)!=16: raise RuntimeError(f'Ravenna current page {pno}: unexpected row width {len(row)}')
-                      if not row[0].isdigit(): raise RuntimeError(f'Ravenna current page {pno}: nonnumeric progressive {row[0]!r}')
-                      numeric_rows += 1
-                      application,listing,note=row[3],row[4],row[5]
-                      if note in renewal_notes: status='renewal_update_in_progress'
-                      elif note: status='other_or_unknown'
-                      elif listing: status='listed'
-                      elif application: status='pending'
-                      else: status='other_or_unknown'
-                      statuses[status]+=1
-                      if id_re.search(row[1].upper()): identifier_coverage += 1
-                      for field,value in [('application',application),('listing',listing)]:
-                          if value and not date_re.fullmatch(value): malformed_dates.append({'page':pno,'progressive':row[0],'field':field,'raw':value})
-                      if row[0]=='1199':
-                          row1199={'page':pno,'row':row}
+          old,old_pages=extract(fetch(os.environ['OLD_URL'],os.environ['OLD_SHA'],'old'),'old')
+          new,new_pages=extract(fetch(os.environ['NEW_URL'],os.environ['NEW_SHA'],'new'),'new')
+          old_ids=set(old); new_ids=set(new)
+          removed=sorted(old_ids-new_ids,key=int); added=sorted(new_ids-old_ids,key=int)
+          changed=[]
+          for prog in sorted(old_ids & new_ids,key=int):
+              if old[prog]['row']!=new[prog]['row']:
+                  diffs=[]
+                  names=['progressive','company','office','application','listing','note','I','II','III','IV','V','VI','VII','VIII','IX','X']
+                  for idx,(a,b) in enumerate(zip(old[prog]['row'],new[prog]['row'])):
+                      if a!=b: diffs.append({'field':names[idx],'old':a,'new':b})
+                  changed.append({'progressive':prog,'old_page':old[prog]['page'],'new_page':new[prog]['page'],'field_diffs':diffs})
           receipt={
-              'authority_key':'ravenna','verified_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
-              'landing_url':landing_url,'landing_http_status':landing.status_code,
-              'current_selected_attachment':selected,'attachment_links':links,
-              'previous_reviewed_attachment':{'url':previous_url,'sha256':previous_sha},
-              'source_url_changed':selected['url']!=previous_url,
-              'source_sha256_changed':copies[0]['sha256']!=previous_sha,
-              'independent_current_fetches':copies,'byte_identical':True,
-              'page_count':page_count,'recognised_table_count':recognised_tables,'page_rows':page_rows,
-              'numeric_rows':numeric_rows,'status_counts':dict(statuses),'identifier_coverage':identifier_coverage,
-              'malformed_dates':malformed_dates,'progressive_1199_signature':row1199,
+              'authority_key':'ravenna','compared_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+              'old':{'url':os.environ['OLD_URL'],'sha256':os.environ['OLD_SHA'],'row_count':len(old),'page_rows':old_pages},
+              'new':{'url':os.environ['NEW_URL'],'sha256':os.environ['NEW_SHA'],'row_count':len(new),'page_rows':new_pages},
+              'added_progressives':added,'removed_progressives':removed,'changed_row_count':len(changed),'changed_rows':changed
           }
-          Path('tmp').mkdir(exist_ok=True)
-          Path('tmp/ravenna-source-probe-2026-09-22.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          Path('tmp/ravenna-source-diff-2026-09-22.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,ensure_ascii=False,indent=2))
           PY
-      - name: Checkpoint current-source receipt
+      - name: Checkpoint source diff
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tmp/ravenna-source-probe-2026-09-22.json
+          git add tmp/ravenna-source-diff-2026-09-22.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Checkpoint current Ravenna source boundary'
+          git commit -m 'Checkpoint Ravenna source row diff'
           git push origin HEAD:expansion/ravenna-2026-09-20
