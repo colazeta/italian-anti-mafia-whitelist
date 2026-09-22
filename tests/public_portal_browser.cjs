@@ -687,7 +687,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(milano.filter(r=>r.application_date!=='').length,1147);
       assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,944);
       assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,944);
-      assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));
+      assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-21'));
       const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));
       for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}
       for(const k of ['12957130961','13540670968','14580020965']) assert.equal(currentMilano[k],undefined);
