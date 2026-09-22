@@ -1,0 +1,101 @@
+name: Lane A temporal history materialiser
+
+on:
+  push:
+    branches:
+      - lane-a/temporal-history-lineage-2026-09-22
+
+permissions:
+  contents: write
+
+jobs:
+  materialise:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install repository
+        run: python -m pip install -e '.[dev,database,storage]'
+      - name: Apply compatibility-preserving temporal and lineage fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one replacement target, found {count}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          history = 'src/white_list_archive/publishing/public_history.py'
+          replace_once(
+              history,
+              '''        if not before["reference_date"] or not after["reference_date"] or before["reference_date"] >= after["reference_date"]:\n            raise ValueError("A source-date comparison needs ordered, distinct known dates")\n        if change["basis"] not in {"frozen_observational_diff", "exact_identifier_observations_v1"}:\n            raise ValueError("Unapproved comparison basis")\n''',
+              '''        if change["basis"] not in {"frozen_observational_diff", "exact_identifier_observations_v1", "capture_ordered_identifier_observations_v1"}:\n            raise ValueError("Unapproved comparison basis")\n        if change["basis"] == "capture_ordered_identifier_observations_v1":\n            # Capture ordering is an observation chronology only. It is allowed\n            # precisely where source-declared chronology is equal or unknown;\n            # distinct known source dates continue to use the source-date basis.\n            if before["reference_date"] and after["reference_date"] and before["reference_date"] != after["reference_date"]:\n                raise ValueError("Capture-ordered comparison cannot override distinct known source dates")\n            before_checks = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == before["id"]]\n            after_checks = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == after["id"]]\n            if not before_checks or not after_checks or max(before_checks) >= max(after_checks):\n                raise ValueError("Capture-ordered comparison needs strictly ordered successful checks")\n        elif not before["reference_date"] or not after["reference_date"] or before["reference_date"] >= after["reference_date"]:\n            raise ValueError("A source-date comparison needs ordered, distinct known dates")\n'''
+          )
+          replace_once(
+              history,
+              'def compare_rows(before: list[dict], after: list[dict], before_id: str, after_id: str) -> dict:\n',
+              'def compare_rows(before: list[dict], after: list[dict], before_id: str, after_id: str, basis: str = "exact_identifier_observations_v1") -> dict:\n    if basis not in {"exact_identifier_observations_v1", "capture_ordered_identifier_observations_v1"}:\n        raise ValueError("Unapproved automatic comparison basis")\n'
+          )
+          replace_once(
+              history,
+              '''    return {"before_id": before_id, "after_id": after_id, "basis": "exact_identifier_observations_v1", "added": len(right.keys() - left.keys()) if complete else None, "disappeared": len(left.keys() - right.keys()) if complete else None, "common": len(common), "content_changed": sum(_content(left[k]) != _content(right[k]) for k in common), "status_changed": sum(transitions.values()), "unresolved_before": unresolved_left, "unresolved_after": unresolved_right, "transition_counts": dict(sorted(transitions.items())), "evidence": ["approved-public-registry", "exact_identifier_observations_v1"]}\n''',
+              '''    return {"before_id": before_id, "after_id": after_id, "basis": basis, "added": len(right.keys() - left.keys()) if complete else None, "disappeared": len(left.keys() - right.keys()) if complete else None, "common": len(common), "content_changed": sum(_content(left[k]) != _content(right[k]) for k in common), "status_changed": sum(transitions.values()), "unresolved_before": unresolved_left, "unresolved_after": unresolved_right, "transition_counts": dict(sorted(transitions.items())), "evidence": ["approved-public-registry", basis]}\n'''
+          )
+          old_compare = '''def compare_releases(previous: dict, current: dict) -> dict:\n    old, new = aggregate_registry(previous), aggregate_registry(current)\n    result = merge_histories(old, new)\n    old_by_scope = defaultdict(list)\n    for edition in old["editions"]:\n        old_by_scope[scope(edition)].append(edition)\n    def rows_for(registry: dict, edition: dict) -> list[dict]:\n        return [r for r in registry["records"] if (r["source_key"], r["reference_date"], _history_document_sha256(r["capture_sha256"])) == (edition["source_key"], edition["reference_date_raw"], edition["document_sha256"])]\n    for after in new["editions"]:\n        candidates = [e for e in old_by_scope[scope(after)] if e["reference_date"] and after["reference_date"] and e["reference_date"] < after["reference_date"] and e["parser_signature"] == after["parser_signature"]]\n        if not candidates:\n            continue\n        latest = max(e["reference_date"] for e in candidates)\n        candidates = [e for e in candidates if e["reference_date"] == latest]\n        if len(candidates) != 1:\n            continue\n        before = candidates[0]\n        result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"]))\n    validate_history(result)\n    return result\n'''
+          new_compare = '''def compare_releases(previous: dict, current: dict) -> dict:\n    old, new = aggregate_registry(previous), aggregate_registry(current)\n    result = merge_histories(old, new)\n    old_by_scope = defaultdict(list)\n    for edition in old["editions"]:\n        old_by_scope[scope(edition)].append(edition)\n\n    def rows_for(registry: dict, edition: dict) -> list[dict]:\n        return [r for r in registry["records"] if (r["source_key"], r["reference_date"], _history_document_sha256(r["capture_sha256"])) == (edition["source_key"], edition["reference_date_raw"], edition["document_sha256"])]\n\n    def latest_check(history: dict, edition_id_value: str) -> str | None:\n        values = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == edition_id_value]\n        return max(values) if values else None\n\n    for after in new["editions"]:\n        compatible = [e for e in old_by_scope[scope(after)] if e["parser_signature"] == after["parser_signature"] and e["id"] != after["id"]]\n        source_candidates = [e for e in compatible if e["reference_date"] and after["reference_date"] and e["reference_date"] < after["reference_date"]]\n        if source_candidates:\n            latest = max(e["reference_date"] for e in source_candidates)\n            source_candidates = [e for e in source_candidates if e["reference_date"] == latest]\n            if len(source_candidates) == 1:\n                before = source_candidates[0]\n                result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"]))\n            continue\n\n        # When source chronology is equal or unknown, retain both editions and\n        # compare only by successful observation time. This does not assert an\n        # administrative/effective chronology. Equal-time payloads are retained\n        # but deliberately left unordered.\n        after_check = latest_check(new, after["id"])\n        if not after_check:\n            continue\n        observed_candidates: list[tuple[str, dict]] = []\n        for candidate in compatible:\n            if candidate["reference_date"] and after["reference_date"] and candidate["reference_date"] != after["reference_date"]:\n                continue\n            candidate_check = latest_check(old, candidate["id"])\n            if candidate_check and candidate_check < after_check:\n                observed_candidates.append((candidate_check, candidate))\n        if not observed_candidates:\n            continue\n        latest_observation = max(value for value, _ in observed_candidates)\n        observed_candidates = [(value, edition) for value, edition in observed_candidates if value == latest_observation]\n        if len(observed_candidates) != 1:\n            continue\n        before = observed_candidates[0][1]\n        result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"], basis="capture_ordered_identifier_observations_v1"))\n    validate_history(result)\n    return result\n'''
+          replace_once(history, old_compare, new_compare)
+
+          registry = 'src/white_list_archive/publishing/public_national_registry.py'
+          marker = 'def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:\n'
+          helper = '''def _apply_parser_lineage(batch: ParsedBatch, parser_name: str, legacy_version: str) -> ParsedBatch:\n    """Preserve parser-declared lineage; use legacy fallback only when absent."""\n    declared = batch.diagnostics.get("parser_version")\n    version = str(declared).strip() if declared is not None else legacy_version\n    if not version:\n        raise RuntimeError(f"{parser_name}: empty parser-version lineage")\n    for record in batch.records:\n        existing_name = record.get("parser_name")\n        existing_version = record.get("parser_version")\n        if existing_name not in (None, "", parser_name):\n            raise RuntimeError(f"{parser_name}: conflicting parser-name lineage {existing_name!r}")\n        if existing_version not in (None, "", version):\n            raise RuntimeError(f"{parser_name}: conflicting parser-version lineage {existing_version!r} != {version!r}")\n        record["parser_name"] = parser_name\n        record["parser_version"] = version\n    return batch\n\n\n'''
+          replace_once(registry, marker, helper + marker)
+          replace_once(
+              registry,
+              '''        batch = _adapt_pordenone_public_fields(parse_pordenone_listed_bundle(path, cfg), cfg["parser"])\n        for record in batch.records:\n            record["parser_name"] = cfg["parser"]\n            record["parser_version"] = "1"\n        return batch\n''',
+              '''        batch = _adapt_pordenone_public_fields(parse_pordenone_listed_bundle(path, cfg), cfg["parser"])\n        return _apply_parser_lineage(batch, cfg["parser"], "1")\n'''
+          )
+          replace_once(
+              registry,
+              '''        batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])\n        for record in batch.records:\n            record["parser_name"] = cfg["parser"]\n            record["parser_version"] = "1"\n        return batch\n''',
+              '''        batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])\n        return _apply_parser_lineage(batch, cfg["parser"], "1")\n'''
+          )
+          replace_once(
+              registry,
+              '''    for record in batch.records:\n        record["parser_name"] = cfg["parser"]\n        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"\n    return batch\n''',
+              '''    legacy_version = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"\n    return _apply_parser_lineage(batch, cfg["parser"], legacy_version)\n'''
+          )
+
+          Path('tests/test_temporal_history_order.py').write_text(r'''from collections import Counter\nfrom copy import deepcopy\n\nfrom white_list_archive.publishing.public_history import compare_releases, validate_history\n\n\ndef registry(reference_date: str, sha: str, checked_at: str, statuses=("pending", "listed")) -> dict:\n    rows = []\n    for i, status in enumerate(statuses, 1):\n        rows.append({\n            "record_locator": f"fixture:{sha}:{i}", "source_key": "mutable-fixture",\n            "authority_key": "fixture", "authority_name": "Fixture Prefecture",\n            "register_key": "fixture-register", "register_name": "Fixture register",\n            "population_scope": "listed_and_applicant", "reference_date": reference_date,\n            "name": f"Synthetic company {i}", "identifiers": [f"{i:011d}"],\n            "identifier_field_raw": f"{i:011d}", "requested_activities": ["fixture"],\n            "source_status": status, "source_row_ordinal": i,\n            "source_page_url": "https://example.test/page",\n            "resource_url": "https://example.test/document", "capture_sha256": sha,\n            "parser_name": "fixture_parser", "parser_version": "1",\n        })\n    return {\n        "records": rows,\n        "meta": {\n            "record_count": len(rows), "source_count": 1, "authority_count": 1, "register_count": 1,\n            "authority_counts": {"fixture": len(rows)}, "register_counts": {"fixture-register": len(rows)},\n            "status_counts": dict(Counter(statuses)),\n            "sources": [{"source_key": "mutable-fixture", "reference_date": reference_date, "sha256": sha, "document_checked_at": checked_at}],\n        },\n    }\n\n\ndef test_equal_source_date_distinct_payloads_are_retained_and_capture_ordered():\n    before = registry("2026-09-22", "a" * 64, "2026-09-22T08:00:00Z")\n    after = registry("2026-09-22", "b" * 64, "2026-09-22T09:00:00Z", ("listed", "listed", "pending"))\n    history = compare_releases(before, after)\n    validate_history(history)\n    assert len(history["editions"]) == 2\n    assert len(history["comparisons"]) == 1\n    comparison = history["comparisons"][0]\n    assert comparison["basis"] == "capture_ordered_identifier_observations_v1"\n    assert (comparison["added"], comparison["common"]) == (1, 2)\n\n\ndef test_unknown_source_dates_use_observation_order_without_inventing_source_date():\n    before = registry("", "c" * 64, "2026-09-22T08:00:00Z")\n    after = registry("", "d" * 64, "2026-09-22T09:00:00Z")\n    history = compare_releases(before, after)\n    assert all(edition["reference_date"] is None for edition in history["editions"])\n    assert history["comparisons"][0]["basis"] == "capture_ordered_identifier_observations_v1"\n\n\ndef test_equal_capture_time_distinct_payloads_never_get_invented_order():\n    before = registry("2026-09-22", "e" * 64, "2026-09-22T08:00:00Z")\n    after = registry("2026-09-22", "f" * 64, "2026-09-22T08:00:00Z")\n    history = compare_releases(before, after)\n    assert len(history["editions"]) == 2\n    assert history["comparisons"] == []\n\n\ndef test_distinct_known_source_dates_keep_source_chronology_basis():\n    before = registry("2026-09-21", "1" * 64, "2026-09-22T09:00:00Z")\n    after = registry("2026-09-22", "2" * 64, "2026-09-22T08:00:00Z")\n    history = compare_releases(before, after)\n    assert history["comparisons"][0]["basis"] == "exact_identifier_observations_v1"\n''' .replace('\\n', '\n'), encoding='utf-8')
+
+          Path('tests/test_parser_lineage.py').write_text(r'''import pytest\n\nfrom white_list_archive.parsers.multi_prefecture_tables import ParsedBatch\nfrom white_list_archive.publishing.public_national_registry import _apply_parser_lineage\n\n\ndef test_parser_declared_revision_is_preserved_over_legacy_fallback():\n    batch = ParsedBatch(records=[{}], diagnostics={"parser_version": "7"})\n    result = _apply_parser_lineage(batch, "fixture_parser", "1")\n    assert result.records[0]["parser_name"] == "fixture_parser"\n    assert result.records[0]["parser_version"] == "7"\n\n\ndef test_legacy_revision_is_used_only_when_parser_does_not_declare_one():\n    batch = ParsedBatch(records=[{}], diagnostics={})\n    result = _apply_parser_lineage(batch, "legacy_parser", "2")\n    assert result.records[0]["parser_version"] == "2"\n\n\ndef test_conflicting_record_lineage_fails_closed():\n    batch = ParsedBatch(records=[{"parser_version": "3"}], diagnostics={"parser_version": "4"})\n    with pytest.raises(RuntimeError, match="conflicting parser-version lineage"):\n        _apply_parser_lineage(batch, "fixture_parser", "1")\n''' .replace('\\n', '\n'), encoding='utf-8')
+      - name: Focused Lane A regressions
+        run: >-
+          pytest -q
+          tests/test_temporal_history_order.py
+          tests/test_parser_lineage.py
+          tests/test_public_history.py
+          tests/test_parser_revision_restoration.py
+          tests/test_archive_first_replay.py
+          tests/test_archive_inventory.py
+      - name: Full repository suite
+        run: pytest -q
+      - name: Commit validated permanent implementation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/white_list_archive/publishing/public_history.py \
+                  src/white_list_archive/publishing/public_national_registry.py \
+                  tests/test_temporal_history_order.py \
+                  tests/test_parser_lineage.py
+          git diff --cached --check
+          git commit -m 'Preserve parser lineage and intraday archive chronology'
+          git push origin HEAD:${GITHUB_REF_NAME}
