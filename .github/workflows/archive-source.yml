@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_key:
-        description: Existing project source key to bind this acquisition
+        description: Existing project SourceSeries key to bind this acquisition
         required: true
         type: string
       resource_url:
@@ -15,6 +15,44 @@ on:
         description: Declared source reference date YYYY-MM-DD; leave blank when unknown
         required: false
         type: string
+      origin_type:
+        description: Explicit origin classification for this acquisition
+        required: true
+        default: official_current
+        type: choice
+        options:
+          - official_current
+          - official_historical
+          - official_archived_copy
+          - web_archive_capture
+          - secondary_mirror
+          - other
+      authority_rank_code:
+        description: Explicit evidential authority rank
+        required: true
+        default: primary_official
+        type: choice
+        options:
+          - primary_official
+          - official_archive
+          - archive_proxy
+          - secondary
+          - unknown
+      resource_type_code:
+        description: Reviewed locator/resource type; choose other when no narrower type is established
+        required: true
+        default: other
+        type: choice
+        options:
+          - html
+          - pdf
+          - xlsx
+          - xls
+          - docx
+          - csv
+          - zip
+          - api
+          - other
 
 permissions:
   contents: read
@@ -37,6 +75,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +83,7 @@ jobs:
         with:
           python-version: '3.13'
       - name: Install archive runtime
-        run: python -m pip install -e '.[storage]'
+        run: python -m pip install -e '.[storage,database]'
       - name: Require designated private store and credentials
         run: |
           python - <<'PY'
@@ -59,12 +98,18 @@ jobs:
           SOURCE_KEY: ${{ inputs.source_key }}
           RESOURCE_URL: ${{ inputs.resource_url }}
           REFERENCE_DATE: ${{ inputs.reference_date }}
+          ORIGIN_TYPE: ${{ inputs.origin_type }}
+          AUTHORITY_RANK_CODE: ${{ inputs.authority_rank_code }}
+          RESOURCE_TYPE_CODE: ${{ inputs.resource_type_code }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/archive-first /tmp/public-actions
           args=(
             --source-key "$SOURCE_KEY"
             --resource-url "$RESOURCE_URL"
+            --origin-type "$ORIGIN_TYPE"
+            --authority-rank-code "$AUTHORITY_RANK_CODE"
+            --resource-type-code "$RESOURCE_TYPE_CODE"
             --work-dir /tmp/archive-first
             --public-receipt /tmp/public-actions/archive-receipt.json
           )
@@ -73,15 +118,22 @@ jobs:
           fi
           python -m white_list_archive.acquisition.archive_first "${args[@]}"
       - name: Emit redacted capture checkpoint
+        if: always()
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          receipt = json.loads(Path('/tmp/public-actions/archive-receipt.json').read_text())
+          path = Path('/tmp/public-actions/archive-receipt.json')
+          if not path.exists():
+              raise SystemExit('No capture checkpoint exists: durable archive boundary was not reached')
+          receipt = json.loads(path.read_text())
           print(json.dumps(receipt, sort_keys=True))
           if not receipt['durable_content_readback_verified'] or not receipt['durable_capture_provenance_readback_verified']:
               raise SystemExit('Archive-first readback gate was not satisfied')
+          if receipt['database_capture_persistence_state'] != 'persisted':
+              print('Relational capture persistence remains explicit debt; no downstream archive-complete claim is permitted.')
           PY
 
 # Deliberately no upload-artifact step: source bytes and private provider coordinates
-# remain inside the trusted runner/private store. The emitted checkpoint is metadata only.
+# remain inside the trusted runner/private store. The emitted checkpoint is redacted
+# metadata only; the private catalogue is the durable capture-provenance record.
