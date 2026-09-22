@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from white_list_archive.publishing import public_national_registry as registry
+from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_manifest
 
 SCHEMA_VERSION = 1
@@ -50,11 +51,11 @@ def _expected_resources(cfg: dict) -> dict[str, tuple[str, str | None]]:
 
 
 def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
-    """Validate exact release/config/capture binding and return URL→capture lookup.
+    """Validate exact release/config/capture bindings without dereferencing source URLs.
 
-    The config itself remains a versioned repository input and its canonical digest is
-    pinned in the release.  The release additionally pins code and parser/projector
-    lineage text.  No source URL is dereferenced here.
+    Every resource pins both an immutable ContentObject identity and the separate
+    durable capture/check catalogue receipt. Provider readback happens in
+    ``archived_downloads`` before parsers can receive the bytes.
     """
     if not isinstance(manifest, dict):
         raise ValueError("Frozen release manifest must be a mapping")
@@ -116,29 +117,34 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
         resources = binding["resources"]
         if not isinstance(resources, list):
             raise ValueError(f"{source_key}: frozen resources must be a list")
-        resource_by_label = {}
+        resource_by_label: dict[str, dict] = {}
         for resource in resources:
-            if not isinstance(resource, dict) or set(resource) != {"label", "capture"}:
+            if not isinstance(resource, dict) or set(resource) != {"label", "capture", "catalogue"}:
                 raise ValueError(f"{source_key}: unapproved frozen resource binding")
             label = resource["label"]
             if label in resource_by_label:
                 raise ValueError(f"{source_key}: duplicate frozen resource label {label!r}")
-            resource_by_label[label] = resource["capture"]
+            if not isinstance(resource["catalogue"], dict):
+                raise ValueError(f"{source_key}/{label}: capture catalogue receipt must be a mapping")
+            resource_by_label[label] = resource
         if set(resource_by_label) != set(expected):
             raise ValueError(f"{source_key}: frozen resource labels do not match configuration")
 
         for label, (expected_url, expected_raw_sha) in expected.items():
-            capture = freeze_capture_manifest(resource_by_label[label])
+            resource = resource_by_label[label]
+            capture = freeze_capture_manifest(resource["capture"])
+            catalogue = resource["catalogue"]
             if capture.get("source_key") != source_key:
                 raise ValueError(f"{source_key}/{label}: capture belongs to another source")
             if capture["resource_url"] != expected_url:
                 raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
             if capture["reference_date"] != cfg.get("reference_date"):
                 raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
+            if catalogue.get("capture_id") != capture.get("capture_id"):
+                raise ValueError(f"{source_key}/{label}: catalogue receipt belongs to another capture")
+            if catalogue.get("sha256") != capture["sha256"] or catalogue.get("byte_size") != capture["byte_size"]:
+                raise ValueError(f"{source_key}/{label}: catalogue receipt disagrees with capture bytes")
             approval_mode = str(cfg.get("approval_mode") or "raw_sha256")
-            # Raw approvals pin the exact bytes in the publication config. Semantic
-            # approvals deliberately allow byte changes but the release still pins the
-            # exact archived ContentObject used for this release.
             if approval_mode == "raw_sha256" and expected_raw_sha and not cfg.get("resources"):
                 if capture["sha256"] != expected_raw_sha:
                     raise ValueError(f"{source_key}: frozen raw capture SHA differs from approval")
@@ -147,27 +153,35 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
 
             prior = by_url.get(expected_url)
             if prior is not None and (
-                prior["sha256"] != capture["sha256"] or prior["byte_size"] != capture["byte_size"]
+                prior["capture"]["sha256"] != capture["sha256"]
+                or prior["capture"]["byte_size"] != capture["byte_size"]
             ):
                 raise ValueError("One frozen release cannot bind the same locator to conflicting bytes")
-            by_url[expected_url] = capture
+            by_url[expected_url] = {"capture": capture, "catalogue": catalogue}
     return by_url
 
 
 @contextmanager
 def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> Iterator[None]:
-    """Make legacy parser plumbing read only release-pinned archived ContentObjects.
+    """Make legacy parser plumbing read only fully verified release-pinned captures.
 
     This transitional adapter is process-local and intended for the existing serial
-    release worker.  Unknown URLs fail closed; there is deliberately no live fallback.
+    release worker. Unknown URLs fail closed; there is deliberately no live fallback.
+    Both capture provenance and original bytes are read back from the approved private
+    backend before the parser-facing path is created.
     """
     by_url = validate_release_manifest(manifest, config)
+    catalogue = CaptureCatalogue(store)
+    # Verify durable capture provenance for every selected release input up front.
+    for resource in by_url.values():
+        catalogue.verify_receipt(resource["capture"], resource["catalogue"])
     original = registry._download
 
     def archived_download(url: str, path: Path) -> str:
-        capture = by_url.get(url)
-        if capture is None:
+        resource = by_url.get(url)
+        if resource is None:
             raise RuntimeError(f"Frozen release has no archived capture for requested URL: {url}")
+        capture = resource["capture"]
         data = store.read_verified(capture)
         if len(data) != capture["byte_size"] or hashlib.sha256(data).hexdigest() != capture["sha256"]:
             raise ValueError("Archived release input failed size/SHA-256 verification")
