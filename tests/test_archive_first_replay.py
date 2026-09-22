@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from white_list_archive.acquisition.archive_first import archive_payload
+from white_list_archive.acquisition.archive_first import ArchivedCapture, archive_payload
 from white_list_archive.publishing import public_national_registry as registry
 from white_list_archive.publishing.frozen_release import (
     archived_downloads,
@@ -174,9 +174,10 @@ def test_catalogue_failure_keeps_recoverable_content_object_and_blocks_parser_bo
     assert len([key for key in client.objects if key.startswith("captures/")]) == 0
 
 
-def _release(config: dict, captures: dict[str, dict]) -> dict:
+def _release(config: dict, captures: dict[str, ArchivedCapture]) -> dict:
     sources = []
     for cfg in config["sources"]:
+        archived = captures[cfg["source_key"]]
         sources.append(
             {
                 "source_key": cfg["source_key"],
@@ -184,7 +185,13 @@ def _release(config: dict, captures: dict[str, dict]) -> dict:
                 "parser_revision": f"{cfg['parser']}@test-revision",
                 "projector_revision": "public-contract@test-revision",
                 "configuration_sha256": configuration_sha256(cfg),
-                "resources": [{"label": "primary", "capture": captures[cfg["source_key"]]}],
+                "resources": [
+                    {
+                        "label": "primary",
+                        "capture": archived.manifest,
+                        "catalogue": archived.catalogue_receipt,
+                    }
+                ],
             }
         )
     return {
@@ -236,7 +243,7 @@ def test_two_scope_release_replay_uses_archive_when_official_urls_are_unavailabl
             },
         ]
     }
-    release = _release(config, {"alpha-listed": alpha.manifest, "beta-applicants": beta.manifest})
+    release = _release(config, {"alpha-listed": alpha, "beta-applicants": beta})
     validate_release_manifest(release, config)
 
     # The existing release builder asks its _download helper for the official URL.
@@ -271,7 +278,7 @@ def test_release_replay_rejects_missing_or_corrupted_archived_input(tmp_path):
         "approval_mode": "raw_sha256",
     }
     config = {"sources": [cfg]}
-    release = _release(config, {"alpha-listed": archived.manifest})
+    release = _release(config, {"alpha-listed": archived})
 
     missing = deepcopy(release)
     missing["sources"] = []
@@ -282,3 +289,43 @@ def test_release_replay_rejects_missing_or_corrupted_archived_input(tmp_path):
     with archived_downloads(release, config, evidence):
         with pytest.raises(ValueError, match="Stored evidence"):
             registry._download(archived.manifest["resource_url"], tmp_path / "corrupt-replay.pdf")
+
+
+def test_release_replay_rejects_corrupted_or_missing_capture_provenance(tmp_path):
+    evidence = store()
+    archived = capture(
+        tmp_path / "capture",
+        evidence,
+        source_key="alpha-listed",
+        url="https://prefettura.example/alpha.pdf",
+        data=b"alpha pinned bytes",
+        capture_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    )
+    cfg = {
+        "source_key": "alpha-listed",
+        "parser": "alpha_parser",
+        "resource_url": archived.manifest["resource_url"],
+        "reference_date": "2026-09-22",
+        "sha256": archived.sha256,
+        "approval_mode": "raw_sha256",
+    }
+    config = {"sources": [cfg]}
+    release = _release(config, {"alpha-listed": archived})
+    key = archived.catalogue_receipt["catalogue_key"]
+
+    original = evidence.client.objects.pop(key)
+    with pytest.raises(KeyError):
+        with archived_downloads(release, config, evidence):
+            pass
+
+    evidence.client.objects[key] = b"{}"
+    with pytest.raises(ValueError, match="provenance digest"):
+        with archived_downloads(release, config, evidence):
+            pass
+
+    evidence.client.objects[key] = original
+    tampered = deepcopy(release)
+    tampered["sources"][0]["resources"][0]["catalogue"]["catalogue_record_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="provenance digest"):
+        with archived_downloads(tampered, config, evidence):
+            pass
