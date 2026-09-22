@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
+from white_list_archive.publishing.frozen_release import build_registry_from_release
 from white_list_archive.publishing.public_history import publish_history
 from white_list_archive.publishing.public_national_registry import (
     build_prefecture_index,
@@ -16,6 +17,7 @@ from white_list_archive.publishing.public_national_registry import (
     write_prefecture_csv,
     write_registry_csv,
 )
+from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
 
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
@@ -133,12 +135,11 @@ def _build_registry_with_network_retries(
     attempts: int = 3,
     sleep=time.sleep,
 ) -> dict:
-    """Retry only transient acquisition failures; semantic failures still fail fast.
+    """Legacy live-source builder retained only while archive migration is incomplete.
 
-    Each attempt starts from an empty work directory so a partially downloaded
-    source can never be reused as though it had passed the normal hash/parser
-    checks.  ``build_registry`` retains all existing source SHA-256, parsing and
-    public-contract validation behaviour.
+    New release promotion should use ``_build_registry_from_selected_inputs`` with a
+    frozen release manifest.  This function intentionally keeps its prior behaviour so
+    the last validated public release is not silently redefined during migration.
     """
     if attempts < 1:
         raise ValueError("attempts must be at least one")
@@ -159,6 +160,25 @@ def _build_registry_with_network_retries(
     raise AssertionError("unreachable")
 
 
+def _build_registry_from_selected_inputs(
+    config: dict,
+    work_dir: Path,
+    release_manifest_path: Path | None,
+) -> dict:
+    """Select live legacy mode or strict archive-backed release replay.
+
+    Archive mode has no source-network fallback.  Store configuration/credentials are
+    read only when an explicit frozen release is supplied.  Missing/corrupt selected
+    objects fail closed in ``EvidenceStore.read_verified``.
+    """
+    if release_manifest_path is None:
+        return _build_registry_with_network_retries(config, work_dir)
+    release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+    store_config = StoreConfig.from_env()
+    store = EvidenceStore(client_for(store_config), store_config)
+    return build_registry_from_release(config, work_dir, release_manifest, store)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build public national registry and Prefecture index with explicit source/canonical authority aliases"
@@ -172,6 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry-csv", type=Path, required=True)
     parser.add_argument("--prefectures-json", type=Path, required=True)
     parser.add_argument("--prefectures-csv", type=Path, required=True)
+    parser.add_argument(
+        "--release-manifest",
+        type=Path,
+        help="Frozen archive-backed release manifest. When supplied, source payloads are never fetched live.",
+    )
     args = parser.parse_args(argv)
 
     config = json.loads(args.source_config.read_text(encoding="utf-8"))
@@ -182,7 +207,11 @@ def main(argv: list[str] | None = None) -> int:
             args.authority_aliases,
             Path(tmp),
         )
-        registry = _build_registry_with_network_retries(config, args.work_dir)
+        registry = _build_registry_from_selected_inputs(
+            config,
+            args.work_dir,
+            args.release_manifest,
+        )
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
             verified,
@@ -219,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
                 "prefectures_in_national_index": prefectures["meta"]["authority_count"],
                 "mapped_prefectures": prefectures["meta"]["mapped_count"],
                 "published_prefectures": prefectures["meta"]["published_count"],
+                "source_mode": "archived_frozen_release" if args.release_manifest else "legacy_live_migration_mode",
             },
             ensure_ascii=False,
         )
