@@ -1,0 +1,38 @@
+name: Milano browser contract fix
+
+on:
+  push:
+    branches:
+      - fix/milano-source-drift-2026-09-21
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Align reviewed Milano application-date browser contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/public_portal_browser.cjs')
+          text = path.read_text(encoding='utf-8')
+          old = "assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-17'));"
+          new = "assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-21'));"
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected exactly one stale Milano max-application-date assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          git diff --check
+          git diff -- tests/public_portal_browser.cjs
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/public_portal_browser.cjs
+          git commit -m "Align Milano browser contract with reviewed source boundary"
+          git push origin HEAD:fix/milano-source-drift-2026-09-21
