@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Iterable
+from uuid import UUID
 
 try:
     import psycopg
@@ -29,6 +30,9 @@ POPULATION_SCOPE_TO_DB = {
     "applicant": ("applicant",),
     "listed_and_applicant": ("listed", "applicant"),
 }
+
+_EDITION_IDENTITY_STATUSES = {"explicit", "inferred", "unknown"}
+_SCOPE_COMPLETENESS = {"all", "partial", "unknown"}
 
 
 @dataclass(frozen=True)
@@ -185,8 +189,46 @@ def ensure_series(cur, authority_id, register_id, context: RegistryContext):
     return _fetchone_value(cur)
 
 
+def _parse_optional_date(value: Any, field: str) -> date | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a complete ISO date or unknown")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {field}") from exc
+
+
+def _edition_code_for_manifest(manifest: dict[str, Any]) -> tuple[str | None, bool]:
+    """Return edition identity without turning a locator/reference date into identity.
+
+    Historical Cosenza manifests pre-date explicit capture UUIDs and established the
+    reference-date edition_code convention. Keep that convention only for those
+    legacy manifests. Archive-first captures require an explicit edition_code before
+    an administrative SourceEdition is created.
+    """
+    explicit = manifest.get("edition_code")
+    if explicit not in (None, ""):
+        if not isinstance(explicit, str) or not explicit.strip():
+            raise ValueError("edition_code must be a non-blank string")
+        return explicit, False
+    if manifest.get("capture_id") not in (None, ""):
+        return None, False
+    legacy_reference = manifest.get("reference_date")
+    if legacy_reference in (None, ""):
+        return None, True
+    if not isinstance(legacy_reference, str):
+        raise ValueError("Legacy reference_date must be a complete ISO date")
+    _parse_optional_date(legacy_reference, "reference_date")
+    return legacy_reference, True
+
+
 def ensure_edition(cur, series_id, manifest: dict[str, Any], context: RegistryContext):
-    edition_code = manifest["reference_date"]
+    edition_code, legacy_date_identity = _edition_code_for_manifest(manifest)
+    if edition_code is None:
+        return None
+
     cur.execute(
         """
         SELECT edition_id FROM source.source_edition
@@ -198,7 +240,23 @@ def ensure_edition(cur, series_id, manifest: dict[str, Any], context: RegistryCo
     if row:
         edition_id = row[0]
     else:
-        ref = date.fromisoformat(edition_code)
+        reference = _parse_optional_date(manifest.get("reference_date"), "reference_date")
+        publication = _parse_optional_date(manifest.get("publication_date"), "publication_date")
+        identity_status = manifest.get("edition_identity_status", "explicit")
+        if identity_status not in _EDITION_IDENTITY_STATUSES:
+            raise ValueError("Unsupported edition_identity_status")
+        default_completeness = "all" if legacy_date_identity else "unknown"
+        population_completeness = manifest.get(
+            "population_scope_completeness", default_completeness
+        )
+        sector_completeness = manifest.get(
+            "sector_scope_completeness", default_completeness
+        )
+        if population_completeness not in _SCOPE_COMPLETENESS:
+            raise ValueError("Unsupported population_scope_completeness")
+        if sector_completeness not in _SCOPE_COMPLETENESS:
+            raise ValueError("Unsupported sector_scope_completeness")
+        reference_end = reference + timedelta(days=1) if reference is not None else None
         cur.execute(
             """
             INSERT INTO source.source_edition(
@@ -206,10 +264,24 @@ def ensure_edition(cur, series_id, manifest: dict[str, Any], context: RegistryCo
                 edition_identity_status_code,
                 population_scope_completeness_code,
                 sector_scope_completeness_code
-            ) VALUES (%s,%s,daterange(%s,%s,'[)'),NULL,'explicit','all','all')
+            ) VALUES (
+                %s,%s,
+                CASE WHEN %s::date IS NULL THEN NULL ELSE daterange(%s::date,%s::date,'[)') END,
+                %s,%s,%s,%s
+            )
             RETURNING edition_id
             """,
-            (series_id, edition_code, ref, ref + timedelta(days=1)),
+            (
+                series_id,
+                edition_code,
+                reference,
+                reference,
+                reference_end,
+                publication,
+                identity_status,
+                population_completeness,
+                sector_completeness,
+            ),
         )
         edition_id = _fetchone_value(cur)
 
@@ -293,8 +365,113 @@ def _parse_last_modified(value: str | None):
     return parsedate_to_datetime(value)
 
 
+def _parse_captured_at(value: Any) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError("captured_at must be an ISO timestamp with timezone")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("Invalid captured_at") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("captured_at requires an explicit timezone")
+    return parsed
+
+
+def _canonical_capture_uuid(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    if not isinstance(value, str):
+        raise ValueError("capture_id must be a canonical UUID string")
+    try:
+        parsed = UUID(value)
+    except ValueError as exc:
+        raise ValueError("capture_id must be a canonical UUID string") from exc
+    canonical = str(parsed)
+    if canonical != value:
+        raise ValueError("capture_id must be a canonical UUID string")
+    return canonical
+
+
+def _capture_evidence_fields(manifest: dict[str, Any], *, archive_first: bool) -> tuple[str, str]:
+    origin_type = manifest.get("origin_type")
+    authority_rank = manifest.get("authority_rank_code")
+    if archive_first:
+        if not isinstance(origin_type, str) or not origin_type.strip():
+            raise ValueError("archive-first capture persistence requires explicit origin_type")
+        if not isinstance(authority_rank, str) or not authority_rank.strip():
+            raise ValueError("archive-first capture persistence requires explicit authority_rank_code")
+        return origin_type, authority_rank
+    if not isinstance(origin_type, str) or not origin_type.strip():
+        raise ValueError("legacy capture manifest requires origin_type")
+    return origin_type, "primary_official"
+
+
 def ensure_capture(cur, resource_id, content_object_id, manifest: dict[str, Any]):
-    captured_at = datetime.fromisoformat(manifest["captured_at"])
+    captured_at = _parse_captured_at(manifest["captured_at"])
+    declared_reference_date = _parse_optional_date(
+        manifest.get("reference_date"), "reference_date"
+    )
+    explicit_capture_id = _canonical_capture_uuid(manifest.get("capture_id"))
+    origin_type, authority_rank = _capture_evidence_fields(
+        manifest, archive_first=explicit_capture_id is not None
+    )
+    resolved_url = manifest.get("resolved_url", manifest.get("final_url"))
+    last_modified = _parse_last_modified(manifest.get("last_modified"))
+    http_status = manifest.get("http_status")
+
+    if explicit_capture_id is not None:
+        cur.execute(
+            """
+            SELECT resource_id, content_object_id, captured_at, http_status,
+                   origin_type_code, authority_rank_code, resolved_url, etag,
+                   last_modified, declared_reference_date
+            FROM source.source_capture WHERE capture_id=%s
+            """,
+            (explicit_capture_id,),
+        )
+        row = cur.fetchone()
+        expected = (
+            resource_id,
+            content_object_id,
+            captured_at,
+            http_status,
+            origin_type,
+            authority_rank,
+            resolved_url,
+            manifest.get("etag"),
+            last_modified,
+            declared_reference_date,
+        )
+        if row:
+            if tuple(row) != expected:
+                raise ValueError("Existing capture_id conflicts with immutable capture provenance")
+            return explicit_capture_id
+        cur.execute(
+            """
+            INSERT INTO source.source_capture(
+                capture_id, resource_id, content_object_id, captured_at, http_status,
+                origin_type_code, authority_rank_code,
+                resolved_url, etag, last_modified, declared_reference_date
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING capture_id
+            """,
+            (
+                explicit_capture_id,
+                resource_id,
+                content_object_id,
+                captured_at,
+                http_status,
+                origin_type,
+                authority_rank,
+                resolved_url,
+                manifest.get("etag"),
+                last_modified,
+                declared_reference_date,
+            ),
+        )
+        return _fetchone_value(cur)
+
+    # Compatibility path for manifests created before archive-first capture UUIDs.
     cur.execute(
         """
         SELECT capture_id FROM source.source_capture
@@ -310,25 +487,29 @@ def ensure_capture(cur, resource_id, content_object_id, manifest: dict[str, Any]
         INSERT INTO source.source_capture(
             resource_id, content_object_id, captured_at, http_status,
             origin_type_code, authority_rank_code,
-            resolved_url, etag, last_modified
-        ) VALUES (%s,%s,%s,%s,%s,'primary_official',%s,%s,%s)
+            resolved_url, etag, last_modified, declared_reference_date
+        ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING capture_id
         """,
         (
             resource_id,
             content_object_id,
             captured_at,
-            manifest["http_status"],
-            manifest["origin_type"],
-            manifest.get("final_url"),
+            http_status,
+            origin_type,
+            authority_rank,
+            resolved_url,
             manifest.get("etag"),
-            _parse_last_modified(manifest.get("last_modified")),
+            last_modified,
+            declared_reference_date,
         ),
     )
     return _fetchone_value(cur)
 
 
 def ensure_capture_edition(cur, capture_id, edition_id):
+    if edition_id is None:
+        return
     cur.execute(
         """
         INSERT INTO source.capture_edition(
@@ -363,7 +544,7 @@ def ensure_schema_version(cur, series_id, manifest: dict[str, Any]):
         )
         source_schema_id = _fetchone_value(cur)
 
-    observed = datetime.fromisoformat(manifest["captured_at"])
+    observed = _parse_captured_at(manifest["captured_at"])
     fingerprint = manifest["schema_fingerprint"]
     cur.execute(
         """
@@ -404,7 +585,7 @@ def persist_manifest(
     manifest: dict[str, Any],
     authority_csv: Path,
     series_csv: Path,
-) -> dict[str, str]:
+) -> dict[str, str | None]:
     context = load_context(manifest, authority_csv, series_csv)
     with conn.cursor() as cur:
         authority_id = ensure_authority(cur, context)
@@ -420,7 +601,7 @@ def persist_manifest(
         "authority_id": str(authority_id),
         "register_id": str(register_id),
         "series_id": str(series_id),
-        "edition_id": str(edition_id),
+        "edition_id": str(edition_id) if edition_id is not None else None,
         "resource_id": str(resource_id),
         "content_object_id": str(content_object_id),
         "capture_id": str(capture_id),
@@ -433,7 +614,7 @@ def persist_paths(
     manifest_paths: Iterable[Path],
     authority_csv: Path,
     series_csv: Path,
-) -> list[dict[str, str]]:
+) -> list[dict[str, str | None]]:
     if psycopg is None:
         raise RuntimeError("psycopg is required; install the 'database' extra") from _IMPORT_ERROR
     with psycopg.connect(dsn) as conn:
