@@ -101,6 +101,14 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d"
+    },
+    {
+      "authority_key": "potenza",
+      "at": "2026-09-22T12:37:02Z",
+      "evidence": "docs/sources/potenza-operational-check-2026-09-15.md",
+      "error": null,
+      "content_changed": true,
+      "content_sha256": "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a"
     }
   ],
   "prefectures": [
@@ -3608,13 +3616,13 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-21",
+      "latest_source_reference_date": "2026-09-22",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-21T15:13:27Z",
-      "last_attempted_source_check_at": "2026-09-21T15:13:27Z",
-      "last_content_change_at": "2026-09-21T15:13:27Z",
-      "last_successful_investigation_on": "2026-09-21",
+      "last_successful_source_check_at": "2026-09-22T12:37:02Z",
+      "last_attempted_source_check_at": "2026-09-22T12:37:02Z",
+      "last_content_change_at": "2026-09-22T12:37:02Z",
+      "last_successful_investigation_on": "2026-09-22",
       "monitoring_status": "CURRENT",
       "unresolved_issue": [
         "The combined list response does not expose per-company statutory sections; requested activities remain empty pending positive evidence from the official child section view rather than inference.",
@@ -3634,7 +3642,8 @@
         "24fbb61f7ae028a0a2fee8d7d4c89d42ceefdf18fc6d69298a1df0549b78c820",
         "cb3a1816dbe54bb0a1260a63e326385bcc435e52d8928a775f7c5bc259655d30",
         "aeac0b690c28fa84d317d52d79382b4b9e51de9a4c7cbfef2a841bd9a7aa1d6a",
-        "53b1792ff14c6dd99013bee525fd8064667ec25742fd9ee12a52fe258e7c82ca"
+        "53b1792ff14c6dd99013bee525fd8064667ec25742fd9ee12a52fe258e7c82ca",
+        "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
@@ -3644,7 +3653,8 @@
       ],
       "last_completed_coverage_stage": "VALIDATED",
       "observed_source_hashes": [
-        "44a242d7fa8c3e7af0b5df779430a20e7ab61939aaca9cd5ac005025ddf07420"
+        "44a242d7fa8c3e7af0b5df779430a20e7ab61939aaca9cd5ac005025ddf07420",
+        "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a"
       ]
     },
     {

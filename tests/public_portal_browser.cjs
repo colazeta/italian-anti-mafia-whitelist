@@ -616,7 +616,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const potenza=registry.records.filter(r=>r.authority_key==='potenza');
       assert.equal(potenza.length,1036);
       assert.equal(potenza.filter(r=>r.source_key==='potenza-combined').length,1036);
-      assert.deepEqual(statusCounts(potenza),{listed:214,pending:378,renewal_update_in_progress:444});
+      assert.deepEqual(statusCounts(potenza),{listed:212,pending:378,renewal_update_in_progress:446});
       assert.equal(new Set(potenza.map(r=>r.record_locator)).size,1036);
       assert.equal(potenza.filter(r=>r.identifiers.length>0).length,1035);
       assert.equal(potenza.filter(r=>r.identifier_field_raw&&r.identifiers.length===0).length,1);
@@ -654,6 +654,16 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(duec[0].identifier_field_raw,'01643430760');
       assert.equal(duec[0].source_status,'renewal_update_in_progress');
       assert.equal(duec[0].source_fields.in_aggiornamento,'1');
+      const eurocomes=potenza.filter(r=>r.source_fields.physical_locator==='source-id:715');
+      assert.equal(eurocomes.length,1);
+      assert.equal(eurocomes[0].name,"L'EUROCOMES S.R.L.");
+      assert.equal(eurocomes[0].source_status,'renewal_update_in_progress');
+      assert.equal(eurocomes[0].source_fields.in_aggiornamento,'1');
+      const margherita=potenza.filter(r=>r.source_fields.physical_locator==='source-id:884');
+      assert.equal(margherita.length,1);
+      assert.equal(margherita[0].name,'MARGHERITA S.R.L.');
+      assert.equal(margherita[0].source_status,'renewal_update_in_progress');
+      assert.equal(margherita[0].source_fields.in_aggiornamento,'1');
       const scavone=potenza.filter(r=>r.source_fields.physical_locator==='source-id:656');
       assert.equal(scavone.length,1);
       assert.equal(scavone[0].name,'SCAVONE & C. S.R.L.');
