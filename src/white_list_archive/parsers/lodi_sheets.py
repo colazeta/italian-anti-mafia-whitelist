@@ -10,16 +10,17 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "3"
-_REFERENCE_DATE = "2026-09-18"
+PARSER_VERSION = "5"
+_LISTED_REFERENCE_DATE = "2026-09-18"
+_APPLICANT_REFERENCE_DATE = "2026-09-21"
 _LISTED_SHA256 = "a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e"
-_APPLICANT_SHA256 = "55aeab7e809cb90cc1ebd1ad9c1f08db78e91648a2c2e1a2b603188c77846228"
+_APPLICANT_SHA256 = "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16"
 
 _LISTED_PHYSICAL_ROWS = 324
 _LISTED_SOURCE_ROWS = 291
 _LISTED_RECORDS = 169
-_APPLICANT_PHYSICAL_ROWS = 8
-_APPLICANT_RECORDS = 4
+_APPLICANT_PHYSICAL_ROWS = 10
+_APPLICANT_RECORDS = 6
 
 _EXPECTED_SECTION_ROWS = {
     "I": 44,
@@ -44,7 +45,7 @@ _EXPECTED_LISTED_STATUS_COUNTS = {
 _EXPECTED_GROUP_OCCURRENCES = {1: 108, 2: 32, 3: 14, 4: 5, 5: 6, 6: 2, 7: 1, 8: 1}
 _EXPECTED_APPLICANT_STATUS_COUNTS = {
     "rejected_or_denied": 2,
-    "pending": 2,
+    "pending": 4,
 }
 
 _LISTED_SECTION_ROWS = {
@@ -144,12 +145,13 @@ def _validate_cfg(
     source_key: str,
     population_scope: str,
     sha256: str,
+    reference_date: str,
 ) -> None:
     expected = {
         "source_key": source_key,
         "authority_key": "lodi",
         "population_scope": population_scope,
-        "reference_date": _REFERENCE_DATE,
+        "reference_date": reference_date,
         "sha256": sha256,
     }
     for key, value in expected.items():
@@ -264,6 +266,7 @@ def parse_lodi_listed(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         source_key="lodi-listed",
         population_scope="listed",
         sha256=_LISTED_SHA256,
+        reference_date=_LISTED_REFERENCE_DATE,
     )
     if _sha256(path) != _LISTED_SHA256:
         raise RuntimeError("Lodi listed source bytes drift from approved SHA-256")
@@ -374,6 +377,7 @@ def parse_lodi_applicants(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
         source_key="lodi-applicants",
         population_scope="applicant",
         sha256=_APPLICANT_SHA256,
+        reference_date=_APPLICANT_REFERENCE_DATE,
     )
     if _sha256(path) != _APPLICANT_SHA256:
         raise RuntimeError("Lodi applicant source bytes drift from approved SHA-256")
