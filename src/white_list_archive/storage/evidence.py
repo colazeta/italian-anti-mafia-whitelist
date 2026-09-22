@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 import os
@@ -45,6 +45,55 @@ def object_key(manifest):
         raise ValueError("Invalid byte size")
     # Byte identity must not depend on a filename or a potentially changing MIME label.
     return f"sha256/{digest[:2]}/{digest}"
+
+
+
+def freeze_capture_manifest(manifest: dict) -> dict:
+    """Validate and snapshot provenance before any external storage operation.
+
+    This checks metadata structure, not the truth of a reported source date.
+    Unknown reference dates stay unknown. JSON copying also freezes nested
+    metadata so a caller mutation cannot relabel an in-flight archive receipt.
+    """
+    try:
+        snapshot = json.loads(json.dumps(manifest, sort_keys=True,
+                                        separators=(",", ":"), allow_nan=False))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Capture manifest must contain finite JSON values") from exc
+    if not isinstance(snapshot, dict):
+        raise ValueError("Capture manifest must be a mapping")
+    required = {"sha256", "byte_size", "content_type", "resource_url",
+                "captured_at", "reference_date"}
+    if required - snapshot.keys():
+        raise ValueError("Capture manifest is missing required provenance fields")
+    object_key(snapshot)
+    captured_at = snapshot["captured_at"]
+    if not isinstance(captured_at, str):
+        raise ValueError("Capture timestamp must be an ISO timestamp with timezone")
+    try:
+        captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("Invalid capture timestamp") from exc
+    if captured.tzinfo is None or captured.utcoffset() is None:
+        raise ValueError("Capture timestamp requires an explicit timezone")
+    reference = snapshot["reference_date"]
+    if reference is not None and reference != "":
+        if not isinstance(reference, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", reference):
+            raise ValueError("Reference date must be a complete ISO date or unknown")
+        try:
+            date.fromisoformat(reference)
+        except ValueError as exc:
+            raise ValueError("Invalid reference date") from exc
+    url = snapshot["resource_url"]
+    if not isinstance(url, str) or any(ord(c) < 32 or ord(c) == 127 for c in url):
+        raise ValueError("Invalid source resource URL")
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.password is not None:
+        raise ValueError("Source resource URL must be HTTPS without credentials")
+    mime = snapshot["content_type"]
+    if not isinstance(mime, str) or not mime.strip() or any(ord(c) < 32 or ord(c) == 127 for c in mime):
+        raise ValueError("Invalid capture content type")
+    return snapshot
 
 
 def public_store_verification_receipt(receipts: list[dict]) -> dict:
@@ -95,6 +144,8 @@ class EvidenceStore:
         self.client, self.config = client, config
 
     def read_verified(self, manifest) -> bytes:
+        # Pin scalar identity before calling external transport code.
+        manifest = dict(manifest)
         key = object_key(manifest)
         response = self.client.get_object(Bucket=self.config.bucket, Key=key)
         stream = response["Body"]
@@ -107,6 +158,7 @@ class EvidenceStore:
         return data
 
     def archive(self, path: Path, manifest: dict) -> dict:
+        manifest = freeze_capture_manifest(manifest)
         key = object_key(manifest)
         # Buffer the verified bytes once: a changing local file cannot change the upload.
         with path.open("rb") as f:
@@ -144,6 +196,7 @@ class EvidenceStore:
 
     def promote(self, conn, manifest: dict) -> None:
         """Caller owns the transaction. Only update an already linked ContentObject."""
+        manifest = freeze_capture_manifest(manifest)
         uri = f"{self.config.endpoint.rstrip('/')}/{self.config.bucket}/{object_key(manifest)}"
         with conn.cursor() as cur:
             cur.execute("""SELECT content_object_id, file_size, mime_type, storage_uri, storage_status_code
