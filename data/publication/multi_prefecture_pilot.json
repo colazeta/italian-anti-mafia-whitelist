@@ -2513,6 +2513,42 @@
       "expected_source_rows": 18,
       "last_source_update_basis": "current official mutable resource observed, repeat-fetched and byte-pinned on 21 September 2026; resource path date is not treated as a legal/publication date",
       "notes": "18 source-positive applicant observations, all pending and all with structured identifiers."
+    },
+    {
+      "source_key": "prato-listed",
+      "parser": "prato_openxml_listed",
+      "authority_key": "prato",
+      "authority_name": "Prefettura di Prato",
+      "register_key": "prato-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-iscritte",
+      "last_source_update": "2026-09-21",
+      "approval_mode": "raw_sha256",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/78/2026-09/white_list_iscritti-21-09-2026.xlsx",
+      "sha256": "f3d5644d57f9162d35de7f7f972deecda969824324d1b82c3cb3c21cac99c540",
+      "expected_source_rows": 137,
+      "last_source_update_basis": "dated official XLSX directly repeat-fetched and byte-pinned 22 September 2026",
+      "notes": "Ten official section sheets contain 236 physical company-by-section rows grouped conservatively into 137 exact logical observations; 123 listed and 14 renewal/update in progress; all 137 have structured identifiers."
+    },
+    {
+      "source_key": "prato-applicants",
+      "parser": "prato_legacy_applicants",
+      "authority_key": "prato",
+      "authority_name": "Prefettura di Prato",
+      "register_key": "prato-ordinary",
+      "register_name": "White List ordinaria",
+      "reference_date": "2026-09-21",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-richiedenti-iscrizione",
+      "last_source_update": "2026-09-21",
+      "approval_mode": "raw_sha256",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/78/2026-09/elenco-imprese-richiedenti-iscrizione-21-09-2026.doc",
+      "sha256": "cbf5c84522db544adb495272ebe170d105d35a9131e1853396b0584b7865a27d",
+      "expected_source_rows": 23,
+      "last_source_update_basis": "dated official legacy Word attachment directly repeat-fetched and byte-pinned 22 September 2026",
+      "notes": "Source-positive applicant series: 23 exact seven-field observations, all with valid application dates and structured identifiers; blank Esito is preserved and applicant status maps to pending solely from the official population label."
     }
   ]
 }
