@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 
 from white_list_archive.publishing.frozen_release import build_registry_from_release
+from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_history import publish_history
 from white_list_archive.publishing.public_national_registry import (
     build_prefecture_index,
@@ -78,10 +79,10 @@ def _alias_inputs(
 def _alias_publication_config(config: dict, aliases: Path) -> dict:
     """Add national-index authority-key views for index publication status only.
 
-    The registry itself remains keyed to the canonical project authority.  The
+    The registry itself remains keyed to the canonical project authority. The
     national index, however, derives authority keys from Ministry URLs, which
     can legitimately differ (for example ``pesaro-urbino`` versus the canonical
-    ``pesaro-e-urbino``).  Duplicate source views here let the Prefecture index
+    ``pesaro-e-urbino``). Duplicate source views here let the Prefecture index
     recognise an already-published canonical source without changing registry
     identity or source provenance.
     """
@@ -102,14 +103,7 @@ def _alias_publication_config(config: dict, aliases: Path) -> dict:
 
 
 def _canonicalise_prefecture_authority_keys(prefectures: dict, aliases: Path) -> dict:
-    """Return the public directory with project-canonical authority identities.
-
-    Ministry URL slugs are discovery identities, not canonical project keys.
-    Once the alias has been explicitly evidenced, the directory must expose the
-    same authority key as the public registry so aggregate and row identities
-    cannot silently diverge.  Jurisdiction labels and official URLs are kept
-    unchanged.
-    """
+    """Return the public directory with project-canonical authority identities."""
     alias_map = {
         row["national_index_key"]: row["catalog_authority_key"]
         for row in _read_rows(aliases)
@@ -128,6 +122,52 @@ def _canonicalise_prefecture_authority_keys(prefectures: dict, aliases: Path) ->
     return {**prefectures, "prefectures": rows}
 
 
+def _restore_declared_parser_revisions(registry: dict, config: dict, work_dir: Path) -> dict:
+    """Prevent the legacy generic publication adapter from erasing parser revisions.
+
+    Modern parsers already expose their own ``parser_version`` in diagnostics. The
+    legacy registry adapter historically rewrote records to a generic 1/2 value.
+    Until that large adapter is decomposed, the serial release builder restores the
+    parser-declared revision before history/publication and fails on identity drift.
+    Parsers without a declared diagnostics revision keep their established legacy
+    value; no revision is guessed.
+    """
+    source_config = {item["source_key"]: item for item in config["sources"]}
+    if len(source_config) != len(config["sources"]):
+        raise RuntimeError("Publication config contains duplicate source_key")
+    declared: dict[str, str] = {}
+    for source_key, cfg in source_config.items():
+        path = work_dir / f"{source_key}.diagnostics.json"
+        if not path.exists():
+            raise RuntimeError(f"{source_key}: parser diagnostics missing after registry build")
+        diagnostics = json.loads(path.read_text(encoding="utf-8"))
+        if diagnostics.get("parser") not in (None, cfg["parser"]):
+            raise RuntimeError(f"{source_key}: parser diagnostics identify another parser")
+        version = diagnostics.get("parser_version")
+        if version is None:
+            continue
+        if not isinstance(version, (str, int)) or not str(version).strip():
+            raise RuntimeError(f"{source_key}: invalid parser_version in diagnostics")
+        declared[source_key] = str(version)
+
+    seen: set[str] = set()
+    for record in registry["records"]:
+        source_key = record["source_key"]
+        cfg = source_config.get(source_key)
+        if cfg is None:
+            raise RuntimeError(f"Registry contains unconfigured source_key: {source_key}")
+        if record.get("parser_name") != cfg["parser"]:
+            raise RuntimeError(f"{source_key}: public record parser identity drift")
+        if source_key in declared:
+            record["parser_version"] = declared[source_key]
+        seen.add(source_key)
+    if seen != set(source_config):
+        missing = sorted(set(source_config) - seen)
+        raise RuntimeError(f"Configured source produced no public records: {missing!r}")
+    validate_registry(registry)
+    return registry
+
+
 def _build_registry_with_network_retries(
     config: dict,
     work_dir: Path,
@@ -138,7 +178,7 @@ def _build_registry_with_network_retries(
     """Legacy live-source builder retained only while archive migration is incomplete.
 
     New release promotion should use ``_build_registry_from_selected_inputs`` with a
-    frozen release manifest.  This function intentionally keeps its prior behaviour so
+    frozen release manifest. This function intentionally keeps its prior behaviour so
     the last validated public release is not silently redefined during migration.
     """
     if attempts < 1:
@@ -167,16 +207,18 @@ def _build_registry_from_selected_inputs(
 ) -> dict:
     """Select live legacy mode or strict archive-backed release replay.
 
-    Archive mode has no source-network fallback.  Store configuration/credentials are
-    read only when an explicit frozen release is supplied.  Missing/corrupt selected
+    Archive mode has no source-network fallback. Store configuration/credentials are
+    read only when an explicit frozen release is supplied. Missing/corrupt selected
     objects fail closed in ``EvidenceStore.read_verified``.
     """
     if release_manifest_path is None:
-        return _build_registry_with_network_retries(config, work_dir)
-    release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
-    store_config = StoreConfig.from_env()
-    store = EvidenceStore(client_for(store_config), store_config)
-    return build_registry_from_release(config, work_dir, release_manifest, store)
+        registry = _build_registry_with_network_retries(config, work_dir)
+    else:
+        release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+        store_config = StoreConfig.from_env()
+        store = EvidenceStore(client_for(store_config), store_config)
+        registry = build_registry_from_release(config, work_dir, release_manifest, store)
+    return _restore_declared_parser_revisions(registry, config, work_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
