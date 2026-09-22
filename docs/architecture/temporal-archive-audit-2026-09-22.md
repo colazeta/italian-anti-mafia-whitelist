@@ -37,8 +37,10 @@ writes, and used the caller's mutable manifest throughout transport. Valid bytes
 could therefore be uploaded without a usable capture receipt, or a receipt could
 be relabelled by a concurrent caller metadata change.
 
-The adapter now validates and snapshots JSON capture provenance before upload
-and database promotion. Capture timestamps require a timezone; complete stated
+The adapter now validates and snapshots JSON capture provenance before upload.
+Database promotion and readback pin ContentObject metadata while retaining the
+existing minimal-object API; they do not require fabricated capture fields.
+Capture timestamps require a timezone; complete stated
 reference dates are validated without replacing unknown dates. Source URLs must
 be HTTPS without embedded credentials; content types reject control characters.
 Readback pins scalar byte identity before invoking transport. Existing keys,
@@ -53,13 +55,22 @@ identity `e5c57b7fcf30314bad64a697bf29489f0d2d8800`. The existing test module wa
 also checked against blob `82a973734a22b6a277f138d43497e252f658db16`.
 
 Before the correction, the new synthetic temporal suite produced **11 failures
-and 14 passes**. After the correction, the new suite and the unchanged existing
+and 14 passes**. After the initial correction, the new suite and the unchanged existing
 storage tests produced **38 passes** locally:
 
 ```sh
 PYTHONPATH=src python -m pytest -q \
   tests/test_evidence_store.py tests/test_evidence_temporal_regressions.py
 ```
+
+The first exact-head CI run (`35765210879`) passed the repository Python tests,
+database integrity, capture persistence and parsed-record persistence, but its
+separate PostgreSQL promotion check exposed an API compatibility error: promotion
+accepts minimal ContentObject metadata, not a complete capture manifest. A new
+regression reproduced that failure. The implementation now retains the minimal
+promotion contract without changing the existing integration test or inventing
+capture metadata. The final focused suite contains **39 passing tests**.
+Exact-head CI for this amended revision must still be verified separately.
 
 These are application-level tests with protocol doubles and Boto3 Stubber. They
 are not live R2, database, full national, deployment or independent restore tests.

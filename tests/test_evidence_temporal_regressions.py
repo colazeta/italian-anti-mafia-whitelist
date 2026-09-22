@@ -250,3 +250,25 @@ def test_capture_receipt_is_bound_to_preupload_metadata(tmp_path, backend, monke
     assert receipt["captured_at"] == original["captured_at"]
     assert receipt["manifest_sha256"] == expected_hash
     assert store.read_verified(original) == data
+
+
+def test_promotion_preserves_minimal_content_object_contract(tmp_path, backend):
+    from unittest.mock import Mock
+    store, client = backend
+    data = b"already linked content object"
+    full_capture = capture(data)
+    receipt = archive(tmp_path, store, data, full_capture)
+    content = {key: full_capture[key] for key in ("sha256", "byte_size", "content_type")}
+    cursor = Mock()
+    connection = Mock()
+    connection.cursor.return_value.__enter__ = Mock(return_value=cursor)
+    connection.cursor.return_value.__exit__ = Mock(return_value=False)
+    cursor.fetchone.return_value = (
+        "existing-id", len(data), "text/html", "artifact:old", "ephemeral",
+    )
+    # Promotion updates an existing ContentObject, not its capture provenance.
+    # Do not invent capture dates or URLs to satisfy a different layer's schema.
+    store.promote(connection, content)
+    assert cursor.execute.call_args.args[1] == (receipt["storage_uri"], "existing-id")
+    assert set(content) == {"sha256", "byte_size", "content_type"}
+    assert len(client.objects) == 1

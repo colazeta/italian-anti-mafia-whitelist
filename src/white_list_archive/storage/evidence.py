@@ -196,7 +196,9 @@ class EvidenceStore:
 
     def promote(self, conn, manifest: dict) -> None:
         """Caller owns the transaction. Only update an already linked ContentObject."""
-        manifest = freeze_capture_manifest(manifest)
+        # This API accepts ContentObject metadata, not a complete capture manifest.
+        # Snapshot its scalar identity without inventing capture dates or URLs.
+        manifest = dict(manifest)
         uri = f"{self.config.endpoint.rstrip('/')}/{self.config.bucket}/{object_key(manifest)}"
         with conn.cursor() as cur:
             cur.execute("""SELECT content_object_id, file_size, mime_type, storage_uri, storage_status_code
