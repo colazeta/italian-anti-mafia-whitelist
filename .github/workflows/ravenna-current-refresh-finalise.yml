@@ -1,0 +1,334 @@
+name: Ravenna current source refresh finaliser
+
+on:
+  push:
+    branches: [expansion/ravenna-2026-09-20]
+    paths: ['.github/workflows/ravenna-current-refresh-finalise.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ravenna-current-source-refresh-finaliser
+  cancel-in-progress: false
+
+jobs:
+  finalise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expansion/ravenna-2026-09-20
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare publication runtime
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep $((attempt * 3))
+          done
+          python -m pip install --disable-pip-version-check -e '.[publication]' pytest requests
+      - name: Rebase, refresh, validate and promote Ravenna
+        env:
+          BRANCH: expansion/ravenna-2026-09-20
+          NEW_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_18sett26.pdf
+          NEW_SHA: 0ce84f5b90d8f820318c1acdc4cd082ee29ce671134e6e2c62dd19aed8ad4d4a
+          LANDING: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
+        run: |
+          set -euo pipefail
+          TRANSACTIONAL_SHA="$GITHUB_SHA"
+          git fetch origin main
+          BASE_SHA="$(git rev-parse origin/main)"
+          REMOTE_SHA="$(git ls-remote origin refs/heads/$BRANCH | awk '{print $1}')"
+          test "$REMOTE_SHA" = "$TRANSACTIONAL_SHA"
+          echo "transactional_sha=$TRANSACTIONAL_SHA"
+          echo "base_sha=$BASE_SHA"
+
+          git reset --hard origin/main
+          git clean -fd
+
+          python - <<'PY'
+          from __future__ import annotations
+          import csv, hashlib, json, os, re, time
+          from pathlib import Path
+          import requests
+
+          ROOT = Path('.')
+          LANDING = os.environ['LANDING']
+          NEW_URL = os.environ['NEW_URL']
+          NEW_SHA = os.environ['NEW_SHA']
+          OLD_SHA = '8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555'
+          NEW_DOC = 'docs/sources/ravenna-operational-check-2026-09-22.md'
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{label}: expected one anchor, found {count}')
+              return text.replace(old, new, 1)
+
+          # Fresh positive evidence: current landing must expose the reviewed attachment.
+          session = requests.Session()
+          headers = {'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0)','Cache-Control':'no-cache','Pragma':'no-cache'}
+          landing = session.get(LANDING, headers=headers, timeout=(20,60))
+          if landing.status_code != 200 or NEW_URL not in landing.text:
+              raise RuntimeError(f'Ravenna landing verification failed: HTTP {landing.status_code}; current attachment not positively exposed')
+          receipts=[]
+          payload=None
+          for attempt in (1,2):
+              r=session.get(NEW_URL, headers=headers, timeout=(20,90))
+              if r.status_code != 200 or not r.content.startswith(b'%PDF'):
+                  raise RuntimeError(f'Ravenna current PDF fetch {attempt} invalid: HTTP {r.status_code}')
+              digest=hashlib.sha256(r.content).hexdigest()
+              receipts.append((len(r.content),digest))
+              if digest != NEW_SHA:
+                  raise RuntimeError(f'Ravenna current PDF digest drift: expected {NEW_SHA}, got {digest}')
+              payload=r.content
+              time.sleep(1)
+          if receipts[0] != receipts[1]:
+              raise RuntimeError(f'Ravenna independent fetches not byte-identical: {receipts!r}')
+          Path('/tmp/ravenna-current.pdf').write_bytes(payload or b'')
+          print('Ravenna source verified:', receipts)
+
+          # Parser v2: bind exactly the current 18 September source boundary.
+          parser_path=ROOT/'src/white_list_archive/parsers/ravenna_combined.py'
+          text=parser_path.read_text(encoding='utf-8')
+          text=replace_once(text,'PARSER_VERSION = "1"','PARSER_VERSION = "2"','parser version')
+          text=replace_once(text,'SOURCE_URL = "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf"',f'SOURCE_URL = "{NEW_URL}"','parser source URL')
+          text=replace_once(text,f'EXPECTED_SHA256 = "{OLD_SHA}"',f'EXPECTED_SHA256 = "{NEW_SHA}"','parser digest')
+          text=replace_once(text,'_EXPECTED_ROWS = 706','_EXPECTED_ROWS = 703','parser row denominator')
+          old_pages='''_EXPECTED_PAGE_ROWS = [\n    22, 24, 26, 24, 24, 23, 23, 24, 25, 25,\n    25, 25, 26, 26, 24, 24, 26, 25, 26, 25,\n    26, 24, 24, 25, 26, 26, 25, 26, 12,\n]'''
+          new_pages='''_EXPECTED_PAGE_ROWS = [\n    22, 24, 26, 24, 24, 23, 23, 24, 25, 25,\n    25, 26, 25, 25, 24, 24, 25, 25, 25, 25,\n    26, 24, 24, 24, 26, 25, 25, 25, 15,\n]'''
+          text=replace_once(text,old_pages,new_pages,'parser page denominators')
+          old_status='''_EXPECTED_STATUSES = Counter({\n    "listed": 430,\n    "renewal_update_in_progress": 212,\n    "pending": 63,\n    "other_or_unknown": 1,\n})'''
+          new_status='''_EXPECTED_STATUSES = Counter({\n    "listed": 467,\n    "renewal_update_in_progress": 188,\n    "pending": 47,\n    "other_or_unknown": 1,\n})'''
+          text=replace_once(text,old_status,new_status,'parser statuses')
+          text=replace_once(text,'_EXPECTED_IDENTIFIER_COVERAGE = 692','_EXPECTED_IDENTIFIER_COVERAGE = 689','parser identifier coverage')
+          text=replace_once(text,'_REVIEWED_1199_NAME = "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."\n','', 'obsolete repair constant')
+          start=text.index('def _repair_reviewed_extraction(')
+          end=text.index('\ndef _record_from_cells(', start)
+          text=text[:start]+text[end+1:]
+          start=text.index('    if progressive == "1199":')
+          end=text.index('    record = _record(', start)
+          text=text[:start]+text[end:]
+          text=replace_once(text,
+              '            repaired = _repair_reviewed_extraction(page_number, data_rows)\n            rows.extend(repaired)\n            progressives.extend(row[0] for row in repaired)',
+              '            rows.extend(data_rows)\n            progressives.extend(row[0] for row in data_rows)',
+              'obsolete extraction repair call')
+          parser_path.write_text(text,encoding='utf-8')
+
+          # Focused semantic tests: current row 1199 is directly represented by the table.
+          test_path=ROOT/'tests/test_ravenna_parser_semantics.py'
+          text=test_path.read_text(encoding='utf-8')
+          text=replace_once(text,'    _repair_reviewed_extraction,\n','', 'test obsolete repair import')
+          text=replace_once(text,'"reference_date": "2026-09-17"','"reference_date": "2026-09-18"','test reference date')
+          marker='def test_reviewed_page_26_blank_name_repair_is_exactly_anchored():'
+          pos=text.index(marker)
+          replacement='''def test_current_row_1199_is_direct_source_identity_without_repair():\n    row = [\n        "1199", "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.", "ROTTERDAM (PAESI BASSI)",\n        "04/02/2026", "", "", "", "", "", "", "", "", "", "", "", "X",\n    ]\n    record = _record_from_cells(row, CFG, 640)\n    assert record["name"] == "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V."\n    assert record["registered_office"] == "ROTTERDAM (PAESI BASSI)"\n    assert record["source_status"] == "pending"\n    assert record["application_date"] == "2026-02-04"\n    assert record["requested_activities"] == ["Sezione X"]\n    assert "reviewed_extraction_repair" not in record["source_fields"]\n'''
+          text=text[:pos]+replacement
+          test_path.write_text(text,encoding='utf-8')
+
+          # Publication configuration: preserve the single positively evidenced combined population model.
+          cfg_path=ROOT/'data/publication/multi_prefecture_pilot.json'
+          cfg=json.loads(cfg_path.read_text(encoding='utf-8'))
+          matches=[x for x in cfg['sources'] if x.get('source_key')=='ravenna-combined']
+          if len(matches)!=1: raise RuntimeError(f'expected one Ravenna config source, got {len(matches)}')
+          src=matches[0]
+          src.update({
+              'reference_date':'2026-09-18',
+              'last_source_update':'2026-09-18',
+              'last_source_update_basis':'dated current official attachment reverified twice on 22 September 2026',
+              'resource_url':NEW_URL,
+              'sha256':NEW_SHA,
+              'expected_source_rows':703,
+              'notes':(
+                  'The current official Ravenna surface exposes one combined 29-page table. The byte-pinned parser yields '
+                  '703 observations: 467 listed, 188 renewal/update in progress, 47 pending and 1 other/unknown. Pending '
+                  'status requires the positive DATA PRIMA RICHIESTA field together with an absent listing/renewal date; '
+                  'no separate applicant population is inferred from search failure. 689 observations contain structured '
+                  'identifiers. The current table directly exposes progressive 1199 without an extraction repair. One '
+                  'malformed application-date token is preserved and deliberately left unnormalised.'
+              ),
+          })
+          cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          def read_csv(path):
+              with path.open(encoding='utf-8',newline='') as h:
+                  r=csv.DictReader(h); return list(r.fieldnames or []),list(r)
+          def write_csv(path,fields,rows):
+              with path.open('w',encoding='utf-8',newline='') as h:
+                  w=csv.DictWriter(h,fieldnames=fields,lineterminator='\n'); w.writeheader(); w.writerows(rows)
+
+          pages_path=ROOT/'data/source_registry/verified_primary_pages.csv'
+          fields,rows=read_csv(pages_path)
+          matches=[r for r in rows if r['authority_key']=='ravenna']
+          if len(matches)!=1: raise RuntimeError(f'expected one Ravenna verified page row, got {len(matches)}')
+          matches[0]['verification_date']='2026-09-22'
+          write_csv(pages_path,fields,rows)
+
+          series_path=ROOT/'data/source_registry/source_series_inventory.csv'
+          fields,rows=read_csv(series_path)
+          matches=[r for r in rows if r['source_series_key']=='ravenna-combined']
+          if len(matches)!=1: raise RuntimeError(f'expected one Ravenna source-series row, got {len(matches)}')
+          row=matches[0]
+          row['verified_date']='2026-09-22'
+          row['notes']=(
+              f'Current official Ravenna page reverified 22 September 2026 exposes one attachment labelled Nuova tabella '
+              f'unica aggiornata. Two independent cache-bypassed GETs were byte-identical at SHA-256 {NEW_SHA}. The '
+              'combined table positively carries DATA PRIMA RICHIESTA and DATA ISCRIZIONE/RINNOVO fields; the fail-closed '
+              'parser yields 703 observations (467 listed, 188 renewal/update in progress, 47 pending, 1 other/unknown). '
+              'Exact current evidence and source drift are documented in '+NEW_DOC+'.'
+          )
+          write_csv(series_path,fields,rows)
+
+          coverage_path=ROOT/'data/monitoring/national_coverage.json'
+          coverage=json.loads(coverage_path.read_text(encoding='utf-8'))
+          matches=[x for x in coverage['prefectures'] if x['authority_key']=='ravenna']
+          if len(matches)!=1: raise RuntimeError(f'expected one Ravenna monitoring entry, got {len(matches)}')
+          entry=matches[0]
+          entry['latest_source_reference_date']='2026-09-18'
+          entry['last_successful_investigation_on']='2026-09-22'
+          hashes=list(entry.get('known_content_sha256') or [])
+          for value in (OLD_SHA,NEW_SHA):
+              if value not in hashes: hashes.append(value)
+          entry['known_content_sha256']=hashes
+          for field in ('completion_evidence','evidence'):
+              values=list(entry.get(field) or [])
+              if NEW_DOC not in values: values.append(NEW_DOC)
+              entry[field]=values
+          coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Current operational evidence note. Historical 20 September note remains immutable in git history/current docs.
+          doc=ROOT/NEW_DOC
+          doc.write_text(f'''# Ravenna operational source check — 22 September 2026\n\n## Current official publication\n\n- Authority: Prefettura di Ravenna.\n- Verified landing page: {LANDING}\n- The landing page returned HTTP 200 and positively exposed exactly one current attachment labelled **Nuova tabella unica aggiornata**.\n- Current attachment: {NEW_URL}\n- Attachment date represented by the official file name: **18 September 2026**.\n- Two independent cache-bypassed GETs returned {receipts[0][0]} bytes each and were byte-identical.\n- SHA-256: `{NEW_SHA}`.\n- PDF extent: 29 pages.\n\n## Population model and current boundary\n\nRavenna continues to publish one combined current table rather than distinct listed-company and applicant attachments. The publication itself positively exposes `DATA PRIMA RICHIESTA`, `DATA ISCRIZIONE/RINNOVO`, `NOTE` and sections I–X. The approved series remains `ravenna-combined` with population scope `listed_and_applicant`; no separate applicant publication is inferred.\n\nThe complete current audited boundary is **703 logical rows**: **467 listed**, **188 renewal/update in progress**, **47 pending**, and **1 other/unknown**. **689/703** observations contain at least one structurally valid identifier. One malformed application-date token, `23/06/026`, remains preserved and unnormalised.\n\nCompared with the previously reviewed 17 September attachment (`{OLD_SHA}`; 706 rows), the current table removes progressives **332, 380 and 1132**, adds no new progressive identifiers, and changes 45 retained rows. These are treated as observed publication changes only; disappearance is not assigned an inferred legal effect. Numerous rows move from an explicit renewal/update note to a new 15 September 2026 listing/renewal date; some rows acquire an explicit renewal/update note.\n\nProgressive **1199** is now directly exposed by the table as `RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.` on page 27, so the previous byte-pinned table-boundary extraction repair is no longer applicable and has been removed from parser v2.\n\n## Integration contract\n\n- Parser: `src/white_list_archive/parsers/ravenna_combined.py` (`ravenna_combined`, version 2).\n- Parser semantic tests: `tests/test_ravenna_parser_semantics.py`.\n- Source registry: `data/source_registry/source_series_inventory.csv` and `verified_primary_pages.csv`.\n- Publication configuration: `data/publication/multi_prefecture_pilot.json`.\n- Public observation layer: `public_source_observations`.\n\nThe national authority/register coverage count does not change in this refresh. The expected public national candidate becomes **73,829 records / 73 mapped and published authorities / 76 registers**, subject to the production national builder, browser acceptance and Pages gates.\n''',encoding='utf-8')
+
+          # Production gates and browser acceptance: authority coverage is unchanged; only Ravenna/current total changes.
+          wf_path=ROOT/'.github/workflows/public-pages.yml'
+          text=wf_path.read_text(encoding='utf-8')
+          for old,new,label in [
+              ("assert reg['meta']['record_count'] == 73832","assert reg['meta']['record_count'] == 73829",'national record gate'),
+              ("assert len(ravenna_records) == 706","assert len(ravenna_records) == 703",'Ravenna rows'),
+              ("== 'listed' for r in ravenna_records) == 430","== 'listed' for r in ravenna_records) == 467",'Ravenna listed'),
+              ("== 'renewal_update_in_progress' for r in ravenna_records) == 212","== 'renewal_update_in_progress' for r in ravenna_records) == 188",'Ravenna renewals'),
+              ("== 'pending' for r in ravenna_records) == 63","== 'pending' for r in ravenna_records) == 47",'Ravenna pending'),
+              ("sum(bool(r['identifiers']) for r in ravenna_records) == 692","sum(bool(r['identifiers']) for r in ravenna_records) == 689",'Ravenna identifier coverage'),
+              ("len({r['record_locator'] for r in ravenna_records}) == 706","len({r['record_locator'] for r in ravenna_records}) == 703",'Ravenna locators'),
+          ]:
+              text=replace_once(text,old,new,label)
+          wf_path.write_text(text,encoding='utf-8')
+
+          browser_path=ROOT/'tests/public_portal_browser.cjs'
+          text=browser_path.read_text(encoding='utf-8')
+          for old,new,label in [
+              ('assert.equal(stats.total,73832);','assert.equal(stats.total,73829);','browser total'),
+              ('assert.equal(ravenna.length,706);','assert.equal(ravenna.length,703);','browser Ravenna rows'),
+              ("assert.equal(ravenna.filter(r=>r.source_key==='ravenna-combined').length,706);","assert.equal(ravenna.filter(r=>r.source_key==='ravenna-combined').length,703);",'browser Ravenna source rows'),
+              ("assert.deepEqual(statusCounts(ravenna),{listed:430,other_or_unknown:1,pending:63,renewal_update_in_progress:212});","assert.deepEqual(statusCounts(ravenna),{listed:467,other_or_unknown:1,pending:47,renewal_update_in_progress:188});",'browser Ravenna statuses'),
+              ('assert.equal(new Set(ravenna.map(r=>r.record_locator)).size,706);','assert.equal(new Set(ravenna.map(r=>r.record_locator)).size,703);','browser Ravenna locators'),
+              ('assert.equal(ravenna.filter(r=>r.identifiers.length>0).length,692);','assert.equal(ravenna.filter(r=>r.identifiers.length>0).length,689);','browser Ravenna identifiers'),
+          ]:
+              text=replace_once(text,old,new,label)
+          browser_path.write_text(text,encoding='utf-8')
+          PY
+
+          python -m pytest -q tests/test_ravenna_parser_semantics.py
+          python -m pytest -q
+          node --check tests/public_portal_browser.cjs
+
+          rm -rf /tmp/public-national-sources
+          white-list-public-national-build \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/public-national-sources \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          reg=json.loads(Path('public-site/data/registry.json').read_text(encoding='utf-8'))
+          pref=json.loads(Path('public-site/data/prefectures.json').read_text(encoding='utf-8'))
+          rr=[r for r in reg['records'] if r['authority_key']=='ravenna']
+          assert reg['meta']['record_count']==73829==len(reg['records'])
+          assert reg['meta']['authority_count']==73
+          assert reg['meta']['register_count']==76
+          assert pref['meta']['authority_count']==106
+          assert pref['meta']['mapped_count']==73 and pref['meta']['published_count']==73
+          assert len(rr)==703
+          counts={s:sum(r['source_status']==s for r in rr) for s in {r['source_status'] for r in rr}}
+          assert counts=={'listed':467,'renewal_update_in_progress':188,'pending':47,'other_or_unknown':1},counts
+          assert sum(bool(r['identifiers']) for r in rr)==689
+          assert len({r['record_locator'] for r in rr})==703
+          row=[r for r in rr if r['source_fields'].get('physical_locator')=='1199']
+          assert len(row)==1 and row[0]['name']=='RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.' and row[0]['application_date']=='2026-02-04'
+          assert 'reviewed_extraction_repair' not in row[0]['source_fields']
+          print('Validated current national candidate 73829 / 73 / 76 / 73 with Ravenna 703')
+          PY
+
+          git restore --worktree --staged public-site/data 2>/dev/null || true
+          git clean -fd public-site/data
+
+          EXPECTED=$(cat <<'EOF'
+          .github/workflows/public-pages.yml
+          data/monitoring/national_coverage.json
+          data/publication/multi_prefecture_pilot.json
+          data/source_registry/source_series_inventory.csv
+          data/source_registry/verified_primary_pages.csv
+          docs/sources/ravenna-operational-check-2026-09-22.md
+          src/white_list_archive/parsers/ravenna_combined.py
+          tests/public_portal_browser.cjs
+          tests/test_ravenna_parser_semantics.py
+          EOF
+          )
+          printf '%s\n' "$EXPECTED" | sed 's/^          //' | sort > /tmp/expected.txt
+          git add .github/workflows/public-pages.yml \
+                  data/monitoring/national_coverage.json \
+                  data/publication/multi_prefecture_pilot.json \
+                  data/source_registry/source_series_inventory.csv \
+                  data/source_registry/verified_primary_pages.csv \
+                  docs/sources/ravenna-operational-check-2026-09-22.md \
+                  src/white_list_archive/parsers/ravenna_combined.py \
+                  tests/public_portal_browser.cjs \
+                  tests/test_ravenna_parser_semantics.py
+          git diff --cached --name-only | sort > /tmp/actual.txt
+          diff -u /tmp/expected.txt /tmp/actual.txt
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refresh Ravenna current White List boundary (18 Sep 2026)'
+          CLEAN_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          echo "clean_sha=$CLEAN_SHA"
+          git bundle create /tmp/ravenna-current-refresh.bundle HEAD ^"$BASE_SHA"
+
+          REMOTE_NOW="$(git ls-remote origin refs/heads/$BRANCH | awk '{print $1}')"
+          test "$REMOTE_NOW" = "$TRANSACTIONAL_SHA"
+          git push --force-with-lease=refs/heads/$BRANCH:$TRANSACTIONAL_SHA origin HEAD:refs/heads/$BRANCH
+      - name: Preserve clean checkpoint bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ravenna-current-refresh-clean-checkpoint
+          path: /tmp/ravenna-current-refresh.bundle
+          if-no-files-found: ignore
+          retention-days: 7
