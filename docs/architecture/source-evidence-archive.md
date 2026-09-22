@@ -86,6 +86,12 @@ Required durable-storage properties:
 
 A new byte sequence always creates a new `ContentObject`; it never replaces the previous one.
 
+### Recovery-inventory verification semantics
+
+The national recovery inventory distinguishes byte preservation from a complete archived acquisition. A capture is `verified` only when both the exact durable `ContentObject` and the immutable capture/check provenance can be read back and verified. Durable bytes with missing or invalid capture provenance still count as a durably retrievable ContentObject, but the capture remains `not_verified` until its temporal provenance is established. This prevents storage availability alone from being reported as complete temporal coverage.
+
+`recoverable_pending` is reserved for exact matching bytes found in an explicitly supplied recovery package when the governed durable original is not yet verified. `missing` requires both positively confirmed durable absence and an explicitly completed recovery search; failed provider reads, incomplete searches and corrupt objects remain `not_verified` rather than being converted into unsupported loss claims.
+
 ## Verification workflow
 
 An independent reviewer should be able to:
