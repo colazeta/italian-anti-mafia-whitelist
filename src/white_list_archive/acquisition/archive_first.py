@@ -85,8 +85,12 @@ def archive_payload(
         "byte_size": len(data),
     }
 
+    # A staging path is not document identity. Use a fresh path even when a caller
+    # deliberately reuses capture_id while testing immutability; never delete or
+    # overwrite a recoverable local original merely to restart a transaction.
     work_dir.mkdir(parents=True, exist_ok=True)
-    local_path = work_dir / f"{source_key}-{cid}.source"
+    staging_id = uuid4()
+    local_path = work_dir / f"{source_key}-{cid}-{staging_id}.source"
     with local_path.open("xb") as handle:
         handle.write(data)
 
@@ -202,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     result = acquire_and_archive(
         source_key=args.source_key,
         resource_url=args.resource_url,
-        reference_date=args.reference_date,
+        reference_date=args.reference_date or None,
         store=EvidenceStore(client_for(config), config),
         work_dir=args.work_dir,
     )
