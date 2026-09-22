@@ -13,6 +13,7 @@ from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_manifest
 
 SCHEMA_VERSION = 1
+PUBLIC_PROJECTOR_REVISION = "public-national-registry@1"
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -159,6 +160,50 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
                 raise ValueError("One frozen release cannot bind the same locator to conflicting bytes")
             by_url[expected_url] = {"capture": capture, "catalogue": catalogue}
     return by_url
+
+
+def validate_release_runtime(
+    manifest: dict,
+    built_registry: dict,
+    *,
+    runtime_code_revision: str,
+    projector_revision: str = PUBLIC_PROJECTOR_REVISION,
+) -> None:
+    """Fail closed unless replay actually used the revisions pinned by the release.
+
+    The manifest is not merely descriptive metadata: code, projector and parser
+    revisions are executable release inputs. Parser revisions use the canonical
+    ``<parser_name>@<parser_version>`` form after parser-specific diagnostics have
+    been restored onto public records.
+    """
+    if not isinstance(runtime_code_revision, str) or not runtime_code_revision.strip():
+        raise ValueError("Runtime code revision is required for frozen release replay")
+    if manifest.get("code_revision") != runtime_code_revision:
+        raise ValueError("Frozen release code revision does not match replay runtime")
+    if not isinstance(projector_revision, str) or not projector_revision.strip():
+        raise ValueError("Runtime projector revision is required for frozen release replay")
+
+    bindings = {item["source_key"]: item for item in manifest.get("sources", [])}
+    observed: dict[str, str] = {}
+    for record in built_registry.get("records", []):
+        source_key = record.get("source_key")
+        parser_name = record.get("parser_name")
+        parser_version = record.get("parser_version")
+        if not all(isinstance(value, str) and value.strip() for value in (source_key, parser_name, str(parser_version) if parser_version is not None else None)):
+            raise ValueError("Frozen release replay produced incomplete parser revision metadata")
+        revision = f"{parser_name}@{parser_version}"
+        prior = observed.get(source_key)
+        if prior is not None and prior != revision:
+            raise ValueError(f"{source_key}: replay produced inconsistent parser revisions")
+        observed[source_key] = revision
+
+    if set(observed) != set(bindings):
+        raise ValueError("Frozen release replay did not produce every and only pinned source")
+    for source_key, binding in bindings.items():
+        if binding.get("projector_revision") != projector_revision:
+            raise ValueError(f"{source_key}: frozen projector revision does not match replay runtime")
+        if binding.get("parser_revision") != observed[source_key]:
+            raise ValueError(f"{source_key}: frozen parser revision does not match replay runtime")
 
 
 @contextmanager
