@@ -174,7 +174,7 @@ jobs:
           assert site['meta']['classification'] == 'PUBLIC EXPERIMENTAL VIEW'
           assert site['meta']['public_contract_version'] == 3
           assert reg['meta']['contract_version'] == 3
-          assert reg['meta']['record_count'] == 73832
+          assert reg['meta']['record_count'] == 73836
           assert set(reg['meta']['authority_counts']) == {'cosenza','parma','pistoia','bologna','alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza','prato'}
           assert set(reg['meta']['register_counts']) == {
               'cosenza-ordinary','parma-ordinary','pistoia-ordinary',
@@ -593,21 +593,26 @@ jobs:
           milano = [x for x in pref['prefectures'] if x['authority_key'] == 'milano']
           assert len(milano) == 1 and milano[0]['mapped'] and milano[0]['published'] and milano[0]['series_count'] == 1
           milano_records = [r for r in reg['records'] if r['authority_key'] == 'milano']
-          assert len(milano_records) == 2611
+          assert len(milano_records) == 2615
           assert all(r['source_key'] == 'milano-combined' for r in milano_records)
-          assert sum(r['source_status'] == 'listed' for r in milano_records) == 944
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 520
-          assert sum(r['source_status'] == 'pending' for r in milano_records) == 1147
-          assert len({r['record_locator'] for r in milano_records}) == 2611
-          assert sum(bool(r['identifiers']) for r in milano_records) == 2611
+          assert sum(r['source_status'] == 'listed' for r in milano_records) == 941
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in milano_records) == 523
+          assert sum(r['source_status'] == 'pending' for r in milano_records) == 1151
+          assert len({r['record_locator'] for r in milano_records}) == 2615
+          assert sum(bool(r['identifiers']) for r in milano_records) == 2615
           removed_milano = {'04793740962','06960770961','07693660156','09835880155','10674330963','11016700152'}
           assert not removed_milano & {r['identifier_field_raw'] for r in milano_records}
           assert all(r['requested_activities'] for r in milano_records)
-          assert sum(bool(r['application_date']) for r in milano_records) == 1147
-          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 944
-          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 944
-          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-21'
+          assert sum(bool(r['application_date']) for r in milano_records) == 1151
+          assert sum(bool(r['observed_listing_date']) for r in milano_records) == 941
+          assert sum(bool(r['observed_expiry_date']) for r in milano_records) == 941
+          assert max(r['application_date'] for r in milano_records if r['application_date']) == '2026-09-22'
           current_milano = {r['identifier_field_raw']: r for r in milano_records}
+          for k in ('00752950154','03427300797','11933680966','13808490968','13977410961'):
+              assert current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-22'
+          assert '13826570965' not in current_milano
+          for k in ('02657900243','11354220961','12210120155'):
+              assert current_milano[k]['source_status'] == 'renewal_update_in_progress' and not current_milano[k]['observed_listing_date'] and not current_milano[k]['observed_expiry_date']
           assert all(current_milano[k]['source_status'] == 'pending' and current_milano[k]['application_date'] == '2026-09-17' for k in ('06543250960','12134200968'))
           assert not {'12957130961','13540670968','14580020965'} & set(current_milano)
           assert all(current_milano[k]['source_status'] == 'listed' for k in ('01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960'))

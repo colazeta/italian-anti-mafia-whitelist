@@ -1575,15 +1575,15 @@
       "register_key": "milano-ordinary",
       "register_name": "White List — Prefettura di Milano",
       "population_scope": "listed_and_applicant",
-      "reference_date": "2026-09-21",
+      "reference_date": "2026-09-22",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list",
       "resource_url": "https://whitelist.prefmi.it/elenco/elenco.php",
-      "sha256": "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d",
-      "expected_sector_rows": 4205,
-      "expected_source_rows": 2611,
-      "last_source_update": "2026-09-21",
-      "last_source_update_basis": "Observed mutable official-source boundary on 21 September 2026. Two independent no-cache combined captures were byte-identical at the reviewed fe508 digest; the unchanged registered-only sibling independently corroborated all 1,464 non-pending identities. The source exposes no separate reliable edition timestamp, so 21 September is used only as the observation/capture reference boundary.",
-      "notes": "The official mutable combined table was independently captured twice at 968,796 bytes (SHA-256 fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d). It yields 10 tables, 4,205 sector rows and 2,611 strict identities: 944 listed, 520 renewal/update in progress and 1,147 pending. The registered-only sibling remained byte-identical at 561,865 bytes (SHA-256 5c76ede7a994f7717a8f3d4f0cc20e6c3b63a0cdedfb23a84790ef0ab13b5e2d) and its 1,464 identities exactly equal the combined non-pending set. Relative to the live boundary, the source carries the reviewed identifier correction 03998810612 -> KHLWDS89B03Z336P, no longer publishes pending STONE S.R.L. (14304140966), adds pending SAN DOMENICO REAL ESTATE S.R.L. (06602310960; application 21 September 2026), and explicitly places four previously listed identities into renewal/update in progress. The 21 September reference date is an observation/capture boundary, not an inferred publication, decision or legal-effect date. Disappearances and status wording are recorded as source publication state only; no withdrawal, denial, cancellation, revocation or other legal effect is inferred. See docs/sources/milano-source-transition-2026-09-21-fe508.md."
+      "sha256": "09cdc0bf9a9cb5ee4df661d25972b9d1730f5a2158c052a75e42802960c44f46",
+      "expected_sector_rows": 4215,
+      "expected_source_rows": 2615,
+      "last_source_update": "2026-09-22",
+      "last_source_update_basis": "current official Milano combined register; two independent cache-bypassed byte-identical captures plus exact registered-only sibling non-pending identity cross-check",
+      "notes": "Current official combined register reviewed on 2026-09-22: 2,615 logical observations from 4,215 company-sector rows, all with structured identifiers. Status distribution is 941 listed, 523 renewal/update in progress, and 1,151 pending. Relative to the approved 2026-09-21 boundary, five source-explicit 22/09/2026 applications are newly present (00752950154, 03427300797, 11933680966, 13808490968, 13977410961); 13826570965 is not present in the current source, without inference about legal reason; 02657900243, 11354220961 and 12210120155 are now source-explicit IN AGGIORNAMENTO. The independent registered-only sibling exactly matches the non-pending identity set. Raw source identity is byte-pinned and parsing remains fail-closed."
     },
     {
       "source_key": "como-listed",
