@@ -9,6 +9,7 @@ BEGIN;
 \ir schema/040_source.sql
 \ir schema/045_capture_operational_metadata.sql
 \ir schema/046_parse_operational_metadata.sql
+\ir schema/047_temporal_capture_identity.sql
 \ir schema/050_mapping_provenance.sql
 \ir schema/055_semantic_projection.sql
 \ir schema/056_semantic_resolution_versioning.sql
