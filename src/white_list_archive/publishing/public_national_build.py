@@ -3,13 +3,18 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 import tempfile
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 
-from white_list_archive.publishing.frozen_release import build_registry_from_release
+from white_list_archive.publishing.frozen_release import (
+    PUBLIC_PROJECTOR_REVISION,
+    build_registry_from_release,
+    validate_release_runtime,
+)
 from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_history import publish_history
 from white_list_archive.publishing.public_national_registry import (
@@ -204,21 +209,36 @@ def _build_registry_from_selected_inputs(
     config: dict,
     work_dir: Path,
     release_manifest_path: Path | None,
+    *,
+    runtime_code_revision: str | None = None,
 ) -> dict:
     """Select live legacy mode or strict archive-backed release replay.
 
     Archive mode has no source-network fallback. Store configuration/credentials are
     read only when an explicit frozen release is supplied. Missing/corrupt selected
-    objects fail closed in ``EvidenceStore.read_verified``.
+    objects fail closed in ``EvidenceStore.read_verified``. Frozen replay additionally
+    refuses to run unless the executing code, projector and parser revisions exactly
+    match those pinned by the release.
     """
+    release_manifest = None
     if release_manifest_path is None:
         registry = _build_registry_with_network_retries(config, work_dir)
     else:
+        if not runtime_code_revision:
+            raise ValueError("Frozen release replay requires an explicit runtime code revision")
         release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
         store_config = StoreConfig.from_env()
         store = EvidenceStore(client_for(store_config), store_config)
         registry = build_registry_from_release(config, work_dir, release_manifest, store)
-    return _restore_declared_parser_revisions(registry, config, work_dir)
+    registry = _restore_declared_parser_revisions(registry, config, work_dir)
+    if release_manifest is not None:
+        validate_release_runtime(
+            release_manifest,
+            registry,
+            runtime_code_revision=runtime_code_revision,
+            projector_revision=PUBLIC_PROJECTOR_REVISION,
+        )
+    return registry
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -239,7 +259,14 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Frozen archive-backed release manifest. When supplied, source payloads are never fetched live.",
     )
+    parser.add_argument(
+        "--runtime-code-revision",
+        default=os.environ.get("GITHUB_SHA"),
+        help="Exact executing code revision. Required for frozen replay; defaults to GITHUB_SHA in Actions.",
+    )
     args = parser.parse_args(argv)
+    if args.release_manifest and not args.runtime_code_revision:
+        parser.error("--runtime-code-revision is required for frozen release replay outside GitHub Actions")
 
     config = json.loads(args.source_config.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="white-list-public-aliases-") as tmp:
@@ -253,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
             config,
             args.work_dir,
             args.release_manifest,
+            runtime_code_revision=args.runtime_code_revision,
         )
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
