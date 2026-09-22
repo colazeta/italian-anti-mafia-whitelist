@@ -64,8 +64,9 @@ jobs:
 
           python - <<'PY'
           from __future__ import annotations
-          import csv, hashlib, json, os, re, time
+          import csv, hashlib, json, os, time
           from pathlib import Path
+          from urllib.parse import urlparse
           import requests
 
           ROOT = Path('.')
@@ -81,12 +82,23 @@ jobs:
                   raise RuntimeError(f'{label}: expected one anchor, found {count}')
               return text.replace(old, new, 1)
 
-          # Fresh positive evidence: current landing must expose the reviewed attachment.
+          # Fresh positive evidence. Drupal renders the attachment href as a root-relative URL,
+          # so bind the landing evidence to both the official label and exact current basename,
+          # then independently byte-pin the resolved official resource below.
           session = requests.Session()
           headers = {'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist/1.0)','Cache-Control':'no-cache','Pragma':'no-cache'}
           landing = session.get(LANDING, headers=headers, timeout=(20,60))
-          if landing.status_code != 200 or NEW_URL not in landing.text:
-              raise RuntimeError(f'Ravenna landing verification failed: HTTP {landing.status_code}; current attachment not positively exposed')
+          basename = Path(urlparse(NEW_URL).path).name
+          landing_ok = (
+              landing.status_code == 200
+              and 'Nuova tabella unica aggiornata' in landing.text
+              and basename in landing.text
+          )
+          if not landing_ok:
+              raise RuntimeError(
+                  f'Ravenna landing verification failed: HTTP {landing.status_code}; '
+                  f'label={"Nuova tabella unica aggiornata" in landing.text}; basename={basename in landing.text}'
+              )
           receipts=[]
           payload=None
           for attempt in (1,2):
@@ -104,7 +116,6 @@ jobs:
           Path('/tmp/ravenna-current.pdf').write_bytes(payload or b'')
           print('Ravenna source verified:', receipts)
 
-          # Parser v2: bind exactly the current 18 September source boundary.
           parser_path=ROOT/'src/white_list_archive/parsers/ravenna_combined.py'
           text=parser_path.read_text(encoding='utf-8')
           text=replace_once(text,'PARSER_VERSION = "1"','PARSER_VERSION = "2"','parser version')
@@ -131,7 +142,6 @@ jobs:
               'obsolete extraction repair call')
           parser_path.write_text(text,encoding='utf-8')
 
-          # Focused semantic tests: current row 1199 is directly represented by the table.
           test_path=ROOT/'tests/test_ravenna_parser_semantics.py'
           text=test_path.read_text(encoding='utf-8')
           text=replace_once(text,'    _repair_reviewed_extraction,\n','', 'test obsolete repair import')
@@ -142,7 +152,6 @@ jobs:
           text=text[:pos]+replacement
           test_path.write_text(text,encoding='utf-8')
 
-          # Publication configuration: preserve the single positively evidenced combined population model.
           cfg_path=ROOT/'data/publication/multi_prefecture_pilot.json'
           cfg=json.loads(cfg_path.read_text(encoding='utf-8'))
           matches=[x for x in cfg['sources'] if x.get('source_key')=='ravenna-combined']
@@ -212,11 +221,9 @@ jobs:
               entry[field]=values
           coverage_path.write_text(json.dumps(coverage,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
-          # Current operational evidence note. Historical 20 September note remains immutable in git history/current docs.
           doc=ROOT/NEW_DOC
-          doc.write_text(f'''# Ravenna operational source check — 22 September 2026\n\n## Current official publication\n\n- Authority: Prefettura di Ravenna.\n- Verified landing page: {LANDING}\n- The landing page returned HTTP 200 and positively exposed exactly one current attachment labelled **Nuova tabella unica aggiornata**.\n- Current attachment: {NEW_URL}\n- Attachment date represented by the official file name: **18 September 2026**.\n- Two independent cache-bypassed GETs returned {receipts[0][0]} bytes each and were byte-identical.\n- SHA-256: `{NEW_SHA}`.\n- PDF extent: 29 pages.\n\n## Population model and current boundary\n\nRavenna continues to publish one combined current table rather than distinct listed-company and applicant attachments. The publication itself positively exposes `DATA PRIMA RICHIESTA`, `DATA ISCRIZIONE/RINNOVO`, `NOTE` and sections I–X. The approved series remains `ravenna-combined` with population scope `listed_and_applicant`; no separate applicant publication is inferred.\n\nThe complete current audited boundary is **703 logical rows**: **467 listed**, **188 renewal/update in progress**, **47 pending**, and **1 other/unknown**. **689/703** observations contain at least one structurally valid identifier. One malformed application-date token, `23/06/026`, remains preserved and unnormalised.\n\nCompared with the previously reviewed 17 September attachment (`{OLD_SHA}`; 706 rows), the current table removes progressives **332, 380 and 1132**, adds no new progressive identifiers, and changes 45 retained rows. These are treated as observed publication changes only; disappearance is not assigned an inferred legal effect. Numerous rows move from an explicit renewal/update note to a new 15 September 2026 listing/renewal date; some rows acquire an explicit renewal/update note.\n\nProgressive **1199** is now directly exposed by the table as `RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.` on page 27, so the previous byte-pinned table-boundary extraction repair is no longer applicable and has been removed from parser v2.\n\n## Integration contract\n\n- Parser: `src/white_list_archive/parsers/ravenna_combined.py` (`ravenna_combined`, version 2).\n- Parser semantic tests: `tests/test_ravenna_parser_semantics.py`.\n- Source registry: `data/source_registry/source_series_inventory.csv` and `verified_primary_pages.csv`.\n- Publication configuration: `data/publication/multi_prefecture_pilot.json`.\n- Public observation layer: `public_source_observations`.\n\nThe national authority/register coverage count does not change in this refresh. The expected public national candidate becomes **73,829 records / 73 mapped and published authorities / 76 registers**, subject to the production national builder, browser acceptance and Pages gates.\n''',encoding='utf-8')
+          doc.write_text(f'''# Ravenna operational source check — 22 September 2026\n\n## Current official publication\n\n- Authority: Prefettura di Ravenna.\n- Verified landing page: {LANDING}\n- The landing page returned HTTP 200 and positively exposed the attachment label **Nuova tabella unica aggiornata** and the current attachment basename `{basename}`.\n- Current attachment: {NEW_URL}\n- Attachment date represented by the official file name: **18 September 2026**.\n- Two independent cache-bypassed GETs returned {receipts[0][0]} bytes each and were byte-identical.\n- SHA-256: `{NEW_SHA}`.\n- PDF extent: 29 pages.\n\n## Population model and current boundary\n\nRavenna continues to publish one combined current table rather than distinct listed-company and applicant attachments. The publication itself positively exposes `DATA PRIMA RICHIESTA`, `DATA ISCRIZIONE/RINNOVO`, `NOTE` and sections I–X. The approved series remains `ravenna-combined` with population scope `listed_and_applicant`; no separate applicant publication is inferred.\n\nThe complete current audited boundary is **703 logical rows**: **467 listed**, **188 renewal/update in progress**, **47 pending**, and **1 other/unknown**. **689/703** observations contain at least one structurally valid identifier. One malformed application-date token, `23/06/026`, remains preserved and unnormalised.\n\nCompared with the previously reviewed 17 September attachment (`{OLD_SHA}`; 706 rows), the current table removes progressives **332, 380 and 1132**, adds no new progressive identifiers, and changes 45 retained rows. These are treated as observed publication changes only; disappearance is not assigned an inferred legal effect. Numerous rows move from an explicit renewal/update note to a new 15 September 2026 listing/renewal date; some rows acquire an explicit renewal/update note.\n\nProgressive **1199** is now directly exposed by the table as `RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.` on page 27, so the previous byte-pinned table-boundary extraction repair is no longer applicable and has been removed from parser v2.\n\n## Integration contract\n\n- Parser: `src/white_list_archive/parsers/ravenna_combined.py` (`ravenna_combined`, version 2).\n- Parser semantic tests: `tests/test_ravenna_parser_semantics.py`.\n- Source registry: `data/source_registry/source_series_inventory.csv` and `verified_primary_pages.csv`.\n- Publication configuration: `data/publication/multi_prefecture_pilot.json`.\n- Public observation layer: `public_source_observations`.\n\nThe national authority/register coverage count does not change in this refresh. The expected public national candidate becomes **73,829 records / 73 mapped and published authorities / 76 registers**, subject to the production national builder, browser acceptance and Pages gates.\n''',encoding='utf-8')
 
-          # Production gates and browser acceptance: authority coverage is unchanged; only Ravenna/current total changes.
           wf_path=ROOT/'.github/workflows/public-pages.yml'
           text=wf_path.read_text(encoding='utf-8')
           for old,new,label in [
@@ -286,7 +293,7 @@ jobs:
           git restore --worktree --staged public-site/data 2>/dev/null || true
           git clean -fd public-site/data
 
-          EXPECTED=$(cat <<'EOF'
+          cat > /tmp/expected.txt <<'EOF'
           .github/workflows/public-pages.yml
           data/monitoring/national_coverage.json
           data/publication/multi_prefecture_pilot.json
@@ -297,8 +304,8 @@ jobs:
           tests/public_portal_browser.cjs
           tests/test_ravenna_parser_semantics.py
           EOF
-          )
-          printf '%s\n' "$EXPECTED" | sed 's/^          //' | sort > /tmp/expected.txt
+          sed -i 's/^          //' /tmp/expected.txt
+          sort -o /tmp/expected.txt /tmp/expected.txt
           git add .github/workflows/public-pages.yml \
                   data/monitoring/national_coverage.json \
                   data/publication/multi_prefecture_pilot.json \
