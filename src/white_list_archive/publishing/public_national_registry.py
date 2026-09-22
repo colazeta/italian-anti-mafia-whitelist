@@ -1111,23 +1111,35 @@ def _adapt_piacenza_public_fields(batch: ParsedBatch, parser_name: str) -> Parse
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+def _apply_parser_lineage(batch: ParsedBatch, parser_name: str, legacy_version: str) -> ParsedBatch:
+    """Preserve parser-declared lineage; use legacy fallback only when absent."""
+    declared = batch.diagnostics.get("parser_version")
+    version = str(declared).strip() if declared is not None else legacy_version
+    if not version:
+        raise RuntimeError(f"{parser_name}: empty parser-version lineage")
+    for record in batch.records:
+        existing_name = record.get("parser_name")
+        existing_version = record.get("parser_version")
+        if existing_name not in (None, "", parser_name):
+            raise RuntimeError(f"{parser_name}: conflicting parser-name lineage {existing_name!r}")
+        if existing_version not in (None, "", version):
+            raise RuntimeError(f"{parser_name}: conflicting parser-version lineage {existing_version!r} != {version!r}")
+        record["parser_name"] = parser_name
+        record["parser_version"] = version
+    return batch
+
+
 def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:
     if cfg["parser"] == PORDENONE_LISTED_PARSER:
         if not isinstance(path, dict):
             raise RuntimeError("Pordenone listed source requires an explicitly acquired bundle")
         batch = _adapt_pordenone_public_fields(parse_pordenone_listed_bundle(path, cfg), cfg["parser"])
-        for record in batch.records:
-            record["parser_name"] = cfg["parser"]
-            record["parser_version"] = "1"
-        return batch
+        return _apply_parser_lineage(batch, cfg["parser"], "1")
     if cfg["parser"] == FERRARA_RECONSTRUCTION_PARSER:
         if not isinstance(path, dict):
             raise RuntimeError("Ferrara reconstruction requires an explicitly acquired source bundle")
         batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])
-        for record in batch.records:
-            record["parser_name"] = cfg["parser"]
-            record["parser_version"] = "1"
-        return batch
+        return _apply_parser_lineage(batch, cfg["parser"], "1")
     if not isinstance(path, Path):
         raise RuntimeError(f"Scalar parser received a source bundle: {cfg['parser']!r}")
     if cfg["parser"] == "cosenza_combined_v2":
@@ -1239,10 +1251,8 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_ravenna_public_fields(batch, cfg["parser"])
     if cfg["parser"] in PIACENZA_PARSERS:
         batch = _adapt_piacenza_public_fields(batch, cfg["parser"])
-    for record in batch.records:
-        record["parser_name"] = cfg["parser"]
-        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
-    return batch
+    legacy_version = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
+    return _apply_parser_lineage(batch, cfg["parser"], legacy_version)
 
 
 
