@@ -26,8 +26,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install probe runtime
-        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 pdfplumber
-      - name: Reverify current official Ravenna source
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Reverify Ravenna evidence channels
         env:
           LANDING_URL: https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list
           REVIEWED_PDF_URL: https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf
@@ -35,98 +35,69 @@ jobs:
         run: |
           python - <<'PY'
           from __future__ import annotations
-          import hashlib, io, json, os, re, time
+          import hashlib, json, os, time
           from pathlib import Path
           from urllib.parse import urljoin
-          import pdfplumber, requests
+          import requests
           from bs4 import BeautifulSoup
 
-          landing_url = os.environ['LANDING_URL']
-          reviewed_url = os.environ['REVIEWED_PDF_URL']
-          reviewed_sha = os.environ['REVIEWED_SHA256']
-          out = Path('tmp'); out.mkdir(exist_ok=True)
-          headers = {
-              'User-Agent': 'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.1)',
-              'Cache-Control': 'no-cache', 'Pragma': 'no-cache'
-          }
+          landing_url=os.environ['LANDING_URL']
+          reviewed_url=os.environ['REVIEWED_PDF_URL']
+          reviewed_sha=os.environ['REVIEWED_SHA256']
+          headers={'User-Agent':'Mozilla/5.0 (compatible; italian-anti-mafia-whitelist-source-probe/1.2)','Cache-Control':'no-cache','Pragma':'no-cache'}
           def get(url, accept, nonce):
-              h = dict(headers); h['Accept'] = accept
-              sep = '&' if '?' in url else '?'
-              last = None
+              h=dict(headers); h['Accept']=accept
+              sep='&' if '?' in url else '?'
+              last=None
               for retry in range(3):
                   try:
-                      r = requests.get(f'{url}{sep}probe={nonce}-{retry}', headers=h, timeout=(20,90), allow_redirects=True)
-                      last = r
-                      if r.status_code == 200: return r
+                      r=requests.get(f'{url}{sep}probe={nonce}-{retry}',headers=h,timeout=(20,90),allow_redirects=True)
+                      last=r
+                      if r.status_code==200: return r
                   except requests.RequestException as exc:
-                      last = exc
+                      last=exc
                   time.sleep(2*(retry+1))
-              if isinstance(last, requests.Response): return last
+              if isinstance(last,requests.Response): return last
               raise RuntimeError(f'GET failed: {last!r}')
 
-          landing = get(landing_url, 'text/html,*/*;q=0.8', int(time.time()*1000))
-          if landing.status_code != 200:
-              raise RuntimeError(f'official landing returned HTTP {landing.status_code}')
-          soup = BeautifulSoup(landing.text, 'html.parser')
-          links = []
-          for a in soup.find_all('a', href=True):
-              href = urljoin(landing.url, a['href']).split('?probe=')[0]
-              label = ' '.join(a.get_text(' ', strip=True).split())
-              if '/sites/default/files/' in href:
-                  links.append({'label': label, 'url': href})
-          candidates = [x for x in links if x['label'] == 'Nuova tabella unica aggiornata']
-          if len(candidates) != 1:
-              raise RuntimeError(f'expected one labelled current Ravenna attachment, got {candidates!r}; links={links!r}')
-          selected = candidates[0]
-          if selected['url'] != reviewed_url:
-              raise RuntimeError(f'Ravenna current attachment URL drift: reviewed={reviewed_url!r}, current={selected!r}')
+          landing=get(landing_url,'text/html,*/*;q=0.8',int(time.time()*1000))
+          landing_verified=False; selected=None; links=[]
+          if landing.status_code==200:
+              soup=BeautifulSoup(landing.text,'html.parser')
+              for a in soup.find_all('a',href=True):
+                  href=urljoin(landing.url,a['href']).split('?probe=')[0]
+                  label=' '.join(a.get_text(' ',strip=True).split())
+                  if '/sites/default/files/' in href: links.append({'label':label,'url':href})
+              candidates=[x for x in links if x['label']=='Nuova tabella unica aggiornata']
+              if len(candidates)!=1:
+                  raise RuntimeError(f'positive landing verification found ambiguous Ravenna attachments: {candidates!r}; links={links!r}')
+              selected=candidates[0]
+              if selected['url']!=reviewed_url:
+                  raise RuntimeError(f'positive Ravenna current attachment drift: reviewed={reviewed_url!r}, current={selected!r}')
+              landing_verified=True
+          elif landing.status_code!=403:
+              raise RuntimeError(f'official landing returned unexpected HTTP {landing.status_code}')
 
           copies=[]; payloads=[]
           for attempt in (1,2):
-              r=get(selected['url'],'application/pdf,*/*;q=0.8',f'{int(time.time()*1000)}-{attempt}')
-              if r.status_code != 200 or not r.content.startswith(b'%PDF'):
-                  raise RuntimeError(f'Ravenna PDF fetch {attempt} invalid: HTTP {r.status_code}')
+              r=get(reviewed_url,'application/pdf,*/*;q=0.8',f'{int(time.time()*1000)}-{attempt}')
+              copies.append({'attempt':attempt,'http_status':r.status_code,'bytes':len(r.content),'sha256':hashlib.sha256(r.content).hexdigest() if r.status_code==200 else None})
+              if r.status_code!=200 or not r.content.startswith(b'%PDF'):
+                  raise RuntimeError(f'reviewed Ravenna resource unavailable on independent fetch {attempt}: {copies[-1]!r}')
               payloads.append(r.content)
-              copies.append({'attempt':attempt,'bytes':len(r.content),'sha256':hashlib.sha256(r.content).hexdigest()})
-          if payloads[0] != payloads[1]:
-              raise RuntimeError(f'independent Ravenna fetches differ: {copies!r}')
-          if copies[0]['sha256'] != reviewed_sha:
-              raise RuntimeError(f'Ravenna source content drift: reviewed={reviewed_sha}, current={copies[0]!r}')
+          if payloads[0]!=payloads[1]: raise RuntimeError(f'independent Ravenna resource fetches differ: {copies!r}')
+          if copies[0]['sha256']!=reviewed_sha: raise RuntimeError(f'Ravenna reviewed-resource content drift: reviewed={reviewed_sha}, current={copies[0]!r}')
 
-          numeric_rows=0; renewal_rows=0; one_date_rows=0; page_text=[]
-          date_re=re.compile(r'\b\d{1,2}/\d{1,2}/\d{4}\b')
-          with pdfplumber.open(io.BytesIO(payloads[0])) as pdf:
-              page_count=len(pdf.pages)
-              for page in pdf.pages:
-                  text=page.extract_text(x_tolerance=2,y_tolerance=3) or ''
-                  page_text.append(text)
-                  for table in page.extract_tables():
-                      for rr in table or []:
-                          row=[' '.join((c or '').split()) for c in rr]
-                          if row and re.fullmatch(r'\d+',row[0]):
-                              numeric_rows += 1
-                              joined=' | '.join(row)
-                              if 'Richiesto rinnovo' in joined or 'Aggiornamento in corso' in joined:
-                                  renewal_rows += 1
-                              if len(date_re.findall(joined)) == 1:
-                                  one_date_rows += 1
           receipt={
-              'authority_key':'ravenna',
-              'verified_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-              'landing_url':landing_url,
-              'landing_http_status':landing.status_code,
-              'selected_attachment':selected,
-              'independent_pdf_fetches':copies,
-              'byte_identical':True,
-              'reviewed_sha256_match':True,
-              'page_count':page_count,
-              'numeric_first_rows':numeric_rows,
-              'renewal_marked_rows_heuristic':renewal_rows,
-              'single_date_numeric_rows_heuristic':one_date_rows,
-              'page_text_sha256':hashlib.sha256('\n'.join(page_text).encode()).hexdigest()
+              'authority_key':'ravenna','checked_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+              'landing_url':landing_url,'landing_http_status':landing.status_code,'landing_currentness_reverified':landing_verified,
+              'selected_attachment_from_landing':selected,'landing_attachment_links':links,
+              'reviewed_resource_url':reviewed_url,'independent_resource_fetches':copies,
+              'resource_byte_identical':True,'reviewed_sha256_match':True,
+              'interpretation':('current official landing and reviewed resource both reverified' if landing_verified else 'landing returned HTTP 403; reviewed resource bytes independently reverified, but currentness was not inferred')
           }
-          path=out/'ravenna-source-probe-2026-09-22.json'
-          path.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          Path('tmp').mkdir(exist_ok=True)
+          Path('tmp/ravenna-source-probe-2026-09-22.json').write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,ensure_ascii=False,indent=2))
           PY
       - name: Checkpoint verification receipt
@@ -136,5 +107,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tmp/ravenna-source-probe-2026-09-22.json
           git diff --cached --quiet && exit 0
-          git commit -m 'Checkpoint 2026-09-22 Ravenna source verification'
+          git commit -m 'Checkpoint partial 2026-09-22 Ravenna source verification'
           git push origin HEAD:expansion/ravenna-2026-09-20
