@@ -10,9 +10,11 @@ import pytest
 from white_list_archive.acquisition.archive_first import ArchivedCapture, archive_payload
 from white_list_archive.publishing import public_national_registry as registry
 from white_list_archive.publishing.frozen_release import (
+    PUBLIC_PROJECTOR_REVISION,
     archived_downloads,
     configuration_sha256,
     validate_release_manifest,
+    validate_release_runtime,
 )
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, object_key
 
@@ -183,7 +185,7 @@ def _release(config: dict, captures: dict[str, ArchivedCapture]) -> dict:
                 "source_key": cfg["source_key"],
                 "parser": cfg["parser"],
                 "parser_revision": f"{cfg['parser']}@test-revision",
-                "projector_revision": "public-contract@test-revision",
+                "projector_revision": PUBLIC_PROJECTOR_REVISION,
                 "configuration_sha256": configuration_sha256(cfg),
                 "resources": [
                     {
@@ -202,6 +204,61 @@ def _release(config: dict, captures: dict[str, ArchivedCapture]) -> dict:
         "source_config_sha256": configuration_sha256(config),
         "sources": sources,
     }
+
+
+def _runtime_registry(config: dict) -> dict:
+    return {
+        "records": [
+            {
+                "source_key": cfg["source_key"],
+                "parser_name": cfg["parser"],
+                "parser_version": "test-revision",
+            }
+            for cfg in config["sources"]
+        ]
+    }
+
+
+def test_release_runtime_revisions_are_executable_pins(tmp_path):
+    evidence = store()
+    archived = capture(
+        tmp_path / "capture",
+        evidence,
+        source_key="alpha-listed",
+        url="https://prefettura.example/alpha.pdf",
+        data=b"alpha pinned bytes",
+        capture_id="12121212-1212-4212-8212-121212121212",
+    )
+    config = {
+        "sources": [
+            {
+                "source_key": "alpha-listed",
+                "parser": "alpha_parser",
+                "resource_url": archived.manifest["resource_url"],
+                "reference_date": "2026-09-22",
+                "sha256": archived.sha256,
+                "approval_mode": "raw_sha256",
+            }
+        ]
+    }
+    release = _release(config, {"alpha-listed": archived})
+    built = _runtime_registry(config)
+    validate_release_runtime(release, built, runtime_code_revision="test-code-revision")
+
+    wrong_code = deepcopy(release)
+    wrong_code["code_revision"] = "another-code-revision"
+    with pytest.raises(ValueError, match="code revision"):
+        validate_release_runtime(wrong_code, built, runtime_code_revision="test-code-revision")
+
+    wrong_projector = deepcopy(release)
+    wrong_projector["sources"][0]["projector_revision"] = "old-projector@0"
+    with pytest.raises(ValueError, match="projector revision"):
+        validate_release_runtime(wrong_projector, built, runtime_code_revision="test-code-revision")
+
+    wrong_parser = deepcopy(release)
+    wrong_parser["sources"][0]["parser_revision"] = "alpha_parser@old-revision"
+    with pytest.raises(ValueError, match="parser revision"):
+        validate_release_runtime(wrong_parser, built, runtime_code_revision="test-code-revision")
 
 
 def test_two_scope_release_replay_uses_archive_when_official_urls_are_unavailable(tmp_path):
