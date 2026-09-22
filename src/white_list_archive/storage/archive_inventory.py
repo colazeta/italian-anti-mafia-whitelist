@@ -2,9 +2,10 @@
 
 The inventory starts from an explicit capture denominator. It never treats a bucket
 listing, failed GET or absent local file as proof that an original is missing. A capture
-is ``missing`` only when durable absence has been independently confirmed and the
-caller also declares the recovery search complete. Otherwise uncertainty remains
-``not_verified``.
+is ``verified`` only when both its durable ContentObject and immutable capture
+provenance can be read back and verified. A capture is ``missing`` only when durable
+absence has been independently confirmed and the caller also declares the recovery
+search complete. Otherwise uncertainty remains ``not_verified``.
 """
 from __future__ import annotations
 
@@ -119,7 +120,11 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
                 byte_size=capture["byte_size"],
             )
 
-        if durable_original_verified:
+        # Archive completeness is a conjunction: recoverable bytes without the
+        # immutable temporal capture/check are not a verified archived acquisition.
+        # Keep the durable ContentObject metric separate so byte preservation remains
+        # visible without overstating temporally referenced capture coverage.
+        if durable_original_verified and capture_provenance_verified:
             status = "verified"
         elif recoverable:
             status = "recoverable_pending"
