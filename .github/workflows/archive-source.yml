@@ -1,0 +1,87 @@
+name: Archive official source before parsing
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_key:
+        description: Existing project source key to bind this acquisition
+        required: true
+        type: string
+      resource_url:
+        description: Reviewed official HTTPS resource URL
+        required: true
+        type: string
+      reference_date:
+        description: Declared source reference date YYYY-MM-DD; leave blank when unknown
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-source-${{ inputs.source_key }}
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: evidence-archive
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install archive runtime
+        run: python -m pip install -e '.[storage]'
+      - name: Require designated private store and credentials
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.storage.evidence import StoreConfig
+          StoreConfig.from_env()
+          if any(not os.environ.get(k) for k in ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')):
+              raise SystemExit('Private evidence store credentials are not configured')
+          PY
+      - name: Archive source bytes and capture provenance before downstream use
+        env:
+          SOURCE_KEY: ${{ inputs.source_key }}
+          RESOURCE_URL: ${{ inputs.resource_url }}
+          REFERENCE_DATE: ${{ inputs.reference_date }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive-first /tmp/public-actions
+          args=(
+            --source-key "$SOURCE_KEY"
+            --resource-url "$RESOURCE_URL"
+            --work-dir /tmp/archive-first
+            --public-receipt /tmp/public-actions/archive-receipt.json
+          )
+          if [ -n "$REFERENCE_DATE" ]; then
+            args+=(--reference-date "$REFERENCE_DATE")
+          fi
+          python -m white_list_archive.acquisition.archive_first "${args[@]}"
+      - name: Emit redacted capture checkpoint
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path('/tmp/public-actions/archive-receipt.json').read_text())
+          print(json.dumps(receipt, sort_keys=True))
+          if not receipt['durable_content_readback_verified'] or not receipt['durable_capture_provenance_readback_verified']:
+              raise SystemExit('Archive-first readback gate was not satisfied')
+          PY
+
+# Deliberately no upload-artifact step: source bytes and private provider coordinates
+# remain inside the trusted runner/private store. The emitted checkpoint is metadata only.
