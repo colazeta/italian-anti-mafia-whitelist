@@ -133,7 +133,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       const stats=publicStatistics(registry.records);
       // Freeze the pre-expansion four-Prefecture baseline independently of later
       // authorities, then assert each added authority and the current total.
-      assert.equal(stats.total,73832);
+      assert.equal(stats.total,73836);
       const previous=registry.records.filter(r=>!['alessandria','aosta','arezzo','avellino','pesaro-e-urbino','biella','benevento','asti','agrigento','belluno','ascoli-piceno','ancona','bari','udine','bergamo','barletta-andria-trani','brindisi','cagliari','caltanissetta','crotone','campobasso','brescia','bolzano-bozen','caserta','catania','genova','foggia','forli-cesena','frosinone','gorizia','napoli','padova','perugia','trento','lodi','roma','pisa','catanzaro','lecco','torino','potenza','sassari','milano','modena','como','firenze','taranto','lecce','messina','laquila','chieti','cremona','cuneo','fermo','grosseto','imperia','lucca','macerata','trapani','palermo','matera','siracusa','ferrara','pordenone','viterbo','ravenna','pescara','piacenza','prato'].includes(r.authority_key));
       assert.equal(previous.length,5052);
       assert.deepEqual(statusCounts(previous),{
@@ -686,17 +686,20 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(descari[0].registered_office,'CLAGLC74B11E736M');
       assert.equal(descari[0].identifier_field_raw,'OLBIA');
       const milano=registry.records.filter(r=>r.authority_key==='milano');
-      assert.equal(milano.length,2611);
-      assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2611);
-      assert.deepEqual(statusCounts(milano),{listed:944,pending:1147,renewal_update_in_progress:520});
-      assert.equal(new Set(milano.map(r=>r.record_locator)).size,2611);
-      assert.equal(milano.filter(r=>r.identifiers.length>0).length,2611);
+      assert.equal(milano.length,2615);
+      assert.equal(milano.filter(r=>r.source_key==='milano-combined').length,2615);
+      assert.deepEqual(statusCounts(milano),{listed:941,pending:1151,renewal_update_in_progress:523});
+      assert.equal(new Set(milano.map(r=>r.record_locator)).size,2615);
+      assert.equal(milano.filter(r=>r.identifiers.length>0).length,2615);
       assert.ok(milano.every(r=>r.requested_activities.length>0));
-      assert.equal(milano.filter(r=>r.application_date!=='').length,1147);
-      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,944);
-      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,944);
-      assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-21'));
+      assert.equal(milano.filter(r=>r.application_date!=='').length,1151);
+      assert.equal(milano.filter(r=>r.observed_listing_date!=='').length,941);
+      assert.equal(milano.filter(r=>r.observed_expiry_date!=='').length,941);
+      assert.equal(Math.max(...milano.filter(r=>r.application_date).map(r=>Date.parse(r.application_date))),Date.parse('2026-09-22'));
       const currentMilano=Object.fromEntries(milano.map(r=>[r.identifier_field_raw,r]));
+      for(const k of ['00752950154','03427300797','11933680966','13808490968','13977410961']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-22');}
+      assert.equal(currentMilano['13826570965'],undefined);
+      for(const k of ['02657900243','11354220961','12210120155']){assert.equal(currentMilano[k].source_status,'renewal_update_in_progress');assert.equal(currentMilano[k].observed_listing_date,'');assert.equal(currentMilano[k].observed_expiry_date,'');}
       for(const k of ['06543250960','12134200968']){assert.equal(currentMilano[k].source_status,'pending');assert.equal(currentMilano[k].application_date,'2026-09-17');}
       for(const k of ['12957130961','13540670968','14580020965']) assert.equal(currentMilano[k],undefined);
       for(const k of ['01081040154','02004400996','04214900161','05561460824','05696960961','06785160968','08530830960','10553180968','10753650018','12654640965','13163200960']) assert.equal(currentMilano[k].source_status,'listed');
