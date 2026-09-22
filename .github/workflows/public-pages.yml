@@ -514,9 +514,9 @@ jobs:
           potenza_records = [r for r in reg['records'] if r['authority_key'] == 'potenza']
           assert len(potenza_records) == 1036
           assert all(r['source_key'] == 'potenza-combined' for r in potenza_records)
-          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 214
+          assert sum(r['source_status'] == 'listed' for r in potenza_records) == 212
           assert sum(r['source_status'] == 'pending' for r in potenza_records) == 378
-          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 444
+          assert sum(r['source_status'] == 'renewal_update_in_progress' for r in potenza_records) == 446
           assert len({r['record_locator'] for r in potenza_records}) == 1036
           assert sum(bool(r['identifiers']) for r in potenza_records) == 1035
           assert sum(bool(r['identifier_field_raw']) and not r['identifiers'] for r in potenza_records) == 1
@@ -553,6 +553,16 @@ jobs:
           assert duec[0]['identifier_field_raw'] == '01643430760'
           assert duec[0]['source_status'] == 'renewal_update_in_progress'
           assert duec[0]['source_fields']['in_aggiornamento'] == '1'
+          eurocomes = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:715']
+          assert len(eurocomes) == 1
+          assert eurocomes[0]['name'] == "L'EUROCOMES S.R.L."
+          assert eurocomes[0]['source_status'] == 'renewal_update_in_progress'
+          assert eurocomes[0]['source_fields']['in_aggiornamento'] == '1'
+          margherita = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:884']
+          assert len(margherita) == 1
+          assert margherita[0]['name'] == 'MARGHERITA S.R.L.'
+          assert margherita[0]['source_status'] == 'renewal_update_in_progress'
+          assert margherita[0]['source_fields']['in_aggiornamento'] == '1'
           scavone = [r for r in potenza_records if r['source_fields']['physical_locator'] == 'source-id:656']
           assert len(scavone) == 1
           assert scavone[0]['name'] == 'SCAVONE & C. S.R.L.'
