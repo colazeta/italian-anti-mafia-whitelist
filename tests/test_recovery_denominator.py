@@ -84,14 +84,40 @@ def known_version(*, sha256: str, byte_size: int | None, recovery_paths=None,
     }
 
 
-def envelope(*, captures=None, known_versions=None, recovery_search_complete=False):
+def release_scope(*, edition_id="f" * 64, authority_key="milano"):
     return {
+        "history_edition_id": edition_id,
+        "authority_key": authority_key,
+        "source_key": "milano-combined",
+        "document_digest": "e" * 64,
+        "digest_semantics": "public_history_document_digest",
+        "raw_content_object_identity_established": False,
+        "parser_signature": "milano-html@3",
+        "reference_date": "2026-09-22",
+        "reference_date_raw": "2026-09-22",
+        "successful_checks": [
+            {
+                "checked_at": "2026-09-22T19:00:00+00:00",
+                "kind": "approved_document_verification",
+                "evidence_ref": "data/history/public_history.json#check-1",
+            }
+        ],
+        "evidence_refs": [f"data/history/public_history.json#edition-{edition_id}"],
+    }
+
+
+def envelope(*, captures=None, known_versions=None, recovery_search_complete=False,
+             published_release_scopes=None):
+    result = {
         "schema_version": 1,
         "generated_at": "2026-09-23T00:15:00+00:00",
         "recovery_search_complete": recovery_search_complete,
         "captures": captures or [],
         "known_versions": known_versions or [],
     }
+    if published_release_scopes is not None:
+        result["published_release_scopes"] = published_release_scopes
+    return result
 
 
 def test_known_hash_without_capture_identity_enters_denominator_not_verified():
@@ -103,6 +129,7 @@ def test_known_hash_without_capture_identity_enters_denominator_not_verified():
     assert row["capture_id"] is None
     assert row["status"] == "not_verified"
     assert row["verification_blocker"] == "byte_size_unknown"
+    assert inventory["published_release_scopes"] == []
     assert inventory["metrics"] == {
         "source_authorities_covered": 1,
         "denominator_items": 1,
@@ -111,6 +138,8 @@ def test_known_hash_without_capture_identity_enters_denominator_not_verified():
         "distinct_content_objects_known": 1,
         "durably_retrievable_content_objects": 0,
         "captures_with_verified_provenance": 0,
+        "published_release_scopes": 0,
+        "published_release_authorities": 0,
         "verified": 0,
         "recoverable_pending": 0,
         "missing": 0,
@@ -177,6 +206,43 @@ def test_durable_legacy_bytes_stay_not_verified_without_capture_provenance(tmp_p
     assert inventory["metrics"]["durably_retrievable_content_objects"] == 1
     assert inventory["metrics"]["verified"] == 1
     assert inventory["metrics"]["not_verified"] == 1
+
+
+def test_published_release_scope_is_counted_separately_from_raw_recovery():
+    legacy = known_version(sha256="a" * 64, byte_size=None)
+    scope = release_scope()
+    inventory = build_recovery_denominator(
+        envelope(known_versions=[legacy], published_release_scopes=[scope]),
+        store(),
+    )
+
+    assert inventory["metrics"]["denominator_items"] == 1
+    assert inventory["metrics"]["distinct_content_objects_known"] == 1
+    assert inventory["metrics"]["published_release_scopes"] == 1
+    assert inventory["metrics"]["published_release_authorities"] == 1
+    assert inventory["published_release_scopes"][0]["document_digest"] == "e" * 64
+    assert inventory["published_release_scopes"][0]["raw_content_object_identity_established"] is False
+
+
+def test_duplicate_published_release_scope_fails_closed():
+    scope = release_scope()
+    import pytest
+    with pytest.raises(ValueError, match="Duplicate published-release scope"):
+        build_recovery_denominator(
+            envelope(published_release_scopes=[scope, dict(scope)]),
+            store(),
+        )
+
+
+def test_public_history_cannot_claim_raw_content_object_identity():
+    scope = release_scope()
+    scope["raw_content_object_identity_established"] = True
+    import pytest
+    with pytest.raises(ValueError, match="cannot establish raw ContentObject"):
+        build_recovery_denominator(
+            envelope(published_release_scopes=[scope]),
+            store(),
+        )
 
 
 def test_missing_requires_known_size_positive_absence_and_completed_search():
