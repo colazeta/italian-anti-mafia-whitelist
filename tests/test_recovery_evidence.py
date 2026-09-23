@@ -69,6 +69,7 @@ def test_repository_evidence_preserves_checks_and_legacy_manifests_without_inven
     write_json(captures / "cosenza" / "diff.json", {"sha256": "d" * 64, "byte_size": 1})
 
     result = build_repository_recovery_expectations(
+        repository_root=tmp_path,
         monitoring_path=monitoring,
         captures_root=captures,
         generated_at="2026-09-23T00:30:00+00:00",
@@ -81,6 +82,8 @@ def test_repository_evidence_preserves_checks_and_legacy_manifests_without_inven
     assert len(milano_checks) == 2
     assert all(row["source_key"] is None for row in milano_checks)
     assert len({row["evidence_version_key"] for row in milano_checks}) == 2
+    assert all("data/monitoring/national_coverage.json#check-" in row["evidence_refs"][-1]
+               for row in milano_checks)
 
     coverage = next(row for row in versions if row["sha256"] == coverage_only)
     assert coverage["source_key"] is None
@@ -89,7 +92,8 @@ def test_repository_evidence_preserves_checks_and_legacy_manifests_without_inven
     legacy = next(row for row in versions if row["sha256"] == legacy_sha)
     assert legacy["source_key"] == "cosenza-combined"
     assert legacy["byte_size"] == 1234
-    assert legacy["evidence_version_key"].startswith("legacy-manifest:")
+    assert legacy["evidence_version_key"] == "legacy-manifest:data/captures/cosenza/combined_2026-08-03.json"
+    assert legacy["evidence_refs"] == ["data/captures/cosenza/combined_2026-08-03.json"]
     # The lower-specificity Cosenza known-hash inventory must not duplicate the manifest.
     assert len([row for row in versions if row["sha256"] == legacy_sha]) == 1
 
@@ -108,7 +112,23 @@ def test_repository_evidence_rejects_invalid_hashed_monitoring_check(tmp_path):
     import pytest
     with pytest.raises(ValueError, match="invalid content SHA-256"):
         build_repository_recovery_expectations(
+            repository_root=tmp_path,
             monitoring_path=monitoring,
             captures_root=captures,
+            generated_at="2026-09-23T00:30:00+00:00",
+        )
+
+
+def test_repository_evidence_rejects_paths_outside_repository_root(tmp_path):
+    repo = tmp_path / "repo"
+    monitoring = tmp_path / "outside.json"
+    write_json(monitoring, {"checks": [], "prefectures": []})
+
+    import pytest
+    with pytest.raises(ValueError, match="inside repository_root"):
+        build_repository_recovery_expectations(
+            repository_root=repo,
+            monitoring_path=monitoring,
+            captures_root=repo / "data" / "captures",
             generated_at="2026-09-23T00:30:00+00:00",
         )
