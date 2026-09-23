@@ -1,20 +1,21 @@
 """Conservative denominator for national temporal-archive recovery.
 
-This layer reconciles two different kinds of evidence without conflating them:
+This layer reconciles different evidence classes without conflating them:
 
-* archive-first captures with stable capture identity and immutable provenance; and
+* archive-first captures with stable capture identity and immutable provenance;
 * historical byte versions known from transition notes, manifests or other reviewed
-  evidence but lacking a durable capture/check identity.
+  evidence but lacking a durable capture/check identity; and
+* approved public-history editions, retained only as aggregate publication scopes.
 
-The latter are part of the recovery problem but can never be promoted to ``verified``
-merely because matching bytes exist. A caller must supply an explicit evidence version
-key; it is a reconciliation key, not a retroactively invented SourceEdition or capture
-identifier. When historical evidence establishes an authority and byte identity but not
-an exact SourceSeries, ``source_key`` remains null rather than being guessed.
+Historical byte evidence is part of the recovery problem but can never be promoted to
+``verified`` merely because matching bytes exist. Public-history document digests are
+not treated as raw ``ContentObject`` identities because the aggregate ledger does not
+preserve whether a digest originated from one source object or a source bundle.
 """
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime
 import hashlib
 from pathlib import Path
 import re
@@ -28,6 +29,21 @@ from white_list_archive.storage.evidence import EvidenceStore
 
 SCHEMA_VERSION = 1
 _SHA256_RE = re.compile(r"[a-f0-9]{64}")
+_RELEASE_SCOPE_FIELDS = {
+    "history_edition_id",
+    "authority_key",
+    "source_key",
+    "document_digest",
+    "digest_semantics",
+    "raw_content_object_identity_established",
+    "parser_signature",
+    "reference_date",
+    "reference_date_raw",
+    "successful_checks",
+    "evidence_refs",
+}
+_RELEASE_CHECK_FIELDS = {"checked_at", "kind", "evidence_ref"}
+_RELEASE_CHECK_KINDS = {"approved_document_verification", "historical_capture"}
 
 
 def _verified_recovery_copy(paths: list[str], *, sha256: str, byte_size: int) -> bool:
@@ -88,6 +104,51 @@ def _validate_known_version(expected: dict[str, Any]) -> dict[str, Any]:
     return expected
 
 
+def _validate_release_scope(raw: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(raw, dict) or set(raw) != _RELEASE_SCOPE_FIELDS:
+        raise ValueError("Unapproved published-release scope")
+    if not _SHA256_RE.fullmatch(raw["history_edition_id"]):
+        raise ValueError("Published-release history edition ID must be SHA-256")
+    for key in ("authority_key", "source_key", "parser_signature", "reference_date_raw"):
+        if not isinstance(raw[key], str):
+            raise ValueError(f"Published-release {key} must be text")
+    if not raw["authority_key"].strip() or not raw["source_key"].strip() or not raw["parser_signature"].strip():
+        raise ValueError("Published-release authority, source and parser signature are required")
+    if raw["reference_date"] is not None and not isinstance(raw["reference_date"], str):
+        raise ValueError("Published-release reference_date must be text or null")
+    if not _SHA256_RE.fullmatch(raw["document_digest"]):
+        raise ValueError("Published-release document digest must be SHA-256")
+    if raw["digest_semantics"] != "public_history_document_digest":
+        raise ValueError("Unsupported published-release digest semantics")
+    if raw["raw_content_object_identity_established"] is not False:
+        raise ValueError("Public history cannot establish raw ContentObject identity")
+
+    evidence_refs = raw["evidence_refs"]
+    if (not isinstance(evidence_refs, list) or not evidence_refs or
+            any(not isinstance(ref, str) or not ref.strip() for ref in evidence_refs)):
+        raise ValueError("Published-release scope needs evidence references")
+
+    checks = raw["successful_checks"]
+    if not isinstance(checks, list):
+        raise ValueError("Published-release successful_checks must be a list")
+    seen_checks: set[tuple[str, str, str]] = set()
+    for check in checks:
+        if not isinstance(check, dict) or set(check) != _RELEASE_CHECK_FIELDS:
+            raise ValueError("Invalid published-release check")
+        if check["kind"] not in _RELEASE_CHECK_KINDS:
+            raise ValueError("Unsupported published-release check kind")
+        if any(not isinstance(check[key], str) or not check[key].strip() for key in _RELEASE_CHECK_FIELDS):
+            raise ValueError("Published-release check fields must be non-empty text")
+        parsed = datetime.fromisoformat(check["checked_at"].replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            raise ValueError("Published-release check timestamp needs a timezone")
+        key = (check["checked_at"], check["kind"], check["evidence_ref"])
+        if key in seen_checks:
+            raise ValueError("Duplicate published-release check")
+        seen_checks.add(key)
+    return raw
+
+
 def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStore) -> dict[str, Any]:
     """Build a denominator without fabricating capture or source-series identity.
 
@@ -96,6 +157,10 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
     ``recoverable_pending`` when exact bytes are available outside the governed store,
     or ``missing`` only under the same positive-absence and completed-search contract as
     captures. It cannot be ``verified`` until real immutable capture provenance exists.
+
+    ``published_release_scopes`` is an optional compatibility extension to schema
+    version 1. It records what the aggregate public-history ledger says was published
+    without adding those digests to raw-source recovery metrics.
     """
     if not isinstance(expectations, dict) or expectations.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("Unsupported recovery denominator expectations")
@@ -105,8 +170,10 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
         "recovery_search_complete",
         "captures",
         "known_versions",
+        "published_release_scopes",
     }
-    if set(expectations) != allowed:
+    required = allowed - {"published_release_scopes"}
+    if set(expectations) - allowed or not required <= set(expectations):
         raise ValueError("Unapproved recovery denominator expectations envelope")
     if not isinstance(expectations["generated_at"], str) or not expectations["generated_at"].strip():
         raise ValueError("Denominator generation timestamp is required")
@@ -114,6 +181,9 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
         raise ValueError("recovery_search_complete must be boolean")
     if not isinstance(expectations["captures"], list) or not isinstance(expectations["known_versions"], list):
         raise ValueError("captures and known_versions must be lists")
+    release_scopes_raw = expectations.get("published_release_scopes", [])
+    if not isinstance(release_scopes_raw, list):
+        raise ValueError("published_release_scopes must be a list")
 
     capture_inventory = build_archive_inventory(
         {
@@ -208,6 +278,24 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
             }
         )
 
+    release_scopes: list[dict[str, Any]] = []
+    release_ids: set[str] = set()
+    release_authorities: set[str] = set()
+    for raw in release_scopes_raw:
+        scope = _validate_release_scope(raw)
+        edition_id = scope["history_edition_id"]
+        if edition_id in release_ids:
+            raise ValueError("Duplicate published-release scope")
+        release_ids.add(edition_id)
+        release_authorities.add(scope["authority_key"])
+        release_scopes.append(
+            {
+                **scope,
+                "successful_checks": [dict(check) for check in scope["successful_checks"]],
+                "evidence_refs": list(scope["evidence_refs"]),
+            }
+        )
+
     counts = Counter(row["status"] for row in rows)
     if set(counts) - STATUSES:
         raise AssertionError("Unexpected denominator status")
@@ -226,10 +314,13 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
             "distinct_content_objects_known": len(all_hashes),
             "durably_retrievable_content_objects": len(durable_content),
             "captures_with_verified_provenance": capture_metrics["captures_with_verified_provenance"],
+            "published_release_scopes": len(release_scopes),
+            "published_release_authorities": len(release_authorities),
             "verified": counts["verified"],
             "recoverable_pending": counts["recoverable_pending"],
             "missing": counts["missing"],
             "not_verified": counts["not_verified"],
         },
         "items": rows,
+        "published_release_scopes": release_scopes,
     }
