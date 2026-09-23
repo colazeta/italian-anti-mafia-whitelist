@@ -18,10 +18,10 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 73
-    assert report["register_scope_count"] == 76
+    assert report["verified_authority_count"] == 74
+    assert report["register_scope_count"] == 77
     assert report["complete_register_scope_count"] == 76
-    assert report["incomplete_register_scope_count"] == 0
+    assert report["incomplete_register_scope_count"] == 1
 
     by_scope = {}
     for row in report["rows"]:
@@ -110,12 +110,23 @@ def test_separate_series_and_unresolved_gaps_are_distinguished():
     assert agrigento["listed"]["coverage_status"] == "COVERED_SEPARATE_SERIES"
     assert agrigento["applicant"]["coverage_status"] == "COVERED_SEPARATE_SERIES"
 
+    pavia = {
+        row["population_target"]: row
+        for row in report["rows"]
+        if row["authority_key"] == "pavia"
+        and row["regime_code"] == "WL-REGIME-L190-2012"
+    }
+    assert pavia["listed"]["coverage_status"] == "COVERED_SEPARATE_SERIES"
+    assert pavia["listed"]["covering_series_keys"] == ["pavia-listed"]
+    assert pavia["applicant"]["coverage_status"] == "UNRESOLVED_REQUIRES_REVIEW"
+    assert pavia["applicant"]["covering_series_keys"] == []
+
     unresolved = {
         row["authority_key"]
         for row in report["scopes"]
         if not row["source_population_complete"]
     }
-    assert unresolved == set()
+    assert unresolved == {"pavia"}
 
 
 def test_recently_resolved_current_pages_cover_both_populations():
