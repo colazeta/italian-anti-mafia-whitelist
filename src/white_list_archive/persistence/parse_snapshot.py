@@ -224,6 +224,18 @@ def _ensure_parse_run(
     )
     software_version = f"{parser_revision}+git.{code_revision}"
     primary_content_object_id = inputs[0]["content_object_id"]
+
+    # The unique parse_run_code index rejects duplicate committed identities, but
+    # by itself it does not make a SELECT-then-INSERT race idempotent: a concurrent
+    # retry can wait on the unique index and then raise after the winner commits.
+    # Serialize only this stable interpretation identity for the caller-owned
+    # transaction, then re-read it. Hash collisions merely serialize unrelated
+    # runs; they cannot merge identities because parse_run_code remains unique.
+    cur.execute(
+        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+        (parse_run_code,),
+    )
+
     cur.execute(
         """
         SELECT pr.parse_run_id, pr.content_object_id, pr.status_code,

@@ -1,9 +1,11 @@
-"""Real PostgreSQL check for immutable parser snapshots; transaction rolled back."""
+"""Real PostgreSQL check for immutable parser snapshots on an ephemeral CI database."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
 import os
+import threading
+import time
 
 import psycopg
 
@@ -359,9 +361,145 @@ with psycopg.connect(dsn) as conn:
 
     conn.rollback()
 
+# Prove actual concurrent retries are idempotent rather than relying only on the
+# unique parse_run_code index. The first transaction creates the interpretation
+# but deliberately withholds commit while a second connection attempts the same
+# stable identity. After the first commit, the second must re-read and reuse it;
+# a bare SELECT-then-INSERT implementation instead raises a unique violation.
+concurrent_records = [
+    {
+        "operator_name": "Synthetic Concurrent Operator",
+        "source_status": "listed",
+        "source_fields": {"physical_locator": "row:1"},
+    }
+]
+concurrent_diagnostics = {"source_rows": 1, "public_records": 1, "warnings": []}
+concurrent_capture_id = "30000000-0000-4000-8000-000000000001"
+concurrent_common = dict(
+    parser_name="synthetic_snapshot_concurrent_parser",
+    parser_revision="1",
+    code_revision="e" * 40,
+    configuration_hash="f" * 64,
+    started_at=datetime(2026, 9, 23, 6, 0, tzinfo=timezone.utc),
+    completed_at=datetime(2026, 9, 23, 6, 1, tzinfo=timezone.utc),
+    records=concurrent_records,
+    diagnostics=concurrent_diagnostics,
+)
+with psycopg.connect(dsn) as setup_conn:
+    with setup_conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO source.source_series(series_code, series_name, series_type_code)
+            VALUES ('ci-parse-snapshot-concurrent','CI concurrent parse snapshot series','list')
+            RETURNING series_id
+            """
+        )
+        concurrent_series_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            INSERT INTO source.source_resource(canonical_locator, web_url, resource_type_code)
+            VALUES ('https://official.example.test/concurrent.pdf',
+                    'https://official.example.test/concurrent.pdf','pdf')
+            RETURNING resource_id
+            """
+        )
+        concurrent_resource_id = cur.fetchone()[0]
+        concurrent_bytes = b"synthetic concurrent immutable source bytes"
+        concurrent_sha = _sha(concurrent_bytes)
+        cur.execute(
+            """
+            INSERT INTO source.content_object(
+                sha256,mime_type,file_size,storage_uri,storage_status_code
+            ) VALUES (%s,'application/pdf',%s,'https://ci.invalid/evidence/sha256/concurrent','durable')
+            RETURNING content_object_id
+            """,
+            (concurrent_sha, len(concurrent_bytes)),
+        )
+        concurrent_content_id = cur.fetchone()[0]
+        cur.execute(
+            """
+            INSERT INTO source.source_capture(
+                capture_id, series_id, resource_id, content_object_id,
+                captured_at, http_status, origin_type_code, authority_rank_code,
+                resolved_url
+            ) VALUES (%s,%s,%s,%s,
+                      '2026-09-23T06:00:00+00:00',200,'official_current','primary_official',
+                      'https://official.example.test/concurrent.pdf')
+            """,
+            (
+                concurrent_capture_id,
+                concurrent_series_id,
+                concurrent_resource_id,
+                concurrent_content_id,
+            ),
+        )
+    setup_conn.commit()
+
+first_conn = psycopg.connect(dsn)
+try:
+    concurrent_first = persist_parse_snapshot(
+        first_conn, capture_id=concurrent_capture_id, **concurrent_common
+    )
+    second_started = threading.Event()
+    second_result: dict[str, object] = {}
+    second_error: list[BaseException] = []
+
+    def _run_concurrent_retry() -> None:
+        try:
+            with psycopg.connect(dsn) as second_conn:
+                later_common = dict(concurrent_common)
+                later_common["started_at"] = datetime(2026, 9, 23, 6, 2, tzinfo=timezone.utc)
+                later_common["completed_at"] = datetime(2026, 9, 23, 6, 3, tzinfo=timezone.utc)
+                second_started.set()
+                second_result.update(
+                    persist_parse_snapshot(
+                        second_conn,
+                        capture_id=concurrent_capture_id,
+                        **later_common,
+                    )
+                )
+                second_conn.commit()
+        except BaseException as exc:  # surfaced in the main test thread below
+            second_error.append(exc)
+
+    retry_thread = threading.Thread(target=_run_concurrent_retry, daemon=True)
+    retry_thread.start()
+    assert second_started.wait(timeout=5), "Concurrent retry thread did not start"
+    time.sleep(0.2)
+    assert retry_thread.is_alive(), "Concurrent retry did not wait for the first transaction"
+
+    first_conn.commit()
+    retry_thread.join(timeout=5)
+    assert not retry_thread.is_alive(), "Concurrent retry did not finish after first commit"
+    assert not second_error, f"Concurrent retry failed instead of reusing the parse run: {second_error!r}"
+    assert second_result["parse_run_id"] == concurrent_first["parse_run_id"]
+    assert second_result["parse_run_reused"] is True
+    assert second_result["snapshot_reused"] is True
+    assert second_result["capture_link_reused"] is True
+finally:
+    if not first_conn.closed:
+        first_conn.close()
+
+with psycopg.connect(dsn) as verify_conn:
+    with verify_conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM source.parse_run WHERE content_object_id=%s",
+            (concurrent_content_id,),
+        )
+        assert cur.fetchone()[0] == 1
+        cur.execute(
+            """
+            SELECT count(*)
+            FROM provenance.processing_activity
+            WHERE activity_type_code='parse'
+              AND software_name='synthetic_snapshot_concurrent_parser'
+            """
+        )
+        assert cur.fetchone()[0] == 1
+
 print(
-    "Immutable parse snapshots passed against PostgreSQL: repeated unchanged captures and later wall-clock "
-    "retries reuse one interpretation while preserving first processing provenance; divergent output fails closed; "
-    "parser revisions remain separate; labelled multi-ContentObject bundles preserve every input/capture; "
-    "full records/diagnostics are retrievable; no SourceEdition is invented."
+    "Immutable parse snapshots passed against PostgreSQL: repeated unchanged captures, later wall-clock retries, "
+    "and concurrent retries reuse one interpretation while preserving first processing provenance; divergent "
+    "output fails closed; parser revisions remain separate; labelled multi-ContentObject bundles preserve every "
+    "input/capture; full records/diagnostics are retrievable; no SourceEdition is invented."
 )
