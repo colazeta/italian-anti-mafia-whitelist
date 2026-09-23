@@ -277,15 +277,35 @@ def _write_archived_payload(path: Path, data: bytes) -> None:
 def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> Iterator[None]:
     """Make parser acquisition read only fully verified release-pinned captures.
 
-    Routing is keyed by ``(source_key, resource_label)`` rather than URL. This is
-    process-local and intended for the existing serial release worker. Every selected
-    capture/check and ContentObject is independently read back before parser execution.
-    There is deliberately no live fallback, including when two source scopes reuse the
-    same physical locator with different historical bytes.
+    Authoritative routing is keyed by ``(source_key, resource_label)`` rather than URL.
+    The temporary `_download` adapter is retained only for unambiguous legacy callers;
+    it never falls back to the network and rejects locators that represent conflicting
+    archived bytes. Every selected capture/check and ContentObject is independently
+    read back before either parser-facing adapter becomes available.
     """
     bindings = validate_release_manifest(manifest, config)
     payload_by_resource = _verified_payloads_by_resource(manifest, config, store)
-    original = registry._acquire_source_input
+    original_acquire = registry._acquire_source_input
+    original_download = registry._download
+
+    compatibility_payload_by_url: dict[str, bytes | None] = {}
+    for identity, data in payload_by_resource.items():
+        url = bindings[identity]["capture"]["resource_url"]
+        if url not in compatibility_payload_by_url:
+            compatibility_payload_by_url[url] = data
+        elif compatibility_payload_by_url[url] != data:
+            compatibility_payload_by_url[url] = None
+
+    def archived_download(url: str, destination: Path) -> str:
+        if url not in compatibility_payload_by_url:
+            raise RuntimeError(f"Frozen release has no archived capture for URL: {url}")
+        data = compatibility_payload_by_url[url]
+        if data is None:
+            raise RuntimeError(
+                "Frozen release URL is ambiguous across logical resources; use logical resource acquisition"
+            )
+        _write_archived_payload(destination, data)
+        return hashlib.sha256(data).hexdigest()
 
     def archived_acquire_source_input(cfg: dict[str, Any], work_dir: Path) -> tuple[Path | dict[str, Path], str]:
         source_key = cfg["source_key"]
@@ -328,11 +348,13 @@ def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> It
             )
         return paths, actual_bundle_sha
 
+    registry._download = archived_download
     registry._acquire_source_input = archived_acquire_source_input
     try:
         yield
     finally:
-        registry._acquire_source_input = original
+        registry._acquire_source_input = original_acquire
+        registry._download = original_download
 
 
 def build_registry_from_release(
