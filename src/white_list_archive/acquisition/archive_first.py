@@ -18,6 +18,9 @@ from typing import Callable
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
+from white_list_archive.persistence.source_series_registration import (
+    reviewed_source_series_context,
+)
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue, capture_record_key
 from white_list_archive.storage.evidence import (
     EvidenceStore,
@@ -301,13 +304,13 @@ def main(argv: list[str] | None = None) -> int:
         "--authority-registry",
         type=Path,
         default=DEFAULT_AUTHORITY_REGISTRY,
-        help="Reviewed territorial-authority inventory used only for relational metadata registration.",
+        help="Reviewed territorial-authority inventory used for source-identity preflight and relational registration.",
     )
     parser.add_argument(
         "--series-registry",
         type=Path,
         default=DEFAULT_SERIES_REGISTRY,
-        help="Reviewed SourceSeries inventory used only for relational metadata registration.",
+        help="Reviewed SourceSeries inventory used for source-identity preflight and relational registration.",
     )
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument(
@@ -319,6 +322,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.public_receipt.exists():
         parser.error("Public receipt path already exists; capture metadata is append-only")
+
+    # The protected CLI may only acquire into a SourceSeries already reviewed on the
+    # executing repository revision. Validate this before network I/O, staging or
+    # provider access. The exact resource URL is intentionally not compared with the
+    # series_url locator: recurring series can move attachments without changing
+    # logical SourceSeries identity, and the acquired URL is captured separately.
+    reviewed_source_series_context(
+        args.source_key,
+        authority_csv=args.authority_registry,
+        series_csv=args.series_registry,
+    )
 
     config = StoreConfig.from_env()
     store = EvidenceStore(client_for(config), config)
