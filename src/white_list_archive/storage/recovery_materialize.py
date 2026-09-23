@@ -166,8 +166,8 @@ def apply_recovery_plan(
     existing row, but cannot introduce a historical version that the repository has never
     evidenced. Archive-first captures are different: their stable capture UUID and private
     catalogue receipt are themselves the positive identity evidence and may enter via the
-    operator plan. When a reviewed SourceSeries mapping is supplied, the plan also cannot
-    relabel a capture to another authority or introduce an unreviewed SourceSeries.
+    operator plan, but every such capture requires a reviewed SourceSeries → authority
+    binding and cannot be relabelled to another authority.
     """
     plan = _validate_plan(plan)
     expectations = deepcopy(repository_expectations)
@@ -206,6 +206,10 @@ def apply_recovery_plan(
         row["evidence_refs"] = list(dict.fromkeys([*row["evidence_refs"], *overlay["operator_evidence_refs"]]))
 
     captures = deepcopy(plan["captures"])
+    if captures and source_authorities is None:
+        raise ValueError(
+            "Archive-first recovery captures require reviewed SourceSeries authority bindings"
+        )
     if source_authorities is not None:
         for row in captures:
             source_key = row["capture"]["source_key"]
