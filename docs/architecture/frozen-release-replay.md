@@ -41,9 +41,21 @@ A release manifest can be created after the code revision it selects. Consequent
 
 The manifest is validated again by the frozen-release runtime. Parser revision, projector revision, configuration digest and code revision are executable pins rather than descriptive metadata.
 
+## Protected archive-backed promotion candidate
+
+`.github/workflows/promote-frozen-release.yml` is the protected staging gate for an already reviewed frozen release before serial public promotion. It is manual, runs only from `main`, requires a tracked manifest under `data/releases/`, and uses the `evidence-archive` environment for archive and observation-database access. It has no live-source mode.
+
+The gate repeats the immutable-input discipline instead of trusting a previous runner workspace. It freezes the reviewed manifest, proves that its exact `code_revision` is an ancestor of current `main`, checks out that pinned code, rereads every selected ContentObject and capture provenance through the archive replay runtime, and persists the corresponding parse observations before public validation. A missing private writer, corrupt or missing selected object, provenance mismatch, parser/configuration/code drift, or source-scope mismatch fails the candidate.
+
+The generated candidate is subjected to the public artifact contract, browser acceptance and official-link audit. Only explicitly public review outputs are uploaded as ordinary Actions artifacts: rendered browser evidence, the public link audit and `public-site/`. Original source bytes, capture manifests, parser workspaces and row-level private evidence are not uploaded.
+
+The gate deliberately does **not** upload a Pages artifact or deploy to GitHub Pages. The repository's reviewed artifact policy permits exactly one Pages publisher, currently `public-pages.yml`; introducing a second publisher would weaken serial promotion and allow a legacy live-source run to race or overwrite an archive-backed candidate. Until a complete reviewed national frozen release has passed this staging gate, the last validated Pages deployment remains untouched.
+
+This workflow being present does not authorise a release by itself. It cannot run successfully until a complete reviewed manifest exists, and it is not a substitute for the two-scope real-provider evidence, national recovery reconciliation or independent restore required by issue #163. Wiring final Pages promotion into the single authoritative publication surface is a later serial transition, to be made only after such a candidate exists and has passed this gate.
+
 ## What this gate proves — and what it does not
 
-A successful protected run proves that one reviewed release can be rebuilt from its selected private archived captures with the live official endpoints out of the execution path. It is evidence of replayability for that release.
+A successful protected run proves that one reviewed release can be rebuilt from its selected private archived captures with the live official endpoints out of the execution path, that parser observations were durably persisted for that run, and that the resulting public candidate passed the repository's public-contract/browser/link gates. It is staging evidence for that release, not deployment evidence.
 
 The existence of the workflow, its unit tests or a synthetic-store run does not establish national archival completeness. In particular it does not prove:
 
@@ -51,10 +63,13 @@ The existence of the workflow, its unit tests or a synthetic-store run does not 
 - that the national recovery denominator has been reconciled against real catalogue objects and recovery packages;
 - production persistence of all historical observations or interpretation revisions;
 - independent backup/restore capability;
-- that a complete national release manifest has been selected and successfully replayed on the real provider.
+- that a complete national release manifest has been selected and successfully replayed on the real provider;
+- that a frozen release has been promoted to the live Pages site.
 
 Those acceptance dimensions remain separate in issue #163. The historical R2 provider gate also remains distinct from national capture coverage and independent restore evidence.
 
 ## Relationship to the legacy public workflow
 
-`public-pages.yml` still uses the legacy live-source build while the archive migration is incomplete. It must not be switched to frozen-release publication merely to avoid mutable-source failures before a complete, reviewed national frozen release exists. The last validated public release is preserved during that migration.
+`public-pages.yml` still uses the legacy live-source build while the archive migration is incomplete. It remains the repository's sole Pages publisher and must not be silently treated as archive-backed evidence. The frozen staging workflow has no fallback to it, and a newer live source remains an acquisition concern rather than a reason to invalidate an intact frozen candidate.
+
+The publication wiring must not be switched merely to avoid mutable-source failures before a complete, reviewed national frozen release exists and passes the protected staging gate. This preserves the last validated public release during migration. When that prerequisite is met, final promotion must be serialised through the single reviewed Pages publication surface rather than by adding a competing publisher.

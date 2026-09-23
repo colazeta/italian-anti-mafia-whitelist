@@ -1,0 +1,269 @@
+name: Stage frozen national release for promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_manifest:
+        description: Reviewed frozen release manifest under data/releases/
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frozen-release-promotion
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: evidence-archive
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Checkout reviewed release catalogue on main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Freeze reviewed manifest and resolve pinned code revision
+        id: release
+        env:
+          RELEASE_MANIFEST_INPUT: ${{ inputs.release_manifest }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+          from pathlib import Path
+
+          root = Path.cwd().resolve()
+          releases = (root / 'data' / 'releases').resolve()
+          raw = os.environ['RELEASE_MANIFEST_INPUT'].strip()
+          if not raw:
+              raise SystemExit('release_manifest is required')
+          candidate = (root / raw).resolve()
+          try:
+              candidate.relative_to(releases)
+          except ValueError as exc:
+              raise SystemExit('release_manifest must resolve under data/releases/') from exc
+          if candidate.suffix.lower() != '.json' or not candidate.is_file():
+              raise SystemExit('release_manifest must name an existing JSON file')
+          subprocess.run(['git', 'ls-files', '--error-unmatch', raw], check=True)
+          manifest = json.loads(candidate.read_text(encoding='utf-8'))
+          if manifest.get('schema_version') != 1:
+              raise SystemExit('Unsupported frozen release schema_version')
+          release_id = manifest.get('release_id')
+          if not isinstance(release_id, str) or not release_id.strip():
+              raise SystemExit('Frozen release must have a non-empty release_id')
+          revision = manifest.get('code_revision')
+          if not isinstance(revision, str) or not re.fullmatch(r'[0-9a-f]{40}', revision):
+              raise SystemExit('Frozen release code_revision must be an exact 40-character Git commit SHA')
+          sources = manifest.get('sources')
+          if not isinstance(sources, list) or not sources:
+              raise SystemExit('Frozen release must pin at least one source')
+          ancestry = subprocess.run(
+              ['git', 'merge-base', '--is-ancestor', revision, 'HEAD'],
+              check=False,
+              stdout=subprocess.DEVNULL,
+              stderr=subprocess.DEVNULL,
+          )
+          if ancestry.returncode != 0:
+              raise SystemExit('Frozen release code_revision must be an ancestor of current main')
+          shutil.copyfile(candidate, '/tmp/frozen-release.json')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f'code_revision={revision}\n')
+              handle.write(f'release_id={release_id}\n')
+          PY
+
+      - name: Checkout exact code revision pinned by release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.code_revision }}
+          clean: true
+
+      - name: Prepare runner package sources
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          if grep -RqsE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+            echo 'Chrome APT source remained after targeted cleanup' >&2
+            exit 1
+          fi
+
+      - name: Install archive-backed publication runtime
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 && \
+               sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Publication runtime package installation failed after bounded retries' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,storage,database]'
+
+      - name: Require designated private archive and observation database
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.storage.evidence import StoreConfig
+          StoreConfig.from_env()
+          if any(not os.environ.get(k) for k in ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')):
+              raise SystemExit('Private evidence store credentials are not configured')
+          if not os.environ.get('EVIDENCE_DATABASE_URL'):
+              raise SystemExit('Private evidence database writer is not configured; frozen candidate staging cannot proceed')
+          PY
+
+      - name: Build public candidate only from pinned archived captures
+        env:
+          PINNED_CODE_REVISION: ${{ steps.release.outputs.code_revision }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/frozen-publication
+          mkdir -p /tmp/frozen-publication/work
+          python -m white_list_archive.publishing.archive_replay_observations \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --verified-pages data/source_registry/verified_primary_pages.csv \
+            --source-series data/source_registry/source_series_inventory.csv \
+            --authority-aliases data/source_registry/national_index_authority_aliases.csv \
+            --work-dir /tmp/frozen-publication/work \
+            --registry-json public-site/data/registry.json \
+            --registry-csv public-site/data/registry.csv \
+            --prefectures-json public-site/data/prefectures.json \
+            --prefectures-csv public-site/data/prefectures.csv \
+            --release-manifest /tmp/frozen-release.json \
+            --runtime-code-revision "$PINNED_CODE_REVISION"
+
+      - name: Validate frozen public candidate
+        id: validate_public
+        env:
+          PINNED_CODE_REVISION: ${{ steps.release.outputs.code_revision }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          test -f public-site/index.html
+          test -f public-site/data/site.json
+          test -f public-site/data/registry.json
+          test -f public-site/data/registry.csv
+          test -f public-site/data/prefectures.json
+          test -f public-site/data/prefectures.csv
+          test -f public-site/data/history.json
+          node --check public-site/app.js
+          node --check public-site/summary.js
+          python -m white_list_archive.publishing.public_artifact public-site
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from white_list_archive.publishing.public_contract import validate_registry
+
+          root = Path('public-site')
+          manifest = json.loads(Path('/tmp/frozen-release.json').read_text(encoding='utf-8'))
+          registry = json.loads((root / 'data/registry.json').read_text(encoding='utf-8'))
+          prefectures = json.loads((root / 'data/prefectures.json').read_text(encoding='utf-8'))
+          validate_registry(registry)
+          if manifest['release_id'] != os.environ['RELEASE_ID']:
+              raise SystemExit('Frozen release identity changed during candidate staging')
+          if manifest['code_revision'] != os.environ['PINNED_CODE_REVISION']:
+              raise SystemExit('Executing code revision differs from frozen release pin')
+          manifest_sources = {source['source_key'] for source in manifest['sources']}
+          registry_sources = {source['source_key'] for source in registry['meta']['sources']}
+          if manifest_sources != registry_sources:
+              raise SystemExit('Public candidate source scope differs from frozen release source scope')
+          if registry['meta']['record_count'] != len(registry['records']):
+              raise SystemExit('Public registry record_count mismatch')
+          if not registry['records']:
+              raise SystemExit('Frozen release produced an empty public registry')
+          if prefectures['meta']['published_count'] != registry['meta']['authority_count']:
+              raise SystemExit('Published Prefecture count differs from registry authority count')
+          if any(not source.get('document_checked_at') for source in registry['meta']['sources']):
+              raise SystemExit('Every public candidate source must retain an observation/capture timestamp')
+          forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
+          reg_text = (root / 'data/registry.json').read_text(encoding='utf-8').casefold()
+          for token in forbidden_tokens:
+              if token in reg_text:
+                  raise SystemExit(f'Forbidden private field in public registry: {token}')
+          forbidden_files = ('address-review-2026-09-07.csv','table_catalog.json','source_evidence.json','data-explorer-preview-v2')
+          names = [str(path) for path in root.rglob('*') if path.is_file()]
+          for token in forbidden_files:
+              if any(token in name for name in names):
+                  raise SystemExit(f'Forbidden artifact in public site: {token}')
+          print(json.dumps({
+              'release_id': manifest['release_id'],
+              'code_revision': manifest['code_revision'],
+              'records': registry['meta']['record_count'],
+              'authorities': registry['meta']['authority_count'],
+              'registers': registry['meta']['register_count'],
+              'source_mode': 'archived_frozen_release',
+              'deployment': 'not_performed',
+          }, sort_keys=True))
+          PY
+
+      - name: Install browser acceptance test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Test public registry at desktop and mobile widths
+        run: |
+          python -m http.server 8765 --directory public-site > /tmp/public-preview-server.log 2>&1 &
+          node tests/public_portal_browser.cjs
+
+      - name: Save rendered acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-public-rendered-evidence-attempt-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+
+      - name: Verify official-source links
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        run: python -m white_list_archive.publishing.public_links public-site /tmp/public-link-audit.json
+
+      - name: Save link verification report
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-public-link-audit-attempt-${{ github.run_attempt }}
+          path: /tmp/public-link-audit.json
+          retention-days: 14
+
+      - name: Save reviewable frozen public candidate
+        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frozen-public-review-${{ steps.release.outputs.release_id }}-attempt-${{ github.run_attempt }}
+          path: public-site/
+          retention-days: 14
+
+# This workflow has no live-source acquisition or Pages deployment path. It stages
+# only explicitly public review artifacts. Original bytes, capture provenance,
+# parser workspaces and row-level private evidence remain in the governed private
+# archive/database. Final Pages promotion stays serial and is intentionally not
+# re-wired until a complete reviewed frozen national release has passed this gate.
