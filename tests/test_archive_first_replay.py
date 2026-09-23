@@ -342,10 +342,13 @@ def test_release_replay_rejects_missing_or_corrupted_archived_input(tmp_path):
     with pytest.raises(ValueError, match="every and only"):
         validate_release_manifest(missing, config)
 
+    # All selected ContentObjects are now read back before the parser-facing adapter
+    # becomes available. Corruption therefore fails at context entry, not lazily on the
+    # first parser download request.
     evidence.client.objects[object_key(archived.manifest)] = b"corrupt"
-    with archived_downloads(release, config, evidence):
-        with pytest.raises(ValueError, match="Stored evidence"):
-            registry._download(archived.manifest["resource_url"], tmp_path / "corrupt-replay.pdf")
+    with pytest.raises(ValueError, match="Stored evidence"):
+        with archived_downloads(release, config, evidence):
+            pass
 
 
 def test_release_replay_rejects_corrupted_or_missing_capture_provenance(tmp_path):
