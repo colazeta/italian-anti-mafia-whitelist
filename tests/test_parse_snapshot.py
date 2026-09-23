@@ -16,18 +16,29 @@ def test_snapshot_hash_is_canonical_but_preserves_record_order() -> None:
     left = [{"b": 2, "a": 1}, {"row": "second"}]
     same = [{"a": 1, "b": 2}, {"row": "second"}]
     reversed_rows = list(reversed(same))
+    diagnostics = {"public_records": 2, "warnings": []}
 
-    assert canonical_snapshot_bytes(left) == canonical_snapshot_bytes(same)
-    assert snapshot_sha256(left) == snapshot_sha256(same)
-    assert snapshot_sha256(left) != snapshot_sha256(reversed_rows)
+    assert canonical_snapshot_bytes(left, diagnostics) == canonical_snapshot_bytes(
+        same, {"warnings": [], "public_records": 2}
+    )
+    assert snapshot_sha256(left, diagnostics) == snapshot_sha256(same, diagnostics)
+    assert snapshot_sha256(left, diagnostics) != snapshot_sha256(reversed_rows, diagnostics)
+    assert snapshot_sha256(left, diagnostics) != snapshot_sha256(
+        left, {"public_records": 2, "warnings": ["changed"]}
+    )
 
 
-def test_snapshot_requires_an_array_of_record_objects() -> None:
+def test_snapshot_requires_records_and_diagnostics_json_shapes() -> None:
     with pytest.raises(ValueError, match="array of objects"):
-        canonical_snapshot_bytes([{"ok": True}, "not-a-record"])  # type: ignore[list-item]
+        canonical_snapshot_bytes(
+            [{"ok": True}, "not-a-record"], {}  # type: ignore[list-item]
+        )
+
+    with pytest.raises(ValueError, match="diagnostics must be a JSON object"):
+        canonical_snapshot_bytes([{"ok": True}], [])  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
-        canonical_snapshot_bytes([{"not_finite": float("nan")}])
+        canonical_snapshot_bytes([{"not_finite": float("nan")}], {})
 
 
 def test_parse_run_identity_changes_only_with_interpretation_inputs() -> None:
@@ -62,6 +73,7 @@ def test_snapshot_envelope_is_closed(tmp_path) -> None:
         "started_at": "2026-09-23T05:00:00+00:00",
         "completed_at": "2026-09-23T05:00:01+00:00",
         "records": [{"source_fields": {"physical_locator": "row:1"}}],
+        "diagnostics": {"public_records": 1},
     }
     path = tmp_path / "snapshot.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
