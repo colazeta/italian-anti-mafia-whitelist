@@ -18,8 +18,13 @@ from typing import Callable
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
-from white_list_archive.storage.capture_catalogue import CaptureCatalogue
-from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
+from white_list_archive.storage.capture_catalogue import CaptureCatalogue, capture_record_key
+from white_list_archive.storage.evidence import (
+    EvidenceStore,
+    StoreConfig,
+    client_for,
+    freeze_capture_manifest,
+)
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+archive-first acquisition)"
 DEFAULT_AUTHORITY_REGISTRY = Path("data/source_registry/territorial_authorities.csv")
@@ -100,6 +105,13 @@ def archive_payload(
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field} must be a non-blank string when supplied")
             manifest[field] = value
+
+    # #164 froze the content-facing manifest before external storage, but the stable
+    # capture/check identity is validated by the separate catalogue contract. Perform
+    # both validations here before creating a staging file or writing a ContentObject,
+    # so malformed SourceSeries/capture identity cannot leave an unbound durable object.
+    manifest = freeze_capture_manifest(manifest)
+    capture_record_key(manifest)
 
     # A staging path is not document identity. Use a fresh path even when a caller
     # deliberately reuses capture_id while testing immutability; never delete or
