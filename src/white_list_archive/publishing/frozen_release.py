@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Any, Iterator
+from urllib.parse import urlparse
 
 from white_list_archive.publishing import public_national_registry as registry
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
@@ -14,6 +15,7 @@ from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_ma
 
 SCHEMA_VERSION = 1
 PUBLIC_PROJECTOR_REVISION = "public-national-registry@1"
+ResourceIdentity = tuple[str, str]
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -51,13 +53,17 @@ def _expected_resources(cfg: dict) -> dict[str, tuple[str, str | None]]:
     return result
 
 
-def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
+def _resource_identity(source_key: str, label: str) -> ResourceIdentity:
+    return source_key, label
+
+
+def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIdentity, dict]:
     """Validate exact release/config/capture bindings without dereferencing source URLs.
 
     Every resource pins both an immutable ContentObject identity and the separate
-    durable capture/check catalogue receipt. Provider readback happens in
-    ``archived_downloads`` before parsers can receive the bytes. The returned URL map is
-    only a compatibility adapter for legacy parser plumbing; it is not capture identity.
+    durable capture/check catalogue receipt. The returned mapping is keyed by the
+    logical configured source/resource identity. A URL remains verified locator
+    metadata and is deliberately not used to route archived bytes.
     """
     if not isinstance(manifest, dict):
         raise ValueError("Frozen release manifest must be a mapping")
@@ -103,7 +109,7 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
     if set(manifest_by_key) != set(config_by_key):
         raise ValueError("Frozen release must bind every and only configured source")
 
-    by_url: dict[str, dict] = {}
+    by_resource: dict[ResourceIdentity, dict] = {}
     for source_key, cfg in config_by_key.items():
         binding = manifest_by_key[source_key]
         if binding["parser"] != cfg["parser"]:
@@ -153,17 +159,11 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
             if cfg.get("resources") and expected_raw_sha and capture["sha256"] != expected_raw_sha:
                 raise ValueError(f"{source_key}/{label}: frozen bundle member SHA differs from approval")
 
-            # Locator reuse is allowed only when the selected payload bytes agree. The
-            # URL remains a parser-routing key; each capture/check is still independently
-            # verified later and never collapsed into this map as an archival identity.
-            prior = by_url.get(expected_url)
-            if prior is not None and (
-                prior["capture"]["sha256"] != capture["sha256"]
-                or prior["capture"]["byte_size"] != capture["byte_size"]
-            ):
-                raise ValueError("One frozen release cannot bind the same locator to conflicting bytes")
-            by_url[expected_url] = {"capture": capture, "catalogue": catalogue}
-    return by_url
+            identity = _resource_identity(source_key, label)
+            if identity in by_resource:
+                raise ValueError(f"Duplicate frozen logical resource binding: {source_key}/{label}")
+            by_resource[identity] = {"capture": capture, "catalogue": catalogue}
+    return by_resource
 
 
 def validate_release_runtime(
@@ -210,73 +210,129 @@ def validate_release_runtime(
             raise ValueError(f"{source_key}: frozen parser revision does not match replay runtime")
 
 
-def _verified_payloads_by_url(manifest: dict, config: dict, store: EvidenceStore) -> dict[str, bytes]:
-    """Verify every selected capture/check, then expose bytes by locator for legacy parsers.
-
-    The URL-keyed result is deliberately only a transitional parser adapter. Two source
-    scopes may point at the same locator and even the same ContentObject while retaining
-    distinct capture identities; both immutable catalogue records are verified and both
-    selected captures are read back before a single parser is allowed to consume bytes.
-    """
-    validate_release_manifest(manifest, config)
+def _verified_payloads_by_resource(
+    manifest: dict,
+    config: dict,
+    store: EvidenceStore,
+) -> dict[ResourceIdentity, bytes]:
+    """Verify every selected capture/check and return bytes by logical resource identity."""
+    bindings = validate_release_manifest(manifest, config)
     catalogue = CaptureCatalogue(store)
-    payload_by_url: dict[str, bytes] = {}
+    payload_by_resource: dict[ResourceIdentity, bytes] = {}
     verified_capture_ids: set[str] = set()
 
     for source in manifest["sources"]:
+        source_key = source["source_key"]
         for resource in source["resources"]:
+            label = resource["label"]
+            identity = _resource_identity(source_key, label)
             capture = freeze_capture_manifest(resource["capture"])
             capture_id = capture.get("capture_id")
             if not isinstance(capture_id, str) or not capture_id:
                 raise ValueError("Frozen release resource lacks capture identity")
             if capture_id in verified_capture_ids:
                 raise ValueError("Frozen release cannot reuse one capture/check for multiple configured resources")
+            if identity not in bindings:
+                raise ValueError(f"Frozen release lacks logical resource binding: {source_key}/{label}")
 
             catalogue.verify_receipt(capture, resource["catalogue"])
             data = store.read_verified(capture)
             if len(data) != capture["byte_size"] or hashlib.sha256(data).hexdigest() != capture["sha256"]:
                 raise ValueError("Archived release input failed size/SHA-256 verification")
 
-            url = capture["resource_url"]
-            prior = payload_by_url.get(url)
-            if prior is not None and prior != data:
-                raise ValueError("One frozen release cannot route conflicting archived bytes through the same locator")
-            payload_by_url[url] = data
+            payload_by_resource[identity] = data
             verified_capture_ids.add(capture_id)
 
+    if set(payload_by_resource) != set(bindings):
+        raise ValueError("Frozen release did not verify every and only logical resource binding")
+    return payload_by_resource
+
+
+def _verified_payloads_by_url(manifest: dict, config: dict, store: EvidenceStore) -> dict[str, bytes]:
+    """Compatibility helper for callers that still require an unambiguous URL map.
+
+    Frozen replay itself no longer uses this adapter. If two logical resources share a
+    locator but pin different bytes, a URL-only view is intrinsically ambiguous and is
+    rejected here rather than collapsing either capture.
+    """
+    bindings = validate_release_manifest(manifest, config)
+    payload_by_resource = _verified_payloads_by_resource(manifest, config, store)
+    payload_by_url: dict[str, bytes] = {}
+    for identity, data in payload_by_resource.items():
+        url = bindings[identity]["capture"]["resource_url"]
+        prior = payload_by_url.get(url)
+        if prior is not None and prior != data:
+            raise ValueError("URL-only compatibility view cannot represent conflicting archived bytes")
+        payload_by_url[url] = data
     return payload_by_url
+
+
+def _write_archived_payload(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as handle:
+        handle.write(data)
 
 
 @contextmanager
 def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> Iterator[None]:
-    """Make legacy parser plumbing read only fully verified release-pinned captures.
+    """Make parser acquisition read only fully verified release-pinned captures.
 
-    This transitional adapter is process-local and intended for the existing serial
-    release worker. Unknown URLs fail closed; there is deliberately no live fallback.
-    Every selected capture/check and original ContentObject is independently read back
-    from the approved private backend before the parser-facing path is created, even
-    when multiple scopes reuse the same source locator.
+    Routing is keyed by ``(source_key, resource_label)`` rather than URL. This is
+    process-local and intended for the existing serial release worker. Every selected
+    capture/check and ContentObject is independently read back before parser execution.
+    There is deliberately no live fallback, including when two source scopes reuse the
+    same physical locator with different historical bytes.
     """
-    payload_by_url = _verified_payloads_by_url(manifest, config, store)
-    by_url = validate_release_manifest(manifest, config)
-    original = registry._download
+    bindings = validate_release_manifest(manifest, config)
+    payload_by_resource = _verified_payloads_by_resource(manifest, config, store)
+    original = registry._acquire_source_input
 
-    def archived_download(url: str, path: Path) -> str:
-        resource = by_url.get(url)
-        data = payload_by_url.get(url)
-        if resource is None or data is None:
-            raise RuntimeError(f"Frozen release has no archived capture for requested URL: {url}")
-        capture = resource["capture"]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("xb") as handle:
-            handle.write(data)
-        return capture["sha256"]
+    def archived_acquire_source_input(cfg: dict[str, Any], work_dir: Path) -> tuple[Path | dict[str, Path], str]:
+        source_key = cfg["source_key"]
+        resources = cfg.get("resources")
+        if resources is None:
+            identity = _resource_identity(source_key, "primary")
+            resource = bindings.get(identity)
+            data = payload_by_resource.get(identity)
+            if resource is None or data is None:
+                raise RuntimeError(f"Frozen release has no archived capture for logical resource: {source_key}/primary")
+            capture = resource["capture"]
+            suffix = Path(urlparse(cfg["resource_url"]).path).suffix or ".pdf"
+            local_path = work_dir / f"{source_key}{suffix}"
+            _write_archived_payload(local_path, data)
+            return local_path, capture["sha256"]
 
-    registry._download = archived_download
+        if not isinstance(resources, dict) or not resources:
+            raise RuntimeError(f"{source_key}: resources must be a non-empty mapping")
+        paths: dict[str, Path] = {}
+        member_hashes: dict[str, str] = {}
+        for label in sorted(resources):
+            identity = _resource_identity(source_key, label)
+            resource = bindings.get(identity)
+            data = payload_by_resource.get(identity)
+            if resource is None or data is None:
+                raise RuntimeError(f"Frozen release has no archived capture for logical resource: {source_key}/{label}")
+            capture = resource["capture"]
+            url = resources[label]["resource_url"]
+            suffix = Path(urlparse(url).path).suffix or ".bin"
+            local_path = work_dir / f"{source_key}-{label}{suffix}"
+            _write_archived_payload(local_path, data)
+            paths[label] = local_path
+            member_hashes[label] = capture["sha256"]
+
+        actual_bundle_sha = registry._bundle_digest(member_hashes)
+        expected_bundle_sha = cfg.get("sha256")
+        if actual_bundle_sha != expected_bundle_sha:
+            raise RuntimeError(
+                f"{source_key}: bundle manifest SHA mismatch; expected {expected_bundle_sha}, got {actual_bundle_sha}"
+            )
+        return paths, actual_bundle_sha
+
+    registry._acquire_source_input = archived_acquire_source_input
     try:
         yield
     finally:
-        registry._download = original
+        registry._acquire_source_input = original
 
 
 def build_registry_from_release(
