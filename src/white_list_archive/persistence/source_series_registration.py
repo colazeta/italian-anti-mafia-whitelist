@@ -27,12 +27,19 @@ class RegisteredSourceSeries:
     source_key: str
 
 
-def _context_for_source_key(
+def reviewed_source_series_context(
     source_key: str,
     *,
     authority_csv: Path,
     series_csv: Path,
 ) -> RegistryContext:
+    """Resolve one already reviewed SourceSeries without creating database state.
+
+    This is safe to use as an acquisition preflight: it validates repository review
+    and the authority/series structural binding only. It deliberately does not compare
+    the acquired resource URL with ``series_url`` because both are locators and a
+    recurring series may expose different physical attachment URLs over time.
+    """
     if not isinstance(source_key, str) or not source_key.strip():
         raise ValueError("source_key must be a non-blank reviewed SourceSeries key")
     series = _read_csv_index(series_csv, "source_series_key")
@@ -48,6 +55,20 @@ def _context_for_source_key(
         {"authority_key": authority_key, "source_series_key": source_key},
         authority_csv,
         series_csv,
+    )
+
+
+def _context_for_source_key(
+    source_key: str,
+    *,
+    authority_csv: Path,
+    series_csv: Path,
+) -> RegistryContext:
+    """Compatibility wrapper for callers of the previous private helper."""
+    return reviewed_source_series_context(
+        source_key,
+        authority_csv=authority_csv,
+        series_csv=series_csv,
     )
 
 
@@ -109,7 +130,7 @@ def ensure_registered_source_series(
     Existing rows are accepted only when their structural authority/register/series
     bindings agree with the reviewed inventories.
     """
-    context = _context_for_source_key(
+    context = reviewed_source_series_context(
         source_key,
         authority_csv=authority_csv,
         series_csv=series_csv,
