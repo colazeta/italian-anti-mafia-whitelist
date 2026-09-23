@@ -1,4 +1,4 @@
-name: Promote frozen national release from private archive
+name: Stage frozen national release for promotion
 
 on:
   workflow_dispatch:
@@ -136,7 +136,7 @@ jobs:
           if any(not os.environ.get(k) for k in ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')):
               raise SystemExit('Private evidence store credentials are not configured')
           if not os.environ.get('EVIDENCE_DATABASE_URL'):
-              raise SystemExit('Private evidence database writer is not configured; promotion cannot proceed')
+              raise SystemExit('Private evidence database writer is not configured; frozen candidate staging cannot proceed')
           PY
 
       - name: Build public candidate only from pinned archived captures
@@ -188,13 +188,13 @@ jobs:
           prefectures = json.loads((root / 'data/prefectures.json').read_text(encoding='utf-8'))
           validate_registry(registry)
           if manifest['release_id'] != os.environ['RELEASE_ID']:
-              raise SystemExit('Frozen release identity changed during promotion')
+              raise SystemExit('Frozen release identity changed during candidate staging')
           if manifest['code_revision'] != os.environ['PINNED_CODE_REVISION']:
               raise SystemExit('Executing code revision differs from frozen release pin')
           manifest_sources = {source['source_key'] for source in manifest['sources']}
           registry_sources = {source['source_key'] for source in registry['meta']['sources']}
           if manifest_sources != registry_sources:
-              raise SystemExit('Published source scope differs from frozen release source scope')
+              raise SystemExit('Public candidate source scope differs from frozen release source scope')
           if registry['meta']['record_count'] != len(registry['records']):
               raise SystemExit('Public registry record_count mismatch')
           if not registry['records']:
@@ -202,7 +202,7 @@ jobs:
           if prefectures['meta']['published_count'] != registry['meta']['authority_count']:
               raise SystemExit('Published Prefecture count differs from registry authority count')
           if any(not source.get('document_checked_at') for source in registry['meta']['sources']):
-              raise SystemExit('Every published source must retain an observation/capture timestamp')
+              raise SystemExit('Every public candidate source must retain an observation/capture timestamp')
           forbidden_tokens = ('legal_entity_id','address_id','review_notes','reviewed_at','source_occurrences')
           reg_text = (root / 'data/registry.json').read_text(encoding='utf-8').casefold()
           for token in forbidden_tokens:
@@ -220,6 +220,7 @@ jobs:
               'authorities': registry['meta']['authority_count'],
               'registers': registry['meta']['register_count'],
               'source_mode': 'archived_frozen_release',
+              'deployment': 'not_performed',
           }, sort_keys=True))
           PY
 
@@ -253,7 +254,7 @@ jobs:
           path: /tmp/public-link-audit.json
           retention-days: 14
 
-      - name: Save reviewable public build
+      - name: Save reviewable frozen public candidate
         if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
@@ -261,30 +262,8 @@ jobs:
           path: public-site/
           retention-days: 14
 
-      - name: Upload Pages artifact
-        if: ${{ !cancelled() && steps.validate_public.outcome == 'success' }}
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: public-site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Deploy frozen release to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-# This workflow has no live-source acquisition path and uploads no original or
-# row-level private working data. A failed build/deploy leaves the previously
-# validated Pages deployment intact.
+# This workflow has no live-source acquisition or Pages deployment path. It stages
+# only explicitly public review artifacts. Original bytes, capture provenance,
+# parser workspaces and row-level private evidence remain in the governed private
+# archive/database. Final Pages promotion stays serial and is intentionally not
+# re-wired until a complete reviewed frozen national release has passed this gate.
