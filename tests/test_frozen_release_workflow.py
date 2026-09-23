@@ -22,10 +22,13 @@ def test_replay_is_manual_main_only_and_uses_protected_private_archive() -> None
     assert "AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}" in text
 
 
-def test_replay_freezes_manifest_then_checks_out_exact_pinned_code() -> None:
+def test_replay_freezes_manifest_then_checks_out_exact_pinned_main_history() -> None:
     text = _workflow()
     assert "release_manifest must resolve under data/releases/" in text
     assert "git ls-files --error-unmatch \"$RELEASE_MANIFEST_INPUT\"" in text
+    assert "fetch-depth: 0" in text
+    assert "['git', 'merge-base', '--is-ancestor', revision, 'HEAD']" in text
+    assert "Frozen release code_revision must be an ancestor of current main" in text
     assert "shutil.copyfile(candidate, '/tmp/frozen-release.json')" in text
     assert "code_revision={revision}" in text
     assert "ref: ${{ steps.release.outputs.code_revision }}" in text
