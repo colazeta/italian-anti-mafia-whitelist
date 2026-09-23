@@ -12,6 +12,9 @@ from white_list_archive.publishing.frozen_release_select import (
     write_new_release,
 )
 
+CODE_REVISION = "a" * 40
+CREATED_AT = "2026-09-23T04:00:00+00:00"
+
 
 class FakeStore:
     def __init__(self, *, fail: bool = False):
@@ -68,7 +71,7 @@ def _capture(source_key: str, url: str, reference_date: str | None, *, capture_i
         "source_key": source_key,
         "resource_url": url,
         "resolved_url": url,
-        "captured_at": "2026-09-23T04:00:00+00:00",
+        "captured_at": "2026-09-23T03:45:00+00:00",
         "reference_date": reference_date,
         "http_status": 200,
         "etag": None,
@@ -106,10 +109,19 @@ def _selection(config: dict) -> dict:
     return {
         "schema_version": 1,
         "release_id": "national-2026-09-23T0400Z",
-        "created_at": "2026-09-23T04:00:00+00:00",
-        "code_revision": "a" * 40,
         "sources": selected,
     }
+
+
+def _select(config: dict, selection: dict, store: FakeStore, *, catalogue: FakeCatalogue) -> dict:
+    return select_verified_release(
+        config,
+        selection,
+        store,
+        code_revision=CODE_REVISION,
+        created_at=CREATED_AT,
+        catalogue=catalogue,
+    )
 
 
 def test_selector_requires_provider_readback_of_bytes_and_capture_provenance() -> None:
@@ -118,25 +130,49 @@ def test_selector_requires_provider_readback_of_bytes_and_capture_provenance() -
     store = FakeStore()
     catalogue = FakeCatalogue()
 
-    manifest = select_verified_release(config, selection, store, catalogue=catalogue)
+    manifest = _select(config, selection, store, catalogue=catalogue)
 
     capture_ids = {r["capture"]["capture_id"] for s in manifest["sources"] for r in s["resources"]}
     assert set(store.reads) == capture_ids
     assert set(catalogue.reads) == capture_ids
     assert {s["source_key"] for s in manifest["sources"]} == {"alpha-combined", "beta-combined"}
-    assert manifest["code_revision"] == "a" * 40
+    assert manifest["code_revision"] == CODE_REVISION
+    assert manifest["created_at"] == CREATED_AT
+    assert all(r["capture"]["captured_at"] != manifest["created_at"] for s in manifest["sources"] for r in s["resources"])
+
+
+def test_selector_does_not_accept_processing_metadata_from_private_selection() -> None:
+    config = _config()
+    selection = _selection(config)
+    selection["code_revision"] = "b" * 40
+    selection["created_at"] = "2026-09-22T00:00:00+00:00"
+    with pytest.raises(ValueError, match="selection envelope"):
+        _select(config, selection, FakeStore(), catalogue=FakeCatalogue())
+
+
+def test_selector_rejects_non_exact_execution_revision() -> None:
+    config = _config()
+    with pytest.raises(ValueError, match="exact 40-character Git SHA"):
+        select_verified_release(
+            config,
+            _selection(config),
+            FakeStore(),
+            code_revision="main",
+            created_at=CREATED_AT,
+            catalogue=FakeCatalogue(),
+        )
 
 
 def test_selector_fails_closed_when_content_readback_fails() -> None:
     config = _config()
     with pytest.raises(ValueError, match="Stored evidence failed"):
-        select_verified_release(config, _selection(config), FakeStore(fail=True), catalogue=FakeCatalogue())
+        _select(config, _selection(config), FakeStore(fail=True), catalogue=FakeCatalogue())
 
 
 def test_selector_fails_closed_when_capture_provenance_readback_fails() -> None:
     config = _config()
     with pytest.raises(ValueError, match="capture provenance"):
-        select_verified_release(config, _selection(config), FakeStore(), catalogue=FakeCatalogue(fail=True))
+        _select(config, _selection(config), FakeStore(), catalogue=FakeCatalogue(fail=True))
 
 
 def test_selector_refuses_partial_national_scope() -> None:
@@ -144,7 +180,7 @@ def test_selector_refuses_partial_national_scope() -> None:
     selection = _selection(config)
     selection["sources"] = selection["sources"][:1]
     with pytest.raises(ValueError, match="cover every and only configured source"):
-        select_verified_release(config, selection, FakeStore(), catalogue=FakeCatalogue())
+        _select(config, selection, FakeStore(), catalogue=FakeCatalogue())
 
 
 def test_selector_refuses_reusing_one_capture_for_two_resources() -> None:
@@ -154,12 +190,12 @@ def test_selector_refuses_reusing_one_capture_for_two_resources() -> None:
     selection["sources"][1]["resources"][0]["capture"]["capture_id"] = shared
     selection["sources"][1]["resources"][0]["catalogue"]["capture_id"] = shared
     with pytest.raises(ValueError, match="distinct capture/check"):
-        select_verified_release(config, selection, FakeStore(), catalogue=FakeCatalogue())
+        _select(config, selection, FakeStore(), catalogue=FakeCatalogue())
 
 
 def test_release_output_is_create_only(tmp_path: Path) -> None:
     config = _config()
-    manifest = select_verified_release(config, _selection(config), FakeStore(), catalogue=FakeCatalogue())
+    manifest = _select(config, _selection(config), FakeStore(), catalogue=FakeCatalogue())
     output = tmp_path / "release.json"
     write_new_release(output, manifest)
     with pytest.raises(FileExistsError):
