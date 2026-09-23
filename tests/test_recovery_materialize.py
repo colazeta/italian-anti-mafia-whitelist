@@ -186,6 +186,15 @@ def test_archive_first_capture_enters_plan_and_verifies_both_bytes_and_provenanc
     assert inventory["metrics"]["captures_with_verified_provenance"] == 1
 
 
+def test_archive_first_capture_requires_reviewed_authority_binding():
+    digest = "a" * 64
+    with pytest.raises(ValueError, match="require reviewed SourceSeries authority bindings"):
+        apply_recovery_plan(
+            repository_expectations(sha256=digest),
+            plan(sha256=digest, captures=[capture_plan_row()]),
+        )
+
+
 def test_recovery_capture_cannot_be_relabelled_to_another_reviewed_authority():
     digest = "a" * 64
     with pytest.raises(ValueError, match="does not match reviewed SourceSeries registry"):
