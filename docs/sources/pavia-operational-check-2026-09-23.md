@@ -41,11 +41,11 @@ No attachment bytes were downloaded during this checkpoint. Consequently there i
 - no relational capture row;
 - no ParseRun or persisted observation snapshot.
 
-The current governed archive path on `main` requires a repository-reviewed `SourceSeries` key and then performs durable provider storage plus content/capture-provenance readback before relational persistence or downstream parser eligibility. Lane B must therefore first materialise the reviewed Pavia source-series registry row, after which the main-only archive workflow can be invoked by an authorised workflow-dispatch surface. The payload must not be parsed from an unarchived temporary download.
+The current governed archive path on `main` requires a repository-reviewed `SourceSeries` key and then performs durable provider storage plus content/capture-provenance readback before relational persistence or downstream parser eligibility. The reviewed `pavia-listed` SourceSeries row is now materialised on `parallel-expansion/pavia-2026-09-22`; it must reach canonical `main` through serial integration before the protected main-only archive workflow can accept the first Pavia capture. The payload must not be parsed from an unarchived temporary download.
 
-## Candidate SourceSeries
+## Reviewed SourceSeries
 
-The positively evidenced registered-company series should be represented as:
+The positively evidenced registered-company series is represented on the Lane B branch as:
 
 - `source_series_key`: `pavia-listed`
 - `authority_key`: `pavia`
@@ -61,4 +61,4 @@ Do not create a `pavia-applicants` series unless positive official evidence iden
 
 ## Next executable step
 
-After the `pavia-listed` SourceSeries row is serially available on `main`, invoke the governed archive-first workflow against the exact official attachment resource. Accept the acquisition for parser work only after the emitted checkpoint confirms both durable ContentObject readback and durable capture-provenance readback; record relational persistence separately. Continue applicant discovery independently and conservatively.
+Serially integrate the reviewed `pavia-listed` SourceSeries row to canonical `main` without promoting Pavia as source-population complete. Once that row is on `main`, invoke the governed archive-first workflow against the exact official attachment resource. Accept the acquisition for parser work only after the emitted checkpoint confirms both durable ContentObject readback and durable capture-provenance readback; record relational persistence separately. Continue applicant discovery independently and conservatively.
