@@ -11,20 +11,23 @@ CREATE TABLE source.parse_snapshot (
     snapshot_sha256    text NOT NULL,
     record_count       integer NOT NULL,
     records_json       jsonb NOT NULL,
+    diagnostics_json   jsonb NOT NULL,
     created_at         timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT parse_snapshot_sha256_format
         CHECK (snapshot_sha256 ~ '^[0-9a-f]{64}$'),
     CONSTRAINT parse_snapshot_record_count_nonnegative
         CHECK (record_count >= 0),
     CONSTRAINT parse_snapshot_records_array
-        CHECK (jsonb_typeof(records_json) = 'array')
+        CHECK (jsonb_typeof(records_json) = 'array'),
+    CONSTRAINT parse_snapshot_diagnostics_object
+        CHECK (jsonb_typeof(diagnostics_json) = 'object')
 );
 
 COMMENT ON TABLE source.parse_snapshot IS
-'Immutable private snapshot of the complete parser records for one parse_run. It supplements field-level source persistence and is not a public release or administrative publication.';
+'Immutable private snapshot of the complete parser records and diagnostics for one parse_run. It supplements field-level source persistence and is not a public release or administrative publication.';
 
 COMMENT ON COLUMN source.parse_snapshot.snapshot_sha256 IS
-'SHA-256 of canonical UTF-8 JSON for records_json; identifies the exact interpretation output, not the source bytes.';
+'SHA-256 of canonical UTF-8 JSON containing records and diagnostics; identifies the exact interpretation output, not the source bytes.';
 
 CREATE TABLE source.capture_parse_run (
     capture_id    uuid NOT NULL REFERENCES source.source_capture(capture_id),
