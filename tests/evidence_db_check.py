@@ -11,6 +11,7 @@ import psycopg
 
 from white_list_archive.acquisition.archive_first import archive_payload
 from white_list_archive.persistence.archived_capture import persist_archived_capture
+from white_list_archive.persistence.source_series_registration import ensure_registered_source_series
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, object_key
 
 
@@ -73,24 +74,58 @@ class MemoryClient:
         return {'Body': io.BytesIO(self.objects[Key])}
 
 
-# Exercise the complete archive-first -> private readback -> relational provenance path
-# with real PostgreSQL constraints. The object transport is deliberately synthetic;
-# this does not replace the separately required real-provider gate.
+# Exercise the complete archive-first -> private readback -> reviewed logical-series
+# registration -> relational capture path with real PostgreSQL constraints. The object
+# transport is deliberately synthetic; this does not replace the real-provider gate.
 archive_client = MemoryClient()
 archive_store = EvidenceStore(
     archive_client,
     StoreConfig('ci-evidence', 'https://ci.invalid', 'eu-west-1', 'synthetic policy'),
 )
 with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN']) as conn:
+    tmp_path = Path(tmp)
+    authority_registry = tmp_path / 'territorial_authorities.csv'
+    authority_registry.write_text(
+        'authority_key,jurisdiction_name,region,office_type,coverage_status,notes\n'
+        'ci-authority,CI Test Province,Test Region,prefettura_utg,territorial_authority_seeded,\n',
+        encoding='utf-8',
+    )
+    series_registry = tmp_path / 'source_series_inventory.csv'
+    series_registry.write_text(
+        'source_series_key,authority_key,regime_code,population_scope,sector_scope,'
+        'publication_model,series_url,resource_resolution_status,verified_date,notes\n'
+        'ci-archive-first,ci-authority,WL-REGIME-L190-2012,listed,all,periodic_attachment,'
+        'https://official.example.test/white-list,direct_series_page_resolved,2026-09-23,'
+        'Synthetic CI metadata only\n',
+        encoding='utf-8',
+    )
+
+    registered = ensure_registered_source_series(
+        conn,
+        source_key='ci-archive-first',
+        authority_csv=authority_registry,
+        series_csv=series_registry,
+    )
+    repeated_registration = ensure_registered_source_series(
+        conn,
+        source_key='ci-archive-first',
+        authority_csv=authority_registry,
+        series_csv=series_registry,
+    )
+    assert registered == repeated_registration
     with conn.cursor() as cur:
         cur.execute(
-            """
-            INSERT INTO source.source_series(series_code, series_name, series_type_code)
-            VALUES ('ci-archive-first','CI archive-first synthetic series','list')
-            RETURNING series_id
-            """
+            'SELECT count(*) FROM source.source_edition e '
+            'JOIN source.source_series s ON s.series_id=e.series_id '
+            'WHERE s.series_code=%s',
+            ('ci-archive-first',),
         )
-        series_id = cur.fetchone()[0]
+        assert cur.fetchone()[0] == 0
+        cur.execute(
+            'SELECT count(*) FROM source.source_resource WHERE canonical_locator=%s',
+            ('https://official.example.test/white-list',),
+        )
+        assert cur.fetchone()[0] == 0
 
     archived = archive_payload(
         data=b'archive-first bytes persisted only in synthetic CI transport',
@@ -99,7 +134,7 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         reference_date=None,
         content_type='application/pdf',
         store=archive_store,
-        work_dir=Path(tmp),
+        work_dir=tmp_path,
         captured_at=datetime(2026, 9, 22, 21, 0, tzinfo=timezone.utc),
         capture_id='11111111-2222-4333-8444-555555555555',
         http_status=200,
@@ -125,7 +160,7 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         )
         row = cur.fetchone()
         assert str(row[0]) == archived.manifest['capture_id']
-        assert row[1] == series_id
+        assert str(row[1]) == registered.series_id
         assert row[2] is None
         assert row[3:5] == ('official_current', 'primary_official')
         assert row[5] == 'durable'
@@ -139,7 +174,7 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         reference_date='2026-09-22',
         content_type='application/pdf',
         store=archive_store,
-        work_dir=Path(tmp),
+        work_dir=tmp_path,
         captured_at=datetime(2026, 9, 22, 21, 0, tzinfo=timezone.utc),
         capture_id='66666666-7777-4888-8999-aaaaaaaaaaaa',
         http_status=200,
@@ -162,4 +197,4 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         assert cur.fetchone()[0] == 0
 
     conn.rollback()
-print('Archive-first capture persistence/idempotence/corruption rejection passed against PostgreSQL; transaction rolled back.')
+print('Archive-first reviewed-series registration/capture persistence/idempotence/corruption rejection passed against PostgreSQL; transaction rolled back.')
