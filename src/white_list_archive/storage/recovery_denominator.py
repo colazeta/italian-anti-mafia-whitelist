@@ -9,7 +9,8 @@ This layer reconciles two different kinds of evidence without conflating them:
 The latter are part of the recovery problem but can never be promoted to ``verified``
 merely because matching bytes exist. A caller must supply an explicit evidence version
 key; it is a reconciliation key, not a retroactively invented SourceEdition or capture
-identifier.
+identifier. When historical evidence establishes an authority and byte identity but not
+an exact SourceSeries, ``source_key`` remains null rather than being guessed.
 """
 from __future__ import annotations
 
@@ -59,9 +60,12 @@ def _validate_known_version(expected: dict[str, Any]) -> dict[str, Any]:
     authority_key = expected["authority_key"]
     source_key = expected["source_key"]
     version_key = expected["evidence_version_key"]
-    if any(not isinstance(value, str) or not value.strip()
-           for value in (authority_key, source_key, version_key)):
-        raise ValueError("Known version requires authority, source and evidence version keys")
+    if not isinstance(authority_key, str) or not authority_key.strip():
+        raise ValueError("Known version requires authority_key")
+    if source_key is not None and (not isinstance(source_key, str) or not source_key.strip()):
+        raise ValueError("Known-version source_key must be non-empty or null when not established")
+    if not isinstance(version_key, str) or not version_key.strip():
+        raise ValueError("Known version requires evidence_version_key")
 
     digest = expected["sha256"]
     if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
@@ -85,7 +89,7 @@ def _validate_known_version(expected: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStore) -> dict[str, Any]:
-    """Build a denominator without fabricating capture identity for legacy evidence.
+    """Build a denominator without fabricating capture or source-series identity.
 
     ``known_versions`` admits byte identities supported by reviewed historical evidence
     even when no stable capture UUID/catalogue record survives. Such an item may be
@@ -124,7 +128,7 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
     rows: list[dict[str, Any]] = []
     authorities: set[str] = set()
     durable_content: set[str] = set()
-    known_identities: set[tuple[str, str]] = set()
+    known_identities: set[tuple[str, str | None, str]] = set()
 
     for row in capture_inventory["captures"]:
         authorities.add(row["authority_key"])
@@ -142,7 +146,11 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
 
     for raw in expectations["known_versions"]:
         expected = _validate_known_version(raw)
-        identity = (expected["source_key"], expected["evidence_version_key"])
+        identity = (
+            expected["authority_key"],
+            expected["source_key"],
+            expected["evidence_version_key"],
+        )
         if identity in known_identities:
             raise ValueError("Duplicate known-version recovery expectation")
         known_identities.add(identity)
