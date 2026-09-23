@@ -37,7 +37,14 @@ def _valid_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(_SHA256_RE.fullmatch(value))
 
 
-def _legacy_manifest_candidate(path: Path, captures_root: Path) -> dict[str, Any] | None:
+def _repo_ref(path: Path, repository_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(repository_root.resolve()).as_posix()
+    except ValueError as exc:
+        raise ValueError("Recovery evidence path must be inside repository_root") from exc
+
+
+def _legacy_manifest_candidate(path: Path, *, repository_root: Path) -> dict[str, Any] | None:
     """Return a known version only for a source-capture-like legacy manifest.
 
     Diff/profile JSON files in the capture tree are analytical products, not source
@@ -63,7 +70,7 @@ def _legacy_manifest_candidate(path: Path, captures_root: Path) -> dict[str, Any
     source_key = payload.get("source_series_key")
     if source_key is not None and (not isinstance(source_key, str) or not source_key.strip()):
         source_key = None
-    relative = path.relative_to(captures_root.parent).as_posix()
+    relative = _repo_ref(path, repository_root)
     return _known_version(
         authority_key=authority,
         source_key=source_key,
@@ -74,8 +81,8 @@ def _legacy_manifest_candidate(path: Path, captures_root: Path) -> dict[str, Any
     )
 
 
-def build_repository_recovery_expectations(*, monitoring_path: Path, captures_root: Path,
-                                           generated_at: str) -> dict[str, Any]:
+def build_repository_recovery_expectations(*, repository_root: Path, monitoring_path: Path,
+                                           captures_root: Path, generated_at: str) -> dict[str, Any]:
     """Build repository-supported recovery expectations without inventing provenance.
 
     Hashed monitoring checks are retained as separate observations even when they share
@@ -83,10 +90,17 @@ def build_repository_recovery_expectations(*, monitoring_path: Path, captures_ro
     evidence and are added only when that authority/hash pair is not already represented
     by a timestamped monitoring check or a legacy source manifest. Legacy manifests keep
     their observed capture timestamp in their evidence key but remain ``known_version``
-    items because they predate stable archive-first capture identity.
+    items because they predate stable archive-first capture identity. Evidence references
+    are always stored as repository-relative paths, never runner-local absolute paths.
     """
     if not isinstance(generated_at, str) or not generated_at.strip():
         raise ValueError("generated_at is required")
+    repository_root = repository_root.resolve()
+    monitoring_path = monitoring_path.resolve()
+    captures_root = captures_root.resolve()
+    monitoring_ref = _repo_ref(monitoring_path, repository_root)
+    _repo_ref(captures_root, repository_root)
+
     monitoring = _load_json(monitoring_path)
     if not isinstance(monitoring, dict):
         raise ValueError("Monitoring ledger must be a mapping")
@@ -111,7 +125,7 @@ def build_repository_recovery_expectations(*, monitoring_path: Path, captures_ro
                 not isinstance(observed_at, str) or not observed_at.strip()):
             raise ValueError("Hashed monitoring check requires authority and timestamp")
         evidence = check.get("evidence")
-        refs = [f"{monitoring_path.as_posix()}#check-{index}"]
+        refs = [f"{monitoring_ref}#check-{index}"]
         if isinstance(evidence, str) and evidence.strip():
             refs.insert(0, evidence)
         known_versions.append(
@@ -128,7 +142,7 @@ def build_repository_recovery_expectations(*, monitoring_path: Path, captures_ro
 
     if captures_root.exists():
         for path in sorted(captures_root.rglob("*.json")):
-            candidate = _legacy_manifest_candidate(path, captures_root)
+            candidate = _legacy_manifest_candidate(path, repository_root=repository_root)
             if candidate is None:
                 continue
             known_versions.append(candidate)
@@ -163,7 +177,7 @@ def build_repository_recovery_expectations(*, monitoring_path: Path, captures_ro
                     evidence_version_key=f"coverage-known:{digest}",
                     sha256=digest,
                     byte_size=None,
-                    evidence_refs=[*evidence, f"{monitoring_path.as_posix()}#prefecture-{index}"],
+                    evidence_refs=[*evidence, f"{monitoring_ref}#prefecture-{index}"],
                 )
             )
             represented_authority_hashes.add((authority, digest))
