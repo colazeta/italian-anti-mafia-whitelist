@@ -107,6 +107,50 @@ def test_inventory_counts_captures_separately_from_content_objects(tmp_path):
     }
 
 
+def test_durable_bytes_without_catalogue_are_not_archive_verified(tmp_path):
+    evidence = store()
+    result = archived(
+        tmp_path / "source",
+        evidence,
+        capture_id="21212121-2121-4121-8121-212121212121",
+        data=b"durable bytes need temporal provenance",
+    )
+    expected = expectation(result)
+    expected["catalogue"] = None
+
+    inventory = build_archive_inventory(envelope([expected]), evidence)
+    row = inventory["captures"][0]
+    assert row["status"] == "not_verified"
+    assert row["durable_original_verified"] is True
+    assert row["capture_provenance_verified"] is False
+    assert inventory["metrics"]["durably_retrievable_content_objects"] == 1
+    assert inventory["metrics"]["captures_with_verified_provenance"] == 0
+    assert inventory["metrics"]["verified"] == 0
+    assert inventory["metrics"]["not_verified"] == 1
+
+
+def test_corrupt_catalogue_prevents_verified_capture_even_when_bytes_are_durable(tmp_path):
+    client = MemoryClient()
+    evidence = store(client)
+    result = archived(
+        tmp_path / "source",
+        evidence,
+        capture_id="22222222-2222-4222-8222-222222222222",
+        data=b"durable bytes with corrupt temporal provenance",
+    )
+    client.objects[result.catalogue_receipt["catalogue_key"]] = b"corrupt"
+
+    inventory = build_archive_inventory(envelope([expectation(result)]), evidence)
+    row = inventory["captures"][0]
+    assert row["status"] == "not_verified"
+    assert row["durable_original_verified"] is True
+    assert row["capture_provenance_verified"] is False
+    assert inventory["metrics"]["durably_retrievable_content_objects"] == 1
+    assert inventory["metrics"]["captures_with_verified_provenance"] == 0
+    assert inventory["metrics"]["verified"] == 0
+    assert inventory["metrics"]["not_verified"] == 1
+
+
 def test_exact_local_copy_is_recoverable_pending_not_durable(tmp_path):
     source_store = store()
     result = archived(
