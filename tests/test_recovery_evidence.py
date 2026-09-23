@@ -262,3 +262,30 @@ def test_repository_evidence_rejects_paths_outside_repository_root(tmp_path):
             captures_root=repo / "data" / "captures",
             generated_at="2026-09-23T00:30:00+00:00",
         )
+
+
+def test_current_repository_recovery_evidence_reconciles_without_promoting_public_digests():
+    root = Path(__file__).resolve().parents[1]
+    result = build_repository_recovery_expectations(
+        repository_root=root,
+        monitoring_path=root / "data" / "monitoring" / "national_coverage.json",
+        captures_root=root / "data" / "captures",
+        public_history_path=root / "data" / "history" / "public_history.json",
+        generated_at="2026-09-23T01:30:00+00:00",
+    )
+
+    assert result["recovery_search_complete"] is False
+    assert result["known_versions"]
+    assert result["published_release_scopes"]
+    assert len({row["evidence_version_key"] for row in result["known_versions"]}) == len(result["known_versions"])
+    assert len({row["history_edition_id"] for row in result["published_release_scopes"]}) == len(
+        result["published_release_scopes"]
+    )
+    assert all(scope["raw_content_object_identity_established"] is False
+               for scope in result["published_release_scopes"])
+    raw_hashes = {row["sha256"] for row in result["known_versions"]}
+    for scope in result["published_release_scopes"]:
+        # A matching digest may exist in both evidence layers, but the release scope
+        # remains separately typed and never creates a new raw recovery row.
+        if scope["document_digest"] in raw_hashes:
+            assert scope["digest_semantics"] == "public_history_document_digest"
