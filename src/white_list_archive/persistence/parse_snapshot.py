@@ -238,17 +238,19 @@ def _ensure_parse_run(
     )
     row = cur.fetchone()
     if row:
-        expected = (
+        # ``parse_run_code`` identifies the interpretation, not a retry attempt.
+        # The processing timestamps are retained from the first successful
+        # materialisation and are never rewritten merely because an exact frozen
+        # replay is retried at a later wall-clock time.
+        expected_identity = (
             primary_content_object_id,
             "succeeded",
             parser_name,
             software_version,
             configuration_hash,
-            started_at,
-            completed_at,
         )
-        if tuple(row[1:]) != expected:
-            raise ValueError("Existing parse_run_code conflicts with immutable processing provenance")
+        if tuple(row[1:6]) != expected_identity:
+            raise ValueError("Existing parse_run_code conflicts with immutable interpretation provenance")
         _ensure_parse_inputs(cur, row[0], inputs)
         return row[0], parse_run_code, True
 
