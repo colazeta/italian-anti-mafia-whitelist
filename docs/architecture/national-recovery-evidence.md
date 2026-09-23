@@ -61,6 +61,38 @@ Analytical diff/profile JSON files do not enter the raw-source denominator. Evid
 
 The repository reconciler does not inspect the governed object store and cannot assign final recovery outcomes by itself. Provider/catalogue verification, recovery-package inspection and any declaration that a search is complete remain separate operational steps.
 
+## Private operational materialisation
+
+`white-list-recovery-reconcile` bridges the repository-supported denominator to those operational checks without making object-store discovery the denominator. It takes a private, operator-reviewed recovery plan and then performs exact readback verification through the existing `EvidenceStore` and `CaptureCatalogue` contracts.
+
+The private plan may supply only facts that repository evidence cannot establish safely:
+
+- archive-first captures with their stable capture UUID, frozen capture manifest and immutable catalogue receipt;
+- explicit recovery-package paths for an already-known historical version;
+- a reviewed byte size when repository evidence did not retain it;
+- positive durable-absence decisions for individual denominator items; and
+- a global declaration that the recovery search is complete.
+
+The plan cannot mint a historical `known_version`. Every historical recovery overlay must match an existing repository-supported authority + evidence-version key + SHA-256 identity. A reviewed byte size cannot replace a conflicting size already retained by repository evidence. Any operational size, recovery path or durable-absence assertion requires an operator evidence reference. This keeps the provenance of recovery decisions explicit without committing private package paths or provider coordinates to Git.
+
+Archive-first captures are different because their capture UUID and immutable catalogue record are themselves positive acquisition identity. They may therefore enter the operational plan even when the public repository intentionally does not contain private capture records. A capture becomes `verified` only after both the selected ContentObject bytes and the selected catalogue record are read back from the governed provider and independently verified.
+
+The command writes a new report with exclusive-create semantics and refuses to overwrite an earlier report. The report contains recovery identities, statuses and metrics but does not expose provider endpoint/bucket configuration or source bytes. The recovery plan and resulting operational report are private operator artefacts unless deliberately reviewed for another dissemination boundary.
+
+A minimal operational plan has this shape:
+
+```json
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-23T03:00:00+00:00",
+  "recovery_search_complete": false,
+  "captures": [],
+  "known_version_recovery": []
+}
+```
+
+`recovery_search_complete` defaults operationally to a reviewed decision, not to a successful command execution. It must remain `false` until the governed store/catalogue and all declared recovery locations in the selected denominator have actually been searched. Likewise, absence from a provider listing is never sufficient to set an item's `durable_absence_confirmed` flag.
+
 ## Compatibility
 
 The recovery-denominator schema remains version 1 while `published_release_scopes` is an optional extension. Existing callers that provide only captures and known versions remain valid. New reconciler output includes the field explicitly.
@@ -69,13 +101,13 @@ Monitoring evidence keys now include the stable ledger check position in additio
 
 ## Non-claims
 
-Repository reconciliation does not establish:
+Repository reconciliation and operational materialisation tooling do not by themselves establish:
 
 - national durable-byte coverage;
-- real-provider readback;
+- successful real-provider readback until the command is actually run against the approved private backend;
 - production historical-observation persistence;
 - independent backup/restore;
 - a complete frozen national release;
-- or that a historical version is missing.
+- or that a historical version is missing unless the explicit positive-absence and completed-search gates are satisfied.
 
 Those claims require their own positive acceptance evidence under issue #163.
