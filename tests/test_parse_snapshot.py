@@ -43,7 +43,7 @@ def test_snapshot_requires_records_and_diagnostics_json_shapes() -> None:
 
 def test_parse_run_identity_changes_only_with_interpretation_inputs() -> None:
     base = dict(
-        content_sha256="a" * 64,
+        content_inputs=[("primary", "a" * 64)],
         parser_name="example_parser",
         parser_revision="1",
         code_revision="b" * 40,
@@ -53,7 +53,7 @@ def test_parse_run_identity_changes_only_with_interpretation_inputs() -> None:
     assert first == _parse_run_code(**base)
 
     for key, value in (
-        ("content_sha256", "d" * 64),
+        ("content_inputs", [("primary", "d" * 64)]),
         ("parser_revision", "2"),
         ("code_revision", "e" * 40),
         ("configuration_hash", "f" * 64),
@@ -62,8 +62,14 @@ def test_parse_run_identity_changes_only_with_interpretation_inputs() -> None:
         changed[key] = value
         assert _parse_run_code(**changed) != first
 
+    bundle = dict(base)
+    bundle["content_inputs"] = [("applicants", "d" * 64), ("listed", "a" * 64)]
+    bundle_id = _parse_run_code(**bundle)
+    assert bundle_id != first
+    assert bundle_id == _parse_run_code(**bundle)
 
-def test_snapshot_envelope_is_closed(tmp_path) -> None:
+
+def test_snapshot_envelope_is_closed_for_scalar_and_bundle_inputs(tmp_path) -> None:
     payload = {
         "capture_id": "11111111-2222-4333-8444-555555555555",
         "parser_name": "example_parser",
@@ -79,7 +85,16 @@ def test_snapshot_envelope_is_closed(tmp_path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
     assert _load_snapshot_envelope(path) == payload
 
-    payload["publication_date"] = "2026-09-23"
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(ValueError, match="fields must be exactly"):
+    bundle = dict(payload)
+    bundle.pop("capture_id")
+    bundle["capture_inputs"] = [
+        {"label": "listed", "capture_id": "11111111-2222-4333-8444-555555555555"},
+        {"label": "applicants", "capture_id": "66666666-7777-4888-8999-000000000000"},
+    ]
+    path.write_text(json.dumps(bundle), encoding="utf-8")
+    assert _load_snapshot_envelope(path) == bundle
+
+    bundle["publication_date"] = "2026-09-23"
+    path.write_text(json.dumps(bundle), encoding="utf-8")
+    with pytest.raises(ValueError, match="exactly one of capture_id or capture_inputs"):
         _load_snapshot_envelope(path)
