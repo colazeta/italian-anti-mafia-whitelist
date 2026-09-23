@@ -56,7 +56,8 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
 
     Every resource pins both an immutable ContentObject identity and the separate
     durable capture/check catalogue receipt. Provider readback happens in
-    ``archived_downloads`` before parsers can receive the bytes.
+    ``archived_downloads`` before parsers can receive the bytes. The returned URL map is
+    only a compatibility adapter for legacy parser plumbing; it is not capture identity.
     """
     if not isinstance(manifest, dict):
         raise ValueError("Frozen release manifest must be a mapping")
@@ -152,6 +153,9 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[str, dict]:
             if cfg.get("resources") and expected_raw_sha and capture["sha256"] != expected_raw_sha:
                 raise ValueError(f"{source_key}/{label}: frozen bundle member SHA differs from approval")
 
+            # Locator reuse is allowed only when the selected payload bytes agree. The
+            # URL remains a parser-routing key; each capture/check is still independently
+            # verified later and never collapsed into this map as an archival identity.
             prior = by_url.get(expected_url)
             if prior is not None and (
                 prior["capture"]["sha256"] != capture["sha256"]
@@ -206,30 +210,63 @@ def validate_release_runtime(
             raise ValueError(f"{source_key}: frozen parser revision does not match replay runtime")
 
 
+def _verified_payloads_by_url(manifest: dict, config: dict, store: EvidenceStore) -> dict[str, bytes]:
+    """Verify every selected capture/check, then expose bytes by locator for legacy parsers.
+
+    The URL-keyed result is deliberately only a transitional parser adapter. Two source
+    scopes may point at the same locator and even the same ContentObject while retaining
+    distinct capture identities; both immutable catalogue records are verified and both
+    selected captures are read back before a single parser is allowed to consume bytes.
+    """
+    validate_release_manifest(manifest, config)
+    catalogue = CaptureCatalogue(store)
+    payload_by_url: dict[str, bytes] = {}
+    verified_capture_ids: set[str] = set()
+
+    for source in manifest["sources"]:
+        for resource in source["resources"]:
+            capture = freeze_capture_manifest(resource["capture"])
+            capture_id = capture.get("capture_id")
+            if not isinstance(capture_id, str) or not capture_id:
+                raise ValueError("Frozen release resource lacks capture identity")
+            if capture_id in verified_capture_ids:
+                raise ValueError("Frozen release cannot reuse one capture/check for multiple configured resources")
+
+            catalogue.verify_receipt(capture, resource["catalogue"])
+            data = store.read_verified(capture)
+            if len(data) != capture["byte_size"] or hashlib.sha256(data).hexdigest() != capture["sha256"]:
+                raise ValueError("Archived release input failed size/SHA-256 verification")
+
+            url = capture["resource_url"]
+            prior = payload_by_url.get(url)
+            if prior is not None and prior != data:
+                raise ValueError("One frozen release cannot route conflicting archived bytes through the same locator")
+            payload_by_url[url] = data
+            verified_capture_ids.add(capture_id)
+
+    return payload_by_url
+
+
 @contextmanager
 def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> Iterator[None]:
     """Make legacy parser plumbing read only fully verified release-pinned captures.
 
     This transitional adapter is process-local and intended for the existing serial
     release worker. Unknown URLs fail closed; there is deliberately no live fallback.
-    Both capture provenance and original bytes are read back from the approved private
-    backend before the parser-facing path is created.
+    Every selected capture/check and original ContentObject is independently read back
+    from the approved private backend before the parser-facing path is created, even
+    when multiple scopes reuse the same source locator.
     """
+    payload_by_url = _verified_payloads_by_url(manifest, config, store)
     by_url = validate_release_manifest(manifest, config)
-    catalogue = CaptureCatalogue(store)
-    # Verify durable capture provenance for every selected release input up front.
-    for resource in by_url.values():
-        catalogue.verify_receipt(resource["capture"], resource["catalogue"])
     original = registry._download
 
     def archived_download(url: str, path: Path) -> str:
         resource = by_url.get(url)
-        if resource is None:
+        data = payload_by_url.get(url)
+        if resource is None or data is None:
             raise RuntimeError(f"Frozen release has no archived capture for requested URL: {url}")
         capture = resource["capture"]
-        data = store.read_verified(capture)
-        if len(data) != capture["byte_size"] or hashlib.sha256(data).hexdigest() != capture["sha256"]:
-            raise ValueError("Archived release input failed size/SHA-256 verification")
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("xb") as handle:
             handle.write(data)
