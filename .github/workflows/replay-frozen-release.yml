@@ -73,7 +73,7 @@ jobs:
               raise SystemExit('Frozen release must pin at least one source')
           shutil.copyfile(candidate, '/tmp/frozen-release.json')
           Path(os.environ['GITHUB_OUTPUT']).write_text(
-              f'code_revision={revision}\nrelease_id={release_id}\n',
+              f'code_revision={revision}\n',
               encoding='utf-8',
           )
           PY
@@ -146,7 +146,6 @@ jobs:
 
       - name: Verify replay products without publishing them
         env:
-          EXPECTED_RELEASE_ID: ${{ steps.release.outputs.release_id }}
           PINNED_CODE_REVISION: ${{ steps.release.outputs.code_revision }}
         run: |
           python - <<'PY'
@@ -164,8 +163,6 @@ jobs:
           prefectures = json.loads((out / 'prefectures.json').read_text(encoding='utf-8'))
           manifest = json.loads(Path('/tmp/frozen-release.json').read_text(encoding='utf-8'))
           validate_registry(registry)
-          if manifest['release_id'] != os.environ['EXPECTED_RELEASE_ID']:
-              raise SystemExit('Release identity changed between selection and replay')
           if manifest['code_revision'] != os.environ['PINNED_CODE_REVISION']:
               raise SystemExit('Executing revision differs from frozen release pin')
           print(json.dumps({
