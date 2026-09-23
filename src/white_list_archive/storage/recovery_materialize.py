@@ -43,6 +43,7 @@ _CAPTURE_FIELDS = {
     "recovery_paths",
     "durable_absence_confirmed",
 }
+_CAPTURE_FIELDS_WITH_EVIDENCE = _CAPTURE_FIELDS | {"operator_evidence_refs"}
 _REQUIRED_SERIES_REGISTRY_FIELDS = {"source_series_key", "authority_key"}
 
 
@@ -104,7 +105,7 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
 
     capture_ids: set[tuple[str, str]] = set()
     for row in plan["captures"]:
-        if not isinstance(row, dict) or set(row) != _CAPTURE_FIELDS:
+        if not isinstance(row, dict) or set(row) not in {_CAPTURE_FIELDS, _CAPTURE_FIELDS_WITH_EVIDENCE}:
             raise ValueError("Unapproved capture recovery-plan row")
         authority = row["authority_key"]
         capture = row["capture"]
@@ -124,6 +125,11 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("Capture durable_absence_confirmed must be boolean")
         if row["catalogue"] is not None and not isinstance(row["catalogue"], dict):
             raise ValueError("Capture catalogue must be a mapping or null")
+        refs = row.get("operator_evidence_refs", [])
+        if not isinstance(refs, list) or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+            raise ValueError("Capture operator_evidence_refs must be a list of non-empty references")
+        if (row["recovery_paths"] or row["durable_absence_confirmed"]) and not refs:
+            raise ValueError("Capture operational recovery facts require operator_evidence_refs")
 
     overlays: set[tuple[str, str, str]] = set()
     for row in plan["known_version_recovery"]:
@@ -151,6 +157,35 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
         if (byte_size is not None or row["recovery_paths"] or row["durable_absence_confirmed"]) and not refs:
             raise ValueError("Operational recovery facts require operator_evidence_refs")
     return plan
+
+
+def _capture_operator_evidence(plan: dict[str, Any]) -> dict[tuple[str, str], list[str]]:
+    """Return decision provenance keyed by stable archive-first capture identity."""
+    result: dict[tuple[str, str], list[str]] = {}
+    for row in plan["captures"]:
+        capture = row["capture"]
+        result[(capture["source_key"], capture["capture_id"])] = list(
+            row.get("operator_evidence_refs", [])
+        )
+    return result
+
+
+def _attach_capture_operator_evidence(report: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
+    """Retain private decision evidence in the private recovery report.
+
+    The lower-level archive inventory deliberately has no knowledge of operator-plan
+    provenance. Materialisation therefore reattaches those references after provider
+    verification, without exposing private paths or changing capture identity.
+    """
+    refs_by_identity = _capture_operator_evidence(plan)
+    for item in report.get("items", []):
+        if item.get("identity_kind") != "capture":
+            continue
+        identity = (item.get("source_key"), item.get("capture_id"))
+        if identity not in refs_by_identity:
+            raise AssertionError("Materialised capture missing operator-plan identity")
+        item["evidence_refs"] = refs_by_identity[identity]
+    return report
 
 
 def apply_recovery_plan(
@@ -222,6 +257,11 @@ def apply_recovery_plan(
                 raise ValueError(
                     f"Recovery capture authority for {source_key!r} does not match reviewed SourceSeries registry"
                 )
+    # The lower-level archive inventory schema remains stable. Decision-provenance
+    # references belong to this private materialisation layer and are reattached to the
+    # private report after provider verification.
+    for row in captures:
+        row.pop("operator_evidence_refs", None)
 
     expectations["generated_at"] = plan["generated_at"]
     expectations["recovery_search_complete"] = plan["recovery_search_complete"]
@@ -249,7 +289,8 @@ def materialise_national_recovery(*, repository_root: Path, plan: dict[str, Any]
         plan,
         source_authorities=source_authorities,
     )
-    return build_recovery_denominator(expectations, store)
+    report = build_recovery_denominator(expectations, store)
+    return _attach_capture_operator_evidence(report, plan)
 
 
 def main() -> None:
