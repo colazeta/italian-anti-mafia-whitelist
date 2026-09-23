@@ -105,7 +105,7 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
 
     capture_ids: set[tuple[str, str]] = set()
     for row in plan["captures"]:
-        if not isinstance(row, dict) or set(row) not in {_CAPTURE_FIELDS, _CAPTURE_FIELDS_WITH_EVIDENCE}:
+        if not isinstance(row, dict) or set(row) not in (_CAPTURE_FIELDS, _CAPTURE_FIELDS_WITH_EVIDENCE):
             raise ValueError("Unapproved capture recovery-plan row")
         authority = row["authority_key"]
         capture = row["capture"]
