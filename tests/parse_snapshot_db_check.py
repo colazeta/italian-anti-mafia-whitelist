@@ -29,6 +29,7 @@ records = [
         "source_fields": {"physical_locator": "row:2", "sections": ["II"]},
     },
 ]
+diagnostics = {"source_rows": 2, "public_records": 2, "warnings": []}
 
 with psycopg.connect(dsn) as conn:
     with conn.cursor() as cur:
@@ -49,15 +50,16 @@ with psycopg.connect(dsn) as conn:
             """
         )
         resource_id = cur.fetchone()[0]
-        content_sha = _sha(b"synthetic immutable source bytes")
+        content_bytes = b"synthetic immutable source bytes"
+        content_sha = _sha(content_bytes)
         cur.execute(
             """
             INSERT INTO source.content_object(
                 sha256,mime_type,file_size,storage_uri,storage_status_code
-            ) VALUES (%s,'application/pdf',32,'https://ci.invalid/evidence/sha256/synthetic','durable')
+            ) VALUES (%s,'application/pdf',%s,'https://ci.invalid/evidence/sha256/synthetic','durable')
             RETURNING content_object_id
             """,
-            (content_sha,),
+            (content_sha, len(content_bytes)),
         )
         content_id = cur.fetchone()[0]
         capture_ids = [
@@ -91,13 +93,14 @@ with psycopg.connect(dsn) as conn:
         started_at=started,
         completed_at=completed,
         records=records,
+        diagnostics=diagnostics,
     )
     first = persist_parse_snapshot(conn, capture_id=capture_ids[0], **common)
     repeated = persist_parse_snapshot(conn, capture_id=capture_ids[0], **common)
     second_capture = persist_parse_snapshot(conn, capture_id=capture_ids[1], **common)
 
     assert first["parse_run_id"] == repeated["parse_run_id"] == second_capture["parse_run_id"]
-    assert first["snapshot_sha256"] == snapshot_sha256(records)
+    assert first["snapshot_sha256"] == snapshot_sha256(records, diagnostics)
     assert not first["parse_run_reused"] and not first["snapshot_reused"]
     assert repeated["parse_run_reused"] and repeated["snapshot_reused"] and repeated["capture_link_reused"]
     assert second_capture["parse_run_reused"] and second_capture["snapshot_reused"]
@@ -109,6 +112,7 @@ with psycopg.connect(dsn) as conn:
     revised["completed_at"] = datetime(2026, 9, 23, 5, 13, tzinfo=timezone.utc)
     revised_records = [dict(row, parser_revision_note="revision-2") for row in records]
     revised["records"] = revised_records
+    revised["diagnostics"] = {**diagnostics, "parser_revision": "2"}
     later = persist_parse_snapshot(conn, capture_id=capture_ids[0], **revised)
     assert later["parse_run_id"] != first["parse_run_id"]
     assert later["snapshot_sha256"] != first["snapshot_sha256"]
@@ -139,15 +143,23 @@ with psycopg.connect(dsn) as conn:
         )
         assert cur.fetchone() == (2, 4)
         cur.execute(
-            "SELECT count(*) FROM source.capture_parse_run WHERE capture_id = ANY(%s)",
-            (capture_ids,),
+            """
+            SELECT count(*) FROM source.capture_parse_run
+            WHERE capture_id IN (%s,%s)
+            """,
+            (capture_ids[0], capture_ids[1]),
         )
         assert cur.fetchone()[0] == 3
         cur.execute(
-            "SELECT records_json FROM source.parse_snapshot WHERE parse_run_id=%s",
+            """
+            SELECT records_json, diagnostics_json
+            FROM source.parse_snapshot WHERE parse_run_id=%s
+            """,
             (first["parse_run_id"],),
         )
-        assert cur.fetchone()[0] == records
+        persisted_records, persisted_diagnostics = cur.fetchone()
+        assert persisted_records == records
+        assert persisted_diagnostics == diagnostics
         cur.execute(
             "SELECT count(*) FROM source.source_edition WHERE series_id=%s",
             (series_id,),
@@ -169,15 +181,16 @@ with psycopg.connect(dsn) as conn:
 
     # A capture cannot be associated with an interpretation of different bytes.
     with conn.cursor() as cur:
-        other_sha = _sha(b"different synthetic immutable bytes")
+        other_bytes = b"different synthetic immutable bytes"
+        other_sha = _sha(other_bytes)
         cur.execute(
             """
             INSERT INTO source.content_object(
                 sha256,mime_type,file_size,storage_uri,storage_status_code
-            ) VALUES (%s,'application/pdf',35,'https://ci.invalid/evidence/sha256/other','durable')
+            ) VALUES (%s,'application/pdf',%s,'https://ci.invalid/evidence/sha256/other','durable')
             RETURNING content_object_id
             """,
-            (other_sha,),
+            (other_sha, len(other_bytes)),
         )
         other_content_id = cur.fetchone()[0]
         cur.execute(
@@ -211,5 +224,5 @@ with psycopg.connect(dsn) as conn:
 
 print(
     "Immutable parse snapshots passed against PostgreSQL: repeated unchanged captures reuse one interpretation; "
-    "a parser revision creates a new interpretation; no SourceEdition is invented."
+    "a parser revision creates a new interpretation; full records/diagnostics are retrievable; no SourceEdition is invented."
 )
