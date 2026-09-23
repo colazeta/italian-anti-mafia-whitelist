@@ -70,10 +70,11 @@ def capture_expectation(result):
 
 
 def known_version(*, sha256: str, byte_size: int | None, recovery_paths=None,
-                  durable_absence_confirmed=False, version_key="transition-note-1"):
+                  durable_absence_confirmed=False, version_key="transition-note-1",
+                  source_key="legacy-listed"):
     return {
         "authority_key": "legacy",
-        "source_key": "legacy-listed",
+        "source_key": source_key,
         "evidence_version_key": version_key,
         "sha256": sha256,
         "byte_size": byte_size,
@@ -115,6 +116,19 @@ def test_known_hash_without_capture_identity_enters_denominator_not_verified():
         "missing": 0,
         "not_verified": 1,
     }
+
+
+def test_authority_level_evidence_does_not_invent_source_series():
+    item = known_version(
+        sha256="1" * 64,
+        byte_size=None,
+        source_key=None,
+        version_key="monitoring-check-2026-09-21T10:32:25Z",
+    )
+    inventory = build_recovery_denominator(envelope(known_versions=[item]), store())
+    row = inventory["items"][0]
+    assert row["source_key"] is None
+    assert row["status"] == "not_verified"
 
 
 def test_exact_recovery_package_for_legacy_version_is_recoverable_pending(tmp_path):
