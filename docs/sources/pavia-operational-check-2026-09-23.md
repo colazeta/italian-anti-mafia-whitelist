@@ -20,6 +20,12 @@ The separate official procedure page is:
 
 It documents the application procedure and the use of PortaleWL for new applications, updates and renewals from 21 July 2025. It states that, after favourable checks, the Prefettura places the enterprise in the list published on its institutional site. This procedure page is not evidence that a public applicant list is published.
 
+### Applicant-publication discovery recheck
+
+A bounded official-domain discovery recheck on 23 September 2026 used Pavia-specific variants for `richiedenti`, `elenco imprese richiedenti`, `ditte richiedenti`, `in istruttoria` and White List applicant terminology. It again surfaced the Pavia procedure page and the dedicated registered-company page, but did not positively identify a Pavia page or attachment publishing the applicant population.
+
+This is a discovery result only. A failed or incomplete search is not evidence that the Prefettura does not publish such a list, and it is not converted into `NOT_PUBLISHED`. The applicant target therefore remains explicitly unresolved until positive official evidence or another governed source-status determination is available.
+
 ## Population-completeness assessment
 
 For the ordinary `WL-REGIME-L190-2012` scope:
