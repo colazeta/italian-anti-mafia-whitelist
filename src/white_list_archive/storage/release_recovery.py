@@ -11,7 +11,7 @@ def selected_release_captures(manifest: dict[str, Any], config: dict[str, Any]) 
     """Return every capture/check selected by one validated frozen release.
 
     Capture identity is deliberately retained even when several captures resolve to the
-    same content-addressed object.  The returned rows are an independent-recovery input
+    same content-addressed object. The returned rows are an independent-recovery input
     plan, not a publication projection: no live URL is dereferenced and no administrative
     edition identity is inferred.
     """
@@ -19,7 +19,7 @@ def selected_release_captures(manifest: dict[str, Any], config: dict[str, Any]) 
 
     selected: list[dict[str, Any]] = []
     seen_capture_ids: set[str] = set()
-    content_shapes: dict[str, tuple[int, str | None]] = {}
+    content_shapes: dict[str, tuple[int, str]] = {}
 
     for source in manifest["sources"]:
         source_key = source["source_key"]
@@ -34,7 +34,7 @@ def selected_release_captures(manifest: dict[str, Any], config: dict[str, Any]) 
             seen_capture_ids.add(capture_id)
 
             sha256 = capture["sha256"]
-            shape = (capture["byte_size"], capture.get("mime_type"))
+            shape = (capture["byte_size"], capture["content_type"])
             prior = content_shapes.get(sha256)
             if prior is not None and prior != shape:
                 raise ValueError("One ContentObject identity cannot have conflicting frozen metadata")
@@ -69,7 +69,7 @@ def distinct_content_object_inputs(selected: list[dict[str, Any]]) -> list[dict[
         prior_capture = prior["capture"]
         if (
             prior_capture["byte_size"] != capture["byte_size"]
-            or prior_capture.get("mime_type") != capture.get("mime_type")
+            or prior_capture["content_type"] != capture["content_type"]
         ):
             raise ValueError("One ContentObject identity cannot have conflicting frozen metadata")
     return list(representatives.values())
