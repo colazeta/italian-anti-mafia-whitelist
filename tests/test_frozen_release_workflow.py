@@ -40,7 +40,7 @@ def test_replay_invokes_archive_only_observation_path_and_keeps_products_private
     text = _workflow()
     assert "python -m white_list_archive.publishing.archive_replay_observations" in text
     assert "EVIDENCE_DATABASE_URL" in text
-    assert "observation database writer is not configured" in text
+    assert "Private evidence database writer is not configured" in text
     assert "--release-manifest /tmp/frozen-release.json" in text
     assert "--runtime-code-revision \"$PINNED_CODE_REVISION\"" in text
     assert "--registry-json /tmp/frozen-replay/output/registry.json" in text
