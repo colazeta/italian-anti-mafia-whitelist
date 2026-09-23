@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_key:
-        description: Existing project SourceSeries key to bind this acquisition
+        description: Reviewed project SourceSeries key to bind this acquisition
         required: true
         type: string
       resource_url:
@@ -110,6 +110,8 @@ jobs:
             --origin-type "$ORIGIN_TYPE"
             --authority-rank-code "$AUTHORITY_RANK_CODE"
             --resource-type-code "$RESOURCE_TYPE_CODE"
+            --authority-registry data/source_registry/territorial_authorities.csv
+            --series-registry data/source_registry/source_series_inventory.csv
             --work-dir /tmp/archive-first
             --public-receipt /tmp/public-actions/archive-receipt.json
           )
