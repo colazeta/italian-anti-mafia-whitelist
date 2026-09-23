@@ -9,7 +9,10 @@ import pytest
 from white_list_archive.acquisition.archive_first import archive_payload
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig
 from white_list_archive.storage.recovery_denominator import build_recovery_denominator
-from white_list_archive.storage.recovery_materialize import apply_recovery_plan
+from white_list_archive.storage.recovery_materialize import (
+    _load_reviewed_source_authorities,
+    apply_recovery_plan,
+)
 
 
 class ExistingObject(Exception):
@@ -105,6 +108,19 @@ def plan(*, sha256: str, byte_size=None, recovery_paths=None,
     }
 
 
+def capture_plan_row(*, authority_key="mutable", source_key="mutable-listed"):
+    return {
+        "authority_key": authority_key,
+        "capture": {
+            "source_key": source_key,
+            "capture_id": "9edc50d3-9ef9-4b8c-bb25-c9300a1d8017",
+        },
+        "catalogue": None,
+        "recovery_paths": [],
+        "durable_absence_confirmed": False,
+    }
+
+
 def test_reviewed_package_can_resolve_known_size_without_minting_capture(tmp_path):
     data = b"historical exact bytes"
     digest = hashlib.sha256(data).hexdigest()
@@ -158,6 +174,7 @@ def test_archive_first_capture_enters_plan_and_verifies_both_bytes_and_provenanc
     expectations = apply_recovery_plan(
         repository_expectations(sha256=digest),
         plan(sha256=digest, captures=[capture]),
+        source_authorities={"mutable-listed": "mutable"},
     )
     inventory = build_recovery_denominator(expectations, evidence)
     capture_rows = [row for row in inventory["items"] if row["identity_kind"] == "capture"]
@@ -167,6 +184,53 @@ def test_archive_first_capture_enters_plan_and_verifies_both_bytes_and_provenanc
     assert capture_rows[0]["capture_provenance_verified"] is True
     assert inventory["metrics"]["captures_expected"] == 1
     assert inventory["metrics"]["captures_with_verified_provenance"] == 1
+
+
+def test_archive_first_capture_requires_reviewed_authority_binding():
+    digest = "a" * 64
+    with pytest.raises(ValueError, match="require reviewed SourceSeries authority bindings"):
+        apply_recovery_plan(
+            repository_expectations(sha256=digest),
+            plan(sha256=digest, captures=[capture_plan_row()]),
+        )
+
+
+def test_recovery_capture_cannot_be_relabelled_to_another_reviewed_authority():
+    digest = "a" * 64
+    with pytest.raises(ValueError, match="does not match reviewed SourceSeries registry"):
+        apply_recovery_plan(
+            repository_expectations(sha256=digest),
+            plan(
+                sha256=digest,
+                captures=[capture_plan_row(authority_key="wrong-authority")],
+            ),
+            source_authorities={"mutable-listed": "mutable"},
+        )
+
+
+def test_recovery_capture_source_must_exist_in_reviewed_source_series_registry():
+    digest = "a" * 64
+    with pytest.raises(ValueError, match="absent from reviewed SourceSeries registry"):
+        apply_recovery_plan(
+            repository_expectations(sha256=digest),
+            plan(
+                sha256=digest,
+                captures=[capture_plan_row(source_key="unreviewed-listed")],
+            ),
+            source_authorities={"mutable-listed": "mutable"},
+        )
+
+
+def test_reviewed_source_authority_registry_rejects_conflicting_bindings(tmp_path):
+    registry = tmp_path / "source_series_inventory.csv"
+    registry.write_text(
+        "source_series_key,authority_key,regime_code\n"
+        "mutable-listed,mutable,WL\n"
+        "mutable-listed,other,WL\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="conflicting authorities"):
+        _load_reviewed_source_authorities(registry)
 
 
 def test_plan_cannot_create_historical_version_absent_from_repository_evidence():
