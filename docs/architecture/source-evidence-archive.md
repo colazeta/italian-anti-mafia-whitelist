@@ -105,6 +105,8 @@ A `known_version` uses an `evidence_version_key` only as a reconciliation key. I
 
 Denominator metrics keep captures, historical versions without capture identity, distinct known ContentObjects and durably retrievable ContentObjects separate. Repeated evidence items may legitimately reference the same SHA-256: the evidence items remain distinct while the ContentObject count is content-addressed. This preserves evidence of repeated or differently documented observations without fabricating capture times or deduplicating away known recovery obligations.
 
+For archive-first `capture` rows, the stable `source_key` is additionally bound to its authority through the reviewed `data/source_registry/source_series_inventory.csv`. A private recovery plan may contribute operational facts and the immutable catalogue receipt, but it may not relabel that SourceSeries to another authority or introduce an unreviewed SourceSeries identity. This validation applies only where a stable archive-first SourceSeries identity exists; historical `known_version` rows remain evidence-driven and may legitimately have `source_key = null`. The distinction prevents a typo or private-plan relabelling from producing false national authority-coverage metrics without inventing source identity for legacy evidence.
+
 ## Verification workflow
 
 An independent reviewer should be able to:

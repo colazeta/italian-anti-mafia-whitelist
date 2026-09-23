@@ -4,11 +4,12 @@ Repository evidence defines the historical denominator; an operator-reviewed pri
 plan supplies only operational facts that cannot safely be inferred from Git: exact
 archive-first capture receipts, recovery-package paths, reviewed byte sizes and
 positive durable-absence decisions. The plan cannot create additional historical
-``known_version`` identities.
+``known_version`` identities or relabel reviewed SourceSeries ownership.
 """
 from __future__ import annotations
 
 import argparse
+import csv
 from copy import deepcopy
 from datetime import datetime
 import json
@@ -42,6 +43,7 @@ _CAPTURE_FIELDS = {
     "recovery_paths",
     "durable_absence_confirmed",
 }
+_REQUIRED_SERIES_REGISTRY_FIELDS = {"source_series_key", "authority_key"}
 
 
 def _aware_timestamp(value: Any, *, label: str) -> str:
@@ -54,6 +56,41 @@ def _aware_timestamp(value: Any, *, label: str) -> str:
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(f"{label} requires an explicit timezone")
     return value
+
+
+def _load_reviewed_source_authorities(path: Path) -> dict[str, str]:
+    """Return the reviewed stable SourceSeries → authority binding.
+
+    Recovery plans are private operational overlays. They may say where bytes were found
+    or record provider readback receipts, but they are not allowed to redefine which
+    authority owns a stable SourceSeries identity already governed by the repository.
+    """
+    try:
+        handle = path.open("r", encoding="utf-8", newline="")
+    except OSError as exc:
+        raise ValueError(f"Unable to read reviewed SourceSeries registry: {path}") from exc
+    with handle:
+        reader = csv.DictReader(handle)
+        fields = set(reader.fieldnames or [])
+        if not _REQUIRED_SERIES_REGISTRY_FIELDS.issubset(fields):
+            raise ValueError("Reviewed SourceSeries registry lacks source_series_key/authority_key")
+        result: dict[str, str] = {}
+        for line_number, row in enumerate(reader, start=2):
+            source_key = (row.get("source_series_key") or "").strip()
+            authority_key = (row.get("authority_key") or "").strip()
+            if not source_key or not authority_key:
+                raise ValueError(
+                    f"Reviewed SourceSeries registry has blank identity at line {line_number}"
+                )
+            prior = result.get(source_key)
+            if prior is not None and prior != authority_key:
+                raise ValueError(
+                    f"Reviewed SourceSeries registry assigns {source_key!r} to conflicting authorities"
+                )
+            result[source_key] = authority_key
+    if not result:
+        raise ValueError("Reviewed SourceSeries registry is empty")
+    return result
 
 
 def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
@@ -116,7 +153,12 @@ def _validate_plan(plan: dict[str, Any]) -> dict[str, Any]:
     return plan
 
 
-def apply_recovery_plan(repository_expectations: dict[str, Any], plan: dict[str, Any]) -> dict[str, Any]:
+def apply_recovery_plan(
+    repository_expectations: dict[str, Any],
+    plan: dict[str, Any],
+    *,
+    source_authorities: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Apply reviewed operational recovery facts without expanding historical identity.
 
     The repository evidence remains authoritative for ``known_version`` identity. A plan
@@ -124,7 +166,8 @@ def apply_recovery_plan(repository_expectations: dict[str, Any], plan: dict[str,
     existing row, but cannot introduce a historical version that the repository has never
     evidenced. Archive-first captures are different: their stable capture UUID and private
     catalogue receipt are themselves the positive identity evidence and may enter via the
-    operator plan.
+    operator plan, but every such capture requires a reviewed SourceSeries → authority
+    binding and cannot be relabelled to another authority.
     """
     plan = _validate_plan(plan)
     expectations = deepcopy(repository_expectations)
@@ -162,9 +205,27 @@ def apply_recovery_plan(repository_expectations: dict[str, Any], plan: dict[str,
         row["durable_absence_confirmed"] = overlay["durable_absence_confirmed"]
         row["evidence_refs"] = list(dict.fromkeys([*row["evidence_refs"], *overlay["operator_evidence_refs"]]))
 
+    captures = deepcopy(plan["captures"])
+    if captures and source_authorities is None:
+        raise ValueError(
+            "Archive-first recovery captures require reviewed SourceSeries authority bindings"
+        )
+    if source_authorities is not None:
+        for row in captures:
+            source_key = row["capture"]["source_key"]
+            reviewed_authority = source_authorities.get(source_key)
+            if reviewed_authority is None:
+                raise ValueError(
+                    f"Recovery capture SourceSeries {source_key!r} is absent from reviewed SourceSeries registry"
+                )
+            if row["authority_key"] != reviewed_authority:
+                raise ValueError(
+                    f"Recovery capture authority for {source_key!r} does not match reviewed SourceSeries registry"
+                )
+
     expectations["generated_at"] = plan["generated_at"]
     expectations["recovery_search_complete"] = plan["recovery_search_complete"]
-    expectations["captures"] = deepcopy(plan["captures"])
+    expectations["captures"] = captures
     return expectations
 
 
@@ -180,7 +241,14 @@ def materialise_national_recovery(*, repository_root: Path, plan: dict[str, Any]
         public_history_path=repository_root / "data" / "history" / "public_history.json",
         generated_at=plan["generated_at"],
     )
-    expectations = apply_recovery_plan(repository_expectations, plan)
+    source_authorities = _load_reviewed_source_authorities(
+        repository_root / "data" / "source_registry" / "source_series_inventory.csv"
+    )
+    expectations = apply_recovery_plan(
+        repository_expectations,
+        plan,
+        source_authorities=source_authorities,
+    )
     return build_recovery_denominator(expectations, store)
 
 
