@@ -20,6 +20,7 @@ def test_replay_is_manual_main_only_and_uses_protected_private_archive() -> None
     assert "EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}" in text
     assert "AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}" in text
     assert "AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}" in text
+    assert "EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}" in text
 
 
 def test_replay_freezes_manifest_then_checks_out_exact_pinned_main_history() -> None:
@@ -35,13 +36,16 @@ def test_replay_freezes_manifest_then_checks_out_exact_pinned_main_history() -> 
     assert "clean: true" in text
 
 
-def test_replay_invokes_archive_only_release_path_and_keeps_products_private() -> None:
+def test_replay_invokes_archive_only_observation_path_and_keeps_products_private() -> None:
     text = _workflow()
-    assert "white-list-public-national-build" in text
+    assert "python -m white_list_archive.publishing.archive_replay_observations" in text
+    assert "EVIDENCE_DATABASE_URL" in text
+    assert "Private evidence database writer is not configured" in text
     assert "--release-manifest /tmp/frozen-release.json" in text
     assert "--runtime-code-revision \"$PINNED_CODE_REVISION\"" in text
     assert "--registry-json /tmp/frozen-replay/output/registry.json" in text
     assert "source_mode': 'archived_frozen_release'" in text
+    assert "parse_observation_persistence': 'required'" in text
     assert "actions/upload-artifact" not in text
     assert "actions/deploy-pages" not in text
     assert "upload-pages-artifact" not in text
