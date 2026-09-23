@@ -8,9 +8,11 @@ approved private store before writing a release manifest. No live source URL is 
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+import subprocess
 from typing import Any
 
 from white_list_archive.publishing.frozen_release import (
@@ -18,7 +20,12 @@ from white_list_archive.publishing.frozen_release import (
     validate_release_manifest,
 )
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
-from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
+from white_list_archive.storage.evidence import (
+    EvidenceStore,
+    StoreConfig,
+    client_for,
+    freeze_capture_manifest,
+)
 
 _HEX40 = re.compile(r"^[0-9a-f]{40}$")
 
@@ -31,12 +38,11 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _selection_sources(selection: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    required = {"schema_version", "release_id", "created_at", "code_revision", "sources"}
+    # Processing time and executing code revision are deliberately not operator fields:
+    # the selector binds them at execution time after the private inputs are chosen.
+    required = {"schema_version", "release_id", "sources"}
     if set(selection) != required or selection.get("schema_version") != 1:
         raise ValueError("Unapproved frozen-release selection envelope")
-    revision = selection.get("code_revision")
-    if not isinstance(revision, str) or _HEX40.fullmatch(revision) is None:
-        raise ValueError("Selection code_revision must be an exact 40-character Git SHA")
     sources = selection.get("sources")
     if not isinstance(sources, list) or not sources:
         raise ValueError("Selection must contain at least one source")
@@ -65,6 +71,8 @@ def select_verified_release(
     selection: dict[str, Any],
     store: EvidenceStore,
     *,
+    code_revision: str,
+    created_at: str,
     catalogue: CaptureCatalogue | None = None,
 ) -> dict[str, Any]:
     """Return a frozen release manifest after complete private-provider readback.
@@ -72,7 +80,12 @@ def select_verified_release(
     The selection must cover every and only configured publication source. Each resource
     retains its exact capture manifest and catalogue receipt. Bytes and capture provenance
     are independently read back before the returned manifest becomes eligible for review.
+    ``code_revision`` and ``created_at`` describe this selector execution, not a source
+    publication or capture event, and are kept outside the operator-authored selection.
     """
+    if not isinstance(code_revision, str) or _HEX40.fullmatch(code_revision) is None:
+        raise ValueError("Frozen release code_revision must be an exact 40-character Git SHA")
+
     config_sources = config.get("sources")
     if not isinstance(config_sources, list) or not config_sources:
         raise ValueError("Publication configuration must contain sources")
@@ -112,32 +125,36 @@ def select_verified_release(
     candidate: dict[str, Any] = {
         "schema_version": 1,
         "release_id": selection["release_id"],
-        "created_at": selection["created_at"],
-        "code_revision": selection["code_revision"],
+        "created_at": created_at,
+        "code_revision": code_revision,
         "source_config_sha256": configuration_sha256(config),
         "sources": manifest_sources,
     }
 
     # Structural/configuration binding is checked before any provider access. This also
-    # freezes and validates each capture manifest, including temporal provenance.
-    resources_by_url = validate_release_manifest(candidate, config)
+    # validates each capture manifest, including its distinct temporal provenance.
+    validate_release_manifest(candidate, config)
     catalogue = catalogue or CaptureCatalogue(store)
     verified_capture_ids: set[str] = set()
-    for resource in resources_by_url.values():
-        capture = resource["capture"]
-        receipt = resource["catalogue"]
-        # Provenance and original bytes are distinct acceptance conditions. Both must
-        # read back successfully for a source to be eligible for a frozen release.
-        catalogue.verify_receipt(capture, receipt)
-        store.read_verified(capture)
-        capture_id = capture.get("capture_id")
-        if not isinstance(capture_id, str) or not capture_id:
-            raise ValueError("Verified release resource lacks capture_id")
-        verified_capture_ids.add(capture_id)
+    expected_resource_count = 0
+    for source in candidate["sources"]:
+        for resource in source["resources"]:
+            expected_resource_count += 1
+            capture = freeze_capture_manifest(resource["capture"])
+            receipt = resource["catalogue"]
+            # Provenance and original bytes are distinct acceptance conditions. Both must
+            # read back successfully for a source to be eligible for a frozen release.
+            catalogue.verify_receipt(capture, receipt)
+            store.read_verified(capture)
+            capture_id = capture.get("capture_id")
+            if not isinstance(capture_id, str) or not capture_id:
+                raise ValueError("Verified release resource lacks capture_id")
+            if capture_id in verified_capture_ids:
+                raise ValueError("Frozen release must bind one distinct capture/check per configured resource")
+            verified_capture_ids.add(capture_id)
 
-    expected_resource_count = sum(len(item["resources"]) for item in manifest_sources)
     if len(verified_capture_ids) != expected_resource_count:
-        raise ValueError("Frozen release must bind one distinct capture/check per configured resource")
+        raise ValueError("Frozen release capture verification did not cover every configured resource")
     return candidate
 
 
@@ -148,6 +165,17 @@ def write_new_release(path: Path, manifest: dict[str, Any]) -> None:
     with path.open("x", encoding="utf-8") as handle:
         json.dump(manifest, handle, ensure_ascii=False, sort_keys=True, indent=2)
         handle.write("\n")
+
+
+def _head_revision() -> str:
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        text=True,
+        stderr=subprocess.DEVNULL,
+    ).strip()
+    if _HEX40.fullmatch(revision) is None:
+        raise ValueError("Unable to bind frozen release to an exact Git HEAD revision")
+    return revision
 
 
 def main() -> None:
@@ -161,10 +189,17 @@ def main() -> None:
     selection = _load_json(args.selection)
     store_config = StoreConfig.from_env()
     store = EvidenceStore(client_for(store_config), store_config)
-    manifest = select_verified_release(config, selection, store)
+    manifest = select_verified_release(
+        config,
+        selection,
+        store,
+        code_revision=_head_revision(),
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
     write_new_release(args.output, manifest)
     print(json.dumps({
         "release_id": manifest["release_id"],
+        "code_revision": manifest["code_revision"],
         "source_count": len(manifest["sources"]),
         "resource_count": sum(len(item["resources"]) for item in manifest["sources"]),
         "status": "verified_private_inputs_selected_for_review",
