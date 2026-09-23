@@ -41,6 +41,16 @@ A release manifest can be created after the code revision it selects. Consequent
 
 The manifest is validated again by the frozen-release runtime. Parser revision, projector revision, configuration digest and code revision are executable pins rather than descriptive metadata.
 
+## Protected archive-backed promotion
+
+`.github/workflows/promote-frozen-release.yml` is the serial publication path for an already reviewed frozen release. It is manual, runs only from `main`, requires a tracked manifest under `data/releases/`, and uses the protected `evidence-archive` environment for archive and observation-database access. It does not provide a live-source mode.
+
+Promotion repeats the same immutable-input discipline instead of trusting a previous runner workspace. The workflow freezes the reviewed manifest, proves that its exact `code_revision` is an ancestor of current `main`, checks out that pinned code, rereads every selected ContentObject and capture provenance through the archive replay runtime, and persists the corresponding parse observations before public validation. A missing private writer, corrupt/missing selected object, provenance mismatch, parser/configuration/code drift, or source-scope mismatch fails the candidate before Pages upload.
+
+The generated public candidate is then subjected to the public artifact contract, browser acceptance and official-link audit. Only `public-site/` is eligible for Pages upload; original source bytes, capture manifests, parser workspaces and row-level private evidence remain outside public artifacts. Deployment is a separate `github-pages` environment job, so a build or deployment failure leaves the previously validated Pages release intact.
+
+This workflow being present does not authorise a release by itself. It cannot run successfully until a complete reviewed manifest exists, and it is not a substitute for the two-scope real-provider evidence, national recovery reconciliation or independent restore required by issue #163.
+
 ## What this gate proves — and what it does not
 
 A successful protected run proves that one reviewed release can be rebuilt from its selected private archived captures with the live official endpoints out of the execution path. It is evidence of replayability for that release.
@@ -58,3 +68,5 @@ Those acceptance dimensions remain separate in issue #163. The historical R2 pro
 ## Relationship to the legacy public workflow
 
 `public-pages.yml` still uses the legacy live-source build while the archive migration is incomplete. It must not be switched to frozen-release publication merely to avoid mutable-source failures before a complete, reviewed national frozen release exists. The last validated public release is preserved during that migration.
+
+Once a complete reviewed frozen release exists, promotion is performed explicitly through `promote-frozen-release.yml`; a newer live source remains an acquisition concern and does not invalidate the selected archived release. The legacy workflow is therefore not treated as evidence of archive-backed promotion and must not be silently used as a fallback by the protected path.
