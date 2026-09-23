@@ -12,6 +12,12 @@ The private selection cannot supply release processing time or executing code id
 
 The selector does not discover missing historical versions, infer a source edition from a URL, or treat a recovery-package path as a verified capture. It also does not publish or deploy anything. Its JSON output is create-only and must be reviewed before it is committed under `data/releases/`. A successful selector run therefore proves only that the captures chosen for that candidate were provider-readable with matching immutable provenance at selection time; national archival completeness still depends on the separately reconciled recovery denominator.
 
+## Locator identity during replay
+
+A source URL remains a physical locator and is never used as the archival identity of a capture or ContentObject. The legacy parser plumbing still requests bytes by URL, so frozen replay exposes a temporary URL-keyed routing adapter only after archival verification has completed.
+
+That adapter must not collapse provenance. If two configured source scopes reuse the same URL and the same bytes, replay independently verifies both selected capture/check catalogue records and independently reads the selected ContentObject for each capture before allowing parser execution. Only the identical verified byte payload is then shared through the URL adapter. If the same locator is bound to different bytes within one frozen release, replay fails closed because the legacy parser interface cannot unambiguously route those two selected inputs. Distinct capture identities are therefore preserved even when locator and ContentObject identity happen to coincide.
+
 ## Operational replay
 
 `.github/workflows/replay-frozen-release.yml` is the protected, manual replay path for a reviewed release manifest committed under `data/releases/`.
