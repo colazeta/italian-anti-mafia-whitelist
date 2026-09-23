@@ -92,6 +92,19 @@ The national recovery inventory distinguishes byte preservation from a complete 
 
 `recoverable_pending` is reserved for exact matching bytes found in an explicitly supplied recovery package when the governed durable original is not yet verified. `missing` requires both positively confirmed durable absence and an explicitly completed recovery search; failed provider reads, incomplete searches and corrupt objects remain `not_verified` rather than being converted into unsupported loss claims.
 
+### National recovery denominator
+
+The recovery denominator must include more than archive-first capture manifests. Historical transition notes or reviewed source evidence can prove that a byte version was actually observed even when no durable capture UUID/catalogue record survives. Those versions remain part of the recovery problem, but the project must not invent a historical `SourceCapture` or `SourceEdition` identifier after the fact.
+
+The denominator therefore distinguishes two identity classes:
+
+- `capture`: an acquisition with a stable capture identity that can be checked against immutable capture provenance;
+- `known_version`: a byte identity supported by one or more explicit evidence references but lacking recoverable capture identity.
+
+A `known_version` uses an `evidence_version_key` only as a reconciliation key. It is not an administrative edition label and cannot be promoted to `verified`, even when matching bytes are already in the governed object store, because durable bytes alone do not establish the missing temporal capture/check provenance. Where reviewed evidence establishes the authority and byte identity but not the precise SourceSeries, `source_key` remains `null`; the reconciliation layer must not infer a series from neighbouring evidence or current publication configuration. Exact bytes in a recovery package may be `recoverable_pending`. A `missing` outcome additionally requires known byte size, positively confirmed durable absence and an explicitly completed recovery search. Unknown byte size therefore remains `not_verified` rather than being converted into loss.
+
+Denominator metrics keep captures, historical versions without capture identity, distinct known ContentObjects and durably retrievable ContentObjects separate. Repeated evidence items may legitimately reference the same SHA-256: the evidence items remain distinct while the ContentObject count is content-addressed. This preserves evidence of repeated or differently documented observations without fabricating capture times or deduplicating away known recovery obligations.
+
 ## Verification workflow
 
 An independent reviewer should be able to:
