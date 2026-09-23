@@ -29,6 +29,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
       - name: Checkout release catalogue on main
@@ -124,9 +125,9 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          python -m pip install -e '.[publication,storage]'
+          python -m pip install -e '.[publication,storage,database]'
 
-      - name: Require designated private archive
+      - name: Require designated private archive and observation database
         run: |
           python - <<'PY'
           import os
@@ -134,15 +135,17 @@ jobs:
           StoreConfig.from_env()
           if any(not os.environ.get(k) for k in ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')):
               raise SystemExit('Private evidence store credentials are not configured')
+          if not os.environ.get('EVIDENCE_DATABASE_URL'):
+              raise SystemExit('Private evidence database writer is not configured; replay cannot advance observation persistence')
           PY
 
-      - name: Replay release from pinned archived captures only
+      - name: Replay release from pinned archived captures and persist parse observations
         env:
           PINNED_CODE_REVISION: ${{ steps.release.outputs.code_revision }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/frozen-replay/work /tmp/frozen-replay/output
-          white-list-public-national-build \
+          python -m white_list_archive.publishing.archive_replay_observations \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
             --source-series data/source_registry/source_series_inventory.csv \
@@ -185,9 +188,10 @@ jobs:
               'prefectures_in_index': prefectures['meta']['authority_count'],
               'published_prefectures': prefectures['meta']['published_count'],
               'source_mode': 'archived_frozen_release',
+              'parse_observation_persistence': 'required',
           }, sort_keys=True))
           PY
 
-# Deliberately no upload-artifact, Pages deployment, live-source fallback or database
-# promotion. This workflow proves replayability of one reviewed frozen release from
-# immutable private archive inputs; release promotion remains a separate serial gate.
+# Deliberately no upload-artifact, Pages deployment, live-source fallback or
+# canonical/public database promotion. Source-layer parse observations are committed
+# independently before later release gates so a failed release cannot erase them.
