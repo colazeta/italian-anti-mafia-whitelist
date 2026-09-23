@@ -97,15 +97,56 @@ with psycopg.connect(dsn) as conn:
     )
     first = persist_parse_snapshot(conn, capture_id=capture_ids[0], **common)
     repeated = persist_parse_snapshot(conn, capture_id=capture_ids[0], **common)
+
+    retry_common = dict(common)
+    retry_common["started_at"] = datetime(2026, 9, 23, 5, 14, tzinfo=timezone.utc)
+    retry_common["completed_at"] = datetime(2026, 9, 23, 5, 15, tzinfo=timezone.utc)
+    retried_later = persist_parse_snapshot(conn, capture_id=capture_ids[0], **retry_common)
+
     second_capture = persist_parse_snapshot(conn, capture_id=capture_ids[1], **common)
 
-    assert first["parse_run_id"] == repeated["parse_run_id"] == second_capture["parse_run_id"]
+    assert (
+        first["parse_run_id"]
+        == repeated["parse_run_id"]
+        == retried_later["parse_run_id"]
+        == second_capture["parse_run_id"]
+    )
     assert first["snapshot_sha256"] == snapshot_sha256(records, diagnostics)
     assert not first["parse_run_reused"] and not first["snapshot_reused"]
     assert repeated["parse_run_reused"] and repeated["snapshot_reused"] and repeated["capture_link_reused"]
+    assert retried_later["parse_run_reused"] and retried_later["snapshot_reused"]
+    assert retried_later["capture_link_reused"]
     assert second_capture["parse_run_reused"] and second_capture["snapshot_reused"]
     assert not second_capture["capture_link_reused"]
     assert first["capture_inputs"][0]["label"] == "primary"
+
+    # A replay retry at a later wall-clock time reuses the same interpretation
+    # identity and preserves the processing activity recorded by the first
+    # successful materialisation.
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT pa.started_at, pa.completed_at
+            FROM source.parse_run pr
+            JOIN provenance.processing_activity pa
+              ON pa.processing_activity_id=pr.processing_activity_id
+            WHERE pr.parse_run_id=%s
+            """,
+            (first["parse_run_id"],),
+        )
+        assert cur.fetchone() == (started, completed)
+
+    # The same immutable interpretation identity producing different output is
+    # still an integrity error; later retry timestamps do not create a loophole.
+    conflicting = dict(retry_common)
+    conflicting["records"] = [dict(records[0], retry_conflict=True), records[1]]
+    try:
+        with conn.transaction():
+            persist_parse_snapshot(conn, capture_id=capture_ids[0], **conflicting)
+    except ValueError as exc:
+        assert "immutable interpretation output" in str(exc)
+    else:
+        raise AssertionError("Conflicting output for one parse identity was accepted")
 
     revised = dict(common)
     revised["parser_revision"] = "2"
@@ -132,6 +173,14 @@ with psycopg.connect(dsn) as conn:
         cur.execute(
             "SELECT count(*) FROM source.parse_run WHERE content_object_id=%s",
             (content_id,),
+        )
+        assert cur.fetchone()[0] == 2
+        cur.execute(
+            """
+            SELECT count(*)
+            FROM provenance.processing_activity
+            WHERE activity_type_code='parse' AND software_name='synthetic_snapshot_parser'
+            """
         )
         assert cur.fetchone()[0] == 2
         cur.execute(
@@ -311,7 +360,8 @@ with psycopg.connect(dsn) as conn:
     conn.rollback()
 
 print(
-    "Immutable parse snapshots passed against PostgreSQL: repeated unchanged captures reuse one interpretation; "
+    "Immutable parse snapshots passed against PostgreSQL: repeated unchanged captures and later wall-clock "
+    "retries reuse one interpretation while preserving first processing provenance; divergent output fails closed; "
     "parser revisions remain separate; labelled multi-ContentObject bundles preserve every input/capture; "
     "full records/diagnostics are retrievable; no SourceEdition is invented."
 )
