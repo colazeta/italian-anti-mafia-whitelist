@@ -47,12 +47,16 @@ def _parse_time(value: Any, field: str) -> datetime:
     return parsed
 
 
-def canonical_snapshot_bytes(records: list[dict[str, Any]]) -> bytes:
-    """Return deterministic UTF-8 JSON for an internal observation snapshot."""
+def canonical_snapshot_bytes(
+    records: list[dict[str, Any]], diagnostics: dict[str, Any]
+) -> bytes:
+    """Return deterministic UTF-8 JSON for one complete parser output."""
     if not isinstance(records, list) or any(not isinstance(row, dict) for row in records):
         raise ValueError("records must be a JSON array of objects")
+    if not isinstance(diagnostics, dict):
+        raise ValueError("diagnostics must be a JSON object")
     return json.dumps(
-        records,
+        {"records": records, "diagnostics": diagnostics},
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
@@ -60,8 +64,10 @@ def canonical_snapshot_bytes(records: list[dict[str, Any]]) -> bytes:
     ).encode("utf-8")
 
 
-def snapshot_sha256(records: list[dict[str, Any]]) -> str:
-    return hashlib.sha256(canonical_snapshot_bytes(records)).hexdigest()
+def snapshot_sha256(
+    records: list[dict[str, Any]], diagnostics: dict[str, Any]
+) -> str:
+    return hashlib.sha256(canonical_snapshot_bytes(records, diagnostics)).hexdigest()
 
 
 def _parse_run_code(
@@ -183,12 +189,17 @@ def _ensure_parse_run(
     return cur.fetchone()[0], parse_run_code, False
 
 
-def _ensure_snapshot(cur, parse_run_id, records: list[dict[str, Any]]):
-    digest = snapshot_sha256(records)
+def _ensure_snapshot(
+    cur,
+    parse_run_id,
+    records: list[dict[str, Any]],
+    diagnostics: dict[str, Any],
+):
+    digest = snapshot_sha256(records, diagnostics)
     record_count = len(records)
     cur.execute(
         """
-        SELECT snapshot_sha256, record_count, records_json
+        SELECT snapshot_sha256, record_count, records_json, diagnostics_json
         FROM source.parse_snapshot
         WHERE parse_run_id=%s
         """,
@@ -196,21 +207,27 @@ def _ensure_snapshot(cur, parse_run_id, records: list[dict[str, Any]]):
     )
     row = cur.fetchone()
     if row:
-        if row[0] != digest or row[1] != record_count or row[2] != records:
+        if (
+            row[0] != digest
+            or row[1] != record_count
+            or row[2] != records
+            or row[3] != diagnostics
+        ):
             raise ValueError("Existing parse snapshot conflicts with immutable interpretation output")
         return digest, True
 
     cur.execute(
         """
         INSERT INTO source.parse_snapshot(
-            parse_run_id, snapshot_sha256, record_count, records_json
-        ) VALUES (%s,%s,%s,%s::jsonb)
+            parse_run_id, snapshot_sha256, record_count, records_json, diagnostics_json
+        ) VALUES (%s,%s,%s,%s::jsonb,%s::jsonb)
         """,
         (
             parse_run_id,
             digest,
             record_count,
-            canonical_snapshot_bytes(records).decode("utf-8"),
+            json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+            json.dumps(diagnostics, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
         ),
     )
     return digest, False
@@ -240,6 +257,7 @@ def persist_parse_snapshot(
     started_at: datetime,
     completed_at: datetime,
     records: list[dict[str, Any]],
+    diagnostics: dict[str, Any],
 ) -> dict[str, Any]:
     """Persist one complete private interpretation snapshot for an archived capture.
 
@@ -256,8 +274,8 @@ def persist_parse_snapshot(
         raise ValueError("code_revision must be an exact 40-character lowercase Git SHA")
     if completed_at < started_at:
         raise ValueError("completed_at must not precede started_at")
-    # Validate and hash before any database write.
-    canonical_snapshot_bytes(records)
+    # Validate and hash the complete parser output before any database write.
+    canonical_snapshot_bytes(records, diagnostics)
 
     with conn.cursor() as cur:
         content_object_id, content_sha256 = _capture_content(cur, capture_id)
@@ -272,7 +290,9 @@ def persist_parse_snapshot(
             started_at=started_at,
             completed_at=completed_at,
         )
-        digest, snapshot_reused = _ensure_snapshot(cur, parse_run_id, records)
+        digest, snapshot_reused = _ensure_snapshot(
+            cur, parse_run_id, records, diagnostics
+        )
         link_reused = _ensure_capture_link(cur, capture_id, parse_run_id)
 
     return {
@@ -301,6 +321,7 @@ def _load_snapshot_envelope(path: Path) -> dict[str, Any]:
         "started_at",
         "completed_at",
         "records",
+        "diagnostics",
     }
     if set(payload) != expected:
         raise ValueError(
@@ -316,8 +337,11 @@ def persist_from_path(dsn: str, snapshot_path: Path) -> dict[str, Any]:
     started_at = _parse_time(payload["started_at"], "started_at")
     completed_at = _parse_time(payload["completed_at"], "completed_at")
     records = payload["records"]
+    diagnostics = payload["diagnostics"]
     if not isinstance(records, list):
         raise ValueError("records must be a JSON array")
+    if not isinstance(diagnostics, dict):
+        raise ValueError("diagnostics must be a JSON object")
     with psycopg.connect(dsn) as conn:
         result = persist_parse_snapshot(
             conn,
@@ -329,6 +353,7 @@ def persist_from_path(dsn: str, snapshot_path: Path) -> dict[str, Any]:
             started_at=started_at,
             completed_at=completed_at,
             records=records,
+            diagnostics=diagnostics,
         )
         conn.commit()
         return result
