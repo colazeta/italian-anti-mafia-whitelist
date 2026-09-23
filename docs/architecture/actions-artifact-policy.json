@@ -58,6 +58,24 @@
       "classification": "public_operational_verification"
     },
     {
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-rendered-evidence-attempt-${{ github.run_attempt }}",
+      "path": "test-results/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-link-audit-attempt-${{ github.run_attempt }}",
+      "path": "/tmp/public-link-audit.json",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-review-${{ steps.release.outputs.release_id }}-attempt-${{ github.run_attempt }}",
+      "path": "public-site/",
+      "classification": "deliberately_public_publication"
+    },
+    {
       "workflow": ".github/workflows/public-pages.yml",
       "name": "public-rendered-evidence-attempt-${{ github.run_attempt }}",
       "path": "test-results/",
