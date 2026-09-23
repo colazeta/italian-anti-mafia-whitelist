@@ -22,6 +22,8 @@ from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+archive-first acquisition)"
+DEFAULT_AUTHORITY_REGISTRY = Path("data/source_registry/territorial_authorities.csv")
+DEFAULT_SERIES_REGISTRY = Path("data/source_registry/source_series_inventory.csv")
 
 
 @dataclass(frozen=True)
@@ -219,16 +221,38 @@ def public_capture_receipt(
     }
 
 
-def _persist_if_configured(result: ArchivedCapture, store: EvidenceStore) -> tuple[str, bool]:
-    """Persist relational provenance when a writer exists; never endanger archived bytes."""
+def _persist_if_configured(
+    result: ArchivedCapture,
+    store: EvidenceStore,
+    *,
+    authority_registry: Path = DEFAULT_AUTHORITY_REGISTRY,
+    series_registry: Path = DEFAULT_SERIES_REGISTRY,
+) -> tuple[str, bool]:
+    """Persist relational provenance when a writer exists; never endanger archived bytes.
+
+    Durable bytes and immutable capture provenance already exist before this function
+    runs. When the reviewed SourceSeries is not yet present in the relational model,
+    register its repository-reviewed authority/register/series metadata in the same
+    transaction before binding the capture. This never turns a URL or date into
+    document identity and never creates a SourceEdition.
+    """
     dsn = os.environ.get("EVIDENCE_DATABASE_URL")
     if not dsn:
         return "writer_unavailable", False
     try:
         import psycopg
         from white_list_archive.persistence.archived_capture import persist_archived_capture
+        from white_list_archive.persistence.source_series_registration import (
+            ensure_registered_source_series,
+        )
 
         with psycopg.connect(dsn) as conn:
+            ensure_registered_source_series(
+                conn,
+                source_key=result.manifest["source_key"],
+                authority_csv=authority_registry,
+                series_csv=series_registry,
+            )
             persist_archived_capture(conn, result, store)
             conn.commit()
     except Exception:
@@ -261,6 +285,18 @@ def main(argv: list[str] | None = None) -> int:
         default="other",
         help="Explicit locator/resource type; use 'other' when no narrower reviewed type is known.",
     )
+    parser.add_argument(
+        "--authority-registry",
+        type=Path,
+        default=DEFAULT_AUTHORITY_REGISTRY,
+        help="Reviewed territorial-authority inventory used only for relational metadata registration.",
+    )
+    parser.add_argument(
+        "--series-registry",
+        type=Path,
+        default=DEFAULT_SERIES_REGISTRY,
+        help="Reviewed SourceSeries inventory used only for relational metadata registration.",
+    )
     parser.add_argument("--work-dir", type=Path, required=True)
     parser.add_argument(
         "--public-receipt",
@@ -284,7 +320,12 @@ def main(argv: list[str] | None = None) -> int:
         authority_rank_code=args.authority_rank_code,
         resource_type_code=args.resource_type_code,
     )
-    database_state, database_failed = _persist_if_configured(result, store)
+    database_state, database_failed = _persist_if_configured(
+        result,
+        store,
+        authority_registry=args.authority_registry,
+        series_registry=args.series_registry,
+    )
 
     args.public_receipt.parent.mkdir(parents=True, exist_ok=True)
     with args.public_receipt.open("x", encoding="utf-8") as handle:
