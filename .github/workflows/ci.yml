@@ -118,3 +118,5 @@ jobs:
 
       - name: Test evidence storage promotion against PostgreSQL (mock object transport)
         run: python tests/evidence_db_check.py
+      - name: Test immutable parse snapshots against PostgreSQL
+        run: python tests/parse_snapshot_db_check.py
