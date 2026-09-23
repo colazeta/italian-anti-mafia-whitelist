@@ -2,6 +2,14 @@
 
 A frozen release is an immutable selection of already archived source captures plus the exact parser, projector, configuration and code revisions that interpret them. It is not a request to reacquire the currently served Prefecture URLs.
 
+## Selecting a frozen release
+
+`white-list-select-frozen-release` creates a candidate release manifest from an explicit reviewed selection of already archived capture manifests and immutable capture-catalogue receipts. Selection is deliberately separate from acquisition and from public promotion.
+
+Before it can emit a manifest, the selector requires the private selection to cover every and only source configured for the national publication scope. It binds the configured parser name and configuration digests, preserves the selected parser/projector/code revisions, and then performs two independent provider checks for every selected resource: immutable capture-provenance readback through `CaptureCatalogue.verify_receipt` and full ContentObject byte readback through `EvidenceStore.read_verified`. A missing, corrupt, mismatched or unverified selected capture fails closed. There is no live-source fallback.
+
+The selector does not discover missing historical versions, infer a source edition from a URL, or treat a recovery-package path as a verified capture. It also does not publish or deploy anything. Its JSON output is create-only and must be reviewed before it is committed under `data/releases/`. A successful selector run therefore proves only that the captures chosen for that candidate were provider-readable with matching immutable provenance at selection time; national archival completeness still depends on the separately reconciled recovery denominator.
+
 ## Operational replay
 
 `.github/workflows/replay-frozen-release.yml` is the protected, manual replay path for a reviewed release manifest committed under `data/releases/`.
