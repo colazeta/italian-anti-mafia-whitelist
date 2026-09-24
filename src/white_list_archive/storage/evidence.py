@@ -37,14 +37,19 @@ class StoreConfig:
         return cls(*(os.environ[n] for n in names))
 
 
-def object_key(manifest):
-    digest = manifest["sha256"]
+def digest_object_key(digest: str) -> str:
+    """Return the immutable object key for one exact SHA-256 byte identity."""
     if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise ValueError("Invalid SHA-256")
+    return f"sha256/{digest[:2]}/{digest}"
+
+
+def object_key(manifest):
+    digest = manifest["sha256"]
     if type(manifest["byte_size"]) is not int or manifest["byte_size"] <= 0:
         raise ValueError("Invalid byte size")
     # Byte identity must not depend on a filename or a potentially changing MIME label.
-    return f"sha256/{digest[:2]}/{digest}"
+    return digest_object_key(digest)
 
 
 
@@ -142,6 +147,31 @@ def public_store_verification_receipt(receipts: list[dict]) -> dict:
 class EvidenceStore:
     def __init__(self, client, config: StoreConfig):
         self.client, self.config = client, config
+
+    def read_digest_verified(self, digest: str) -> bytes:
+        """Read and hash an exact content-addressed object when its size is not yet known.
+
+        This is a recovery-only primitive. A known SHA-256 is enough to address the
+        immutable object directly without listing storage, but matching bytes do not
+        establish capture/check provenance or historical source identity.
+        """
+        key = digest_object_key(digest)
+        response = self.client.get_object(Bucket=self.config.bucket, Key=key)
+        stream = response["Body"]
+        try:
+            data = stream.read()
+        finally:
+            stream.close()
+        if not data or hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError("Stored evidence failed independent SHA-256 verification")
+        content_length = response.get("ContentLength")
+        if content_length is not None and (type(content_length) is not int or content_length != len(data)):
+            raise ValueError("Stored evidence failed provider content-length verification")
+        metadata = response.get("Metadata") or {}
+        metadata_digest = metadata.get("sha256")
+        if metadata_digest is not None and metadata_digest != digest:
+            raise ValueError("Stored evidence metadata conflicts with verified SHA-256")
+        return data
 
     def read_verified(self, manifest) -> bytes:
         # Pin scalar identity before calling external transport code.
@@ -256,7 +286,3 @@ def main():
             json.dump(receipt, f, indent=2)
             f.write("\n")
     print("Evidence integrity verified; output remains private.")
-
-
-if __name__ == "__main__":
-    main()
