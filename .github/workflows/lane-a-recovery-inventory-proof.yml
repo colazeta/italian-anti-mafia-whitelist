@@ -1,0 +1,151 @@
+name: Lane A governed recovery inventory proof
+
+# One-shot recovery proof for issue #163. There is intentionally no schedule and no
+# workflow_dispatch entry point. A merge that adds/changes this file exercises exact
+# catalogue recovery against the already approved private evidence backend while
+# leaving all recurring acquisition/publication schedules unchanged.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/lane-a-recovery-inventory-proof.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-recovery-denominator:
+    name: Rehydrate governed captures and materialise denominator
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: evidence-archive
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install archive runtime
+        run: python -m pip install -e '.[storage]'
+      - name: Require approved private store
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.storage.evidence import StoreConfig
+          StoreConfig.from_env()
+          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
+          if any(not os.environ.get(name) for name in required):
+              raise SystemExit('Required protected evidence-store configuration is unavailable')
+          PY
+      - name: Rehydrate exact governed captures and verify national recovery denominator
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import csv
+          import json
+          from pathlib import Path
+
+          from white_list_archive.storage.capture_catalogue import CaptureCatalogue
+          from white_list_archive.storage.catalogue_recovery import load_catalogued_capture
+          from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
+          from white_list_archive.storage.recovery_materialize import materialise_national_recovery
+
+          root = Path('.').resolve()
+          config = StoreConfig.from_env()
+          store = EvidenceStore(client_for(config), config)
+          catalogue = CaptureCatalogue(store)
+
+          selected = (
+              ('potenza-combined', '3c8a4e28-ed29-4502-9b78-cb6e7382c92d'),
+              ('aosta-listed', '5748d0d5-14a0-4c2d-9a26-6df0817a7dd5'),
+          )
+
+          authorities = {}
+          with (root / 'data/source_registry/source_series_inventory.csv').open(
+              encoding='utf-8', newline=''
+          ) as handle:
+              for row in csv.DictReader(handle):
+                  source_key = (row.get('source_series_key') or '').strip()
+                  authority_key = (row.get('authority_key') or '').strip()
+                  if source_key and authority_key:
+                      prior = authorities.get(source_key)
+                      if prior is not None and prior != authority_key:
+                          raise SystemExit('Reviewed SourceSeries registry has conflicting authority ownership')
+                      authorities[source_key] = authority_key
+
+          captures = []
+          for source_key, capture_id in selected:
+              authority_key = authorities.get(source_key)
+              if not authority_key:
+                  raise SystemExit(f'Reviewed authority binding unavailable for {source_key}')
+              manifest, receipt = load_catalogued_capture(
+                  catalogue,
+                  source_key=source_key,
+                  capture_id=capture_id,
+              )
+              captures.append(
+                  {
+                      'authority_key': authority_key,
+                      'capture': manifest,
+                      'catalogue': receipt,
+                      'recovery_paths': [],
+                      'durable_absence_confirmed': False,
+                      'operator_evidence_refs': [
+                          f'lane-a-governed-catalogue-proof:{source_key}:{capture_id}'
+                      ],
+                  }
+              )
+
+          generated_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+          report = materialise_national_recovery(
+              repository_root=root,
+              store=store,
+              plan={
+                  'schema_version': 1,
+                  'generated_at': generated_at,
+                  'recovery_search_complete': False,
+                  'captures': captures,
+                  'known_version_recovery': [],
+              },
+          )
+
+          print('national_recovery_metrics=' + json.dumps(report['metrics'], sort_keys=True))
+          items = {
+              (item.get('source_key'), item.get('capture_id')): item
+              for item in report['items']
+              if item.get('identity_kind') == 'capture'
+          }
+          for identity in selected:
+              item = items.get(identity)
+              if item is None:
+                  raise SystemExit(f'Selected governed capture missing from denominator: {identity[0]}')
+              print(
+                  'selected_capture_status=' + json.dumps(
+                      {
+                          'source_key': identity[0],
+                          'capture_id': identity[1],
+                          'status': item['status'],
+                          'durable_original_verified': item['durable_original_verified'],
+                          'capture_provenance_verified': item['capture_provenance_verified'],
+                      },
+                      sort_keys=True,
+                  )
+              )
+              if item['status'] != 'verified':
+                  raise SystemExit(f'Governed capture failed recovery verification: {identity[0]}')
+              if not item['durable_original_verified'] or not item['capture_provenance_verified']:
+                  raise SystemExit(f'Governed capture lacks complete provider readback: {identity[0]}')
+          PY
+
+# No original bytes, frozen manifests, private recovery reports, storage coordinates or
+# working data are uploaded as Actions artefacts. The log receives only aggregate
+# denominator metrics and the status of the two already identified governed captures.
