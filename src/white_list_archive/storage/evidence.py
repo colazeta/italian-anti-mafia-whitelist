@@ -204,8 +204,11 @@ class EvidenceStore:
             cur.execute("""SELECT content_object_id, file_size, mime_type, storage_uri, storage_status_code
                            FROM source.content_object WHERE sha256=%s FOR UPDATE""", (manifest["sha256"],))
             row = cur.fetchone()
-            if not row or row[1:3] != (manifest["byte_size"], manifest["content_type"]):
-                raise ValueError("Existing ContentObject missing or metadata mismatch")
+            if not row or row[1] != manifest["byte_size"]:
+                raise ValueError("Existing ContentObject missing or byte-size mismatch")
+            # MIME is capture metadata, not byte identity. Keep the ContentObject's
+            # original descriptive label unchanged; the immutable capture manifest
+            # retains the MIME observed for each separate acquisition/check.
             if row[4] == "durable" and row[3] != uri:
                 raise ValueError("Refusing to replace an existing durable location")
             # Receipts alone cannot authorise promotion: independently read again.

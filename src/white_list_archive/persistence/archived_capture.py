@@ -101,9 +101,12 @@ def _content_object_id(cur, manifest: dict[str, Any], store: EvidenceStore):
     )
     row = cur.fetchone()
     if row:
-        content_id, mime_type, file_size, storage_uri, storage_status = row
-        if mime_type != manifest["content_type"] or file_size != manifest["byte_size"]:
-            raise ValueError("Existing ContentObject metadata conflicts with archived bytes")
+        content_id, _mime_type, file_size, storage_uri, storage_status = row
+        # ContentObject identity is the byte digest. A capture can legitimately report
+        # a different MIME label for identical bytes; that label remains frozen in the
+        # immutable CaptureCatalogue manifest rather than rewriting ContentObject metadata.
+        if file_size != manifest["byte_size"]:
+            raise ValueError("Existing ContentObject byte size conflicts with archived bytes")
         if storage_status == "durable" and storage_uri != expected_uri:
             raise ValueError("Refusing to replace an existing durable ContentObject location")
         if storage_status != "durable":
