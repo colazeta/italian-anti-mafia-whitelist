@@ -338,8 +338,12 @@ def ensure_content_object(cur, manifest: dict[str, Any]):
     )
     row = cur.fetchone()
     if row:
-        content_object_id, mime_type, file_size = row
-        if mime_type != manifest["content_type"] or file_size != manifest["byte_size"]:
+        content_object_id, _mime_type, file_size = row
+        # SHA-256 selects the byte identity. HTTP MIME is observed capture metadata
+        # and may legitimately change when the same exact bytes are acquired again.
+        # Preserve the ContentObject's existing descriptive MIME value; only a size
+        # disagreement for the same digest is an integrity conflict.
+        if file_size != manifest["byte_size"]:
             raise ValueError("Existing ContentObject metadata conflicts with manifest byte identity")
         return content_object_id
     cur.execute(

@@ -3,12 +3,27 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from white_list_archive.persistence.capture_manifest import (
     _edition_code_for_manifest,
+    ensure_content_object,
     load_context,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class _ExistingContentCursor:
+    def __init__(self, row):
+        self.row = row
+        self.executions: list[tuple[str, tuple[object, ...]]] = []
+
+    def execute(self, query, params):
+        self.executions.append((query, params))
+
+    def fetchone(self):
+        return self.row
 
 
 def test_capture_operational_schema_patch_is_applied():
@@ -94,3 +109,29 @@ def test_legacy_cosenza_reference_date_identity_remains_compatible():
     code, legacy = _edition_code_for_manifest(manifest)
     assert code == "2026-08-03"
     assert legacy is True
+
+
+def test_legacy_content_object_reuses_same_bytes_across_mime_relabelling():
+    existing_id = "content-object-1"
+    cur = _ExistingContentCursor((existing_id, "application/pdf", 1077994))
+    manifest = {
+        "sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+        "content_type": "application/octet-stream",
+        "byte_size": 1077994,
+    }
+
+    assert ensure_content_object(cur, manifest) == existing_id
+    assert len(cur.executions) == 1
+    assert "SELECT content_object_id, mime_type, file_size" in cur.executions[0][0]
+
+
+def test_legacy_content_object_still_rejects_digest_size_conflict():
+    cur = _ExistingContentCursor(("content-object-1", "application/pdf", 1077994))
+    manifest = {
+        "sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+        "content_type": "application/octet-stream",
+        "byte_size": 1077995,
+    }
+
+    with pytest.raises(ValueError, match="conflicts with manifest byte identity"):
+        ensure_content_object(cur, manifest)
