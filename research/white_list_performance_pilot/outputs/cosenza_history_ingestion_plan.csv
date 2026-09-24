@@ -1,0 +1,12 @@
+edition_key,reference_date,source_origin,current_research_status,next_action,notes
+cosenza-2024-06-24,2024-06-24,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page; use existing Cosenza discovery/capture path and validate parser-family compatibility before persistence."
+cosenza-2024-09-09,2024-09-09,official_historical,verified_not_captured,historical_adapter_review,"Legacy prefettura.it historical portal URL does not encode the reference date; require explicit date/provenance handling rather than forcing the modern capture rule."
+cosenza-2025-07-01,2025-07-01,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page; validate schema fingerprint before v2 parsing."
+cosenza-2025-09-01,2025-09-01,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page; validate schema fingerprint before v2 parsing."
+cosenza-2026-01-19,2026-01-19,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page; combined file observed."
+cosenza-2026-02-16,2026-02-16,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page."
+cosenza-2026-03-16,2026-03-16,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page."
+cosenza-2026-04-20,2026-04-20,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page; combined file observed."
+cosenza-2026-05-25,2026-05-25,official_current,verified_not_captured,capture_and_fingerprint,"Modern dated edition page."
+cosenza-2026-06-28,2026-06-28,official_current,captured_parsed_canonicalised,retain_frozen_baseline,"Frozen capture manifest and parser-v2/canonical baseline already exist."
+cosenza-2026-08-03,2026-08-03,official_current,captured_parsed_canonicalised,retain_frozen_baseline,"Frozen capture manifest and parser-v2/canonical baseline already exist."

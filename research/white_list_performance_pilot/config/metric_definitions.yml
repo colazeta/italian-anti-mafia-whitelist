@@ -1,0 +1,85 @@
+version: 0.3.0
+status: experimental_source_diagnostics
+supersedes: 0.1.0
+production_mutations: false
+canonical_ingestion_claimed: false
+public_portal_release: false
+repository_and_actions_visibility: public
+
+units:
+  source_observation: "One record emitted by the approved physical parser; not automatically a distinct firm or procedure."
+  linked_candidate: "Conservative identifier plus source name plus unique application-date linkage; not an official procedure identifier."
+  register_scope: "Authority plus register/regime; never merge ordinary and special registers for completeness."
+
+observed_pending_age:
+  definition: "Source reference date minus a unique valid application date for an explicitly pending source observation."
+  reference_date_basis: "Frozen source configuration; conflicts with in-document reference dates require review."
+  measures: [n, median_days, p25_days, p75_days, p90_days, gt90, gt180, gt365]
+  quantile_rule: "Linear interpolation at (n-1)*p."
+  primary_diagnostic: "Strict source-linkage-eligible subset."
+  sensitivity_diagnostic: "All dated published pending source observations, without requiring longitudinal identity resolution."
+  interpretation: "Elapsed age of a published pending population, not completed processing duration or independently verified total backlog."
+  requires_full_history: false
+  future_or_ambiguous_application_dates: exclude_and_count
+
+candidate_application_to_listing_lag:
+  definition: "Listing date minus application date among listed source observations with a unique chronological date pair."
+  same_procedure_linkage: not_automatically_proven
+  actual_administrative_decision_date: false
+  conditioning: "Observed successful/listed cases only."
+  true_processing_time: null
+
+linked_application_to_listing_lag:
+  unit: linked_candidate
+  inclusion:
+    - "Same conservative identifier/name and unique application date across observations."
+    - "An explicitly pending observation precedes the first observed listing."
+    - "Listing date is later than the last published pending observation and no later than the first listed observation."
+    - "No renewal annotation before that first listing."
+  interpretation: "Source-supported application-to-listing lag in the observed linked successful subset; not population-wide processing time."
+  probability_or_survival_estimate: false
+
+published_state_transitions:
+  interpretation: "Transition between source observations, not necessarily an administrative decision interval."
+  first_seen_is_incoming: false
+  disappearance_is_resolution: false
+  administrative_interval_identified: false
+  missing_administrative_condition: "Evidence that the preceding published pending state was contemporaneous, plus validated same-procedure linkage."
+
+renewal_date_age_diagnostic:
+  separate_from_initial_pending: true
+  warning: "The published application date may refer to the initial registration, not the renewal; do not call this renewal processing time."
+  expiry_implies_loss_of_legal_effect: false
+
+administrative_performance:
+  processing_time:
+    value: null
+    requirements: [validated_start_clock, validated_terminal_event, same_procedure_linkage, cohort_ascertainment]
+  clearance_rate:
+    value: null
+    formula: "100 * all_defined_finalisations_in_period / incoming_applications_in_period"
+    requirements: [complete_inflows, all_defined_terminal_outcomes, comparable_procedure_types, period_assignability, reconciled_stocks_and_flows]
+    finalisation_rule: "Specify mutually exclusive approvals, denials, withdrawals and other closures; report merits decisions separately."
+  backlog_stock:
+    value: null
+    requirements: [complete_pending_population, valid_reference_date, resolved_episode_duplicates]
+  backlog_rate:
+    value: null
+    denominator: "Must be explicitly selected and harmonised; no ratio of applicant and listed publication counts is labelled backlog rate."
+  disposition_time:
+    value: null
+    formula: "pending_end / finalised_in_period * days_in_period"
+    interpretation: "Stock-flow proxy, not an observed individual duration."
+  cohort_completion:
+    value: null
+    requirements: [complete_application_cohort, adequate_followup, all_defined_terminal_events, justified_censoring]
+
+stock_flow_identity: "closing_pending = opening_pending + incoming + reopened + transfers_in - finalised - transfers_out + documented_corrections"
+missing_values: "null/NA, never zero"
+thresholds_days: [90, 180, 365]
+thresholds_are_legal_compliance_findings: false
+publication_and_survival_bias:
+  - "Snapshots of pending cases oversample long-lived procedures."
+  - "Listed populations exclude unobserved historical refusals and removals."
+  - "Right- or interval-censoring estimators do not repair incomplete cohort ascertainment."
+  - "Published-state loss may be informative; no automatic administrative censoring inference."

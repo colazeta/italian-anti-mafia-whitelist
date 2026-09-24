@@ -1,0 +1,21 @@
+{
+  "analysis_version": "0.4.0-source-diagnostic",
+  "unit": "unique conservative entity-name-identifier/application-date source linkage",
+  "qualifying_linked_application_to_listing_lag": {
+    "n": 369, "median_days": 246.0, "p25_days": 108.0,
+    "p75_days": 574.0, "p90_days": 1107.2,
+    "gt90": 290, "gt180": 223, "gt365": 143
+  },
+  "publication_observation_gap_days": {
+    "n": 369, "median_days": 41.0, "p25_days": 34.0,
+    "p75_days": 62.0, "p90_days": 105.0,
+    "gt90": 51, "gt180": 0, "gt365": 0
+  },
+  "exclusions": {"missing_or_invalid_listing_date": 2},
+  "last_edition_pending_seen_pending_in_multiple_editions": 450,
+  "true_processing_time_distribution": null,
+  "flow_clearance_rate": null,
+  "total_backlog_rate": null,
+  "administrative_survival_estimate": null,
+  "interpretation": "Conditional source-linkage diagnostic, not an unbiased processing-time estimate. Publication gaps are not automatically administrative decision intervals."
+}
