@@ -2,8 +2,9 @@ name: Lane A governed recovery inventory proof
 
 # One-shot recovery proof for issue #163. There is intentionally no schedule and no
 # workflow_dispatch entry point. A merge that adds/changes this file exercises exact
-# catalogue recovery against the already approved private evidence backend while
-# leaving all recurring acquisition/publication schedules unchanged.
+# catalogue recovery and exact-digest historical-byte readback against the already
+# approved private evidence backend while leaving all recurring acquisition/publication
+# schedules unchanged.
 on:
   push:
     branches:
@@ -144,8 +145,30 @@ jobs:
                   raise SystemExit(f'Governed capture failed recovery verification: {identity[0]}')
               if not item['durable_original_verified'] or not item['capture_provenance_verified']:
                   raise SystemExit(f'Governed capture lacks complete provider readback: {identity[0]}')
+
+          known_durable = [
+              item for item in report['items']
+              if item.get('identity_kind') == 'known_version'
+              and item.get('durable_original_verified')
+          ]
+          if any(item.get('capture_provenance_verified') or item.get('status') == 'verified'
+                 for item in known_durable):
+              raise SystemExit('Historical byte readback must not mint capture provenance')
+          print(
+              'known_version_durable_byte_metrics=' + json.dumps(
+                  {
+                      'durable_known_versions_without_capture_identity': len(known_durable),
+                      'size_recovered_by_provider_readback': sum(
+                          1 for item in known_durable
+                          if not item.get('byte_size_known') and item.get('verified_byte_size')
+                      ),
+                  },
+                  sort_keys=True,
+              )
+          )
           PY
 
 # No original bytes, frozen manifests, private recovery reports, storage coordinates or
 # working data are uploaded as Actions artefacts. The log receives only aggregate
-# denominator metrics and the status of the two already identified governed captures.
+# denominator metrics, aggregate historical-byte recovery counts and the status of the
+# two already identified governed captures.
