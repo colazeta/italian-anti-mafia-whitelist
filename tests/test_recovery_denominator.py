@@ -129,6 +129,7 @@ def test_known_hash_without_capture_identity_enters_denominator_not_verified():
     assert row["capture_id"] is None
     assert row["status"] == "not_verified"
     assert row["verification_blocker"] == "byte_size_unknown"
+    assert row["verified_byte_size"] is None
     assert inventory["published_release_scopes"] == []
     assert inventory["metrics"] == {
         "source_authorities_covered": 1,
@@ -145,6 +146,35 @@ def test_known_hash_without_capture_identity_enters_denominator_not_verified():
         "missing": 0,
         "not_verified": 1,
     }
+
+
+def test_unknown_size_known_version_can_prove_durable_bytes_without_minting_capture(tmp_path):
+    evidence = store()
+    result = archived(
+        tmp_path / "capture",
+        evidence,
+        capture_id="71717171-7171-4171-8171-717171717171",
+        data=b"durable bytes with size absent from historical evidence",
+    )
+    legacy = known_version(
+        sha256=result.manifest["sha256"],
+        byte_size=None,
+        version_key="historical-hash-without-byte-size",
+    )
+
+    inventory = build_recovery_denominator(envelope(known_versions=[legacy]), evidence)
+    row = inventory["items"][0]
+    assert row["status"] == "not_verified"
+    assert row["capture_id"] is None
+    assert row["byte_size"] is None
+    assert row["byte_size_known"] is False
+    assert row["verified_byte_size"] == result.manifest["byte_size"]
+    assert row["durable_original_verified"] is True
+    assert row["capture_provenance_verified"] is False
+    assert row["verification_blocker"] == "capture_identity_missing"
+    assert inventory["metrics"]["durably_retrievable_content_objects"] == 1
+    assert inventory["metrics"]["verified"] == 0
+    assert inventory["metrics"]["not_verified"] == 1
 
 
 def test_authority_level_evidence_does_not_invent_source_series():
@@ -201,6 +231,7 @@ def test_durable_legacy_bytes_stay_not_verified_without_capture_provenance(tmp_p
     assert legacy_row["status"] == "not_verified"
     assert legacy_row["durable_original_verified"] is True
     assert legacy_row["capture_provenance_verified"] is False
+    assert legacy_row["verification_blocker"] == "capture_identity_missing"
     assert inventory["metrics"]["denominator_items"] == 2
     assert inventory["metrics"]["distinct_content_objects_known"] == 1
     assert inventory["metrics"]["durably_retrievable_content_objects"] == 1
