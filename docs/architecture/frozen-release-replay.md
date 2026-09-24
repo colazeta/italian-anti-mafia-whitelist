@@ -14,9 +14,9 @@ The selector does not discover missing historical versions, infer a source editi
 
 ## Locator identity during replay
 
-A source URL remains a physical locator and is never used as the archival identity of a capture or ContentObject. The legacy parser plumbing still requests bytes by URL, so frozen replay exposes a temporary URL-keyed routing adapter only after archival verification has completed.
+A source URL remains a physical locator and is never used as the archival identity of a capture, ContentObject or parser-facing release input. Frozen replay routes verified bytes by the logical `(source_key, resource_label)` binding already pinned in the release manifest. The locator remains checked against the pinned source configuration as provenance metadata, but it is not the dispatch key.
 
-That adapter must not collapse provenance. If two configured source scopes reuse the same URL and the same bytes, replay independently verifies both selected capture/check catalogue records and independently reads the selected ContentObject for each capture before allowing parser execution. Only the identical verified byte payload is then shared through the URL adapter. If the same locator is bound to different bytes within one frozen release, replay fails closed because the legacy parser interface cannot unambiguously route those two selected inputs. Distinct capture identities are therefore preserved even when locator and ContentObject identity happen to coincide.
+This routing must not collapse provenance. If two configured source scopes reuse the same URL and the same bytes, replay independently verifies both selected capture/check catalogue records and independently reads the selected ContentObject for each capture. If two configured source scopes reuse the same URL but pin different historical bytes, both remain valid and are routed separately by their logical resource identities. Reusing one capture/check for multiple configured resources is still rejected, and a missing logical binding fails closed. This permits legitimate locator reuse without turning URL equality into document identity.
 
 ## Operational replay
 
@@ -28,7 +28,7 @@ The workflow deliberately separates release selection from execution:
 2. it copies that reviewed manifest outside the checkout and reads its exact 40-character `code_revision`;
 3. it checks out that pinned revision rather than interpreting the release with whichever code happens to be current later;
 4. it uses the existing `evidence-archive` environment and approved private object store;
-5. it invokes `white-list-public-national-build` with `--release-manifest`, which replaces legacy source downloads with verified reads of the selected immutable ContentObjects and capture-provenance records;
+5. it invokes `white-list-public-national-build` with `--release-manifest`, which replaces legacy source acquisition with verified reads of the selected immutable ContentObjects and capture-provenance records;
 6. it writes replay products only to runner-temporary storage and validates the resulting registry without uploading or deploying it.
 
 The release path is fail-closed. A selected ContentObject or capture-provenance record that is absent, corrupt or inconsistent with the manifest stops replay. An official URL that has disappeared or now serves different bytes is irrelevant to a valid frozen replay and is never substituted for the selected capture.
