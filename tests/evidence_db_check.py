@@ -12,10 +12,12 @@ import psycopg
 from white_list_archive.acquisition.archive_first import archive_payload
 from white_list_archive.persistence.archived_capture import persist_archived_capture
 from white_list_archive.persistence.source_series_registration import ensure_registered_source_series
+from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, object_key
 
 
-# Preserve the existing ContentObject promotion regression.
+# Preserve the existing ContentObject promotion regression and prove that MIME
+# relabelling does not change byte identity or rewrite existing descriptive metadata.
 payload = b'CI synthetic source evidence; not a Prefecture document'
 manifest = {
     'sha256': hashlib.sha256(payload).hexdigest(),
@@ -36,19 +38,21 @@ with psycopg.connect(os.environ['TEST_DSN']) as conn:
             (manifest['sha256'], manifest['content_type'], manifest['byte_size']),
         )
         identity = cur.fetchone()[0]
-    store.promote(conn, manifest)
+    relabelled_content = {**manifest, 'content_type': 'application/octet-stream'}
+    store.promote(conn, relabelled_content)
     store.promote(conn, manifest)
     with conn.cursor() as cur:
         cur.execute(
-            'SELECT content_object_id, storage_status_code, storage_uri '
+            'SELECT content_object_id, storage_status_code, storage_uri, mime_type '
             'FROM source.content_object WHERE sha256=%s',
             (manifest['sha256'],),
         )
         row = cur.fetchone()
         assert row[0] == identity and row[1] == 'durable'
         assert row[2].startswith('https://ci.invalid/ci-evidence/sha256/')
+        assert row[3] == 'application/pdf'
     conn.rollback()
-print('PostgreSQL evidence promotion/idempotence passed with synthetic transport; transaction rolled back.')
+print('PostgreSQL evidence promotion/idempotence/MIME-relabelling passed with synthetic transport; transaction rolled back.')
 
 
 class ExistingObject(Exception):
@@ -146,6 +150,30 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
     second = persist_archived_capture(conn, archived, archive_store)
     assert first == second
 
+    # The same exact bytes may later be served with a different HTTP Content-Type.
+    # Reuse the byte-addressed ContentObject, but keep an independent capture/check
+    # whose immutable catalogue record preserves the newly observed MIME label.
+    relabelled = archive_payload(
+        data=b'archive-first bytes persisted only in synthetic CI transport',
+        source_key='ci-archive-first',
+        resource_url='https://official.example.test/current.pdf',
+        reference_date=None,
+        content_type='application/octet-stream',
+        store=archive_store,
+        work_dir=tmp_path,
+        captured_at=datetime(2026, 9, 22, 22, 0, tzinfo=timezone.utc),
+        capture_id='22222222-3333-4444-8555-666666666666',
+        http_status=200,
+        origin_type='official_current',
+        authority_rank_code='primary_official',
+        resource_type_code='pdf',
+    )
+    relabelled_persisted = persist_archived_capture(conn, relabelled, archive_store)
+    assert relabelled_persisted['content_object_id'] == first['content_object_id']
+    catalogue = CaptureCatalogue(archive_store)
+    assert catalogue.verify_receipt(archived.manifest, archived.catalogue_receipt)['content_type'] == 'application/pdf'
+    assert catalogue.verify_receipt(relabelled.manifest, relabelled.catalogue_receipt)['content_type'] == 'application/octet-stream'
+
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -166,6 +194,18 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         assert row[5] == 'durable'
         assert row[6] == archived.content_receipt['storage_uri']
         assert row[7] == archived.sha256
+        cur.execute(
+            'SELECT count(*), min(mime_type), max(mime_type) '
+            'FROM source.content_object WHERE sha256=%s',
+            (archived.sha256,),
+        )
+        count, min_mime, max_mime = cur.fetchone()
+        assert count == 1 and min_mime == max_mime == 'application/pdf'
+        cur.execute(
+            'SELECT count(*) FROM source.source_capture WHERE content_object_id=%s',
+            (first['content_object_id'],),
+        )
+        assert cur.fetchone()[0] == 2
 
     corrupted = archive_payload(
         data=b'second independent synthetic capture',
@@ -197,4 +237,4 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
         assert cur.fetchone()[0] == 0
 
     conn.rollback()
-print('Archive-first reviewed-series registration/capture persistence/idempotence/corruption rejection passed against PostgreSQL; transaction rolled back.')
+print('Archive-first reviewed-series registration/capture persistence/idempotence/MIME-relabel/corruption rejection passed against PostgreSQL; transaction rolled back.')
