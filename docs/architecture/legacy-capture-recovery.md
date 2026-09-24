@@ -65,7 +65,9 @@ It contains the two original Cosenza PDFs represented by:
 - `data/captures/cosenza/combined_2026-06-28.json`;
 - `data/captures/cosenza/combined_2026-08-03.json`.
 
-The one-shot protected proof recovers those two acquisitions only. It does not start new
+A protected one-shot proof is still required to recover those two acquisitions through
+the approved private backend. This code-only change deliberately does not claim that
+provider/catalogue migration has executed. The eventual proof must not start new
 Prefecture research, change the recurring acquisition schedule, promote public rows,
 claim production observation persistence, create infrastructure or establish independent
 restore.
