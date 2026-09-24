@@ -65,6 +65,8 @@ The repository reconciler does not inspect the governed object store and cannot 
 
 `white-list-recovery-reconcile` bridges the repository-supported denominator to those operational checks without making object-store discovery the denominator. It takes a private, operator-reviewed recovery plan and then performs exact readback verification through the existing `EvidenceStore` and `CaptureCatalogue` contracts.
 
+Because governed `ContentObject` keys are derived from SHA-256 alone, materialisation may also test a repository-supported historical SHA-256 directly even when historical evidence did not retain byte size. This is an exact-key read, not a bucket listing: the full returned object is hashed and the provider-derived size is retained separately as recovery evidence. A successful digest-only readback proves only that those exact bytes are durably retrievable. It does not fill the historical `byte_size` field, mint a capture/check UUID, reconstruct temporal provenance or promote the `known_version` to `verified`; without immutable capture provenance its status remains `not_verified`. Provider failure likewise remains uncertainty and never establishes absence.
+
 The private plan may supply only facts that repository evidence cannot establish safely:
 
 - archive-first captures with their stable capture UUID, frozen capture manifest and immutable catalogue receipt;
