@@ -18,6 +18,7 @@ from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_ma
 _SOURCE_KEY = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _EXISTING_CODES = {"PreconditionFailed", "412", "ObjectLockedByBucketPolicy", "10069"}
+_MAX_RECORD_BYTES = 262_144
 
 
 def _canonical_json(value: dict) -> bytes:
@@ -54,7 +55,12 @@ def capture_record_key(record: dict) -> str:
 
 
 def freeze_capture_record(manifest: dict, content_receipt: dict) -> dict:
-    """Bind one immutable acquisition/check to one already verified ContentObject."""
+    """Bind one immutable acquisition/check to one already verified ContentObject.
+
+    New records embed the complete frozen manifest as well as the historical
+    denormalised fields. The nested copy makes optional/future capture provenance
+    independently recoverable when relational persistence is unavailable.
+    """
     frozen = freeze_capture_manifest(manifest)
     capture_record_key(frozen)
     required_receipt = {"sha256", "byte_size", "manifest_sha256", "verified_at"}
@@ -89,6 +95,7 @@ def freeze_capture_record(manifest: dict, content_receipt: dict) -> dict:
         "content_object_key": object_key(frozen),
         "capture_manifest_sha256": content_receipt["manifest_sha256"],
         "content_verified_at": str(verified_at),
+        "capture_manifest": frozen,
     }
     return json.loads(_canonical_json(record))
 
@@ -120,28 +127,73 @@ def _validate_catalogue_receipt(receipt: dict, manifest: dict) -> tuple[dict, st
     return frozen, key
 
 
+def _validate_stored_record(record: dict, frozen: dict) -> None:
+    """Validate immutable capture identity while allowing explicit legacy v1 records.
+
+    Records written before complete-manifest preservation lack ``capture_manifest``.
+    They remain readable and are never rewritten in place. Their manifest digest and
+    denormalised fields still have to bind the exact supplied historical manifest.
+    """
+    expected = {
+        "capture_id": frozen["capture_id"],
+        "source_key": frozen["source_key"],
+        "resource_url": frozen["resource_url"],
+        "resolved_url": frozen.get("resolved_url"),
+        "captured_at": frozen["captured_at"],
+        "reference_date": frozen["reference_date"],
+        "http_status": frozen.get("http_status"),
+        "etag": frozen.get("etag"),
+        "last_modified": frozen.get("last_modified"),
+        "content_type": frozen["content_type"],
+        "sha256": frozen["sha256"],
+        "byte_size": frozen["byte_size"],
+        "content_object_key": object_key(frozen),
+        "capture_manifest_sha256": _manifest_sha256(frozen),
+    }
+    if not isinstance(record, dict) or record.get("schema_version") != 1:
+        raise ValueError("Stored capture provenance has an unsupported schema")
+    if any(record.get(field) != value for field, value in expected.items()):
+        raise ValueError("Stored capture provenance disagrees with frozen release capture")
+    if "capture_manifest" in record and record["capture_manifest"] != frozen:
+        raise ValueError("Stored complete capture manifest disagrees with frozen capture")
+    try:
+        verified = datetime.fromisoformat(str(record.get("content_verified_at", "")).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("Stored capture provenance has invalid verification time") from exc
+    if verified.tzinfo is None or verified.utcoffset() is None:
+        raise ValueError("Stored capture provenance verification time requires timezone")
+
+
 class CaptureCatalogue:
     """Private, conditional-write catalogue of capture/check provenance."""
 
     def __init__(self, store: EvidenceStore):
         self.store = store
 
+    def _read_record(self, key: str) -> tuple[bytes, dict]:
+        response = self.store.client.get_object(Bucket=self.store.config.bucket, Key=key)
+        stream = response["Body"]
+        try:
+            data = stream.read(_MAX_RECORD_BYTES + 1)
+        finally:
+            stream.close()
+        if len(data) > _MAX_RECORD_BYTES:
+            raise ValueError("Stored capture provenance exceeds the approved size limit")
+        try:
+            decoded = json.loads(data)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("Stored capture provenance is not valid JSON") from exc
+        if not isinstance(decoded, dict):
+            raise ValueError("Stored capture provenance must be a JSON object")
+        return data, decoded
+
     def read_verified(self, record: dict) -> dict:
         frozen = json.loads(_canonical_json(record))
         key = capture_record_key(frozen)
         expected = _canonical_json(frozen)
-        response = self.store.client.get_object(Bucket=self.store.config.bucket, Key=key)
-        stream = response["Body"]
-        try:
-            data = stream.read(len(expected) + 1)
-        finally:
-            stream.close()
+        data, decoded = self._read_record(key)
         if data != expected:
             raise ValueError("Stored capture provenance failed immutable readback verification")
-        try:
-            decoded = json.loads(data)
-        except json.JSONDecodeError as exc:  # pragma: no cover - byte comparison normally catches this
-            raise ValueError("Stored capture provenance is not valid JSON") from exc
         if decoded != frozen:
             raise ValueError("Stored capture provenance changed during JSON round-trip")
         return decoded
@@ -149,51 +201,21 @@ class CaptureCatalogue:
     def verify_receipt(self, manifest: dict, receipt: dict) -> dict:
         """Verify that a release-selected capture has durable provenance, not only bytes."""
         frozen, key = _validate_catalogue_receipt(receipt, manifest)
-        response = self.store.client.get_object(Bucket=self.store.config.bucket, Key=key)
-        stream = response["Body"]
-        try:
-            data = stream.read(262_145)
-        finally:
-            stream.close()
-        if len(data) > 262_144:
-            raise ValueError("Stored capture provenance exceeds the approved size limit")
+        data, record = self._read_record(key)
         if hashlib.sha256(data).hexdigest() != receipt["catalogue_record_sha256"]:
             raise ValueError("Stored capture provenance digest differs from release receipt")
-        try:
-            record = json.loads(data)
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ValueError("Stored capture provenance is not valid JSON") from exc
-        expected = {
-            "capture_id": frozen["capture_id"],
-            "source_key": frozen["source_key"],
-            "resource_url": frozen["resource_url"],
-            "resolved_url": frozen.get("resolved_url"),
-            "captured_at": frozen["captured_at"],
-            "reference_date": frozen["reference_date"],
-            "http_status": frozen.get("http_status"),
-            "etag": frozen.get("etag"),
-            "last_modified": frozen.get("last_modified"),
-            "content_type": frozen["content_type"],
-            "sha256": frozen["sha256"],
-            "byte_size": frozen["byte_size"],
-            "content_object_key": object_key(frozen),
-            "capture_manifest_sha256": _manifest_sha256(frozen),
-        }
-        if not isinstance(record, dict) or record.get("schema_version") != 1:
-            raise ValueError("Stored capture provenance has an unsupported schema")
-        if any(record.get(field) != value for field, value in expected.items()):
-            raise ValueError("Stored capture provenance disagrees with frozen release capture")
-        try:
-            verified = datetime.fromisoformat(str(record.get("content_verified_at", "")).replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise ValueError("Stored capture provenance has invalid verification time") from exc
-        if verified.tzinfo is None or verified.utcoffset() is None:
-            raise ValueError("Stored capture provenance verification time requires timezone")
+        _validate_stored_record(record, frozen)
         return record
 
     def record(self, manifest: dict, content_receipt: dict) -> dict:
-        """Persist and independently read back capture provenance before parsing may start."""
+        """Persist and independently read back capture provenance before parsing may start.
+
+        A retry of the same capture/check never rewrites an existing catalogue object.
+        ``content_verified_at`` is a processing/readback time rather than capture
+        identity, so an existing valid record keeps its original verification time.
+        """
         record = freeze_capture_record(manifest, content_receipt)
+        frozen = freeze_capture_manifest(manifest)
         key = capture_record_key(record)
         body = _canonical_json(record)
         created = True
@@ -212,15 +234,26 @@ class CaptureCatalogue:
             if code not in _EXISTING_CODES:
                 raise
             created = False
-        self.read_verified(record)
+
+        if created:
+            self.read_verified(record)
+            stored_record = record
+            stored_body = body
+        else:
+            # Explicit compatibility path: pre-upgrade v1 catalogue records do not
+            # contain the nested complete manifest. Validate them against the frozen
+            # manifest but never upgrade/overwrite the historical object in place.
+            stored_body, stored_record = self._read_record(key)
+            _validate_stored_record(stored_record, frozen)
+
         return {
             "schema_version": 1,
-            "capture_id": record["capture_id"],
-            "source_key": record["source_key"],
-            "sha256": record["sha256"],
-            "byte_size": record["byte_size"],
+            "capture_id": stored_record["capture_id"],
+            "source_key": stored_record["source_key"],
+            "sha256": stored_record["sha256"],
+            "byte_size": stored_record["byte_size"],
             "catalogue_key": key,
-            "catalogue_record_sha256": hashlib.sha256(body).hexdigest(),
+            "catalogue_record_sha256": hashlib.sha256(stored_body).hexdigest(),
             "created": created,
-            "content_object_key": record["content_object_key"],
+            "content_object_key": stored_record["content_object_key"],
         }
