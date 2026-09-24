@@ -83,8 +83,8 @@ jobs:
               raise SystemExit('Durable bytes were retained but production capture persistence remains debt')
           PY
 
-  archive-pistoia:
-    name: Archive independent Pistoia source
+  archive-aosta:
+    name: Archive independent Aosta source
     needs: archive-potenza
     if: always()
     runs-on: ubuntu-latest
@@ -120,13 +120,13 @@ jobs:
           if not os.environ.get('EVIDENCE_DATABASE_URL'):
               print('Relational writer is unavailable; preserve durable bytes and capture provenance, then report persistence debt.')
           PY
-      - name: Capture Pistoia bytes before downstream interpretation
+      - name: Capture Aosta bytes before downstream interpretation
         run: |
           set -euo pipefail
           mkdir -p /tmp/archive-first /tmp/public-actions
           python -m white_list_archive.acquisition.archive_first \
-            --source-key pistoia-listed \
-            --resource-url 'https://prefettura.interno.gov.it/it/prefetture/pistoia/white-list-elenco-imprese-iscritte' \
+            --source-key aosta-listed \
+            --resource-url 'https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx' \
             --origin-type official_current \
             --authority-rank-code primary_official \
             --resource-type-code html \
@@ -134,7 +134,7 @@ jobs:
             --series-registry data/source_registry/source_series_inventory.csv \
             --work-dir /tmp/archive-first \
             --public-receipt /tmp/public-actions/archive-receipt.json
-      - name: Verify Pistoia durable readback and production capture persistence
+      - name: Verify Aosta durable readback and production capture persistence
         if: always()
         run: |
           python - <<'PY'
