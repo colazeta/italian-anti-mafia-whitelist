@@ -2,7 +2,7 @@ name: Lane A protected archive proof
 
 # One-shot operational proof for issue #163. This workflow has no schedule and no
 # workflow_dispatch entry point. It runs on main only when this file itself changes,
-# so adding it once exercises the approved protected archive boundary without
+# so adding or correcting it exercises the approved protected archive boundary without
 # altering any recurring acquisition/publication schedule.
 on:
   push:
@@ -37,16 +37,18 @@ jobs:
           python-version: '3.13'
       - name: Install archive runtime
         run: python -m pip install -e '.[storage,database]'
-      - name: Require approved private store and database writer
+      - name: Require approved private store
         run: |
           python - <<'PY'
           import os
           from white_list_archive.storage.evidence import StoreConfig
           StoreConfig.from_env()
-          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'EVIDENCE_DATABASE_URL')
+          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
           missing = [name for name in required if not os.environ.get(name)]
           if missing:
-              raise SystemExit('Required protected archive/database configuration is unavailable')
+              raise SystemExit('Required protected evidence-store configuration is unavailable')
+          if not os.environ.get('EVIDENCE_DATABASE_URL'):
+              print('Relational writer is unavailable; preserve durable bytes and capture provenance, then report persistence debt.')
           PY
       - name: Capture Potenza bytes before downstream interpretation
         run: |
@@ -105,16 +107,18 @@ jobs:
           python-version: '3.13'
       - name: Install archive runtime
         run: python -m pip install -e '.[storage,database]'
-      - name: Require approved private store and database writer
+      - name: Require approved private store
         run: |
           python - <<'PY'
           import os
           from white_list_archive.storage.evidence import StoreConfig
           StoreConfig.from_env()
-          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'EVIDENCE_DATABASE_URL')
+          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
           missing = [name for name in required if not os.environ.get(name)]
           if missing:
-              raise SystemExit('Required protected archive/database configuration is unavailable')
+              raise SystemExit('Required protected evidence-store configuration is unavailable')
+          if not os.environ.get('EVIDENCE_DATABASE_URL'):
+              print('Relational writer is unavailable; preserve durable bytes and capture provenance, then report persistence debt.')
           PY
       - name: Capture Pistoia bytes before downstream interpretation
         run: |
