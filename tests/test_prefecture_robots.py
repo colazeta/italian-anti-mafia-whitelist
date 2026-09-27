@@ -7,7 +7,7 @@ from urllib.error import HTTPError
 import pytest
 
 from white_list_archive.acquisition.prefecture_robots import (
-    digest, discover_links, generate_catalog, run_robot, validate_catalog,
+    digest, discover_links, generate_catalog, published_sheet_redirect, run_robot, validate_catalog,
 )
 from test_archive_first_replay import store
 
@@ -126,3 +126,82 @@ def test_html_table_also_used_as_landing_page_is_reread_for_new_links():
     first = run_robot(r, fetch=conditional, pause=0)
     run_robot(r, first, fetch=conditional, pause=0)
     assert [force for url, force in seen if url == PAGE] == [True, True]
+
+
+def test_large_scan_resumes_until_complete_without_starving_documents():
+    r = robot(); r['max_requests'] = 4
+    docs = [f'https://prefettura.example/elenco-{i}.pdf' for i in range(7)]
+    calls = []
+    def many(url, *a, **k):
+        calls.append(url)
+        return response(url, ''.join(f'<a href="{u}">Elenco</a>' for u in docs).encode()) if url == PAGE else fetch(url)
+    report = None
+    remaining = []
+    for index in range(4):
+        report = run_robot(r, report, fetch=many, pause=0)
+        remaining.append(len(report['pending_urls']))
+        assert report['requests'] <= 4
+        if index == 0:
+            started = report['cycle_started_at']
+        assert report['cycle_started_at'] == started
+    assert remaining == [5, 3, 1, 0]
+    assert report['status'] != 'partial'
+    assert report['last_successful_check_at'] == report['checked_at']
+    assert all(calls.count(url) == 1 for url in docs)
+    assert calls.count(PAGE) == calls.count(PDF) == 4
+    assert calls.index(docs[-1]) < calls.index(docs[0])
+    again = run_robot(r, report, fetch=many, pause=0)
+    assert again['cycle_started_at'] != started
+    assert len(again['pending_urls']) == 5
+
+
+def test_legacy_frontier_resumes_and_new_links_are_not_skipped():
+    r = robot(); r['max_requests'] = 3
+    docs = [f'https://prefettura.example/elenco-{i}.pdf' for i in range(3)]
+    def many(url, *a, **k):
+        return response(url, ''.join(f'<a href="{u}">Elenco</a>' for u in docs).encode()) if url == PAGE else fetch(url)
+    first = run_robot(r, fetch=many, pause=0)
+    first.pop('pending_queue'); first.pop('cycle_started_at')
+    docs.append('https://prefettura.example/elenco-9.pdf')
+    second = run_robot(r, first, fetch=many, pause=0)
+    assert docs[-1] in second['resources']
+    assert second['cycle_started_at'] == first['checked_at']
+    assert len(second['pending_urls']) == 2
+
+
+def test_pending_page_preserves_depth_across_runs():
+    r = robot(); r['max_requests'] = 3
+    pages = [f'https://prefettura.example/white-list-{i}' for i in range(3)]
+    called = []
+    def nested(url, *a, **k):
+        called.append(url)
+        if url == PDF: return fetch(url)
+        target = pages[0] if url == PAGE else pages[pages.index(url)+1]
+        return {**response(url, f'<a href="{target}">White list</a>'.encode()), 'content_type': 'text/html'}
+    first = run_robot(r, fetch=nested, pause=0)
+    assert first['pending_queue'] == [{'url': pages[1], 'depth': 2, 'role': 'landing'}]
+    second = run_robot(r, first, fetch=nested, pause=0)
+    assert second['pending_urls'] == []
+    assert pages[2] not in called
+
+
+def test_regional_site_navigation_does_not_leave_white_list_section():
+    page = 'https://www.regione.vda.it/prefettura/Antimafia/white_list/default_i.aspx'
+    html = b'<a href="/Portale_imprese/default_i.asp">Imprese</a><a href="/sanita/elenco_i.asp">Elenco allerte</a><a href="/allegato.aspx?pk=123">Elenco imprese</a><a href="elenco_imprese_white_list_i.aspx">Iscritti</a>'
+    docs, pages, external = discover_links(html, page, ['www.regione.vda.it'])
+    assert docs == ['https://www.regione.vda.it/allegato.aspx?pk=123']
+    assert pages == ['https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx']
+    assert external == []
+
+
+def test_published_sheet_export_redirect_is_narrowly_scoped():
+    source = 'https://docs.google.com/spreadsheets/d/e/reviewed-publication/pub?gid=0&output=csv'
+    target = 'https://doc-10-c0-sheets.googleusercontent.com/pub/export'
+    assert published_sheet_redirect(source, target, ['docs.google.com'])
+    assert not published_sheet_redirect(source, target, ['prefettura.example'])
+    assert not published_sheet_redirect(source.replace('output=csv', 'output=html'), target, ['docs.google.com'])
+    assert not published_sheet_redirect(source.replace('/pub?', '/edit?'), target, ['docs.google.com'])
+    for bad in [target.replace('https:', 'http:'), target.replace('.com/', '.com.evil.example/'),
+                target.replace('/pub/', '/other/'), target.replace('https://', 'https://user@'),
+                target.replace('doc-10-c0-sheets', 'other')]:
+        assert not published_sheet_redirect(source, bad, ['docs.google.com'])

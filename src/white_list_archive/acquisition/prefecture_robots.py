@@ -17,7 +17,7 @@ from pathlib import Path
 import re
 import time
 from urllib.error import HTTPError
-from urllib.parse import urldefrag, urljoin, urlsplit
+from urllib.parse import parse_qs, urldefrag, urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from white_list_archive.acquisition.archive_first import archive_payload
@@ -25,7 +25,7 @@ from white_list_archive.acquisition.archive_first import archive_payload
 ROOT = Path(__file__).resolve().parents[3]
 CATALOG = Path('data/source_registry/prefecture_robots.json')
 USER_AGENT = 'WhiteListResearchRobot/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
-DOCUMENT = re.compile(r'\.(pdf|xlsx?|docx?|csv|zip)(?:$|\?)', re.I)
+DOCUMENT = re.compile(r'\.(pdf|xlsx?|docx?|csv|zip)(?:$|\?)|/allegato\.aspx?(?:$|\?)', re.I)
 RELEVANT = re.compile(r'white[ _-]*list|elenc|iscritt|richied|istanze|imprese|sezion|aggiornat', re.I)
 EXCLUDE = re.compile(r'modulistica|modello|fac.?simile|informativa|privacy|autocertific|istruzioni', re.I)
 
@@ -116,7 +116,8 @@ def discover_links(data, page_url, hosts):
             # The Ministry shares an origin across all authorities. Do not let
             # its national menu make one robot crawl another Prefecture.
             local = re.match(r'(/it/prefetture/[^/]+/)', urlsplit(page_url).path)
-            if local and not urlsplit(url).path.startswith(local.group(1)):
+            local = local or re.match(r'(.*/white[ _-]*list/)', urlsplit(page_url).path, re.I)
+            if local and not urlsplit(url).path.lower().startswith(local.group(1).lower()):
                 continue
             pages.add(url)
     return sorted(documents), sorted(pages), sorted(external)
@@ -126,9 +127,24 @@ class ReviewedRedirect(HTTPRedirectHandler):
     def __init__(self, hosts):
         self.hosts = hosts
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if not allowed(newurl, self.hosts):
+        if not allowed(newurl, self.hosts) and not published_sheet_redirect(req.full_url, newurl, self.hosts):
             raise ValueError('Redirect outside configured HTTPS origins; review required')
         return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def published_sheet_redirect(source, destination, hosts):
+    """Allow the observed Google Sheets CSV export hop, not arbitrary Google URLs.
+
+    Lodi's reviewed CSV publications return 307 to rotating doc-*-sheets hosts.
+    This rule applies only to a configured docs.google.com publication export
+    and its HTTPS /pub/ download; discovery still uses the exact origin list.
+    """
+    old, new = urlsplit(source), urlsplit(destination)
+    return bool(allowed(source, hosts) and old.hostname == 'docs.google.com'
+                and re.fullmatch(r'/spreadsheets/d/e/[A-Za-z0-9_-]+/pub', old.path)
+                and parse_qs(old.query).get('output') == ['csv']
+                and re.fullmatch(r'doc-[a-z0-9-]+-sheets\.googleusercontent\.com', new.hostname or '')
+                and allowed(destination, [new.hostname]) and new.path.startswith('/pub/'))
 
 
 def fetch_url(url, previous, hosts, force=False):
@@ -168,13 +184,35 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
     approved = {}
     for item in robot['sources']:
         approved.setdefault(item['url'], []).append(item)
+    # A bounded scan can span several runs. Preserve its frontier and skip
+    # documents already checked in this cycle, while rereading current sources.
+    continuing = bool(previous.get('pending_urls'))
+    cycle_started_at = (previous.get('cycle_started_at') or previous.get('checked_at') or at) if continuing else at
+    current = set(robot['landing_pages']) | set(approved)
+    def needs_visit(url):
+        old = resources.get(url, {})
+        return (url in current or not continuing or old.get('last_checked_at', '') < cycle_started_at
+                or (mode == 'capture' and old.get('archived_sha256') != old.get('sha256')))
+
     queue = [(url, 0, 'landing') for url in robot['landing_pages']]
     queue.extend((url, 0, 'source') for url in sorted(approved))
+    # pending_urls is retained for public consumers and older state files.
+    frontier = {item['url']: item for item in previous.get('pending_queue', [])}
+    for url in previous.get('pending_urls', []):
+        item = frontier.get(url, {})
+        queue.append((url, item.get('depth', robot['max_depth']),
+                      item.get('role', 'candidate' if DOCUMENT.search(url) else 'landing')))
     seen, errors, changed, new, external, captures = set(), [], [], [], set(), []
     discovered = set(); start = clock()
     while queue and len(seen) < robot['max_requests'] and clock() - start < robot['time_budget_seconds']:
+        # New/oldest observations first; reverse URL order favours dated recent
+        # attachments without interpreting filenames as administrative dates.
+        queue.sort(key=lambda item: item[0], reverse=True)
+        queue.sort(key=lambda item: (
+            0 if item[0] in robot['landing_pages'] else 1 if item[0] in approved else 2 if item[2] == 'landing' else 3,
+            resources.get(item[0], {}).get('last_checked_at', '')))
         url, depth, role = queue.pop(0)
-        if url in seen:
+        if url in seen or not needs_visit(url):
             continue
         seen.add(url)
         if url in approved:
@@ -236,7 +274,12 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
                            'http_status': error.code if isinstance(error, HTTPError) else None})
         if pause:
             time.sleep(pause)
-    pending = sorted({u for u, _, _ in queue} - seen)
+    frontier = {}
+    for url, depth, role in queue:
+        if url not in seen and needs_visit(url):
+            if url not in frontier or depth < frontier[url]['depth']:
+                frontier[url] = {'url': url, 'depth': depth, 'role': role}
+    pending = sorted(frontier)
     status = 'partial' if errors or pending else 'changed' if changed else 'baseline' if not previous else 'unchanged'
     if previous and new and status == 'unchanged':
         status = 'changed'
@@ -244,7 +287,8 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
         'last_successful_check_at': at if status != 'partial' else previous.get('last_successful_check_at'),
         'requests': len(seen), 'changed_urls': changed, 'new_urls': new, 'captured_urls': captures,
         'discovered_documents': sorted(discovered), 'external_links_for_review': sorted(external),
-        'pending_urls': pending, 'errors': errors, 'resources': resources,
+        'pending_urls': pending, 'pending_queue': [frontier[url] for url in pending],
+        'cycle_started_at': cycle_started_at, 'errors': errors, 'resources': resources,
         'population_mapping_reviewed': robot['population_mapping_reviewed'],
         'publication_approved': False}
 
