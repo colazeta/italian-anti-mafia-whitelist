@@ -162,6 +162,7 @@ jobs:
           test -f public-site/data/prefectures.csv
           node --check public-site/app.js
           node --check public-site/summary.js
+          node --check public-site/electoral.js
           python -m white_list_archive.publishing.public_artifact public-site
           python - <<'PY'
           import json

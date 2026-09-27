@@ -196,3 +196,7 @@ src/white_list_archive/
 ```
 
 The project does **not** yet contain a complete national scrape, a durable hosted database, completed national geography enrichment, or a public row-level company release.
+
+## Tempi elettorali (modulo territoriale)
+
+Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md), con ranking descrittivi separati per europee 2024, politiche 2022 (Camera e Senato), referendum costituzionale 2020 e i cinque quesiti nazionali del 2022. Il dataset derivato e lo script riproducibile sono versionati qui; i timestamp comunali non identificano il tempo di lavoro delle Prefetture.
