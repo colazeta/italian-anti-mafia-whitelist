@@ -179,3 +179,48 @@ facts change because of this correction.
 
 Cosenza’s existing fully qualified record parser name is likewise preserved through
 its explicit adapter binding, with a regression that rejects unrelated module names.
+
+## Accepted source integration
+
+PR #202 was merged as `7b3a91db85670eed4848f414977f7a675d18e469` after all
+seven exact-head workflows passed. Candidate run `36342398729` built and validated
+74,347 observations / 74 authorities / 77 registers, completed desktop/mobile
+browser acceptance, and recorded official-link availability. Local final regression
+suite: **725 passed, one skipped**, plus **24 isolated research tests**.
+
+The obsolete Enna PR #160 was closed as integrated through #202. Milano #162 and
+Taranto #204 now describe independent review tasks for newer archived responses;
+they do not block incremental public release composition. The README is corrected
+to acknowledge the existing public JSON/CSV observation release, explain one entry
+per election and the combined ranking, and document the reviewed data-selection
+procedure. The old statement that no public row-level release existed was stale.
+
+### Verified preservation on accepted main
+
+Run [36342687230](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36342687230) succeeded after #202, before public selector promotion. All five captures have independent content and immutable-provenance readback. Every receipt still reports `writer_unavailable`; unknown source dates remain null.
+
+| Source | SHA-256 | Bytes | Matches configured raw identity |
+| --- | --- | ---: | --- |
+| potenza-combined | `69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b` | 438877 | yes |
+| milano-combined | `e656d98e49b0e5838cc8841d78ab6537b0be6ae18cc96252ba1e22993329e9cc` | 972493 | no |
+| enna-combined | `1a5dc0bc8cd6eef69724c1afe767108abdecc325f7f01e8ef80620cca0d622c6` | 1350854 | yes |
+| taranto-listed | `ed6c92d2348068b5f70b47d6d32e62396f17d520c39bcd57e2fa0289c84857a3` | 150910 | no |
+| taranto-applicants | `d4be4042c30c6622ef7aad2520f8bacb62443a5b346855430712022da2bcf338` | 107938 | no |
+
+Enna and Potenza's exact selected originals are verified in the existing private store. Changed Milano/Taranto responses are preserved for separate review, without source-fact promotion. No original or private catalogue coordinates enter public Actions artifacts.
+
+### Public candidate preservation and promotion selector
+
+The accepted main candidate passed again in run `36342687206`, including all
+source, artifact, desktop/mobile and official-link steps. Its preserve job created
+release `public-data-36342687206-1` with the five public derivatives and a manifest.
+The public registry binds 112,828,885 decoded bytes to
+`27683ba0bf5075a56f9154dea01977b4240617855cfb660511bd6181ddaaa7aa`.
+Aggregate history was appended successfully by run `36342870971`; its bot commit
+`bfb5ba4c2d151e51c21b2fcb7f2d95e8406e343a` is retained in the promotion base.
+
+The reviewed selector now names this exact release. This update includes no source
+reacquisition or new unreviewed facts. Potenza's completed update is removed from
+the pending-update queue. Capture evidence is recorded for Enna/Potenza; newer
+Milano/Taranto facts stay pending. Full landing-page investigation timestamps are
+not advanced merely because an individual source document was read back.

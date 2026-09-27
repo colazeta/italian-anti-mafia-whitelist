@@ -195,8 +195,18 @@ src/white_list_archive/
 .github/workflows/          CI and end-to-end live workflows
 ```
 
-The project does **not** yet contain a complete national scrape, a durable hosted database, completed national geography enrichment, or a public row-level company release.
+The public portal and its JSON/CSV downloads contain reviewed source observations. The project still lacks complete national source coverage, a designated operational hosted database, complete national geography enrichment and a verified full national original-source replay. Published observations are not a nationally deduplicated canonical company register.
 
 ## Tempi elettorali (modulo territoriale)
 
-Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md), con ranking descrittivi separati per europee 2024, politiche 2022 (Camera e Senato), referendum costituzionale 2020 e i cinque quesiti nazionali del 2022. Il dataset derivato e lo script riproducibile sono versionati qui; i timestamp comunali non identificano il tempo di lavoro delle Prefetture.
+Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md) con **quattro tornate, ciascuna presente una sola volta**: europee 2024, politiche 2022 (Camera e Senato riuniti), referendum costituzionale 2020 e referendum nazionali 2022 (cinque quesiti riuniti). La classifica complessiva assegna lo stesso peso alle quattro tornate; sono disponibili anche le classifiche per tornata e gli indicatori ponderati per numero di sezioni. A parità di valore il rank è uguale; i dati incompleti restano fuori classifica. Dataset, metodo e script sono versionati qui. I timestamp comunali non identificano il tempo di lavoro o le risorse delle Prefetture.
+
+
+## Updating the public portal
+
+- `Public retro portal` is the sole Pages publisher. It restores five approved public derivatives from the exact GitHub release selected by `data/publication/public_snapshot.json`, then validates data and desktop/mobile behaviour. UI changes do not reacquire the national register.
+- `Public registry candidate` composes explicitly preserved editions from `data/publication/preserved_public_sources.json` with separately checked source updates. To update a preserved scope, remove its key from that reviewed list and review its source configuration/parser/acceptance evidence together. Old reference/check times remain unchanged for preserved editions.
+- A successful main candidate is saved in a new immutable public-data release. Review its `manifest.json` in a separate PR before selecting it for Pages; never overwrite a selected release asset.
+- Original bytes, immutable capture provenance, full internal observations and independent recovery remain distinct from public derivative preservation. The protected archive workflow reports object readback and relational persistence separately.
+
+See the [27 September audit and evidence](docs/architecture/project-audit-2026-09-27.md) for fixes, verified operation and remaining dependencies.
