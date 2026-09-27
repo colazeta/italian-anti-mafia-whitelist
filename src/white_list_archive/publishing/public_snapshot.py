@@ -11,7 +11,9 @@ import hashlib
 import json
 import re
 import tempfile
+import time
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 REPOSITORY = "colazeta/italian-anti-mafia-whitelist"
@@ -38,8 +40,18 @@ def verify(body: bytes, item: dict, name: str) -> None:
 
 def download(url: str, limit: int) -> bytes:
     request = Request(url, headers={"User-Agent": "white-list-public-snapshot/2"})
-    with urlopen(request, timeout=120) as response:
-        body = response.read(limit + 1)
+    for attempt in range(3):
+        try:
+            with urlopen(request, timeout=120) as response:
+                body = response.read(limit + 1)
+            break
+        except HTTPError as error:
+            if error.code not in (408, 429, 500, 502, 503, 504) or attempt == 2:
+                raise
+        except (URLError, TimeoutError, ConnectionError):
+            if attempt == 2:
+                raise
+        time.sleep(attempt + 1)
     if len(body) > limit:
         raise ValueError("Public snapshot exceeds reviewed size")
     return body

@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'public-site/**'
+      - 'data/source_registry/prefecture_robots.json'
+      - 'src/white_list_archive/publishing/public_robots.py'
       - 'data/publication/public_snapshot.json'
       - 'src/white_list_archive/publishing/public_snapshot.py'
       - 'src/white_list_archive/publishing/public_artifact.py'
@@ -13,6 +15,8 @@ on:
   pull_request:
     paths:
       - 'public-site/**'
+      - 'data/source_registry/prefecture_robots.json'
+      - 'src/white_list_archive/publishing/public_robots.py'
       - 'data/publication/public_snapshot.json'
       - 'src/white_list_archive/publishing/public_snapshot.py'
       - 'src/white_list_archive/publishing/public_artifact.py'
@@ -42,8 +46,10 @@ jobs:
         run: python -m white_list_archive.publishing.public_snapshot restore --manifest data/publication/public_snapshot.json
       - name: Validate complete publication
         run: |
+          python -m white_list_archive.publishing.public_robots
           node --check public-site/app.js
           node --check public-site/electoral.js
+          node --check public-site/robots.js
           python -m white_list_archive.publishing.public_artifact public-site
           python -m pytest -q tests/test_electoral_public.py tests/test_public_snapshot.py
       - name: Install browser acceptance runtime

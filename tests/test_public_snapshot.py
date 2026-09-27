@@ -85,3 +85,20 @@ def test_publisher_and_source_candidate_cannot_cancel_each_other():
     assert group(publisher) != group(candidate)
     assert 'white-list-public-national-build' not in publisher
     assert 'actions/deploy-pages' not in candidate
+
+
+def test_public_snapshot_retries_connection_reset_without_changing_input(monkeypatch):
+    import io
+    from urllib.error import URLError
+    from white_list_archive.publishing import public_snapshot
+    calls = []
+    def open_once(request, **kwargs):
+        calls.append(request.full_url)
+        if len(calls) == 1:
+            raise URLError(ConnectionResetError('reset'))
+        return io.BytesIO(b'verified downstream')
+    monkeypatch.setattr(public_snapshot, 'urlopen', open_once)
+    monkeypatch.setattr(public_snapshot.time, 'sleep', lambda _: None)
+    url = 'https://github.com/colazeta/italian-anti-mafia-whitelist/releases/download/public-data-test/registry.json.gz'
+    assert public_snapshot.download(url, 64) == b'verified downstream'
+    assert calls == [url, url]

@@ -1,0 +1,178 @@
+name: Prefecture robots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/source_registry/prefecture_robots.json'
+      - 'src/white_list_archive/acquisition/prefecture_robots.py'
+      - '.github/workflows/prefecture-robots.yml'
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      authority:
+        description: 'Authority key (for example cosenza, latina, milano) or all'
+        default: all
+        required: true
+        type: string
+      mode:
+        description: 'Check sources or also archive acquired versions in the private evidence store'
+        default: capture
+        type: choice
+        options: [check, capture]
+      force:
+        description: 'Read full bytes even if the server reports an unchanged resource'
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prefecture-robots
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          AUTHORITY: ${{ inputs.authority || 'all' }}
+        run: |
+          python - <<'PY'
+          import json, os
+          robots = json.load(open('data/source_registry/prefecture_robots.json'))['robots']
+          key = os.environ['AUTHORITY']
+          if key != 'all' and key not in {r['authority_key'] for r in robots}:
+              raise SystemExit('Unknown authority key')
+          count = 12 if key == 'all' else 1
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('shards=' + json.dumps(list(range(count))), file=out)
+              print('count=' + str(count), file=out)
+          PY
+  robots:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: evidence-archive
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install capture runtime
+        run: python -m pip install -e '.[storage]'
+      - name: Restore preceding check state
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin robot-state >/dev/null; then
+            git fetch origin robot-state
+            git show FETCH_HEAD:state.json > /tmp/robot-previous.json
+          else
+            result=$?
+            if [ "$result" -ne 2 ]; then exit "$result"; fi
+            printf '{"schema_version":1,"robots":{}}\n' > /tmp/robot-previous.json
+          fi
+      - name: Run independent authority robots
+        env:
+          AUTHORITY: ${{ inputs.authority || 'all' }}
+          MODE: ${{ inputs.mode || 'capture' }}
+          FORCE: ${{ inputs.force || false }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ needs.plan.outputs.count }}
+        run: |
+          set -euo pipefail
+          args=(--authority "$AUTHORITY" --mode "$MODE" --shard "$SHARD" --shards "$SHARDS"
+                --state /tmp/robot-previous.json --output /tmp/public-actions/robot-report/report.json)
+          # Weekly full-byte verification supplements conditional HTTP requests.
+          if [ "$FORCE" = true ] || [ "$(date -u +%u)" = 7 ]; then args+=(--force); fi
+          python -m white_list_archive.acquisition.prefecture_robots "${args[@]}"
+      - name: Preserve safe check metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-report-${{ matrix.shard }}
+          path: /tmp/public-actions/robot-report/report.json
+          if-no-files-found: warn
+          retention-days: 14
+  state:
+    needs: [plan, robots]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: robot-report-*
+          path: /tmp/robot-reports
+      - name: Merge results without discarding failed or unattempted authority state
+        env:
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin robot-state >/dev/null; then
+            git fetch origin robot-state:refs/remotes/origin/robot-state
+            git show origin/robot-state:state.json > /tmp/robot-previous.json
+          else
+            result=$?
+            if [ "$result" -ne 2 ]; then exit "$result"; fi
+            printf '{"schema_version":1,"robots":{}}\n' > /tmp/robot-previous.json
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from collections import Counter
+          state = json.load(open('/tmp/robot-previous.json'))
+          reports = list(Path('/tmp/robot-reports').glob('*/report.json'))
+          if not reports:
+              raise SystemExit('No robot reached the check boundary; previous state is preserved')
+          seen = set()
+          for path in reports:
+              for key, report in json.loads(path.read_text())['robots'].items():
+                  if key in seen: raise SystemExit('Duplicate authority across shards')
+                  seen.add(key)
+                  report['run_url'] = os.environ['RUN_URL']
+                  state['robots'][key] = report
+          Path('/tmp/robot-state.json').write_text(json.dumps(state, ensure_ascii=False, indent=2)+'\n')
+          counts = Counter(state['robots'][k]['status'] for k in seen)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              print('## Prefecture robot results\n', file=out)
+              print(f'{len(seen)} authorities checked. Status: {dict(counts)}.\n', file=out)
+              print('Partial checks and access errors remain explicit. New captures await source/parser review; the public company register is not changed.', file=out)
+          PY
+          if git show-ref --verify --quiet refs/remotes/origin/robot-state; then
+            git switch --force-create robot-state origin/robot-state
+          else
+            git switch --orphan robot-state
+          fi
+          cp /tmp/robot-state.json state.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add state.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Record independent Prefecture source checks'
+          git push origin HEAD:refs/heads/robot-state
