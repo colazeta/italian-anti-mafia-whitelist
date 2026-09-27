@@ -1,27 +1,27 @@
 {
   "schema_version": 1,
   "repository": "colazeta/italian-anti-mafia-whitelist",
-  "release_tag": "public-data-2026-09-27-verified",
+  "release_tag": "public-data-36342687206-1",
   "files": {
-    "registry.json": {
-      "sha256": "55c7e3dfa5e97115d247d846979b795844803f6c83d70e58a82ceee126d595c5",
-      "bytes": 112116836
-    },
-    "registry.csv": {
-      "sha256": "e0182e26ac6c96438921b738d0cac3ee749b3275808ca32670d8cbad03607375",
-      "bytes": 40636735
-    },
-    "prefectures.json": {
-      "sha256": "303f4a7efa97dded4daaf44b85ea9c15024a6c458ab18b8e6d6fa50cc2a5a479",
-      "bytes": 60325
+    "history.json": {
+      "sha256": "f4fd24f6c01c14c4ff36fe6951b78fb209484bc03f68c3fab3476085ecd6df3b",
+      "bytes": 1159512
     },
     "prefectures.csv": {
-      "sha256": "8280d975a48990465c33752dc2fbe35221d0b02754e03b59dfbd01ee7c37926e",
-      "bytes": 22541
+      "sha256": "ddcf88b6c68c45ee2b1b2f35648c35e8d119ecdc117368a5be669541adb25582",
+      "bytes": 22671
     },
-    "history.json": {
-      "sha256": "c31986cdd4f9863ffc2f9efaf0dcb79ccff7a1459599fe1c58bcb1e60cc3d270",
-      "bytes": 1154298
+    "prefectures.json": {
+      "sha256": "09d9b675cf61ba2bb89769b59d6ecd71f7b945c658659a89cacc4112a87c3062",
+      "bytes": 60501
+    },
+    "registry.csv": {
+      "sha256": "283208b15c84b8f85ba1cd048aed1217215bf0c950060b35eac2a6aede85c17c",
+      "bytes": 40877400
+    },
+    "registry.json": {
+      "sha256": "27683ba0bf5075a56f9154dea01977b4240617855cfb660511bd6181ddaaa7aa",
+      "bytes": 112828885
     }
   }
 }
