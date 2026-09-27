@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
+from runpy import run_path
 
 from white_list_archive.publishing.public_artifact import validate_electoral
-from scripts.elections.build_electoral_data import combine_ballots
 
 
 ROOT = Path(__file__).resolve().parents[1]
+combine_ballots = run_path(str(ROOT / "scripts/elections/build_electoral_data.py"))["combine_ballots"]
 
 
 def test_electoral_payload_has_one_row_per_election():
