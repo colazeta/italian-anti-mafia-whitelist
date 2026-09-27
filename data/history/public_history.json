@@ -21804,6 +21804,36 @@
       "checked_at": "2026-09-22T07:52:54+00:00",
       "edition_id": "16f9446417d2ff8d87e7fed072ef9e8e767f9d18d7dd85520db77da3da71cb2d",
       "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:22+00:00",
+      "edition_id": "0782c87c6aa45a18e597567bd91896f51f12869aea6cc927888043d0c24a8a82",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:22+00:00",
+      "edition_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:22+00:00",
+      "edition_id": "b809aa3df7cafcc1011b5366b05c503fc6b693b5fbd6f2d443022400873563d8",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:35+00:00",
+      "edition_id": "bb469063f32b340b7c811e902c3c3cd7837184f3280c00f7dc39ff30e8f9d59e",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:38+00:00",
+      "edition_id": "7cc7ce104440215f1b28e0127999091f4f36978c500f1a6bb61ddfd972c86527",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-09-27T19:00:44+00:00",
+      "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
+      "kind": "approved_document_verification"
     }
   ],
   "comparisons": [
@@ -21892,6 +21922,26 @@
       "status_changed": 1,
       "transition_counts": {
         "listed->renewal_update_in_progress": 1
+      },
+      "unresolved_after": 1,
+      "unresolved_before": 1
+    },
+    {
+      "added": null,
+      "after_id": "0782c87c6aa45a18e597567bd91896f51f12869aea6cc927888043d0c24a8a82",
+      "basis": "exact_identifier_observations_v1",
+      "before_id": "684884d0b03aefa3aee7d72f01827d4ff6c07b294505bbf71f51aff60b327f8d",
+      "common": 1035,
+      "content_changed": 8,
+      "disappeared": null,
+      "evidence": [
+        "approved-public-registry",
+        "exact_identifier_observations_v1"
+      ],
+      "status_changed": 8,
+      "transition_counts": {
+        "listed->renewal_update_in_progress": 2,
+        "renewal_update_in_progress->listed": 6
       },
       "unresolved_after": 1,
       "unresolved_before": 1
@@ -25442,6 +25492,31 @@
       "total": 468
     },
     {
+      "authority_key": "enna",
+      "authority_name": "Prefettura di Enna",
+      "data_fingerprint": "bde218d3abbf00894dee93e0f9e0347aa270c39b2ecb97d8c7f019cf9c9f0db0",
+      "document_sha256": "1a5dc0bc8cd6eef69724c1afe767108abdecc325f7f01e8ef80620cca0d622c6",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
+      "parser_signature": "enna_combined@1",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-18",
+      "reference_date_raw": "2026-09-18",
+      "register_key": "enna-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-enna_3.pdf",
+      "source_key": "enna-combined",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/enna/evidenza/white-list",
+      "status_counts": {
+        "listed": 417,
+        "pending": 41,
+        "renewal_update_in_progress": 57
+      },
+      "total": 515
+    },
+    {
       "authority_key": "fermo",
       "authority_name": "Prefettura di Fermo",
       "data_fingerprint": "e15ae888d730997c25655b8ebdde8adb610f0533d41addcd156696663618b5ab",
@@ -26225,6 +26300,30 @@
       "status_counts": {
         "listed": 144,
         "renewal_update_in_progress": 25
+      },
+      "total": 169
+    },
+    {
+      "authority_key": "lodi",
+      "authority_name": "Prefettura di Lodi",
+      "data_fingerprint": "13436d735b065adc0aa39a054bc932fa2564f02301786882590d02c47b7409f6",
+      "document_sha256": "0cb78eec4e7c902a9ec9e6fa3b64ef52c276a2de32cd86cba3e59cf68775d945",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "b809aa3df7cafcc1011b5366b05c503fc6b693b5fbd6f2d443022400873563d8",
+      "parser_signature": "lodi_listed@6",
+      "population_scope": "listed",
+      "reference_date": "2026-09-27",
+      "reference_date_raw": "2026-09-27",
+      "register_key": "lodi-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv",
+      "source_key": "lodi-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list",
+      "status_counts": {
+        "listed": 145,
+        "renewal_update_in_progress": 24
       },
       "total": 169
     },
@@ -27267,6 +27366,31 @@
         "listed": 214,
         "pending": 378,
         "renewal_update_in_progress": 444
+      },
+      "total": 1036
+    },
+    {
+      "authority_key": "potenza",
+      "authority_name": "Prefettura di Potenza",
+      "data_fingerprint": "e0f67543c6d64e2840455101f06e2a10fff9df5c30ae5596cdf05ac81937fa3e",
+      "document_sha256": "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "0782c87c6aa45a18e597567bd91896f51f12869aea6cc927888043d0c24a8a82",
+      "parser_signature": "potenza_combined@2",
+      "population_scope": "listed_and_applicant",
+      "reference_date": "2026-09-27",
+      "reference_date_raw": "2026-09-27",
+      "register_key": "potenza-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0",
+      "source_key": "potenza-combined",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/potenza/white-list",
+      "status_counts": {
+        "listed": 218,
+        "pending": 378,
+        "renewal_update_in_progress": 440
       },
       "total": 1036
     },
