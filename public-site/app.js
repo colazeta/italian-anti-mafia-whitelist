@@ -63,7 +63,7 @@ async function activate(name){
   }catch(error){
     if(version!==navigationVersion)return;
     $('#status').textContent='Sezione non disponibile';
-    view.innerHTML=`<div class="note bad" role="alert">Impossibile caricare questa sezione: ${esc(error.message)}. Le altre sezioni restano accessibili. <button class="btn" data-retry>Riprova</button></div>`;
+    view.innerHTML=`<div class="note bad" role="alert">Sezione non disponibile: ${esc(error.message)}. Le altre sezioni restano accessibili. <button class="btn" data-retry>Riprova</button></div>`;
     view.querySelector('[data-retry]').addEventListener('click',()=>activate(name));
   }
 }

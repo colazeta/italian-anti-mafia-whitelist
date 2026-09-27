@@ -73,3 +73,15 @@ def test_pack_emits_only_approved_derivatives_and_reproducible_gzip(tmp_path):
     snapshot.pack(source, b, 'public-data-test')
     assert {p.name for p in a.iterdir()} == {name + '.gz' for name in snapshot.FILES} | {'manifest.json'}
     assert all((a / (name + '.gz')).read_bytes() == (b / (name + '.gz')).read_bytes() for name in snapshot.FILES)
+
+
+def test_publisher_and_source_candidate_cannot_cancel_each_other():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    publisher = (root / '.github/workflows/public-pages.yml').read_text()
+    candidate = (root / '.github/workflows/public-registry-review.yml').read_text()
+    def group(text):
+        return next(line.strip() for line in text.splitlines() if line.strip().startswith('group:'))
+    assert group(publisher) != group(candidate)
+    assert 'white-list-public-national-build' not in publisher
+    assert 'actions/deploy-pages' not in candidate
