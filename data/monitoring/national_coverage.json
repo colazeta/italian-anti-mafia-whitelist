@@ -109,14 +109,6 @@
       "error": null,
       "content_changed": true,
       "content_sha256": "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a"
-    },
-    {
-      "authority_key": "milano",
-      "at": "2026-09-22T15:44:32Z",
-      "evidence": "docs/sources/milano-source-transition-2026-09-22-09cdc0.md",
-      "error": null,
-      "content_changed": true,
-      "content_sha256": "09cdc0bf9a9cb5ee4df661d25972b9d1730f5a2158c052a75e42802960c44f46"
     }
   ],
   "prefectures": [
@@ -535,7 +527,7 @@
       "unresolved_issue": [
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
       ],
-      "actionable_issue": true,
+      "actionable_issue": false,
       "coverage_status": "VALIDATED",
       "terminal_reason": null,
       "completion_evidence": [
@@ -552,8 +544,7 @@
         "data/source_registry/verified_primary_pages.csv",
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
-        "docs/sources/bari-operational-check-2026-09-10.md",
-        "docs/sources/source-population-resolution-2026-09-09.md"
+        "docs/sources/bari-operational-check-2026-09-10.md"
       ],
       "last_completed_coverage_status": "SOURCE_IDENTIFIED",
       "last_completed_coverage_stage": "VALIDATED"
@@ -2793,18 +2784,19 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-22",
+      "latest_source_reference_date": "2026-09-21",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": "2026-09-22T15:44:32Z",
-      "last_attempted_source_check_at": "2026-09-22T15:44:32Z",
-      "last_content_change_at": "2026-09-22T15:44:32Z",
-      "last_successful_investigation_on": "2026-09-22",
-      "monitoring_status": "CURRENT",
+      "last_successful_source_check_at": "2026-09-21T18:35:20Z",
+      "last_attempted_source_check_at": "2026-09-27T18:24:18.815401+00:00",
+      "last_content_change_at": "2026-09-21T18:35:20Z",
+      "last_successful_investigation_on": "2026-09-21",
+      "monitoring_status": "SOURCE_CHANGED",
       "unresolved_issue": [
-        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+        "Exact 27 September original and capture provenance archived and independently read back (run 36340494490); relational writer unavailable. National frozen replay and independent recovery remain unverified (#16, #163).",
+        "New archived response e656d98 requires substantive review. Last approved public edition fe508b7 remains unchanged, including its 21 September reference and 22 September check time; #162 cannot approve a later live response automatically."
       ],
-      "actionable_issue": false,
+      "actionable_issue": true,
       "coverage_status": "VALIDATED",
       "terminal_reason": null,
       "completion_evidence": [
@@ -2816,8 +2808,7 @@
         "docs/sources/milano-source-transition-2026-09-18.md",
         "docs/sources/milano-source-transition-2026-09-18-b929.md",
         "docs/sources/milano-source-transition-2026-09-21-2985.md",
-        "docs/sources/milano-source-transition-2026-09-21-fe508.md",
-        "docs/sources/milano-source-transition-2026-09-22-09cdc0.md"
+        "docs/sources/milano-source-transition-2026-09-21-fe508.md"
       ],
       "known_content_sha256": [
         "b360e209f3997894a3e7408e5be7f07d77cddca0c3490581ff3410218a02d9a8",
@@ -2832,8 +2823,7 @@
         "20714806f285559da9bbfb51203e7329e990112224643bcb6a0bed7a473ef8e2",
         "2985710c5113463e6c5da02a35392262bad17611bf29917abb0e117911d6fda6",
         "5c76ede7a994f7717a8f3d4f0cc20e6c3b63a0cdedfb23a84790ef0ab13b5e2d",
-        "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d",
-        "09cdc0bf9a9cb5ee4df661d25972b9d1730f5a2158c052a75e42802960c44f46"
+        "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d"
       ],
       "evidence": [
         "data/source_registry/verified_primary_pages.csv",
@@ -2845,9 +2835,13 @@
         "docs/sources/milano-source-transition-2026-09-18-b929.md",
         "docs/sources/milano-source-transition-2026-09-21-2985.md",
         "docs/sources/milano-source-transition-2026-09-21-fe508.md",
-        "docs/sources/milano-source-transition-2026-09-22-09cdc0.md"
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36340494490"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "observed_source_hashes": [
+        "e656d98e49b0e5838cc8841d78ab6537b0be6ae18cc96252ba1e22993329e9cc"
+      ],
+      "source_update_pending": true
     },
     {
       "authority_key": "modena",
@@ -3646,15 +3640,15 @@
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": "2026-09-22T12:37:02Z",
-      "last_attempted_source_check_at": "2026-09-22T12:37:02Z",
+      "last_attempted_source_check_at": "2026-09-27T18:24:13.482264+00:00",
       "last_content_change_at": "2026-09-22T12:37:02Z",
       "last_successful_investigation_on": "2026-09-22",
-      "monitoring_status": "CURRENT",
+      "monitoring_status": "PROCESSING_UPDATE",
       "unresolved_issue": [
         "The combined list response does not expose per-company statutory sections; requested activities remain empty pending positive evidence from the official child section view rather than inference.",
-        "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
+        "Exact 27 September original and capture provenance archived and independently read back (run 36340494490); relational writer unavailable. National frozen replay and independent recovery remain unverified (#16, #163)."
       ],
-      "actionable_issue": false,
+      "actionable_issue": true,
       "coverage_status": "VALIDATED",
       "terminal_reason": null,
       "completion_evidence": [
@@ -3675,13 +3669,17 @@
         "data/source_registry/verified_primary_pages.csv",
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
-        "docs/sources/potenza-operational-check-2026-09-15.md"
+        "docs/sources/potenza-operational-check-2026-09-15.md",
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36340494490",
+        "docs/sources/potenza-operational-check-2026-09-27.md"
       ],
       "last_completed_coverage_stage": "VALIDATED",
       "observed_source_hashes": [
         "44a242d7fa8c3e7af0b5df779430a20e7ab61939aaca9cd5ac005025ddf07420",
-        "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a"
-      ]
+        "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a",
+        "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b"
+      ],
+      "source_update_pending": true
     },
     {
       "authority_key": "prato",
@@ -4664,7 +4662,7 @@
       "unresolved_issue": [
         "Canonical hosted-database integration and independent durable-evidence verification remain governed under #16; public source observations are validated independently of that infrastructure."
       ],
-      "actionable_issue": true,
+      "actionable_issue": false,
       "coverage_status": "VALIDATED",
       "terminal_reason": null,
       "completion_evidence": [
@@ -4681,8 +4679,7 @@
         "data/source_registry/verified_primary_pages.csv",
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
-        "docs/sources/udine-operational-check-2026-09-10.md",
-        "docs/sources/source-population-resolution-2026-09-09.md"
+        "docs/sources/udine-operational-check-2026-09-10.md"
       ],
       "last_completed_coverage_stage": "VALIDATED"
     },

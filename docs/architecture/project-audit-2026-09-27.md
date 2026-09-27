@@ -93,9 +93,12 @@ publication reads only explicit release assets and never downloads the current s
 PR #150 is integrated as isolated research with 24 continuously executed
 methodological tests. Original numerical results and execution dates are unchanged.
 
-The source integration reconciles the previously reviewed Enna #160 and Milano #162
-surfaces without weakening their exact input gates, and updates Potenza to the
-independently repeat-fetched 27 September response. Enna adds one authority and one
+The source integration reconciles the previously reviewed Enna #160 surface
+without weakening its exact input gates, and updates Potenza to the independently
+repeat-fetched 27 September response. Milano #162 cannot promote its now-replaced
+22 September live response. Its last approved public edition is explicitly preserved
+from the immutable release, with all old reference/check dates and parser provenance
+unchanged. This choice is made before acquisition, never automatically on failure. Enna adds one authority and one
 scope: discovery becomes 74 authorities / 146 series / 77 complete scopes; 32 of the
 106 national authorities still need discovery. The public selector is unchanged
 until a separately validated candidate is deliberately selected.
@@ -119,3 +122,29 @@ archive/integration lane is disabled (last execution 24 September). A scheduler
 timestamp is not a lock or proof of a concurrent writer. This audit performs the
 pending integration directly; it does not silently reactivate a disabled recurring
 task. No new paid infrastructure is provisioned.
+
+### Confirmed private capture and scope independence
+
+Main archive run [36340494490](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36340494490)
+independently wrote and read back both exact source content and capture provenance:
+
+| Scope | SHA-256 | Bytes | Relational writer |
+| --- | --- | ---: | --- |
+| Potenza | `69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b` | 438877 | unavailable |
+| Milano | `e656d98e49b0e5838cc8841d78ab6537b0be6ae18cc96252ba1e22993329e9cc` | 972493 | unavailable |
+
+The Milano response from the runner is substantial HTML, unlike the local
+interstitial; its new facts have not been reviewed or promoted. Exact original bytes
+and immutable capture receipts now survive outside temporary CI storage. This
+confirms the private object archive works and isolates the missing relational writer.
+It does not establish independent backup recovery or a full national frozen release.
+
+The candidate builder supports `--preserve-public-source` together with an explicit
+`--public-snapshot-manifest`. Each reused scope must match the reviewed configuration
+by source, authority, register, population, reference date, raw hash, parser, URLs and
+observation count. Snapshot hashes are verified before reading. Changed configuration,
+missing provenance, unknown keys and mixing with original-source frozen replay fail
+closed. All other sources still pass their live byte/parser/semantic gates. Unit
+regressions prove reused records and old verification times remain exact, and that
+the reused source is never downloaded or reinterpreted. This allows Enna/Potenza to
+progress independently while Milano's new edition receives its own review.

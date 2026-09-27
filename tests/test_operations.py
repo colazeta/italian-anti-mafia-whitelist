@@ -91,7 +91,9 @@ def test_new_content_does_not_publish_or_overwrite_the_previous_check(ledger):
 
 
 def test_expansion_prioritises_existing_validated_work_then_actionable_issues(ledger):
+    # First isolate stage/canonical ordering; live operational issues change daily.
     for row in ledger["prefectures"]:
+        row["actionable_issue"] = False
         if row["public_export_enabled"]:
             row["coverage_status"] = "VALIDATED"
     assert priority_queue(ledger)[0]["authority_key"] == "cosenza"

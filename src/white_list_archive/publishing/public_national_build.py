@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import tempfile
+from collections import Counter
 from pathlib import Path
 
 from white_list_archive.publishing.frozen_release import (
@@ -14,6 +15,7 @@ from white_list_archive.publishing.frozen_release import (
 )
 from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_history import publish_history
+from white_list_archive.publishing.public_snapshot import restore
 from white_list_archive.publishing.public_national_registry import (
     build_prefecture_index,
     build_registry,
@@ -185,6 +187,8 @@ def _build_registry_from_selected_inputs(
     release_manifest_path: Path | None,
     *,
     runtime_code_revision: str | None = None,
+    preserved_source_keys: tuple[str, ...] = (),
+    public_snapshot_manifest: Path | None = None,
 ) -> dict:
     """Select live legacy mode or strict archive-backed release replay.
 
@@ -194,6 +198,12 @@ def _build_registry_from_selected_inputs(
     refuses to run unless the executing code, projector and parser revisions exactly
     match those pinned by the release.
     """
+    if bool(preserved_source_keys) != bool(public_snapshot_manifest):
+        raise ValueError("Public source preservation requires both explicit source keys and a reviewed snapshot manifest")
+    if preserved_source_keys:
+        if release_manifest_path is not None:
+            raise ValueError("Public derivative preservation cannot be mixed with original-source frozen replay")
+        return _build_with_preserved_public_sources(config, work_dir, preserved_source_keys, public_snapshot_manifest)
     release_manifest = None
     if release_manifest_path is None:
         registry = _build_registry_with_network_retries(config, work_dir)
@@ -215,6 +225,64 @@ def _build_registry_from_selected_inputs(
     return registry
 
 
+def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tuple[str, ...], manifest_path: Path) -> dict:
+    """Compose explicit approved public editions with newly checked source scopes.
+
+    This is selected before acquisition, never as an automatic error fallback. It
+    reuses public projections, not original evidence or a new source verification.
+    Old reference/check times, parser revisions and record bytes remain unchanged.
+    """
+    by_key = {source['source_key']: source for source in config['sources']}
+    if len(by_key) != len(config['sources']) or len(set(keys)) != len(keys) or set(keys) - by_key.keys():
+        raise ValueError('Unknown or duplicate preserved source selection')
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    with tempfile.TemporaryDirectory(prefix='approved-public-editions-') as temporary:
+        restore(manifest, Path(temporary))
+        approved = json.loads((Path(temporary) / 'registry.json').read_text(encoding='utf-8'))
+    validate_registry(approved)
+    preserved_records, preserved_reports = [], []
+    for key in keys:
+        cfg = by_key[key]
+        if cfg.get('approval_mode', 'raw_sha256') != 'raw_sha256' or cfg.get('resources'):
+            raise ValueError(f'{key}: public preservation requires one explicitly byte-pinned resource')
+        reports = [s for s in approved['meta']['sources'] if s['source_key'] == key]
+        if len(reports) != 1:
+            raise ValueError(f'{key}: approved public edition is absent or ambiguous')
+        report = reports[0]
+        for field in ('source_key', 'authority_key', 'register_key', 'population_scope', 'reference_date', 'sha256', 'parser'):
+            if report.get(field) != cfg.get(field):
+                raise ValueError(f'{key}: preserved edition differs from configured {field}')
+        if not report.get('document_checked_at'):
+            raise ValueError(f'{key}: preserved edition has no original verification time')
+        records = [r for r in approved['records'] if r['source_key'] == key]
+        if not records or (cfg.get('expected_source_rows') is not None and len(records) != cfg['expected_source_rows']):
+            raise ValueError(f'{key}: preserved observation count differs from reviewed configuration')
+        for record in records:
+            for field in ('authority_key', 'register_key', 'population_scope', 'reference_date', 'source_page_url', 'resource_url'):
+                if record.get(field) != cfg.get(field):
+                    raise ValueError(f'{key}: preserved observation differs from configured {field}')
+            if record.get('parser_name') != cfg['parser'] or not record.get('parser_version'):
+                raise ValueError(f'{key}: preserved parser provenance is missing or different')
+        preserved_records.extend(records)
+        preserved_reports.append(report)
+    fresh_config = {**config, 'sources': [s for s in config['sources'] if s['source_key'] not in keys]}
+    registry = _build_registry_from_selected_inputs(fresh_config, work_dir, None)
+    registry['records'].extend(preserved_records)
+    registry['meta']['sources'].extend(preserved_reports)
+    meta = registry['meta']
+    meta['record_count'] = len(registry['records'])
+    meta['source_count'] = len(meta['sources'])
+    for dimension in ('authority', 'register', 'status'):
+        field = 'source_status' if dimension == 'status' else f'{dimension}_key'
+        counts = dict(Counter(r[field] for r in registry['records']))
+        meta[f'{dimension}_counts'] = counts
+        if dimension != 'status':
+            meta[f'{dimension}_count'] = len(counts)
+    validate_registry(registry)
+    print('Preserved approved public editions (original verification dates unchanged): ' + ', '.join(keys))
+    return registry
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build public national registry and Prefecture index with explicit source/canonical authority aliases"
@@ -228,6 +296,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry-csv", type=Path, required=True)
     parser.add_argument("--prefectures-json", type=Path, required=True)
     parser.add_argument("--prefectures-csv", type=Path, required=True)
+    parser.add_argument('--preserve-public-source', action='append', default=[],
+                        help='Explicitly reuse an unchanged approved public source edition; repeat for each scope.')
+    parser.add_argument('--public-snapshot-manifest', type=Path,
+                        help='Hash-pinned public derivative manifest required for explicit public source preservation.')
     parser.add_argument(
         "--release-manifest",
         type=Path,
@@ -255,6 +327,8 @@ def main(argv: list[str] | None = None) -> int:
             args.work_dir,
             args.release_manifest,
             runtime_code_revision=args.runtime_code_revision,
+            preserved_source_keys=tuple(args.preserve_public_source),
+            public_snapshot_manifest=args.public_snapshot_manifest,
         )
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
