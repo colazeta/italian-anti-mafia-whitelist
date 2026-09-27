@@ -76,21 +76,27 @@
       "classification": "deliberately_public_publication"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-rendered-evidence-attempt-${{ github.run_attempt }}",
       "path": "test-results/",
       "classification": "deliberately_public_publication"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-link-audit-attempt-${{ github.run_attempt }}",
       "path": "/tmp/public-link-audit.json",
       "classification": "deliberately_public_publication"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-portal-review-attempt-${{ github.run_attempt }}",
       "path": "public-site/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "name": "public-snapshot-browser-${{ github.run_attempt }}",
+      "path": "test-results/",
       "classification": "deliberately_public_publication"
     }
   ],
@@ -99,10 +105,13 @@
       "workflow": ".github/workflows/public-pages.yml",
       "path": "public-site",
       "classification": "deliberately_public_publication"
-    },
+    }
+  ],
+  "release_assets": [
     {
-      "workflow": ".github/workflows/public-pages-electoral-snapshot.yml",
-      "path": "public-site",
+      "workflow": ".github/workflows/public-pages.yml",
+      "tag": "public-data-2026-09-27-verified",
+      "path": "/tmp/public-snapshot/*.gz",
       "classification": "deliberately_public_publication"
     }
   ]

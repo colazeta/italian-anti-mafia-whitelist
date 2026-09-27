@@ -4,11 +4,8 @@ import argparse
 import csv
 import json
 import os
-import shutil
 import tempfile
-import time
 from pathlib import Path
-from urllib.error import HTTPError, URLError
 
 from white_list_archive.publishing.frozen_release import (
     PUBLIC_PROJECTOR_REVISION,
@@ -173,36 +170,13 @@ def _restore_declared_parser_revisions(registry: dict, config: dict, work_dir: P
     return registry
 
 
-def _build_registry_with_network_retries(
-    config: dict,
-    work_dir: Path,
-    *,
-    attempts: int = 3,
-    sleep=time.sleep,
-) -> dict:
-    """Legacy live-source builder retained only while archive migration is incomplete.
+def _build_registry_with_network_retries(config: dict, work_dir: Path) -> dict:
+    """Legacy live candidate. Transient retries happen per request in _download.
 
-    New release promotion should use ``_build_registry_from_selected_inputs`` with a
-    frozen release manifest. This function intentionally keeps its prior behaviour so
-    the last validated public release is not silently redefined during migration.
+    Never delete already acquired evidence or restart unrelated source downloads.
+    Hash, parser, semantic and permanent HTTP failures still stop the candidate.
     """
-    if attempts < 1:
-        raise ValueError("attempts must be at least one")
-    retryable = (HTTPError, URLError, ConnectionError, TimeoutError)
-    for attempt in range(1, attempts + 1):
-        shutil.rmtree(work_dir, ignore_errors=True)
-        try:
-            return build_registry(config, work_dir)
-        except retryable as exc:
-            if attempt == attempts:
-                raise
-            delay = attempt * 3
-            print(
-                f"Transient source acquisition failure on attempt {attempt}/{attempts} "
-                f"({type(exc).__name__}); rebuilding from a clean work directory in {delay}s."
-            )
-            sleep(delay)
-    raise AssertionError("unreachable")
+    return build_registry(config, work_dir)
 
 
 def _build_registry_from_selected_inputs(

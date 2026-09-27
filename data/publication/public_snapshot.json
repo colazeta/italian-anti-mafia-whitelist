@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "repository": "colazeta/italian-anti-mafia-whitelist",
+  "release_tag": "public-data-2026-09-27-verified",
+  "files": {
+    "registry.json": {
+      "sha256": "55c7e3dfa5e97115d247d846979b795844803f6c83d70e58a82ceee126d595c5",
+      "bytes": 112116836
+    },
+    "registry.csv": {
+      "sha256": "e0182e26ac6c96438921b738d0cac3ee749b3275808ca32670d8cbad03607375",
+      "bytes": 40636735
+    },
+    "prefectures.json": {
+      "sha256": "303f4a7efa97dded4daaf44b85ea9c15024a6c458ab18b8e6d6fa50cc2a5a479",
+      "bytes": 60325
+    },
+    "prefectures.csv": {
+      "sha256": "8280d975a48990465c33752dc2fbe35221d0b02754e03b59dfbd01ee7c37926e",
+      "bytes": 22541
+    },
+    "history.json": {
+      "sha256": "c31986cdd4f9863ffc2f9efaf0dcb79ccff7a1459599fe1c58bcb1e60cc3d270",
+      "bytes": 1154298
+    }
+  }
+}

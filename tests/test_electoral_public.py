@@ -1,4 +1,5 @@
 import json
+import pytest
 from pathlib import Path
 from runpy import run_path
 
@@ -42,4 +43,22 @@ def test_ballots_count_sections_once_and_require_all_to_complete():
     b = [dict(cod_prov='1', desc_prov='ALFA', cod_com='10', sz_tot='3', sz_perv='3', dt_agg='20220926030000')]
     rows = combine_ballots([a, b], lambda r: r['cod_com'])
     assert rows[0]['sz_tot'] == '3' and rows[0]['dt_agg'] == '20220926030000'
-    assert rows[1]['sz_tot'] == '2' and rows[1]['sz_perv'] == '0' and not rows[1]['dt_agg']
+    assert rows[1]['sz_tot'] == '2' and rows[1]['sz_perv'] == '' and not rows[1]['dt_agg']
+
+
+@pytest.mark.parametrize('defect', ['score', 'hours', 'coverage', 'infinity', 'hash'])
+def test_electoral_validator_rejects_plausible_but_inconsistent_values(defect):
+    data = json.loads((ROOT / 'public-site/data/electoral.json').read_text())
+    row = next(r for r in data['overall']['provinces'] if r['status'] == 'complete_in_all')
+    if defect == 'score':
+        row['scores']['last_hours'] += .001
+    elif defect == 'hours':
+        row['event_hours']['eu-2024']['last_hours'] += .001
+    elif defect == 'coverage':
+        next(r for r in data['overall']['provinces'] if r['status'] == 'incomplete_coverage')['events_complete'] = 0
+    elif defect == 'infinity':
+        data['events'][0]['provinces'][0]['last_hours'] = float('inf')
+    else:
+        data['events'][0]['provenance']['sha256']['municipal'] = 'invalid'
+    with pytest.raises(ValueError):
+        validate_electoral(data)
