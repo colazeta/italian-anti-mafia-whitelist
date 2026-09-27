@@ -41,8 +41,8 @@ The project currently contains:
 - an audited PostgreSQL 18 schema with tri-temporal canonical state;
 - immutable source capture, SHA-256 content identity and parser provenance;
 - **106** territorial authorities in the national universe;
-- **73** independently verified primary White List pages;
-- **145** qualified recurring source series;
+- **74** independently verified primary White List pages;
+- **146** qualified recurring source series;
 - reusable parser families with deterministic source-series/fingerprint routing;
 - stable parser record contracts and semantic profiles;
 - automatic semantic projection and guarded canonicalisation;
@@ -120,7 +120,7 @@ applicant
 
 A combined `listed_and_applicant` source satisfies both without creating fake duplicate source series. If only one population has been discovered, the other remains `UNRESOLVED_REQUIRES_REVIEW`; it is **never** interpreted as “not published”. Completeness is assessed per register/regime, so special registers such as Bologna post-sisma remain separate.
 
-At the **27 September 2026** discovery checkpoint, **73 verified pages / 145 source series** define **76 register scopes**, all with both logical populations accounted for. The national universe remains **106 authorities**: the other **33** still require source discovery. Discovery completeness does not mean that every source has been parsed or durably archived. Recompute with `white-list-source-population-coverage`; do not interpret unknown authorities as non-publishing.
+At the **27 September 2026** discovery checkpoint, **74 verified pages / 146 source series** define **77 register scopes**, all with both logical populations accounted for. The national universe remains **106 authorities**: the other **32** still require source discovery. Discovery completeness does not mean that every source has been parsed or durably archived. Recompute with `white-list-source-population-coverage`; do not interpret unknown authorities as non-publishing.
 
 ## Parser-family strategy
 

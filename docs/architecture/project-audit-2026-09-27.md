@@ -79,3 +79,43 @@ one changed HTTP response (Milano: an anti-bot interstitial, not a valid source 
 execution environment are not evidence that all those official sites are unavailable
 from the production runner. ANNCSU's latest inspected main execution succeeded;
 the earlier 403 is not treated as a permanent source failure.
+
+
+## Integration and acquisition follow-up
+
+PR #201 passed CI, public artifact and desktop/mobile browser gates, then deployed
+successfully on main (run 36339272615, attempt 2). The first release creation
+succeeded; its immediate HTTP read hit transient asset propagation. A bounded rerun
+after the assets became visible verified release retrieval and deployed. The initial
+bootstrap path and publisher write permission are now removed: ordinary Pages
+publication reads only explicit release assets and never downloads the current site.
+
+PR #150 is integrated as isolated research with 24 continuously executed
+methodological tests. Original numerical results and execution dates are unchanged.
+
+The source integration reconciles the previously reviewed Enna #160 and Milano #162
+surfaces without weakening their exact input gates, and updates Potenza to the
+independently repeat-fetched 27 September response. Enna adds one authority and one
+scope: discovery becomes 74 authorities / 146 series / 77 complete scopes; 32 of the
+106 national authorities still need discovery. The public selector is unchanged
+until a separately validated candidate is deliberately selected.
+
+Source downloads now use four bounded workers and report all acquisition/byte
+failures together. They do not discard successful captures or retry the whole
+national build. Parsing and semantic acceptance remain strict and deterministic.
+The protected archive-reviewed-sources.yml independently preserves exact current
+responses for Potenza, Milano and Enna, with immutable provenance/readback; changed
+responses are quarantined, not approved. Unknown reference times stay unknown.
+Relational capture persistence is attempted only through the existing configured
+writer and reported separately. Successful scopes survive another scope's failure.
+
+A successful main source candidate is preserved as an immutable public derivative
+release, including its selector manifest. It cannot deploy Pages itself. A reviewed
+selector update is still needed. This prevents expired review artifacts from being
+the only surviving copy of an approved public candidate.
+
+Automation inspection: the acquisition preparation lane is enabled; the serial
+archive/integration lane is disabled (last execution 24 September). A scheduler
+timestamp is not a lock or proof of a concurrent writer. This audit performs the
+pending integration directly; it does not silently reactivate a disabled recurring
+task. No new paid infrastructure is provisioned.

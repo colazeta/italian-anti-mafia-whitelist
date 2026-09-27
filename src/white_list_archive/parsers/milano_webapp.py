@@ -11,20 +11,20 @@ from typing import Any
 
 from white_list_archive.parsers.multi_prefecture_tables import ParsedBatch, _clean, _record
 
-PARSER_VERSION = "6"
+PARSER_VERSION = "7"
 PARSER_NAME = "milano_combined"
 
-_REFERENCE_DATE = "2026-09-21"
+_REFERENCE_DATE = "2026-09-22"
 _SOURCE_KEY = "milano-combined"
 _EXPECTED_TABLES = 10
-_EXPECTED_SECTOR_ROWS = 4205
-_EXPECTED_RECORDS = 2611
+_EXPECTED_SECTOR_ROWS = 4215
+_EXPECTED_RECORDS = 2615
 _EXPECTED_STATUS_COUNTS = {
-    "listed": 944,
-    "renewal_update_in_progress": 520,
-    "pending": 1147,
+    "listed": 941,
+    "renewal_update_in_progress": 523,
+    "pending": 1151,
 }
-_EXPECTED_IDENTIFIER_COVERAGE = 2611
+_EXPECTED_IDENTIFIER_COVERAGE = 2615
 _EXPECTED_NONBLANK_NOTES = 1
 
 _EXPECTED_SECTION_PREFIXES = (

@@ -34,7 +34,7 @@ def test_restore_checks_all_bytes_before_replacing_any_output(monkeypatch, tmp_p
     assert {p.name for p in destination.iterdir()} == snapshot.FILES
 
 
-def test_bootstrap_cannot_be_used_for_arbitrary_snapshots(monkeypatch, tmp_path):
+def test_missing_snapshot_never_falls_back_to_current_pages(monkeypatch, tmp_path):
     calls = []
 
     def missing(url, limit):
@@ -43,7 +43,7 @@ def test_bootstrap_cannot_be_used_for_arbitrary_snapshots(monkeypatch, tmp_path)
 
     monkeypatch.setattr(snapshot, 'download', missing)
     with pytest.raises(HTTPError):
-        snapshot.restore(fixture_manifest(), tmp_path / 'data', allow_bootstrap=True)
+        snapshot.restore(fixture_manifest(), tmp_path / 'data')
     assert len(calls) == 1 and '/releases/download/' in calls[0]
 
 

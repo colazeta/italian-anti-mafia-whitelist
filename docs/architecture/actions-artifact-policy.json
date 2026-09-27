@@ -100,6 +100,12 @@
       "classification": "deliberately_public_publication"
     },
     {
+      "workflow": ".github/workflows/archive-reviewed-sources.yml",
+      "name": "reviewed-source-captures-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/public-actions/reviewed-source-captures.json",
+      "classification": "public_operational_verification"
+    },
+    {
       "workflow": ".github/workflows/research-performance-pilot.yml",
       "name": "research-performance-aggregate-${{ github.run_id }}",
       "path": "artifacts/public-actions/research-performance/",
@@ -117,9 +123,9 @@
   ],
   "release_assets": [
     {
-      "workflow": ".github/workflows/public-pages.yml",
-      "tag": "public-data-2026-09-27-verified",
-      "path": "/tmp/public-snapshot/*.gz",
+      "workflow": ".github/workflows/public-registry-review.yml",
+      "tag": "public-data-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/public-registry-release/",
       "classification": "deliberately_public_publication"
     }
   ]

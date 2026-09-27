@@ -9,6 +9,7 @@ import time
 from urllib.error import HTTPError, URLError
 import unicodedata
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,7 @@ from white_list_archive.parsers.ravenna_combined import PARSERS as RAVENNA_PARSE
 from white_list_archive.parsers.pescara_legacy_doc import PARSERS as PESCARA_PARSERS
 from white_list_archive.parsers.piacenza_legacy_xls import PARSERS as PIACENZA_PARSERS
 from white_list_archive.parsers.prato_sources import PARSERS as PRATO_PARSERS
+from white_list_archive.parsers.enna_combined import PARSERS as ENNA_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -302,8 +304,8 @@ def _download(url: str, path: Path, *, attempts: int = 3, sleep=time.sleep) -> s
     digest = hashlib.sha256(body).hexdigest()
     path.parent.mkdir(parents=True, exist_ok=True)
     # Runner-local retention is useful for diagnosis, but is never labelled durable.
-    content = path.parent / "content" / digest
-    content.parent.mkdir(exist_ok=True)
+    content = path.parent / "content" / path.name / digest
+    content.parent.mkdir(parents=True, exist_ok=True)
     if not content.exists():
         with content.open("xb") as handle:
             handle.write(body)
@@ -1238,6 +1240,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or PESCARA_PARSERS.get(cfg["parser"])
         or PIACENZA_PARSERS.get(cfg["parser"])
         or PRATO_PARSERS.get(cfg["parser"])
+        or ENNA_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1483,11 +1486,38 @@ def _acquire_source_input(cfg: dict[str, Any], work_dir: Path) -> tuple[Path | d
         raise RuntimeError(f"{cfg['source_key']}: bundle manifest SHA mismatch; expected {expected_bundle_sha}, got {actual_bundle_sha}")
     return paths, actual_bundle_sha
 
+def _prefetch_source_inputs(config: dict[str, Any], work_dir: Path) -> dict:
+    """Acquire independently and report every transport/byte gate in one review."""
+    sources = config['sources']
+    if len({source['source_key'] for source in sources}) != len(sources):
+        raise ValueError('Duplicate source key before acquisition')
+    inputs, failures = {}, []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        pending = {pool.submit(_acquire_source_input, source, work_dir): source for source in sources}
+        for future in as_completed(pending):
+            source = pending[future]
+            key = source['source_key']
+            try:
+                source_input, actual = future.result()
+                inputs[key] = (source_input, actual)
+                if source.get('approval_mode', 'raw_sha256') == 'raw_sha256' and actual != source['sha256']:
+                    failures.append(f"{key}: approved raw SHA mismatch; expected {source['sha256']}, got {actual}")
+            except Exception as error:
+                # Exception messages from parsers/providers can include row data.
+                # Keep the public diagnosis limited to source identity/error class.
+                code = f' HTTP {error.code}' if isinstance(error, HTTPError) else ''
+                failures.append(f'{key}: {type(error).__name__}{code}')
+    if failures:
+        raise RuntimeError('Source acquisition gates failed; retained local inputs are not discarded:\n' + '\n'.join(sorted(failures)))
+    return inputs
+
+
 def build_registry(config: dict[str, Any], work_dir: Path) -> dict[str, Any]:
     all_records: list[dict[str, Any]] = []
     source_reports: list[dict[str, Any]] = []
+    inputs = _prefetch_source_inputs(config, work_dir)
     for cfg in config["sources"]:
-        source_input, actual_sha = _acquire_source_input(cfg, work_dir)
+        source_input, actual_sha = inputs[cfg['source_key']]
         approval_mode = str(cfg.get("approval_mode") or "raw_sha256")
         if approval_mode not in {"raw_sha256", "semantic_sha256"}:
             raise RuntimeError(f"{cfg['source_key']}: unsupported approval mode {approval_mode!r}")
