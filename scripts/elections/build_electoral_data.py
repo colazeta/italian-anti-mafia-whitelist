@@ -25,6 +25,25 @@ def read(path):
     return list(csv.DictReader(StringIO(content.decode('utf-8-sig'), newline=''))), sha256(content).hexdigest()
 
 
+def read_referendum_2026(path):
+    """Preserve the municipal timestamp in onData's raw Eligendo JSONL."""
+    content = Path(path).read_bytes()
+    observations = [json.loads(line) for line in content.splitlines() if line]
+    municipalities = [item for item in observations if item['livello'] == 'comune' and item['area'] == 'italia']
+    if len(municipalities) != len({item['cod'] for item in municipalities}):
+        raise ValueError('duplicate 2026 municipality')
+    if not municipalities or any(len(item['data']['scheda']) != 1 for item in municipalities):
+        raise ValueError('expected one referendum question per municipality')
+    rows = []
+    for item in municipalities:
+        header, ballot = item['data']['int'], item['data']['scheda'][0]
+        rows.append(dict(cod_prov=str(header['cod_prov']), desc_prov=header['desc_prov'],
+                         municipality_key=item['cod'], sz_tot=str(header['sz_tot']),
+                         sz_perv=str(ballot['sz_perv']) if ballot['sz_perv'] is not None else '',
+                         dt_agg=str(ballot['dt_agg']) if ballot['dt_agg'] is not None else ''))
+    return rows, sha256(content).hexdigest()
+
+
 def _rollup(rows, key):
     groups = defaultdict(list)
     for row in rows:
@@ -141,13 +160,13 @@ def overall_ranking(events):
             item['event_hours'] = {e['id']: {metric: by_event[e['id']][key][metric] for metric in METRICS}
                                    for e in events}
         rows.append(item)
-    return dict(method='Equal-weight mean of within-election provincial percentile midranks (0 fastest, 100 slowest); only provinces complete in all four elections are ranked.',
+    return dict(method=f'Equal-weight mean of within-election provincial percentile midranks (0 fastest, 100 slowest); only provinces complete in all {len(events)} elections are ranked.',
                 elections_required=len(events), provinces=rows)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    for name in ('european', 'camera', 'senate', 'referendum-results', 'referendum-registry', 'referendum-2020', 'output'):
+    for name in ('european', 'camera', 'senate', 'referendum-results', 'referendum-registry', 'referendum-2020', 'referendum-2026', 'output'):
         parser.add_argument('--' + name, required=True)
     a = parser.parse_args()
     euro, eh = read(a.european)
@@ -156,6 +175,7 @@ def main():
     questions, qh = read(a.referendum_results)
     registry, rh = read(a.referendum_registry)
     constitutional, r20h = read(a.referendum_2020)
+    constitutional_2026, r26h = read_referendum_2026(a.referendum_2026)
     lookup = {r['comune']: r for r in registry}
     if len(lookup) != len(registry):
         raise ValueError('duplicate referendum municipality registry key')
@@ -187,6 +207,10 @@ def main():
                         'referendum', r20, datetime(2020, 9, 21, 15),
                         'https://github.com/ondata/elezioni_2020', {'municipal': r20h},
                         'Il voto si è chiuso lunedì alle 15:00; prima dello scrutinio referendario si svolgevano le suppletive dove previste.'))
+    events.append(event('referendum-2026', 'Referendum costituzionale 2026 · giustizia',
+                        'referendum', constitutional_2026, datetime(2026, 3, 23, 15),
+                        'https://github.com/ondata/referendum-download', {'municipal_jsonl': r26h},
+                        'Il voto si è chiuso lunedì alle 15:00. Sardegna: quattro nuovi ambiti provinciali non sono confrontabili con il precedente Sud Sardegna; Sassari ha una sezione non pervenuta nell’estratto.'))
     payload={'schema_version':2,'method':'latest ballot update per municipality and election; sections counted once and inherit the row timestamp; no prefectural attribution',
              'events':events, 'overall':overall_ranking(events)}
     Path(a.output).parent.mkdir(parents=True, exist_ok=True)

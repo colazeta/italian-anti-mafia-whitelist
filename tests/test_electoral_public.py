@@ -8,13 +8,14 @@ from white_list_archive.publishing.public_artifact import validate_electoral
 
 ROOT = Path(__file__).resolve().parents[1]
 combine_ballots = run_path(str(ROOT / "scripts/elections/build_electoral_data.py"))["combine_ballots"]
+read_referendum_2026 = run_path(str(ROOT / "scripts/elections/build_electoral_data.py"))["read_referendum_2026"]
 
 
 def test_electoral_payload_has_one_row_per_election():
     payload = json.loads((ROOT / "public-site/data/electoral.json").read_text(encoding="utf-8"))
     validate_electoral(payload)
     events = {event["id"]: event for event in payload["events"]}
-    assert len(events) == 4
+    assert len(events) == 5
     assert len(events["eu-2024"]["provinces"]) == 107
     assert sum(row["status"] == "complete_in_extract" for row in events["eu-2024"]["provinces"]) == 101
     assert len(events["politiche-2022"]["provinces"]) == 106
@@ -22,10 +23,13 @@ def test_electoral_payload_has_one_row_per_election():
     assert len(events["referendum-2022"]["provinces"]) == 107
     assert sum(row["status"] == "complete_in_extract" for row in events["referendum-2022"]["provinces"]) == 107
     assert events["referendum-2020"]["poll_close_local"] == "2020-09-21T15:00:00"
+    assert events["referendum-2026"]["poll_close_local"] == "2026-03-23T15:00:00"
+    assert len(events["referendum-2026"]["provinces"]) == 110
+    assert sum(row["status"] == "complete_in_extract" for row in events["referendum-2026"]["provinces"]) == 109
     overall = payload["overall"]["provinces"]
-    assert len(overall) == 107
-    assert sum(row["status"] == "complete_in_all" for row in overall) == 94
-    assert all(row["events_complete"] == 4 for row in overall if row["status"] == "complete_in_all")
+    assert len(overall) == 111
+    assert sum(row["status"] == "complete_in_all" for row in overall) == 92
+    assert all(row["events_complete"] == 5 for row in overall if row["status"] == "complete_in_all")
 
 
 def test_incomplete_territories_do_not_receive_a_rank_metric():
@@ -44,6 +48,23 @@ def test_ballots_count_sections_once_and_require_all_to_complete():
     rows = combine_ballots([a, b], lambda r: r['cod_com'])
     assert rows[0]['sz_tot'] == '3' and rows[0]['dt_agg'] == '20220926030000'
     assert rows[1]['sz_tot'] == '2' and rows[1]['sz_perv'] == '' and not rows[1]['dt_agg']
+
+
+def test_2026_reader_uses_municipal_ballot_timestamp_and_ignores_aggregates(tmp_path):
+    municipality = {'livello': 'comune', 'area': 'italia', 'cod': '010020010',
+                    'data': {'int': {'cod_prov': 2, 'desc_prov': 'ALESSANDRIA', 'sz_tot': 3},
+                             'scheda': [{'sz_perv': 2, 'dt_agg': 20260323174402}]}}
+    aggregate = {**municipality, 'livello': 'nazionale'}
+    source = tmp_path / '2026.jsonl'
+    source.write_text('\n'.join(json.dumps(row) for row in (aggregate, municipality)) + '\n')
+    rows, digest = read_referendum_2026(source)
+    assert len(digest) == 64
+    assert rows == [{'cod_prov': '2', 'desc_prov': 'ALESSANDRIA',
+                     'municipality_key': '010020010', 'sz_tot': '3',
+                     'sz_perv': '2', 'dt_agg': '20260323174402'}]
+    source.write_text(json.dumps(municipality) + '\n' + json.dumps(municipality) + '\n')
+    with pytest.raises(ValueError, match='duplicate'):
+        read_referendum_2026(source)
 
 
 @pytest.mark.parametrize('defect', ['score', 'hours', 'coverage', 'infinity', 'hash'])
