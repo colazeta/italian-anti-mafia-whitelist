@@ -2,7 +2,7 @@ name: Persist public edition history
 
 on:
   workflow_run:
-    workflows: ['Public retro portal']
+    workflows: ['Public registry candidate']
     types: [completed]
 
 permissions:

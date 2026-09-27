@@ -60,5 +60,8 @@ def test_frozen_staging_never_uploads_private_source_workspace() -> None:
 
 def test_legacy_publication_remains_separate_during_migration() -> None:
     legacy = LEGACY_WORKFLOW.read_text(encoding="utf-8")
-    assert "white-list-public-national-build" in legacy
+    assert "white-list-public-national-build" not in legacy
+    candidate = (ROOT / ".github/workflows/public-registry-review.yml").read_text()
+    assert "white-list-public-national-build" in candidate
+    assert "deploy-pages" not in candidate
     assert "--release-manifest" not in legacy

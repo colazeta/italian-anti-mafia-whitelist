@@ -7,24 +7,28 @@ La scheda **Tempi elettorali** del portale White List visualizza un dominio di r
 | Consultazione | Perimetro nell'estratto | Province complete |
 | --- | ---: | ---: |
 | Europee 2024 | 107 | 101 |
-| Politiche 2022, Camera | 106 | 100 |
-| Politiche 2022, Senato | 104 | 97 |
-| Referendum abrogativi 2022, quesiti 1–5 | 107 per quesito | 107 per quesito |
+| Politiche 2022, Camera e Senato | 106 | 97 |
+| Referendum abrogativi 2022, cinque quesiti | 107 | 107 |
 | Referendum costituzionale 2020 | 107 | 107 |
+| Referendum costituzionale 2026, giustizia | 110 | 109 |
 
-Il dataset delle politiche 2022 conserva alcuni grandi comuni in più righe di collegio; le sezioni di quelle righe vengono sommate, mentre il numero dei comuni distinti usa il codice Istat. Valle d'Aosta e altre aree con modalità di scrutinio o archiviazione particolari non sono colmate artificialmente nei perimetri Camera/Senato. Ogni quesito referendario 2022 è una consultazione distinta: riunire i cinque `dt_agg` in uno solo cancellerebbe l'ordine dello scrutinio.
+Il dataset delle politiche 2022 conserva alcuni grandi comuni in più righe di collegio: le sezioni di tali righe vengono sommate entro ciascuna camera. Si confrontano poi Camera e Senato per comune; le sezioni si contano una volta sola e si usa il timestamp più tardo dei due rami. I comuni assenti da un ramo o con conteggi incongruenti non vengono dichiarati completi. Per i referendum 2022 si prende il timestamp più tardo dei cinque quesiti in ciascun comune, contando le sezioni una volta sola. Questa scelta rappresenta il completamento dell'intera tornata e conserva nel metodo la presenza di schede successive.
 
 ## Misure e interpretazione
 
-Il tempo zero è la **chiusura delle urne** nella data e ora locale italiana pertinente: 21 settembre 2020 alle 15:00; 12 giugno 2022 alle 23:00; 25 settembre 2022 alle 23:00; 9 giugno 2024 alle 23:00. L'inizio effettivo dello spoglio può essere successivo per riscontro dei votanti e per l'ordine prescritto delle schede: nel 2022 il Senato precede la Camera. Il tempo zero non va interpretato come identico inizio operativo dei diversi scrutini.
+Il tempo zero è la **chiusura delle urne** nella data e ora locale italiana pertinente: 21 settembre 2020 alle 15:00; 12 giugno 2022 alle 23:00; 25 settembre 2022 alle 23:00; 9 giugno 2024 alle 23:00; 23 marzo 2026 alle 15:00. L'inizio effettivo dello spoglio può essere successivo per riscontro dei votanti e per l'ordine prescritto delle schede: nel 2022 il Senato precede la Camera. Il tempo zero non va interpretato come identico inizio operativo dei diversi scrutini.
 
-Per ogni riga comunale o di collegio, il numero delle sezioni è `sz_tot` (nel referendum 2020 `sezioni_totali`), e il timestamp è `dt_agg` (nel 2020 `dataAggiornamentoDati`). Un territorio è classificabile solo quando tutte le righe presenti nell'estratto hanno sezioni pervenute uguali al totale, valori validi e un timestamp. Le altre rimangono visibili fuori classifica.
+Per ogni riga comunale o di collegio, il numero delle sezioni è `sz_tot` (nel referendum 2020 `sezioni_totali`), e il timestamp è `dt_agg` (nel 2020 `dataAggiornamentoDati`). Per il 2026 questi campi provengono rispettivamente da `data.int` e dall'unica `data.scheda` nel file JSONL originale. Un territorio è classificabile solo quando tutte le righe presenti nell'estratto hanno sezioni pervenute uguali al totale, valori validi e un timestamp. Le altre rimangono visibili fuori classifica.
 
 * **Ultimo aggiornamento:** massimo dei timestamp delle righe, espresso in ore dalla chiusura delle urne.
 * **Media ponderata:** somma dei tempi delle righe moltiplicati per il loro numero di sezioni, divisa per le sezioni totali.
 * **90° percentile ponderato:** primo tempo in ordine crescente per cui il peso cumulato raggiunge il 90% delle sezioni.
 
-Le ultime due misure attribuiscono convenzionalmente a **tutte le sezioni di una riga l'orario di aggiornamento della riga**. Non sono tempi rilevati sezione per sezione. Il significato operativo di `dt_agg` non è stato validato sui log SIEL: può includere correzioni posteriori. Il rank è descrittivo dell'estratto; non misura le risorse, l'efficienza o il ritardo imputabile alla Prefettura. Non è previsto un punteggio composito tra consultazioni.
+Le ultime due misure attribuiscono convenzionalmente a **tutte le sezioni di un comune l'orario dell'ultimo aggiornamento della tornata in quel comune**. Non sono tempi rilevati sezione per sezione. Il significato operativo di `dt_agg` non è stato validato sui log SIEL: può includere correzioni posteriori. Il rank è descrittivo dell'estratto; non misura le risorse, l'efficienza o il ritardo imputabile alla Prefettura.
+
+## Classifica complessiva
+
+Per ciascuna delle cinque tornate si ordinano le province complete secondo l'indicatore scelto. La provincia riceve la propria posizione percentuale (0 per la più rapida, 100 per la più lenta; i tempi uguali hanno la posizione media). Il punteggio complessivo è la media delle cinque posizioni percentuali, dando **il 20% a ciascuna tornata**. Il selettore dell'indicatore ricalcola questo punteggio per la media ponderata, il 90° percentile oppure l'ultimo aggiornamento. È classificata solo una provincia completa in tutte e cinque le tornate: 92 su 111 ambiti distinti osservati nell'unione storica. Le altre sono visibili con il numero di tornate utilizzabili, ma senza punteggio. Nel 2026 la fonte registra quattro nuovi ambiti sardi (Gallura Nord-Est Sardegna, Medio Campidano, Ogliastra, Sulcis Iglesiente) e non il precedente Sud Sardegna. Sono mantenuti distinti anziché attribuire retroattivamente dati a confini diversi. Sassari ha 139 sezioni pervenute su 140 nel file sorgente e resta fuori classifica 2026. La media di posizioni attenua differenze nelle durate e nei calendari degli scrutini, senza renderli causalmente confrontabili. Non è una stima delle risorse delle Prefetture.
 
 ## Provenienza e rigenerazione
 
@@ -34,7 +38,12 @@ Sorgenti onData (attribuzione nella pagina; verificare le condizioni di riuso di
 * `https://github.com/ondata/elezioni-politiche-2022` — `affluenza-risultati/dati/risultati/{camera,senato}-italia-comune_anagrafica.csv`;
 * `https://github.com/ondata/elezioni_2022` — `referendum/output/{scrutini.csv,scrutini-anagrafica.csv}`;
 * `https://github.com/ondata/elezioni_2020` — `referendum/output/scrutiniComuni.csv`.
+* `https://github.com/ondata/referendum-download` — `data/20260322/scrutini.jsonl`, revisione `29dfb53509970d744719e04f7ad9bd002cf47b41`, SHA-256 `82d8d53789f153df59618f45aecfe43f20aeeb10bf41b365e099b88eef1378b2`; solo righe comunali italiane, senza aggregati nazionali o voto estero.
 
-Lo script accetta i sei percorsi con le opzioni `--european`, `--camera`, `--senate`, `--referendum-results`, `--referendum-registry`, `--referendum-2020` e l'output `--output public-site/data/electoral.json`. Verificare l'impronta dell'output prima di rigenerarlo con versioni diverse delle sorgenti. I dati finali degli archivi ministeriali non bastano a ricostruire l'istante della **prima** completezza; occorrono snapshot intermedi o log di trasmissione e validazione.
+Lo script accetta i sette percorsi con le opzioni `--european`, `--camera`, `--senate`, `--referendum-results`, `--referendum-registry`, `--referendum-2020`, `--referendum-2026` e l'output `--output public-site/data/electoral.json`. Verificare l'impronta dell'output prima di rigenerarlo con versioni diverse delle sorgenti. I dati finali degli archivi ministeriali non bastano a ricostruire l'istante della **prima** completezza; occorrono snapshot intermedi o log di trasmissione e validazione.
 
 Fonti istituzionali per orari e ordine: [referendum 2020](https://dait.interno.gov.it/elezioni/faq/faq-referendum-2020), [referendum 2022](https://www.interno.gov.it/it/notizie/elezioni-amministrative-e-referendum-indicazioni-operative-voto-e-scrutini), [politiche 2022](https://dait.interno.gov.it/elezioni/faq/faq-elezioni-politiche-2022), [europee 2024](https://www.interno.gov.it/it/notizie/elezioni-2024-affluenza-europee-4969).
+
+## Verifiche dell’audit del 27 settembre 2026
+
+La navigazione carica soltanto i dati della sezione richiesta; il collegamento `#electoral` non scarica il registro delle imprese. I pari merito hanno lo stesso rank (1, 1, 3). Nei territori con schede mancanti o incongruenti il numero di sezioni completate su tutte le schede è `null`, mostrato come “Non determinabile”: non viene inventato uno zero. La completezza e tutte le classifiche restano invariate. Il validatore ricalcola i punteggi complessivi dalle tornate, riconcilia le ore con i timestamp e rifiuta valori non finiti.

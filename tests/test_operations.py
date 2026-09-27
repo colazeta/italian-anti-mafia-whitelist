@@ -91,7 +91,9 @@ def test_new_content_does_not_publish_or_overwrite_the_previous_check(ledger):
 
 
 def test_expansion_prioritises_existing_validated_work_then_actionable_issues(ledger):
+    # First isolate stage/canonical ordering; live operational issues change daily.
     for row in ledger["prefectures"]:
+        row["actionable_issue"] = False
         if row["public_export_enabled"]:
             row["coverage_status"] = "VALIDATED"
     assert priority_queue(ledger)[0]["authority_key"] == "cosenza"
@@ -176,10 +178,12 @@ def test_verified_storage_requires_evidence_and_does_not_authorise_publication(l
 
 
 def test_http_availability_or_incomplete_population_cannot_advance_success(ledger):
-    # Keep this safety invariant attached to an authority that remains at the
-    # source-identified stage. The fixture must not depend on the current primary
-    # expansion Prefecture remaining unadvanced.
-    authority_key = "enna"
+    # Keep this safety invariant independent of whichever Prefecture is currently
+    # being expanded. Any row with no prior successful source check is sufficient:
+    # an incomplete assessment must never create the first success.
+    candidates = [r for r in ledger["prefectures"] if r["last_successful_source_check_at"] is None]
+    assert candidates
+    authority_key = min(r["authority_key"] for r in candidates)
     row = next(r for r in ledger["prefectures"] if r["authority_key"] == authority_key)
     assert row["last_successful_source_check_at"] is None
     for assessment in [None, {}, {**ASSESSMENT, "listed_and_applicant_accounted_for": False}]:
