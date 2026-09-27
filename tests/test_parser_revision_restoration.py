@@ -77,3 +77,15 @@ def test_existing_adapter_bindings_preserve_physical_revision(tmp_path, monkeypa
     path.write_text(json.dumps({'parser':physical+'_unreviewed','parser_version':'7'}))
     with pytest.raises(RuntimeError,match='another parser'):
         build._restore_declared_parser_revisions(registry,config,tmp_path)
+
+
+def test_cosenza_keeps_existing_fully_qualified_parser_provenance(tmp_path, monkeypatch):
+    config = {'sources':[{'source_key':'cosenza-combined','parser':'cosenza_combined_v2'}]}
+    (tmp_path/'cosenza-combined.diagnostics.json').write_text(json.dumps({'parser':'cosenza_combined_v2'}))
+    record = {'source_key':'cosenza-combined','parser_name':'white_list_archive.parsers.cosenza_combined_v2','parser_version':'2'}
+    monkeypatch.setattr(build,'validate_registry',lambda value: None)
+    result = build._restore_declared_parser_revisions(_registry([dict(record)]),config,tmp_path)
+    assert result['records'] == [record]
+    result['records'][0]['parser_name'] = 'white_list_archive.parsers.unrelated'
+    with pytest.raises(RuntimeError,match='identity drift'):
+        build._restore_declared_parser_revisions(result,config,tmp_path)

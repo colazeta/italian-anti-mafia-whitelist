@@ -176,3 +176,6 @@ five existing, reviewed bindings and preserves the declared parser revision; an
 unrelated physical name still fails. Five parameterised regressions cover both
 accepted bindings and rejection of different names. No source counts or source
 facts change because of this correction.
+
+Cosenza’s existing fully qualified record parser name is likewise preserved through
+its explicit adapter binding, with a regression that rejects unrelated module names.

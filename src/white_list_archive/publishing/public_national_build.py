@@ -28,6 +28,7 @@ from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, clie
 # Existing publication adapter keys deliberately differ from their physical
 # parser diagnostic names. Keep the mapping explicit; unrelated identities fail.
 DECLARED_PARSER_IDENTITIES = {
+    'cosenza_combined_v2': 'white_list_archive.parsers.cosenza_combined_v2',
     'ferrara-provincial-listed': 'ferrara_ordinary',
     'ferrara-provincial-applicants': 'ferrara_applicants',
     'ferrara-reconstruction-listed': 'ferrara_reconstruction_bundle',
@@ -172,7 +173,7 @@ def _restore_declared_parser_revisions(registry: dict, config: dict, work_dir: P
         cfg = source_config.get(source_key)
         if cfg is None:
             raise RuntimeError(f"Registry contains unconfigured source_key: {source_key}")
-        if record.get("parser_name") != cfg["parser"]:
+        if record.get("parser_name") not in (cfg['parser'], DECLARED_PARSER_IDENTITIES.get(cfg['parser'], cfg['parser'])):
             raise RuntimeError(f"{source_key}: public record parser identity drift")
         if source_key in declared:
             record["parser_version"] = declared[source_key]
