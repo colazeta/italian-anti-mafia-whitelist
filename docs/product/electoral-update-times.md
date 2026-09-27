@@ -7,12 +7,11 @@ La scheda **Tempi elettorali** del portale White List visualizza un dominio di r
 | Consultazione | Perimetro nell'estratto | Province complete |
 | --- | ---: | ---: |
 | Europee 2024 | 107 | 101 |
-| Politiche 2022, Camera | 106 | 100 |
-| Politiche 2022, Senato | 104 | 97 |
-| Referendum abrogativi 2022, quesiti 1–5 | 107 per quesito | 107 per quesito |
+| Politiche 2022, Camera e Senato | 106 | 97 |
+| Referendum abrogativi 2022, cinque quesiti | 107 | 107 |
 | Referendum costituzionale 2020 | 107 | 107 |
 
-Il dataset delle politiche 2022 conserva alcuni grandi comuni in più righe di collegio; le sezioni di quelle righe vengono sommate, mentre il numero dei comuni distinti usa il codice Istat. Valle d'Aosta e altre aree con modalità di scrutinio o archiviazione particolari non sono colmate artificialmente nei perimetri Camera/Senato. Ogni quesito referendario 2022 è una consultazione distinta: riunire i cinque `dt_agg` in uno solo cancellerebbe l'ordine dello scrutinio.
+Il dataset delle politiche 2022 conserva alcuni grandi comuni in più righe di collegio: le sezioni di tali righe vengono sommate entro ciascuna camera. Si confrontano poi Camera e Senato per comune; le sezioni si contano una volta sola e si usa il timestamp più tardo dei due rami. I comuni assenti da un ramo o con conteggi incongruenti non vengono dichiarati completi. Per i referendum 2022 si prende il timestamp più tardo dei cinque quesiti in ciascun comune, contando le sezioni una volta sola. Questa scelta rappresenta il completamento dell'intera tornata e conserva nel metodo la presenza di schede successive.
 
 ## Misure e interpretazione
 
@@ -24,7 +23,11 @@ Per ogni riga comunale o di collegio, il numero delle sezioni è `sz_tot` (nel r
 * **Media ponderata:** somma dei tempi delle righe moltiplicati per il loro numero di sezioni, divisa per le sezioni totali.
 * **90° percentile ponderato:** primo tempo in ordine crescente per cui il peso cumulato raggiunge il 90% delle sezioni.
 
-Le ultime due misure attribuiscono convenzionalmente a **tutte le sezioni di una riga l'orario di aggiornamento della riga**. Non sono tempi rilevati sezione per sezione. Il significato operativo di `dt_agg` non è stato validato sui log SIEL: può includere correzioni posteriori. Il rank è descrittivo dell'estratto; non misura le risorse, l'efficienza o il ritardo imputabile alla Prefettura. Non è previsto un punteggio composito tra consultazioni.
+Le ultime due misure attribuiscono convenzionalmente a **tutte le sezioni di un comune l'orario dell'ultimo aggiornamento della tornata in quel comune**. Non sono tempi rilevati sezione per sezione. Il significato operativo di `dt_agg` non è stato validato sui log SIEL: può includere correzioni posteriori. Il rank è descrittivo dell'estratto; non misura le risorse, l'efficienza o il ritardo imputabile alla Prefettura.
+
+## Classifica complessiva
+
+Per ciascuna delle quattro tornate si ordinano le province complete secondo l'indicatore scelto. La provincia riceve la propria posizione percentuale (0 per la più rapida, 100 per la più lenta; i tempi uguali hanno la posizione media). Il punteggio complessivo è la media delle quattro posizioni percentuali, dando **il 25% a ciascuna tornata**. Il selettore dell'indicatore ricalcola questo punteggio per la media ponderata, il 90° percentile oppure l'ultimo aggiornamento. È classificata solo una provincia completa in tutte e quattro le tornate: 94 su 107. Le altre sono visibili con il numero di tornate utilizzabili, ma senza punteggio. La media di posizioni attenua differenze nelle durate e nei calendari degli scrutini, senza renderli causalmente confrontabili. Non è una stima delle risorse delle Prefetture.
 
 ## Provenienza e rigenerazione
 
