@@ -798,7 +798,9 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       await page.getByRole('button',{name:'Registro',exact:true}).click();
       await page.locator('#reg-authority').selectOption('bologna');
       await page.locator('#reg-register').selectOption('bologna-post-sisma');
-      assert.ok((await page.locator('#view-registry tbody').innerText()).includes('White List post-sisma'));
+      const registerIdentity=page.locator('#view-registry tbody tr').first().locator('td').nth(4);
+      assert.equal(await registerIdentity.isVisible(),true,'the legal register remains visible at every viewport');
+      assert.ok((await registerIdentity.innerText()).includes('White List post-sisma'));
       assert.deepEqual(errors,[]);
       await page.close();
       console.log(`Public registry, source links, all sections and layout passed at ${width}px`);

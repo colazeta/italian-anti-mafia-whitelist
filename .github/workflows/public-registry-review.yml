@@ -86,6 +86,7 @@ on:
       - 'src/white_list_archive/parsers/enna_combined.py'
       - 'src/white_list_archive/parsers/macerata_tables.py'
       - 'pyproject.toml'
+      - 'tests/public_portal_browser.cjs'
       - '.github/workflows/public-registry-review.yml'
   pull_request:
     paths:
@@ -94,6 +95,7 @@ on:
       - 'data/source_registry/**'
       - 'src/white_list_archive/parsers/**'
       - 'src/white_list_archive/publishing/public_national*'
+      - 'tests/public_portal_browser.cjs'
       - '.github/workflows/public-registry-review.yml'
   workflow_dispatch:
 
