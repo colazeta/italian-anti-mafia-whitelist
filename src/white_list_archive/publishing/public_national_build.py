@@ -298,6 +298,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prefectures-csv", type=Path, required=True)
     parser.add_argument('--preserve-public-source', action='append', default=[],
                         help='Explicitly reuse an unchanged approved public source edition; repeat for each scope.')
+    parser.add_argument('--preserved-public-sources', type=Path,
+                        help='Reviewed JSON list of explicit source keys to preserve from the public snapshot.')
     parser.add_argument('--public-snapshot-manifest', type=Path,
                         help='Hash-pinned public derivative manifest required for explicit public source preservation.')
     parser.add_argument(
@@ -311,6 +313,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Exact executing code revision. Required for frozen replay; defaults to GITHUB_SHA in Actions.",
     )
     args = parser.parse_args(argv)
+    preserved_keys = args.preserve_public_source
+    if args.preserved_public_sources:
+        selected = json.loads(args.preserved_public_sources.read_text(encoding='utf-8'))
+        if not isinstance(selected, list) or any(not isinstance(key, str) for key in selected):
+            parser.error('--preserved-public-sources requires a JSON list of source-key strings')
+        preserved_keys = [*preserved_keys, *selected]
     if args.release_manifest and not args.runtime_code_revision:
         parser.error("--runtime-code-revision is required for frozen release replay outside GitHub Actions")
 
@@ -327,7 +335,7 @@ def main(argv: list[str] | None = None) -> int:
             args.work_dir,
             args.release_manifest,
             runtime_code_revision=args.runtime_code_revision,
-            preserved_source_keys=tuple(args.preserve_public_source),
+            preserved_source_keys=tuple(preserved_keys),
             public_snapshot_manifest=args.public_snapshot_manifest,
         )
         prefectures = build_prefecture_index(

@@ -148,3 +148,13 @@ closed. All other sources still pass their live byte/parser/semantic gates. Unit
 regressions prove reused records and old verification times remain exact, and that
 the reused source is never downloaded or reinterpreted. This allows Enna/Potenza to
 progress independently while Milano's new edition receives its own review.
+
+The reviewed `data/publication/preserved_public_sources.json` explicitly selects 128
+unchanged, single-resource, raw-hash-pinned public editions. The same identity and
+provenance gates used for Milano apply to every selected scope. The other 14 source
+scopes (new/changed, semantic-approval or multi-resource inputs) retain strict live
+construction. Adding or changing a configured source does not silently alter this
+selection; configuration drift fails until the explicit list is reviewed. Reused
+scopes retain their original verification dates and parser provenance. This removes
+unrelated current-URL drift from incremental release composition while preserving
+the separate national original-source archival debt.

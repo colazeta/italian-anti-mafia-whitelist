@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/publication/preserved_public_sources.json'
       - 'data/source_registry/verified_primary_pages.csv'
       - 'data/source_registry/source_series_inventory.csv'
       - 'data/source_registry/national_index_authority_aliases.csv'
@@ -89,6 +90,7 @@ on:
   pull_request:
     paths:
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/publication/preserved_public_sources.json'
       - 'data/source_registry/**'
       - 'src/white_list_archive/parsers/**'
       - 'src/white_list_archive/publishing/public_national*'
@@ -153,7 +155,7 @@ jobs:
             --source-series data/source_registry/source_series_inventory.csv \
             --authority-aliases data/source_registry/national_index_authority_aliases.csv \
             --work-dir /tmp/public-national-sources \
-            --preserve-public-source milano-combined \
+            --preserved-public-sources data/publication/preserved_public_sources.json \
             --public-snapshot-manifest data/publication/public_snapshot.json \
             --registry-json public-site/data/registry.json \
             --registry-csv public-site/data/registry.csv \
@@ -819,10 +821,18 @@ jobs:
           assert any(r.get('identifiers') or r.get('identifier_field_raw') for r in reg['records'])
           assert site['publication']['geography_policy']
 
+          preserved = set(json.loads(Path('data/publication/preserved_public_sources.json').read_text()))
+          assert preserved <= {s['source_key'] for s in reg['meta']['sources']}
           for source in reg['meta']['sources']:
               assert source['document_checked_at']
               assert 'diagnostics' not in source
-              diagnostic = json.loads(Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json').read_text())
+              diagnostic_path = Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json')
+              if source['source_key'] in preserved:
+                  # The builder already verifies exact approved provenance. No
+                  # new parse/check is claimed or fabricated for a reused edition.
+                  assert not diagnostic_path.exists()
+                  continue
+              diagnostic = json.loads(diagnostic_path.read_text())
               assert diagnostic['public_records'] > 0
               assert diagnostic.get('dropped_date_rows', 0) == 0
 
