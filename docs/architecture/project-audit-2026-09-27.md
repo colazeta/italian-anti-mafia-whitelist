@@ -15,6 +15,7 @@ in a clean worktree; earlier working files are preserved.
 | UI-only releases depended on 141 mutable source acquisitions | High | Public releases restore five approved derivatives from versioned GitHub Release assets, using a reviewed SHA-256/size manifest. A source change needs a new reviewed snapshot. |
 | Snapshot workflow depended on the mutable website it overwrote | High | Preserve the previous approved public bytes in release `public-data-2026-09-27-verified`. Only the initial, exact five pinned hashes may bootstrap from Pages. Main deployment requires successful release-asset retrieval. |
 | Navigation waited for the 112 MB registry | High | Attach navigation immediately; fetch data only for the selected section; support `#electoral`; isolate errors and allow retries; prevent late responses from switching views. |
+| Electoral comparison overflowed narrow screens | Medium | Grid columns can shrink; wide data tables scroll inside their panel and chart headings wrap. |
 | Equal electoral values received different ranks | Medium | Competition ranks (1, 1, 3), without mutating the dataset. Filtering preserves the national rank. |
 | Missing ballots appeared as zero reported sections | Medium | Preserve unknown combined completion as null. Display “Non determinabile”; completeness and all scores remain unchanged. |
 | Overall score validation checked ranges only | Medium | Recompute all overall scores, event-hour bindings and coverage; validate source hashes, finite values, counts and timestamp/hour consistency. |
@@ -74,7 +75,7 @@ recovery, all four elections, all indicators and tied ranks. The local Chromium
 download endpoint was unavailable; the GitHub-hosted browser gate is authoritative.
 
 The local source probe recorded 135 acquisition errors, four matching sources,
-one raw change (Milano) and one semantic change (Potenza). The 403 responses in this
+one changed HTTP response (Milano: an anti-bot interstitial, not a valid source table) and one semantic change (Potenza). The 403 responses in this
 execution environment are not evidence that all those official sites are unavailable
 from the production runner. ANNCSU's latest inspected main execution succeeded;
 the earlier 403 is not treated as a permanent source failure.
