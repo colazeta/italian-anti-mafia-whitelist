@@ -1,0 +1,19 @@
+{
+  "analysis_id": "white-list-performance-pilot",
+  "analysis_version": "0.1.0",
+  "status": "experimental_internal_research",
+  "frozen_against_main_commit": "c7eb093569bc4cd1da76e5816d9422e9e3bfeb9a",
+  "source_inputs": {
+    "data/source_registry/territorial_authorities.csv": "a108c7a472ec700a60bed10cd9ef5be22f3ebae0",
+    "data/source_registry/source_series_inventory.csv": "742342910638f0ab06007ad2fde4f0385a83764a",
+    "data/source_registry/pilot_source_profiles.csv": "0b8cdc81b0e79d1a0bfadeb73ec4b58754ed070a",
+    "data/source_registry/cosenza_historical_editions.csv": "1d30f29f2856b290ec4cfdcc4c9c25da003eb575"
+  },
+  "pilot_config_blob": "d09ffeb315f7b93443244eeae0ffcebc0cd3198e",
+  "metric_definitions_blob": "35e501822701736ea50c105eea08594570b3df6f",
+  "notes": [
+    "Eligibility is a research gate, not an administrative fact.",
+    "Only Cosenza is currently marked ready for procedure-spell validation.",
+    "No authority is currently marked ready for clearance/backlog flow validation."
+  ]
+}

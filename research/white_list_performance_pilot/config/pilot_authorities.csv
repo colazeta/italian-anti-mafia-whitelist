@@ -1,0 +1,7 @@
+authority_key,pilot_stage,pilot_role,canonical_ingestion_ready,longitudinal_ingestion_ready,application_date_signal,outcome_signal,longitudinal_signal,priority_notes
+cosenza,execution,anchor,yes,no,yes,yes,strong,"Canonical pipeline exists; recover and ingest the eleven inventoried historical editions before flow/backlog estimates."
+pistoia,onboarding,phase_1,no,no,yes,yes,historical_site,"Separate HTML populations; applicant table exposes requested activity, application date and outcome."
+biella,onboarding,phase_1,no,no,yes,yes,historical_site,"Separate HTML populations; applicant table exposes application date and outcome."
+cagliari,onboarding,phase_1,no,no,yes,yes,multiple_dated_files,"Separate PDFs; applicant side exposes application date/status and listed side exposes renewal/update semantics."
+torino,onboarding,phase_1,no,no,yes,yes,historical_site,"Applicant source has valid application dates; listed side carries procedural annotations and renewal/update states."
+potenza,stress_test,phase_1,no,no,unknown,yes,limited_repeated_capture,"Combined custom application; use to stress-test snapshot transitions. Application-date support must be validated before processing-time use."
