@@ -106,6 +106,12 @@
       "classification": "public_operational_verification",
       "scope": "Only research/white-list-performance-pilot branch; never deployed to the public portal",
       "content_boundary": "Non-identifying aggregate diagnostics, source hashes and official source URLs, discovery eligibility, synthetic-test receipts and already-public research code. No company-level records, source documents or canonical database exports. Experimental diagnostics are not validated administrative-performance estimates."
+    },
+    {
+      "workflow": ".github/workflows/archive-reviewed-sources.yml",
+      "name": "reviewed-source-captures-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/public-actions/reviewed-source-captures.json",
+      "classification": "public_operational_verification"
     }
   ],
   "pages_artifacts": [
