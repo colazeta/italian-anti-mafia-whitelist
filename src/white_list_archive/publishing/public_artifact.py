@@ -20,7 +20,7 @@ PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js"
 def validate_electoral(data: dict) -> None:
     if set(data) != {"schema_version", "method", "events", "overall"} or data["schema_version"] != 2:
         raise ValueError("Unapproved electoral payload")
-    expected = {"eu-2024", "politiche-2022", "referendum-2022", "referendum-2020"}
+    expected = {"eu-2024", "politiche-2022", "referendum-2022", "referendum-2020", "referendum-2026"}
     if {e.get("id") for e in data["events"]} != expected or len(data["events"]) != len(expected):
         raise ValueError("Electoral event coverage mismatch")
     for event in data["events"]:
@@ -61,19 +61,19 @@ def validate_electoral(data: dict) -> None:
     if set(overall) != {"method", "elections_required", "provinces"} or overall["elections_required"] != len(expected):
         raise ValueError("Unapproved overall ranking")
     names = {row["province"] for row in overall["provinces"]}
-    if len(names) != len(overall["provinces"]) or len(names) != 107:
+    if len(names) != len(overall["provinces"]) or len(names) != 111:
         raise ValueError("Overall province coverage mismatch")
     metrics = {"weighted_mean_hours", "weighted_p90_hours", "last_hours"}
     for row in overall["provinces"]:
         if row["status"] == "complete_in_all":
-            if set(row) != {"province", "events_complete", "status", "scores", "event_hours"} or row["events_complete"] != 4:
+            if set(row) != {"province", "events_complete", "status", "scores", "event_hours"} or row["events_complete"] != len(expected):
                 raise ValueError("Invalid overall ranked row")
             if set(row["scores"]) != metrics or set(row["event_hours"]) != expected:
                 raise ValueError("Invalid overall score dimensions")
             if any(not (0 <= score <= 100) for score in row["scores"].values()) or any(set(hours) != metrics for hours in row["event_hours"].values()):
                 raise ValueError("Invalid overall scores")
         elif row["status"] == "incomplete_coverage":
-            if set(row) != {"province", "events_complete", "status"} or not (0 <= row["events_complete"] < 4):
+            if set(row) != {"province", "events_complete", "status"} or not (0 <= row["events_complete"] < len(expected)):
                 raise ValueError("Invalid overall incomplete row")
         else:
             raise ValueError("Unknown overall row status")

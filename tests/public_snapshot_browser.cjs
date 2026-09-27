@@ -17,8 +17,8 @@ const electoral=JSON.parse(fs.readFileSync('public-site/data/electoral.json'));
       await page.goto('http://127.0.0.1:8765/#electoral');
       await page.locator('#electoral-event').waitFor();
       assert.equal(registryRequests,0,'electoral deep link must not download registry');
-      assert.equal(await page.locator('#electoral-event option').count(),5);
-      assert.equal(await page.locator('#view-electoral .electoral-grid tbody tr').count(),107);
+      assert.equal(await page.locator('#electoral-event option').count(),6);
+      assert.equal(await page.locator('#view-electoral .electoral-grid tbody tr').count(),111);
       for(const metric of ['weighted_mean_hours','weighted_p90_hours','last_hours']){
         await page.locator('#electoral-metric').selectOption(metric);
         const scores=await page.locator('.electoral-grid tbody tr').evaluateAll(rows=>rows.map(row=>row.cells[2].textContent).filter(value=>value!=='—').map(value=>Number(value.replace(',','.'))));

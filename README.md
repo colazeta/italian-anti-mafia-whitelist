@@ -199,7 +199,7 @@ The public portal and its JSON/CSV downloads contain reviewed source observation
 
 ## Tempi elettorali (modulo territoriale)
 
-Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md) con **quattro tornate, ciascuna presente una sola volta**: europee 2024, politiche 2022 (Camera e Senato riuniti), referendum costituzionale 2020 e referendum nazionali 2022 (cinque quesiti riuniti). La classifica complessiva assegna lo stesso peso alle quattro tornate; sono disponibili anche le classifiche per tornata e gli indicatori ponderati per numero di sezioni. A parità di valore il rank è uguale; i dati incompleti restano fuori classifica. Dataset, metodo e script sono versionati qui. I timestamp comunali non identificano il tempo di lavoro o le risorse delle Prefetture.
+Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md) con **cinque tornate, ciascuna presente una sola volta**: europee 2024, politiche 2022 (Camera e Senato riuniti), referendum costituzionali 2020 e 2026 e referendum nazionali 2022 (cinque quesiti riuniti). La classifica complessiva assegna lo stesso peso alle cinque tornate; sono disponibili anche le classifiche per tornata e gli indicatori ponderati per numero di sezioni. A parità di valore il rank è uguale; i dati incompleti restano fuori classifica. I nuovi ambiti della Sardegna non sono equiparati automaticamente al precedente Sud Sardegna. Dataset, metodo e script sono versionati qui. I timestamp comunali non identificano il tempo di lavoro o le risorse delle Prefetture.
 
 
 ## Updating the public portal
