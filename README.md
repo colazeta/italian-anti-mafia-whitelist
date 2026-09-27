@@ -210,3 +210,7 @@ Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutin
 - Original bytes, immutable capture provenance, full internal observations and independent recovery remain distinct from public derivative preservation. The protected archive workflow reports object readback and relational persistence separately.
 
 See the [27 September audit and evidence](docs/architecture/project-audit-2026-09-27.md) for fixes, verified operation and remaining dependencies.
+
+## Robot per Prefettura
+
+Ogni autorità ha un [robot dedicato di acquisizione](docs/architecture/prefecture-robots.md), eseguibile singolarmente o nel controllo nazionale giornaliero. La scheda **Robot** del portale mostra configurazione ed esiti; il workflow **Prefecture robots** controlla aggiornamenti e conserva le versioni acquisite. Le fonti e i parser approvati coprono 74 autorità; per le altre 32 resta esplicita la validazione da completare.

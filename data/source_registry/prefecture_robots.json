@@ -1,0 +1,3174 @@
+{
+  "schema_version": 1,
+  "robots": [
+    {
+      "authority_key": "agrigento",
+      "name": "Agrigento",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/agrigento/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "agrigento-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "agrigento_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-iscritte-4-settembre-2026.pdf",
+          "approved_sha256": "23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81"
+        },
+        {
+          "source_key": "agrigento-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "agrigento_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/100/2026-09/elenco-richiedenti-iscrizione-4-settembre-2026.pdf",
+          "approved_sha256": "cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "alessandria",
+      "name": "Alessandria",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "alessandria-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "alessandria_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/white-list-4-settembre-2026.pdf",
+          "approved_sha256": "78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95"
+        },
+        {
+          "source_key": "alessandria-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "alessandria_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/elenco-imprese-richiedenti-iscrizione-in-white-list-4-settembre-2026.pdf",
+          "approved_sha256": "34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "ancona",
+      "name": "Ancona",
+      "region": "Marche",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/ancona/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "ancona-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "ancona_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_wl07-10-2026.pdf",
+          "approved_sha256": "09d5ba7264ee6f0c6170273713881273c5d5a045cc9a4a49de3dd36c3860f88d"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "aosta",
+      "name": "Aosta",
+      "region": "Valle d'Aosta/Vallée d'Aoste",
+      "landing_pages": [
+        "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx",
+        "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx",
+        "https://www.regione.vda.it/prefettura/Antimafia/white_list/informazioni_e_modulistica_i.aspx"
+      ],
+      "allowed_hosts": [
+        "www.regione.vda.it"
+      ],
+      "sources": [
+        {
+          "source_key": "aosta-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "aosta_listed",
+          "url": "https://www.regione.vda.it/allegato.aspx?pk=84307",
+          "approved_sha256": "9e034f0e681d5352fe2c610982ca6726488e31db796e5e3d875e500edd9b18d9"
+        },
+        {
+          "source_key": "aosta-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "aosta_applicants",
+          "url": "https://www.regione.vda.it/allegato.aspx?pk=84309",
+          "approved_sha256": "34a6277e6b956a82d76279c283f6fb8d4fa75c7395b0897a4eefef88448db32a"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "arezzo",
+      "name": "Arezzo",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/arezzo/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/arezzo/iscrizione-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "arezzo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "arezzo_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_iscritte_1.xlsx",
+          "approved_sha256": "9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f"
+        },
+        {
+          "source_key": "arezzo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "arezzo_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_imprese_richiedenti_iscrizione_1.docx",
+          "approved_sha256": "e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "ascoli-piceno",
+      "name": "Ascoli Piceno",
+      "region": "Marche",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/ascoli-piceno/elenco-iscritti-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "ascoli-piceno-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "ascoli_piceno_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/31/2026-08/elenco-degli-iscritti.pdf",
+          "approved_sha256": "5c1e7e6145929162207721d79302a5267524e5b35429234a961eee504b75c43b"
+        },
+        {
+          "source_key": "ascoli-piceno-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "ascoli_piceno_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/31/2026-08/elenco-dei-richiedenti-l-iscrizione.pdf",
+          "approved_sha256": "b278d9eeb3c387ea6b8eb67f5da74a1918eecdac720a400b34e29b626e962453"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "asti",
+      "name": "Asti",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/asti/white-list-provinciali"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "asti-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "asti_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte-iscritte.pdf",
+          "approved_sha256": "8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128"
+        },
+        {
+          "source_key": "asti-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "asti_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/26/2026-09/ditte_in_istruttoria.pdf",
+          "approved_sha256": "ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "avellino",
+      "name": "Avellino",
+      "region": "Campania",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/avellino/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/avellino/white-list-elenco-imprese-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "avellino-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "avellino_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/24/2026-09/per_pubblicazione_iscritte_av_01-09-2026_note.pdf",
+          "approved_sha256": "9ada9195d72ba3b773448df0f0f46bab5efdd72ad7da35236bad389ad860eaf0"
+        },
+        {
+          "source_key": "avellino-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "avellino_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/24/2026-09/per_pubblicazione_richiedenti_iscrizione_av_01-09-2026.pdf",
+          "approved_sha256": "b541e057787e9d26982eb1e87c1233002e88a376e865b637d223c027a6b210be"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "bari",
+      "name": "Bari",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/bari/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "bari-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "bari_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-societa-iscritte_permanenza_31-08-2026.pdf",
+          "approved_sha256": "a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9"
+        },
+        {
+          "source_key": "bari-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "bari_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/whitelist_elenco-richieste-iscrizione_31-08-2026.pdf",
+          "approved_sha256": "9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "barletta-andria-trani",
+      "name": "Barletta-Andria-Trani",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/barletta-andria-trani/white-list-elenco-imprese-richiedenti-liscrizione"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "barletta-andria-trani-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "barletta_andria_trani_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/104/2026-09/white-list-prefettura-di-barletta-andria-trani_1.pdf",
+          "approved_sha256": "d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13"
+        },
+        {
+          "source_key": "barletta-andria-trani-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "barletta_andria_trani_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/104/2026-09/elenco-imprese-rich-iscriz-white-list-prefettura-di-barletta-andria-trani_0.pdf",
+          "approved_sha256": "ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "belluno",
+      "name": "Belluno",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/belluno/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "belluno-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "belluno_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/29/2026-09/white_list_02_09_2026-1.pdf",
+          "approved_sha256": "65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "benevento",
+      "name": "Benevento",
+      "region": "Campania",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/benevento/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/benevento/white-list-elenco-imprese-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "benevento-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "benevento_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-iscritte-31-08-2026.pdf",
+          "approved_sha256": "a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01"
+        },
+        {
+          "source_key": "benevento-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "benevento_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/25/2026-09/elenco-imprese-richiedenti-31-08-2026.pdf",
+          "approved_sha256": "7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "bergamo",
+      "name": "Bergamo",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/bergamo/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "bergamo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "bergamo_positioned_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-iscritte.pdf",
+          "approved_sha256": "b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef"
+        },
+        {
+          "source_key": "bergamo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "bergamo_positioned_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/20/2026-08/elenco-richiedenti-iscrizione.pdf",
+          "approved_sha256": "65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "biella",
+      "name": "Biella",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "biella-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "biella_html_listed",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+          "approved_sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53"
+        },
+        {
+          "source_key": "biella-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "biella_html_applicants",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
+          "approved_sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "bologna",
+      "name": "Bologna",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/bologna/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-post-sisma-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-provinciali-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "bologna-provincial-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "bologna_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscprov-2026-08-14.pdf",
+          "approved_sha256": "50dd5d2a02089c58a09a646e889fdc030b978ddc9a257238a86426fc2691f87c"
+        },
+        {
+          "source_key": "bologna-provincial-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "bologna_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/ricprov-2026-08-14.pdf",
+          "approved_sha256": "bfa91cd9b4d3f802b71ae569c3dc9d9169924b3793bfb79c87f2b7b6a946046c"
+        },
+        {
+          "source_key": "bologna-post-sisma-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "bologna_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscpost-2026-08-14.pdf",
+          "approved_sha256": "2a615ccb14807b295762fe63ed39f7cc3c9c00353fe8af044324e561f85fb40e"
+        },
+        {
+          "source_key": "bologna-post-sisma-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "bologna_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/ricpost-2026-08-14.pdf",
+          "approved_sha256": "a4f13eed748040e4aa524b969ec27752065373544064bd5687c8389567509409"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "bolzano-bozen",
+      "name": "Bolzano/Bozen",
+      "region": "Trentino-Alto Adige/Südtirol",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/bolzano/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "bolzano-bozen-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "bolzano_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-white-list-da-sez-1-a-sez-10_iscritti-rinnovi.docx",
+          "approved_sha256": "96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04"
+        },
+        {
+          "source_key": "bolzano-bozen-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "bolzano_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/2026.09.11-elenco-richiesta-iscrizione-wl.docx",
+          "approved_sha256": "8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "brescia",
+      "name": "Brescia",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "brescia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "brescia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-iscritte-10-settembre-2026.xlsx",
+          "approved_sha256": "509e6724de2d4d63f403e254236ec2c5b77077d676ee8c17382464d5c9da07a7"
+        },
+        {
+          "source_key": "brescia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "brescia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-ditte-richiedenti-l-iscrizione-10-settembre-2026.xlsx",
+          "approved_sha256": "0ab15af0f0f2838aa162177cbc07b91f3d7d80b561ca490611b8ec368c595f34"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "brindisi",
+      "name": "Brindisi",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/brindisi/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "brindisi-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "brindisi_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white-list-elenco-imprese-iscritte_1.pdf",
+          "approved_sha256": "11d33d62f5e40139d4869e5f39752b1a69686bb064e46446161929fd84eeb06a"
+        },
+        {
+          "source_key": "brindisi-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "brindisi_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/23/2026-09/white_list_della_provincia_di_brindisi-elenco_delle_imprese_richiedenti_l-iscrizione_0.pdf",
+          "approved_sha256": "1153781d3bf17b6cfc6513c90f8e083edf3a432fe6be382c4a1ffde9845f9e1b"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "cagliari",
+      "name": "Cagliari",
+      "region": "Sardegna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/cagliari/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "cagliari-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "cagliari_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-iscritte-al-06-settembre-2026.pdf",
+          "approved_sha256": "dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114"
+        },
+        {
+          "source_key": "cagliari-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "cagliari_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-elenco-ditte-richiedenti-iscrizione-al-06-settembre-2026.pdf",
+          "approved_sha256": "7429040f5945ecb72cc7b152dbd8aaeee0e0a5df9bb7414e951a4cec4a4f50f7"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "caltanissetta",
+      "name": "Caltanissetta",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/caltanissetta/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "caltanissetta-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "caltanissetta_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-iscritte-nella-white-list_09.09.2026.pdf",
+          "approved_sha256": "539285d8096c25c3f1d38ba7bb0d4cc33eb10e6de5ca24b268b1c7d2f31abb74"
+        },
+        {
+          "source_key": "caltanissetta-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "caltanissetta_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/19/2026-09/elenco-delle-imprese-richiedenti-iscrizione-nella-white-list_09.09.2026.pdf",
+          "approved_sha256": "7c8b43dee53dc478d4a59d7e3d60763155814551cfc88811a398d82433d84954"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "campobasso",
+      "name": "Campobasso",
+      "region": "Molise",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/campobasso/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "campobasso-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "campobasso_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/21/2026-08/11-agosto-2026-elenco-delle-imprese-non-soggette-a-tentativo-di-infilt.xlsx",
+          "approved_sha256": "9d07423eb023025e1dd318c610a205f287a4bee165e4f7fe34e2448f8d91d2a1"
+        },
+        {
+          "source_key": "campobasso-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "campobasso_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/21/2026-08/11-agosto-2026-elenco-delle-imprese-richiedenti-l-iscrizione.docx",
+          "approved_sha256": "6b1b1f877a0ae5fe68d2472034975914723626a553257d4978296b3632a635ba"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "caserta",
+      "name": "Caserta",
+      "region": "Campania",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/caserta/elenco-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "caserta-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "caserta_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-09/elenco-iscritti-31082026_white-list.pdf",
+          "approved_sha256": "d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a"
+        },
+        {
+          "source_key": "caserta-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "caserta_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/30/2026-08/elenco_imprese_richiedenti_iscrizione_white_list-al-31.08.2026.pdf",
+          "approved_sha256": "90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "catania",
+      "name": "Catania",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "catania-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "catania_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
+          "approved_sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291"
+        },
+        {
+          "source_key": "catania-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "catania_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
+          "approved_sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "catanzaro",
+      "name": "Catanzaro",
+      "region": "Calabria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/catanzaro/provvedimenti-whitelist-elenchi"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "catanzaro-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "catanzaro_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditteiscritteinwhitelistal10092026.pdf",
+          "approved_sha256": "8578a1b2d3ef0e2d71f1133381082d63d131182fd1b74c456cffe708ed94df7f"
+        },
+        {
+          "source_key": "catanzaro-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "catanzaro_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elencoditterichiedentiiscrizioneinwhitelistal10092026.pdf",
+          "approved_sha256": "8c5b0ea684b20f0893016e4a528bac57fb2b05c40aa9669340bdf7bd7dab115c"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "chieti",
+      "name": "Chieti",
+      "region": "Abruzzo",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/chieti/elenco-imprese-richiedenti-liscrizione-nelle-white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/chieti/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/chieti/white-list-albo-iscritti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "chieti-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "chieti_legacy_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/82/2026-09/elenco-iscritti-white-list-18-settembre-2026.doc",
+          "approved_sha256": "09c9b3ae1b1f4145c2a3795738a8d80d872c9816752cedb31b34cd730d801ddd"
+        },
+        {
+          "source_key": "chieti-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "chieti_legacy_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/82/2026-09/elenco-richiedenti-iscrizione-in-white-list-18-settembre-2026.doc",
+          "approved_sha256": "2628230c417cf7b961d4a22490ba04f1b548c512782bd19a211890e11df54dc1"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "como",
+      "name": "Como",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "como-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "como_html_listed",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
+          "approved_sha256": "276fcec3a27893b0b57af24ff8d69ebb64338fd5bc955e4722bd48eb33535413"
+        },
+        {
+          "source_key": "como-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "como_html_applicants",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+          "approved_sha256": "a4ed63b8e04a277af0221288c40552027437c31064d89ddbc44da432eada42c7"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "cosenza",
+      "name": "Cosenza",
+      "region": "Calabria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "cosenza-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "cosenza_combined_v2",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
+          "approved_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "cremona",
+      "name": "Cremona",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/cremona/evidenza/white-list-elenco-ditte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "cremona-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "cremona_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/22/2026-09/white-list-elenchi-ditte_3.pdf",
+          "approved_sha256": "55a9498a76120f0b781f9c7ae8da7144c141551598b63a98b0bc52caac79a550"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "crotone",
+      "name": "Crotone",
+      "region": "Calabria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/crotone/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "crotone-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "crotone_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-iscritte-white-list-2.pdf",
+          "approved_sha256": "c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511"
+        },
+        {
+          "source_key": "crotone-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "crotone_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/ditte-con-richiesta-iscrizione-white-list-2.pdf",
+          "approved_sha256": "af66ff6bf6a173c4156fef3e7741ca26956769e399285764123ef8405097e6d1"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "cuneo",
+      "name": "Cuneo",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/cuneo/elenco-iscritti-white-liste-e-elenco-richiedenti-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "cuneo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "cuneo_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-iscritti-white-list_0.pdf",
+          "approved_sha256": "3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7"
+        },
+        {
+          "source_key": "cuneo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "cuneo_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/39/2026-09/elenco-richiedenti-iscrizione_0.pdf",
+          "approved_sha256": "25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "enna",
+      "name": "Enna",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/enna/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "enna-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "enna_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-enna_3.pdf",
+          "approved_sha256": "1a5dc0bc8cd6eef69724c1afe767108abdecc325f7f01e8ef80620cca0d622c6"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "fermo",
+      "name": "Fermo",
+      "region": "Marche",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/fermo/white-list-elenco-imprese-richiedenti-e-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "fermo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "fermo_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-iscritte-wl-22-maggio-2026_0.xlsx",
+          "approved_sha256": "2ed8f867c6ee477ec0af22a827ac0ccf54e4d483eec5de5fc27c812a0c31c6dd"
+        },
+        {
+          "source_key": "fermo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "fermo_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-05/imprese-richiedenti-iscrizione-wl-22-maggio-2026.xlsx",
+          "approved_sha256": "fa17e1f6676f84dc51e8abd1fd6e7627a1a2ed684a55c490708a06990e48676f"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "ferrara",
+      "name": "Ferrara",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/ferrara/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-elenco-imprese-richiedenti",
+        "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "ferrara-provincial-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "ferrara-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-provinciali-elenco-imprese-iscritte-agg11112024_0.pdf",
+          "approved_sha256": "0d631e678b7f85bb84d265b09b8de6fcffa09cc4a49b84be37c6c1d7b9dcd6d9"
+        },
+        {
+          "source_key": "ferrara-provincial-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "ferrara-provincial-applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/white-list-elenco-imprese-richiedenti_0.pdf",
+          "approved_sha256": "c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "A",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf",
+          "approved_sha256": "4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "B",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf",
+          "approved_sha256": "97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "C",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf",
+          "approved_sha256": "99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "D",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf",
+          "approved_sha256": "07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "E",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf",
+          "approved_sha256": "9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "F",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf",
+          "approved_sha256": "ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "part": "G",
+          "population_scope": "listed",
+          "parser": "ferrara-reconstruction-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf",
+          "approved_sha256": "0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "firenze",
+      "name": "Firenze",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/firenze/white-list-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "firenze-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "firenze_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/42/2026-09/white_list_09-09-2026.xlsx",
+          "approved_sha256": "bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0"
+        },
+        {
+          "source_key": "firenze-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "firenze_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/42/2026-09/elenco-rich-w.l-al-09.09.26.pdf",
+          "approved_sha256": "6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "foggia",
+      "name": "Foggia",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/foggia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "foggia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "foggia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/white-list-elenco-imprese-iscritte-aggiornato_al-08-09-2026-copia.pdf",
+          "approved_sha256": "313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a"
+        },
+        {
+          "source_key": "foggia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "foggia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/43/2026-09/elenco_delle_imprese_richiedenti_iscrizione_elenco_fornitori_agg_10-09-2026.pdf",
+          "approved_sha256": "d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "forli-cesena",
+      "name": "Forlì-Cesena",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/forli-cesena/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "forli-cesena-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "forli_cesena_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/44/2026-09/wlp-al-11-09-2026.pdf",
+          "approved_sha256": "f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "frosinone",
+      "name": "Frosinone",
+      "region": "Lazio",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/frosinone/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "frosinone-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "frosinone_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-societa-iscritte-white-list-al-2-settembre-2026-aggiornato.pdf",
+          "approved_sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71"
+        },
+        {
+          "source_key": "frosinone-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "frosinone_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/9/2026-09/elenco-ric-iscr-white-list-aggiornato-al-2-settembre-2026-ordine-alfabetico-ok.pdf",
+          "approved_sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "genova",
+      "name": "Genova",
+      "region": "Liguria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/genova/elenco-imprese-iscritte-white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "genova-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "genova_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/wl-10-09-26.pdf",
+          "approved_sha256": "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403"
+        },
+        {
+          "source_key": "genova-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "genova_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/sez-richiedenti-10-09-26.pdf",
+          "approved_sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "gorizia",
+      "name": "Gorizia",
+      "region": "Friuli-Venezia Giulia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/gorizia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "gorizia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "gorizia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/gorizia-elenco-ditte-iscritte-wl.docx",
+          "approved_sha256": "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d"
+        },
+        {
+          "source_key": "gorizia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "gorizia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/2026.08-white-list-ditte-richiedenti-iscrizione.pdf",
+          "approved_sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "grosseto",
+      "name": "Grosseto",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/grosseto/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "grosseto-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "grosseto_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-iscritte-white-list.xlsx",
+          "approved_sha256": "4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18"
+        },
+        {
+          "source_key": "grosseto-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "grosseto_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/45/2026-09/imprese-richiedenti-iscrizione.xlsx",
+          "approved_sha256": "814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "imperia",
+      "name": "Imperia",
+      "region": "Liguria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/imperia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "imperia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "imperia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/46/2026-09/elenco-ditte-iscritte-white-list_3.xlsx",
+          "approved_sha256": "9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f"
+        },
+        {
+          "source_key": "imperia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "imperia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/46/2026-08/elenco-delle-ditte-che-hanno-presentato-istanza-di-iscrizione-nelle-white-lists_2.doc",
+          "approved_sha256": "e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "isernia",
+      "name": "Isernia",
+      "region": "Molise",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/isernia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "laquila",
+      "name": "L'Aquila",
+      "region": "Abruzzo",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/laquila/white-list-elenchi-imprese"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "laquila-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "laquila_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-nella-white-list-nuovo-07_0.pdf",
+          "approved_sha256": "15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453"
+        },
+        {
+          "source_key": "laquila-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "laquila_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-iscrizione-nuovo-07_0.pdf",
+          "approved_sha256": "dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "la-spezia",
+      "name": "La Spezia",
+      "region": "Liguria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/spezia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "latina",
+      "name": "Latina",
+      "region": "Lazio",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/latina/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "lecce",
+      "name": "Lecce",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/lecce/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "lecce-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "lecce_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-white-list-per-categoria-aggiornato-9-settembre-2026.pdf",
+          "approved_sha256": "acbe7b735107d48735bc8d01902fc73d49f00e6d8d6ef11dc0c1f9dfd344765d"
+        },
+        {
+          "source_key": "lecce-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "lecce_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/49/2026-09/elenco-richiedenti-iscrizione-aggiornato-9-settembre-2026.pdf",
+          "approved_sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "lecco",
+      "name": "Lecco",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/lecco/white-list-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "lecco-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "lecco_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_a-attivita-elenco-ditte-non-soggette-a-tentativo-infiltr_mafiosa_2.pdf",
+          "approved_sha256": "80c439521cf2bd4062b54fff3646666487367f0f8b47c1a91a6c8f62bcf8e5bc"
+        },
+        {
+          "source_key": "lecco-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "lecco_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/56/2026-09/all_b-attivita-elenco-ditte-richiedenti-iscrizione_2.pdf",
+          "approved_sha256": "7c24e015342cc2cb61cf4b5bf726621c8b3b90b195cd91c40942fc3ef6b6ba5b"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "livorno",
+      "name": "Livorno",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/livorno/white-list-0"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "lodi",
+      "name": "Lodi",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "docs.google.com",
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "lodi-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "lodi_listed",
+          "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv",
+          "approved_sha256": "0cb78eec4e7c902a9ec9e6fa3b64ef52c276a2de32cd86cba3e59cf68775d945"
+        },
+        {
+          "source_key": "lodi-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "lodi_applicants",
+          "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=245180329&single=true&output=csv",
+          "approved_sha256": "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "lucca",
+      "name": "Lucca",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/lucca/elenco-imprese-iscritte-e-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "lucca-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "lucca_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-iscritte-agg-l-40-del-2020-al-11-settembre-2026.pdf",
+          "approved_sha256": "d5a0f11c68a0a3dfb01d10b30f35130c7899795bb46e0239226ad5ea575b5c67"
+        },
+        {
+          "source_key": "lucca-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "lucca_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-imprese-richiedenti-agg-l-40-del-2020-al-08-settembre-2026.pdf",
+          "approved_sha256": "fd9cdc163e09c411ce5fd1f716d85811a15503f3527ac0f5abdaec909de4f084"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "macerata",
+      "name": "Macerata",
+      "region": "Marche",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/macerata/white-list-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "macerata-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "macerata_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/52/2026-08/iscrizioni-21.08.2026.pdf",
+          "approved_sha256": "7b1518847ea0bcc6bd76bd354ded1ae0e0cc7e7092cb9b7077dbcc689bfe1bce"
+        },
+        {
+          "source_key": "macerata-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "macerata_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/52/2026-08/presentazioni-21.08.2026.pdf",
+          "approved_sha256": "4d432d015c09060967da156d9ee54718645a22a623656c6def5a9fc58367aa17"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "mantova",
+      "name": "Mantova",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/mantova/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "massa-carrara",
+      "name": "Massa-Carrara",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/massa-carrara/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "matera",
+      "name": "Matera",
+      "region": "Basilicata",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/matera/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "matera-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "matera_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/54/2026-08/iscritte-luglio-2026.xlsx",
+          "approved_sha256": "4a2a3fad0711f9d3c159d78c93210983b9f1699c2810d8154b60d8fc5d958d3f"
+        },
+        {
+          "source_key": "matera-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "matera_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/54/2026-08/elenco-richiedenti-iscrizione.xlsx",
+          "approved_sha256": "e4dae926800d1c513e1274b8ae45267337987eaa5b62b1581cbbcc56f6da898c"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "messina",
+      "name": "Messina",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/messina/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "messina-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "messina_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-whitelist-iscritte-tutte-le-sezioni-online-11.09.2026.pdf",
+          "approved_sha256": "cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e"
+        },
+        {
+          "source_key": "messina-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "messina_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richieste-iscrizione-white-list-11.09.2026.pdf",
+          "approved_sha256": "852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "milano",
+      "name": "Milano",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/milano/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it",
+        "whitelist.prefmi.it"
+      ],
+      "sources": [
+        {
+          "source_key": "milano-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "milano_combined",
+          "url": "https://whitelist.prefmi.it/elenco/elenco.php",
+          "approved_sha256": "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "modena",
+      "name": "Modena",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/modena/white-list-elenchi-provinciali-ed-elenchi-ricostruzione-post-sisma"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "modena-provincial-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "modena_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritti-elenchi-wl-provinciali.pdf",
+          "approved_sha256": "84f7ffa41f8e14b7cb1b3f5817d46e20c721b43a1a77280955999be331f2380a"
+        },
+        {
+          "source_key": "modena-provincial-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "modena_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedenti-iscrizione-elenchi-wl-provinciali.pdf",
+          "approved_sha256": "323c1dace295b50f4baff85545879be920dc05ef9072f34b4d98449acf11f79f"
+        },
+        {
+          "source_key": "modena-post-sisma-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "modena_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/iscritti-elenchi-wl-ricostruzione-post-sisma_5.pdf",
+          "approved_sha256": "658e24f8342c04dc8c16dba8d4e3660c16fbff89722507a30dfba1d9a43274d0"
+        },
+        {
+          "source_key": "modena-post-sisma-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "modena_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/richiedenti-iscrizione-elenchi-wl-ricostruzione-post-sisma_3.pdf",
+          "approved_sha256": "e21f47c956dd355fc2400ef110916349632ad6f31eb7878c99a3d05834eb5bf1"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "monza-e-della-brianza",
+      "name": "Monza e della Brianza",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/monza-e-brianza/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "napoli",
+      "name": "Napoli",
+      "region": "Campania",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/napoli/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/napoli/white-list-elenco-imprese-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "napoli-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "napoli_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/whitelistprefnapoli_11_settembre_26.pdf",
+          "approved_sha256": "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be"
+        },
+        {
+          "source_key": "napoli-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "napoli_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/79/2026-09/ditterichiedenti_wl_11_settembre_26.pdf",
+          "approved_sha256": "053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "novara",
+      "name": "Novara",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/novara/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "nuoro",
+      "name": "Nuoro",
+      "region": "Sardegna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/nuoro/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "oristano",
+      "name": "Oristano",
+      "region": "Sardegna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/oristano/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "padova",
+      "name": "Padova",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/padova/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/padova/white-list-elenco-imprese-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "padova-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "padova_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-iscritte.pdf",
+          "approved_sha256": "d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289"
+        },
+        {
+          "source_key": "padova-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "padova_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/75/2026-08/elenco-imprese-richiedenti.pdf",
+          "approved_sha256": "b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "palermo",
+      "name": "Palermo",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/palermo/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "palermo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "palermo_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/61/2026-09/whitelistelencounicoimpreseiscritte_10.pdf",
+          "approved_sha256": "2349d3ae3dcd37e5da7fc5fdec1326a9408e00fcc0b3b78b0a0809ad75c0837f"
+        },
+        {
+          "source_key": "palermo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "palermo_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/61/2026-09/elencoimpreserichiedentiliscrizione-1_0.pdf",
+          "approved_sha256": "82dd288c21c85ea563c75cbfc8346c528b603e54c3a78283a0ae67983e97f2f5"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "parma",
+      "name": "Parma",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/parma/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "parma-operational",
+          "part": "main",
+          "population_scope": "operational_mixed",
+          "parser": "parma_operational",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-white-list-iscritte-5-settembre-2026-1.pdf",
+          "approved_sha256": "f433f212755b91762b0ca75f5e2677c36e0a3b316c507a834e642b51b4260bec"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pavia",
+      "name": "Pavia",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pavia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "perugia",
+      "name": "Perugia",
+      "region": "Umbria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "perugia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "perugia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
+          "approved_sha256": "c9cd39452fb2f751c2b9e105c10ecf0b9e57569006138af7f766d6851748029f"
+        },
+        {
+          "source_key": "perugia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "perugia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
+          "approved_sha256": "003e2ee6614302b1a1f8a504baae2b0c5d38752c70cfb509f693e1b4c1374f14"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pesaro-e-urbino",
+      "name": "Pesaro e Urbino",
+      "region": "Marche",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pesaro-urbino/white-list-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "pesaro-urbino-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "pesaro_urbino_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/72/2026-08/elenco-wl-ditte-iscritte-31.08.2026.pdf",
+          "approved_sha256": "7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pescara",
+      "name": "Pescara",
+      "region": "Abruzzo",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pescara/elenco-imprese-richiedenti-liscrizione-nelle-white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/pescara/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "pescara-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "pescara_legacy_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-2026.doc",
+          "approved_sha256": "6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239"
+        },
+        {
+          "source_key": "pescara-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "pescara_legacy_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco_richiedenti_white-list_04.09.2026.doc",
+          "approved_sha256": "2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "piacenza",
+      "name": "Piacenza",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/piacenza/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "piacenza-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "piacenza_legacy_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/65/2026-09/ditte-white-list-copia_2.zip",
+          "approved_sha256": "e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8"
+        },
+        {
+          "source_key": "piacenza-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "piacenza_legacy_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/65/2026-02/elenco_imprese_richiedenti_l-iscrizione_nell-elenco_dei_fornitori-prestatori_di_servizi_ed_esecutori_di_lavori_non_soggetti_a_tentativi_di_infiltrazione_mafiosa-i.zip",
+          "approved_sha256": "99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pisa",
+      "name": "Pisa",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pisa/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/pisa/white-list-elenco-imprese-iscritte-e-richiedenti-iscrizione"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "pisa-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "pisa_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/iscritte.pdf",
+          "approved_sha256": "30eea93e542aea6ceb13bcfd4e3f1358e1c3f9cfb274b23e738dfb304b1dea23"
+        },
+        {
+          "source_key": "pisa-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "pisa_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/richiedente-iscrizione.pdf",
+          "approved_sha256": "ed3bbf19670dbed899f6386836f4723898e4c20f9315e4d4297156fd1dcd6b12"
+        },
+        {
+          "source_key": "pisa-renewal-update",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "pisa_renewal_update",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/in-aggiornamento.pdf",
+          "approved_sha256": "8658cd2e6048c44de18687b3933980778dd36bbf3721cd944063f61c0e2ceedb"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pistoia",
+      "name": "Pistoia",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pistoia/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/pistoia/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/pistoia/white-list-elenco-imprese-richiedenti-liscrizione"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "pistoia-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "pistoia_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/58/2026-08/elenco_aziende-iscritte_white_list_21.08.pdf",
+          "approved_sha256": "f26819f1ebe6b3217a2055d793b5cfdc60380c8ed4d17fe8097fdab356de8c86"
+        },
+        {
+          "source_key": "pistoia-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "pistoia_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/58/2026-08/elenco_aziende_richiedenti_iscrizione_white_list_21.08.pdf",
+          "approved_sha256": "4045086a335fd80e4f493c9a0e6aca73fa58ca491e5c04a42f007879661bd965"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "pordenone",
+      "name": "Pordenone",
+      "region": "Friuli-Venezia Giulia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/pordenone/white-list-elenco-ditte-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "I",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-i-estrazione-fornitura-etc_0.pdf",
+          "approved_sha256": "f4e6374e5e03daa25daedd49ada730ae39c6b77437e763e3c0308aa0a0c627de"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "II",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ii-confezionamento-fornitura-etc_0.pdf",
+          "approved_sha256": "62d63a080b3025e2ee2f37c3af1d486f12095be8f83e73cae611e2ca56bf84d5"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "III",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iii-noli-a-freddo-di-macchinari.pdf",
+          "approved_sha256": "2204fe651b733e32fe13f001c97fd2c6a93ccd9a846cc9f4ddd40d4f471e6ce9"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "IV",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iv-fornitura-di-ferro-lavorato_0.pdf",
+          "approved_sha256": "55a1edd7bcc52de101536c42091e14e040892cf1122462c36b37a861c48eeb62"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "V",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-v-noli-a-caldo_0.pdf",
+          "approved_sha256": "4fcd95954d20ba19ffcfb11e64a911a637056ba2fd794d47c5d3f19171f77803"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "VI",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vi-autotrasporti-per-conto-terzi_1.pdf",
+          "approved_sha256": "62c39abfc260ecacf59b0201867263499643fe5dc36c95500e380fa53deb87aa"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "VII",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vii-guardiania-dei-cantieri.pdf",
+          "approved_sha256": "35c5ef5ddb218e50d1f5a56007f2c1886ac73b6a91c5a13fb37e4b7f4952d2c8"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "VIII",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-08/sez-viii-servizi-funerari-e-cimiteriali.pdf",
+          "approved_sha256": "cac3354a388d87b3f7ee1fef965f7b9968d2fea4dfcbafa776fc175bee5d96b3"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "IX",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ix-ristorazione-mense-e-catering.pdf",
+          "approved_sha256": "a3b7c0b749be947692cb6ebb031e21e6c2e61913f34c1ad9f4741f3a7b9e96fa"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "part": "X",
+          "population_scope": "listed",
+          "parser": "pordenone-provincial-listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-x-servizi-ambientali-trasporto-rifiuti-etc_0.pdf",
+          "approved_sha256": "af639b5c55ff31893bfd3906876e0c60e1e6614065efae1e5c7871ac62290c0f"
+        },
+        {
+          "source_key": "pordenone-provincial-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "pordenone-provincial-applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-xi-elenco-imprese-richiedenti_edit_0.pdf",
+          "approved_sha256": "b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "potenza",
+      "name": "Potenza",
+      "region": "Basilicata",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/potenza/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/potenza/white-list",
+        "https://www.utgpotenza.it/_whitelist.php"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it",
+        "www.utgpotenza.it"
+      ],
+      "sources": [
+        {
+          "source_key": "potenza-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "potenza_combined",
+          "url": "https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0",
+          "approved_sha256": "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "prato",
+      "name": "Prato",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-richiedenti-iscrizione",
+        "https://prefettura.interno.gov.it/it/prefetture/prato/white-list-utg-prato"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "prato-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "prato_openxml_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/78/2026-09/white_list_iscritti-21-09-2026.xlsx",
+          "approved_sha256": "f3d5644d57f9162d35de7f7f972deecda969824324d1b82c3cb3c21cac99c540"
+        },
+        {
+          "source_key": "prato-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "prato_legacy_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/78/2026-09/elenco-imprese-richiedenti-iscrizione-21-09-2026.doc",
+          "approved_sha256": "cbf5c84522db544adb495272ebe170d105d35a9131e1853396b0584b7865a27d"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "ragusa",
+      "name": "Ragusa",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/ragusa/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "ravenna",
+      "name": "Ravenna",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/ravenna/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "ravenna-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "ravenna_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/64/2026-09/nuova_tabella_unica_17-sett-2026.pdf",
+          "approved_sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "reggio-calabria",
+      "name": "Reggio Calabria",
+      "region": "Calabria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/reggio-calabria/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "reggio-emilia",
+      "name": "Reggio Emilia",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/reggio-emilia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "rieti",
+      "name": "Rieti",
+      "region": "Lazio",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/rieti/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "rimini",
+      "name": "Rimini",
+      "region": "Emilia-Romagna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/rimini/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "roma",
+      "name": "Roma",
+      "region": "Lazio",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/roma/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/roma/white-list-elenco-imprese-richiedenti-iscrizione"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "roma-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "roma_positioned_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-iscritte-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf",
+          "approved_sha256": "8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af"
+        },
+        {
+          "source_key": "roma-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "roma_positioned_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/57/2026-09/elenco-imprese-richiedenti-iscrizione-alla-white-list-aggiornato-alla-data-di-pubblicazione.pdf",
+          "approved_sha256": "9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "rovigo",
+      "name": "Rovigo",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/rovigo/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "salerno",
+      "name": "Salerno",
+      "region": "Campania",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/salerno/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "sassari",
+      "name": "Sassari",
+      "region": "Sardegna",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/sassari/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "sassari-combined",
+          "part": "main",
+          "population_scope": "listed_and_applicant",
+          "parser": "sassari_combined",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/93/2026-08/2026-elenco-provinciale-aggiornato-al-31.08.2026.xlsx",
+          "approved_sha256": "e5cf9776971e4c0b46b97c56e2764f906bd07e3d573ac07b59fcd6605ab9c370"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "savona",
+      "name": "Savona",
+      "region": "Liguria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/savona/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "siena",
+      "name": "Siena",
+      "region": "Toscana",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/siena/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "siracusa",
+      "name": "Siracusa",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/siracusa/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "siracusa-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "siracusa_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/10/2026-09/elenco-societa-iscritte-in-white-list-e-indicate-in-sezioni_02092026.pdf",
+          "approved_sha256": "90e6bc87e6a3c6cfc46871473565fae8858d252e4be7787915a21978b0b963a9"
+        },
+        {
+          "source_key": "siracusa-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "siracusa_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/10/2026-09/societa-richiedenti-iscrizione-white-list-provinciale_31082026.pdf",
+          "approved_sha256": "c2e49fa6dc16da383c017b1c4ebed7c493d8013d53ea58d813fe4b4187375ba2"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "sondrio",
+      "name": "Sondrio",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/sondrio/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "taranto",
+      "name": "Taranto",
+      "region": "Puglia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "taranto-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "taranto_html_listed",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+          "approved_sha256": "545d6db44a8f68ec1e9ef460a4a8129e64d77385bfab318f8d050051219643c9"
+        },
+        {
+          "source_key": "taranto-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "taranto_html_applicants",
+          "url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+          "approved_sha256": "ade85a5326dc8aa99c4cc2695bad87aee897964cd4c10c59b665793ec3d900f6"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "teramo",
+      "name": "Teramo",
+      "region": "Abruzzo",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/teramo/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "terni",
+      "name": "Terni",
+      "region": "Umbria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/terni/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "torino",
+      "name": "Torino",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/torino/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "torino-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "torino_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/90/2026-09/w.l-11.09.2026.pdf",
+          "approved_sha256": "5c8341cd984de01f6472e049b9fa22569798ebc41761e6f85763796c8a90ba0d"
+        },
+        {
+          "source_key": "torino-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "torino_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/90/2026-09/w.l-11.09.2026-i.pdf",
+          "approved_sha256": "f84d6da09090d557ba85cd216bc1e4962935f0f43ddb2614e77995b613ed2f51"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "trapani",
+      "name": "Trapani",
+      "region": "Sicilia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/trapani/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "trapani-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "trapani_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-iscritte-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf",
+          "approved_sha256": "060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476"
+        },
+        {
+          "source_key": "trapani-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "trapani_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/97/2026-09/elenco-ditte-richiedenti-iscrizione-negli-elenchi-delle-white-list-aggiornato-all-11.09.2026.pdf",
+          "approved_sha256": "d42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "trento",
+      "name": "Trento",
+      "region": "Trentino-Alto Adige/Südtirol",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/trento/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/trento/white-list-elenco-imprese-richiedenti"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "trento-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "trento_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-iscritte-11-settembre-2026.pdf",
+          "approved_sha256": "b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af"
+        },
+        {
+          "source_key": "trento-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "trento_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/86/2026-09/imprese-richiedenti-10-settembre-2026.pdf",
+          "approved_sha256": "9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "treviso",
+      "name": "Treviso",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/treviso/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "trieste",
+      "name": "Trieste",
+      "region": "Friuli-Venezia Giulia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/trieste/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "udine",
+      "name": "Udine",
+      "region": "Friuli-Venezia Giulia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "udine-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "udine_positioned_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-ditte-iscritte-nelle-white-list_0.pdf",
+          "approved_sha256": "0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba"
+        },
+        {
+          "source_key": "udine-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "udine_positioned_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/13/2026-09/elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_0.pdf",
+          "approved_sha256": "4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "varese",
+      "name": "Varese",
+      "region": "Lombardia",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/varese/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "venezia",
+      "name": "Venezia",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/venezia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "verbano-cusio-ossola",
+      "name": "Verbano-Cusio-Ossola",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/verbano-cusio-ossola/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "vercelli",
+      "name": "Vercelli",
+      "region": "Piemonte",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/vercelli/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "verona",
+      "name": "Verona",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/verona/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "vibo-valentia",
+      "name": "Vibo Valentia",
+      "region": "Calabria",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/vibo-valentia/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "vicenza",
+      "name": "Vicenza",
+      "region": "Veneto",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/vicenza/evidenza/white-list"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [],
+      "population_mapping_reviewed": false,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    },
+    {
+      "authority_key": "viterbo",
+      "name": "Viterbo",
+      "region": "Lazio",
+      "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/viterbo/elenco-imprese-richiedenti-iscrizione-elenco-imprese-iscritte"
+      ],
+      "allowed_hosts": [
+        "prefettura.interno.gov.it"
+      ],
+      "sources": [
+        {
+          "source_key": "viterbo-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "viterbo_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/87/2026-09/iscritte_4.pdf",
+          "approved_sha256": "ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78"
+        },
+        {
+          "source_key": "viterbo-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "viterbo_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/87/2026-09/richiedenti_4.pdf",
+          "approved_sha256": "a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545"
+        }
+      ],
+      "population_mapping_reviewed": true,
+      "discovery_source": "data/monitoring/national_coverage.json",
+      "max_depth": 2,
+      "max_requests": 60,
+      "time_budget_seconds": 150
+    }
+  ]
+}

@@ -51,6 +51,7 @@ async function activate(name){
   view.innerHTML='<div class="note" role="status">Caricamento dei dati della sezione… Puoi già usare il menu.</div>';
   try{
     if(name==='electoral')await renderElectoral();
+    else if(name==='robots')await renderRobots();
     else{
       const dependencies={prefectures:['prefectures'],quality:['site'],registry:['site','registry','prefectures'],statistics:['registry'],history:['site','registry','history'],method:['site','registry','prefectures']}[name];
       await Promise.all(dependencies.map(loadData));
@@ -163,7 +164,7 @@ function drawRegistry(){
   ].filter(([key])=>counts[key]).map(([key,label])=>option(key,`${label} (${fmt(counts[key])})`,registryState.status)).join('');
   $('#view-registry').innerHTML=
     `<div class="public-banner">${fmt(archiveSummary(REGISTRY,PREFECTURES).authorities)} Prefetture con dati pubblicati · ${fmt(REGISTRY.records.length)} presenze negli elenchi · Edizione più recente disponibile: ${esc(displayDate(archiveSummary(REGISTRY,PREFECTURES).latest))}</div>`+
-    `<p>Questo archivio raccoglie gli elenchi White List pubblicati dalle Prefetture. Cerca un’impresa e apri la sua scheda per consultare l’elenco ufficiale.</p><p><b>Territorio coperto:</b> ${authorities.map(([,name])=>esc(name)).join(' · ')}.</p>`+
+    `<p>Cerca un’impresa e apri la sua scheda per consultare i dati e l’elenco ufficiale.</p><details class="coverage"><summary>Territori coperti (${authorities.length} Prefetture)</summary><p>${authorities.map(([,name])=>esc(name)).join(' · ')}.</p></details>`+
     section('RICERCA NEL REGISTRO',`<div class="toolbar">
       <label for="reg-q">Cerca</label><input id="reg-q" type="search" value="${esc(registryState.query)}" placeholder="Ragione sociale, CF/P.IVA, sede, attività…">
       <label for="reg-authority">Prefettura</label><select id="reg-authority">${option('all','Tutte',registryState.authority)}${authorities.map(([k,v])=>option(k,v,registryState.authority)).join('')}</select>
@@ -201,10 +202,16 @@ function openDetail(locator){
     ${section('FONTE E RIFERIMENTI',`<table class="summary"><tr><th>Pagina ufficiale</th><td><a href="${esc(r.source_page_url)}" target="_blank" rel="noopener">Consulta la pagina ufficiale</a></td></tr><tr><th>Risorsa ufficiale</th><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr><tr><th>Impronta del documento (SHA-256)</th><td class="mono">${esc(r.capture_sha256)}</td></tr><tr><th>Parser</th><td class="mono">${esc(r.parser_name)} ${esc(r.parser_version||'')}</td></tr><tr><th>Audit tecnico</th><td><a href="${esc(SITE.audit.repository_url)}" target="_blank" rel="noopener">Repository</a> · <a href="${esc(SITE.audit.parser_url)}" target="_blank" rel="noopener">Parser</a></td></tr></table>`)}`;
   $('#detail').classList.add('open');
   $('#detail').setAttribute('aria-hidden','false');
+  detailPreviousFocus=document.activeElement;
+  $('.window').inert=true;
+  $('#detail-close').focus();
 }
+let detailPreviousFocus=null;
 function closeDetail(){
   $('#detail').classList.remove('open');
   $('#detail').setAttribute('aria-hidden','true');
+  $('.window').inert=false;
+  detailPreviousFocus?.focus();
 }
 
 function prefectureRows(){
@@ -278,11 +285,19 @@ async function fetchJson(path){
   return response.json();
 }
 async function main(){
+  new MutationObserver(()=>enhanceTables()).observe($('.content'),{childList:true,subtree:true});
   $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
   $('#detail-close').addEventListener('click',closeDetail);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
-  window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
+  window.addEventListener('hashchange',()=>{if(location.hash==='#main-content'){$('#main-content').focus();return}activate(location.hash.slice(1))});
   await activate(location.hash.slice(1)||'registry');
+}
+function enhanceTables(){
+  $$('.gridwrap').forEach(wrap=>{wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','Tabella consultabile: scorri per vedere tutte le colonne')});
+  $$('.registry-grid table').forEach(table=>{
+    const labels=[...table.querySelectorAll('thead th')].map(th=>th.textContent);
+    table.querySelectorAll('tbody tr').forEach(row=>[...row.cells].forEach((cell,i)=>{cell.dataset.label=labels[i]||''}));
+  });
 }
 main();
 

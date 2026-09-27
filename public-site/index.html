@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Vai al contenuto</a>
   <div class="desktop">
     <main class="window" aria-labelledby="app-title">
       <header class="titlebar">
@@ -18,6 +19,7 @@
       <nav class="menubar" aria-label="Sezioni del portale">
         <button class="tab active" data-view="registry">Registro</button>
         <button class="tab" data-view="prefectures">Prefetture</button>
+        <button class="tab" data-view="robots">Robot</button>
         <button class="tab" data-view="statistics">Statistiche</button>
         <button class="tab" data-view="electoral">Tempi elettorali</button>
         <button class="tab" data-view="history">Storico</button>
@@ -25,10 +27,11 @@
         <button class="tab secondary" data-view="quality">Qualità dei dati</button>
       </nav>
 
-      <div class="content">
+      <div class="content" id="main-content" tabindex="-1">
         <noscript><div class="note bad">Questo portale richiede JavaScript per caricare il dataset pubblico.</div></noscript>
         <section class="view active" id="view-registry" aria-live="polite"></section>
         <section class="view" id="view-prefectures"></section>
+        <section class="view" id="view-robots"></section>
         <section class="view" id="view-statistics"></section>
         <section class="view" id="view-electoral"></section>
         <section class="view" id="view-history"></section>
@@ -46,14 +49,15 @@
     </main>
   </div>
 
-  <aside class="detail" id="detail" aria-hidden="true">
-    <div class="detail-title"><span id="detail-title">Dettaglio osservazione</span><button class="btn" id="detail-close" type="button">X</button></div>
+  <aside class="detail" id="detail" role="dialog" aria-modal="true" aria-labelledby="detail-title" aria-hidden="true">
+    <div class="detail-title"><span id="detail-title">Dettaglio osservazione</span><button class="btn" id="detail-close" aria-label="Chiudi scheda" type="button">×</button></div>
     <div class="detail-body" id="detail-body"></div>
   </aside>
 
   <script src="summary.js"></script>
   <script src="history.js"></script>
   <script src="electoral.js"></script>
+  <script src="robots.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

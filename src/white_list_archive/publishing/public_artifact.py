@@ -11,10 +11,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from white_list_archive.publishing.public_history import validate_history_registry
+from white_list_archive.publishing.public_robots import validate_public_robots
 from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_national_registry import write_registry_csv, write_prefecture_csv
 
-PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js", "electoral.js", "data/electoral.json", "data/history.json", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
+PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js", "electoral.js", "robots.js", "data/robots.json", "data/electoral.json", "data/history.json", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
 
 
 def validate_electoral(data: dict) -> None:
@@ -133,6 +134,7 @@ def validate_artifact(root: Path) -> None:
     history = json.loads((root / "data/history.json").read_text(encoding="utf-8"))
     validate_history_registry(history, registry)
     validate_electoral(json.loads((root / "data/electoral.json").read_text(encoding="utf-8")))
+    validate_public_robots(json.loads((root / "data/robots.json").read_text(encoding="utf-8")))
     prefectures = json.loads((root / "data/prefectures.json").read_text())
     if set(prefectures) != {"meta", "prefectures"}:
         raise ValueError("Unapproved directory payload")
