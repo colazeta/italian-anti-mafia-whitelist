@@ -149,12 +149,22 @@ regressions prove reused records and old verification times remain exact, and th
 the reused source is never downloaded or reinterpreted. This allows Enna/Potenza to
 progress independently while Milano's new edition receives its own review.
 
-The reviewed `data/publication/preserved_public_sources.json` explicitly selects 128
-unchanged, single-resource, raw-hash-pinned public editions. The same identity and
-provenance gates used for Milano apply to every selected scope. The other 14 source
-scopes (new/changed, semantic-approval or multi-resource inputs) retain strict live
+The reviewed `data/publication/preserved_public_sources.json` explicitly selects 136
+unchanged single-resource public editions (128 raw-hash approvals and eight
+independently recomputed approved semantic digests). The same identity and
+provenance gates used for Milano apply to every selected scope. The other six source
+scopes (new/changed, legacy parser provenance or multi-resource inputs) retain strict live
 construction. Adding or changing a configured source does not silently alter this
 selection; configuration drift fails until the explicit list is reviewed. Reused
 scopes retain their original verification dates and parser provenance. This removes
 unrelated current-URL drift from incremental release composition while preserving
 the separate national original-source archival debt.
+
+The incremental real candidate also exposed Taranto listed-source semantic drift
+(run 36341850295): expected `27211daaa4734c29bc0f48d9a86e229d04671a150fcad997b8045d997e6bab92`,
+observed `80d220362fcc571d40eec8736b6c4c53dce2318a7993899e950040d8ba50b84e`.
+The released Taranto observations independently recompute to the approved digest.
+They are now explicitly preserved with their original raw digest/check date; the
+new response is queued for independent archival capture and substantive review.
+The same check binds Aosta, Biella and Como's preserved semantic editions. Any
+changed observation fails before acquisition. No unreviewed semantic hash is adopted.

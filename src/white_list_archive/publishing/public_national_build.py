@@ -19,6 +19,7 @@ from white_list_archive.publishing.public_snapshot import restore
 from white_list_archive.publishing.public_national_registry import (
     build_prefecture_index,
     build_registry,
+    _semantic_digest,
     write_prefecture_csv,
     write_registry_csv,
 )
@@ -243,13 +244,17 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
     preserved_records, preserved_reports = [], []
     for key in keys:
         cfg = by_key[key]
-        if cfg.get('approval_mode', 'raw_sha256') != 'raw_sha256' or cfg.get('resources'):
-            raise ValueError(f'{key}: public preservation requires one explicitly byte-pinned resource')
+        approval_mode = cfg.get('approval_mode', 'raw_sha256')
+        if approval_mode not in {'raw_sha256', 'semantic_sha256'} or cfg.get('resources'):
+            raise ValueError(f'{key}: public preservation requires one resource and a supported approval mode')
         reports = [s for s in approved['meta']['sources'] if s['source_key'] == key]
         if len(reports) != 1:
             raise ValueError(f'{key}: approved public edition is absent or ambiguous')
         report = reports[0]
-        for field in ('source_key', 'authority_key', 'register_key', 'population_scope', 'reference_date', 'sha256', 'parser'):
+        identity_fields = ('source_key', 'authority_key', 'register_key', 'population_scope', 'reference_date', 'parser')
+        if approval_mode == 'raw_sha256':
+            identity_fields += ('sha256',)
+        for field in identity_fields:
             if report.get(field) != cfg.get(field):
                 raise ValueError(f'{key}: preserved edition differs from configured {field}')
         if not report.get('document_checked_at'):
@@ -257,6 +262,11 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
         records = [r for r in approved['records'] if r['source_key'] == key]
         if not records or (cfg.get('expected_source_rows') is not None and len(records) != cfg['expected_source_rows']):
             raise ValueError(f'{key}: preserved observation count differs from reviewed configuration')
+        if approval_mode == 'semantic_sha256' and _semantic_digest(records) != cfg.get('semantic_sha256'):
+            # Preserve only a projection that independently recomputes to the
+            # configured approved semantics. Its actual original raw digest stays
+            # bound to the verified snapshot and records, never to today's URL.
+            raise ValueError(f'{key}: preserved observations differ from approved semantic digest')
         for record in records:
             for field in ('authority_key', 'register_key', 'population_scope', 'reference_date', 'source_page_url', 'resource_url'):
                 if record.get(field) != cfg.get(field):

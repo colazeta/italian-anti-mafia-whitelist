@@ -76,3 +76,20 @@ def test_no_automatic_fallback_or_mixing_with_original_replay(monkeypatch, tmp_p
             build._build_registry_from_selected_inputs(config, tmp_path, frozen,
                 preserved_source_keys=keys, public_snapshot_manifest=path)
     assert calls == []
+
+
+def test_semantic_edition_requires_recomputed_approved_projection(monkeypatch, tmp_path):
+    config, approved, calls, manifest = setup(monkeypatch, tmp_path)
+    cfg = config['sources'][0]
+    cfg.update(approval_mode='semantic_sha256', sha256='b'*64,
+               semantic_sha256=build._semantic_digest(approved['records']))
+    result = build._build_registry_from_selected_inputs(config, tmp_path, None,
+        preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert result['records'][1] == approved['records'][0]
+    assert result['meta']['sources'][1]['sha256'] == 'a'*64
+    calls.clear()
+    approved['records'][0]['name'] = 'Unapproved changed observation'
+    with pytest.raises(ValueError, match='semantic digest'):
+        build._build_registry_from_selected_inputs(config, tmp_path, None,
+            preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert calls == []

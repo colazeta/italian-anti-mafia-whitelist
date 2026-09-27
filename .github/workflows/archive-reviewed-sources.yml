@@ -40,7 +40,7 @@ jobs:
       - name: Preserve affected scopes before any subsequent data promotion
         run: |
           python scripts/audit_source_archive.py \
-            --source-keys potenza-combined milano-combined enna-combined \
+            --source-keys potenza-combined milano-combined enna-combined taranto-listed taranto-applicants \
             --work-dir /tmp/private-reviewed-sources \
             --output /tmp/public-actions/reviewed-source-captures.json
       - name: Retain safe capture receipts
