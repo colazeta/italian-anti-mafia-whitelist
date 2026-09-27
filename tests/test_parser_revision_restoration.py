@@ -56,3 +56,36 @@ def test_parser_identity_drift_fails_closed(tmp_path, monkeypatch):
 
     with pytest.raises(RuntimeError, match="another parser"):
         build._restore_declared_parser_revisions(registry, config, tmp_path)
+
+
+@pytest.mark.parametrize('adapter,physical', [
+    ('ferrara-provincial-listed','ferrara_ordinary'),
+    ('ferrara-provincial-applicants','ferrara_applicants'),
+    ('ferrara-reconstruction-listed','ferrara_reconstruction_bundle'),
+    ('pordenone-provincial-listed','pordenone_listed_bundle'),
+    ('pordenone-provincial-applicants','pordenone_applicants'),
+])
+def test_existing_adapter_bindings_preserve_physical_revision(tmp_path, monkeypatch, adapter, physical):
+    config = {'sources':[{'source_key':'reviewed', 'parser':adapter}]}
+    path = tmp_path/'reviewed.diagnostics.json'
+    path.write_text(json.dumps({'parser':physical,'parser_version':'7'}))
+    registry = _registry([{'source_key':'reviewed','parser_name':adapter,'parser_version':'1'}])
+    monkeypatch.setattr(build,'validate_registry',lambda value: None)
+    result = build._restore_declared_parser_revisions(registry,config,tmp_path)
+    assert result['records'][0]['parser_version'] == '7'
+    assert result['records'][0]['parser_name'] == adapter
+    path.write_text(json.dumps({'parser':physical+'_unreviewed','parser_version':'7'}))
+    with pytest.raises(RuntimeError,match='another parser'):
+        build._restore_declared_parser_revisions(registry,config,tmp_path)
+
+
+def test_cosenza_keeps_existing_fully_qualified_parser_provenance(tmp_path, monkeypatch):
+    config = {'sources':[{'source_key':'cosenza-combined','parser':'cosenza_combined_v2'}]}
+    (tmp_path/'cosenza-combined.diagnostics.json').write_text(json.dumps({'parser':'cosenza_combined_v2'}))
+    record = {'source_key':'cosenza-combined','parser_name':'white_list_archive.parsers.cosenza_combined_v2','parser_version':'2'}
+    monkeypatch.setattr(build,'validate_registry',lambda value: None)
+    result = build._restore_declared_parser_revisions(_registry([dict(record)]),config,tmp_path)
+    assert result['records'] == [record]
+    result['records'][0]['parser_name'] = 'white_list_archive.parsers.unrelated'
+    with pytest.raises(RuntimeError,match='identity drift'):
+        build._restore_declared_parser_revisions(result,config,tmp_path)
