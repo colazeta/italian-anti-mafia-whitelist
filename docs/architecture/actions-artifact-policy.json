@@ -94,9 +94,16 @@
       "classification": "deliberately_public_publication"
     }
   ],
-  "pages_artifact": {
-    "workflow": ".github/workflows/public-pages.yml",
-    "path": "public-site",
-    "classification": "deliberately_public_publication"
-  }
+  "pages_artifacts": [
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "path": "public-site",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-pages-electoral-snapshot.yml",
+      "path": "public-site",
+      "classification": "deliberately_public_publication"
+    }
+  ]
 }
