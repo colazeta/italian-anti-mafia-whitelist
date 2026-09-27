@@ -7,7 +7,7 @@ from urllib.error import HTTPError
 import pytest
 
 from white_list_archive.acquisition.prefecture_robots import (
-    digest, discover_links, generate_catalog, run_robot, validate_catalog,
+    digest, discover_links, generate_catalog, published_sheet_redirect, run_robot, validate_catalog,
 )
 from test_archive_first_replay import store
 
@@ -183,3 +183,25 @@ def test_pending_page_preserves_depth_across_runs():
     second = run_robot(r, first, fetch=nested, pause=0)
     assert second['pending_urls'] == []
     assert pages[2] not in called
+
+
+def test_regional_site_navigation_does_not_leave_white_list_section():
+    page = 'https://www.regione.vda.it/prefettura/Antimafia/white_list/default_i.aspx'
+    html = b'<a href="/Portale_imprese/default_i.asp">Imprese</a><a href="/sanita/elenco_i.asp">Elenco allerte</a><a href="/allegato.aspx?pk=123">Elenco imprese</a><a href="elenco_imprese_white_list_i.aspx">Iscritti</a>'
+    docs, pages, external = discover_links(html, page, ['www.regione.vda.it'])
+    assert docs == ['https://www.regione.vda.it/allegato.aspx?pk=123']
+    assert pages == ['https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx']
+    assert external == []
+
+
+def test_published_sheet_export_redirect_is_narrowly_scoped():
+    source = 'https://docs.google.com/spreadsheets/d/e/reviewed-publication/pub?gid=0&output=csv'
+    target = 'https://doc-10-c0-sheets.googleusercontent.com/pub/export'
+    assert published_sheet_redirect(source, target, ['docs.google.com'])
+    assert not published_sheet_redirect(source, target, ['prefettura.example'])
+    assert not published_sheet_redirect(source.replace('output=csv', 'output=html'), target, ['docs.google.com'])
+    assert not published_sheet_redirect(source.replace('/pub?', '/edit?'), target, ['docs.google.com'])
+    for bad in [target.replace('https:', 'http:'), target.replace('.com/', '.com.evil.example/'),
+                target.replace('/pub/', '/other/'), target.replace('https://', 'https://user@'),
+                target.replace('doc-10-c0-sheets', 'other')]:
+        assert not published_sheet_redirect(source, bad, ['docs.google.com'])

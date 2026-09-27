@@ -68,6 +68,7 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       if(width<=600){
         assert.equal(await page.locator('.registry-grid .grid').evaluate(el=>el.scrollWidth<=el.parentElement.clientWidth),true);
         assert.ok(await page.locator('#reg-q').evaluate(el=>el.getBoundingClientRect().height>=44));
+        assert.equal(await page.locator('.registry-grid .clickrow').first().locator('td').nth(4).isVisible(),true,'register identity remains visible on mobile cards');
       }
       await page.screenshot({path:`test-results/registry-${width}.png`,fullPage:false});
       await page.locator('#view-registry .clickrow').first().press('Enter');

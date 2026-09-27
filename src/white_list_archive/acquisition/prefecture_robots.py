@@ -17,7 +17,7 @@ from pathlib import Path
 import re
 import time
 from urllib.error import HTTPError
-from urllib.parse import urldefrag, urljoin, urlsplit
+from urllib.parse import parse_qs, urldefrag, urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from white_list_archive.acquisition.archive_first import archive_payload
@@ -25,7 +25,7 @@ from white_list_archive.acquisition.archive_first import archive_payload
 ROOT = Path(__file__).resolve().parents[3]
 CATALOG = Path('data/source_registry/prefecture_robots.json')
 USER_AGENT = 'WhiteListResearchRobot/1.0 (+https://github.com/colazeta/italian-anti-mafia-whitelist)'
-DOCUMENT = re.compile(r'\.(pdf|xlsx?|docx?|csv|zip)(?:$|\?)', re.I)
+DOCUMENT = re.compile(r'\.(pdf|xlsx?|docx?|csv|zip)(?:$|\?)|/allegato\.aspx?(?:$|\?)', re.I)
 RELEVANT = re.compile(r'white[ _-]*list|elenc|iscritt|richied|istanze|imprese|sezion|aggiornat', re.I)
 EXCLUDE = re.compile(r'modulistica|modello|fac.?simile|informativa|privacy|autocertific|istruzioni', re.I)
 
@@ -116,7 +116,8 @@ def discover_links(data, page_url, hosts):
             # The Ministry shares an origin across all authorities. Do not let
             # its national menu make one robot crawl another Prefecture.
             local = re.match(r'(/it/prefetture/[^/]+/)', urlsplit(page_url).path)
-            if local and not urlsplit(url).path.startswith(local.group(1)):
+            local = local or re.match(r'(.*/white[ _-]*list/)', urlsplit(page_url).path, re.I)
+            if local and not urlsplit(url).path.lower().startswith(local.group(1).lower()):
                 continue
             pages.add(url)
     return sorted(documents), sorted(pages), sorted(external)
@@ -126,9 +127,24 @@ class ReviewedRedirect(HTTPRedirectHandler):
     def __init__(self, hosts):
         self.hosts = hosts
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if not allowed(newurl, self.hosts):
+        if not allowed(newurl, self.hosts) and not published_sheet_redirect(req.full_url, newurl, self.hosts):
             raise ValueError('Redirect outside configured HTTPS origins; review required')
         return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def published_sheet_redirect(source, destination, hosts):
+    """Allow the observed Google Sheets CSV export hop, not arbitrary Google URLs.
+
+    Lodi's reviewed CSV publications return 307 to rotating doc-*-sheets hosts.
+    This rule applies only to a configured docs.google.com publication export
+    and its HTTPS /pub/ download; discovery still uses the exact origin list.
+    """
+    old, new = urlsplit(source), urlsplit(destination)
+    return bool(allowed(source, hosts) and old.hostname == 'docs.google.com'
+                and re.fullmatch(r'/spreadsheets/d/e/[A-Za-z0-9_-]+/pub', old.path)
+                and parse_qs(old.query).get('output') == ['csv']
+                and re.fullmatch(r'doc-[a-z0-9-]+-sheets\.googleusercontent\.com', new.hostname or '')
+                and allowed(destination, [new.hostname]) and new.path.startswith('/pub/'))
 
 
 def fetch_url(url, previous, hosts, force=False):
