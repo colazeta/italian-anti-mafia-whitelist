@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           args=(--authority "$AUTHORITY" --mode "$MODE" --shard "$SHARD" --shards "$SHARDS"
-                --state /tmp/robot-previous.json --output /tmp/robot-report/report.json)
+                --state /tmp/robot-previous.json --output /tmp/public-actions/robot-report/report.json)
           # Weekly full-byte verification supplements conditional HTTP requests.
           if [ "$FORCE" = true ] || [ "$(date -u +%u)" = 7 ]; then args+=(--force); fi
           python -m white_list_archive.acquisition.prefecture_robots "${args[@]}"
@@ -113,7 +113,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: robot-report-${{ matrix.shard }}
-          path: /tmp/robot-report/report.json
+          path: /tmp/public-actions/robot-report/report.json
           if-no-files-found: warn
           retention-days: 14
   state:
