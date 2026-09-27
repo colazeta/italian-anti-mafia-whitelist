@@ -15,9 +15,9 @@ def test_lodi_source_and_record_denominators_are_frozen() -> None:
 
 
 def test_lodi_content_identity_and_observation_date_are_frozen() -> None:
-    assert lodi._LISTED_REFERENCE_DATE == "2026-09-18"
+    assert lodi._LISTED_REFERENCE_DATE == "2026-09-27"
     assert lodi._APPLICANT_REFERENCE_DATE == "2026-09-21"
-    assert lodi._LISTED_SHA256 == "a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e"
+    assert lodi._LISTED_SHA256 == "0cb78eec4e7c902a9ec9e6fa3b64ef52c276a2de32cd86cba3e59cf68775d945"
     assert lodi._APPLICANT_SHA256 == "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16"
 
 
@@ -35,12 +35,12 @@ def test_lodi_listed_section_and_status_boundaries_are_frozen() -> None:
         "X": 39,
     }
     assert lodi._EXPECTED_LISTED_SOURCE_STATUS_COUNTS == {
-        "listed": 251,
-        "renewal_update_in_progress": 40,
+        "listed": 252,
+        "renewal_update_in_progress": 39,
     }
     assert lodi._EXPECTED_LISTED_STATUS_COUNTS == {
-        "listed": 144,
-        "renewal_update_in_progress": 25,
+        "listed": 145,
+        "renewal_update_in_progress": 24,
     }
     assert lodi._EXPECTED_APPLICANT_STATUS_COUNTS == {
         "rejected_or_denied": 2,

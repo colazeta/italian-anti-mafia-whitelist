@@ -130,12 +130,13 @@ def test_operational_artifacts_cannot_upload_internal_bundles():
         ), item
 
 
-def test_pages_artifact_is_only_the_deliberate_public_site():
+def test_pages_artifacts_are_only_the_deliberate_public_site():
     policy = json.loads(POLICY.read_text(encoding="utf-8"))
-    expected = policy["pages_artifact"]
-    assert _pages_upload_paths() == [(expected["workflow"], expected["path"])]
-    assert expected["path"] == "public-site"
-    assert expected["classification"] == "deliberately_public_publication"
+    expected = policy["pages_artifacts"]
+    assert _pages_upload_paths() == sorted((item["workflow"], item["path"]) for item in expected)
+    assert len(expected) == 2
+    assert all(item["path"] == "public-site" for item in expected)
+    assert all(item["classification"] == "deliberately_public_publication" for item in expected)
 
 
 def test_pistoia_public_verification_drops_rows_urls_and_provider_coordinates(tmp_path: Path):

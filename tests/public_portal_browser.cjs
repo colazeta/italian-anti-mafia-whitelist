@@ -556,7 +556,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(lodi.length,175);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-listed').length,169);
       assert.equal(lodi.filter(r=>r.source_key==='lodi-applicants').length,6);
-      assert.deepEqual(statusCounts(lodi),{listed:144,pending:4,rejected_or_denied:2,renewal_update_in_progress:25});
+      assert.deepEqual(statusCounts(lodi),{listed:145,pending:4,rejected_or_denied:2,renewal_update_in_progress:24});
       assert.deepEqual(lodi.filter(r=>r.source_status==='rejected_or_denied').map(r=>r.decision_date).sort(),['2021-06-17','2022-11-17']);
       assert.equal(lodi.filter(r=>r.name==='ARS CHEMICA S.r.l.'&&r.identifier_field_raw==='04087190965'&&r.application_date==='2026-09-18'&&r.source_status==='pending').length,1);
       assert.equal(lodi.filter(r=>r.name==='BRONCO COPERTURE S.r.l.'&&r.identifier_field_raw==='01711850220'&&r.application_date==='2026-09-21'&&r.source_status==='pending').length,1);
