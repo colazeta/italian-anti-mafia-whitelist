@@ -113,3 +113,16 @@ def test_discovery_leaves_external_origins_for_review():
 def test_capture_requires_configured_store():
     with pytest.raises(ValueError, match='store'):
         run_robot(robot(), mode='capture')
+
+
+def test_html_table_also_used_as_landing_page_is_reread_for_new_links():
+    r = robot()
+    r['sources'].append({'source_key': 'fixture-combined', 'url': PAGE,
+                         'approved_sha256': digest(b'old HTML')})
+    seen = []
+    def conditional(url, old, hosts, force=False):
+        seen.append((url, force))
+        return fetch(url) if force or not old else {'status': 304}
+    first = run_robot(r, fetch=conditional, pause=0)
+    run_robot(r, first, fetch=conditional, pause=0)
+    assert [force for url, force in seen if url == PAGE] == [True, True]

@@ -182,7 +182,9 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
         old = resources.get(url, {})
         try:
             # Pages are read every time so a 304 never prevents link discovery.
-            response = fetch(url, old, robot['allowed_hosts'], force=force or role == 'landing')
+            page = (role == 'landing' or url in robot['landing_pages'] or
+                    old.get('content_type') in ('text/html', 'application/xhtml+xml'))
+            response = fetch(url, old, robot['allowed_hosts'], force=force or page)
             if response['status'] == 304:
                 if not old.get('sha256'):
                     raise ValueError('304 without a preceding content identity')
