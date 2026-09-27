@@ -58,21 +58,45 @@
       "classification": "public_operational_verification"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-rendered-evidence-attempt-${{ github.run_attempt }}",
+      "path": "test-results/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-link-audit-attempt-${{ github.run_attempt }}",
+      "path": "/tmp/public-link-audit.json",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/promote-frozen-release.yml",
+      "name": "frozen-public-review-${{ steps.release.outputs.release_id }}-attempt-${{ github.run_attempt }}",
+      "path": "public-site/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-rendered-evidence-attempt-${{ github.run_attempt }}",
       "path": "test-results/",
       "classification": "deliberately_public_publication"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-link-audit-attempt-${{ github.run_attempt }}",
       "path": "/tmp/public-link-audit.json",
       "classification": "deliberately_public_publication"
     },
     {
-      "workflow": ".github/workflows/public-pages.yml",
+      "workflow": ".github/workflows/public-registry-review.yml",
       "name": "public-portal-review-attempt-${{ github.run_attempt }}",
       "path": "public-site/",
+      "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "name": "public-snapshot-browser-${{ github.run_attempt }}",
+      "path": "test-results/",
       "classification": "deliberately_public_publication"
     },
     {
@@ -84,9 +108,19 @@
       "content_boundary": "Non-identifying aggregate diagnostics, source hashes and official source URLs, discovery eligibility, synthetic-test receipts and already-public research code. No company-level records, source documents or canonical database exports. Experimental diagnostics are not validated administrative-performance estimates."
     }
   ],
-  "pages_artifact": {
-    "workflow": ".github/workflows/public-pages.yml",
-    "path": "public-site",
-    "classification": "deliberately_public_publication"
-  }
+  "pages_artifacts": [
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "path": "public-site",
+      "classification": "deliberately_public_publication"
+    }
+  ],
+  "release_assets": [
+    {
+      "workflow": ".github/workflows/public-pages.yml",
+      "tag": "public-data-2026-09-27-verified",
+      "path": "/tmp/public-snapshot/*.gz",
+      "classification": "deliberately_public_publication"
+    }
+  ]
 }

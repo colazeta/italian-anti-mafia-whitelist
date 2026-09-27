@@ -5,6 +5,8 @@ import csv
 import hashlib
 import json
 import re
+import time
+from urllib.error import HTTPError, URLError
 import unicodedata
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -85,6 +87,15 @@ from white_list_archive.parsers.ferrara_tables import (
     PARSERS as FERRARA_PARSERS,
     parse_ferrara_reconstruction_bundle,
 )
+from white_list_archive.parsers.pordenone_tables import (
+    PARSERS as PORDENONE_PARSERS,
+    parse_pordenone_listed_bundle,
+)
+from white_list_archive.parsers.viterbo_pages import PARSERS as VITERBO_PARSERS
+from white_list_archive.parsers.ravenna_combined import PARSERS as RAVENNA_PARSERS
+from white_list_archive.parsers.pescara_legacy_doc import PARSERS as PESCARA_PARSERS
+from white_list_archive.parsers.piacenza_legacy_xls import PARSERS as PIACENZA_PARSERS
+from white_list_archive.parsers.prato_sources import PARSERS as PRATO_PARSERS
 from white_list_archive.publishing.public_contract import public_record, validate_registry
 
 USER_AGENT = "italian-anti-mafia-whitelist/0.1 (+public national archive)"
@@ -118,6 +129,7 @@ FIRENZE_PARSERS = {
     "firenze_applicants": parse_firenze_applicants,
 }
 FERRARA_RECONSTRUCTION_PARSER = "ferrara-reconstruction-listed"
+PORDENONE_LISTED_PARSER = "pordenone-provincial-listed"
 
 
 
@@ -271,13 +283,36 @@ def _json_value(value: Any, fallback: Any) -> Any:
         return fallback
 
 
-def _download(url: str, path: Path) -> str:
+def _download(url: str, path: Path, *, attempts: int = 3, sleep=time.sleep) -> str:
+    """Retry only transient transport failures, preserving acquired byte versions."""
+    if attempts < 1:
+        raise ValueError("attempts must be at least one")
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
-    with urlopen(request, timeout=90) as response:  # noqa: S310 - URLs are versioned official-source config
-        body = response.read()
+    for attempt in range(1, attempts + 1):
+        try:
+            with urlopen(request, timeout=90) as response:
+                body = response.read()
+            break
+        except (HTTPError, URLError, ConnectionError, TimeoutError) as exc:
+            if isinstance(exc, HTTPError) and exc.code not in {408, 425, 429, 500, 502, 503, 504}:
+                raise
+            if attempt == attempts:
+                raise
+            sleep(3 * attempt)
+    digest = hashlib.sha256(body).hexdigest()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(body)
-    return hashlib.sha256(body).hexdigest()
+    # Runner-local retention is useful for diagnosis, but is never labelled durable.
+    content = path.parent / "content" / digest
+    content.parent.mkdir(exist_ok=True)
+    if not content.exists():
+        with content.open("xb") as handle:
+            handle.write(body)
+    elif hashlib.sha256(content.read_bytes()).hexdigest() != digest:
+        raise ValueError("Retained source bytes failed integrity verification")
+    temporary = path.with_name(path.name + ".part")
+    temporary.write_bytes(body)
+    temporary.replace(path)
+    return digest
 
 
 def _semantic_digest(records: list[dict[str, Any]]) -> str:
@@ -1032,15 +1067,104 @@ def _adapt_ferrara_public_fields(batch: ParsedBatch, parser_name: str) -> Parsed
         adapted.append(record)
     return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
+def _adapt_pordenone_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Pordenone source_fields must be a mapping")
+        if parser_name == PORDENONE_LISTED_PARSER:
+            expected = {"sections", "physical_locators", "physical_sector_observations", "name_variants", "office_variants", "secondary_office_variants", "listing_date_raw", "expiry_date_raw", "notes"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Pordenone listed source-field drift: {sorted(fields)!r}")
+            for key in ("sections", "physical_locators", "name_variants", "office_variants", "secondary_office_variants", "notes"):
+                if not isinstance(fields[key], list) or any(not isinstance(v, str) for v in fields[key]):
+                    raise RuntimeError(f"Pordenone listed source-list type drift: {key}")
+            if not fields["sections"] or not fields["physical_locators"]:
+                raise RuntimeError("Pordenone listed empty sector/provenance evidence")
+            if type(fields["physical_sector_observations"]) is not int or fields["physical_sector_observations"] < len(fields["sections"]):
+                raise RuntimeError("Pordenone listed physical-sector denominator drift")
+            if any(not isinstance(fields[key], str) for key in ("listing_date_raw", "expiry_date_raw")):
+                raise RuntimeError("Pordenone listed raw-date type drift")
+            record["source_fields"] = {
+                "sections": list(fields["sections"]),
+                "physical_locators": list(fields["physical_locators"]),
+                "notes": list(fields["notes"]),
+                "registered_office_variants": list(fields["office_variants"]),
+                "secondary_office_variants": list(fields["secondary_office_variants"]),
+                "listing_date_raw_variants": [fields["listing_date_raw"]] if fields["listing_date_raw"] else [],
+                "expiry_date_raw_variants": [fields["expiry_date_raw"]] if fields["expiry_date_raw"] else [],
+            }
+        elif parser_name == "pordenone-provincial-applicants":
+            expected = {"application_date_raw", "requested_activities_source", "physical_locators", "source_row_raw", "source_name_missing"}
+            if set(fields) != expected:
+                raise RuntimeError(f"Pordenone applicant source-field drift: {sorted(fields)!r}")
+            if not isinstance(fields["physical_locators"], list) or len(fields["physical_locators"]) != 1 or any(not isinstance(v, str) for v in fields["physical_locators"]):
+                raise RuntimeError("Pordenone applicant physical-locator drift")
+            if not isinstance(fields["application_date_raw"], str) or not isinstance(fields["requested_activities_source"], str):
+                raise RuntimeError("Pordenone applicant scalar drift")
+            if not isinstance(fields["source_name_missing"], bool) or not isinstance(fields["source_row_raw"], list):
+                raise RuntimeError("Pordenone applicant reviewed-source evidence drift")
+            record["source_fields"] = {
+                "physical_locators": list(fields["physical_locators"]),
+                "requested_activities_source": fields["requested_activities_source"],
+                "application_date_raw_variants": [fields["application_date_raw"]] if fields["application_date_raw"] else [],
+            }
+        else:
+            raise RuntimeError(f"Unexpected Pordenone parser: {parser_name!r}")
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+
+
+def _adapt_piacenza_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    adapted: list[dict[str, Any]] = []
+    for original in batch.records:
+        record = dict(original)
+        fields = dict(record.get("source_fields", {}))
+        if parser_name == "piacenza_legacy_listed":
+            registration = fields.pop("registration_number", None)
+            if not isinstance(registration, str) or not registration:
+                raise RuntimeError("Piacenza listed registration-number evidence drift")
+        elif parser_name == "piacenza_legacy_applicants":
+            if "registration_number" in fields:
+                raise RuntimeError("Piacenza applicant unexpected registration-number field")
+        else:
+            raise RuntimeError(f"Unexpected Piacenza parser: {parser_name!r}")
+        record["source_fields"] = fields
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
+
+def _apply_parser_lineage(batch: ParsedBatch, parser_name: str, legacy_version: str) -> ParsedBatch:
+    """Preserve parser-declared lineage; use legacy fallback only when absent."""
+    declared = batch.diagnostics.get("parser_version")
+    version = str(declared).strip() if declared is not None else legacy_version
+    if not version:
+        raise RuntimeError(f"{parser_name}: empty parser-version lineage")
+    for record in batch.records:
+        existing_name = record.get("parser_name")
+        existing_version = record.get("parser_version")
+        if existing_name not in (None, "", parser_name):
+            raise RuntimeError(f"{parser_name}: conflicting parser-name lineage {existing_name!r}")
+        if existing_version not in (None, "", version):
+            raise RuntimeError(f"{parser_name}: conflicting parser-version lineage {existing_version!r} != {version!r}")
+        record["parser_name"] = parser_name
+        record["parser_version"] = version
+    return batch
+
+
 def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBatch:
+    if cfg["parser"] == PORDENONE_LISTED_PARSER:
+        if not isinstance(path, dict):
+            raise RuntimeError("Pordenone listed source requires an explicitly acquired bundle")
+        batch = _adapt_pordenone_public_fields(parse_pordenone_listed_bundle(path, cfg), cfg["parser"])
+        return _apply_parser_lineage(batch, cfg["parser"], "1")
     if cfg["parser"] == FERRARA_RECONSTRUCTION_PARSER:
         if not isinstance(path, dict):
             raise RuntimeError("Ferrara reconstruction requires an explicitly acquired source bundle")
         batch = _adapt_ferrara_public_fields(parse_ferrara_reconstruction_bundle(path, cfg), cfg["parser"])
-        for record in batch.records:
-            record["parser_name"] = cfg["parser"]
-            record["parser_version"] = "1"
-        return batch
+        return _apply_parser_lineage(batch, cfg["parser"], "1")
     if not isinstance(path, Path):
         raise RuntimeError(f"Scalar parser received a source bundle: {cfg['parser']!r}")
     if cfg["parser"] == "cosenza_combined_v2":
@@ -1108,6 +1232,12 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or SIRACUSA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
         or FERRARA_PARSERS.get(cfg["parser"])
+        or PORDENONE_PARSERS.get(cfg["parser"])
+        or VITERBO_PARSERS.get(cfg["parser"])
+        or RAVENNA_PARSERS.get(cfg["parser"])
+        or PESCARA_PARSERS.get(cfg["parser"])
+        or PIACENZA_PARSERS.get(cfg["parser"])
+        or PRATO_PARSERS.get(cfg["parser"])
     )
     if parser is None:
         raise KeyError(f"No approved public parser for {cfg['parser']}")
@@ -1140,11 +1270,88 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_matera_public_fields(batch, cfg["parser"])
     if cfg["parser"] in FERRARA_PARSERS:
         batch = _adapt_ferrara_public_fields(batch, cfg["parser"])
-    for record in batch.records:
-        record["parser_name"] = cfg["parser"]
-        record["parser_version"] = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
-    return batch
+    if cfg["parser"] in PORDENONE_PARSERS:
+        batch = _adapt_pordenone_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in RAVENNA_PARSERS:
+        batch = _adapt_ravenna_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in PIACENZA_PARSERS:
+        batch = _adapt_piacenza_public_fields(batch, cfg["parser"])
+    legacy_version = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
+    return _apply_parser_lineage(batch, cfg["parser"], legacy_version)
 
+
+
+def _adapt_ravenna_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
+    """Project audited Ravenna evidence onto the recursively closed public contract.
+
+    The parser intentionally retains review-only extraction evidence. Publication
+    exposes only source facts already admitted by the public contract and fails
+    closed on any source-field or reviewed-repair drift.
+    """
+    if parser_name != "ravenna_combined":
+        raise RuntimeError(f"Unexpected Ravenna parser: {parser_name!r}")
+    base = {
+        "source_progressive",
+        "company_identity_raw",
+        "registered_office_variants",
+        "application_date_raw_variants",
+        "listing_date_raw_variants",
+        "normalised_application_date_variants",
+        "normalised_listing_date_variants",
+        "note_raw",
+        "sections",
+        "section_markers",
+        "malformed_date_pairs",
+    }
+    adapted: list[dict[str, Any]] = []
+    for source_record in batch.records:
+        record = dict(source_record)
+        fields = record.get("source_fields")
+        if not isinstance(fields, dict):
+            raise RuntimeError("Ravenna source_fields must be a mapping")
+        keys = set(fields)
+        if keys not in (base, base | {"reviewed_extraction_repair"}):
+            raise RuntimeError(f"Ravenna source-field drift: {sorted(keys)!r}")
+        for key in (
+            "registered_office_variants",
+            "application_date_raw_variants",
+            "listing_date_raw_variants",
+            "normalised_application_date_variants",
+            "normalised_listing_date_variants",
+            "sections",
+            "section_markers",
+            "malformed_date_pairs",
+        ):
+            value = fields[key]
+            if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+                raise RuntimeError(f"Ravenna source-list type drift: {key}")
+        for key in ("source_progressive", "company_identity_raw", "note_raw"):
+            if not isinstance(fields[key], str):
+                raise RuntimeError(f"Ravenna source-scalar type drift: {key}")
+        repair = fields.get("reviewed_extraction_repair")
+        if repair is not None:
+            expected_repair = {
+                "field": "company_identity",
+                "table_raw": "",
+                "page_text_value": "RESOLVE SALVAGE & FIRE (NETHERLANDS) B.V.",
+                "basis": "same_byte_pinned_page_text",
+            }
+            if fields["source_progressive"] != "1199" or repair != expected_repair:
+                raise RuntimeError("Ravenna reviewed extraction-repair evidence drift")
+        elif fields["source_progressive"] == "1199":
+            raise RuntimeError("Ravenna reviewed row 1199 lost extraction-repair evidence")
+        record["source_fields"] = {
+            "physical_locator": fields["source_progressive"],
+            "sections": list(fields["sections"]),
+            "registered_office_variants": list(fields["registered_office_variants"]),
+            "application_date_raw_variants": list(fields["application_date_raw_variants"]),
+            "listing_date_raw_variants": list(fields["listing_date_raw_variants"]),
+            "normalised_listing_date_variants": list(fields["normalised_listing_date_variants"]),
+            "malformed_date_pairs": list(fields["malformed_date_pairs"]),
+            "notes": [fields["note_raw"]] if fields["note_raw"] else [],
+        }
+        adapted.append(record)
+    return ParsedBatch(records=adapted, diagnostics=batch.diagnostics)
 
 def _adapt_genova_public_fields(batch: ParsedBatch, parser_name: str) -> ParsedBatch:
     """Project audited Genova parser evidence onto the closed public contract.

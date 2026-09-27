@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 import os
@@ -37,14 +37,68 @@ class StoreConfig:
         return cls(*(os.environ[n] for n in names))
 
 
-def object_key(manifest):
-    digest = manifest["sha256"]
+def digest_object_key(digest: str) -> str:
+    """Return the immutable object key for one exact SHA-256 byte identity."""
     if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
         raise ValueError("Invalid SHA-256")
+    return f"sha256/{digest[:2]}/{digest}"
+
+
+def object_key(manifest):
+    digest = manifest["sha256"]
     if type(manifest["byte_size"]) is not int or manifest["byte_size"] <= 0:
         raise ValueError("Invalid byte size")
     # Byte identity must not depend on a filename or a potentially changing MIME label.
-    return f"sha256/{digest[:2]}/{digest}"
+    return digest_object_key(digest)
+
+
+
+def freeze_capture_manifest(manifest: dict) -> dict:
+    """Validate and snapshot provenance before any external storage operation.
+
+    This checks metadata structure, not the truth of a reported source date.
+    Unknown reference dates stay unknown. JSON copying also freezes nested
+    metadata so a caller mutation cannot relabel an in-flight archive receipt.
+    """
+    try:
+        snapshot = json.loads(json.dumps(manifest, sort_keys=True,
+                                        separators=(",", ":"), allow_nan=False))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Capture manifest must contain finite JSON values") from exc
+    if not isinstance(snapshot, dict):
+        raise ValueError("Capture manifest must be a mapping")
+    required = {"sha256", "byte_size", "content_type", "resource_url",
+                "captured_at", "reference_date"}
+    if required - snapshot.keys():
+        raise ValueError("Capture manifest is missing required provenance fields")
+    object_key(snapshot)
+    captured_at = snapshot["captured_at"]
+    if not isinstance(captured_at, str):
+        raise ValueError("Capture timestamp must be an ISO timestamp with timezone")
+    try:
+        captured = datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("Invalid capture timestamp") from exc
+    if captured.tzinfo is None or captured.utcoffset() is None:
+        raise ValueError("Capture timestamp requires an explicit timezone")
+    reference = snapshot["reference_date"]
+    if reference is not None and reference != "":
+        if not isinstance(reference, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", reference):
+            raise ValueError("Reference date must be a complete ISO date or unknown")
+        try:
+            date.fromisoformat(reference)
+        except ValueError as exc:
+            raise ValueError("Invalid reference date") from exc
+    url = snapshot["resource_url"]
+    if not isinstance(url, str) or any(ord(c) < 32 or ord(c) == 127 for c in url):
+        raise ValueError("Invalid source resource URL")
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.password is not None:
+        raise ValueError("Source resource URL must be HTTPS without credentials")
+    mime = snapshot["content_type"]
+    if not isinstance(mime, str) or not mime.strip() or any(ord(c) < 32 or ord(c) == 127 for c in mime):
+        raise ValueError("Invalid capture content type")
+    return snapshot
 
 
 def public_store_verification_receipt(receipts: list[dict]) -> dict:
@@ -94,7 +148,34 @@ class EvidenceStore:
     def __init__(self, client, config: StoreConfig):
         self.client, self.config = client, config
 
+    def read_digest_verified(self, digest: str) -> bytes:
+        """Read and hash an exact content-addressed object when its size is not yet known.
+
+        This is a recovery-only primitive. A known SHA-256 is enough to address the
+        immutable object directly without listing storage, but matching bytes do not
+        establish capture/check provenance or historical source identity.
+        """
+        key = digest_object_key(digest)
+        response = self.client.get_object(Bucket=self.config.bucket, Key=key)
+        stream = response["Body"]
+        try:
+            data = stream.read()
+        finally:
+            stream.close()
+        if not data or hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError("Stored evidence failed independent SHA-256 verification")
+        content_length = response.get("ContentLength")
+        if content_length is not None and (type(content_length) is not int or content_length != len(data)):
+            raise ValueError("Stored evidence failed provider content-length verification")
+        metadata = response.get("Metadata") or {}
+        metadata_digest = metadata.get("sha256")
+        if metadata_digest is not None and metadata_digest != digest:
+            raise ValueError("Stored evidence metadata conflicts with verified SHA-256")
+        return data
+
     def read_verified(self, manifest) -> bytes:
+        # Pin scalar identity before calling external transport code.
+        manifest = dict(manifest)
         key = object_key(manifest)
         response = self.client.get_object(Bucket=self.config.bucket, Key=key)
         stream = response["Body"]
@@ -107,6 +188,7 @@ class EvidenceStore:
         return data
 
     def archive(self, path: Path, manifest: dict) -> dict:
+        manifest = freeze_capture_manifest(manifest)
         key = object_key(manifest)
         # Buffer the verified bytes once: a changing local file cannot change the upload.
         with path.open("rb") as f:
@@ -144,13 +226,19 @@ class EvidenceStore:
 
     def promote(self, conn, manifest: dict) -> None:
         """Caller owns the transaction. Only update an already linked ContentObject."""
+        # This API accepts ContentObject metadata, not a complete capture manifest.
+        # Snapshot its scalar identity without inventing capture dates or URLs.
+        manifest = dict(manifest)
         uri = f"{self.config.endpoint.rstrip('/')}/{self.config.bucket}/{object_key(manifest)}"
         with conn.cursor() as cur:
             cur.execute("""SELECT content_object_id, file_size, mime_type, storage_uri, storage_status_code
                            FROM source.content_object WHERE sha256=%s FOR UPDATE""", (manifest["sha256"],))
             row = cur.fetchone()
-            if not row or row[1:3] != (manifest["byte_size"], manifest["content_type"]):
-                raise ValueError("Existing ContentObject missing or metadata mismatch")
+            if not row or row[1] != manifest["byte_size"]:
+                raise ValueError("Existing ContentObject missing or byte-size mismatch")
+            # MIME is capture metadata, not byte identity. Keep the ContentObject's
+            # original descriptive label unchanged; the immutable capture manifest
+            # retains the MIME observed for each separate acquisition/check.
             if row[4] == "durable" and row[3] != uri:
                 raise ValueError("Refusing to replace an existing durable location")
             # Receipts alone cannot authorise promotion: independently read again.
@@ -198,7 +286,3 @@ def main():
             json.dump(receipt, f, indent=2)
             f.write("\n")
     print("Evidence integrity verified; output remains private.")
-
-
-if __name__ == "__main__":
-    main()

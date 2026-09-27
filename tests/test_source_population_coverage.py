@@ -18,9 +18,9 @@ def _report():
 
 def test_every_verified_scope_accounts_for_both_logical_populations():
     report = _report()
-    assert report["verified_authority_count"] == 67
-    assert report["register_scope_count"] == 70
-    assert report["complete_register_scope_count"] == 70
+    assert report["verified_authority_count"] == 73
+    assert report["register_scope_count"] == 76
+    assert report["complete_register_scope_count"] == 76
     assert report["incomplete_register_scope_count"] == 0
 
     by_scope = {}
@@ -89,6 +89,16 @@ def test_combined_series_satisfies_both_targets_without_duplication():
     assert {row["coverage_status"] for row in cremona} == {"COVERED_COMBINED_SERIES"}
     assert all(row["covering_series_keys"] == ["cremona-combined"] for row in cremona)
 
+    ravenna = [
+        row
+        for row in report["rows"]
+        if row["authority_key"] == "ravenna"
+        and row["regime_code"] == "WL-REGIME-L190-2012"
+    ]
+    assert {row["population_target"] for row in ravenna} == {"listed", "applicant"}
+    assert {row["coverage_status"] for row in ravenna} == {"COVERED_COMBINED_SERIES"}
+    assert all(row["covering_series_keys"] == ["ravenna-combined"] for row in ravenna)
+
 
 def test_separate_series_and_unresolved_gaps_are_distinguished():
     report = _report()
@@ -124,6 +134,7 @@ def test_recently_resolved_current_pages_cover_both_populations():
         "palermo",
         "matera",
         "siracusa",
+        "viterbo",
     ):
         rows = {
             row["population_target"]: row

@@ -1,15 +1,6 @@
 name: Research performance pilot (non-production)
 
 on:
-  push:
-    branches:
-      - research/white-list-performance-pilot
-    paths:
-      - research/white_list_performance_pilot/scripts/run_source_pilot.py
-      - research/white_list_performance_pilot/scripts/run_followup.py
-      - research/white_list_performance_pilot/scripts/run_completion.py
-      - research/white_list_performance_pilot/tests/**
-      - .github/workflows/research-performance-pilot.yml
   workflow_dispatch:
 
 permissions:
@@ -21,7 +12,7 @@ concurrency:
 
 jobs:
   source-diagnostics:
-    if: github.ref == 'refs/heads/research/white-list-performance-pilot'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

@@ -41,8 +41,8 @@ The project currently contains:
 - an audited PostgreSQL 18 schema with tri-temporal canonical state;
 - immutable source capture, SHA-256 content identity and parser provenance;
 - **106** territorial authorities in the national universe;
-- **34** independently verified primary White List pages;
-- **65** qualified recurring source series;
+- **73** independently verified primary White List pages;
+- **145** qualified recurring source series;
 - reusable parser families with deterministic source-series/fingerprint routing;
 - stable parser record contracts and semantic profiles;
 - automatic semantic projection and guarded canonicalisation;
@@ -120,7 +120,7 @@ applicant
 
 A combined `listed_and_applicant` source satisfies both without creating fake duplicate source series. If only one population has been discovered, the other remains `UNRESOLVED_REQUIRES_REVIEW`; it is **never** interpreted as “not published”. Completeness is assessed per register/regime, so special registers such as Bologna post-sisma remain separate.
 
-At the current **34-page / 65-series** discovery baseline, the deterministic ledger contains **35 register/discovery scopes**: **33** account for both populations and **2** remain unresolved/incomplete. These are progress metrics, not evidence that applicant lists are absent.
+At the **27 September 2026** discovery checkpoint, **73 verified pages / 145 source series** define **76 register scopes**, all with both logical populations accounted for. The national universe remains **106 authorities**: the other **33** still require source discovery. Discovery completeness does not mean that every source has been parsed or durably archived. Recompute with `white-list-source-population-coverage`; do not interpret unknown authorities as non-publishing.
 
 ## Parser-family strategy
 
@@ -196,3 +196,7 @@ src/white_list_archive/
 ```
 
 The project does **not** yet contain a complete national scrape, a durable hosted database, completed national geography enrichment, or a public row-level company release.
+
+## Tempi elettorali (modulo territoriale)
+
+Il portale pubblico include una [scheda sui tempi di aggiornamento degli scrutini](docs/product/electoral-update-times.md), con ranking descrittivi separati per europee 2024, politiche 2022 (Camera e Senato), referendum costituzionale 2020 e i cinque quesiti nazionali del 2022. Il dataset derivato e lo script riproducibile sono versionati qui; i timestamp comunali non identificano il tempo di lavoro delle Prefetture.

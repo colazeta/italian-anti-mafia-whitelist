@@ -146,10 +146,20 @@ def validate_history(history: dict) -> None:
         before, after = editions[change["before_id"]], editions[change["after_id"]]
         if scope(before) != scope(after) or before["parser_signature"] != after["parser_signature"]:
             raise ValueError("Cannot compare incompatible scopes or parser versions")
-        if not before["reference_date"] or not after["reference_date"] or before["reference_date"] >= after["reference_date"]:
-            raise ValueError("A source-date comparison needs ordered, distinct known dates")
-        if change["basis"] not in {"frozen_observational_diff", "exact_identifier_observations_v1"}:
+        if change["basis"] not in {"frozen_observational_diff", "exact_identifier_observations_v1", "capture_ordered_identifier_observations_v1"}:
             raise ValueError("Unapproved comparison basis")
+        if change["basis"] == "capture_ordered_identifier_observations_v1":
+            # Capture ordering is an observation chronology only. It is allowed
+            # precisely where source-declared chronology is equal or unknown;
+            # distinct known source dates continue to use the source-date basis.
+            if before["reference_date"] and after["reference_date"] and before["reference_date"] != after["reference_date"]:
+                raise ValueError("Capture-ordered comparison cannot override distinct known source dates")
+            before_checks = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == before["id"]]
+            after_checks = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == after["id"]]
+            if not before_checks or not after_checks or max(before_checks) >= max(after_checks):
+                raise ValueError("Capture-ordered comparison needs strictly ordered successful checks")
+        elif not before["reference_date"] or not after["reference_date"] or before["reference_date"] >= after["reference_date"]:
+            raise ValueError("A source-date comparison needs ordered, distinct known dates")
         for key in ("added", "disappeared", "common", "content_changed", "status_changed", "unresolved_before", "unresolved_after"):
             value = change[key]
             if value is not None and (type(value) is not int or value < 0):
@@ -250,7 +260,9 @@ def _identifier_key(row: dict) -> str | None:
     return "|".join(sorted(set(values))) if values else None
 
 
-def compare_rows(before: list[dict], after: list[dict], before_id: str, after_id: str) -> dict:
+def compare_rows(before: list[dict], after: list[dict], before_id: str, after_id: str, basis: str = "exact_identifier_observations_v1") -> dict:
+    if basis not in {"exact_identifier_observations_v1", "capture_ordered_identifier_observations_v1"}:
+        raise ValueError("Unapproved automatic comparison basis")
     def index(rows: list[dict]) -> tuple[dict, int]:
         groups = defaultdict(list)
         for row in rows:
@@ -284,7 +296,7 @@ def compare_rows(before: list[dict], after: list[dict], before_id: str, after_id
     common = left.keys() & right.keys()
     transitions = Counter(f"{left[k]['source_status']}->{right[k]['source_status']}" for k in common if left[k]["source_status"] != right[k]["source_status"])
     complete = not (unresolved_left or unresolved_right)
-    return {"before_id": before_id, "after_id": after_id, "basis": "exact_identifier_observations_v1", "added": len(right.keys() - left.keys()) if complete else None, "disappeared": len(left.keys() - right.keys()) if complete else None, "common": len(common), "content_changed": sum(_content(left[k]) != _content(right[k]) for k in common), "status_changed": sum(transitions.values()), "unresolved_before": unresolved_left, "unresolved_after": unresolved_right, "transition_counts": dict(sorted(transitions.items())), "evidence": ["approved-public-registry", "exact_identifier_observations_v1"]}
+    return {"before_id": before_id, "after_id": after_id, "basis": basis, "added": len(right.keys() - left.keys()) if complete else None, "disappeared": len(left.keys() - right.keys()) if complete else None, "common": len(common), "content_changed": sum(_content(left[k]) != _content(right[k]) for k in common), "status_changed": sum(transitions.values()), "unresolved_before": unresolved_left, "unresolved_after": unresolved_right, "transition_counts": dict(sorted(transitions.items())), "evidence": ["approved-public-registry", basis]}
 
 
 def compare_releases(previous: dict, current: dict) -> dict:
@@ -293,18 +305,47 @@ def compare_releases(previous: dict, current: dict) -> dict:
     old_by_scope = defaultdict(list)
     for edition in old["editions"]:
         old_by_scope[scope(edition)].append(edition)
+
     def rows_for(registry: dict, edition: dict) -> list[dict]:
         return [r for r in registry["records"] if (r["source_key"], r["reference_date"], _history_document_sha256(r["capture_sha256"])) == (edition["source_key"], edition["reference_date_raw"], edition["document_sha256"])]
+
+    def latest_check(history: dict, edition_id_value: str) -> str | None:
+        values = [_time(c["checked_at"]) for c in history["checks"] if c["edition_id"] == edition_id_value]
+        return max(values) if values else None
+
     for after in new["editions"]:
-        candidates = [e for e in old_by_scope[scope(after)] if e["reference_date"] and after["reference_date"] and e["reference_date"] < after["reference_date"] and e["parser_signature"] == after["parser_signature"]]
-        if not candidates:
+        compatible = [e for e in old_by_scope[scope(after)] if e["parser_signature"] == after["parser_signature"] and e["id"] != after["id"]]
+        source_candidates = [e for e in compatible if e["reference_date"] and after["reference_date"] and e["reference_date"] < after["reference_date"]]
+        if source_candidates:
+            latest = max(e["reference_date"] for e in source_candidates)
+            source_candidates = [e for e in source_candidates if e["reference_date"] == latest]
+            if len(source_candidates) == 1:
+                before = source_candidates[0]
+                result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"]))
             continue
-        latest = max(e["reference_date"] for e in candidates)
-        candidates = [e for e in candidates if e["reference_date"] == latest]
-        if len(candidates) != 1:
+
+        # When source chronology is equal or unknown, retain both editions and
+        # compare only by successful observation time. This does not assert an
+        # administrative/effective chronology. Equal-time payloads are retained
+        # but deliberately left unordered.
+        after_check = latest_check(new, after["id"])
+        if not after_check:
             continue
-        before = candidates[0]
-        result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"]))
+        observed_candidates: list[tuple[str, dict]] = []
+        for candidate in compatible:
+            if candidate["reference_date"] and after["reference_date"] and candidate["reference_date"] != after["reference_date"]:
+                continue
+            candidate_check = latest_check(old, candidate["id"])
+            if candidate_check and candidate_check < after_check:
+                observed_candidates.append((candidate_check, candidate))
+        if not observed_candidates:
+            continue
+        latest_observation = max(value for value, _ in observed_candidates)
+        observed_candidates = [(value, edition) for value, edition in observed_candidates if value == latest_observation]
+        if len(observed_candidates) != 1:
+            continue
+        before = observed_candidates[0][1]
+        result["comparisons"].append(compare_rows(rows_for(previous, before), rows_for(current, after), before["id"], after["id"], basis="capture_ordered_identifier_observations_v1"))
     validate_history(result)
     return result
 

@@ -50,35 +50,24 @@ def test_alias_inputs_preserve_canonical_rows_and_add_national_index_view(tmp_pa
     assert next(row for row in series_rows if row["authority_key"] == "bolzano")["source_series_key"] == "bolzano-listed"
 
 
-def test_registry_retries_transient_network_failures_from_clean_work_dir(monkeypatch, tmp_path):
+def test_registry_failure_preserves_successfully_acquired_evidence(monkeypatch, tmp_path):
     import white_list_archive.publishing.public_national_build as build
-
     work_dir = tmp_path / "work"
-    attempts = []
+    work_dir.mkdir()
+    original = work_dir / "already-captured.pdf"
+    original.write_bytes(b"observed source bytes")
+    calls = []
 
-    def flaky(config, path):
-        attempts.append(path.exists())
-        assert config == {"sources": []}
-        assert path == work_dir
-        assert not path.exists()
-        path.mkdir(parents=True)
-        (path / "partial-download").write_text("partial")
-        if len(attempts) < 3:
-            raise URLError("transient fixture failure")
-        return {"records": [], "meta": {"record_count": 0}}
+    def failed(config, path):
+        calls.append(path)
+        raise URLError("source unavailable after per-request retries")
 
-    sleeps = []
-    monkeypatch.setattr(build, "build_registry", flaky)
-    result = _build_registry_with_network_retries(
-        {"sources": []},
-        work_dir,
-        attempts=3,
-        sleep=sleeps.append,
-    )
-
-    assert result["meta"]["record_count"] == 0
-    assert attempts == [False, False, False]
-    assert sleeps == [3, 6]
+    monkeypatch.setattr(build, "build_registry", failed)
+    import pytest
+    with pytest.raises(URLError):
+        _build_registry_with_network_retries({"sources": []}, work_dir)
+    assert calls == [work_dir]
+    assert original.read_bytes() == b"observed source bytes"
 
 
 def test_registry_does_not_retry_semantic_failures(monkeypatch, tmp_path):
@@ -94,7 +83,7 @@ def test_registry_does_not_retry_semantic_failures(monkeypatch, tmp_path):
     monkeypatch.setattr(build, "build_registry", invalid)
     try:
         _build_registry_with_network_retries(
-            {"sources": []}, tmp_path / "work", sleep=lambda _: None
+            {"sources": []}, tmp_path / "work"
         )
     except RuntimeError as exc:
         assert "semantic" in str(exc)

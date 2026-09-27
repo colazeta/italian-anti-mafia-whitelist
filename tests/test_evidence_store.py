@@ -68,6 +68,22 @@ def test_idempotent_upload_retrieval_and_unchanged_manifest(source):
     assert manifest == MANIFEST
 
 
+def test_digest_only_readback_verifies_exact_bytes_without_preknown_size(source):
+    client = MemoryS3()
+    store = EvidenceStore(client, CONFIG)
+    store.archive(source, MANIFEST)
+    recovered = store.read_digest_verified(MANIFEST['sha256'])
+    assert recovered == DATA
+    assert len(recovered) == MANIFEST['byte_size']
+
+    client.corrupt_read = True
+    with pytest.raises(ValueError, match='SHA-256'):
+        store.read_digest_verified(MANIFEST['sha256'])
+
+    with pytest.raises(ValueError, match='Invalid SHA-256'):
+        store.read_digest_verified('not-a-digest')
+
+
 def test_public_store_verification_receipt_redacts_public_artifact_metadata(source):
     client = MemoryS3(); store = EvidenceStore(client, CONFIG)
     receipts = [store.archive(source, MANIFEST), store.archive(source, MANIFEST)]

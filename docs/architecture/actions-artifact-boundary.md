@@ -25,7 +25,7 @@ The machine-readable allow-list is [`actions-artifact-policy.json`](actions-arti
 | `pistoia-address-replication.yml` | `pistoia-address-replication-verification-*` | operational verification | aggregate Pistoia replication result, source hashes/provider-version hashes and a binding to the internal review sample |
 | `discover-national-index.yml` | `national-white-list-index` | public discovery | Ministry/public authority discovery URLs |
 | `cosenza-snapshot-discovery.yml` | `cosenza-snapshot-discovery` | public discovery | public dated-source discovery output |
-| `public-pages.yml` | rendered evidence, link audit, review build | public publication | browser screenshots/test evidence, public link audit and the public-site build |
+| `public-registry-review.yml` | rendered evidence, link audit, review build | public publication | browser screenshots/test evidence, public link audit and the public-site build |
 | `public-pages.yml` | Pages deployment artifact | public publication | `public-site/` only |
 
 The public verification publishers intentionally retain counts, content hashes and file digests while excluding row values, entity names, full address records, source PDFs, internal Explorer HTML, provider/storage coordinates that are not needed for the public claim, and review notes.
@@ -80,3 +80,5 @@ The workflow itself remains a reproducible recipe and continues to execute the i
 5. redaction functions bind internal files by SHA-256 without emitting their row values or hidden URLs.
 
 Any future need to publish a richer Actions artifact is therefore an explicit publication decision, not an incidental consequence of adding a workflow step.
+
+The single Pages publisher is `public-pages.yml`; it validates a byte-pinned public derivative snapshot and uploads rendered browser evidence. Its initial versioned GitHub Release assets contain only the five public data derivatives enumerated in `data/publication/public_snapshot.json`. These assets are not the private evidence archive. See [the 27 September audit](project-audit-2026-09-27.md).

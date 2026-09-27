@@ -2,6 +2,11 @@ name: Private evidence recovery verification
 
 on:
   workflow_dispatch:
+    inputs:
+      release_manifest:
+        description: Reviewed frozen release manifest under data/releases/
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +22,7 @@ jobs:
     timeout-minutes: 20
     environment: evidence-recovery
     env:
+      RELEASE_MANIFEST_INPUT: ${{ inputs.release_manifest }}
       PRIMARY_EVIDENCE_BUCKET: ${{ vars.PRIMARY_EVIDENCE_BUCKET }}
       PRIMARY_EVIDENCE_ENDPOINT: ${{ vars.PRIMARY_EVIDENCE_ENDPOINT }}
       PRIMARY_EVIDENCE_REGION: ${{ vars.PRIMARY_EVIDENCE_REGION }}
@@ -36,12 +42,39 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
       - name: Install private recovery runtime
-        run: python -m pip install -e '.[storage]'
+        run: python -m pip install -e '.[storage,publication]'
+
+      - name: Freeze reviewed release selection and exact source configuration
+        run: |
+          case "$RELEASE_MANIFEST_INPUT" in
+            data/releases/*.json) ;;
+            *) echo "release_manifest must be a JSON file directly under data/releases/" >&2; exit 1 ;;
+          esac
+          test -f "$RELEASE_MANIFEST_INPUT"
+          git ls-files --error-unmatch "$RELEASE_MANIFEST_INPUT" >/dev/null
+          cp -- "$RELEASE_MANIFEST_INPUT" /tmp/frozen-release.json
+
+          RELEASE_CODE_REVISION="$(python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          manifest = json.loads(Path('/tmp/frozen-release.json').read_text(encoding='utf-8'))
+          revision = manifest.get('code_revision')
+          if not isinstance(revision, str) or not re.fullmatch(r'[0-9a-f]{40}', revision):
+              raise SystemExit('Frozen release code_revision must be an exact 40-character Git SHA')
+          print(revision)
+          PY
+          )"
+          git cat-file -e "${RELEASE_CODE_REVISION}^{commit}"
+          git merge-base --is-ancestor "$RELEASE_CODE_REVISION" "$GITHUB_SHA"
+          git show "${RELEASE_CODE_REVISION}:data/publication/multi_prefecture_pilot.json" > /tmp/frozen-source-config.json
 
       - name: Require separate primary-read and recovery configuration
         run: |
@@ -77,20 +110,27 @@ jobs:
           )
           PY
 
-      - name: Copy frozen evidence to recovery store and execute clean restore
+      - name: Verify every selected capture and clean-restore every distinct ContentObject
         run: |
           python - <<'PY'
-          import json, os
+          import hashlib
+          import json
+          import os
           from pathlib import Path
 
           import boto3
           from botocore.config import Config
 
+          from white_list_archive.storage.capture_catalogue import CaptureCatalogue
           from white_list_archive.storage.evidence import EvidenceStore, StoreConfig
           from white_list_archive.storage.recovery import (
               backup_and_restore_test,
               public_recovery_receipt,
               store_fingerprint,
+          )
+          from white_list_archive.storage.release_recovery import (
+              distinct_content_object_inputs,
+              selected_release_captures,
           )
 
           def client(config, key_name, secret_name, token_name):
@@ -110,6 +150,12 @@ jobs:
               if token:
                   kwargs['aws_session_token'] = token
               return boto3.client('s3', **kwargs)
+
+          release_manifest = json.loads(Path('/tmp/frozen-release.json').read_text(encoding='utf-8'))
+          source_config = json.loads(Path('/tmp/frozen-source-config.json').read_text(encoding='utf-8'))
+          selected = selected_release_captures(release_manifest, source_config)
+          if not selected:
+              raise SystemExit('Frozen release selected no captures')
 
           primary_config = StoreConfig(
               os.environ['PRIMARY_EVIDENCE_BUCKET'],
@@ -141,7 +187,9 @@ jobs:
               ),
               recovery_config,
           )
+          catalogue = CaptureCatalogue(primary_store)
           primary_fingerprint = store_fingerprint(primary_config)
+
           root = Path('/tmp/private-evidence-recovery')
           source_dir = root / 'primary-verified'
           restore_dir = root / 'clean-restore'
@@ -149,31 +197,61 @@ jobs:
           for path in (source_dir, restore_dir, receipt_dir):
               path.mkdir(parents=True, exist_ok=False)
 
-          for manifest_path in sorted(Path('data/captures/cosenza').glob('combined_*.json')):
-              manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-              primary_bytes = primary_store.read_verified(manifest)
-              source_path = source_dir / manifest['sha256']
-              source_path.write_bytes(primary_bytes)
+          # Verify every capture/check independently before deduplicating repeated bytes.
+          # This preserves capture provenance even when unchanged bytes reuse one ContentObject.
+          bytes_by_sha = {}
+          for item in selected:
+              capture = item['capture']
+              catalogue.verify_receipt(capture, item['catalogue'])
+              primary_bytes = primary_store.read_verified(capture)
+              if (
+                  len(primary_bytes) != capture['byte_size']
+                  or hashlib.sha256(primary_bytes).hexdigest() != capture['sha256']
+              ):
+                  raise SystemExit('Selected primary ContentObject failed size/SHA-256 verification')
+              prior = bytes_by_sha.get(capture['sha256'])
+              if prior is not None and prior != primary_bytes:
+                  raise SystemExit('One ContentObject identity resolved to conflicting primary bytes')
+              bytes_by_sha[capture['sha256']] = primary_bytes
+
+          representatives = distinct_content_object_inputs(selected)
+          for item in representatives:
+              capture = item['capture']
+              primary_bytes = bytes_by_sha[capture['sha256']]
+              source_path = source_dir / capture['sha256']
+              with source_path.open('xb') as handle:
+                  handle.write(primary_bytes)
+              restore_path = restore_dir / capture['sha256']
               full_receipt = backup_and_restore_test(
                   source_path=source_path,
-                  manifest=manifest,
+                  manifest=capture,
                   recovery_store=recovery_store,
-                  restore_path=restore_dir / manifest['sha256'],
+                  restore_path=restore_path,
                   primary_store_fingerprint=primary_fingerprint,
                   independence_evidence=os.environ['RECOVERY_INDEPENDENCE_EVIDENCE'],
               )
-              if (restore_dir / manifest['sha256']).read_bytes() != primary_bytes:
-                  raise SystemExit('Clean restore differs from the independently verified primary bytes')
+              if restore_path.read_bytes() != primary_bytes:
+                  raise SystemExit('Clean restore differs from independently verified primary bytes')
 
-              # This repository is public. GitHub Actions artifacts are therefore
-              # treated as public evidence: upload only the deliberately redacted
-              # receipt, never provider coordinates, policy locators or the reviewed
-              # independence statement itself.
               receipt = public_recovery_receipt(full_receipt)
-              receipt['manifest_path'] = str(manifest_path)
-              with (receipt_dir / f"{manifest['sha256']}.recovery-verification.json").open('x') as handle:
-                  json.dump(receipt, handle, indent=2)
+              receipt['release_id'] = release_manifest['release_id']
+              with (receipt_dir / f"{capture['sha256']}.recovery-verification.json").open('x') as handle:
+                  json.dump(receipt, handle, indent=2, sort_keys=True)
                   handle.write('\n')
+
+          summary = {
+              'schema_version': 1,
+              'release_id': release_manifest['release_id'],
+              'code_revision': release_manifest['code_revision'],
+              'selected_capture_count': len(selected),
+              'distinct_content_object_count': len(representatives),
+              'all_selected_capture_provenance_verified': True,
+              'all_selected_primary_bytes_verified': True,
+              'all_distinct_content_objects_clean_restored': True,
+          }
+          with (receipt_dir / 'release-recovery-summary.json').open('x') as handle:
+              json.dump(summary, handle, indent=2, sort_keys=True)
+              handle.write('\n')
           PY
 
       - name: Save redacted recovery verification receipts

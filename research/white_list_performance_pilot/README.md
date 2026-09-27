@@ -47,3 +47,7 @@ Research code does not write canonical facts, alter production parsers, change p
 ## Promotion requirements
 
 Promotion remains a separate decision. It requires independently checked historical row coverage, verified administrative episode identities and date semantics, complete inflow/outcome evidence for flow rates, replication across publication models, reproducible uncertainty handling and a documented release review. More source snapshots alone do not satisfy those conditions.
+
+## Audit integration — 27 September 2026
+
+The completed aggregate checkpoint is retained on the main branch as research, with no production parser, canonical write or public registry promotion. The 24 synthetic research contract tests now run in ordinary CI. The live research workflow is explicitly manual on main; editing documentation or test code does not silently reacquire sources. Historical results retain their original execution date and input identities; a future run must use newly reviewed inputs and cannot relabel this checkpoint as current administrative performance.
