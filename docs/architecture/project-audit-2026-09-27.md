@@ -168,3 +168,11 @@ They are now explicitly preserved with their original raw digest/check date; the
 new response is queued for independent archival capture and substantive review.
 The same check binds Aosta, Biella and Como's preserved semantic editions. Any
 changed observation fails before acquisition. No unreviewed semantic hash is adopted.
+
+The real six-scope build then exposed a pre-existing lineage check mismatch:
+Ferrara/Pordenone use explicit publication adapter keys that differ from their
+physical diagnostic parser names. The restoration step now recognises only the
+five existing, reviewed bindings and preserves the declared parser revision; an
+unrelated physical name still fails. Five parameterised regressions cover both
+accepted bindings and rejection of different names. No source counts or source
+facts change because of this correction.

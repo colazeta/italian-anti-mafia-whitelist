@@ -25,6 +25,16 @@ from white_list_archive.publishing.public_national_registry import (
 )
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
 
+# Existing publication adapter keys deliberately differ from their physical
+# parser diagnostic names. Keep the mapping explicit; unrelated identities fail.
+DECLARED_PARSER_IDENTITIES = {
+    'ferrara-provincial-listed': 'ferrara_ordinary',
+    'ferrara-provincial-applicants': 'ferrara_applicants',
+    'ferrara-reconstruction-listed': 'ferrara_reconstruction_bundle',
+    'pordenone-provincial-listed': 'pordenone_listed_bundle',
+    'pordenone-provincial-applicants': 'pordenone_applicants',
+}
+
 
 def _read_rows(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8", newline="") as handle:
@@ -146,7 +156,8 @@ def _restore_declared_parser_revisions(registry: dict, config: dict, work_dir: P
         if not path.exists():
             raise RuntimeError(f"{source_key}: parser diagnostics missing after registry build")
         diagnostics = json.loads(path.read_text(encoding="utf-8"))
-        if diagnostics.get("parser") not in (None, cfg["parser"]):
+        diagnostic_identity = DECLARED_PARSER_IDENTITIES.get(cfg['parser'], cfg['parser'])
+        if diagnostics.get("parser") not in (None, cfg["parser"], diagnostic_identity):
             raise RuntimeError(f"{source_key}: parser diagnostics identify another parser")
         version = diagnostics.get("parser_version")
         if version is None:
