@@ -126,3 +126,60 @@ def test_html_table_also_used_as_landing_page_is_reread_for_new_links():
     first = run_robot(r, fetch=conditional, pause=0)
     run_robot(r, first, fetch=conditional, pause=0)
     assert [force for url, force in seen if url == PAGE] == [True, True]
+
+
+def test_large_scan_resumes_until_complete_without_starving_documents():
+    r = robot(); r['max_requests'] = 4
+    docs = [f'https://prefettura.example/elenco-{i}.pdf' for i in range(7)]
+    calls = []
+    def many(url, *a, **k):
+        calls.append(url)
+        return response(url, ''.join(f'<a href="{u}">Elenco</a>' for u in docs).encode()) if url == PAGE else fetch(url)
+    report = None
+    remaining = []
+    for index in range(4):
+        report = run_robot(r, report, fetch=many, pause=0)
+        remaining.append(len(report['pending_urls']))
+        assert report['requests'] <= 4
+        if index == 0:
+            started = report['cycle_started_at']
+        assert report['cycle_started_at'] == started
+    assert remaining == [5, 3, 1, 0]
+    assert report['status'] != 'partial'
+    assert report['last_successful_check_at'] == report['checked_at']
+    assert all(calls.count(url) == 1 for url in docs)
+    assert calls.count(PAGE) == calls.count(PDF) == 4
+    assert calls.index(docs[-1]) < calls.index(docs[0])
+    again = run_robot(r, report, fetch=many, pause=0)
+    assert again['cycle_started_at'] != started
+    assert len(again['pending_urls']) == 5
+
+
+def test_legacy_frontier_resumes_and_new_links_are_not_skipped():
+    r = robot(); r['max_requests'] = 3
+    docs = [f'https://prefettura.example/elenco-{i}.pdf' for i in range(3)]
+    def many(url, *a, **k):
+        return response(url, ''.join(f'<a href="{u}">Elenco</a>' for u in docs).encode()) if url == PAGE else fetch(url)
+    first = run_robot(r, fetch=many, pause=0)
+    first.pop('pending_queue'); first.pop('cycle_started_at')
+    docs.append('https://prefettura.example/elenco-9.pdf')
+    second = run_robot(r, first, fetch=many, pause=0)
+    assert docs[-1] in second['resources']
+    assert second['cycle_started_at'] == first['checked_at']
+    assert len(second['pending_urls']) == 2
+
+
+def test_pending_page_preserves_depth_across_runs():
+    r = robot(); r['max_requests'] = 3
+    pages = [f'https://prefettura.example/white-list-{i}' for i in range(3)]
+    called = []
+    def nested(url, *a, **k):
+        called.append(url)
+        if url == PDF: return fetch(url)
+        target = pages[0] if url == PAGE else pages[pages.index(url)+1]
+        return {**response(url, f'<a href="{target}">White list</a>'.encode()), 'content_type': 'text/html'}
+    first = run_robot(r, fetch=nested, pause=0)
+    assert first['pending_queue'] == [{'url': pages[1], 'depth': 2, 'role': 'landing'}]
+    second = run_robot(r, first, fetch=nested, pause=0)
+    assert second['pending_urls'] == []
+    assert pages[2] not in called

@@ -37,6 +37,8 @@ Il secondo comando richiede il consueto `StoreConfig` e le credenziali del depos
 
 Gli stati `baseline`, `unchanged` e `changed` descrivono i byte e i collegamenti dell'ambito controllato. `partial` conserva gli errori e l'ultimo stato valido: non azzera impronte o acquisizioni precedenti. La variazione HTML può dipendere da elementi di pagina; non viene chiamata automaticamente “nuova edizione”.
 
+Le scansioni che superano il limite riprendono al controllo successivo dalla coda persistita, conservando profondità e ruolo dei collegamenti. `cycle_started_at` indica l'inizio del ciclo; i documenti già verificati in quel ciclo non consumano di nuovo il limite. Pagine di partenza e fonti approvate vengono comunque ricontrollate a ogni tentativo, così possono emergere nuovi allegati durante la prosecuzione. I documenti nuovi e quelli controllati meno recentemente hanno precedenza; a parità l'ordine URL decrescente favorisce gli allegati con percorsi recenti senza attribuire una data amministrativa dal nome. Il ciclo completo può quindi richiedere più esecuzioni giornaliere, ma la coda non riparte sempre dai primi allegati. Quando termina, il tentativo seguente avvia un nuovo ciclo. Il limite di profondità vale anche per le pagine riprese dalla coda.
+
 ## Esecuzione nazionale e persistenza
 
 Il workflow esegue il giro nazionale ogni giorno alle **04:17 UTC**, con verifica completa dei byte la domenica. Dodici gruppi e al massimo tre esecuzioni contemporanee limitano il carico sui siti. Ogni autorità conserva un esito indipendente; il fallimento di una non interrompe le altre. L'esecuzione manuale di una sola autorità usa un solo gruppo. Cambiamenti al motore o alla configurazione avviano una verifica dopo il merge su `main`.

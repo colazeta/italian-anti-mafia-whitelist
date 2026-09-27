@@ -168,13 +168,35 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
     approved = {}
     for item in robot['sources']:
         approved.setdefault(item['url'], []).append(item)
+    # A bounded scan can span several runs. Preserve its frontier and skip
+    # documents already checked in this cycle, while rereading current sources.
+    continuing = bool(previous.get('pending_urls'))
+    cycle_started_at = (previous.get('cycle_started_at') or previous.get('checked_at') or at) if continuing else at
+    current = set(robot['landing_pages']) | set(approved)
+    def needs_visit(url):
+        old = resources.get(url, {})
+        return (url in current or not continuing or old.get('last_checked_at', '') < cycle_started_at
+                or (mode == 'capture' and old.get('archived_sha256') != old.get('sha256')))
+
     queue = [(url, 0, 'landing') for url in robot['landing_pages']]
     queue.extend((url, 0, 'source') for url in sorted(approved))
+    # pending_urls is retained for public consumers and older state files.
+    frontier = {item['url']: item for item in previous.get('pending_queue', [])}
+    for url in previous.get('pending_urls', []):
+        item = frontier.get(url, {})
+        queue.append((url, item.get('depth', robot['max_depth']),
+                      item.get('role', 'candidate' if DOCUMENT.search(url) else 'landing')))
     seen, errors, changed, new, external, captures = set(), [], [], [], set(), []
     discovered = set(); start = clock()
     while queue and len(seen) < robot['max_requests'] and clock() - start < robot['time_budget_seconds']:
+        # New/oldest observations first; reverse URL order favours dated recent
+        # attachments without interpreting filenames as administrative dates.
+        queue.sort(key=lambda item: item[0], reverse=True)
+        queue.sort(key=lambda item: (
+            0 if item[0] in robot['landing_pages'] else 1 if item[0] in approved else 2 if item[2] == 'landing' else 3,
+            resources.get(item[0], {}).get('last_checked_at', '')))
         url, depth, role = queue.pop(0)
-        if url in seen:
+        if url in seen or not needs_visit(url):
             continue
         seen.add(url)
         if url in approved:
@@ -236,7 +258,12 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
                            'http_status': error.code if isinstance(error, HTTPError) else None})
         if pause:
             time.sleep(pause)
-    pending = sorted({u for u, _, _ in queue} - seen)
+    frontier = {}
+    for url, depth, role in queue:
+        if url not in seen and needs_visit(url):
+            if url not in frontier or depth < frontier[url]['depth']:
+                frontier[url] = {'url': url, 'depth': depth, 'role': role}
+    pending = sorted(frontier)
     status = 'partial' if errors or pending else 'changed' if changed else 'baseline' if not previous else 'unchanged'
     if previous and new and status == 'unchanged':
         status = 'changed'
@@ -244,7 +271,8 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
         'last_successful_check_at': at if status != 'partial' else previous.get('last_successful_check_at'),
         'requests': len(seen), 'changed_urls': changed, 'new_urls': new, 'captured_urls': captures,
         'discovered_documents': sorted(discovered), 'external_links_for_review': sorted(external),
-        'pending_urls': pending, 'errors': errors, 'resources': resources,
+        'pending_urls': pending, 'pending_queue': [frontier[url] for url in pending],
+        'cycle_started_at': cycle_started_at, 'errors': errors, 'resources': resources,
         'population_mapping_reviewed': robot['population_mapping_reviewed'],
         'publication_approved': False}
 
