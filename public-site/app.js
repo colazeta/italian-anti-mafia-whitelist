@@ -120,7 +120,7 @@ function registryRows(){
       ...[r.primary_date,r.application_date,r.observed_listing_date,r.decision_date,r.registration_date,r.observed_expiry_date].filter(Boolean).map(v=>displayDate(v))
     ].join(' ').toLocaleLowerCase('it');
     return hay.includes(q);
-  }).sort((a,b)=>String(a.name).localeCompare(String(b.name),'it')||String(a.authority_name).localeCompare(String(b.authority_name),'it'));
+  }).sort((a,b)=>Number(!a.name)-Number(!b.name)||String(a.name).localeCompare(String(b.name),'it')||String(a.authority_name).localeCompare(String(b.authority_name),'it'));
 }
 function sourceDate(r){
   const value=r.primary_date||r.observed_listing_date||r.application_date||r.decision_date||r.registration_date||'';
@@ -146,7 +146,7 @@ function drawRegistry(){
   const shown=all.slice(start,start+registryState.size);
   $('#rowstatus').textContent=`${fmt(all.length)} righe filtrate`;
   const rows=shown.map(r=>`<tr class="clickrow" data-record="${esc(r.record_locator)}" tabindex="0">
-    <td><b>${esc(r.name)}</b></td>
+    <td><b>${esc(r.name||'Denominazione non disponibile')}</b></td>
     <td class="mono">${esc(listText(r.identifiers)||r.identifier_field_raw)}</td>
     <td>${badge(r.source_status)}</td>
     <td>${esc(r.authority_name)}</td>
