@@ -5,6 +5,8 @@ import csv
 import hashlib
 import json
 import re
+import time
+from urllib.error import HTTPError, URLError
 import unicodedata
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -281,13 +283,36 @@ def _json_value(value: Any, fallback: Any) -> Any:
         return fallback
 
 
-def _download(url: str, path: Path) -> str:
+def _download(url: str, path: Path, *, attempts: int = 3, sleep=time.sleep) -> str:
+    """Retry only transient transport failures, preserving acquired byte versions."""
+    if attempts < 1:
+        raise ValueError("attempts must be at least one")
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
-    with urlopen(request, timeout=90) as response:  # noqa: S310 - URLs are versioned official-source config
-        body = response.read()
+    for attempt in range(1, attempts + 1):
+        try:
+            with urlopen(request, timeout=90) as response:
+                body = response.read()
+            break
+        except (HTTPError, URLError, ConnectionError, TimeoutError) as exc:
+            if isinstance(exc, HTTPError) and exc.code not in {408, 425, 429, 500, 502, 503, 504}:
+                raise
+            if attempt == attempts:
+                raise
+            sleep(3 * attempt)
+    digest = hashlib.sha256(body).hexdigest()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(body)
-    return hashlib.sha256(body).hexdigest()
+    # Runner-local retention is useful for diagnosis, but is never labelled durable.
+    content = path.parent / "content" / digest
+    content.parent.mkdir(exist_ok=True)
+    if not content.exists():
+        with content.open("xb") as handle:
+            handle.write(body)
+    elif hashlib.sha256(content.read_bytes()).hexdigest() != digest:
+        raise ValueError("Retained source bytes failed integrity verification")
+    temporary = path.with_name(path.name + ".part")
+    temporary.write_bytes(body)
+    temporary.replace(path)
+    return digest
 
 
 def _semantic_digest(records: list[dict[str, Any]]) -> str:

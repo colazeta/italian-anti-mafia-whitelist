@@ -1,12 +1,16 @@
 // The ranking concerns source update timestamps. It never ranks prefectural resources.
-const electoralState={data:null,event:'overall',metric:'weighted_mean_hours',query:'',error:null};
+const electoralState={data:null,pending:null,event:'overall',metric:'weighted_mean_hours',query:''};
 const electoralMetrics={weighted_mean_hours:'Media ponderata per sezioni',weighted_p90_hours:'90° percentile ponderato',last_hours:'Ultimo aggiornamento'};
-const electoralHours=n=>Number(n).toFixed(2).replace('.',',');
+const electoralHours=n=>n===null||n===undefined?'—':Number(n).toFixed(2).replace('.',',');
+function electoralRank(rows,value){
+  const sorted=[...rows].sort((a,b)=>value(a)-value(b)||a.province.localeCompare(b.province,'it'));
+  let rank=0;
+  return sorted.map((row,i)=>{if(i===0||value(row)!==value(sorted[i-1]))rank=i+1;return {...row,rank}});
+}
 
 function renderOverallElectoral(view){
   const data=electoralState.data, field=electoralState.metric, events=data.events;
-  const complete=data.overall.provinces.filter(p=>p.status==='complete_in_all').sort((a,b)=>a.scores[field]-b.scores[field]||a.province.localeCompare(b.province,'it'));
-  complete.forEach((p,i)=>p.rank=i+1);
+  const complete=electoralRank(data.overall.provinces.filter(p=>p.status==='complete_in_all'),p=>p.scores[field]);
   const missing=data.overall.provinces.filter(p=>p.status!=='complete_in_all');
   const q=electoralState.query.toLocaleLowerCase('it').trim();
   const shown=[...complete,...missing].filter(p=>p.province.toLocaleLowerCase('it').includes(q));
@@ -32,21 +36,19 @@ function bindElectoralControls(view){
 
 async function renderElectoral(){
   const view=document.querySelector('#view-electoral');
-  if(!electoralState.data&&!electoralState.error){
+  if(!electoralState.data){
     view.innerHTML='<div class="note">Caricamento degli estratti elettorali…</div>';
-    try{
-      const response=await fetch('./data/electoral.json',{cache:'no-store'});
+    if(!electoralState.pending)electoralState.pending=fetch('./data/electoral.json',{cache:'no-store'}).then(response=>{
       if(!response.ok)throw new Error(`HTTP ${response.status}`);
-      electoralState.data=await response.json();
-    }catch(error){electoralState.error=error.message}
+      return response.json();
+    }).then(data=>{electoralState.data=data}).finally(()=>{electoralState.pending=null});
+    await electoralState.pending;
   }
-  if(electoralState.error){view.innerHTML=`<div class="note bad">Tempi elettorali non disponibili: ${esc(electoralState.error)}</div>`;return}
   if(electoralState.event==='overall'){renderOverallElectoral(view);return}
   const events=electoralState.data.events;
   const event=events.find(e=>e.id===electoralState.event)||events[0];
   const field=electoralState.metric;
-  const complete=event.provinces.filter(p=>p.status==='complete_in_extract').sort((a,b)=>a[field]-b[field]||a.province.localeCompare(b.province,'it'));
-  complete.forEach((p,i)=>p.rank=i+1);
+  const complete=electoralRank(event.provinces.filter(p=>p.status==='complete_in_extract'),p=>p[field]);
   const missing=event.provinces.filter(p=>p.status!=='complete_in_extract');
   const q=electoralState.query.toLocaleLowerCase('it').trim();
   const shown=[...complete,...missing].filter(p=>p.province.toLocaleLowerCase('it').includes(q));
@@ -54,7 +56,7 @@ async function renderElectoral(){
   const median=complete.length?(complete[Math.floor((complete.length-1)/2)][field]+complete[Math.floor(complete.length/2)][field])/2:null;
   const width=Math.max(...complete.slice(0,20).map(p=>p[field]),1);
   const chart=complete.slice(0,20).map(p=>`<tr><td>${esc(p.province)}</td><td class="electoral-bar-cell"><span class="electoral-bar" style="width:${(p[field]/width*100).toFixed(1)}%"></span></td><td class="num">${hours(p[field])}</td></tr>`).join('');
-  const rows=shown.map(p=>`<tr><td class="num">${p.status==='complete_in_extract'?p.rank:'—'}</td><td>${esc(p.province)}</td><td class="num">${p.status==='complete_in_extract'?hours(p[field]):'—'}</td><td class="num">${p.sections_reported}/${p.sections_expected}</td><td>${p.status==='complete_in_extract'?esc(p.last_update_local.replace('T',' ')):'Incompleta nell’estratto'}</td></tr>`).join('');
+  const rows=shown.map(p=>`<tr><td class="num">${p.status==='complete_in_extract'?p.rank:'—'}</td><td>${esc(p.province)}</td><td class="num">${p.status==='complete_in_extract'?hours(p[field]):'—'}</td><td class="num">${p.sections_reported===null?'Non determinabile':p.sections_reported}/${p.sections_expected}</td><td>${p.status==='complete_in_extract'?esc(p.last_update_local.replace('T',' ')):'Incompleta nell’estratto'}</td></tr>`).join('');
   view.innerHTML=`<div class="public-banner">Aggiornamenti degli scrutini · ${esc(event.label)}</div>
     <div class="note"><b>Che cosa misura:</b> la media e il percentile attribuiscono a ciascuna sezione l’orario <code>dt_agg</code> della sua riga comunale. Non disponiamo del timestamp della singola sezione. Il rank ordina le province complete nell’estratto, non le risorse o la qualità delle Prefetture. L’orario può includere rettifiche successive: non identifica il primo completamento.</div>
     <div class="toolbar"><label for="electoral-event">Consultazione</label><select id="electoral-event"><option value="overall">Tutte le tornate · classifica complessiva</option>${events.map(e=>`<option value="${esc(e.id)}" ${e.id===event.id?'selected':''}>${esc(e.label)}</option>`).join('')}</select>

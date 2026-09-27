@@ -41,3 +41,7 @@ Sorgenti onData (attribuzione nella pagina; verificare le condizioni di riuso di
 Lo script accetta i sei percorsi con le opzioni `--european`, `--camera`, `--senate`, `--referendum-results`, `--referendum-registry`, `--referendum-2020` e l'output `--output public-site/data/electoral.json`. Verificare l'impronta dell'output prima di rigenerarlo con versioni diverse delle sorgenti. I dati finali degli archivi ministeriali non bastano a ricostruire l'istante della **prima** completezza; occorrono snapshot intermedi o log di trasmissione e validazione.
 
 Fonti istituzionali per orari e ordine: [referendum 2020](https://dait.interno.gov.it/elezioni/faq/faq-referendum-2020), [referendum 2022](https://www.interno.gov.it/it/notizie/elezioni-amministrative-e-referendum-indicazioni-operative-voto-e-scrutini), [politiche 2022](https://dait.interno.gov.it/elezioni/faq/faq-elezioni-politiche-2022), [europee 2024](https://www.interno.gov.it/it/notizie/elezioni-2024-affluenza-europee-4969).
+
+## Verifiche dell’audit del 27 settembre 2026
+
+La navigazione carica soltanto i dati della sezione richiesta; il collegamento `#electoral` non scarica il registro delle imprese. I pari merito hanno lo stesso rank (1, 1, 3). Nei territori con schede mancanti o incongruenti il numero di sezioni completate su tutte le schede è `null`, mostrato come “Non determinabile”: non viene inventato uno zero. La completezza e tutte le classifiche restano invariate. Il validatore ricalcola i punteggi complessivi dalle tornate, riconcilia le ore con i timestamp e rifiuta valori non finiti.

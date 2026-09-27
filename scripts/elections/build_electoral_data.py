@@ -57,7 +57,7 @@ def combine_ballots(ballots, key):
         expected = exemplar['sections']
         combined.append(dict(cod_prov=exemplar['province_code'], desc_prov=exemplar['province'],
                              municipality_key=str(municipality), sz_tot=str(expected),
-                             sz_perv=str(expected if valid else 0),
+                             sz_perv=str(expected) if valid else '',
                              dt_agg=max(piece['timestamp'] for piece in present) if valid else ''))
     return combined
 
@@ -75,7 +75,8 @@ def compute(rows, start):
         item = dict(province_code=code, province=name, rows=len(group),
                     municipalities=len({r.get('municipality_key') or r.get('CODICE ISTAT') or r.get('comune') or r.get('codice') for r in group}),
                     sections_expected=sum(int(r['sz_tot']) for r in group),
-                    sections_reported=sum(int(r['sz_perv']) for r in group),
+                    sections_reported=sum(int(r['sz_perv']) for r in group)
+                    if all(str(r['sz_perv']).isdigit() for r in group) else None,
                     status='complete_in_extract' if complete else 'incomplete_or_invalid')
         if complete:
             points = sorted(((datetime.strptime(r['dt_agg'], '%Y%m%d%H%M%S') - start).total_seconds() / 3600,

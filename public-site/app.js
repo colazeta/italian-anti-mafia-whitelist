@@ -24,15 +24,48 @@ let REGISTRY=null;
 let PREFECTURES=null;
 let HISTORY=null;
 let HISTORY_UI=null;
+const loadingData=new Map();
+let navigationVersion=0;
 
-function activate(name){
+function loadData(key){
+  if(!loadingData.has(key))loadingData.set(key,fetchJson(`./data/${key}.json`).then(data=>{
+    if(key==='site')SITE=data;
+    if(key==='registry')REGISTRY=data;
+    if(key==='prefectures')PREFECTURES=data;
+    if(key==='history')HISTORY=data;
+    return data;
+  }).catch(error=>{loadingData.delete(key);throw error}));
+  return loadingData.get(key);
+}
+
+async function activate(name){
+  if(!$$('.tab').some(tab=>tab.dataset.view===name))name='registry';
+  const version=++navigationVersion;
+  if(location.hash!==`#${name}`)history.replaceState(null,'',`#${name}`);
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===name));
+  $$('.tab').forEach(x=>x.setAttribute('aria-current',x.dataset.view===name?'page':'false'));
   $$('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${name}`));
   $('#rowstatus').textContent='';
-  if(name==='registry')drawRegistry();
-  if(name==='prefectures')drawPrefectures();
-  if(name==='statistics')renderStatistics();
-  if(name==='electoral')renderElectoral();
+  $('#status').textContent='Caricamento della sezione…';
+  const view=$(`#view-${name}`);
+  view.innerHTML='<div class="note" role="status">Caricamento dei dati della sezione… Puoi già usare il menu.</div>';
+  try{
+    if(name==='electoral')await renderElectoral();
+    else{
+      const dependencies={prefectures:['prefectures'],quality:['site'],registry:['site','registry','prefectures'],statistics:['registry'],history:['site','registry','history'],method:['site','registry','prefectures']}[name];
+      await Promise.all(dependencies.map(loadData));
+      if(version!==navigationVersion)return;
+      ({registry:drawRegistry,prefectures:drawPrefectures,statistics:renderStatistics,history:()=>renderHistory(SITE),quality:()=>renderQuality(SITE),method:()=>renderMethod(SITE)})[name]();
+    }
+    if(version!==navigationVersion)return;
+    $('#status').textContent=name==='registry'?'Registro caricato':'Sezione caricata';
+    $('#asof').textContent=REGISTRY?`${fmt(REGISTRY.meta.authority_count)} Prefetture · ${fmt(REGISTRY.meta.register_count)} registri`:'';
+  }catch(error){
+    if(version!==navigationVersion)return;
+    $('#status').textContent='Sezione non disponibile';
+    view.innerHTML=`<div class="note bad" role="alert">Impossibile caricare questa sezione: ${esc(error.message)}. Le altre sezioni restano accessibili. <button class="btn" data-retry>Riprova</button></div>`;
+    view.querySelector('[data-retry]').addEventListener('click',()=>activate(name));
+  }
 }
 function listText(values){
   if(!Array.isArray(values))return '';
@@ -245,21 +278,11 @@ async function fetchJson(path){
   return response.json();
 }
 async function main(){
-  try{
-    [SITE,REGISTRY,PREFECTURES,HISTORY]=await Promise.all([
-      fetchJson('./data/site.json'),fetchJson('./data/registry.json'),fetchJson('./data/prefectures.json'),
-      fetchJson('./data/history.json').catch(()=>null)
-    ]);
-    drawPrefectures();drawRegistry();renderStatistics();renderHistory(SITE);renderUpdates();renderQuality(SITE);renderMethod(SITE);
-    $('#status').textContent='Registro caricato';
-    $('#asof').textContent=`${fmt(REGISTRY.meta.authority_count)} Prefetture · ${fmt(REGISTRY.meta.register_count)} registri`;
-    $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
-    $('#detail-close').addEventListener('click',closeDetail);
-    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
-  }catch(err){
-    $('#status').textContent='Errore caricamento dati';
-    $('#view-registry').innerHTML=`<div class="note bad"><b>Impossibile caricare il registro pubblico.</b><br>${esc(err.message)}</div>`;
-  }
+  $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
+  $('#detail-close').addEventListener('click',closeDetail);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
+  window.addEventListener('hashchange',()=>activate(location.hash.slice(1)));
+  await activate(location.hash.slice(1)||'registry');
 }
 main();
 
@@ -282,8 +305,7 @@ function renderStatistics(){
     $('#stats-authority').addEventListener('change',e=>{statisticsAuthority=e.target.value;renderStatistics()});
     view.querySelectorAll('[data-stat-status]').forEach(button=>button.addEventListener('click',()=>{
       Object.assign(registryState,{authority:button.dataset.statAuthority,status:button.dataset.statStatus,register:'all',query:'',page:1,latestOnly:true});
-      activate('registry');
-      $('#reg-q').focus();
+      activate('registry').then(()=>$('#reg-q')?.focus());
     }));
   } catch(error) {view.innerHTML=`<div class="note bad">Statistiche non disponibili: ${esc(error.message)}. Il registro resta consultabile.</div>`;}
 }
