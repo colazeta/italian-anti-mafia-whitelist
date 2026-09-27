@@ -10,7 +10,37 @@ from white_list_archive.publishing.public_history import validate_history_regist
 from white_list_archive.publishing.public_contract import validate_registry
 from white_list_archive.publishing.public_national_registry import write_registry_csv, write_prefecture_csv
 
-PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js", "data/history.json", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
+PUBLIC_FILES = {"index.html", "styles.css", "app.js", "summary.js", "history.js", "electoral.js", "data/electoral.json", "data/history.json", "data/site.json", "data/registry.json", "data/registry.csv", "data/prefectures.json", "data/prefectures.csv"}
+
+
+def validate_electoral(data: dict) -> None:
+    if set(data) != {"schema_version", "method", "events"} or data["schema_version"] != 1:
+        raise ValueError("Unapproved electoral payload")
+    expected = {"eu-2024", "camera-2022", "senato-2022", "referendum-2020"} | {f"referendum-2022-{n}" for n in range(1, 6)}
+    if {e.get("id") for e in data["events"]} != expected or len(data["events"]) != len(expected):
+        raise ValueError("Electoral event coverage mismatch")
+    for event in data["events"]:
+        if set(event) != {"id", "label", "kind", "poll_close_local", "provenance", "note", "provinces"}:
+            raise ValueError("Unapproved electoral event fields")
+        if set(event["provenance"]) != {"repository", "sha256"} or not event["provenance"]["repository"].startswith("https://github.com/ondata/"):
+            raise ValueError("Unapproved electoral provenance")
+        rows = event["provinces"]
+        if not rows or len({r["province_code"] for r in rows}) != len(rows):
+            raise ValueError("Electoral province duplication or missing rows")
+        base = {"province_code", "province", "rows", "municipalities", "sections_expected", "sections_reported", "status"}
+        metrics = {"last_update_local", "last_hours", "weighted_mean_hours", "weighted_p90_hours"}
+        for row in rows:
+            if row["status"] == "complete_in_extract":
+                if set(row) != base | metrics or row["sections_reported"] != row["sections_expected"]:
+                    raise ValueError("Invalid complete electoral row")
+                if not (0 <= row["weighted_mean_hours"] <= row["last_hours"] and
+                        0 <= row["weighted_p90_hours"] <= row["last_hours"]):
+                    raise ValueError("Invalid electoral time ordering")
+            elif row["status"] == "incomplete_or_invalid":
+                if set(row) != base:
+                    raise ValueError("Unapproved incomplete electoral row")
+            else:
+                raise ValueError("Unknown electoral row status")
 
 
 def validate_artifact(root: Path) -> None:
@@ -35,6 +65,7 @@ def validate_artifact(root: Path) -> None:
     validate_registry(registry)
     history = json.loads((root / "data/history.json").read_text(encoding="utf-8"))
     validate_history_registry(history, registry)
+    validate_electoral(json.loads((root / "data/electoral.json").read_text(encoding="utf-8")))
     prefectures = json.loads((root / "data/prefectures.json").read_text())
     if set(prefectures) != {"meta", "prefectures"}:
         raise ValueError("Unapproved directory payload")

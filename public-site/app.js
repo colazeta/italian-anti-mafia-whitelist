@@ -32,6 +32,7 @@ function activate(name){
   if(name==='registry')drawRegistry();
   if(name==='prefectures')drawPrefectures();
   if(name==='statistics')renderStatistics();
+  if(name==='electoral')renderElectoral();
 }
 function listText(values){
   if(!Array.isArray(values))return '';
