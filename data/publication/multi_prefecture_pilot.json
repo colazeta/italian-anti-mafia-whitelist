@@ -1315,17 +1315,17 @@
       "authority_name": "Prefettura di Lodi",
       "register_key": "lodi-ordinary",
       "register_name": "White List ordinaria",
-      "reference_date": "2026-09-18",
+      "reference_date": "2026-09-27",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/lodi/evidenza/white-list",
-      "last_source_update": "2026-09-18",
+      "last_source_update": "2026-09-27",
       "last_source_update_basis": "observation/capture date of the mutable official Google Sheets publication; the sheet does not expose a reliable edition date, so no publication date is inferred",
       "source_key": "lodi-listed",
       "parser": "lodi_listed",
       "population_scope": "listed",
       "resource_url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTOZ3x5FBo4IanDtISccAnqZmVLPmGhEYaj0YrDn4aP6ZpwY8kzpiHhAX0i26IwipgD6bvsWhSigwz/pub?gid=0&single=true&output=csv",
-      "sha256": "a9f6a0977ce0d1a26a6a86450643496cc70f2a1a3eba017e89812eb6f203276e",
+      "sha256": "0cb78eec4e7c902a9ec9e6fa3b64ef52c276a2de32cd86cba3e59cf68775d945",
       "expected_source_rows": 169,
-      "notes": "Official mutable Google Sheet linked by the Prefettura di Lodi. Two independent no-cache GETs on 18 September 2026 were byte-identical at the approved SHA-256. The physical, section-membership and grouped-record denominators remain 324, 291 and 169. Exact comparison with the preserved 16 September capture identifies exactly three changed membership rows and no insertions/removals: two F.LLI BORCHIA memberships and one CENTRO EDILE LODI membership become explicitly in aggiornamento. Consequently the source-row split becomes 251 listed / 40 renewal-update and the grouped public split becomes 144 listed / 25 renewal-update. Exact evidence is documented in docs/sources/lodi-operational-check-2026-09-18.md."
+      "notes": "Official mutable Google Sheet linked by the Prefettura di Lodi. Two independent captures on 27 September 2026 were byte-identical at the approved SHA-256. Structure remains 324 physical rows, 291 section memberships and 169 grouped observations. Compared with the previously published registry, SOVEA S.r.l. (row 299, identifier 04785630965) changed its listed and expiry dates from 07/04/2025–07/04/2026 to 25/09/2026–25/09/2027 and its update marker from in aggiornamento to blank. Source statuses now total 252 listed / 39 renewal-update; grouped statuses 145 listed / 24 renewal-update. See docs/sources/lodi-operational-check-2026-09-27.md."
     },
     {
       "authority_key": "lodi",
