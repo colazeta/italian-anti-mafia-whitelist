@@ -174,10 +174,43 @@ def fetch_url(url, previous, hosts, force=False):
             raise
 
 
-def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('/tmp/white-list-robots'),
+def _capture_history(robot, old):
+    """Retain every known immutable capture identity for one resource.
+
+    Older robot-state snapshots predate append-only capture history and retain only
+    the capture ids from the most recent archived payload. Preserve those identities
+    explicitly without inventing acquisition timestamps or other provenance that the
+    historical state did not record.
+    """
+    history = old.get('capture_history')
+    if history is not None:
+        if not isinstance(history, list):
+            raise ValueError('capture_history must be a list')
+        return deepcopy(history)
+
+    capture_ids = old.get('capture_ids', [])
+    if not capture_ids:
+        return []
+    source_keys = old.get('source_keys') or [robot['authority_key'] + '-robot-discovery']
+    exact_key_alignment = len(source_keys) == len(capture_ids)
+    return [{
+        'capture_id': capture_id,
+        'source_key': source_keys[index] if exact_key_alignment else None,
+        'sha256': old.get('archived_sha256'),
+        'byte_size': None,
+        'content_type': None,
+        'captured_at': None,
+        'reference_date': None,
+        'http_status': None,
+    } for index, capture_id in enumerate(capture_ids)]
+
+
+def run_robot(robot, previous=None, *, mode='capture', store=None, work_dir=Path('/tmp/white-list-robots'),
               fetch=fetch_url, force=False, pause=0.4, clock=time.monotonic):
-    if mode not in ('check', 'capture') or (mode == 'capture' and store is None):
-        raise ValueError('Capture mode requires the designated evidence store')
+    if mode not in ('check', 'capture') or store is None:
+        raise ValueError('Every robot acquisition requires the designated evidence store')
+    # Explicit compatibility migration: the old "check" spelling remains accepted,
+    # but is no longer a path that downloads and then discards source evidence.
     previous = previous or {}
     at = datetime.now(timezone.utc).isoformat()
     resources = deepcopy(previous.get('resources', {}))
@@ -192,7 +225,7 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
     def needs_visit(url):
         old = resources.get(url, {})
         return (url in current or not continuing or old.get('last_checked_at', '') < cycle_started_at
-                or (mode == 'capture' and old.get('archived_sha256') != old.get('sha256')))
+                or old.get('archived_sha256') != old.get('sha256'))
 
     queue = [(url, 0, 'landing') for url in robot['landing_pages']]
     queue.extend((url, 0, 'source') for url in sorted(approved))
@@ -218,37 +251,39 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
         if url in approved:
             role = 'source'
         old = resources.get(url, {})
+        receipts = []
+        stage = 'state_validation'
         try:
+            history = _capture_history(robot, old)
+            stage = 'acquisition'
             # Pages are read every time so a 304 never prevents link discovery.
             page = (role == 'landing' or url in robot['landing_pages'] or
                     old.get('content_type') in ('text/html', 'application/xhtml+xml'))
-            response = fetch(url, old, robot['allowed_hosts'], force=force or page)
+            temporal_capture = role in ('source', 'candidate')
+            # A new capture needs exact bytes. Avoid a conditional request followed
+            # by an unnecessary second request to the same official endpoint.
+            response = fetch(url, old, robot['allowed_hosts'], force=force or page or temporal_capture)
             if response['status'] == 304:
                 if not old.get('sha256'):
                     raise ValueError('304 without a preceding content identity')
-                if mode == 'capture' and old.get('archived_sha256') != old['sha256']:
+                if temporal_capture or old.get('archived_sha256') != old['sha256']:
                     response = fetch(url, {}, robot['allowed_hosts'], force=True)
                 else:
                     old['last_checked_at'] = at; resources[url] = old; continue
             body = response['body']; sha = digest(body)
             mime = response['content_type'].split(';')[0].lower()
-            if DOCUMENT.search(url) and mime == 'text/html':
-                raise ValueError('Document endpoint returned HTML; source access requires review')
-            baseline = old.get('sha256') or next((s['approved_sha256'] for s in approved.get(url, [])), None)
-            if baseline is None:
-                new.append(url)
-            elif sha != baseline:
-                changed.append(url)
             item = {'sha256': sha, 'byte_size': len(body), 'content_type': mime,
                 'resolved_url': response['resolved_url'], 'etag': response.get('etag'),
                 'last_modified': response.get('last_modified'), 'last_checked_at': at, 'role': role,
                 'source_keys': sorted({s['source_key'] for s in approved.get(url, [])}),
-                'archived_sha256': old.get('archived_sha256'), 'capture_ids': old.get('capture_ids', [])}
-            if mode == 'capture' and item['archived_sha256'] != sha:
+                'archived_sha256': old.get('archived_sha256'), 'capture_ids': old.get('capture_ids', []),
+                'capture_history': history}
+            should_archive = temporal_capture or item['archived_sha256'] != sha
+            if should_archive:
+                stage = 'archive'
                 # Unbound discovery captures are explicitly quarantined, never bound
                 # to an applicant/listed SourceSeries by a filename heuristic.
                 capture_keys = item['source_keys'] or [robot['authority_key'] + '-robot-discovery']
-                receipts = []
                 for key in capture_keys:
                     result = archive_payload(data=body, source_key=key, resource_url=url,
                         reference_date=None, content_type=response['content_type'], store=store,
@@ -257,11 +292,35 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
                         origin_type='official_current', authority_rank_code='primary_official',
                         resource_type_code='html' if mime in ('text/html', 'application/xhtml+xml') else 'other')
                     receipts.append(result.manifest['capture_id'])
+                    item['capture_history'].append({
+                        'capture_id': result.manifest['capture_id'],
+                        'source_key': result.manifest['source_key'],
+                        'sha256': result.manifest['sha256'],
+                        'byte_size': result.manifest['byte_size'],
+                        'content_type': result.manifest['content_type'],
+                        'captured_at': result.manifest['captured_at'],
+                        'reference_date': result.manifest['reference_date'],
+                        'http_status': result.manifest['http_status'],
+                    })
+                    # Record each verified success immediately. A later binding or
+                    # response-validation failure must retain its catalogue identity
+                    # without replacing the last accepted resource state.
+                    resources[url] = {**old, 'capture_history': history}
+                    if url not in captures:
+                        captures.append(url)
                     result.path.unlink(missing_ok=True)
                 item['archived_sha256'] = sha; item['capture_ids'] = receipts
-                captures.append(url)
+            stage = 'response_validation'
+            if DOCUMENT.search(url) and mime in ('text/html', 'application/xhtml+xml'):
+                raise ValueError('Document endpoint returned HTML; source access requires review')
+            baseline = old.get('sha256') or next((s['approved_sha256'] for s in approved.get(url, [])), None)
+            if baseline is None:
+                new.append(url)
+            elif sha != baseline:
+                changed.append(url)
             resources[url] = item
             if mime in ('text/html', 'application/xhtml+xml'):
+                stage = 'discovery'
                 docs, pages, elsewhere = discover_links(body, response['resolved_url'], robot['allowed_hosts'])
                 external.update(elsewhere); discovered.update(docs)
                 queue.extend((u, depth, 'candidate') for u in docs if u not in seen)
@@ -271,7 +330,8 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
             # Keep the previous valid resource state; never make a partial failure
             # erase the preceding byte identity or durable capture evidence.
             errors.append({'url': url, 'error': type(error).__name__,
-                           'http_status': error.code if isinstance(error, HTTPError) else None})
+                           'http_status': error.code if isinstance(error, HTTPError) else None,
+                           'stage': stage, 'verified_capture_ids': list(receipts)})
         if pause:
             time.sleep(pause)
     frontier = {}
@@ -283,7 +343,8 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
     status = 'partial' if errors or pending else 'changed' if changed else 'baseline' if not previous else 'unchanged'
     if previous and new and status == 'unchanged':
         status = 'changed'
-    return {'authority_key': robot['authority_key'], 'checked_at': at, 'status': status, 'mode': mode,
+    return {'authority_key': robot['authority_key'], 'checked_at': at, 'status': status,
+        'mode': 'capture', 'requested_mode': mode,
         'last_successful_check_at': at if status != 'partial' else previous.get('last_successful_check_at'),
         'requests': len(seen), 'changed_urls': changed, 'new_urls': new, 'captured_urls': captures,
         'discovered_documents': sorted(discovered), 'external_links_for_review': sorted(external),
@@ -300,7 +361,8 @@ def main():
     parser.add_argument('--authority', default='all')
     parser.add_argument('--shard', type=int, default=0)
     parser.add_argument('--shards', type=int, default=1)
-    parser.add_argument('--mode', choices=('check', 'capture'), default='check')
+    parser.add_argument('--mode', choices=('check', 'capture'), default='capture',
+                        help='Both modes preserve evidence; check is a legacy alias for capture')
     parser.add_argument('--state', type=Path)
     parser.add_argument('--output', type=Path, default=Path('robot-report.json'))
     parser.add_argument('--force', action='store_true')
@@ -316,10 +378,8 @@ def main():
     if not robots:
         parser.error('unknown authority or empty shard')
     old = json.loads(args.state.read_text()) if args.state and args.state.exists() else {'robots': {}}
-    store = None
-    if args.mode == 'capture':
-        from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
-        config = StoreConfig.from_env(); store = EvidenceStore(client_for(config), config)
+    from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
+    config = StoreConfig.from_env(); store = EvidenceStore(client_for(config), config)
     result = {'schema_version': 1, 'robots': {}}
     for robot in robots:
         report = run_robot(robot, old.get('robots', {}).get(robot['authority_key']), mode=args.mode, store=store, force=args.force)

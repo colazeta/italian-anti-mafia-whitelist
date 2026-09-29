@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       mode:
-        description: 'Check sources or also archive acquired versions in the private evidence store'
+        description: 'Archive acquired evidence (check is a legacy alias; both require the private store)'
         default: capture
         type: choice
         options: [check, capture]
