@@ -17,6 +17,7 @@ const STATUS={
 };
 const MAP_STATUS={published:'Dati pubblicati',source_mapped:'Fonte individuata',discovered:'Dati non ancora disponibili'};
 let statisticsAuthority='all';
+let statisticsPeriod=null;
 const registryState={query:'',status:'listed',authority:'all',register:'all',page:1,size:50,latestOnly:false};
 const prefectureState={query:'',status:'all',page:1,size:50};
 let SITE=null;
@@ -325,11 +326,73 @@ function enhanceTables(){
 }
 main();
 
+function dateDistributionPanel(d,period,scale){
+  const pending=d.key==='pending';
+  const title=pending?'IN ISTRUTTORIA · DATA DI INVIO':'AGGIORNAMENTO IN CORSO · DATA DI SCADENZA';
+  const axis=pending?'Data di invio dell’istanza':'Data di scadenza riportata';
+  const id=`stats-${d.key}`;
+  const label=bin=>period.interval==='month'?bin.period.split('-').reverse().join('/'):bin.period;
+  const dated=d.total-d.missing-d.uninterpretable;
+  const count=(key,value)=>`<span data-date-count="${key}">${fmt(value)}</span>`;
+  const length=d.bins.length;
+  const major=new Set([0,length-1]);
+  if(period.interval==='year'||length===12)major.add(Math.floor((length-1)/2));
+  const ticks=d.bins.map((bin,i)=>{
+    const annual=period.interval==='month'&&i%12===0&&i>4&&i<length-5;
+    if(!major.has(i)&&!annual&&!(period.interval==='year'&&length<=18))return '';
+    return `<span class="timeline-tick ${length===1?'':i===0?'first':i===length-1?'last':''} ${!major.has(i)&&!annual?'secondary-tick':''}" style="left:${100*(i+.5)/length}%">${esc(label(bin))}</span>`;
+  }).join('');
+  const chart=d.inPeriod?`<figure class="date-distribution" aria-labelledby="${id}-caption">
+      <figcaption id="${id}-caption"><strong>${axis}</strong> · ${period.interval==='month'?'mesi':'anni'} · ${period.fromYear}–${period.toYear}</figcaption>
+      <div class="timeline-scroll" tabindex="0" role="region" aria-label="Distribuzione temporale: scorri orizzontalmente se necessario">
+        <div class="timeline-chart" style="min-width:${52+length*(period.interval==='month'?12:6)}px" role="img" aria-label="${esc(axis)}: ${fmt(d.inPeriod)} presenze nel periodo. Asse verticale da zero a ${fmt(scale)} presenze. Valori esatti nella tabella seguente.">
+          <div class="timeline-y" aria-hidden="true">${[0,1,2,3,4].map(i=>`<span style="bottom:${i*25}%">${fmt(scale*i/4)}</span>`).join('')}</div>
+          <div class="timeline-plot" style="grid-template-columns:repeat(${length},minmax(0,1fr))" aria-hidden="true">
+            ${[1,2,3,4].map(i=>`<span class="timeline-guide" style="bottom:${i*25}%"></span>`).join('')}
+            ${d.bins.map(bin=>`<span class="timeline-column" title="${esc(label(bin))}: ${fmt(bin.count)} presenze"><span class="timeline-bar ${pending?'stat-pending':''}" style="height:${100*bin.count/scale}%"></span></span>`).join('')}
+          </div>
+          <div class="timeline-ticks" aria-hidden="true">${ticks}</div>
+        </div>
+      </div>
+      <p class="small">Asse verticale: numero di presenze. Scala comune ai due grafici. Puoi scorrere il grafico e consultare i valori esatti qui sotto.</p>
+    </figure>`:`<p class="note" data-date-empty>${d.total?'Nessuna presenza con una data interpretabile nel periodo selezionato. Controlla i conteggi e modifica il periodo.':'Nessuna presenza con questo stato nella Prefettura selezionata.'}</p>`;
+  return `<div data-date-distribution="${d.key}">${section(title,`
+    <p>${count('total',d.total)} presenze con questo stato · ${count('inPeriod',d.inPeriod)} rappresentate nel periodo.</p>
+    <div class="date-coverage" aria-label="Disponibilità delle date">
+      ${metric('Data mancante',fmt(d.missing))}${metric('Data non interpretabile',fmt(d.uninterpretable))}
+      ${metric('Prima del '+period.fromYear,fmt(d.before))}${metric('Dopo il '+period.toYear,fmt(d.after))}
+    </div>
+    <p class="small">${fmt(dated)} date complete interpretabili${dated?`, dal ${esc(displayDate(d.min))} al ${esc(displayDate(d.max))}`:''}. Le date mancanti, non interpretabili e fuori periodo non entrano nelle barre.</p>
+    ${pending&&d.afterReference?`<p class="note">${fmt(d.afterReference)} date di invio sono successive alla data del rispettivo elenco: valori da verificare, conservati nei conteggi secondo la data riportata.</p>`:''}
+    ${!pending?'<p class="small">La scadenza riportata non implica perdita di validità, revoca o rigetto. Lo stato «Rinnovo richiesto» resta distinto e non è incluso.</p>':''}
+    ${chart}
+    <details class="date-values"><summary>Valori per ${period.interval==='month'?'mese':'anno'} e date fuori periodo</summary>
+      <table class="grid stat-table" data-date-values><caption>Presenze nel periodo selezionato</caption><thead><tr><th scope="col">${period.interval==='month'?'Mese':'Anno'}</th><th scope="col">Presenze</th></tr></thead><tbody>${d.bins.map(bin=>`<tr><th scope="row">${esc(label(bin))}</th><td class="num" data-date-bin="${bin.period}">${fmt(bin.count)}</td></tr>`).join('')}</tbody><tfoot><tr><th scope="row">Totale nel periodo</th><td class="num">${fmt(d.inPeriod)}</td></tr></tfoot></table>
+      ${d.outsideYears.length?`<table class="grid stat-table"><caption>Date fuori periodo, conservate senza correzioni</caption><thead><tr><th scope="col">Anno riportato</th><th scope="col">Presenze</th></tr></thead><tbody>${d.outsideYears.map(x=>`<tr><th scope="row">${x.year}</th><td class="num">${fmt(x.count)}</td></tr>`).join('')}</tbody></table>`:'<p>Nessuna data interpretabile fuori periodo.</p>'}
+    </details>`,id+'-title')}</div>`;
+}
+function renderDateDistributions(selected){
+  const target=$('#stats-dates');
+  try {
+    const distributions=publicDateDistributions(selected,statisticsPeriod);
+    const maximum=distributions.reduce((max,d)=>d.bins.reduce((m,b)=>Math.max(m,b.count),max),0);
+    const unit=10**Math.max(0,Math.floor(Math.log10(Math.max(1,maximum/4))));
+    const scale=Math.max(1,Math.ceil(maximum/4/unit))*unit*4;
+    target.innerHTML=distributions.map(d=>dateDistributionPanel(d,statisticsPeriod,scale)).join('');
+    $('#stats-date-status').textContent=`Nel periodo ${statisticsPeriod.fromYear}–${statisticsPeriod.toYear}: ${fmt(distributions[0].inPeriod)} presenze in istruttoria con data di invio; ${fmt(distributions[1].inPeriod)} in aggiornamento con data di scadenza.`;
+    $('#stats-period-error').textContent='';
+  } catch(error) {
+    target.innerHTML='';
+    $('#stats-date-status').textContent='';
+    $('#stats-period-error').textContent=error.message;
+  }
+}
 function renderStatistics(){
   if(!REGISTRY)return;
   const view=$('#view-statistics');
   try {
     const s=publicStatistics(REGISTRY.records,statisticsAuthority);
+    if(!statisticsPeriod)statisticsPeriod=defaultStatisticsPeriod(s.latest);
     const authorityOptions=uniqueOptions(s.latest,'authority_key','authority_name');
     const statuses=[...s.statuses].sort((a,b)=>Object.keys(STATUS).indexOf(a.status)-Object.keys(STATUS).indexOf(b.status));
     const bar=(count,max,status,authority,label)=>`<button class="stat-bar" data-stat-status="${esc(status)}" data-stat-authority="${esc(authority)}" aria-label="${esc(label)}: ${fmt(count)} presenze. Consulta il registro"><span class="stat-fill ${status==='pending'?'stat-pending':''}" style="width:${max?100*count/max:0}%" aria-hidden="true"></span><span class="stat-number">${fmt(count)}</span></button>`;
@@ -338,10 +401,25 @@ function renderStatistics(){
     for(const r of s.latest)editions.set(JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]),r);
     const scopes={listed:'Imprese iscritte',applicant:'Domande di iscrizione',listed_and_applicant:'Iscrizioni e domande',operational_mixed:'Iscrizioni, domande e altri esiti'};
     view.innerHTML=`<div class="note">Le statistiche contano le presenze nell’ultima edizione disponibile di ciascun elenco pubblicato nell’archivio. La stessa impresa può comparire più volte. Gli stati descrivono le fonti alle rispettive date: non sono nuove iscrizioni o domande presentate in un periodo, né certificano la situazione attuale.</div>`+
-      section('PRESENZE PER STATO RIPORTATO',`<div class="toolbar"><label for="stats-authority">Prefettura</label><select id="stats-authority">${option('all','Tutte',statisticsAuthority)}${authorityOptions.map(([k,n])=>option(k,n,statisticsAuthority)).join('')}</select></div><p>Percentuali su ${fmt(s.total)} presenze nella selezione. Seleziona una barra per consultare le righe corrispondenti.</p><table class="grid stat-table"><thead><tr><th>Stato riportato</th><th>Presenze</th><th>Percentuale</th></tr></thead><tbody>${statuses.map(x=>`<tr><th scope="row">${esc(STATUS[x.status]||x.status)}</th><td>${bar(x.count,Math.max(0,...statuses.map(x=>x.count)),x.status,statisticsAuthority,STATUS[x.status]||x.status)}</td><td>${pct(x.percentage)}</td></tr>`).join('')||'<tr><td colspan="3">Nessuna presenza disponibile.</td></tr>'}</tbody></table>`)+
+      `<div class="toolbar"><label for="stats-authority">Prefettura</label><select id="stats-authority">${option('all','Tutte',statisticsAuthority)}${authorityOptions.map(([k,n])=>option(k,n,statisticsAuthority)).join('')}</select><p class="small">Il filtro si applica alle distribuzioni temporali e alle presenze per stato.</p></div>`+
+      section('DISTRIBUZIONI TEMPORALI',`<p>Presenze nelle ultime edizioni pubblicate, raggruppate per la data riportata nella fonte. Non misurano l’evoluzione del numero di pratiche in attesa né i tempi di lavorazione.</p>
+        <form id="stats-period" class="toolbar date-filters"><label for="stats-from-year">Dall’anno</label><input id="stats-from-year" type="number" min="1" max="9999" required value="${statisticsPeriod.fromYear}"><label for="stats-to-year">All’anno</label><input id="stats-to-year" type="number" min="1" max="9999" required value="${statisticsPeriod.toYear}"><label for="stats-interval">Raggruppa per</label><select id="stats-interval">${option('year','Anno',statisticsPeriod.interval)}${option('month','Mese',statisticsPeriod.interval)}</select><button class="btn" type="submit">Applica periodo</button><button class="btn" type="button" id="stats-period-reset">Periodo iniziale</button></form>
+        <p class="small">Periodo iniziale: dieci anni fino all’anno dell’ultima edizione disponibile, più l’anno successivo. I limiti includono gli anni interi e si applicano a entrambi i grafici.</p><p id="stats-period-error" class="bad" role="alert"></p><p id="stats-date-status" role="status"></p>`)+
+      '<div id="stats-dates"></div>'+
+      section('PRESENZE PER STATO RIPORTATO',`<p>Percentuali su ${fmt(s.total)} presenze nella selezione. Seleziona una barra per consultare le righe corrispondenti.</p><table class="grid stat-table"><thead><tr><th>Stato riportato</th><th>Presenze</th><th>Percentuale</th></tr></thead><tbody>${statuses.map(x=>`<tr><th scope="row">${esc(STATUS[x.status]||x.status)}</th><td>${bar(x.count,Math.max(0,...statuses.map(x=>x.count)),x.status,statisticsAuthority,STATUS[x.status]||x.status)}</td><td>${pct(x.percentage)}</td></tr>`).join('')||'<tr><td colspan="3">Nessuna presenza disponibile.</td></tr>'}</tbody></table>`)+
       section('PRESENZE PER PREFETTURA E STATO',`<p>Tutte le Prefetture con dati consultabili. La Prefettura è quella che pubblica l’elenco, non necessariamente quella della sede dell’impresa. Le due serie usano la stessa scala; gli altri stati sono rappresentati nel primo grafico.</p><table class="grid stat-table"><thead><tr><th>Prefettura</th><th>Iscritte</th><th>In istruttoria</th></tr></thead><tbody>${s.prefectures.map(p=>`<tr><th scope="row">${esc(p.name)}</th><td>${bar(p.listed,maximum,'listed',p.key,p.name+' — Iscritte')}</td><td>${bar(p.pending,maximum,'pending',p.key,p.name+' — In istruttoria')}</td></tr>`).join('')}</tbody></table>`)+
-      section('EDIZIONI UTILIZZATE',`<p>Le date possono differire tra elenchi e Prefetture. Questa tabella indica le fonti considerate nei grafici; il filtro del primo grafico seleziona soltanto la Prefettura indicata.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Prefettura</th><th>Registro</th><th>Contenuto</th><th>Data dell’elenco</th><th>Fonte</th></tr></thead><tbody>${[...editions.values()].sort((a,b)=>a.authority_name.localeCompare(b.authority_name,'it')||a.source_key.localeCompare(b.source_key)).map(r=>`<tr><td>${esc(r.authority_name)}</td><td>${esc(r.register_name)}</td><td>${esc(scopes[r.population_scope]||r.population_scope)}</td><td>${esc(displayDate(r.reference_date))}</td><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr>`).join('')}</tbody></table></div>`);
-    $('#stats-authority').addEventListener('change',e=>{statisticsAuthority=e.target.value;renderStatistics()});
+      section('EDIZIONI UTILIZZATE',`<p>Le date possono differire tra elenchi e Prefetture. Questa tabella indica tutte le fonti considerate; il filtro Prefettura si applica alle distribuzioni temporali e alle presenze per stato. Il confronto per Prefettura include sempre tutte le autorità.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Prefettura</th><th>Registro</th><th>Contenuto</th><th>Data dell’elenco</th><th>Fonte</th></tr></thead><tbody>${[...editions.values()].sort((a,b)=>a.authority_name.localeCompare(b.authority_name,'it')||a.source_key.localeCompare(b.source_key)).map(r=>`<tr><td>${esc(r.authority_name)}</td><td>${esc(r.register_name)}</td><td>${esc(scopes[r.population_scope]||r.population_scope)}</td><td>${esc(displayDate(r.reference_date))}</td><td><a href="${esc(r.resource_url)}" target="_blank" rel="noopener">Consulta l’elenco ufficiale</a></td></tr>`).join('')}</tbody></table></div>`);
+    renderDateDistributions(s.selected);
+    $('#stats-authority').addEventListener('change',e=>{statisticsAuthority=e.target.value;redrawFilter(renderStatistics,e.target)});
+    $('#stats-period').addEventListener('submit',e=>{
+      e.preventDefault();
+      statisticsPeriod={fromYear:$('#stats-from-year').valueAsNumber,toYear:$('#stats-to-year').valueAsNumber,interval:$('#stats-interval').value};
+      renderDateDistributions(s.selected);
+    });
+    $('#stats-period-reset').addEventListener('click',()=>{
+      statisticsPeriod=defaultStatisticsPeriod(s.latest);
+      redrawFilter(renderStatistics,$('#stats-period-reset'));
+    });
     view.querySelectorAll('[data-stat-status]').forEach(button=>button.addEventListener('click',()=>{
       Object.assign(registryState,{authority:button.dataset.statAuthority,status:button.dataset.statStatus,register:'all',query:'',page:1,latestOnly:true});
       activate('registry').then(()=>$('#reg-q')?.focus());

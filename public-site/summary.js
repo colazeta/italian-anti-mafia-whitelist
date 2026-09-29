@@ -15,23 +15,31 @@ function archiveSummary(registry, prefectures) {
 }
 if(typeof module!=='undefined')module.exports={archiveSummary};
 
-// Presentation only: never rewrite a source value or parse ambiguous date strings.
-function displayDate(value,missing='—') {
-  if(value===null||value===undefined||value==='')return missing;
+// Calendar-only interpretation shared by display and aggregation. No Date(),
+// timezone conversion, inferred day/month, or replacement of the source value.
+function calendarDate(value) {
+  if(value===null||value===undefined||value==='')return {kind:'missing'};
   const raw=String(value);
   let parts=/^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   let year,month,day;
   if(parts)[,year,month,day]=parts;
   else {
     parts=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
-    if(!parts)return `${raw} (valore della fonte)`;
+    if(!parts)return {kind:'unrecognized'};
     [,day,month,year]=parts;
   }
   const y=Number(year),m=Number(month),d=Number(day);
   const leap=y%4===0&&(y%100!==0||y%400===0);
   const days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
-  if(y<1||m<1||m>12||d<1||d>days[m-1])return `${raw} (data non valida)`;
-  return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${year}`;
+  if(y<1||m<1||m>12||d<1||d>days[m-1])return {kind:'invalid'};
+  return {kind:'valid',year:y,month:m,day:d,iso:`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`};
+}
+function displayDate(value,missing='—') {
+  const date=calendarDate(value);
+  if(date.kind==='missing')return missing;
+  if(date.kind==='unrecognized')return `${value} (valore della fonte)`;
+  if(date.kind==='invalid')return `${value} (data non valida)`;
+  return date.iso.split('-').reverse().join('/');
 }
 function displayCheckTime(value,missing='Non registrata') {
   if(!value)return missing;
@@ -87,3 +95,50 @@ function publicStatistics(records,authority='all') {
     prefectures:[...prefectures.values()].sort((a,b)=>a.name.localeCompare(b.name,'it'))};
 }
 if(typeof module!=='undefined')Object.assign(module.exports,{latestPublishedRows,publicStatistics});
+
+function defaultStatisticsPeriod(latest) {
+  // A stable initial window anchored to the publication, not the visitor's clock.
+  const year=latest.reduce((maximum,r)=>Math.max(maximum,Number(r.reference_date.slice(0,4))),0);
+  return {fromYear:Math.max(1,year-9),toYear:Math.min(9999,Math.max(1,year+1)),interval:'year'};
+}
+function publicDateDistributions(selected,{fromYear,toYear,interval}) {
+  if(!Number.isInteger(fromYear)||!Number.isInteger(toYear)||fromYear<1||toYear>9999||fromYear>toYear)
+    throw Error('Indica due anni tra 1 e 9999, con l’anno iniziale non successivo a quello finale');
+  if(!['month','year'].includes(interval))throw Error('Raggruppamento temporale non riconosciuto');
+  const length=(toYear-fromYear+1)*(interval==='month'?12:1);
+  if(length>1200)throw Error('Il periodo supera 1.200 intervalli: restringi gli anni o scegli il raggruppamento per anno');
+  return [
+    {key:'pending',field:'application_date'},
+    {key:'renewal_update_in_progress',field:'observed_expiry_date'}
+  ].map(({key,field})=>{
+    const bins=Array.from({length},(_,i)=>{
+      const year=fromYear+(interval==='month'?Math.floor(i/12):i);
+      const period=String(year).padStart(4,'0')+(interval==='month'?`-${String(i%12+1).padStart(2,'0')}`:'');
+      return {period,count:0};
+    });
+    const result={key,field,total:0,inPeriod:0,missing:0,uninterpretable:0,before:0,after:0,min:null,max:null,afterReference:0,bins,outsideYears:[]};
+    const outside=new Map();
+    // Caller supplies the same latest-edition/authority selection as the other
+    // statistics. Never select a newer row per company or borrow another date.
+    for(const row of selected) {
+      if(row.source_status!==key)continue;
+      result.total++;
+      const date=calendarDate(row[field]);
+      if(date.kind==='missing'){result.missing++;continue;}
+      if(date.kind!=='valid'){result.uninterpretable++;continue;}
+      result.min=result.min===null||date.iso<result.min?date.iso:result.min;
+      result.max=result.max===null||date.iso>result.max?date.iso:result.max;
+      if(key==='pending'&&date.iso>row.reference_date)result.afterReference++;
+      if(date.year<fromYear||date.year>toYear){
+        result[date.year<fromYear?'before':'after']++;
+        outside.set(date.year,(outside.get(date.year)||0)+1);
+      } else {
+        result.inPeriod++;
+        bins[(date.year-fromYear)*(interval==='month'?12:1)+(interval==='month'?date.month-1:0)].count++;
+      }
+    }
+    result.outsideYears=[...outside].sort((a,b)=>a[0]-b[0]).map(([year,count])=>({year,count}));
+    return result;
+  });
+}
+if(typeof module!=='undefined')Object.assign(module.exports,{calendarDate,defaultStatisticsPeriod,publicDateDistributions});

@@ -12,3 +12,21 @@
 .filter-actions span{font-size:13px}.pager:first-child{margin:0 0 9px}.section-title[tabindex]{scroll-margin-top:12px}
 @media(max-width:900px){.toolbar.registry-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.note summary{min-height:28px;align-content:center;font-weight:bold}.filter-actions>span{display:flex;align-items:center;flex-wrap:wrap;gap:6px}}
+
+.date-filters input{flex:0 1 90px;min-width:80px;width:90px}
+.date-coverage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px;font-size:14px}
+.date-distribution{margin:16px 0 8px}.date-distribution figcaption{margin-bottom:12px}
+.timeline-scroll{max-width:100%;overflow-x:auto;padding:10px 0 4px;overscroll-behavior-x:contain}
+.timeline-scroll:focus-visible{outline-offset:-2px}
+.timeline-chart{display:grid;grid-template-columns:52px minmax(0,1fr);grid-template-rows:220px 36px;padding-right:4px;font-size:14px;font-variant-numeric:tabular-nums}
+.timeline-y{position:relative;grid-column:1;grid-row:1}.timeline-y span{position:absolute;right:8px;transform:translateY(50%);line-height:1}
+.timeline-plot{position:relative;display:grid;align-items:end;height:220px;border-left:1px solid #666;border-bottom:1px solid #666;grid-column:2;grid-row:1;column-gap:1px}
+.timeline-guide{position:absolute;left:0;right:0;border-top:1px solid #ddd;pointer-events:none}
+.timeline-column{position:relative;display:flex;align-items:end;height:100%;min-width:0}
+.timeline-bar{display:block;width:100%;background:#008080;border:0 solid #004545;border-left-width:1px}
+.timeline-bar.stat-pending{background:#d7bb6b;border-color:#754000}
+.timeline-ticks{position:relative;grid-column:2;grid-row:2;margin-top:5px}
+.timeline-tick{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.timeline-tick.first{left:0!important;transform:none}.timeline-tick.last{left:auto!important;right:0;transform:none}
+.date-values summary{min-height:44px;align-content:center;font-weight:bold}.date-values caption{text-align:left;padding:10px 0;font-weight:bold}
+@media(max-width:600px){.date-coverage{grid-template-columns:minmax(0,1fr)}.date-filters input{width:100%;min-width:0}.timeline-tick.secondary-tick{display:none}}

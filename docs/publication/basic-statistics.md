@@ -24,11 +24,13 @@ si riferisce quindi all'archivio pubblicato, non a una verifica in tempo reale
 di tutte le fonti ufficiali. Prima di pubblicare serie con edizioni vuote occorre
 rappresentarle esplicitamente e adeguare questa selezione con test dedicati.
 
-## I due grafici
+## Grafici e filtri
 
 | Grafico | Numeratore | Denominatore / scala | Filtro |
 | --- | --- | --- | --- |
-| Presenze per stato riportato | Righe selezionate con quello `source_status` | Tutte le righe selezionate, inclusi gli altri stati; percentuale arrotondata a due decimali | Prefettura, applicato solo a questo grafico |
+| In istruttoria · data di invio | Righe `pending` con `application_date` interpretabile nel mese/anno | Conteggi, scala verticale comune alle due distribuzioni; riconciliazione con tutte le righe `pending` selezionate | Prefettura, anni inclusivi, mese/anno |
+| Aggiornamento in corso · data di scadenza | Righe `renewal_update_in_progress` con `observed_expiry_date` interpretabile nel mese/anno | Conteggi, scala verticale comune alle due distribuzioni; riconciliazione con tutte le righe di questo stato selezionate | Gli stessi filtri della distribuzione delle istruttorie |
+| Presenze per stato riportato | Righe selezionate con quello `source_status` | Tutte le righe selezionate, inclusi gli altri stati; percentuale arrotondata a due decimali | Prefettura |
 | Presenze per Prefettura e stato | Righe selezionate dell'autorità con stato `listed` oppure `pending`, separatamente | Scala comune al massimo conteggio delle due serie; nessuna percentuale | Tutte le Prefetture pubblicate |
 
 La Prefettura è l'autorità che pubblica, non la sede dell'impresa. Rinnovi,
@@ -37,11 +39,71 @@ arbitrariamente a iscrizioni o istruttorie. Le percentuali arrotondate possono
 non sommare esattamente a 100. Le date delle fonti possono differire: la tabella
 Edizioni utilizzate mostra ciascun documento, data e collegamento ufficiale.
 
-Ogni barra è un pulsante accessibile anche da tastiera. Apre il registro con
+Ogni barra dei grafici per stato e per Prefettura è un pulsante accessibile anche da tastiera. Apre il registro con
 Prefettura, stato e ultime edizioni coerenti con il conteggio, azzerando ricerca
 e filtro di registro precedenti. Il filtro delle ultime edizioni è esplicito e
 reversibile; la consultazione normale del registro mantiene il comportamento
 precedente.
+
+## Distribuzioni delle date riportate
+
+Questi istogrammi descrivono le date delle presenze con i due stati nelle ultime
+edizioni pubblicate. Non ricostruiscono lo stock storico delle pratiche pendenti,
+il flusso complessivo delle istanze presentate, né i tempi di lavorazione.
+`renewal_requested` resta separato da `renewal_update_in_progress`. La scadenza
+osservata non determina una revoca, un rigetto o la perdita di efficacia legale.
+
+`calendarDate` condivide la lettura delle date con `displayDate`: accetta solo
+date complete ISO `YYYY-MM-DD` e italiane `D/M/YYYY`, validate sul calendario
+gregoriano, senza conversione di fuso. Date parziali, formati ambigui e date
+impossibili restano non interpretabili; null, stringa vuota e campo assente sono
+mancanti. Non si usano date di riferimento, acquisizione o altri campi come
+sostituti. Le righe e i valori originali non vengono modificati.
+
+La selezione delle ultime edizioni e della Prefettura è la stessa degli altri
+conteggi. Ogni presenza appartiene esattamente a una delle seguenti categorie:
+
+`totale = nel periodo + prima del periodo + dopo il periodo + data mancante + data non interpretabile`.
+
+Il periodo iniziale comprende dieci anni fino all'anno della massima data delle
+edizioni pubblicate, più l'anno seguente per includere scadenze future. È stabile
+rispetto all'orologio del visitatore e non cambia al cambio di Prefettura. Anni
+iniziale/finale e raggruppamento per anno o mese sono modificabili. Le barre
+includono intervalli a zero, partono da zero e condividono assi e scala verticale.
+Il limite di rendering è 1.200 intervalli: una richiesta più ampia mostra un
+errore e rimuove i grafici precedenti, senza troncamenti o cambi di granularità
+impliciti. Tutti i valori esatti e gli anni fuori periodo sono consultabili in
+una tabella espandibile da tastiera; i grafici mensili possono scorrere
+orizzontalmente senza allargare la pagina mobile.
+
+Una data valida sul calendario non è necessariamente una data corretta della
+fonte. Gli anni estremi rimangono nei conteggi fuori periodo e possono essere
+ispezionati modificando il periodo. Per le istruttorie viene inoltre indicato
+quante date di invio sono successive alla data del relativo elenco: è un
+segnale di verifica, sovrapposto alle categorie precedenti, non una correzione
+né una categoria sottratta dal totale. Le scadenze future restano ammesse.
+
+### Riscontro sullo snapshot pubblico del 29 settembre 2026
+
+Selettore invariato: `public-data-36342687206-1`. Periodo iniziale 2017–2027.
+
+| Stato / data | Totale | Nel periodo | Prima | Dopo | Mancante | Non interpretabile |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| In istruttoria / invio | 19.841 | 17.279 | 304 | 11 | 2.247 | 0 |
+| Aggiornamento in corso / scadenza | 16.134 | 14.779 | 62 | 2 | 1.291 | 0 |
+
+Le date interpretabili sono rispettivamente 17.594 e 14.843. Sono presenti
+valori estremi negli anni 1202, 2204 e 5201 per l'invio e 2525 per la scadenza;
+23 date di invio sono successive alla data dell'elenco. Questi dati pubblicati
+richiedono verifica sulle fonti: la nuova presentazione li rende espliciti senza
+correggerli o ripubblicare il dataset. Non sono prove di tempi amministrativi.
+
+I test unitari verificano le partizioni, le date bisestili, l'assenza di
+sostituzioni, le edizioni superate, il filtro, gli stati separati, gli estremi,
+i mesi vuoti e i limiti. Il gate Pages esegue questi test prima del build e
+verifica nel browser lo snapshot approvato a 1440, 768, 390 e 320 pixel:
+parità con i conteggi, cambio Prefettura/periodo/granularità, dati mancanti,
+errore senza grafico obsoleto, tabelle da tastiera e assenza di overflow esterno.
 
 ## Verifica della versione iniziale
 
