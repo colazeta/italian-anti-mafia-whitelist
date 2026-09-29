@@ -375,6 +375,38 @@ def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> It
         registry._download = original_download
 
 
+def _latest_capture_time(binding: dict[str, Any]) -> str:
+    """Return when the complete frozen source input had actually been captured."""
+    observed: list[tuple[datetime, str]] = []
+    for resource in binding["resources"]:
+        capture = freeze_capture_manifest(resource["capture"])
+        raw = capture["captured_at"]
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        observed.append((parsed, raw))
+    if not observed:
+        raise ValueError("Frozen source binding has no capture/check timestamps")
+    return max(observed, key=lambda item: item[0])[1]
+
+
+def _restore_frozen_observation_times(built_registry: dict[str, Any], manifest: dict[str, Any]) -> None:
+    """Restore real capture chronology after archive replay, not replay wall-clock time."""
+    bindings = {item["source_key"]: item for item in manifest["sources"]}
+    reports = built_registry.get("meta", {}).get("sources")
+    if not isinstance(reports, list):
+        raise ValueError("Frozen replay registry lacks source reports")
+    seen: set[str] = set()
+    for report in reports:
+        source_key = report.get("source_key")
+        if not isinstance(source_key, str) or source_key not in bindings:
+            raise ValueError("Frozen replay registry contains an unpinned source report")
+        if source_key in seen:
+            raise ValueError(f"Frozen replay registry contains duplicate source report: {source_key}")
+        report["document_checked_at"] = _latest_capture_time(bindings[source_key])
+        seen.add(source_key)
+    if seen != set(bindings):
+        raise ValueError("Frozen replay registry source reports do not cover every pinned source")
+
+
 def build_registry_from_release(
     config: dict,
     work_dir: Path,
@@ -383,4 +415,6 @@ def build_registry_from_release(
 ) -> dict:
     """Build registry rows from exact durable inputs with live source access disabled."""
     with archived_downloads(release_manifest, config, store):
-        return registry.build_registry(config, work_dir)
+        built = registry.build_registry(config, work_dir)
+    _restore_frozen_observation_times(built, release_manifest)
+    return built
