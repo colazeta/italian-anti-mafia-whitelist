@@ -158,11 +158,11 @@ jobs:
           specs = (
               {
                   'manifest': 'data/captures/cosenza/combined_2026-06-28.json',
-                  'member': '2026-06-28/combined.pdf',
+                  'member': 'cosenza-capture/2026-06-28/combined.pdf',
               },
               {
                   'manifest': 'data/captures/cosenza/combined_2026-08-03.json',
-                  'member': '2026-08-03/combined.pdf',
+                  'member': 'cosenza-capture/2026-08-03/combined.pdf',
               },
           )
 
