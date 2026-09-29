@@ -174,6 +174,37 @@ def fetch_url(url, previous, hosts, force=False):
             raise
 
 
+def _capture_history(robot, old):
+    """Retain every known immutable capture identity for one resource.
+
+    Older robot-state snapshots predate append-only capture history and retain only
+    the capture ids from the most recent archived payload. Preserve those identities
+    explicitly without inventing acquisition timestamps or other provenance that the
+    historical state did not record.
+    """
+    history = old.get('capture_history')
+    if history is not None:
+        if not isinstance(history, list):
+            raise ValueError('capture_history must be a list')
+        return deepcopy(history)
+
+    capture_ids = old.get('capture_ids', [])
+    if not capture_ids:
+        return []
+    source_keys = old.get('source_keys') or [robot['authority_key'] + '-robot-discovery']
+    exact_key_alignment = len(source_keys) == len(capture_ids)
+    return [{
+        'capture_id': capture_id,
+        'source_key': source_keys[index] if exact_key_alignment else None,
+        'sha256': old.get('archived_sha256'),
+        'byte_size': None,
+        'content_type': None,
+        'captured_at': None,
+        'reference_date': None,
+        'http_status': None,
+    } for index, capture_id in enumerate(capture_ids)]
+
+
 def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('/tmp/white-list-robots'),
               fetch=fetch_url, force=False, pause=0.4, clock=time.monotonic):
     if mode not in ('check', 'capture') or (mode == 'capture' and store is None):
@@ -226,7 +257,8 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
             if response['status'] == 304:
                 if not old.get('sha256'):
                     raise ValueError('304 without a preceding content identity')
-                if mode == 'capture' and old.get('archived_sha256') != old['sha256']:
+                needs_temporal_capture = role in ('source', 'candidate')
+                if mode == 'capture' and (needs_temporal_capture or old.get('archived_sha256') != old['sha256']):
                     response = fetch(url, {}, robot['allowed_hosts'], force=True)
                 else:
                     old['last_checked_at'] = at; resources[url] = old; continue
@@ -243,8 +275,12 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
                 'resolved_url': response['resolved_url'], 'etag': response.get('etag'),
                 'last_modified': response.get('last_modified'), 'last_checked_at': at, 'role': role,
                 'source_keys': sorted({s['source_key'] for s in approved.get(url, [])}),
-                'archived_sha256': old.get('archived_sha256'), 'capture_ids': old.get('capture_ids', [])}
-            if mode == 'capture' and item['archived_sha256'] != sha:
+                'archived_sha256': old.get('archived_sha256'), 'capture_ids': old.get('capture_ids', []),
+                'capture_history': _capture_history(robot, old)}
+            should_archive = mode == 'capture' and (
+                role in ('source', 'candidate') or item['archived_sha256'] != sha
+            )
+            if should_archive:
                 # Unbound discovery captures are explicitly quarantined, never bound
                 # to an applicant/listed SourceSeries by a filename heuristic.
                 capture_keys = item['source_keys'] or [robot['authority_key'] + '-robot-discovery']
@@ -257,6 +293,16 @@ def run_robot(robot, previous=None, *, mode='check', store=None, work_dir=Path('
                         origin_type='official_current', authority_rank_code='primary_official',
                         resource_type_code='html' if mime in ('text/html', 'application/xhtml+xml') else 'other')
                     receipts.append(result.manifest['capture_id'])
+                    item['capture_history'].append({
+                        'capture_id': result.manifest['capture_id'],
+                        'source_key': result.manifest['source_key'],
+                        'sha256': result.manifest['sha256'],
+                        'byte_size': result.manifest['byte_size'],
+                        'content_type': result.manifest['content_type'],
+                        'captured_at': result.manifest['captured_at'],
+                        'reference_date': result.manifest['reference_date'],
+                        'http_status': result.manifest['http_status'],
+                    })
                     result.path.unlink(missing_ok=True)
                 item['archived_sha256'] = sha; item['capture_ids'] = receipts
                 captures.append(url)

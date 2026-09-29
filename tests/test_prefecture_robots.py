@@ -67,7 +67,7 @@ def test_failure_preserves_previous_identity_and_success_time():
     assert second['errors'][0]['http_status'] == 503
 
 
-def test_capture_after_check_refetches_304_and_keeps_originals(tmp_path):
+def test_capture_after_check_refetches_304_and_keeps_separate_temporal_checks(tmp_path):
     evidence = store()
     first = run_robot(robot(), fetch=fetch, pause=0)
     calls = []
@@ -78,12 +78,71 @@ def test_capture_after_check_refetches_304_and_keeps_originals(tmp_path):
                          fetch=conditional, pause=0)
     assert captured['status'] == 'unchanged'
     assert (PDF, True) in calls
-    assert captured['resources'][PDF]['archived_sha256'] == digest(b'%PDF-original')
-    assert len(captured['resources'][PDF]['capture_ids']) == 1
+    resource = captured['resources'][PDF]
+    assert resource['archived_sha256'] == digest(b'%PDF-original')
+    assert len(resource['capture_ids']) == 1
+    assert len(resource['capture_history']) == 1
+
+    first_capture_id = resource['capture_ids'][0]
     again = run_robot(robot(), captured, mode='capture', store=evidence, work_dir=tmp_path,
                       fetch=conditional, pause=0)
-    assert again['captured_urls'] == []
-    assert again['resources'][PDF]['capture_ids'] == captured['resources'][PDF]['capture_ids']
+    assert again['captured_urls'] == [PDF]
+    resource = again['resources'][PDF]
+    assert len(resource['capture_ids']) == 1
+    assert resource['capture_ids'][0] != first_capture_id
+    assert len(resource['capture_history']) == 2
+    assert [item['sha256'] for item in resource['capture_history']] == [
+        digest(b'%PDF-original'), digest(b'%PDF-original')
+    ]
+    assert len({item['capture_id'] for item in resource['capture_history']}) == 2
+    assert {item['source_key'] for item in resource['capture_history']} == {'fixture-listed'}
+    assert all(item['captured_at'] for item in resource['capture_history'])
+
+
+def test_capture_history_retains_changed_bytes_and_reappearance(tmp_path):
+    evidence = store()
+    def with_pdf(body):
+        def _fetch(url, *args, **kwargs):
+            if url == PAGE:
+                return response(url, b'<a href="/elenco.pdf">Elenco iscritti</a>')
+            return response(url, body)
+        return _fetch
+
+    first = run_robot(robot(), mode='capture', store=evidence, work_dir=tmp_path,
+                      fetch=with_pdf(b'%PDF-original'), pause=0)
+    second = run_robot(robot(), first, mode='capture', store=evidence, work_dir=tmp_path,
+                       fetch=with_pdf(b'%PDF-new'), pause=0)
+    third = run_robot(robot(), second, mode='capture', store=evidence, work_dir=tmp_path,
+                      fetch=with_pdf(b'%PDF-original'), pause=0)
+
+    history = third['resources'][PDF]['capture_history']
+    assert [item['sha256'] for item in history] == [
+        digest(b'%PDF-original'), digest(b'%PDF-new'), digest(b'%PDF-original')
+    ]
+    assert len({item['capture_id'] for item in history}) == 3
+    assert history[0]['capture_id'] != history[2]['capture_id']
+    assert third['resources'][PDF]['archived_sha256'] == digest(b'%PDF-original')
+
+
+def test_legacy_capture_ids_are_retained_without_inventing_old_timestamps(tmp_path):
+    evidence = store()
+    first = run_robot(robot(), mode='capture', store=evidence, work_dir=tmp_path,
+                      fetch=fetch, pause=0)
+    legacy = deepcopy(first)
+    legacy_resource = legacy['resources'][PDF]
+    original_capture_id = legacy_resource['capture_ids'][0]
+    legacy_resource.pop('capture_history')
+
+    second = run_robot(robot(), legacy, mode='capture', store=evidence, work_dir=tmp_path,
+                       fetch=fetch, pause=0)
+    history = second['resources'][PDF]['capture_history']
+    assert history[0]['capture_id'] == original_capture_id
+    assert history[0]['source_key'] == 'fixture-listed'
+    assert history[0]['sha256'] == digest(b'%PDF-original')
+    assert history[0]['captured_at'] is None
+    assert history[0]['reference_date'] is None
+    assert history[1]['capture_id'] != original_capture_id
+    assert history[1]['captured_at'] is not None
 
 
 def test_new_document_is_discovered_without_guessing_population_binding():
