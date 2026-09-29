@@ -1,5 +1,7 @@
 name: Lane A governed recovery inventory proof
 
+# Lane A Cosenza legacy recovery proof — 2026-09-28
+
 # One-shot recovery proof for issue #163. There is intentionally no schedule and no
 # workflow_dispatch entry point. A merge that adds/changes this file exercises exact
 # catalogue recovery and exact-digest historical-byte readback against the already
