@@ -13,7 +13,8 @@ from white_list_archive.publishing import public_national_registry as registry
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_manifest
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 1
 PUBLIC_PROJECTOR_REVISION = "public-national-registry@1"
 ResourceIdentity = tuple[str, str]
 
@@ -75,7 +76,8 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
         "source_config_sha256",
         "sources",
     }
-    if set(manifest) != required or manifest["schema_version"] != SCHEMA_VERSION:
+    manifest_version = manifest.get("schema_version")
+    if set(manifest) != required or manifest_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
         raise ValueError("Unapproved frozen release manifest envelope")
     if not isinstance(manifest["release_id"], str) or not manifest["release_id"].strip():
         raise ValueError("Frozen release id is required")
@@ -127,7 +129,10 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
             raise ValueError(f"{source_key}: frozen resources must be a list")
         resource_by_label: dict[str, dict] = {}
         for resource in resources:
-            if not isinstance(resource, dict) or set(resource) != {"label", "capture", "catalogue"}:
+            expected_resource_keys = {"label", "capture", "catalogue"}
+            if manifest_version == SCHEMA_VERSION:
+                expected_resource_keys.add("source_reference_date")
+            if not isinstance(resource, dict) or set(resource) != expected_resource_keys:
                 raise ValueError(f"{source_key}: unapproved frozen resource binding")
             label = resource["label"]
             if label in resource_by_label:
@@ -146,8 +151,21 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
                 raise ValueError(f"{source_key}/{label}: capture belongs to another source")
             if capture["resource_url"] != expected_url:
                 raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
-            if capture["reference_date"] != cfg.get("reference_date"):
-                raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
+            configured_reference_date = cfg.get("reference_date")
+            if manifest_version == LEGACY_SCHEMA_VERSION:
+                if capture["reference_date"] != configured_reference_date:
+                    raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
+            else:
+                reviewed_reference_date = resource["source_reference_date"]
+                if reviewed_reference_date != configured_reference_date:
+                    raise ValueError(f"{source_key}/{label}: reviewed source reference date differs from pinned configuration")
+                capture_reference_date = capture["reference_date"]
+                if (
+                    capture_reference_date is not None
+                    and reviewed_reference_date is not None
+                    and capture_reference_date != reviewed_reference_date
+                ):
+                    raise ValueError(f"{source_key}/{label}: capture reference date conflicts with reviewed source reference date")
             if catalogue.get("capture_id") != capture.get("capture_id"):
                 raise ValueError(f"{source_key}/{label}: catalogue receipt belongs to another capture")
             if catalogue.get("sha256") != capture["sha256"] or catalogue.get("byte_size") != capture["byte_size"]:
