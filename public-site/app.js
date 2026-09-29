@@ -3,7 +3,7 @@ const $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const fmt=n=>new Intl.NumberFormat('it-IT').format(Number(n||0));
 const pct=n=>`${Number(n).toFixed(2).replace('.',',')}%`;
-const section=(title,body)=>`<div class="section"><div class="section-title">${esc(title)}</div><div class="section-body">${body}</div></div>`;
+const section=(title,body,id='')=>`<div class="section"><div class="section-title"${id?` id="${esc(id)}" tabindex="-1"`:''}>${esc(title)}</div><div class="section-body">${body}</div></div>`;
 const metric=(label,value)=>`<div class="metricline"><span>${esc(label)}</span><span class="value">${esc(value)}</span></div>`;
 const STATUS={
   listed:'Iscritta',
@@ -38,10 +38,11 @@ function loadData(key){
   return loadingData.get(key);
 }
 
-async function activate(name){
-  if(!$$('.tab').some(tab=>tab.dataset.view===name))name='registry';
+async function activate(name,{replace=false}={}){
+  if(!$$('.tab').some(tab=>tab.dataset.view===name)){name='registry';replace=true}
   const version=++navigationVersion;
-  if(location.hash!==`#${name}`)history.replaceState(null,'',`#${name}`);
+  if(location.hash!==`#${name}`)history[replace||!location.hash?'replaceState':'pushState'](null,'',`#${name}`);
+  closeDetail();
   $$('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view===name));
   $$('.tab').forEach(x=>x.setAttribute('aria-current',x.dataset.view===name?'page':'false'));
   $$('.view').forEach(x=>x.classList.toggle('active',x.id===`view-${name}`));
@@ -90,12 +91,30 @@ function uniqueOptions(rows,key,labelKey){
   return [...m.entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1]),'it'));
 }
 function option(value,label,current){return `<option value="${esc(value)}" ${current===value?'selected':''}>${esc(label)}</option>`}
+function redrawFilter(draw,input){
+  const id=input.id;
+  draw();
+  const replacement=document.getElementById(id);
+  replacement?.focus({preventScroll:true});
+  return replacement;
+}
 function redrawSearch(selector,draw,input){
   const start=input.selectionStart,end=input.selectionEnd;
-  draw();
-  const replacement=$(selector);
-  replacement.focus();
+  const replacement=redrawFilter(draw,input);
   replacement.setSelectionRange(start,end);
+}
+function pagination(prefix,state,pages,position){
+  const suffix=position==='top'?'-top':'';
+  return `<nav class="pager" aria-label="${prefix?'Prefetture':'Registro'}: paginazione ${position==='top'?'iniziale':'finale'}"><button class="btn" id="${prefix}prev${suffix}" data-page-step="-1" ${state.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${state.page} / ${pages}</span><button class="btn" id="${prefix}next${suffix}" data-page-step="1" ${state.page>=pages?'disabled':''}>Successiva ▶</button></nav>`;
+}
+function bindPagination(view,state,draw,title){
+  view.querySelectorAll('[data-page-step]').forEach(button=>button.addEventListener('click',()=>{
+    state.page+=Number(button.dataset.pageStep);
+    draw();
+    const heading=document.getElementById(title);
+    heading.focus({preventScroll:true});
+    heading.scrollIntoView({block:'start'});
+  }));
 }
 
 function registryBaseRows(){
@@ -161,27 +180,31 @@ function drawRegistry(){
     ['renewal_update_in_progress','Aggiornamento in corso'],['renewal_requested','Rinnovo richiesto'],
     ['expired_observed','Scadenza osservata'],['rejected_or_denied','Diniego / rigetto'],
     ['cancellation_related','Cancellazione / cessazione'],['other_or_unknown','Altro / non classificato']
-  ].filter(([key])=>counts[key]).map(([key,label])=>option(key,`${label} (${fmt(counts[key])})`,registryState.status)).join('');
+  ].map(([key,label])=>option(key,`${label} (${fmt(counts[key])})`,registryState.status)).join('');
   $('#view-registry').innerHTML=
     `<div class="public-banner">${fmt(archiveSummary(REGISTRY,PREFECTURES).authorities)} Prefetture con dati pubblicati · ${fmt(REGISTRY.records.length)} presenze negli elenchi · Edizione più recente disponibile: ${esc(displayDate(archiveSummary(REGISTRY,PREFECTURES).latest))}</div>`+
     `<details class="coverage"><summary>Territori coperti (${authorities.length} Prefetture)</summary><p>${authorities.map(([,name])=>esc(name)).join(' · ')}.</p></details>`+
-    section('RICERCA NEL REGISTRO',`<div class="toolbar">
-      <label for="reg-q">Cerca</label><input id="reg-q" type="search" value="${esc(registryState.query)}" placeholder="Ragione sociale, CF/P.IVA, sede, attività…">
-      <label for="reg-authority">Prefettura</label><select id="reg-authority">${option('all','Tutte',registryState.authority)}${authorities.map(([k,v])=>option(k,v,registryState.authority)).join('')}</select>
-      <label for="reg-register">Registro</label><select id="reg-register">${option('all','Tutti',registryState.register)}${availableRegisters.map(([k,v])=>option(k,v,registryState.register)).join('')}</select>
-      <label for="reg-status">Stato</label><select id="reg-status">${statusOptions}${option('all',`Tutti gli stati (${fmt(base.length)})`,registryState.status)}</select>
-      <label for="reg-latest"><input id="reg-latest" type="checkbox" ${registryState.latestOnly?'checked':''}> Solo ultime edizioni disponibili</label><label for="reg-size">Righe</label><select id="reg-size">${[25,50,100].map(n=>option(String(n),String(n),String(registryState.size))).join('')}</select>
-      <a class="btn linkbtn" href="data/registry.csv" download>CSV</a><a class="btn linkbtn" href="data/registry.json" download>JSON</a>
+    section('RICERCA NEL REGISTRO',`<div class="toolbar registry-filters">
+      <div class="filter-field filter-query"><label for="reg-q">Cerca</label><input id="reg-q" type="search" value="${esc(registryState.query)}" placeholder="Ragione sociale, CF/P.IVA, sede, attività…"></div>
+      <div class="filter-field"><label for="reg-authority">Prefettura</label><select id="reg-authority">${option('all','Tutte',registryState.authority)}${authorities.map(([k,v])=>option(k,v,registryState.authority)).join('')}</select></div>
+      <div class="filter-field"><label for="reg-status">Stato</label><select id="reg-status">${statusOptions}${option('all',`Tutti gli stati (${fmt(base.length)})`,registryState.status)}</select></div>
+      <div class="filter-field"><label for="reg-register">Registro</label><select id="reg-register">${option('all','Tutti',registryState.register)}${availableRegisters.map(([k,v])=>option(k,v,registryState.register)).join('')}</select></div>
+      <div class="filter-field"><label for="reg-size">Righe per pagina</label><select id="reg-size">${[25,50,100].map(n=>option(String(n),String(n),String(registryState.size))).join('')}</select></div>
+      <label class="filter-latest" for="reg-latest"><input id="reg-latest" type="checkbox" ${registryState.latestOnly?'checked':''}> Solo ultime edizioni disponibili</label>
+      <div class="filter-actions"><button class="btn" id="reg-reset">Azzera filtri</button><span>Scarica l’intero registro: <a class="btn linkbtn" href="data/registry.csv" download>CSV</a> <a class="btn linkbtn" href="data/registry.json" download>JSON</a></span></div>
     </div><details class="note"><summary>Come leggere i risultati</summary><p><b>Vista predefinita:</b> presenze classificate come iscritte negli elenchi consultati. Usa il filtro Stato per vedere anche le domande e gli altri esiti. La stessa impresa può comparire in più registri: il totale non indica imprese distinte in Italia. Le date di riferimento sono nella scheda; il portale non certifica lo stato attuale dell’impresa.</p></details>`)+
-    section(`REGISTRO — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap registry-grid"><table class="grid"><thead><tr><th>Ragione sociale</th><th>CF / P.IVA</th><th>Stato</th><th>Prefettura</th><th>Registro</th><th>Attività / settori</th><th>Sede pubblicata</th><th>Data riportata per l’impresa</th><th>Scadenza osservata</th></tr></thead><tbody>${rows||'<tr><td colspan="9">Nessun risultato.</td></tr>'}</tbody></table></div><div class="pager"><button class="btn" id="prev" ${registryState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${registryState.page} / ${pages}</span><button class="btn" id="next" ${registryState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
+    section(`REGISTRO — ${fmt(all.length)} RISULTATI`,`${pagination('',registryState,pages,'top')}<div class="gridwrap registry-grid"><table class="grid"><thead><tr><th>Ragione sociale</th><th>CF / P.IVA</th><th>Stato</th><th>Prefettura</th><th>Registro</th><th>Attività / settori</th><th>Sede pubblicata</th><th>Data riportata per l’impresa</th><th>Scadenza osservata</th></tr></thead><tbody>${rows||'<tr><td colspan="9">Nessun risultato.</td></tr>'}</tbody></table></div>${!all.length?'<p class="note">Nessuna presenza corrisponde ai filtri selezionati. Prova un altro stato o usa “Azzera filtri”. Questo risultato non dimostra l’assenza dell’impresa dagli elenchi ufficiali.</p>':''}${pagination('',registryState,pages,'bottom')}`,'registry-results');
   $('#reg-q').addEventListener('input',e=>{registryState.query=e.target.value;registryState.page=1;redrawSearch('#reg-q',drawRegistry,e.target)});
-  $('#reg-authority').addEventListener('change',e=>{registryState.authority=e.target.value;registryState.register='all';registryState.page=1;drawRegistry()});
-  $('#reg-register').addEventListener('change',e=>{registryState.register=e.target.value;registryState.page=1;drawRegistry()});
-  $('#reg-status').addEventListener('change',e=>{registryState.status=e.target.value;registryState.page=1;drawRegistry()});
-  $('#reg-latest').addEventListener('change',e=>{registryState.latestOnly=e.target.checked;registryState.page=1;drawRegistry()});
-  $('#reg-size').addEventListener('change',e=>{registryState.size=Number(e.target.value);registryState.page=1;drawRegistry()});
-  $('#prev')?.addEventListener('click',()=>{registryState.page--;drawRegistry()});
-  $('#next')?.addEventListener('click',()=>{registryState.page++;drawRegistry()});
+  $('#reg-authority').addEventListener('change',e=>{registryState.authority=e.target.value;registryState.register='all';registryState.page=1;redrawFilter(drawRegistry,e.target)});
+  $('#reg-register').addEventListener('change',e=>{registryState.register=e.target.value;registryState.page=1;redrawFilter(drawRegistry,e.target)});
+  $('#reg-status').addEventListener('change',e=>{registryState.status=e.target.value;registryState.page=1;redrawFilter(drawRegistry,e.target)});
+  $('#reg-latest').addEventListener('change',e=>{registryState.latestOnly=e.target.checked;registryState.page=1;redrawFilter(drawRegistry,e.target)});
+  $('#reg-size').addEventListener('change',e=>{registryState.size=Number(e.target.value);registryState.page=1;redrawFilter(drawRegistry,e.target)});
+  $('#reg-reset').addEventListener('click',()=>{
+    Object.assign(registryState,{query:'',authority:'all',register:'all',status:'listed',page:1,latestOnly:false});
+    drawRegistry();$('#reg-q').focus();
+  });
+  bindPagination($('#view-registry'),registryState,drawRegistry,'registry-results');
   $$('.clickrow').forEach(row=>{
     const open=()=>openDetail(row.dataset.record);
     row.addEventListener('click',open);
@@ -208,10 +231,12 @@ function openDetail(locator){
 }
 let detailPreviousFocus=null;
 function closeDetail(){
+  if(!$('#detail').classList.contains('open'))return;
   $('#detail').classList.remove('open');
   $('#detail').setAttribute('aria-hidden','true');
   $('.window').inert=false;
   detailPreviousFocus?.focus();
+  detailPreviousFocus=null;
 }
 
 function prefectureRows(){
@@ -237,11 +262,10 @@ function drawPrefectures(){
   const counts=PREFECTURES.prefectures.reduce((a,r)=>(a[r.mapping_status]=(a[r.mapping_status]||0)+1,a),{});
   $('#view-prefectures').innerHTML=`<div class="public-banner">${fmt(counts.published)} Prefetture con dati pubblicati · ${fmt(PREFECTURES.prefectures.length)} autorità nell’indice del Ministero</div>`+
     section('CERCA UNA PREFETTURA',`<div class="toolbar"><label for="pref-q">Cerca</label><input id="pref-q" type="search" value="${esc(prefectureState.query)}" placeholder="Prefettura / provincia…"><label for="pref-status">Disponibilità</label><select id="pref-status">${option('all',`Tutte (${fmt(PREFECTURES.prefectures.length)})`,prefectureState.status)}${Object.entries(MAP_STATUS).map(([k,v])=>option(k,`${v} (${fmt(counts[k])})`,prefectureState.status)).join('')}</select><a class="btn linkbtn" href="data/prefectures.csv" download>CSV</a><a class="btn linkbtn" href="data/prefectures.json" download>JSON</a></div><div class="note">Una fonte individuata non significa che i dati siano già consultabili nell’archivio. L’edizione disponibile è datata dalla pubblicazione dell’elenco; la verifica della pagina indica quando il progetto ne ha controllato il percorso ufficiale. Nessuna delle due date certifica lo stato attuale di un’impresa.</div>`)+
-    section(`PREFETTURE — ${fmt(all.length)} RISULTATI`,`<div class="gridwrap"><table class="grid prefecture-grid"><thead><tr><th>Prefettura / territorio</th><th>Disponibilità</th><th>Registri consultabili</th><th>Ultima edizione disponibile</th><th>Pagina verificata il</th><th>Fonte</th></tr></thead><tbody>${rows}</tbody></table></div><div class="pager"><button class="btn" id="pref-prev" ${prefectureState.page<=1?'disabled':''}>◀ Precedente</button><span>Pagina ${prefectureState.page} / ${pages}</span><button class="btn" id="pref-next" ${prefectureState.page>=pages?'disabled':''}>Successiva ▶</button></div>`);
+    section(`PREFETTURE — ${fmt(all.length)} RISULTATI`,`${pagination('pref-',prefectureState,pages,'top')}<div class="gridwrap"><table class="grid prefecture-grid"><thead><tr><th>Prefettura / territorio</th><th>Disponibilità</th><th>Registri consultabili</th><th>Ultima edizione disponibile</th><th>Pagina verificata il</th><th>Fonte</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Nessuna Prefettura corrisponde ai filtri selezionati.</td></tr>'}</tbody></table></div>${pagination('pref-',prefectureState,pages,'bottom')}`,'prefecture-results');
   $('#pref-q').addEventListener('input',e=>{prefectureState.query=e.target.value;prefectureState.page=1;redrawSearch('#pref-q',drawPrefectures,e.target)});
-  $('#pref-status').addEventListener('change',e=>{prefectureState.status=e.target.value;prefectureState.page=1;drawPrefectures()});
-  $('#pref-prev')?.addEventListener('click',()=>{prefectureState.page--;drawPrefectures()});
-  $('#pref-next')?.addEventListener('click',()=>{prefectureState.page++;drawPrefectures()});
+  $('#pref-status').addEventListener('change',e=>{prefectureState.status=e.target.value;prefectureState.page=1;redrawFilter(drawPrefectures,e.target)});
+  bindPagination($('#view-prefectures'),prefectureState,drawPrefectures,'prefecture-results');
 }
 function publishedEditions(){
   const editions=new Map();
@@ -289,8 +313,8 @@ async function main(){
   $$('.tab').forEach(t=>t.addEventListener('click',()=>activate(t.dataset.view)));
   $('#detail-close').addEventListener('click',closeDetail);
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
-  window.addEventListener('hashchange',()=>{if(location.hash==='#main-content'){$('#main-content').focus();return}activate(location.hash.slice(1))});
-  await activate(location.hash.slice(1)||'registry');
+  window.addEventListener('hashchange',()=>{if(location.hash==='#main-content'){$('#main-content').focus();return}activate(location.hash.slice(1),{replace:true})});
+  await activate(location.hash.slice(1)||'registry',{replace:true});
 }
 function enhanceTables(){
   $$('.gridwrap').forEach(wrap=>{wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label','Tabella consultabile: scorri per vedere tutte le colonne')});

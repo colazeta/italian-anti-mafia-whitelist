@@ -62,6 +62,50 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.getByRole('button',{name:'Registro',exact:true}).click();
       await page.locator('#reg-q').waitFor({timeout:60000});
       assert.equal(await page.locator('#reg-status').inputValue(),'listed');
+      // A selected state with zero rows must remain visible after narrowing scope.
+      // Previously the select displayed "Iscritte (855)" while filtering cancellations.
+      await page.locator('#reg-status').selectOption('cancellation_related');
+      await page.locator('#reg-authority').selectOption('agrigento');
+      assert.equal(await page.locator('#reg-status').inputValue(),'cancellation_related');
+      assert.equal(await page.locator('#reg-status option:checked').innerText(),'Cancellazione / cessazione (0)');
+      assert.equal(await page.locator('#view-registry tbody').innerText(),'Nessun risultato.');
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-authority');
+      await page.locator('#reg-q').fill('filtro_da_azzerare');
+      await page.locator('#reg-latest').check();
+      await page.getByRole('button',{name:'Azzera filtri',exact:true}).click();
+      assert.equal(await page.locator('#reg-q').inputValue(),'');
+      assert.equal(await page.locator('#reg-status').inputValue(),'listed');
+      assert.equal(await page.locator('#reg-authority').inputValue(),'all');
+      assert.equal(await page.locator('#reg-register').inputValue(),'all');
+      assert.equal(await page.locator('#reg-latest').isChecked(),false);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-q');
+
+      // Page controls are available above long mobile card lists. Moving from
+      // either end returns the reader to the new results, below the sticky menu.
+      const firstLocator=await page.locator('.registry-grid .clickrow').first().getAttribute('data-record');
+      await page.locator('#next').click();
+      assert.notEqual(await page.locator('.registry-grid .clickrow').first().getAttribute('data-record'),firstLocator);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'registry-results');
+      assert.ok(await page.locator('#registry-results').evaluate(el=>{
+        const top=el.getBoundingClientRect().top;
+        return top>=document.querySelector('.menubar').getBoundingClientRect().bottom&&top<innerHeight/2;
+      }));
+      await page.locator('#prev-top').click();
+      assert.equal(await page.locator('.registry-grid .clickrow').first().getAttribute('data-record'),firstLocator);
+
+      await page.getByRole('button',{name:'Prefetture',exact:true}).click();
+      await page.locator('#pref-q').waitFor();
+      await page.locator('#pref-q').fill('zzzz_no_prefecture');
+      assert.match(await page.locator('#view-prefectures tbody').innerText(),/Nessuna Prefettura/);
+      await page.getByRole('button',{name:'Qualità dei dati',exact:true}).click();
+      await page.locator('#view-quality .section-title').first().waitFor();
+      await page.goBack();
+      await page.locator('#pref-q').waitFor();
+      assert.equal(await page.locator('#pref-q').inputValue(),'zzzz_no_prefecture');
+      await page.goForward();
+      await page.locator('#view-quality.active .section-title').first().waitFor();
+      await page.getByRole('button',{name:'Registro',exact:true}).click();
+      await page.locator('#reg-q').waitFor();
       await page.locator('#reg-q').pressSequentially('zzzz_no_company');
       assert.equal(await page.locator('#view-registry tbody').innerText(),'Nessun risultato.');
       await page.locator('#reg-q').fill('');
@@ -76,6 +120,9 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#detail').getAttribute('aria-hidden'),'true');
       assert.equal(await page.locator('.window').evaluate(el=>el.inert),false);
+      await page.locator('#reg-q').focus();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-q','Escape outside a dialog must not restore stale row focus');
       for(const [name,id] of [['Statistiche','statistics'],['Storico','history'],['Metodo e fonti','method']]){
         await page.getByRole('button',{name,exact:true}).click();
         await page.locator(`#view-${id} .section-title`).first().waitFor();
