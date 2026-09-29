@@ -57,7 +57,7 @@ availability alone is `recoverable_pending`, not `verified`.
 ## Cosenza recovery target
 
 The retained GitHub Actions evidence package from workflow run `34051655207`, artifact
-`9994719997`, is still recoverable but retention-bound. Its reviewed package SHA-256 is
+`9994719997`, was verified during recovery. Its reviewed package SHA-256 is
 `0ff0a21f494685f0f01b73b8dfd905b6cd7193718c4253e8f6a0ed08da257071`.
 
 It contains the two original Cosenza PDFs represented by:
@@ -65,12 +65,18 @@ It contains the two original Cosenza PDFs represented by:
 - `data/captures/cosenza/combined_2026-06-28.json`;
 - `data/captures/cosenza/combined_2026-08-03.json`.
 
-A protected one-shot proof is still required to recover those two acquisitions through
-the approved private backend. This code-only change deliberately does not claim that
-provider/catalogue migration has executed. The eventual proof must not start new
-Prefecture research, change the recurring acquisition schedule, promote public rows,
-claim production observation persistence, create infrastructure or establish independent
-restore.
+Protected run `36511913025`, on `main@3d5b0f1f0ec038250a63d5409aadf0509ce4daa8`,
+completed both recoveries and the one-for-one denominator migration. The exact
+capture IDs are `9e769f09-3d3c-5d2a-b0f7-1b53ee5895c0` (28 June reference) and
+`32f713a4-2106-5c58-8256-6f3c02c133c3` (3 August reference). Historical capture
+times remain 6 September 2026 at 18:25:35 and 18:25:37 UTC respectively.
+
+Subsequent inventory proofs read these already recovered catalogue records and
+ContentObjects and compare their acquisition metadata with the original repository
+manifests. They no longer download or rewrite the retention-bound package. Failure
+to retrieve a selected archived original fails the proof; there is no fallback to
+current Prefecture URLs. The original package adapter remains available for other
+positively evidenced historical recoveries. This readback is not independent restore.
 
 After successful provider/catalogue readback, the two existing legacy `known_version`
 rows are replaced by the two capture identities in the recovery denominator. The

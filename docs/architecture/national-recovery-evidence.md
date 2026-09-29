@@ -97,6 +97,43 @@ A minimal operational plan has this shape:
 
 ## Compatibility
 
+### Robot capture references (29 September 2026)
+
+The protected `lane-a-recovery-inventory-proof.yml` now also reconciles the retained
+`robot-state` history through `storage/robot_recovery.py`. It freezes an exact Git
+head and reads every reachable `state.json` revision, rejecting shallow history.
+This retains older capture IDs that were overwritten in the latest resource state
+before append-only robot capture history was introduced in #213.
+
+References are deduplicated by the existing `(source_key, capture_id)` identity,
+never by URL or hash. Repeated checks of unchanged bytes remain separate captures.
+The current reviewed SourceSeries registry determines authority ownership. Discovery
+namespaces and references without a reviewed binding are counted separately and
+excluded from this reviewed-source inventory; they are not silently promoted or
+renamed. Their exclusion is an explicit coverage limitation, not evidence of loss.
+
+Each selected ID is rehydrated from the immutable catalogue. Its locator and any
+historically recorded hash, size, MIME type, capture/reference time or HTTP status
+must agree. Missing legacy fields are obtained only from that exact catalogue
+record, never from neighbouring checks or today's configuration. A provider error
+stops the proof without silently dropping a selected ID or declaring it missing.
+The existing materialiser then rereads original bytes and catalogue provenance.
+Only that final result establishes `verified`; a Git report or successful catalogue
+lookup alone does not.
+
+The four previously verified control captures remain represented. Cosenza's two
+recovered acquisitions still replace their exact legacy rows one-for-one. The
+additional robot acquisitions expand the denominator because they are separately
+evidenced checks; matching a historical hash does not consume another historical
+acquisition whose capture identity is still unknown. Summary logs identify the
+frozen robot head, included/excluded reference counts, and the separate recovery
+metrics. Original bytes, full manifests and private reports are not uploaded.
+
+This read-only reconciliation uses the existing archive and does not acquire live
+sources, persist relational observations, select a release or execute an independent
+restore. The workflow has no recurring schedule; its existence is not operational
+evidence until the protected run succeeds.
+
 The recovery-denominator schema remains version 1 while `published_release_scopes` is an optional extension. Existing callers that provide only captures and known versions remain valid. New reconciler output includes the field explicitly.
 
 Monitoring evidence keys now include the stable ledger check position in addition to observed time and content digest. This prevents equal-time repeated checks from colliding. No persisted national denominator used the earlier generated key form, so this is an implementation-key correction rather than a migration of established archive or administrative IDs.

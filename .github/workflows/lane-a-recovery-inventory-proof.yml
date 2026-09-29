@@ -1,12 +1,9 @@
 name: Lane A governed recovery inventory proof
 
-# Lane A Cosenza legacy recovery proof — 2026-09-28
-#
-# One-shot recovery proof for issue #163. There is intentionally no schedule and no
-# workflow_dispatch entry point. A merge that changes this file exercises exact
-# historical-package recovery and national denominator migration against the already
-# approved private evidence backend while leaving recurring acquisition/publication
-# schedules unchanged.
+# Read-only reconciliation of known captures against the existing private archive.
+# No schedule or dispatch: a reviewed change to this proof triggers one main run.
+# Already recovered Cosenza captures are read from their immutable catalogue records;
+# the expired/retention-bound Actions package is no longer an operational dependency.
 on:
   push:
     branches:
@@ -15,12 +12,11 @@ on:
       - .github/workflows/lane-a-recovery-inventory-proof.yml
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
   verify-recovery-denominator:
-    name: Recover Cosenza and materialise governed denominator
+    name: Reconcile retained robot captures and recovered Cosenza
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: evidence-archive
@@ -50,29 +46,9 @@ jobs:
           if any(not os.environ.get(name) for name in required):
               raise SystemExit('Required protected evidence-store configuration is unavailable')
           PY
-      - name: Download exact retained Cosenza evidence package
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          curl --fail --location --silent --show-error \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/9994719997/zip" \
-            --output /tmp/cosenza-content-capture.zip
-          python - <<'PY'
-          import hashlib
-          from pathlib import Path
-
-          path = Path('/tmp/cosenza-content-capture.zip')
-          expected = '0ff0a21f494685f0f01b73b8dfd905b6cd7193718c4253e8f6a0ed08da257071'
-          digest = hashlib.sha256(path.read_bytes()).hexdigest()
-          if digest != expected:
-              raise SystemExit('Retained Cosenza evidence package SHA-256 mismatch')
-          print('cosenza_package_sha256_verified=true')
-          PY
-      - name: Recover exact Cosenza captures and verify denominator migration
+      - name: Freeze retained robot history
+        run: git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+      - name: Read archived captures and verify the recovery denominator
         run: |
           python - <<'PY'
           from datetime import datetime, timezone
@@ -83,8 +59,8 @@ jobs:
           from white_list_archive.storage.capture_catalogue import CaptureCatalogue
           from white_list_archive.storage.catalogue_recovery import load_catalogued_capture
           from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
-          from white_list_archive.storage.legacy_capture_recovery import (
-              recover_legacy_capture_from_package,
+          from white_list_archive.storage.robot_recovery import (
+              collect_robot_capture_references, read_robot_history, rehydrate_robot_captures,
           )
           from white_list_archive.storage.recovery_materialize import (
               materialise_national_recovery,
@@ -94,10 +70,15 @@ jobs:
           )
 
           root = Path('.').resolve()
-          package = Path('/tmp/cosenza-content-capture.zip')
           config = StoreConfig.from_env()
           store = EvidenceStore(client_for(config), config)
           catalogue = CaptureCatalogue(store)
+
+          def read_capture(source_key, capture_id):
+              try:
+                  return load_catalogued_capture(catalogue, source_key=source_key, capture_id=capture_id)
+              except Exception:
+                  raise SystemExit(f'Capture catalogue not verified: {source_key}/{capture_id}') from None
 
           authorities = {}
           with (root / 'data/source_registry/source_series_inventory.csv').open(
@@ -123,11 +104,7 @@ jobs:
               authority_key = authorities.get(source_key)
               if not authority_key:
                   raise SystemExit(f'Reviewed authority binding unavailable for {source_key}')
-              manifest, receipt = load_catalogued_capture(
-                  catalogue,
-                  source_key=source_key,
-                  capture_id=capture_id,
-              )
+              manifest, receipt = read_capture(source_key, capture_id)
               captures.append(
                   {
                       'authority_key': authority_key,
@@ -154,40 +131,37 @@ jobs:
               },
           )
 
-          package_sha = '0ff0a21f494685f0f01b73b8dfd905b6cd7193718c4253e8f6a0ed08da257071'
+          snapshots, robot_metrics = read_robot_history(root, 'refs/remotes/origin/robot-state')
+          references, selection_metrics = collect_robot_capture_references(snapshots, authorities)
+          robot_metrics.update(selection_metrics)
+          recovered_robots = rehydrate_robot_captures(references, catalogue)
+          existing = {(row['capture']['source_key'], row['capture']['capture_id']) for row in captures}
+          additions = [row for row in recovered_robots
+                       if (row['capture']['source_key'], row['capture']['capture_id']) not in existing]
+          captures.extend(additions)
+          robot_metrics['robot_captures_added_to_denominator'] = len(additions)
+          print('robot_recovery_selection=' + json.dumps(robot_metrics, sort_keys=True))
+
+          # These exact historical identities passed real provider/catalogue readback
+          # in run 36511913025. Reuse that recovery; never mint a new capture from a hash.
           specs = (
-              {
-                  'manifest': 'data/captures/cosenza/combined_2026-06-28.json',
-                  'member': 'cosenza-capture/2026-06-28/combined.pdf',
-              },
-              {
-                  'manifest': 'data/captures/cosenza/combined_2026-08-03.json',
-                  'member': 'cosenza-capture/2026-08-03/combined.pdf',
-              },
+              ('data/captures/cosenza/combined_2026-06-28.json', '9e769f09-3d3c-5d2a-b0f7-1b53ee5895c0'),
+              ('data/captures/cosenza/combined_2026-08-03.json', '32f713a4-2106-5c58-8256-6f3c02c133c3'),
           )
 
           migrations = []
           migrated_identities = []
-          for spec in specs:
-              repository_manifest_path = root / spec['manifest']
-              result = recover_legacy_capture_from_package(
-                  package_path=package,
-                  package_sha256=package_sha,
-                  package_manifest_member='cosenza-capture/manifest.json',
-                  content_member=spec['member'],
-                  repository_manifest_path=repository_manifest_path,
-                  source_key='cosenza-combined',
-                  store=store,
-                  work_dir=Path('/tmp/lane-a-cosenza-recovery'),
-              )
-              manifest, receipt = load_catalogued_capture(
-                  catalogue,
-                  source_key=result.manifest['source_key'],
-                  capture_id=result.manifest['capture_id'],
-              )
-              if manifest != result.manifest:
-                  raise SystemExit('Catalogue readback changed recovered Cosenza manifest')
-              version_key = 'legacy-manifest:' + spec['manifest']
+          for manifest_path, capture_id in specs:
+              historical = json.loads((root / manifest_path).read_text())
+              manifest, receipt = read_capture('cosenza-combined', capture_id)
+              expected = {key: historical[key] for key in (
+                  'sha256', 'byte_size', 'captured_at', 'reference_date', 'resource_url',
+                  'content_type', 'http_status', 'etag', 'last_modified',
+              )}
+              expected['resolved_url'] = historical['final_url']
+              if any(manifest.get(key) != value for key, value in expected.items()):
+                  raise SystemExit('Recovered Cosenza catalogue conflicts with historical provenance')
+              version_key = 'legacy-manifest:' + manifest_path
               migrations.append(
                   {
                       'authority_key': 'cosenza',
@@ -196,9 +170,9 @@ jobs:
                       'capture': manifest,
                       'catalogue': receipt,
                       'operator_evidence_refs': [
-                          spec['manifest'],
+                          manifest_path,
                           'github-actions-run:34051655207',
-                          f'github-actions-artifact:9994719997#{spec["member"]}',
+                          'github-actions-run:36511913025',
                       ],
                   }
               )
@@ -214,10 +188,8 @@ jobs:
                           'captured_at': manifest['captured_at'],
                           'sha256': manifest['sha256'],
                           'byte_size': manifest['byte_size'],
-                          'durable_content_readback_verified': True,
                           'durable_capture_provenance_readback_verified': True,
-                          'content_object_created': bool(result.content_receipt['created']),
-                          'capture_record_created': bool(result.catalogue_receipt['created']),
+                          'read_only_reverification': True,
                       },
                       sort_keys=True,
                   )
@@ -242,10 +214,10 @@ jobs:
           print('migrated_recovery_metrics=' + json.dumps(after, sort_keys=True))
 
           expected_deltas = {
-              'denominator_items': 0,
-              'captures_with_verified_provenance': 2,
+              'denominator_items': len(additions),
+              'captures_with_verified_provenance': len(additions) + 2,
               'known_versions_without_capture_identity': -2,
-              'verified': 2,
+              'verified': len(additions) + 2,
               'recoverable_pending': 0,
               'missing': 0,
               'not_verified': -2,
@@ -279,6 +251,7 @@ jobs:
                   raise SystemExit(f'Consumed legacy version remains double-counted: {version_key}')
 
           print('cosenza_legacy_migration_verified=true')
+          print('selected_robot_captures_verified=true')
           PY
 
 # No original bytes, frozen manifests, private recovery reports, storage coordinates or
