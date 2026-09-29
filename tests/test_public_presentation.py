@@ -66,3 +66,59 @@ assert.deepEqual(latestPublishedRows(superseded),[superseded[2]]);
 assert.deepEqual(latestPublishedRows(superseded.slice().reverse()),[superseded[2]]);
 """
     subprocess.run(['node', '-e', script], cwd=ROOT, check=True)
+
+
+def test_temporal_distributions_preserve_dates_statuses_and_reconcile_every_presence():
+    script = r"""
+const assert=require('node:assert/strict');
+const {calendarDate,publicStatistics,defaultStatisticsPeriod,publicDateDistributions}=require('./public-site/summary.js');
+const row=(status,application,expiry,extra={})=>({authority_key:'a',authority_name:'A',register_key:'ordinary',source_key:'mixed',reference_date:'2026-09-01',capture_sha256:'same',source_status:status,application_date:application,observed_expiry_date:expiry,...extra});
+const rows=[
+ row('pending','2025-01-01','2026-02-01'),row('pending','1/1/2025'),
+ row('pending','2025-03-31'),row('pending','2024-12-31'),row('pending','2026-01-01'),
+ row('pending',null,'2025-01-01'),row('pending',''),row('pending','02/2025'),
+ row('pending','2025-02-29'),row('pending','2024-02-29'),row('pending','5201-05-28'),
+ row('pending','1202-04-15'),row('pending','2025-01-01',null,{authority_key:'b',authority_name:'B'}),
+ row('renewal_update_in_progress','2024-01-01','2025-12-31'),
+ row('renewal_update_in_progress','2025-01-01',null),
+ row('renewal_update_in_progress',null,'2026-09-30'), // Future expiry is not a rejection.
+ row('renewal_requested',null,'2025-12-31'),row('listed','2025-01-01','2025-12-31'),
+ row('pending','2025-01-01',null,{reference_date:'2025-08-01',capture_sha256:'old'})
+];
+const before=JSON.stringify(rows),s=publicStatistics(rows,'a');
+assert.deepEqual(defaultStatisticsPeriod(s.latest),{fromYear:2017,toYear:2027,interval:'year'});
+const period={fromYear:2025,toYear:2025,interval:'month'};
+const [p,u]=publicDateDistributions(s.selected,period);
+assert.equal(p.total,12);
+assert.deepEqual([p.inPeriod,p.missing,p.uninterpretable,p.before,p.after],[3,2,2,3,2]);
+assert.deepEqual(p.bins.map(b=>b.count),[2,0,1,0,0,0,0,0,0,0,0,0]);
+assert.equal(p.bins[0].period,'2025-01');assert.equal(p.bins[11].period,'2025-12');
+assert.deepEqual(p.outsideYears,[{year:1202,count:1},{year:2024,count:2},{year:2026,count:1},{year:5201,count:1}]);
+assert.equal(p.min,'1202-04-15');assert.equal(p.max,'5201-05-28');assert.equal(p.afterReference,1);
+assert.equal(u.total,3);assert.equal(u.inPeriod,1);assert.equal(u.bins[11].count,1);
+assert.equal(u.missing,1);assert.equal(u.after,1);assert.equal(u.afterReference,0);
+for(const d of [p,u]){
+ assert.equal(d.total,d.inPeriod+d.missing+d.uninterpretable+d.before+d.after);
+ assert.equal(d.inPeriod,d.bins.reduce((sum,b)=>sum+b.count,0));
+ assert.equal(d.before+d.after,d.outsideYears.reduce((sum,b)=>sum+b.count,0));
+}
+const annual=publicDateDistributions(s.selected,{...period,fromYear:2024,toYear:2026,interval:'year'});
+assert.deepEqual(annual[0].bins,[{period:'2024',count:2},{period:'2025',count:3},{period:'2026',count:1}]);
+assert.equal(publicDateDistributions(publicStatistics(rows).selected,period)[0].inPeriod,4);
+assert.deepEqual(publicDateDistributions(s.selected.slice().reverse(),period),[p,u]);
+assert.equal(JSON.stringify(rows),before);
+assert.equal(calendarDate('0000-01-01').kind,'invalid');
+assert.equal(calendarDate('1900-02-29').kind,'invalid');
+assert.equal(calendarDate('2000-02-29').iso,'2000-02-29');
+assert.equal(calendarDate('01/02/26').kind,'unrecognized');
+assert.equal(calendarDate('2026-01-01T00:00:00Z').kind,'unrecognized');
+assert.equal(calendarDate('   ').kind,'unrecognized');
+for(const d of publicDateDistributions([],period)){
+ assert.equal(d.total,0);assert.equal(d.min,null);assert.equal(d.max,null);assert.equal(d.bins.length,12);
+ assert.ok(d.bins.every(b=>b.count===0));
+}
+for(const bad of [{fromYear:2026,toYear:2025},{fromYear:NaN},{fromYear:0},{toYear:10000},{fromYear:1.5},{interval:'day'},{fromYear:1202,toYear:5201}])
+ assert.throws(()=>publicDateDistributions(s.selected,{...period,...bad}));
+"""
+    for timezone in ['UTC', 'Europe/Rome', 'America/Los_Angeles']:
+        subprocess.run(['node', '-e', script], cwd=ROOT, env={**os.environ, 'TZ': timezone}, check=True)

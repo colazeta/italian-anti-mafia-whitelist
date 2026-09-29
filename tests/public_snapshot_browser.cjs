@@ -3,6 +3,9 @@ const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const electoral=JSON.parse(fs.readFileSync('public-site/data/electoral.json'));
+const registry=JSON.parse(fs.readFileSync('public-site/data/registry.json'));
+const {publicStatistics,defaultStatisticsPeriod,publicDateDistributions}=require('../public-site/summary.js');
+const dateNumber=text=>Number(text.replace(/\./g,''));
 const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
 
 (async()=>{
@@ -123,7 +126,60 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.locator('#reg-q').focus();
       await page.keyboard.press('Escape');
       assert.equal(await page.evaluate(()=>document.activeElement.id),'reg-q','Escape outside a dialog must not restore stale row focus');
-      for(const [name,id] of [['Statistiche','statistics'],['Storico','history'],['Metodo e fonti','method']]){
+      await page.getByRole('button',{name:'Statistiche',exact:true}).click();
+      await page.locator('#stats-authority').waitFor();
+      const stats=publicStatistics(registry.records),initialPeriod=defaultStatisticsPeriod(stats.latest);
+      const assertDates=async(authority,period)=>{
+        for(const expected of publicDateDistributions(publicStatistics(registry.records,authority).selected,period)){
+          const panel=page.locator(`[data-date-distribution="${expected.key}"]`);
+          for(const key of ['total','inPeriod'])assert.equal(dateNumber(await panel.locator(`[data-date-count="${key}"]`).innerText()),expected[key]);
+          assert.deepEqual((await panel.locator('.date-coverage .value').allTextContents()).map(dateNumber),[expected.missing,expected.uninterpretable,expected.before,expected.after]);
+          assert.deepEqual(await panel.locator('[data-date-bin]').evaluateAll(cells=>cells.map(cell=>({period:cell.dataset.dateBin,count:Number(cell.textContent.replace(/\./g,''))}))),expected.bins);
+          assert.equal(await panel.locator('[role="img"]').count(),expected.inPeriod?1:0);
+          if(expected.inPeriod)assert.equal(await panel.locator('.timeline-ticks').evaluate(axis=>{
+            const bounds=[...axis.children].filter(el=>getComputedStyle(el).display!=='none').map(el=>el.getBoundingClientRect());
+            return bounds.every((box,i)=>i===0||box.left>=bounds[i-1].right);
+          }),true,'horizontal date labels must not overlap');
+        }
+        assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+      };
+      await assertDates('all',initialPeriod);
+      assert.deepEqual(await page.locator('.timeline-y').allTextContents(),Array(2).fill(await page.locator('.timeline-y').first().textContent()),'both charts share the count scale');
+      for(const key of ['pending','renewal_update_in_progress']){
+        const panel=page.locator(`[data-date-distribution="${key}"]`);
+        await panel.screenshot({path:`test-results/statistics-${key}-${width}.png`});
+        const summary=panel.locator('summary');
+        await summary.focus();await page.keyboard.press('Enter');
+        assert.equal(await panel.locator('[data-date-values]').isVisible(),true);
+        await page.keyboard.press('Enter');
+      }
+      await page.locator('#stats-authority').selectOption('bologna');
+      await assertDates('bologna',initialPeriod);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'stats-authority');
+      assert.match(await page.locator('[data-date-distribution="pending"] [data-date-empty]').innerText(),/Nessuna presenza con una data interpretabile/);
+      await page.locator('#stats-authority').selectOption('cosenza');
+      await page.locator('#stats-from-year').fill('2025');
+      await page.locator('#stats-to-year').fill('2026');
+      await page.locator('#stats-interval').selectOption('month');
+      await page.getByRole('button',{name:'Applica periodo',exact:true}).click();
+      await assertDates('cosenza',{fromYear:2025,toYear:2026,interval:'month'});
+      assert.match(await page.locator('#stats-date-status').innerText(),/2025–2026/);
+      await page.locator('[data-date-distribution="pending"]').screenshot({path:`test-results/statistics-months-${width}.png`});
+      await page.locator('#stats-from-year').fill('2027');
+      await page.getByRole('button',{name:'Applica periodo',exact:true}).click();
+      assert.match(await page.locator('#stats-period-error').innerText(),/anno iniziale/);
+      assert.equal(await page.locator('[data-date-distribution]').count(),0,'invalid range must not leave stale charts');
+      await page.getByRole('button',{name:'Periodo iniziale',exact:true}).click();
+      await assertDates('cosenza',initialPeriod);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'stats-period-reset');
+      await page.locator('#stats-authority').selectOption('all');
+      await assertDates('all',initialPeriod);
+      // The pre-existing status chart still opens the matching latest rows.
+      await page.locator('[data-stat-status="pending"][data-stat-authority="all"]').click();
+      await page.locator('#reg-latest').waitFor();
+      assert.equal(await page.locator('#reg-latest').isChecked(),true);
+      assert.equal(await page.locator('#reg-status').inputValue(),'pending');
+      for(const [name,id] of [['Storico','history'],['Metodo e fonti','method']]){
         await page.getByRole('button',{name,exact:true}).click();
         await page.locator(`#view-${id} .section-title`).first().waitFor();
       }
@@ -132,5 +188,5 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.close();
     }
   }finally{await browser.close()}
-  console.log('Public snapshot browser acceptance passed: desktop/tablet/320/390px, robots, electoral ranking, independent loading, recovery, registry, history.');
+  console.log('Public snapshot browser acceptance passed: desktop/tablet/320/390px, robots, electoral ranking, independent loading, recovery, registry, temporal distributions, history.');
 })().catch(error=>{console.error(error);process.exit(1)});
