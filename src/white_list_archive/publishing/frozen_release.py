@@ -131,7 +131,7 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
         for resource in resources:
             expected_resource_keys = {"label", "capture", "catalogue"}
             if manifest_version == SCHEMA_VERSION:
-                expected_resource_keys.add("source_reference_date")
+                expected_resource_keys.update({"reviewed_resource_url", "source_reference_date"})
             if not isinstance(resource, dict) or set(resource) != expected_resource_keys:
                 raise ValueError(f"{source_key}: unapproved frozen resource binding")
             label = resource["label"]
@@ -149,13 +149,16 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
             catalogue = resource["catalogue"]
             if capture.get("source_key") != source_key:
                 raise ValueError(f"{source_key}/{label}: capture belongs to another source")
-            if capture["resource_url"] != expected_url:
-                raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
             configured_reference_date = cfg.get("reference_date")
             if manifest_version == LEGACY_SCHEMA_VERSION:
+                if capture["resource_url"] != expected_url:
+                    raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
                 if capture["reference_date"] != configured_reference_date:
                     raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
             else:
+                reviewed_resource_url = resource["reviewed_resource_url"]
+                if reviewed_resource_url != expected_url:
+                    raise ValueError(f"{source_key}/{label}: reviewed resource locator differs from pinned configuration")
                 reviewed_reference_date = resource["source_reference_date"]
                 if reviewed_reference_date != configured_reference_date:
                     raise ValueError(f"{source_key}/{label}: reviewed source reference date differs from pinned configuration")
