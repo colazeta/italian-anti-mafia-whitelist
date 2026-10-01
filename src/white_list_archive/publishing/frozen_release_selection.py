@@ -147,14 +147,14 @@ def plan_frozen_release_candidate(
         source_key = cfg["source_key"]
         resources: list[dict[str, Any]] = []
         for label, (expected_url, required_sha) in _resource_specs(cfg).items():
-            locator_candidates = [
-                row for row in by_source.get(source_key, [])
-                if row["capture"]["resource_url"] == expected_url
-            ]
+            # SourceSeries + logical resource is the identity. The configured URL is
+            # only the currently reviewed locator; older captures from a prior locator
+            # remain eligible when immutable provenance/digest constraints still match.
+            source_candidates = by_source.get(source_key, [])
             configured_reference = cfg.get("reference_date")
             compatible = []
             known_conflict = False
-            for row in locator_candidates:
+            for row in source_candidates:
                 capture_reference = row["capture"].get("reference_date")
                 if (
                     capture_reference is not None
@@ -169,12 +169,12 @@ def plan_frozen_release_candidate(
 
             if not compatible:
                 reason = "no_eligible_capture"
-                if known_conflict and locator_candidates:
+                if known_conflict and source_candidates:
                     reason = "known_reference_date_conflict"
-                elif required_sha is not None and locator_candidates:
+                elif required_sha is not None and source_candidates:
                     reason = "approved_raw_digest_not_captured"
-                elif not locator_candidates:
-                    reason = "no_catalogued_capture_for_locator"
+                elif not source_candidates:
+                    reason = "no_catalogued_capture_for_source"
                 gaps.append({"source_key": source_key, "label": label, "reason": reason})
                 continue
 
@@ -192,6 +192,7 @@ def plan_frozen_release_candidate(
             resources.append(
                 {
                     "label": label,
+                    "reviewed_resource_url": expected_url,
                     "source_reference_date": cfg.get("reference_date"),
                     "capture": capture,
                     "catalogue": selected["catalogue"],
