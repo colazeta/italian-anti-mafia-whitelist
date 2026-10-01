@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from white_list_archive.publishing.frozen_release import validate_release_manifest
 from white_list_archive.publishing.frozen_release_selection import plan_frozen_release_candidate
 
@@ -102,3 +104,43 @@ def test_equal_time_distinct_semantic_payloads_require_explicit_choice():
     manifest, report = _plan(_config("semantic_sha256"), rows)
     assert manifest is None
     assert report["gaps"][0]["reason"] == "equal-time distinct payloads require explicit selection"
+
+
+def test_v2_changed_locator_keeps_historical_capture_eligible():
+    row = _capture(
+        "alpha-listed",
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "a" * 64,
+        "2026-09-22T17:00:00+00:00",
+    )
+    config = _config()
+    config["sources"][0]["resource_url"] = "https://prefettura.example/moved/source.pdf"
+
+    manifest, report = _plan(config, [row])
+
+    assert report["selection_complete"]
+    resource = manifest["sources"][0]["resources"][0]
+    assert resource["capture"]["resource_url"] == "https://prefettura.example/source.pdf"
+    assert resource["reviewed_resource_url"] == "https://prefettura.example/moved/source.pdf"
+    validate_release_manifest(manifest, config)
+
+
+def test_v2_rejects_tampered_reviewed_locator_without_rewriting_capture():
+    row = _capture(
+        "alpha-listed",
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "a" * 64,
+        "2026-09-22T17:00:00+00:00",
+    )
+    config = _config()
+    config["sources"][0]["resource_url"] = "https://prefettura.example/moved/source.pdf"
+    manifest, report = _plan(config, [row])
+    assert report["selection_complete"]
+
+    resource = manifest["sources"][0]["resources"][0]
+    original_capture_url = resource["capture"]["resource_url"]
+    resource["reviewed_resource_url"] = "https://prefettura.example/other/source.pdf"
+
+    with pytest.raises(ValueError, match="reviewed resource locator differs"):
+        validate_release_manifest(manifest, config)
+    assert resource["capture"]["resource_url"] == original_capture_url
