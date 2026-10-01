@@ -2567,6 +2567,42 @@
       "expected_source_rows": 515,
       "last_source_update_basis": "official landing labels the combined PDF updated 18 September 2026; attachment repeat-fetched and byte-pinned 22 September 2026",
       "notes": "Combined positive-evidence source: 41 applicant rows plus 1,028 physical listed company-by-section rows; conservative exact core/date/note grouping yields 474 listed-population observations while preserving all 1,028 section memberships, for 515 public observations total."
+    },
+    {
+      "authority_key": "reggio-calabria",
+      "authority_name": "Prefettura di Reggio Calabria",
+      "register_key": "reggio-calabria-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/reggio-calabria/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-24",
+      "last_source_update": "2026-09-24",
+      "last_source_update_basis": "official current attachments are explicitly dated 24 September 2026 and were independently recaptured byte-identically on 29 September and 1 October 2026; source-edition boundary only, not promoted to a company legal-effect date",
+      "source_key": "reggio-calabria-listed",
+      "parser": "reggio_calabria_listed",
+      "population_scope": "listed",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-foglio-unico-nuove-attivita-24-set-2026.pdf",
+      "sha256": "f93a63a89c2c22f9fee27af29654c3dd5e97b58452dde92224b4b2259d3f148f",
+      "expected_source_rows": 532,
+      "notes": "Dedicated official registered-company PDF positively exposed by the current landing page. The byte-pinned 65-page edition contains source numbers 1-533 with no gaps or duplicates; source row 533 contains only its sequence number and no company identity or substantive fields, so it is retained as a reviewed blank numbered source row and not materialised as a company observation. The fail-closed parser yields 532 observations: 252 listed, 250 renewal/update in progress and 30 other/unknown. Strict source identifiers cover 517/532 observations. All 532 listing dates are source-explicit and normalised; 518 expiry dates are normalised, 13 are source-blank and the malformed source token 07/04//23 remains raw without repair."
+    },
+    {
+      "authority_key": "reggio-calabria",
+      "authority_name": "Prefettura di Reggio Calabria",
+      "register_key": "reggio-calabria-ordinary",
+      "register_name": "White List ordinaria",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/reggio-calabria/evidenza/white-list",
+      "approval_mode": "raw_sha256",
+      "reference_date": "2026-09-24",
+      "last_source_update": "2026-09-24",
+      "last_source_update_basis": "official current attachments are explicitly dated 24 September 2026 and were independently recaptured byte-identically on 29 September and 1 October 2026; source-edition boundary only, not promoted to a company decision or legal-effect date",
+      "source_key": "reggio-calabria-applicants",
+      "parser": "reggio_calabria_applicants",
+      "population_scope": "applicant",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-richieste-iscrizioni-white-list-foglio-del-24-set-2026.pdf",
+      "sha256": "da60df92f7ffdfc1148ead109395e00ae34e11cb53c01ccc6928bbdff0c71d53",
+      "expected_source_rows": 732,
+      "notes": "Dedicated official requesting-company PDF positively exposed by the current landing page. The byte-pinned 79-page edition yields exactly 732 numbered observations with no gaps or duplicates. The fail-closed parser maps 730 source-explicit istruttoria outcomes, including two reviewed typographic variants, to pending; one blank outcome and one L.M. outcome remain other/unknown. Strict source identifiers cover 697/732 observations. Source-explicit application dates normalise for 731/732 observations; the impossible token 07/13/2024 remains raw and unparsed."
     }
   ]
 }
