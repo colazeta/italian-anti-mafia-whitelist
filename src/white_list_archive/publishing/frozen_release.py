@@ -13,7 +13,8 @@ from white_list_archive.publishing import public_national_registry as registry
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_manifest
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 1
 PUBLIC_PROJECTOR_REVISION = "public-national-registry@1"
 ResourceIdentity = tuple[str, str]
 
@@ -75,7 +76,8 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
         "source_config_sha256",
         "sources",
     }
-    if set(manifest) != required or manifest["schema_version"] != SCHEMA_VERSION:
+    manifest_version = manifest.get("schema_version")
+    if set(manifest) != required or manifest_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
         raise ValueError("Unapproved frozen release manifest envelope")
     if not isinstance(manifest["release_id"], str) or not manifest["release_id"].strip():
         raise ValueError("Frozen release id is required")
@@ -127,7 +129,10 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
             raise ValueError(f"{source_key}: frozen resources must be a list")
         resource_by_label: dict[str, dict] = {}
         for resource in resources:
-            if not isinstance(resource, dict) or set(resource) != {"label", "capture", "catalogue"}:
+            expected_resource_keys = {"label", "capture", "catalogue"}
+            if manifest_version == SCHEMA_VERSION:
+                expected_resource_keys.update({"reviewed_resource_url", "source_reference_date"})
+            if not isinstance(resource, dict) or set(resource) != expected_resource_keys:
                 raise ValueError(f"{source_key}: unapproved frozen resource binding")
             label = resource["label"]
             if label in resource_by_label:
@@ -144,10 +149,26 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
             catalogue = resource["catalogue"]
             if capture.get("source_key") != source_key:
                 raise ValueError(f"{source_key}/{label}: capture belongs to another source")
-            if capture["resource_url"] != expected_url:
-                raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
-            if capture["reference_date"] != cfg.get("reference_date"):
-                raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
+            configured_reference_date = cfg.get("reference_date")
+            if manifest_version == LEGACY_SCHEMA_VERSION:
+                if capture["resource_url"] != expected_url:
+                    raise ValueError(f"{source_key}/{label}: release locator differs from pinned configuration")
+                if capture["reference_date"] != configured_reference_date:
+                    raise ValueError(f"{source_key}/{label}: source reference date differs from pinned configuration")
+            else:
+                reviewed_resource_url = resource["reviewed_resource_url"]
+                if reviewed_resource_url != expected_url:
+                    raise ValueError(f"{source_key}/{label}: reviewed resource locator differs from pinned configuration")
+                reviewed_reference_date = resource["source_reference_date"]
+                if reviewed_reference_date != configured_reference_date:
+                    raise ValueError(f"{source_key}/{label}: reviewed source reference date differs from pinned configuration")
+                capture_reference_date = capture["reference_date"]
+                if (
+                    capture_reference_date is not None
+                    and reviewed_reference_date is not None
+                    and capture_reference_date != reviewed_reference_date
+                ):
+                    raise ValueError(f"{source_key}/{label}: capture reference date conflicts with reviewed source reference date")
             if catalogue.get("capture_id") != capture.get("capture_id"):
                 raise ValueError(f"{source_key}/{label}: catalogue receipt belongs to another capture")
             if catalogue.get("sha256") != capture["sha256"] or catalogue.get("byte_size") != capture["byte_size"]:
@@ -357,6 +378,38 @@ def archived_downloads(manifest: dict, config: dict, store: EvidenceStore) -> It
         registry._download = original_download
 
 
+def _latest_capture_time(binding: dict[str, Any]) -> str:
+    """Return when the complete frozen source input had actually been captured."""
+    observed: list[tuple[datetime, str]] = []
+    for resource in binding["resources"]:
+        capture = freeze_capture_manifest(resource["capture"])
+        raw = capture["captured_at"]
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        observed.append((parsed, raw))
+    if not observed:
+        raise ValueError("Frozen source binding has no capture/check timestamps")
+    return max(observed, key=lambda item: item[0])[1]
+
+
+def _restore_frozen_observation_times(built_registry: dict[str, Any], manifest: dict[str, Any]) -> None:
+    """Restore real capture chronology after archive replay, not replay wall-clock time."""
+    bindings = {item["source_key"]: item for item in manifest["sources"]}
+    reports = built_registry.get("meta", {}).get("sources")
+    if not isinstance(reports, list):
+        raise ValueError("Frozen replay registry lacks source reports")
+    seen: set[str] = set()
+    for report in reports:
+        source_key = report.get("source_key")
+        if not isinstance(source_key, str) or source_key not in bindings:
+            raise ValueError("Frozen replay registry contains an unpinned source report")
+        if source_key in seen:
+            raise ValueError(f"Frozen replay registry contains duplicate source report: {source_key}")
+        report["document_checked_at"] = _latest_capture_time(bindings[source_key])
+        seen.add(source_key)
+    if seen != set(bindings):
+        raise ValueError("Frozen replay registry source reports do not cover every pinned source")
+
+
 def build_registry_from_release(
     config: dict,
     work_dir: Path,
@@ -365,4 +418,6 @@ def build_registry_from_release(
 ) -> dict:
     """Build registry rows from exact durable inputs with live source access disabled."""
     with archived_downloads(release_manifest, config, store):
-        return registry.build_registry(config, work_dir)
+        built = registry.build_registry(config, work_dir)
+    _restore_frozen_observation_times(built, release_manifest)
+    return built
