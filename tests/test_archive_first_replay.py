@@ -389,3 +389,27 @@ def test_release_replay_rejects_corrupted_or_missing_capture_provenance(tmp_path
     with pytest.raises(ValueError, match="provenance digest"):
         with archived_downloads(tampered, config, evidence):
             pass
+
+
+def test_archive_first_reuses_verified_bytes_without_a_duplicate_content_get(tmp_path):
+    evidence = store()
+    original = evidence.client.get_object
+    reads = []
+
+    def counted(**kwargs):
+        reads.append(kwargs['Key'])
+        return original(**kwargs)
+
+    evidence.client.get_object = counted
+    first = capture(tmp_path, evidence, source_key='alpha-listed',
+                    url='https://prefettura.example/white-list.pdf', data=b'same verified bytes',
+                    capture_id='77777777-7777-4777-8777-777777777777')
+    second = capture(tmp_path, evidence, source_key='alpha-listed',
+                     url='https://prefettura.example/white-list.pdf', data=b'same verified bytes',
+                     capture_id='88888888-8888-4888-8888-888888888888')
+    assert first.content_receipt['created'] is True
+    assert second.content_receipt['created'] is False
+    assert sum(key.startswith('sha256/') for key in reads) == 2
+    assert sum(key.startswith('captures/') for key in reads) == 2
+    assert first.catalogue_receipt['capture_id'] != second.catalogue_receipt['capture_id']
+    assert 'data' not in first.content_receipt and 'bytes' not in first.content_receipt

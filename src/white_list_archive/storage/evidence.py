@@ -188,6 +188,15 @@ class EvidenceStore:
         return data
 
     def archive(self, path: Path, manifest: dict) -> dict:
+        receipt, _ = self.archive_verified(path, manifest)
+        return receipt
+
+    def archive_verified(self, path: Path, manifest: dict) -> tuple[dict, bytes]:
+        """Return the receipt and exact independently verified remote bytes.
+
+        The bytes stay in the private acquisition path; they are never included in
+        the receipt. Callers can check parser input without a duplicate full GET.
+        """
         manifest = freeze_capture_manifest(manifest)
         key = object_key(manifest)
         # Buffer the verified bytes once: a changing local file cannot change the upload.
@@ -212,8 +221,8 @@ class EvidenceStore:
             created = False
         # Existing-object responses can still hide a conflicting object. Never trust
         # status code, HEAD, ETag or metadata as byte-identity evidence.
-        self.read_verified(manifest)
-        return {"schema_version": 1, "sha256": manifest["sha256"],
+        verified = self.read_verified(manifest)
+        receipt = {"schema_version": 1, "sha256": manifest["sha256"],
                 "byte_size": manifest["byte_size"], "content_type": manifest["content_type"],
                 "storage_uri": f"{self.config.endpoint.rstrip('/')}/{self.config.bucket}/{key}",
                 "endpoint": self.config.endpoint, "created": created,
@@ -223,6 +232,7 @@ class EvidenceStore:
                 "reference_date": manifest["reference_date"],
                 "manifest_sha256": hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
                 "database_promoted": False}
+        return receipt, verified
 
     def promote(self, conn, manifest: dict) -> None:
         """Caller owns the transaction. Only update an already linked ContentObject."""
