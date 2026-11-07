@@ -359,7 +359,145 @@ with psycopg.connect(dsn) as conn:
     else:
         raise AssertionError("Mutable parser input provenance was accepted")
 
+    # Successful rich parser input without edition attribution must fail before
+    # projection activity or any semantic rows can be written. This is synthetic
+    # capture-only input; no administrative edition is created for the test.
+    from white_list_archive.semantic.combined_whitelist_v1 import (
+        EditionAttributionRequired, project_series,
+    )
+    rich = dict(common, parser_name="white_list_archive.parsers.cosenza_combined_v2")
+    rich_run = persist_parse_snapshot(conn, capture_id=capture_ids[0], **rich)
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO source.source_schema(series_id,schema_name) "
+            "VALUES (%s,'CI capture-only rich layout') RETURNING source_schema_id",
+            (series_id,),
+        )
+        schema_id = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO source.source_schema_version("
+            "source_schema_id,structural_fingerprint,first_observed_at) "
+            "VALUES (%s,'ci-capture-only-rich',%s) RETURNING schema_version_id",
+            (schema_id, started),
+        )
+        schema_version = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO source.parsed_record(parse_run_id,schema_version_id,record_locator,record_hash) "
+            "VALUES (%s,%s,'row:000001',%s)",
+            (rich_run["parse_run_id"], schema_version, _sha(b"synthetic rich row")),
+        )
+        cur.execute("SELECT count(*) FROM provenance.processing_activity")
+        activity_count = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM semantic.projection_run")
+        projection_count = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM semantic.entity_observation")
+        observation_count = cur.fetchone()[0]
+    # A savepoint also proves that a rejected request leaves the transaction
+    # usable; a caller can roll it back without losing previously committed data.
+    with conn.transaction():
+        try:
+            project_series(conn, "ci-parse-snapshot")
+        except EditionAttributionRequired as exc:
+            assert str(exc) == (
+                "Rich parse runs require source-edition attribution before semantic projection"
+            )
+        else:
+            raise AssertionError("Capture-only input must require edition attribution")
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM provenance.processing_activity")
+        assert cur.fetchone()[0] == activity_count
+        cur.execute("SELECT count(*) FROM semantic.projection_run")
+        assert cur.fetchone()[0] == projection_count
+        cur.execute("SELECT count(*) FROM semantic.entity_observation")
+        assert cur.fetchone()[0] == observation_count
+        cur.execute(
+            "SELECT count(*) FROM semantic.projection_run WHERE parse_run_id=%s",
+            (rich_run["parse_run_id"],),
+        )
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT count(*) FROM source.source_edition WHERE series_id=%s", (series_id,))
+        assert cur.fetchone()[0] == 0
+
+    # Mixed-series regression: the historical inner-join selection can see one
+    # explicitly attributed CI input but would silently omit the first rich run.
+    # This edition is synthetic test setup only, never created by the projector.
+    attributed_rich = persist_parse_snapshot(conn, capture_id=other_capture_id, **rich)
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO source.parsed_record(parse_run_id,schema_version_id,record_locator,record_hash) "
+            "VALUES (%s,%s,'row:000001',%s)",
+            (attributed_rich["parse_run_id"], schema_version, _sha(b"synthetic attributed rich row")),
+        )
+        cur.execute(
+            "INSERT INTO source.source_edition("
+            "series_id,edition_code,reference_period,edition_identity_status_code,"
+            "population_scope_completeness_code,sector_scope_completeness_code) "
+            "VALUES (%s,'CI-SYNTHETIC-ATTRIBUTED-INPUT',"
+            "daterange('2026-09-23','2026-09-24','[)'),'explicit','unknown','unknown') "
+            "RETURNING edition_id",
+            (series_id,),
+        )
+        fixture_edition_id = cur.fetchone()[0]
+        cur.execute(
+            "INSERT INTO source.capture_edition("
+            "capture_id,edition_id,relation_type_code,attribution_status_code) "
+            "VALUES (%s,%s,'is_representation_of','explicit')",
+            (other_capture_id, fixture_edition_id),
+        )
+        # Reproduce the old inner joins independently: there is a nonempty
+        # attributed subset, not the already rejected all-capture-only case.
+        cur.execute(
+            """
+            SELECT DISTINCT run.parse_run_id::text
+            FROM source.parse_run run
+            JOIN provenance.processing_activity pa
+              ON pa.processing_activity_id=run.processing_activity_id
+            JOIN source.parsed_record pr ON pr.parse_run_id=run.parse_run_id
+            JOIN source.source_schema_version sv ON sv.schema_version_id=pr.schema_version_id
+            JOIN source.source_schema ss ON ss.source_schema_id=sv.source_schema_id
+            JOIN source.source_series s ON s.series_id=ss.series_id
+            JOIN source.source_capture cap ON cap.content_object_id=run.content_object_id
+            JOIN source.capture_edition ce ON ce.capture_id=cap.capture_id
+            JOIN source.source_edition e ON e.edition_id=ce.edition_id AND e.series_id=s.series_id
+            WHERE s.series_code=%s AND run.status_code='succeeded'
+              AND pa.software_name='white_list_archive.parsers.cosenza_combined_v2'
+            """,
+            ("ci-parse-snapshot",),
+        )
+        assert cur.fetchall() == [(attributed_rich["parse_run_id"],)]
+        cur.execute("SELECT count(*) FROM provenance.processing_activity")
+        mixed_activity_count = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM source.source_edition WHERE series_id=%s", (series_id,))
+        assert cur.fetchone()[0] == 1
+    with conn.transaction():
+        try:
+            project_series(conn, "ci-parse-snapshot")
+        except EditionAttributionRequired as exc:
+            assert str(exc) == (
+                "Rich parse runs require source-edition attribution before semantic projection"
+            )
+        else:
+            raise AssertionError("A mixed attributed/capture-only series must fail closed")
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM provenance.processing_activity")
+        assert cur.fetchone()[0] == mixed_activity_count
+        cur.execute("SELECT count(*) FROM semantic.projection_run")
+        assert cur.fetchone()[0] == projection_count
+        cur.execute("SELECT count(*) FROM semantic.entity_observation")
+        assert cur.fetchone()[0] == observation_count
+        cur.execute(
+            "SELECT count(*) FROM semantic.projection_run WHERE parse_run_id IN (%s,%s)",
+            (rich_run["parse_run_id"], attributed_rich["parse_run_id"]),
+        )
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT edition_id FROM source.source_edition WHERE series_id=%s", (series_id,))
+        assert cur.fetchall() == [(fixture_edition_id,)]
     conn.rollback()
+
+with psycopg.connect(dsn) as rollback_check:
+    with rollback_check.cursor() as cur:
+        cur.execute("SELECT count(*) FROM source.source_series WHERE series_code='ci-parse-snapshot'")
+        assert cur.fetchone()[0] == 0
 
 # Prove actual concurrent retries are idempotent rather than relying only on the
 # unique parse_run_code index. The first transaction creates the interpretation
