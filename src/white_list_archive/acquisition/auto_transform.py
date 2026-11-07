@@ -185,6 +185,59 @@ def _parser_revision(batch: Any, parser_name: str) -> str:
     raise ValueError("Parser output lacks consistent versioned lineage")
 
 
+def _reuse_existing_snapshot(
+    conn: Any,
+    *,
+    parser_name: str,
+    code_revision: str,
+    configuration_hash: str,
+    capture_inputs: list[dict[str, str]],
+    input_hashes: dict[str, str],
+) -> bool:
+    """Link repeated capture/checks to existing verified interpretation inputs.
+
+    Idempotence must use complete labelled *byte* identities, not capture ids.
+    Otherwise every daily unchanged check would needlessly rerun a large parser.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT pr.parse_run_id, jsonb_object_agg(i.input_label, co.sha256)
+            FROM source.parse_run pr
+            JOIN provenance.processing_activity pa
+              ON pa.processing_activity_id = pr.processing_activity_id
+            JOIN source.parse_snapshot ps ON ps.parse_run_id = pr.parse_run_id
+            JOIN source.parse_run_input i ON i.parse_run_id = pr.parse_run_id
+            JOIN source.content_object co ON co.content_object_id = i.content_object_id
+            WHERE pa.software_name = %s
+              AND pa.software_version LIKE %s
+              AND pa.configuration_hash = %s
+              AND pr.status_code = 'succeeded'
+            GROUP BY pr.parse_run_id
+            """,
+            (parser_name, "%+git." + code_revision, configuration_hash),
+        )
+        matches = [
+            parse_run_id
+            for parse_run_id, members in cur.fetchall()
+            if members == input_hashes
+        ]
+        if len(matches) > 1:
+            raise ValueError("Multiple interpretation identities match the same complete input set")
+        if not matches:
+            return False
+        for row in capture_inputs:
+            cur.execute(
+                """
+                INSERT INTO source.capture_parse_run(capture_id, parse_run_id, input_label)
+                VALUES (%s, %s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (row["capture_id"], matches[0], row["label"]),
+            )
+    return True
+
+
 def transform_one(
     job: dict[str, Any],
     *,
@@ -249,6 +302,28 @@ def transform_one(
                 persist_archived_capture(conn, archived, store)
                 conn.commit()
 
+        capture_inputs = [
+            {"label": label, "capture_id": verified[label][0]["capture_id"]}
+            for label in sorted(verified)
+        ]
+        configuration_hash = configuration_sha256(cfg)
+        with psycopg.connect(dsn) as conn:
+            reused = _reuse_existing_snapshot(
+                conn,
+                parser_name=cfg["parser"],
+                code_revision=code_revision,
+                configuration_hash=configuration_hash,
+                capture_inputs=capture_inputs,
+                input_hashes={label: verified[label][0]["sha256"] for label in verified},
+            )
+            conn.commit()
+        if reused:
+            return {
+                "source_key": job["source_key"],
+                "status": "reused_private_interpretation",
+                "records": None,
+            }
+
         source_input = paths["primary"] if job["config"].get("resources") is None else paths
         started_at = datetime.now(timezone.utc)
         batch = registry._parse_source(source_input, cfg)
@@ -256,10 +331,6 @@ def transform_one(
         if not isinstance(batch.records, list) or not batch.records:
             raise ValueError("Parser returned no source observations")
         version = _parser_revision(batch, cfg["parser"])
-        capture_inputs = [
-            {"label": label, "capture_id": verified[label][0]["capture_id"]}
-            for label in sorted(verified)
-        ]
         with psycopg.connect(dsn) as conn:
             result = persist_parse_snapshot(
                 conn,
@@ -267,7 +338,7 @@ def transform_one(
                 parser_name=cfg["parser"],
                 parser_revision=version,
                 code_revision=code_revision,
-                configuration_hash=configuration_sha256(cfg),
+                configuration_hash=configuration_hash,
                 started_at=started_at,
                 completed_at=completed_at,
                 records=batch.records,
@@ -334,7 +405,8 @@ def main(argv: list[str] | None = None) -> int:
         "shard": args.shard,
         "shards": args.shards,
         "changed_sources": len(jobs),
-        "transformed": sum(row["status"] == "parsed_private_review_required" for row in outcomes),
+        "transformed": sum(row["status"] in {"parsed_private_review_required", "reused_private_interpretation"} for row in outcomes),
+        "reused": sum(row["status"] == "reused_private_interpretation" for row in outcomes),
         "quarantined": sum(row["status"] == "quarantined" for row in outcomes),
         "deferred": len(deferred),
         "outcomes": outcomes,
@@ -349,6 +421,7 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({
         "changed_sources": report["changed_sources"],
         "transformed_private": report["transformed"],
+        "reused": report["reused"],
         "quarantined": report["quarantined"],
         "deferred": report["deferred"],
         "publications": 0,
