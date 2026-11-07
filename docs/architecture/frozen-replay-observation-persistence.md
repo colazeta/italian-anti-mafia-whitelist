@@ -50,3 +50,39 @@ or infer attribution from a capture timestamp, declared date or matching hash.
 Snapshot persistence remains independent of this downstream requirement. A reviewed
 attribution design is required before the affected rich observations can enter this
 edition-based semantic projector.
+
+
+## Exact rich semantic input selection
+
+The current semantic pipeline accepts an optional paired `--parse-run-id` and
+`--capture-id`. A pin selects one existing successful Cosenza rich interpretation
+and one pre-existing primary `capture_parse_run` link of the same series and exact
+ContentObject. Bundled inputs and mixed-series rich records are rejected. The
+selected capture must already have exactly one source-edition attribution in that
+series with a known observation date; this interface creates no attribution,
+approval or administrative edition. Unattributed captures elsewhere in the series
+do not invalidate an explicitly selected attributed input.
+
+Without pins the previous series mode remains available only for unambiguous
+contexts: capture-only inputs still fail, multiple interpretations of one edition
+and multiple editions for one interpretation require explicit selection. No latest
+parser, timestamp or arbitrary UUID is chosen automatically.
+
+`057_projection_capture_selection.sql` is an additive schema migration. It retains
+all existing projection codes and marks legacy projections with a NULL capture
+pin. New pinned projections retain the exact capture FK, constrained to the
+pre-existing acquisition/interpretation link; that provenance cannot be changed or
+filled in retrospectively. Repeating the same pin reuses its projection. Attempting
+to reuse an existing projection through another capture (or through a legacy NULL
+pin) requires review and fails rather than duplicating the interpretation or
+rewriting lineage. Run this migration through the governed schema deployment path
+before using the updated projector against an existing database.
+
+The pipeline passes only the projection IDs returned for its selected inputs into
+the canonicaliser. Entity, identifier and procedure loaders all use that same
+selection; existing observations from other parser/projector revisions remain
+retained and are not silently included in the canonicalisation run. The run
+identity continues to bind the exact selected projection codes. A pinned run also
+does not perform the unrelated legacy address-country cleanup. Explicit selection
+controls interpretation scope; it does not clear source QA flags, resolve competing
+source evidence or authorise public dissemination.

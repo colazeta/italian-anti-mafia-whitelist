@@ -111,7 +111,7 @@ def _ensure_canonicalisation_run(cur, series_id, projection_codes: list[str]):
     return cur.fetchone()[0], activity_id, True
 
 
-def _load_observations(cur, series_code: str):
+def _load_observations(cur, series_code: str, *, projection_run_ids=None):
     cur.execute(
         """
         SELECT eo.entity_observation_id, eo.entity_mention_id, eo.parsed_record_id,
@@ -127,9 +127,10 @@ def _load_observations(cur, series_code: str):
         JOIN source.source_series s ON s.series_id=ed.series_id
         JOIN semantic.relationship_observation ro ON ro.entity_observation_id=eo.entity_observation_id
         WHERE s.series_code=%s AND prj.status_code='succeeded'
+          AND (%s::uuid[] IS NULL OR eo.projection_run_id=ANY(%s::uuid[]))
         ORDER BY eo.observation_date, eo.entity_observation_id
         """,
-        (series_code,),
+        (series_code, projection_run_ids, projection_run_ids),
     )
     observations = {}
     projection_codes = set()
@@ -163,8 +164,9 @@ def _load_observations(cur, series_code: str):
         JOIN source.source_edition ed ON ed.edition_id=eo.edition_id
         JOIN source.source_series s ON s.series_id=ed.series_id
         WHERE s.series_code=%s
+          AND (%s::uuid[] IS NULL OR eo.projection_run_id=ANY(%s::uuid[]))
         """,
-        (series_code,),
+        (series_code, projection_run_ids, projection_run_ids),
     )
     identifiers = defaultdict(list)
     for row in cur.fetchall():
@@ -631,7 +633,7 @@ def _ensure_procedure(cur, relationship_id, proc_obs, activity_id, field_ids):
     return procedure_id, version_id
 
 
-def _load_eligible_procedures(cur, series_code):
+def _load_eligible_procedures(cur, series_code, *, projection_run_ids=None):
     cur.execute(
         """
         SELECT po.procedure_observation_id, ro.entity_observation_id,
@@ -646,8 +648,9 @@ def _load_eligible_procedures(cur, series_code):
         JOIN source.source_edition ed ON ed.edition_id=eo.edition_id
         JOIN source.source_series s ON s.series_id=ed.series_id
         WHERE s.series_code=%s AND po.canonicalisation_eligible
+          AND (%s::uuid[] IS NULL OR eo.projection_run_id=ANY(%s::uuid[]))
         """,
-        (series_code,),
+        (series_code, projection_run_ids, projection_run_ids),
     )
     return [
         {
@@ -667,7 +670,35 @@ def _load_eligible_procedures(cur, series_code):
     ]
 
 
-def canonicalise_series(conn, series_code: str) -> dict[str, int]:
+def _projection_selection_ids(projection_run_ids):
+    if projection_run_ids is None:
+        return None
+    from uuid import UUID
+    if not isinstance(projection_run_ids, (list, tuple)) or not projection_run_ids:
+        raise ValueError("projection_run_ids must be a non-empty explicit UUID selection")
+    return sorted({str(UUID(str(value))) for value in projection_run_ids})
+
+
+def _verify_projection_contexts(cur, series_id, projection_run_ids):
+    if projection_run_ids is None:
+        return
+    cur.execute(
+        "SELECT p.projection_run_id::text FROM semantic.projection_run p "
+        "WHERE p.projection_run_id=ANY(%s::uuid[]) AND p.status_code='succeeded' "
+        "AND EXISTS (SELECT 1 FROM semantic.entity_observation eo "
+        "JOIN source.source_edition e ON e.edition_id=eo.edition_id "
+        "WHERE eo.projection_run_id=p.projection_run_id AND e.series_id=%s) "
+        "AND NOT EXISTS (SELECT 1 FROM semantic.entity_observation eo "
+        "JOIN source.source_edition e ON e.edition_id=eo.edition_id "
+        "WHERE eo.projection_run_id=p.projection_run_id AND e.series_id IS DISTINCT FROM %s)",
+        (projection_run_ids, series_id, series_id),
+    )
+    if {row[0] for row in cur.fetchall()} != set(projection_run_ids):
+        raise LookupError("Selected projections are not complete successful inputs of this series")
+
+
+def canonicalise_series(conn, series_code: str, *, projection_run_ids=None) -> dict[str, int]:
+    projection_run_ids = _projection_selection_ids(projection_run_ids)
     totals = defaultdict(int)
     with conn.cursor() as cur:
         cur.execute("SELECT series_id FROM source.source_series WHERE series_code=%s", (series_code,))
@@ -675,7 +706,8 @@ def canonicalise_series(conn, series_code: str) -> dict[str, int]:
         if not row:
             raise LookupError(f"Unknown source series {series_code!r}")
         series_id = row[0]
-        observations, identifiers, projection_codes = _load_observations(cur, series_code)
+        _verify_projection_contexts(cur, series_id, projection_run_ids)
+        observations, identifiers, projection_codes = _load_observations(cur, series_code, projection_run_ids=projection_run_ids)
         if not observations:
             raise LookupError(f"No semantic observations for source series {series_code!r}")
         canonicalisation_run_id, activity_id, created = _ensure_canonicalisation_run(
@@ -759,7 +791,7 @@ def canonicalise_series(conn, series_code: str) -> dict[str, int]:
             )
             totals["unresolved_entity_observations"] += 1
 
-        procedures = _load_eligible_procedures(cur, series_code)
+        procedures = _load_eligible_procedures(cur, series_code, projection_run_ids=projection_run_ids)
         seen_procedures = set()
         seen_versions = set()
         seen_sectors = set()

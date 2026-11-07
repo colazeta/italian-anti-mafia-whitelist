@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any
+from uuid import UUID
 
 PROJECTOR_CODE = "prefecture-combined-whitelist-v1"
 PROJECTOR_VERSION = "2"
@@ -93,17 +94,21 @@ def _procedure_semantics(outcome: dict[str, Any]) -> tuple[str, str, str, str | 
     return mention_type, procedure_type, "unknown", "unknown"
 
 
-def _ensure_projection_run(cur, parse_run_id, parse_run_code: str) -> tuple[Any, bool]:
+def _ensure_projection_run(cur, parse_run_id, parse_run_code: str, *, capture_id=None) -> tuple[Any, bool]:
     material = "\x1f".join(
         [parse_run_code, PROJECTOR_CODE, PROJECTOR_VERSION, PROJECTOR_CONFIGURATION_HASH]
     )
     run_code = hashlib.sha256(material.encode()).hexdigest()
     cur.execute(
-        "SELECT projection_run_id FROM semantic.projection_run WHERE projection_run_code=%s",
+        "SELECT projection_run_id, source_capture_id FROM semantic.projection_run WHERE projection_run_code=%s",
         (run_code,),
     )
     row = cur.fetchone()
     if row:
+        if capture_id is not None and str(row[1]) != str(capture_id):
+            raise ProjectionSelectionRequired(
+                "Existing projection has a different or unpinned capture; explicit review is required"
+            )
         return row[0], False
     now = utc_now()
     cur.execute(
@@ -121,8 +126,8 @@ def _ensure_projection_run(cur, parse_run_id, parse_run_code: str) -> tuple[Any,
         """
         INSERT INTO semantic.projection_run(
             parse_run_id, processing_activity_id, projection_run_code,
-            projector_code, projector_version, record_contract_code, status_code
-        ) VALUES (%s,%s,%s,%s,%s,%s,'succeeded')
+            projector_code, projector_version, record_contract_code, status_code, source_capture_id
+        ) VALUES (%s,%s,%s,%s,%s,%s,'succeeded',%s)
         RETURNING projection_run_id
         """,
         (
@@ -132,6 +137,7 @@ def _ensure_projection_run(cur, parse_run_id, parse_run_code: str) -> tuple[Any,
             PROJECTOR_CODE,
             PROJECTOR_VERSION,
             RECORD_CONTRACT_CODE,
+            capture_id,
         ),
     )
     return cur.fetchone()[0], True
@@ -141,7 +147,80 @@ class EditionAttributionRequired(LookupError):
     """A rich interpretation has not been attributed to a source edition."""
 
 
-def _parse_run_contexts(cur, series_code: str) -> list[dict[str, Any]]:
+class ProjectionSelectionRequired(LookupError):
+    """Interpretation/capture ambiguity requires an explicit reviewed selection."""
+
+
+def validate_input_selection(parse_run_id=None, capture_id=None):
+    if (parse_run_id is None) != (capture_id is None):
+        raise ValueError("parse_run_id and capture_id must be supplied together")
+    if parse_run_id is None:
+        return None
+    try:
+        return str(UUID(str(parse_run_id))), str(UUID(str(capture_id)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("parse_run_id and capture_id must be UUIDs") from exc
+
+
+def _context(row):
+    return {"parse_run_id": row[0], "parse_run_code": row[1],
+            "edition_id": row[2], "edition_code": row[3],
+            "observation_date": row[4], "register_id": row[5]}
+
+
+def _parse_run_contexts(cur, series_code: str, *, parse_run_id=None, capture_id=None) -> list[dict[str, Any]]:
+    selected = validate_input_selection(parse_run_id, capture_id)
+    if selected is not None:
+        cur.execute(
+            """
+            SELECT DISTINCT run.parse_run_id, run.parse_run_code,
+                   e.edition_id, e.edition_code, lower(e.reference_period)::date,
+                   s.register_id
+            FROM source.parse_run run
+            JOIN provenance.processing_activity pa
+              ON pa.processing_activity_id=run.processing_activity_id
+            JOIN source.capture_parse_run cpr ON cpr.parse_run_id=run.parse_run_id
+            JOIN source.source_capture cap ON cap.capture_id=cpr.capture_id
+              AND cap.content_object_id=run.content_object_id
+            JOIN source.source_series s ON s.series_id=cap.series_id
+            JOIN source.parsed_record pr ON pr.parse_run_id=run.parse_run_id
+            JOIN source.source_schema_version sv ON sv.schema_version_id=pr.schema_version_id
+            JOIN source.source_schema ss ON ss.source_schema_id=sv.source_schema_id
+              AND ss.series_id=s.series_id
+            LEFT JOIN source.capture_edition ce ON ce.capture_id=cap.capture_id
+            LEFT JOIN source.source_edition e ON e.edition_id=ce.edition_id
+              AND e.series_id=s.series_id
+            WHERE s.series_code=%s AND run.parse_run_id=%s AND cap.capture_id=%s
+              AND cpr.input_label='primary' AND run.status_code='succeeded'
+              AND pa.software_name='white_list_archive.parsers.cosenza_combined_v2'
+              AND NOT EXISTS (
+                  SELECT 1 FROM source.parsed_record other_pr
+                  JOIN source.source_schema_version other_sv ON other_sv.schema_version_id=other_pr.schema_version_id
+                  JOIN source.source_schema other_ss ON other_ss.source_schema_id=other_sv.source_schema_id
+                  WHERE other_pr.parse_run_id=run.parse_run_id AND other_ss.series_id IS DISTINCT FROM s.series_id
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM source.parse_run_input pri
+                  WHERE pri.parse_run_id=run.parse_run_id AND pri.input_label<>'primary'
+              )
+            """, (series_code, *selected),
+        )
+        rows = cur.fetchall()
+        if not rows:
+            raise ProjectionSelectionRequired(
+                "Selected rich parse/capture pair is not a successful linked scalar input of this series"
+            )
+        if any(row[2] is None for row in rows):
+            raise EditionAttributionRequired(
+                "Rich parse runs require source-edition attribution before semantic projection"
+            )
+        if len(rows) != 1:
+            raise ProjectionSelectionRequired("Selected capture has ambiguous source-edition attribution")
+        context = _context(rows[0])
+        if context["observation_date"] is None:
+            raise ProjectionSelectionRequired("Selected edition has no supported observation date")
+        context["capture_id"] = selected[1]
+        return [context]
     # The inner joins below must not silently discard capture-only inputs while
     # successfully projecting another attributed interpretation of this series.
     # Capture/readback or parser success does not itself approve an edition.
@@ -198,17 +277,16 @@ def _parse_run_contexts(cur, series_code: str) -> list[dict[str, Any]]:
         """,
         (series_code,),
     )
-    return [
-        {
-            "parse_run_id": row[0],
-            "parse_run_code": row[1],
-            "edition_id": row[2],
-            "edition_code": row[3],
-            "observation_date": row[4],
-            "register_id": row[5],
-        }
-        for row in cur.fetchall()
-    ]
+    contexts = [_context(row) for row in cur.fetchall()]
+    by_run, by_edition = defaultdict(set), defaultdict(set)
+    for context in contexts:
+        by_run[context["parse_run_id"]].add(context["edition_id"])
+        by_edition[context["edition_id"]].add(context["parse_run_id"])
+    if any(len(ids) != 1 for ids in (*by_run.values(), *by_edition.values())):
+        raise ProjectionSelectionRequired(
+            "Multiple rich interpretations or edition attributions require explicit parse_run_id/capture_id selection"
+        )
+    return contexts
 
 
 def _record_fields(cur, parse_run_id) -> dict[Any, dict[str, Any]]:
@@ -238,6 +316,9 @@ def _record_fields(cur, parse_run_id) -> dict[Any, dict[str, Any]]:
             "raw": raw or "",
             "parsed": parsed,
         }
+    cur.execute("SELECT count(*) FROM source.parsed_record WHERE parse_run_id=%s", (parse_run_id,))
+    if len(records) != cur.fetchone()[0]:
+        raise ValueError("Rich parsed records lack complete field/entity-mention provenance")
     for rec in records.values():
         if len(rec["entity_mentions"]) != 1:
             raise ValueError(
@@ -313,20 +394,23 @@ def _issue(cur, projection_run_id, parsed_record_id, code, severity, field, valu
     )
 
 
-def project_series(conn, series_code: str) -> dict[str, int]:
+def project_series(conn, series_code: str, *, parse_run_id=None, capture_id=None) -> dict[str, Any]:
     totals = defaultdict(int)
+    projection_ids = []
     with conn.cursor() as cur:
-        contexts = _parse_run_contexts(cur, series_code)
+        contexts = _parse_run_contexts(cur, series_code, parse_run_id=parse_run_id, capture_id=capture_id)
         if not contexts:
             raise LookupError(f"No successful parser-v2 runs found for source series {series_code!r}")
 
         for context in contexts:
+            records = _record_fields(cur, context["parse_run_id"])
             projection_run_id, created = _ensure_projection_run(
-                cur, context["parse_run_id"], context["parse_run_code"]
+                cur, context["parse_run_id"], context["parse_run_code"],
+                capture_id=context.get("capture_id"),
             )
+            projection_ids.append(str(projection_run_id))
             if not created:
                 continue
-            records = _record_fields(cur, context["parse_run_id"])
             sector_map = _sector_map(cur, context["register_id"], context["observation_date"])
 
             for parsed_record_id, record in records.items():
@@ -601,4 +685,4 @@ def project_series(conn, series_code: str) -> dict[str, int]:
                         totals["procedure_sector_observations"] += 1
 
             totals["projection_runs"] += 1
-    return dict(totals)
+    return {**dict(totals), "projection_run_ids": projection_ids}

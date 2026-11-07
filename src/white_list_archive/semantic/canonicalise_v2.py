@@ -72,7 +72,8 @@ def _safe_identifier_items(items, ambiguous_values: set[str]):
     ]
 
 
-def canonicalise_series(conn, series_code: str) -> dict[str, int]:
+def canonicalise_series(conn, series_code: str, *, projection_run_ids=None) -> dict[str, int]:
+    projection_run_ids = base._projection_selection_ids(projection_run_ids)
     totals = defaultdict(int)
     with conn.cursor() as cur:
         cur.execute(
@@ -83,7 +84,8 @@ def canonicalise_series(conn, series_code: str) -> dict[str, int]:
         if not row:
             raise LookupError(f"Unknown source series {series_code!r}")
         series_id = row[0]
-        observations, identifiers, projection_codes = base._load_observations(cur, series_code)
+        base._verify_projection_contexts(cur, series_id, projection_run_ids)
+        observations, identifiers, projection_codes = base._load_observations(cur, series_code, projection_run_ids=projection_run_ids)
         if not observations:
             raise LookupError(f"No semantic observations for source series {series_code!r}")
 
@@ -195,7 +197,7 @@ def canonicalise_series(conn, series_code: str) -> dict[str, int]:
             )
             totals["unresolved_entity_observations"] += 1
 
-        procedures = base._load_eligible_procedures(cur, series_code)
+        procedures = base._load_eligible_procedures(cur, series_code, projection_run_ids=projection_run_ids)
         seen_procedures = set()
         seen_versions = set()
         seen_sectors = set()
