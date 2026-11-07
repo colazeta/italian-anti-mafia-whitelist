@@ -128,3 +128,19 @@ loads complete ordered record, field and mention sets rather than issuing one
 remote query per field. Reuse still rehashes and compares every persisted value.
 An existing interpretation with incomplete rich materialisation fails full
 readback and is not silently repaired or relabelled by this entrypoint.
+
+## Owner command transport
+
+When manual dispatch is unavailable, the same protected workflow accepts exactly
+`/cosenza-source-only 2026-06-28` or `/cosenza-source-only 2026-08-03` as a new
+comment on issue225 from repository owner colazeta. These labels map to the exact
+reviewed capture/committed snapshot UUID pairs, not inferred edition dates. The
+user authorised source-only execution and the six INSERT permissions on8 November
+2026. Commands are operational requests, never edition or publication approvals.
+
+A secret-free authorisation job rejects other actors, repositories, PR comments,
+edits, issue numbers, commands and refs before protected credentials are loaded.
+The protected job checks out the identical frozen code SHA and receives only
+validated mode/UUID outputs. Push remains read-only; existing protected environment,
+concurrency, byte verification, QA boundaries and idempotence remain in force.
+No additional schedule or publisher is introduced.

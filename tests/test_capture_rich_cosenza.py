@@ -76,6 +76,6 @@ def test_permission_check_has_fixed_append_only_requirements_and_reports_exact_m
 def test_workflow_defaults_to_read_only_and_persistence_requires_manual_event():
     text = (Path(__file__).resolve().parents[1]/'.github/workflows/cosenza-rich-preflight.yml').read_text()
     assert 'default: preflight' in text
-    assert "PREFLIGHT_MODE: ${{ inputs.mode || 'preflight' }}" in text
-    assert "mode == 'persist-source-only' and os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch'" in text
+    assert "PREFLIGHT_MODE: ${{ needs.authorise.outputs.mode }}" in text
+    assert "mode == 'persist-source-only' and os.environ['GITHUB_EVENT_NAME'] in ('workflow_dispatch', 'issue_comment')" in text
     assert 'actions/upload-artifact' not in text
