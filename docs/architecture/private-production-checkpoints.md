@@ -21,3 +21,6 @@ new schedule. Robot coverage, formal parser binding coverage, historical gaps,
 quarantine ageing, original-byte readbacks and public-release acceptance retain
 their own denominators and evidence. Concurrent transformer shards can commit
 after this snapshot, so this timestamp is not described as a final global run total.
+
+CI also executes the collector against real PostgreSQL, verifying the actual
+permission/catalogue SQL and repeatable-read/read-only transaction settings.
