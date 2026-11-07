@@ -6,6 +6,7 @@ materialiser still verifies original bytes and determines recovery status.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 import re
@@ -94,10 +95,18 @@ def collect_robot_capture_references(snapshots: list, source_authorities: dict) 
     }
 
 
-def rehydrate_robot_captures(references: list, catalogue: CaptureCatalogue) -> list:
-    """Read exact catalogue identities; failures never become a missing verdict."""
-    captures = []
-    for reference in references:
+def rehydrate_robot_captures(
+    references: list, catalogue: CaptureCatalogue, *, max_workers: int = 4,
+) -> list:
+    """Read exact catalogue identities with bounded, ordered read-only concurrency.
+
+    Each capture retains its own full canonical receipt verification. A failed
+    identity stops the proof; no partial list is returned as a complete inventory.
+    """
+    if type(max_workers) is not int or not 1 <= max_workers <= 4:
+        raise ValueError("Catalogue hydration workers must be between one and four")
+
+    def hydrate(reference):
         try:
             manifest, receipt = load_catalogued_capture(
                 catalogue, source_key=reference['source_key'], capture_id=reference['capture_id'],
@@ -112,9 +121,12 @@ def rehydrate_robot_captures(references: list, catalogue: CaptureCatalogue) -> l
             raise ValueError(
                 'Robot capture not verified: ' + reference['source_key'] + '/' + reference['capture_id']
             ) from None
-        captures.append({
+        return {
             'authority_key': reference['authority_key'], 'capture': manifest, 'catalogue': receipt,
             'recovery_paths': [], 'durable_absence_confirmed': False,
             'operator_evidence_refs': reference['evidence_refs'],
-        })
-    return captures
+        }
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # map preserves the deterministic reference order despite concurrent GETs.
+        return list(pool.map(hydrate, references))

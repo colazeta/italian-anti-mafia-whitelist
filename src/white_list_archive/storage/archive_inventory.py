@@ -58,6 +58,10 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
     verified_content: set[str] = set()
     authorities: set[str] = set()
     provenance_verified = 0
+    # Immutable original bytes may support many separately verified captures.
+    # Cache only successful reads, keyed by validated content identity; never
+    # cache catalogue results or carry verification between invocations.
+    verified_originals: set[tuple[str, int]] = set()
 
     for expected in expectations["captures"]:
         if not isinstance(expected, dict) or set(expected) != {
@@ -94,7 +98,10 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
         durable_original_verified = False
         provider_error = None
         try:
-            store.read_verified(capture)
+            byte_identity = (capture["sha256"], capture["byte_size"])
+            if byte_identity not in verified_originals:
+                store.read_verified(capture)
+                verified_originals.add(byte_identity)
             durable_original_verified = True
             verified_content.add(capture["sha256"])
         except Exception as exc:  # provider failures are evidence of uncertainty, not absence

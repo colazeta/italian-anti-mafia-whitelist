@@ -1,4 +1,5 @@
 from copy import deepcopy
+import gzip
 import hashlib
 from io import BytesIO
 import json
@@ -45,8 +46,10 @@ def test_retains_full_denominator_exclusions_and_revision_with_exact_readback():
     digest = persist_inventory_report(store, **args)
     key, body = next(iter(client.objects.items()))
     assert key.startswith('operations/v1/recovery-inventory/')
-    assert digest == hashlib.sha256(body).hexdigest()
-    document = json.loads(body)
+    assert key.endswith(".json.gz")
+    raw = gzip.decompress(body)
+    assert digest == hashlib.sha256(raw).hexdigest()
+    document = json.loads(raw)
     assert document['inventory'] == args['inventory']
     assert document['robot_selection'] == args['robot_metrics']
     assert document['code_revision'] == args['code_revision']
@@ -94,3 +97,40 @@ def test_workflow_dispatch_stays_main_only_private_and_persists_after_validation
     assert 'upload-artifact@' not in workflow
     assert 'report_sha256 = persist_inventory_report(' in workflow
     assert workflow.index('report_sha256 = persist_inventory_report(') > workflow.index('if version_key in known_keys:')
+
+
+@pytest.mark.parametrize('limit', ['raw', 'compressed'])
+def test_size_bounds_fail_before_provider_write(monkeypatch, limit):
+    import white_list_archive.storage.inventory_report as module
+    client = Client()
+    store = SimpleNamespace(client=client, config=SimpleNamespace(bucket='private'))
+    monkeypatch.setattr(module, '_MAX_RAW_BYTES' if limit == 'raw' else '_MAX_COMPRESSED_BYTES', 1)
+    with pytest.raises(ValueError, match=limit + ' bound'):
+        persist_inventory_report(store, **payload())
+    assert client.objects == {}
+
+
+def test_large_repetitive_inventory_compresses_and_round_trips():
+    client = Client()
+    store = SimpleNamespace(client=client, config=SimpleNamespace(bucket='private'))
+    args = payload()
+    args['inventory']['items'] = [args['inventory']['items'][0]] * 300000
+    args['inventory']['metrics']['denominator_items'] = 300000
+    digest = persist_inventory_report(store, **args)
+    compressed = next(iter(client.objects.values()))
+    raw = gzip.decompress(compressed)
+    assert len(raw) > 10_000_000
+    assert len(compressed) < 100_000
+    assert hashlib.sha256(raw).hexdigest() == digest
+    assert json.loads(raw)['inventory'] == args['inventory']
+
+
+def test_decompressed_readback_must_equal_full_canonical_inventory(monkeypatch):
+    import white_list_archive.storage.inventory_report as module
+    client = Client()
+    store = SimpleNamespace(client=client, config=SimpleNamespace(bucket='private'))
+    compress = gzip.compress
+    monkeypatch.setattr(module.gzip, 'compress', lambda body, **kw: compress(b'{}', **kw))
+    with pytest.raises(RuntimeError, match='decompressed readback'):
+        persist_inventory_report(store, **payload())
+    assert len(client.objects) == 1  # Failed attempt remains retained, no cleanup.

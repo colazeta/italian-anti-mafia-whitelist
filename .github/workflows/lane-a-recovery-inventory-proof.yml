@@ -11,6 +11,10 @@ on:
       - main
     paths:
       - .github/workflows/lane-a-recovery-inventory-proof.yml
+      - src/white_list_archive/storage/inventory_report.py
+      - src/white_list_archive/storage/archive_inventory.py
+      - src/white_list_archive/storage/recovery_denominator.py
+      - src/white_list_archive/storage/robot_recovery.py
 
 permissions:
   contents: read

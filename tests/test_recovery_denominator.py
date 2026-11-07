@@ -314,3 +314,28 @@ def test_known_version_keys_are_explicit_and_do_not_silently_collapse():
     import pytest
     with pytest.raises(ValueError, match="Duplicate known-version"):
         build_recovery_denominator(envelope(known_versions=[first, duplicate]), store())
+
+
+def test_known_versions_reuse_only_same_invocation_verified_byte_identity(tmp_path, monkeypatch):
+    evidence = store()
+    capture = archived(tmp_path, evidence,
+        capture_id='71717171-7171-4171-8171-717171717171', data=b'known original')
+    original_get = evidence.client.get_object
+    calls = []
+    def tracked(**kwargs):
+        calls.append(kwargs['Key'])
+        return original_get(**kwargs)
+    monkeypatch.setattr(evidence.client, 'get_object', tracked)
+    digest, size = capture.manifest['sha256'], capture.manifest['byte_size']
+    expected = envelope(captures=[capture_expectation(capture)], known_versions=[
+        known_version(sha256=digest, byte_size=size, version_key='exact'),
+        known_version(sha256=digest, byte_size=None, version_key='unknown-size'),
+        known_version(sha256=digest, byte_size=size+1, version_key='wrong-size'),
+    ])
+    result = build_recovery_denominator(expected, evidence)
+    assert len([key for key in calls if key.startswith('sha256/')]) == 2
+    assert [r['durable_original_verified'] for r in result['items']] == [True, True, True, False]
+    assert [r['status'] for r in result['items']] == ['verified', 'not_verified', 'not_verified', 'not_verified']
+    calls.clear()
+    build_recovery_denominator(expected, evidence)
+    assert len([key for key in calls if key.startswith('sha256/')]) == 2
