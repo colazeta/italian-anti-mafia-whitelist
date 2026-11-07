@@ -19,6 +19,8 @@ from typing import Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from .transform_resilience import with_bounded_retry, quarantine_age
+
 _HEX40 = re.compile(r"^[0-9a-f]{40}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_BYTES = 100_000_000
@@ -574,12 +576,12 @@ def main(argv: list[str] | None = None) -> int:
             continue
         progress = {"stage": "preflight"}
         try:
-            outcomes.append(transform_one(
+            outcomes.append(with_bounded_retry(lambda: transform_one(
                 job, store=store, dsn=dsn,
                 code_revision=args.code_revision,
                 authority_registry=args.authority_registry,
                 series_registry=args.series_registry, progress=progress,
-            ))
+            ), progress))
         except Exception as exc:
             # Provider/parser exceptions can contain row-level or private coordinates.
             # Retain only a bounded error *class*, never its message.
@@ -587,6 +589,7 @@ def main(argv: list[str] | None = None) -> int:
                 "source_key": job["source_key"],
                 "status": "quarantined",
                 "error_type": type(exc).__name__,
+                "attempts": progress.get("attempts", 1),
                 "stage": progress["stage"],
                 "reason": ("edition_bound_parser_requires_review"
                            if isinstance(exc, EditionReviewRequired) else "stage_failed"),
@@ -594,7 +597,14 @@ def main(argv: list[str] | None = None) -> int:
                    if isinstance(exc, EditionReviewRequired)
                    and "structural_inspection" in progress else {}),
             })
+    ageing_failure = False
     for job, outcome in zip(jobs, outcomes):
+        if outcome["status"] == "quarantined" and store is not None:
+            try:
+                outcome["quarantine_age"] = quarantine_age(store, job, outcome)
+            except Exception:
+                outcome["quarantine_age"] = {"verified": False}
+                ageing_failure = True
         outcome["capture_inputs"] = {
             label: {"capture_id": part["state"]["capture_id"],
                     "sha256": part["state"]["sha256"]}
@@ -623,7 +633,7 @@ def main(argv: list[str] | None = None) -> int:
         "source_quality_flags": sum(bool(row.get("qa_flags")) for row in outcomes),
         "database_verified": sum(row.get("database_readback") == "verified" for row in outcomes),
     }
-    report_failure = False
+    report_failure = ageing_failure
     if store is not None:
         try:
             # Persist the verification claim only after successful exact readback.
