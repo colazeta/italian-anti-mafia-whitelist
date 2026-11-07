@@ -238,6 +238,66 @@ def _reuse_existing_snapshot(
     return True
 
 
+def _quality_flags(cfg: dict[str, Any], records: list[dict], diagnostics: dict) -> list[str]:
+    """Screen for evidence-quality drift, without granting publication approval."""
+    flags: list[str] = []
+    count = len(records)
+    expected = cfg.get("expected_source_rows")
+    if expected is not None and count != int(expected):
+        flags.append("source_row_count_changed")
+    expected_sectors = cfg.get("expected_sector_rows")
+    if expected_sectors is not None and diagnostics.get("sector_rows") != int(expected_sectors):
+        flags.append("source_sector_count_changed")
+    if diagnostics.get("dropped_date_rows", 0):
+        flags.append("source_date_rows_dropped")
+    if any(not isinstance(record, dict) for record in records):
+        flags.append("invalid_parser_record")
+    if any(
+        isinstance(record, dict) and (
+            not isinstance(record.get("source_status"), str) or
+            not record["source_status"].strip()
+        )
+        for record in records
+    ):
+        flags.append("missing_source_status")
+    return flags
+
+
+def _check_capture_relational_readback(conn: Any, capture_id: str, sha256: str) -> None:
+    """Verify the committed durable capture in a distinct read-only transaction."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT o.sha256, o.storage_status_code
+            FROM source.source_capture c
+            JOIN source.content_object o ON o.content_object_id=c.content_object_id
+            WHERE c.capture_id=%s
+            """,
+            (capture_id,),
+        )
+        row = cur.fetchone()
+    if row != (sha256, "durable"):
+        raise RuntimeError("Relational capture readback does not match verified archive bytes")
+
+
+def _check_snapshot_relational_readback(
+    conn: Any, *, parse_run_id: str, digest: str, record_count: int,
+) -> None:
+    """Read back an independently committed parse snapshot before reporting success."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT snapshot_sha256, record_count
+            FROM source.parse_snapshot
+            WHERE parse_run_id=%s
+            """,
+            (parse_run_id,),
+        )
+        row = cur.fetchone()
+    if row != (digest, record_count):
+        raise RuntimeError("Relational parse snapshot readback failed")
+
+
 def transform_one(
     job: dict[str, Any],
     *,
@@ -301,6 +361,11 @@ def transform_one(
                 )
                 persist_archived_capture(conn, archived, store)
                 conn.commit()
+            # A receipt or in-transaction INSERT alone is not production persistence.
+            with psycopg.connect(dsn) as readback:
+                _check_capture_relational_readback(
+                    readback, manifest["capture_id"], manifest["sha256"],
+                )
 
         capture_inputs = [
             {"label": label, "capture_id": verified[label][0]["capture_id"]}
@@ -322,6 +387,7 @@ def transform_one(
                 "source_key": job["source_key"],
                 "status": "reused_private_interpretation",
                 "records": None,
+                "publication_approved": False,
             }
 
         source_input = paths["primary"] if job["config"].get("resources") is None else paths
@@ -345,16 +411,34 @@ def transform_one(
                 diagnostics=batch.diagnostics,
             )
             conn.commit()
-        diagnostics = batch.diagnostics
-        expected = job["config"].get("expected_source_rows")
-        count_matches = expected is None or int(expected) == len(batch.records)
+        with psycopg.connect(dsn) as readback:
+            _check_snapshot_relational_readback(
+                readback,
+                parse_run_id=result["parse_run_id"],
+                digest=result["snapshot_sha256"],
+                record_count=result["record_count"],
+            )
         return {
             "source_key": job["source_key"],
             "status": "parsed_private_review_required",
             "records": len(batch.records),
-            "approved_row_count_matches": count_matches,
-            "dropped_date_rows": diagnostics.get("dropped_date_rows", 0),
+            "qa_flags": _quality_flags(job["config"], batch.records, batch.diagnostics),
+            "database_readback": "verified",
+            "publication_approved": False,
         }
+
+
+def public_operational_summary(report: dict[str, Any]) -> dict[str, Any]:
+    """Closed public artifact: totals only, never source identities or private rows."""
+    allowed = (
+        "schema_version", "run_at", "shard", "shards", "changed_sources",
+        "transformed", "reused", "quarantined", "blocked", "deferred",
+        "database_verified", "source_quality_flags", "publications",
+    )
+    result = {name: report[name] for name in allowed}
+    if result["publications"] != 0:
+        raise ValueError("The private transformer must never publish data")
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -366,6 +450,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shard", type=int, default=0)
     parser.add_argument("--shards", type=int, default=1)
     parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument("--public-report", type=Path)
     parser.add_argument("--code-revision", required=True)
     args = parser.parse_args(argv)
 
@@ -375,15 +460,29 @@ def main(argv: list[str] | None = None) -> int:
     import os
     from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
     dsn = os.environ.get("EVIDENCE_DATABASE_URL", "")
-    if jobs and not dsn:
-        raise SystemExit("Private observation database is unavailable; no transformations were attempted")
     if _HEX40.fullmatch(args.code_revision) is None:
         raise SystemExit("An exact checked-out Git revision is required")
-    store_config = StoreConfig.from_env() if jobs else None
-    store = EvidenceStore(client_for(store_config), store_config) if store_config else None
+    blocker = "private_database_writer_unavailable" if jobs and not dsn else None
+    store = None
+    if jobs and blocker is None:
+        try:
+            store_config = StoreConfig.from_env()
+        except ValueError:
+            blocker = "private_archive_configuration_unavailable"
+        else:
+            store = EvidenceStore(client_for(store_config), store_config)
 
     outcomes = []
     for job in jobs:
+        if blocker:
+            # Retain a report even if a global prerequisite is missing. Missing
+            # credentials are never treated as an empty, successful acquisition.
+            outcomes.append({
+                "source_key": job["source_key"],
+                "status": "blocked",
+                "reason": blocker,
+            })
+            continue
         try:
             outcomes.append(transform_one(
                 job, store=store, dsn=dsn,
@@ -408,6 +507,7 @@ def main(argv: list[str] | None = None) -> int:
         "transformed": sum(row["status"] == "parsed_private_review_required" for row in outcomes),
         "reused": sum(row["status"] == "reused_private_interpretation" for row in outcomes),
         "quarantined": sum(row["status"] == "quarantined" for row in outcomes),
+        "blocked": sum(row["status"] == "blocked" for row in outcomes),
         "deferred": len(deferred),
         "outcomes": outcomes,
         "deferred_reasons": {
@@ -415,9 +515,18 @@ def main(argv: list[str] | None = None) -> int:
             for name in sorted({row["reason"] for row in deferred})
         },
         "publications": 0,
+        "source_quality_flags": sum(bool(row.get("qa_flags")) for row in outcomes),
+        "database_verified": sum(row.get("database_readback") == "verified" for row in outcomes),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    if args.public_report:
+        # Only this closed aggregate summary is allowed as an Actions artifact.
+        args.public_report.parent.mkdir(parents=True, exist_ok=True)
+        args.public_report.write_text(
+            json.dumps(public_operational_summary(report), sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
     print(json.dumps({
         "changed_sources": report["changed_sources"],
         "transformed_private": report["transformed"],
@@ -425,8 +534,10 @@ def main(argv: list[str] | None = None) -> int:
         "quarantined": report["quarantined"],
         "deferred": report["deferred"],
         "publications": 0,
+        "source_quality_flags": report["source_quality_flags"],
+        "database_verified": report["database_verified"],
     }, sort_keys=True))
-    return 1 if report["quarantined"] else 0
+    return 1 if report["quarantined"] or report["blocked"] else 0
 
 
 if __name__ == "__main__":

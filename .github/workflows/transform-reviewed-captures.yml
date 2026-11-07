@@ -1,6 +1,15 @@
 name: Transform reviewed captures into private observations
 
 on:
+  # Reviewable code changes bootstrap a full protected production acceptance run.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/transform-reviewed-captures.yml'
+      - 'src/white_list_archive/acquisition/auto_transform.py'
+  # Weekly catch-up in case an upstream workflow_run event is missed.
+  schedule:
+    - cron: '43 18 * * 0'
   workflow_run:
     workflows: ['Prefecture robots']
     types: [completed]
@@ -18,6 +27,8 @@ jobs:
     # Never execute PR-originated code or consume untrusted run artifacts.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
@@ -96,7 +107,8 @@ jobs:
             --shard "$SHARD" \
             --shards 4 \
             --code-revision "$(git rev-parse HEAD)" \
-            --report "${RUNNER_TEMP}/auto-transform-summary.json"
+            --report "${RUNNER_TEMP}/auto-transform-summary.json" \
+            --public-report /tmp/public-actions/white-list-auto-transform/summary.json
       - name: Record safe operational totals
         if: always()
         run: |
@@ -111,10 +123,22 @@ jobs:
               out.write(f"Changed reviewed sources: **{data['changed_sources']}**. ")
               out.write(f"Persisted private interpretations: **{data['transformed']}**. ")
               out.write(f"Quarantined: **{data['quarantined']}**. ")
+              out.write(f"Blocked: **{data['blocked']}**. ")
               out.write(f"Deferred: **{data['deferred']}**. ")
+              out.write(f"Database readbacks: **{data['database_verified']}**. ")
+              out.write(f"Source QA flags: **{data['source_quality_flags']}**. ")
               out.write("Public promotions: **0**.\n")
           PY
           fi
+
+      - name: Retain aggregate public operational verification only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-list-transform-status-${{ matrix.shard }}-${{ github.run_id }}
+          path: /tmp/public-actions/white-list-auto-transform/summary.json
+          if-no-files-found: warn
+          retention-days: 14
 
 # Does not write to main/robot-state, upload original/source row data, alter
 # publication approval, create a public release or deploy a Pages artifact.

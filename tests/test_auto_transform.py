@@ -224,3 +224,150 @@ def test_ambiguous_existing_parse_identity_fails_closed():
             capture_inputs=[{"label": "primary", "capture_id": "capture"}],
             input_hashes={"primary": H2},
         )
+
+
+def test_private_qa_flags_detect_drift_without_approving_publication():
+    from white_list_archive.acquisition.auto_transform import _quality_flags
+
+    flags = _quality_flags(
+        {"expected_source_rows": 4, "expected_sector_rows": 5},
+        [{"source_status": "listed"}, {"source_status": ""}],
+        {"sector_rows": 7, "dropped_date_rows": 1},
+    )
+    assert flags == [
+        "source_row_count_changed",
+        "source_sector_count_changed",
+        "source_date_rows_dropped",
+        "missing_source_status",
+    ]
+    assert _quality_flags(
+        {"expected_source_rows": 1},
+        [{"source_status": "listed"}],
+        {"dropped_date_rows": 0},
+    ) == []
+
+
+def test_database_readbacks_require_committed_capture_and_snapshot_identity():
+    from white_list_archive.acquisition.auto_transform import (
+        _check_capture_relational_readback, _check_snapshot_relational_readback,
+    )
+
+    class Cursor:
+        def __init__(self, row):
+            self.row = row
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def execute(self, sql, args):
+            self.args = args
+        def fetchone(self):
+            return self.row
+
+    class Connection:
+        def __init__(self, row):
+            self.current = Cursor(row)
+        def cursor(self):
+            return self.current
+
+    capture = Connection((H1, "durable"))
+    _check_capture_relational_readback(capture, "capture-1", H1)
+    assert capture.current.args == ("capture-1",)
+
+    with pytest.raises(RuntimeError, match="Relational capture readback"):
+        _check_capture_relational_readback(Connection((H2, "pending")), "capture-1", H1)
+    _check_snapshot_relational_readback(
+        Connection((H2, 6)), parse_run_id="run-1", digest=H2, record_count=6,
+    )
+    with pytest.raises(RuntimeError, match="Relational parse snapshot"):
+        _check_snapshot_relational_readback(
+            Connection((H2, 5)), parse_run_id="run-1", digest=H2, record_count=6,
+        )
+
+
+def test_automatic_pipeline_is_private_and_has_independent_catchup_trigger():
+    from pathlib import Path
+
+    workflow = (Path(__file__).resolve().parents[1] /
+        ".github/workflows/transform-reviewed-captures.yml").read_text()
+    assert "workflow_run:" in workflow
+    assert "schedule:" in workflow
+    assert "  push:" in workflow
+    assert "ref: main" in workflow
+    assert "contents: read" in workflow
+    assert "environment: evidence-archive" in workflow
+    assert "Retain aggregate public operational verification only" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/deploy-pages" not in workflow
+    assert "pages: write" not in workflow
+
+
+def test_missing_private_database_reports_blocked_capture_instead_of_success(tmp_path, monkeypatch):
+    import json
+
+    from white_list_archive.acquisition.auto_transform import main
+
+    state, config = _scalar()
+    state_path = tmp_path / "state.json"
+    config_path = tmp_path / "config.json"
+    report = tmp_path / "status.json"
+    state_path.write_text(json.dumps(state))
+    config_path.write_text(json.dumps(config))
+    monkeypatch.delenv("EVIDENCE_DATABASE_URL", raising=False)
+    result = main([
+        "--state", str(state_path),
+        "--source-config", str(config_path),
+        "--report", str(report),
+        "--code-revision", "a" * 40,
+    ])
+    saved = json.loads(report.read_text())
+    assert result == 1
+    assert saved["changed_sources"] == 1
+    assert saved["blocked"] == 1
+    assert saved["transformed"] == 0
+    assert saved["outcomes"] == [{
+        "source_key": "sample-listed",
+        "status": "blocked",
+        "reason": "private_database_writer_unavailable",
+    }]
+    assert saved["publications"] == 0
+
+
+def test_actions_artifact_contains_only_aggregate_safe_operational_fields():
+    from white_list_archive.acquisition.auto_transform import public_operational_summary
+
+    report = {
+        "schema_version": 1,
+        "run_at": "2026-11-07T10:30:00+00:00",
+        "shard": 0,
+        "shards": 4,
+        "changed_sources": 1,
+        "transformed": 0,
+        "reused": 0,
+        "quarantined": 1,
+        "blocked": 0,
+        "deferred": 0,
+        "database_verified": 0,
+        "source_quality_flags": 1,
+        "publications": 0,
+        "outcomes": [{
+            "source_key": "sensitive-source",
+            "records": [{"company_name": "Not for public upload"}],
+            "sha256": H2,
+            "error_type": "ParserError",
+        }],
+        "deferred_reasons": {"internal_secret": 1},
+    }
+    output = public_operational_summary(report)
+    text = __import__("json").dumps(output)
+    assert output["quarantined"] == 1
+    assert output["publications"] == 0
+    assert "sensitive-source" not in text
+    assert "company_name" not in text
+    assert H2 not in text
+    assert "outcomes" not in output
+    assert "deferred_reasons" not in output
+
+    report["publications"] = 1
+    with pytest.raises(ValueError, match="never publish"):
+        public_operational_summary(report)
