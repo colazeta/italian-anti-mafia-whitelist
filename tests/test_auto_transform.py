@@ -296,7 +296,7 @@ def test_automatic_pipeline_is_private_and_has_independent_catchup_trigger():
     assert "ref: main" in workflow
     assert "contents: read" in workflow
     assert "environment: evidence-archive" in workflow
-    assert "Retain safe private-transformation status metadata" in workflow
+    assert "Retain aggregate public operational verification only" in workflow
     assert "actions/upload-artifact@v4" in workflow
     assert "actions/deploy-pages" not in workflow
     assert "pages: write" not in workflow
