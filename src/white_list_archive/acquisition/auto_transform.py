@@ -359,6 +359,13 @@ def read_snapshot_verified(conn: Any, parse_run_id: str) -> tuple[list, dict]:
     return records, diagnostics
 
 
+def _require_edition_review(path: Path, parser_name: str, progress: dict[str, Any]) -> None:
+    """Inspect archived structure without changing the edition approval gate."""
+    from white_list_archive.acquisition.quarantine_structure import inspect_quarantined_structure
+    progress["structural_inspection"] = inspect_quarantined_structure(path, parser_name)
+    raise EditionReviewRequired("Unknown edition requires explicit parser compatibility review")
+
+
 def transform_one(
     job: dict[str, Any],
     *,
@@ -367,7 +374,7 @@ def transform_one(
     code_revision: str,
     authority_registry: Path,
     series_registry: Path,
-    progress: dict[str, str] | None = None,
+    progress: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Persist capture provenance, then parser observations in separate transactions."""
     from white_list_archive.acquisition.archive_first import ArchivedCapture
@@ -464,7 +471,7 @@ def transform_one(
 
         progress["stage"] = "parser_compatibility"
         if cfg["parser"] in {"lodi_listed", "lodi_applicants", "milano_combined"}:
-            raise EditionReviewRequired("Unknown edition requires explicit parser compatibility review")
+            _require_edition_review(paths["primary"], cfg["parser"], progress)
         progress["stage"] = "parsing"
         source_input = paths["primary"] if job["config"].get("resources") is None else paths
         started_at = datetime.now(timezone.utc)
@@ -583,6 +590,9 @@ def main(argv: list[str] | None = None) -> int:
                 "stage": progress["stage"],
                 "reason": ("edition_bound_parser_requires_review"
                            if isinstance(exc, EditionReviewRequired) else "stage_failed"),
+                **({"structural_inspection": progress["structural_inspection"]}
+                   if isinstance(exc, EditionReviewRequired)
+                   and "structural_inspection" in progress else {}),
             })
     for job, outcome in zip(jobs, outcomes):
         outcome["capture_inputs"] = {
