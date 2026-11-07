@@ -1,0 +1,97 @@
+name: Private PostgreSQL clean restore verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/postgres-recovery.yml'
+      - 'src/white_list_archive/storage/postgres_recovery.py'
+      - 'tests/test_postgres_recovery.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/postgres-recovery.yml'
+      - 'src/white_list_archive/storage/postgres_recovery.py'
+      - 'tests/test_postgres_recovery.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-postgres-recovery
+  cancel-in-progress: false
+
+jobs:
+  synthetic-roundtrip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: synthetic_source
+          POSTGRES_USER: restore_test
+          POSTGRES_PASSWORD: ephemeral_restore_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U restore_test -d synthetic_source"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      RECOVERY_TEST_DSN: postgresql://restore_test:ephemeral_restore_only@localhost:5432/synthetic_source
+      RECOVERY_ROUNDTRIP_DSN: postgresql://restore_test:ephemeral_restore_only@localhost:5432/clean_restore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install synthetic test runtime
+        run: python -m pip install -e '.[database]' pytest
+      - name: Test exact consistent-snapshot roundtrip and fail-closed controls
+        run: python -m pytest tests/test_postgres_recovery.py -q
+
+  backup-and-restore:
+    needs: synthetic-roundtrip
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: evidence-archive
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: clean_restore
+          POSTGRES_USER: restore_test
+          POSTGRES_PASSWORD: ephemeral_restore_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U restore_test -d clean_restore"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      RESTORE_DATABASE_URL: postgresql://restore_test:ephemeral_restore_only@localhost:5432/clean_restore
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install private database recovery runtime
+        run: python -m pip install -e '.[database,storage]'
+      - name: Pull matching PostgreSQL major client
+        run: docker pull postgres:18-alpine
+      - name: Back up consistent source snapshot and restore provider readback
+        run: python -m white_list_archive.storage.postgres_recovery
+
+# Deliberately no Actions artifacts: all dumps and detailed inventories are private.
+# Existing private R2 is a recovery checkpoint, not independent provider backup.
+# This neither changes production data nor restores production roles/ACLs.
