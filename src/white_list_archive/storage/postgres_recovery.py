@@ -30,23 +30,33 @@ def digest(value):
 
 def run_client(program, dsn, *, arguments=(), output=None, input_path=None):
     """Use a pinned major client, passing connection material only in environment."""
-    command = ["docker", "run", "--rm", "--network", "host", "--env", "PGDATABASE",
-               "--env", "PGCONNECT_TIMEOUT"]
-    env = dict(os.environ, PGDATABASE=dsn, PGCONNECT_TIMEOUT="30")
+    from psycopg import pq
+    from psycopg.conninfo import conninfo_to_dict
+
+    parameters = conninfo_to_dict(dsn)
+    environment_names = {
+        item.keyword.decode(): item.envvar.decode() if item.envvar else None
+        for item in pq.Conninfo.get_defaults()
+    }
+    # libpq environment PGDATABASE is a database name, not a URI expansion
+    # mechanism. Decompose both source and restore DSNs, preserving TLS and
+    # channel-binding settings rather than silently dropping query parameters.
+    if any(not environment_names.get(name) for name in parameters):
+        raise RecoveryFailure("connection_option_without_environment_mapping")
+    env = {name: value for name, value in os.environ.items()
+           if name not in set(environment_names.values())}
+    connection_env = {environment_names[name]: value for name, value in parameters.items()}
+    connection_env.setdefault("PGCONNECT_TIMEOUT", "30")
+    env.update(connection_env)
+    command = ["docker", "run", "--rm", "--network", "host"]
+    for variable in sorted(connection_env):
+        command += ["--env", variable]
     if program == "pg_restore":
-        from psycopg.conninfo import conninfo_to_dict
-        target = conninfo_to_dict(dsn)
         # pg_restore requires --dbname to execute instead of emitting SQL. Its
         # fixed non-secret database name is safe in argv; all other parameters
         # remain in libpq environment variables.
-        if target.get("dbname") != "clean_restore":
+        if parameters.get("dbname") != "clean_restore":
             raise RecoveryFailure("invalid_restore_database")
-        for option, variable in (("host", "PGHOST"), ("port", "PGPORT"),
-                                 ("user", "PGUSER"), ("password", "PGPASSWORD")):
-            if option in target:
-                env[variable] = target[option]
-                command += ["--env", variable]
-        env["PGDATABASE"] = "clean_restore"
         arguments = ("--dbname=clean_restore", *arguments)
     command += ["-i", "postgres:18-alpine", program, *arguments]
     with (open(input_path, "rb") if input_path else open(os.devnull, "rb")) as source:

@@ -35,12 +35,29 @@ def test_client_secret_never_in_argv_and_stderr_is_discarded(monkeypatch, tmp_pa
         seen.update(command=command, **kwargs)
         return SimpleNamespace(returncode=0)
     monkeypatch.setattr("subprocess.run", fake_run)
-    secret = "postgresql://private:never-print-me@provider/database"
+    secret = "postgresql://private:never-print-me@provider:5433/database?sslmode=require&channel_binding=require&options=-c%20statement_timeout%3D60000"
     run_client("pg_dump", secret, arguments=("--format=custom",), output=tmp_path / "private.dump")
     assert secret not in repr(seen["command"])
-    assert seen["env"]["PGDATABASE"] == secret
+    assert seen["env"]["PGDATABASE"] == "database"
+    assert seen["env"]["PGHOST"] == "provider"
+    assert seen["env"]["PGPORT"] == "5433"
+    assert seen["env"]["PGUSER"] == "private"
+    assert seen["env"]["PGPASSWORD"] == "never-print-me"
+    assert seen["env"]["PGSSLMODE"] == "require"
+    assert seen["env"]["PGCHANNELBINDING"] == "require"
+    assert seen["env"]["PGOPTIONS"] == "-c statement_timeout=60000"
+    assert "PGSSLMODE" in seen["command"]
+    assert "PGCHANNELBINDING" in seen["command"]
     import subprocess
     assert seen["stderr"] == subprocess.DEVNULL
+
+
+def test_client_refuses_unmappable_connection_parameter_before_subprocess(monkeypatch, tmp_path):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("subprocess must not run")
+    monkeypatch.setattr("subprocess.run", forbidden)
+    with pytest.raises(RecoveryFailure, match="without_environment_mapping"):
+        run_client("pg_dump", "dbname=database keepalives=1", output=tmp_path / "private.dump")
 
 
 def test_restore_executes_database_without_secret_arguments(monkeypatch, tmp_path):
