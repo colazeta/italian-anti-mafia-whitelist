@@ -240610,11 +240610,11 @@
     },
     "aosta": {
       "authority_key": "aosta",
-      "checked_at": "2026-11-07T11:12:11.871776+00:00",
+      "checked_at": "2026-11-07T16:31:09.793981+00:00",
       "status": "unchanged",
       "mode": "capture",
       "requested_mode": "capture",
-      "last_successful_check_at": "2026-11-07T11:12:11.871776+00:00",
+      "last_successful_check_at": "2026-11-07T16:31:09.793981+00:00",
       "requests": 13,
       "changed_urls": [],
       "new_urls": [],
@@ -240640,7 +240640,7 @@
       ],
       "pending_urls": [],
       "pending_queue": [],
-      "cycle_started_at": "2026-11-07T11:12:11.871776+00:00",
+      "cycle_started_at": "2026-11-07T16:31:09.793981+00:00",
       "errors": [],
       "resources": {
         "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx": {
@@ -240650,7 +240650,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_i.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "05320103bb742577408a6dc8d34be72d040335cb30bc720c3cad82a69a29e14f",
@@ -240737,7 +240737,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_i.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "1d60ced4fe93ce9a35812464b6f6f1d1eb00b8d0963818139733be40a7ff1fa7",
@@ -240814,7 +240814,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/informazioni_e_modulistica_i.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "fc8a365cca0c8a569568f73da179e5f6136debedf5842120423121ec3bb9bd23",
@@ -240851,14 +240851,14 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=84307",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "source",
           "source_keys": [
             "aosta-listed"
           ],
           "archived_sha256": "d617d15a506aa2755e1189194056500b826ee2a31fc303670799e5381fe38dcd",
           "capture_ids": [
-            "b8a94fee-8139-44a2-b729-3d1e5ad7b9eb"
+            "0f1b827f-8cdc-4dbe-bc6c-bf74214e1b18"
           ],
           "capture_history": [
             {
@@ -241260,6 +241260,16 @@
               "captured_at": "2026-11-07T11:12:22.824599+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "0f1b827f-8cdc-4dbe-bc6c-bf74214e1b18",
+              "source_key": "aosta-listed",
+              "sha256": "d617d15a506aa2755e1189194056500b826ee2a31fc303670799e5381fe38dcd",
+              "byte_size": 538821,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:20.225958+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -241270,14 +241280,14 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=84309",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "source",
           "source_keys": [
             "aosta-applicants"
           ],
           "archived_sha256": "c650e3ec19c0e5f795d22ed267a307bd2e134ad1e21a7cb2614fe5ac95d0d4ca",
           "capture_ids": [
-            "715b5b09-ece9-4df2-8475-d77411c3e52a"
+            "33b01caf-42e0-4ac9-992f-791c84acc39e"
           ],
           "capture_history": [
             {
@@ -241689,6 +241699,16 @@
               "captured_at": "2026-11-07T11:12:18.878687+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "33b01caf-42e0-4ac9-992f-791c84acc39e",
+              "source_key": "aosta-applicants",
+              "sha256": "c650e3ec19c0e5f795d22ed267a307bd2e134ad1e21a7cb2614fe5ac95d0d4ca",
+              "byte_size": 333028,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:16.138716+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -241729,7 +241749,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/default_i.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "2702f3739f915e115df1c104bdc4c3067f722630180c37c2af2973718f58f055",
@@ -241766,7 +241786,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_richiedenti_f.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "7af768e4296f6bbb643c911e33b917545548cad6ab68fbc01d2b5df1048a027d",
@@ -241818,7 +241838,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/elenco_imprese_white_list_f.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "1e8f13345e62c648b25da58b07bb735962e24ee708da242675ba34d5e6137926",
@@ -241855,12 +241875,12 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=39538",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "018b1f05e03636da7fe0b48d22e50f0916d35be0e18112a5be5a6921e6444ddf",
           "capture_ids": [
-            "88432fe8-d13d-4574-ad13-36dbf959ce86"
+            "c5fcc086-f215-48d3-9c70-ed4e47e55a38"
           ],
           "capture_history": [
             {
@@ -242272,6 +242292,16 @@
               "captured_at": "2026-11-07T11:12:44.476328+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "c5fcc086-f215-48d3-9c70-ed4e47e55a38",
+              "source_key": "aosta-robot-discovery",
+              "sha256": "018b1f05e03636da7fe0b48d22e50f0916d35be0e18112a5be5a6921e6444ddf",
+              "byte_size": 852131,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:38.243276+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -242282,12 +242312,12 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=66817",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "8954d7e0f02dcaa3180845ae620cc89ebf7e03e0149e0b121316464d861b24b8",
           "capture_ids": [
-            "544808a6-ad41-4e6c-a81f-03d8087437fe"
+            "e45fcd95-dd44-43f9-b99c-694c8d927b4c"
           ],
           "capture_history": [
             {
@@ -242699,6 +242729,16 @@
               "captured_at": "2026-11-07T11:12:32.767539+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "e45fcd95-dd44-43f9-b99c-694c8d927b4c",
+              "source_key": "aosta-robot-discovery",
+              "sha256": "8954d7e0f02dcaa3180845ae620cc89ebf7e03e0149e0b121316464d861b24b8",
+              "byte_size": 179192,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:29.115416+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -242769,7 +242809,7 @@
           "resolved_url": "https://www.regione.vda.it/prefettura/Antimafia/white_list/default_f.aspx",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "landing",
           "source_keys": [],
           "archived_sha256": "64bb17322bc9854b9b49f1d7d621984b2d43dc49a005d7bfcc7df9e16034e6bf",
@@ -242806,12 +242846,12 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=52131",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "1ca1696ba14e8f7cd5660010499b1dafdf69ccbb62a112cccacb689bbbc68966",
           "capture_ids": [
-            "d91ef41c-c26f-4616-a6e8-4fe3882ff822"
+            "fd7706f8-52fd-48c1-ad3f-8a63d7022498"
           ],
           "capture_history": [
             {
@@ -243223,6 +243263,16 @@
               "captured_at": "2026-11-07T11:12:36.374559+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "fd7706f8-52fd-48c1-ad3f-8a63d7022498",
+              "source_key": "aosta-robot-discovery",
+              "sha256": "1ca1696ba14e8f7cd5660010499b1dafdf69ccbb62a112cccacb689bbbc68966",
+              "byte_size": 188550,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:32.021437+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -243263,12 +243313,12 @@
           "resolved_url": "https://www.regione.vda.it/allegato.aspx?pk=52129",
           "etag": null,
           "last_modified": null,
-          "last_checked_at": "2026-11-07T11:12:11.871776+00:00",
+          "last_checked_at": "2026-11-07T16:31:09.793981+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "6ca129d486691cb6a2c0db4349b0fe1f85e5fdac610d3fe07ffd31dc4c0a540e",
           "capture_ids": [
-            "a7dc7718-3f98-44fe-9db8-9fb3d18f6bd0"
+            "a20a00e0-2572-4f2b-8393-763c9c1aab1f"
           ],
           "capture_history": [
             {
@@ -243680,13 +243730,23 @@
               "captured_at": "2026-11-07T11:12:40.125820+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "a20a00e0-2572-4f2b-8393-763c9c1aab1f",
+              "source_key": "aosta-robot-discovery",
+              "sha256": "6ca129d486691cb6a2c0db4349b0fe1f85e5fdac610d3fe07ffd31dc4c0a540e",
+              "byte_size": 214309,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T16:31:34.848248+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         }
       },
       "population_mapping_reviewed": true,
       "publication_approved": false,
-      "run_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42366947143"
+      "run_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42391656895"
     },
     "bolzano-bozen": {
       "authority_key": "bolzano-bozen",
