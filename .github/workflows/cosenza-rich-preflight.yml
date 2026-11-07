@@ -1,0 +1,77 @@
+name: Private Cosenza rich preflight
+on:
+  workflow_dispatch:
+    inputs:
+      capture_id:
+        description: Exact reviewed historical capture UUID
+        required: true
+        type: string
+      parse_run_id:
+        description: Exact committed snapshot parse run UUID
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: cosenza-rich-preflight
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: evidence-archive
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      PIN_CAPTURE: ${{ inputs.capture_id }}
+      PIN_RUN: ${{ inputs.parse_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install bounded parser runtime
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 &&
+               sudo apt-get install -y --no-install-recommends poppler-utils; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Parser dependency installation failed' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,storage,database]'
+      - name: Verify pinned originals and rich parse without database writes
+        run: |
+          python - <<'PY'
+          import os
+          from white_list_archive.normalisation.cosenza_preflight import main
+          try:
+              main(['--capture-id', os.environ['PIN_CAPTURE'],
+                    '--parse-run-id', os.environ['PIN_RUN'],
+                    '--code-revision', os.environ['GITHUB_SHA']])
+          except Exception as exc:
+              # Driver/network exception strings may contain private connection details.
+              print({'preflight_verified': False, 'error_type': type(exc).__name__,
+                     'writes': 0, 'publications': 0})
+              raise SystemExit(1)
+          PY

@@ -16,6 +16,7 @@ BEGIN;
 \ir schema/050_mapping_provenance.sql
 \ir schema/055_semantic_projection.sql
 \ir schema/056_semantic_resolution_versioning.sql
+\ir schema/057_projection_capture_selection.sql
 \ir schema/058_geography.sql
 \ir schema/059_address_normalisation.sql
 \ir schema/060_derived_governance.sql

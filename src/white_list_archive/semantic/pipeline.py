@@ -58,7 +58,7 @@ FIELD_MAPPINGS: dict[str, list[dict[str, Any]]] = {
 }
 
 
-def _series_context(cur, series_code: str) -> dict[str, Any]:
+def _series_context(cur, series_code: str, *, parse_run_id=None) -> dict[str, Any]:
     cur.execute(
         """
         SELECT s.series_id, s.series_code,
@@ -67,9 +67,13 @@ def _series_context(cur, series_code: str) -> dict[str, Any]:
         JOIN source.source_schema ss ON ss.series_id=s.series_id
         JOIN source.source_schema_version sv ON sv.source_schema_id=ss.source_schema_id
         WHERE s.series_code=%s
+          AND (%s::uuid IS NULL OR EXISTS (
+              SELECT 1 FROM source.parsed_record pr
+              WHERE pr.schema_version_id=sv.schema_version_id AND pr.parse_run_id=%s::uuid
+          ))
         GROUP BY s.series_id,s.series_code
         """,
-        (series_code,),
+        (series_code, parse_run_id, parse_run_id),
     )
     row = cur.fetchone()
     if not row:
@@ -210,7 +214,9 @@ def run_pipeline(
     if project_series is None:
         raise AttributeError(f"Semantic projector {profile.projector_module!r} has no project_series()")
     projection = project_series(conn, series_code)
-    canonicalisation = canonicalise_series(conn, series_code)
+    canonicalisation = canonicalise_series(
+        conn, series_code, projection_run_ids=projection["projection_run_ids"]
+    )
 
     return {
         "series_code": series_code,

@@ -492,6 +492,86 @@ with psycopg.connect(dsn) as conn:
         assert cur.fetchone()[0] == 0
         cur.execute("SELECT edition_id FROM source.source_edition WHERE series_id=%s", (series_id,))
         assert cur.fetchall() == [(fixture_edition_id,)]
+    # Exact pins isolate one attributed interpretation without silently including
+    # the unrelated capture-only run rejected above. No edition is minted here.
+    from white_list_archive.semantic.combined_whitelist_v1 import (
+        ProjectionSelectionRequired, _parse_run_contexts, _ensure_projection_run,
+    )
+    with conn.cursor() as cur:
+        contexts = _parse_run_contexts(
+            cur, "ci-parse-snapshot", parse_run_id=attributed_rich["parse_run_id"],
+            capture_id=other_capture_id,
+        )
+        assert len(contexts) == 1
+        assert str(contexts[0]["edition_id"]) == str(fixture_edition_id)
+        try:
+            _parse_run_contexts(cur, "ci-parse-snapshot",
+                                parse_run_id=attributed_rich["parse_run_id"],
+                                capture_id=capture_ids[0])
+        except ProjectionSelectionRequired:
+            pass
+        else:
+            raise AssertionError("An unlinked capture must not be selected by byte association")
+        context = contexts[0]
+        projection_id, created = _ensure_projection_run(
+            cur, context["parse_run_id"], context["parse_run_code"], capture_id=other_capture_id,
+        )
+        assert created
+        repeat_id, created = _ensure_projection_run(
+            cur, context["parse_run_id"], context["parse_run_code"], capture_id=other_capture_id,
+        )
+        assert repeat_id == projection_id and not created
+        cur.execute("SELECT source_capture_id FROM semantic.projection_run WHERE projection_run_id=%s",
+                    (projection_id,))
+        assert str(cur.fetchone()[0]) == other_capture_id
+    try:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("UPDATE semantic.projection_run SET source_capture_id=NULL "
+                            "WHERE projection_run_id=%s", (projection_id,))
+    except psycopg.DatabaseError as exc:
+        assert "capture selection is immutable" in str(exc)
+    else:
+        raise AssertionError("A pinned projection capture was relabelled")
+    try:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _ensure_projection_run(cur, rich_run["parse_run_id"], "ci-invalid-capture-link",
+                                       capture_id=other_capture_id)
+    except psycopg.DatabaseError as exc:
+        assert "projection_capture_parse_input_fk" in str(exc)
+    else:
+        raise AssertionError("A projection accepted a capture not linked to its parse run")
+    with conn.cursor() as cur:
+        # A second code interpretation over unchanged bytes must not be selected
+        # alongside the first for one edition in legacy broad-series mode.
+        competing = persist_parse_snapshot(conn, capture_id=other_capture_id,
+                                           **dict(rich, code_revision="f" * 40))
+        cur.execute(
+            "INSERT INTO source.parsed_record(parse_run_id,schema_version_id,record_locator,record_hash) "
+            "VALUES (%s,%s,'row:000001',%s)",
+            (competing["parse_run_id"], schema_version, _sha(b"competing rich revision")),
+        )
+        # Attribute the earlier input to a different synthetic edition as well,
+        # so the broad guard reaches revision ambiguity instead of missing edition.
+        cur.execute(
+            "INSERT INTO source.capture_edition(capture_id,edition_id,relation_type_code,attribution_status_code) "
+            "VALUES (%s,%s,'is_representation_of','explicit')",
+            (capture_ids[0], fixture_edition_id),
+        )
+        try:
+            _parse_run_contexts(cur, "ci-parse-snapshot")
+        except ProjectionSelectionRequired:
+            pass
+        else:
+            raise AssertionError("Competing rich interpretation revisions were silently mixed")
+        assert len(_parse_run_contexts(cur, "ci-parse-snapshot",
+                   parse_run_id=attributed_rich["parse_run_id"], capture_id=other_capture_id)) == 1
+    from cosenza_preflight_db_check import check_cosenza_preflight_relational
+    check_cosenza_preflight_relational(
+        conn, capture_id=capture_ids[0], parse_run_id=rich_run["parse_run_id"],
+        mismatched_capture_id=other_capture_id,
+    )
     conn.rollback()
 
 with psycopg.connect(dsn) as rollback_check:

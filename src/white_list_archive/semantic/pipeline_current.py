@@ -55,21 +55,18 @@ def run_pipeline(
     families_path: Path = DEFAULT_FAMILIES,
     bindings_path: Path = DEFAULT_BINDINGS,
     semantic_profiles_path: Path = DEFAULT_SEMANTIC_PROFILES,
+    parse_run_id=None,
+    capture_id=None,
 ) -> dict[str, Any]:
+    from white_list_archive.semantic.combined_whitelist_v1 import validate_input_selection
+    validate_input_selection(parse_run_id, capture_id)
     with conn.cursor() as cur:
-        context = base._series_context(cur, series_code)
+        context = base._series_context(cur, series_code, parse_run_id=parse_run_id)
     selection = base._select_family(
         series_code, context["fingerprints"], families_path, bindings_path
     )
     profile = semantic_profile_for_family(
         selection.family, profiles_path=semantic_profiles_path
-    )
-
-    mappings = base.ensure_field_mappings(
-        conn,
-        context["series_id"],
-        selection.family.record_contract_code,
-        selection.family.field_locator_prefix,
     )
 
     module = importlib.import_module(profile.projector_module)
@@ -78,12 +75,27 @@ def run_pipeline(
         raise AttributeError(
             f"Semantic projector {profile.projector_module!r} has no project_series()"
         )
-    projection = project_series(conn, series_code)
-    canonicalisation = canonicalise_series(conn, series_code)
-    cleared_country_defaults = _clear_legacy_address_country_assumption(conn)
+    # Validate the complete selected attribution before field mappings or semantic writes.
+    with conn.cursor() as cur:
+        module._parse_run_contexts(cur, series_code, parse_run_id=parse_run_id, capture_id=capture_id)
+    projection = project_series(conn, series_code, parse_run_id=parse_run_id, capture_id=capture_id)
+    mappings = base.ensure_field_mappings(
+        conn,
+        context["series_id"],
+        selection.family.record_contract_code,
+        selection.family.field_locator_prefix,
+    )
+
+    canonicalisation = canonicalise_series(
+        conn, series_code, projection_run_ids=projection["projection_run_ids"]
+    )
+    cleared_country_defaults = (
+        _clear_legacy_address_country_assumption(conn) if parse_run_id is None else 0
+    )
 
     return {
         "series_code": series_code,
+        "input_selection": {"parse_run_id": parse_run_id, "capture_id": capture_id},
         "schema_fingerprints": context["fingerprints"],
         "parser_selection": {
             "family_code": selection.family.code,
@@ -116,6 +128,8 @@ def run_from_dsn(
     families_path: Path = DEFAULT_FAMILIES,
     bindings_path: Path = DEFAULT_BINDINGS,
     semantic_profiles_path: Path = DEFAULT_SEMANTIC_PROFILES,
+    parse_run_id=None,
+    capture_id=None,
 ) -> dict[str, Any]:
     if psycopg is None:
         raise RuntimeError(
@@ -128,6 +142,8 @@ def run_from_dsn(
             families_path=families_path,
             bindings_path=bindings_path,
             semantic_profiles_path=semantic_profiles_path,
+            parse_run_id=parse_run_id,
+            capture_id=capture_id,
         )
         conn.commit()
         return result
@@ -142,6 +158,8 @@ def main() -> None:
     )
     parser.add_argument("--dsn", required=True)
     parser.add_argument("--series-code", required=True)
+    parser.add_argument("--parse-run-id", help="Exact rich parse run; requires --capture-id")
+    parser.add_argument("--capture-id", help="Exact linked acquisition; requires --parse-run-id")
     parser.add_argument("--parser-families", type=Path, default=DEFAULT_FAMILIES)
     parser.add_argument("--parser-bindings", type=Path, default=DEFAULT_BINDINGS)
     parser.add_argument(
@@ -154,6 +172,8 @@ def main() -> None:
         families_path=args.parser_families,
         bindings_path=args.parser_bindings,
         semantic_profiles_path=args.semantic_profiles,
+        parse_run_id=args.parse_run_id,
+        capture_id=args.capture_id,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
 
