@@ -65,7 +65,8 @@ jobs:
               raise SystemExit('release_manifest must name an existing JSON file')
           subprocess.run(['git', 'ls-files', '--error-unmatch', raw], check=True)
           manifest = json.loads(candidate.read_text(encoding='utf-8'))
-          if manifest.get('schema_version') != 1:
+          version = manifest.get('schema_version')
+          if type(version) is not int or version not in (1, 2):
               raise SystemExit('Unsupported frozen release schema_version')
           release_id = manifest.get('release_id')
           if not isinstance(release_id, str) or not release_id.strip():
