@@ -126,3 +126,52 @@ A green pull-request CI proves only software-level contracts. The protected
 post-merge execution must separately establish valid R2 readback, private
 relational capture/snapshot persistence, and safe status reporting. The pipeline
 fails rather than silently treating missing database credentials as success.
+
+## Production diagnostics and client transport verification
+
+The production database was activated on 7 November 2026. Runs
+[42390480396](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42390480396)
+and [42390699415](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42390699415)
+committed then reused nine private snapshots containing 2,703 records. Twelve
+captures reference eleven durable byte objects. These are point-in-time
+acceptance counts, not hard-coded expected population sizes. Three candidates
+(Lodi listed/applicant and Milano combined) require edition/parser review;
+none was promoted. The original nine interpretations all carried QA flags.
+
+Every transformer database connection now checks libpq's **client-side**
+`ssl_in_use`, negotiated protocol and cipher. A provider proxy's PostgreSQL
+backend `pg_stat_ssl` is not substituted for the actual client transport.
+Connections without TLS or negotiated transport evidence fail before writes.
+Only a boolean attestation is included in the public aggregate status. The
+connection string and its authentication material are never diagnostic fields.
+
+After commit, the transformer reads the complete snapshot through a distinct
+connection, recomputes its canonical SHA-256 and verifies its record count.
+The reuse path performs the same check and recomputes QA flags from the actual
+stored records/diagnostics against the reviewed baseline. Reuse therefore does
+not clear existing review flags or masquerade as a new validation.
+
+Each nonempty execution retains a private attempt report at
+`operations/v1/transform/<UUID>.json` in the **existing private evidence bucket**.
+The report binds the executing code revision and exact labelled capture IDs/
+byte digests to outcomes, QA flags and failure stages (archive integrity,
+capture persistence/readback, reuse, parser compatibility, parsing or snapshot
+persistence/readback). It contains no source rows, raw exception messages or
+credentials. Attempts use new keys, conditional creation and exact object
+readback; earlier diagnostic evidence is never overwritten or deleted. This
+namespace uses application conditional-write protection; it is not claimed to
+have the separate `sha256/` Bucket Lock policy. A failed diagnostic write or
+readback fails the execution without deleting already committed captures or
+snapshots. The public artifact remains aggregate-only and exposes a boolean
+private-report verification result, never a private report key.
+
+Edition-bound parsers for Lodi/Milano are explicitly classified as
+`edition_bound_parser_requires_review` at `parser_compatibility`, after the
+original capture has been preserved. Their approved old dates and hashes are
+not substituted into changed candidate inputs. A parser-contract revision must
+be independently reviewed before this gate can be removed. No automatic retry
+loop attempts to circumvent deterministic edition incompatibility.
+
+These controls do not establish exhaustive national QA, complete historical
+backfill, an independent recovery copy, a restore test or a newly approved public
+release. Issues #163, #16 and #225 remain open for those separate controls.

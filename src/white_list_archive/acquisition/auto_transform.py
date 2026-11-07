@@ -7,6 +7,7 @@ A changed document has an unknown administrative reference date until reviewed.
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
@@ -16,10 +17,55 @@ import re
 import tempfile
 from typing import Any
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 _HEX40 = re.compile(r"^[0-9a-f]{40}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_BYTES = 100_000_000
+
+
+class EditionReviewRequired(RuntimeError):
+    """The reviewed parser cannot accept an unknown new administrative edition."""
+
+
+@contextmanager
+def private_connection(dsn: str):
+    """Verify the actual libpq client TLS hop, never the provider's backend hop."""
+    import psycopg
+
+    with psycopg.connect(dsn, connect_timeout=30) as conn:
+        if not conn.info.ssl_in_use:
+            raise RuntimeError("Private ingestion requires a TLS connection")
+        # These attributes describe the negotiated client session, not pg_stat_ssl
+        # behind a provider proxy. Never return host, userinfo or the DSN.
+        protocol = conn.pgconn.ssl_attribute(b"protocol")
+        cipher = conn.pgconn.ssl_attribute(b"cipher")
+        if not protocol or not cipher:
+            raise RuntimeError("Private ingestion TLS negotiation is unverified")
+        yield conn
+
+
+def persist_operational_report(store: Any, report: dict) -> None:
+    """Retain bounded private diagnostics with conditional write and exact readback.
+
+    No exception messages or original/parsed rows are collected in this report.
+    Every attempt is separate; prior failures and QA flags are never overwritten.
+    """
+    body = json.dumps(report, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False, allow_nan=False).encode("utf-8")
+    if len(body) > 2_000_000:
+        raise ValueError("Private operational report exceeds its bound")
+    key = f"operations/v1/transform/{uuid4()}.json"
+    store.client.put_object(Bucket=store.config.bucket, Key=key, Body=body,
+                            ContentType="application/json", IfNoneMatch="*")
+    response = store.client.get_object(Bucket=store.config.bucket, Key=key)
+    stream = response["Body"]
+    try:
+        actual = stream.read(len(body) + 1)
+    finally:
+        stream.close()
+    if actual != body:
+        raise RuntimeError("Private operational report failed exact readback")
 
 
 def _resource_urls(cfg: dict) -> dict[str, str]:
@@ -193,7 +239,7 @@ def _reuse_existing_snapshot(
     configuration_hash: str,
     capture_inputs: list[dict[str, str]],
     input_hashes: dict[str, str],
-) -> bool:
+) -> str | bool:
     """Link repeated capture/checks to existing verified interpretation inputs.
 
     Idempotence must use complete labelled *byte* identities, not capture ids.
@@ -235,7 +281,7 @@ def _reuse_existing_snapshot(
                 """,
                 (row["capture_id"], matches[0], row["label"]),
             )
-    return True
+    return str(matches[0])
 
 
 def _quality_flags(cfg: dict[str, Any], records: list[dict], diagnostics: dict) -> list[str]:
@@ -298,6 +344,24 @@ def _check_snapshot_relational_readback(
         raise RuntimeError("Relational parse snapshot readback failed")
 
 
+def read_snapshot_verified(conn: Any, parse_run_id: str) -> tuple[list, dict]:
+    """Rehash actual committed observations, including on interpretation reuse."""
+    from white_list_archive.persistence.parse_snapshot import snapshot_sha256
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT snapshot_sha256, record_count, records_json, diagnostics_json "
+            "FROM source.parse_snapshot WHERE parse_run_id=%s", (parse_run_id,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        raise RuntimeError("Committed snapshot is missing")
+    digest, count, records, diagnostics = row
+    if len(records) != count or snapshot_sha256(records, diagnostics) != digest:
+        raise RuntimeError("Committed snapshot content integrity failed")
+    return records, diagnostics
+
+
 def transform_one(
     job: dict[str, Any],
     *,
@@ -306,9 +370,9 @@ def transform_one(
     code_revision: str,
     authority_registry: Path,
     series_registry: Path,
+    progress: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Persist capture provenance, then parser observations in separate transactions."""
-    import psycopg
     from white_list_archive.acquisition.archive_first import ArchivedCapture
     from white_list_archive.persistence.archived_capture import persist_archived_capture
     from white_list_archive.persistence.parse_snapshot import persist_parse_snapshot
@@ -319,8 +383,10 @@ def transform_one(
 
     if not dsn or _HEX40.fullmatch(code_revision) is None:
         raise ValueError("Private database and exact source code revision are required")
+    progress = progress if progress is not None else {}
     cfg = _parse_config(job)
     captures = job["captures"]
+    progress["stage"] = "archive_integrity"
     with tempfile.TemporaryDirectory(prefix="white-list-private-transform-") as temp:
         directory = Path(temp)
         verified = {}
@@ -352,7 +418,8 @@ def transform_one(
                 content_receipt=content_receipt,
                 catalogue_receipt=receipt,
             )
-            with psycopg.connect(dsn) as conn:
+            progress["stage"] = "capture_persistence"
+            with private_connection(dsn) as conn:
                 ensure_registered_source_series(
                     conn,
                     source_key=job["source_key"],
@@ -362,7 +429,8 @@ def transform_one(
                 persist_archived_capture(conn, archived, store)
                 conn.commit()
             # A receipt or in-transaction INSERT alone is not production persistence.
-            with psycopg.connect(dsn) as readback:
+            progress["stage"] = "capture_readback"
+            with private_connection(dsn) as readback:
                 _check_capture_relational_readback(
                     readback, manifest["capture_id"], manifest["sha256"],
                 )
@@ -372,7 +440,8 @@ def transform_one(
             for label in sorted(verified)
         ]
         configuration_hash = configuration_sha256(cfg)
-        with psycopg.connect(dsn) as conn:
+        progress["stage"] = "snapshot_reuse"
+        with private_connection(dsn) as conn:
             reused = _reuse_existing_snapshot(
                 conn,
                 parser_name=cfg["parser"],
@@ -383,13 +452,23 @@ def transform_one(
             )
             conn.commit()
         if reused:
+            progress["stage"] = "snapshot_readback"
+            with private_connection(dsn) as conn:
+                records, diagnostics = read_snapshot_verified(conn, reused)
             return {
                 "source_key": job["source_key"],
                 "status": "reused_private_interpretation",
-                "records": None,
+                "records": len(records),
+                "qa_flags": _quality_flags(job["config"], records, diagnostics),
+                "database_readback": "verified",
+                "database_tls_verified": True,
                 "publication_approved": False,
             }
 
+        progress["stage"] = "parser_compatibility"
+        if cfg["parser"] in {"lodi_listed", "lodi_applicants", "milano_combined"}:
+            raise EditionReviewRequired("Unknown edition requires explicit parser compatibility review")
+        progress["stage"] = "parsing"
         source_input = paths["primary"] if job["config"].get("resources") is None else paths
         started_at = datetime.now(timezone.utc)
         batch = registry._parse_source(source_input, cfg)
@@ -397,7 +476,8 @@ def transform_one(
         if not isinstance(batch.records, list) or not batch.records:
             raise ValueError("Parser returned no source observations")
         version = _parser_revision(batch, cfg["parser"])
-        with psycopg.connect(dsn) as conn:
+        progress["stage"] = "snapshot_persistence"
+        with private_connection(dsn) as conn:
             result = persist_parse_snapshot(
                 conn,
                 capture_inputs=capture_inputs,
@@ -411,19 +491,22 @@ def transform_one(
                 diagnostics=batch.diagnostics,
             )
             conn.commit()
-        with psycopg.connect(dsn) as readback:
+        progress["stage"] = "snapshot_readback"
+        with private_connection(dsn) as readback:
             _check_snapshot_relational_readback(
                 readback,
                 parse_run_id=result["parse_run_id"],
                 digest=result["snapshot_sha256"],
                 record_count=result["record_count"],
             )
+            read_snapshot_verified(readback, result["parse_run_id"])
         return {
             "source_key": job["source_key"],
             "status": "parsed_private_review_required",
             "records": len(batch.records),
             "qa_flags": _quality_flags(job["config"], batch.records, batch.diagnostics),
             "database_readback": "verified",
+            "database_tls_verified": True,
             "publication_approved": False,
         }
 
@@ -436,6 +519,8 @@ def public_operational_summary(report: dict[str, Any]) -> dict[str, Any]:
         "database_verified", "source_quality_flags", "publications",
     )
     result = {name: report[name] for name in allowed}
+    result["database_tls_verified"] = bool(report.get("database_tls_verified", False))
+    result["private_report_verified"] = bool(report.get("private_report_verified", False))
     if result["publications"] != 0:
         raise ValueError("The private transformer must never publish data")
     return result
@@ -483,12 +568,13 @@ def main(argv: list[str] | None = None) -> int:
                 "reason": blocker,
             })
             continue
+        progress = {"stage": "preflight"}
         try:
             outcomes.append(transform_one(
                 job, store=store, dsn=dsn,
                 code_revision=args.code_revision,
                 authority_registry=args.authority_registry,
-                series_registry=args.series_registry,
+                series_registry=args.series_registry, progress=progress,
             ))
         except Exception as exc:
             # Provider/parser exceptions can contain row-level or private coordinates.
@@ -497,7 +583,16 @@ def main(argv: list[str] | None = None) -> int:
                 "source_key": job["source_key"],
                 "status": "quarantined",
                 "error_type": type(exc).__name__,
+                "stage": progress["stage"],
+                "reason": ("edition_bound_parser_requires_review"
+                           if isinstance(exc, EditionReviewRequired) else "stage_failed"),
             })
+    for job, outcome in zip(jobs, outcomes):
+        outcome["capture_inputs"] = {
+            label: {"capture_id": part["state"]["capture_id"],
+                    "sha256": part["state"]["sha256"]}
+            for label, part in job["captures"].items()
+        }
     report = {
         "schema_version": 1,
         "run_at": datetime.now(timezone.utc).isoformat(),
@@ -510,6 +605,9 @@ def main(argv: list[str] | None = None) -> int:
         "blocked": sum(row["status"] == "blocked" for row in outcomes),
         "deferred": len(deferred),
         "outcomes": outcomes,
+        "code_revision": args.code_revision,
+        "database_tls_verified": any(row.get("database_tls_verified") for row in outcomes),
+        "private_report_verified": False,
         "deferred_reasons": {
             name: sum(row["reason"] == name for row in deferred)
             for name in sorted({row["reason"] for row in deferred})
@@ -518,6 +616,15 @@ def main(argv: list[str] | None = None) -> int:
         "source_quality_flags": sum(bool(row.get("qa_flags")) for row in outcomes),
         "database_verified": sum(row.get("database_readback") == "verified" for row in outcomes),
     }
+    report_failure = False
+    if store is not None:
+        try:
+            # Persist the verification claim only after successful exact readback.
+            persist_operational_report(store, report)
+            report["private_report_verified"] = True
+        except Exception:
+            # Never print a provider exception: it can contain private coordinates.
+            report_failure = True
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     if args.public_report:
@@ -536,8 +643,10 @@ def main(argv: list[str] | None = None) -> int:
         "publications": 0,
         "source_quality_flags": report["source_quality_flags"],
         "database_verified": report["database_verified"],
+        "database_tls_verified": report["database_tls_verified"],
+        "private_report_verified": report["private_report_verified"],
     }, sort_keys=True))
-    return 1 if report["quarantined"] or report["blocked"] else 0
+    return 1 if report_failure or report["quarantined"] or report["blocked"] else 0
 
 
 if __name__ == "__main__":

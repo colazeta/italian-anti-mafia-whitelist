@@ -329,6 +329,7 @@ def test_missing_private_database_reports_blocked_capture_instead_of_success(tmp
         "source_key": "sample-listed",
         "status": "blocked",
         "reason": "private_database_writer_unavailable",
+        "capture_inputs": {"primary": {"capture_id": "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb", "sha256": H2}},
     }]
     assert saved["publications"] == 0
 
