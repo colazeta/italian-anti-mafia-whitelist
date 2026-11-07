@@ -446,15 +446,29 @@ def main(argv: list[str] | None = None) -> int:
     import os
     from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
     dsn = os.environ.get("EVIDENCE_DATABASE_URL", "")
-    if jobs and not dsn:
-        raise SystemExit("Private observation database is unavailable; no transformations were attempted")
     if _HEX40.fullmatch(args.code_revision) is None:
         raise SystemExit("An exact checked-out Git revision is required")
-    store_config = StoreConfig.from_env() if jobs else None
-    store = EvidenceStore(client_for(store_config), store_config) if store_config else None
+    blocker = "private_database_writer_unavailable" if jobs and not dsn else None
+    store = None
+    if jobs and blocker is None:
+        try:
+            store_config = StoreConfig.from_env()
+        except ValueError:
+            blocker = "private_archive_configuration_unavailable"
+        else:
+            store = EvidenceStore(client_for(store_config), store_config)
 
     outcomes = []
     for job in jobs:
+        if blocker:
+            # Retain a report even if a global prerequisite is missing. Missing
+            # credentials are never treated as an empty, successful acquisition.
+            outcomes.append({
+                "source_key": job["source_key"],
+                "status": "blocked",
+                "reason": blocker,
+            })
+            continue
         try:
             outcomes.append(transform_one(
                 job, store=store, dsn=dsn,
@@ -479,6 +493,7 @@ def main(argv: list[str] | None = None) -> int:
         "transformed": sum(row["status"] == "parsed_private_review_required" for row in outcomes),
         "reused": sum(row["status"] == "reused_private_interpretation" for row in outcomes),
         "quarantined": sum(row["status"] == "quarantined" for row in outcomes),
+        "blocked": sum(row["status"] == "blocked" for row in outcomes),
         "deferred": len(deferred),
         "outcomes": outcomes,
         "deferred_reasons": {
@@ -501,7 +516,7 @@ def main(argv: list[str] | None = None) -> int:
         "source_quality_flags": report["source_quality_flags"],
         "database_verified": report["database_verified"],
     }, sort_keys=True))
-    return 1 if report["quarantined"] else 0
+    return 1 if report["quarantined"] or report["blocked"] else 0
 
 
 if __name__ == "__main__":
