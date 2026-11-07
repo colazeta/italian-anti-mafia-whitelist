@@ -300,3 +300,34 @@ def test_automatic_pipeline_is_private_and_has_independent_catchup_trigger():
     assert "actions/upload-artifact@v4" in workflow
     assert "actions/deploy-pages" not in workflow
     assert "pages: write" not in workflow
+
+
+def test_missing_private_database_reports_blocked_capture_instead_of_success(tmp_path, monkeypatch):
+    import json
+
+    from white_list_archive.acquisition.auto_transform import main
+
+    state, config = _scalar()
+    state_path = tmp_path / "state.json"
+    config_path = tmp_path / "config.json"
+    report = tmp_path / "status.json"
+    state_path.write_text(json.dumps(state))
+    config_path.write_text(json.dumps(config))
+    monkeypatch.delenv("EVIDENCE_DATABASE_URL", raising=False)
+    result = main([
+        "--state", str(state_path),
+        "--source-config", str(config_path),
+        "--report", str(report),
+        "--code-revision", "a" * 40,
+    ])
+    saved = json.loads(report.read_text())
+    assert result == 1
+    assert saved["changed_sources"] == 1
+    assert saved["blocked"] == 1
+    assert saved["transformed"] == 0
+    assert saved["outcomes"] == [{
+        "source_key": "sample-listed",
+        "status": "blocked",
+        "reason": "private_database_writer_unavailable",
+    }]
+    assert saved["publications"] == 0
