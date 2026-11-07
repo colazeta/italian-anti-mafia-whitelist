@@ -150,3 +150,23 @@ Repository reconciliation and operational materialisation tooling do not by them
 - or that a historical version is missing unless the explicit positive-absence and completed-search gates are satisfied.
 
 Those claims require their own positive acceptance evidence under issue #163.
+
+## Repeatable private inventory checkpoints
+
+The existing protected inventory proof also supports explicit manual dispatch from
+`main`; it has no new schedule. After every selected capture and the one-for-one
+legacy migration have passed their integrity and denominator checks, it retains
+the complete resulting inventory under a fresh
+`operations/v1/recovery-inventory/<UUID>.json` key in the existing private store.
+The report pins the executing code and frozen robot-state revisions, retains all
+item statuses and recovery evidence, and includes discovery/unbound exclusions.
+It is conditionally created and fully read back before success is reported.
+A failed readback fails the proof and leaves earlier reports untouched. Public
+logs receive only the report digest and verification boolean alongside the
+existing bounded metrics; the report is never uploaded as an Actions artifact.
+
+This operations namespace has application-level conditional creation; it does not
+claim the original-object namespace's Bucket Lock. A private checkpoint is an
+inventory, not an independent backup or restore test, and its existence does not
+close historical gaps or establish national replay. Positive-absence and
+completed-search requirements for `missing` remain unchanged.

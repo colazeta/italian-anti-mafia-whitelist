@@ -1,10 +1,11 @@
 name: Lane A governed recovery inventory proof
 
 # Read-only reconciliation of known captures against the existing private archive.
-# No schedule or dispatch: a reviewed change to this proof triggers one main run.
+# No schedule: a reviewed change or explicit dispatch runs this bounded proof.
 # Already recovered Cosenza captures are read from their immutable catalogue records;
 # the expired/retention-bound Actions package is no longer an operational dependency.
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -17,6 +18,7 @@ permissions:
 jobs:
   verify-recovery-denominator:
     name: Reconcile retained robot captures and recovered Cosenza
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: evidence-archive
@@ -54,6 +56,7 @@ jobs:
           from datetime import datetime, timezone
           import csv
           import json
+          import subprocess
           from pathlib import Path
 
           from white_list_archive.storage.capture_catalogue import CaptureCatalogue
@@ -65,6 +68,7 @@ jobs:
           from white_list_archive.storage.recovery_materialize import (
               materialise_national_recovery,
           )
+          from white_list_archive.storage.inventory_report import persist_inventory_report
           from white_list_archive.storage.recovery_migration import (
               materialise_migrating_recovery,
           )
@@ -250,6 +254,17 @@ jobs:
               if version_key in known_keys:
                   raise SystemExit(f'Consumed legacy version remains double-counted: {version_key}')
 
+          # Retain the entire denominator privately, not merely aggregate log counts.
+          # Verification failures above never produce a successful inventory report.
+          code_revision = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True,
+          ).strip()
+          report_sha256 = persist_inventory_report(
+              store, inventory=migrated, robot_metrics=robot_metrics,
+              code_revision=code_revision,
+          )
+          print('private_inventory_report_verified=true')
+          print('private_inventory_report_sha256=' + report_sha256)
           print('cosenza_legacy_migration_verified=true')
           print('selected_robot_captures_verified=true')
           PY
