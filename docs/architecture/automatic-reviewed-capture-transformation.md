@@ -9,8 +9,10 @@ trusted-main robot run. It does not change what an administrative White List
 publication means, nor automatically authorise new public row-level disclosure.
 
 The new **Transform reviewed captures into private observations** workflow runs
-automatically after the national robot workflow completes successfully (or by
-manual dispatch). Four deterministic authority shards run with two workers
+automatically after the national robot workflow completes successfully. A merge
+of changes to the transformer/workflow starts an initial acceptance run; a
+weekly Sunday 18:43 UTC schedule is an independent catch-up trigger, and
+manual dispatch is retained for diagnosis. Four deterministic authority shards run with two workers
 at most in parallel. Each worker fetches the current `robot-state` metadata
 index and considers only source keys already tied to reviewed Prefecture
 source/parser configurations. One latest complete capture set is considered
@@ -32,11 +34,15 @@ bytes equal the approved baseline, no new transformation is attempted.
 5. The worker ensures the reviewed `SourceSeries` exists and persists each
    verified capture and its immutable byte identity to the private database.
    Each relational write commits independently of the parser or later sources.
-6. Only then does the repository's already approved parser execute. Its full
+6. Immediately after relational capture commit, a **separate database connection**
+   reads back capture and ContentObject identity. Missing/mismatched database
+   evidence fails closed, without deleting the original.
+7. Only then does the repository's already approved parser execute. Its full
    records and diagnostics are committed as a **private parse snapshot** with
    exact input capture IDs, parser revision, configuration digest and executing
-   Git commit. A failed parser cannot erase the already archived original.
-7. A changed byte payload is **not** presumed to have the reference date of
+   Git commit. A separate database readback verifies the committed snapshot
+   digest and record count. A failed parser cannot erase the archived original.
+8. A changed byte payload is **not** presumed to have the reference date of
    the formerly approved edition. The candidate parser configuration uses an
    empty/unknown reference date until edition evidence is reviewed.
 
@@ -58,6 +64,8 @@ service, new database, credentials or paid resources.
   treated as absence, revocation, rejection or approved population growth.
 - Parsing outputs and the original documents are private. GitHub Actions
   step summaries contain only bounded counts and safe operational statuses.
+  A 14-day Actions artifact contains the same **sanitised source-level status**
+  (no parsed rows or original documents), including error classes and QA flags.
   There are no row-level artifacts, direct commits to main, public releases
   or Pages deployments from this workflow.
 - The same exact input/configuration/code revision uses the existing
@@ -75,9 +83,14 @@ The first protected run should demonstrate separately:
 1. robot-state freshness and completed-source candidate coverage;
 2. private `ContentObject` and capture-catalogue readback for selected sources;
 3. relational capture persistence with complete source provenance;
-4. distinct, durable parse snapshots for byte-distinct updates;
+4. distinct, durable parse snapshots for byte-distinct updates, independently
+   read back from the database after commit;
 5. idempotent retries and explicit quarantine for malformed or missing bytes;
-6. no new public release, no row-level artifact and no Pages deployment.
+6. QA checks for changed row and sector totals, dropped date rows and missing
+   source-status fields; these flag review without automatically approving
+   or withholding a successfully persisted private interpretation;
+7. a durable, bounded operational report for QA/deferred reasons, with no row-level
+   content and no public release or Pages deployment.
 
 Unit tests of the selection contract are necessary but **do not** prove
 production provider/database persistence. A controlled production run and
@@ -93,3 +106,19 @@ be reviewed; a fully unattended parser-family authoring process is not
 appropriate for legally sensitive records without independent evidence.
 The workflow also does not discover or validate the remaining 32 Prefetture.
 Those authority/source-mapping tasks remain with the expansion workstream.
+
+## Release boundary and outstanding acceptance
+
+The automated transformer makes **private interpretations**, not reviewed new
+source editions. Before automatic public promotion can be enabled, a selected
+frozen release must retain verifiable original bytes and capture provenance,
+pass the complete source/population/parser and public contract checks, resolve
+edition/reference dates with evidence, satisfy data protection and distribution
+policy, and complete the national archive/replay and independent recovery gates
+in issue #163. These conditions are not inferred from successful parsing. Until
+then, the last validated public snapshot remains unchanged.
+
+A green pull-request CI proves only software-level contracts. The protected
+post-merge execution must separately establish valid R2 readback, private
+relational capture/snapshot persistence, and safe status reporting. The pipeline
+fails rather than silently treating missing database credentials as success.
