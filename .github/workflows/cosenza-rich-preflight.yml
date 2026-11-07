@@ -6,8 +6,16 @@ on:
     paths:
       - '.github/workflows/cosenza-rich-preflight.yml'
       - 'src/white_list_archive/normalisation/cosenza_preflight.py'
+      - 'src/white_list_archive/normalisation/cosenza_capture_rich.py'
+      - 'src/white_list_archive/persistence/capture_rich_cosenza.py'
   workflow_dispatch:
     inputs:
+      mode:
+        description: Read-only preflight or explicitly requested source-only persistence
+        required: true
+        default: preflight
+        type: choice
+        options: [preflight, persist-source-only]
       capture_id:
         description: Exact reviewed historical capture UUID
         required: true
@@ -37,6 +45,7 @@ jobs:
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
       EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
       AWS_EC2_METADATA_DISABLED: 'true'
+      PREFLIGHT_MODE: ${{ inputs.mode || 'preflight' }}
       PIN_CAPTURE: ${{ inputs.capture_id || '9e769f09-3d3c-5d2a-b0f7-1b53ee5895c0' }}
       PIN_RUN: ${{ inputs.parse_run_id || 'd0e644d0-ec85-4a7e-87e7-e5aa3dc48c23' }}
     steps:
@@ -66,18 +75,33 @@ jobs:
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[publication,storage,database]'
-      - name: Verify pinned originals and rich parse without database writes
+      - name: Run pinned preflight or explicitly selected source-only persistence
         run: |
           python - <<'PY'
           import os
-          from white_list_archive.normalisation.cosenza_preflight import main
+          import json
+          from white_list_archive.persistence.capture_rich_cosenza import MissingSourcePrivileges
           try:
-              main(['--capture-id', os.environ['PIN_CAPTURE'],
-                    '--parse-run-id', os.environ['PIN_RUN'],
-                    '--code-revision', os.environ['GITHUB_SHA']])
+              mode = os.environ['PREFLIGHT_MODE']
+              if mode == 'preflight':
+                  from white_list_archive.normalisation.cosenza_preflight import main
+                  main(['--capture-id', os.environ['PIN_CAPTURE'],
+                        '--parse-run-id', os.environ['PIN_RUN'],
+                        '--code-revision', os.environ['GITHUB_SHA']])
+              elif mode == 'persist-source-only' and os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+                  from white_list_archive.normalisation.cosenza_capture_rich import materialise
+                  print(json.dumps(materialise(capture_id=os.environ['PIN_CAPTURE'],
+                        parse_run_id=os.environ['PIN_RUN'],code_revision=os.environ['GITHUB_SHA']),
+                        sort_keys=True))
+              else:
+                  raise ValueError('Persistence requires an explicit manual mode selection')
           except Exception as exc:
-              # Driver/network exception strings may contain private connection details.
-              print({'preflight_verified': False, 'error_type': type(exc).__name__,
-                     'writes': 0, 'publications': 0})
+              # Never print driver/network exceptions or source rows.
+              report = {'operation_verified': False,'error_type':type(exc).__name__,
+                        'publications':0,'edition_approvals':0}
+              if isinstance(exc, MissingSourcePrivileges):
+                  report['missing_privileges'] = exc.missing
+                  report['writes'] = 0
+              print(json.dumps(report,sort_keys=True))
               raise SystemExit(1)
           PY

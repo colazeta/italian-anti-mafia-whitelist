@@ -122,3 +122,5 @@ jobs:
         run: python tests/evidence_db_check.py
       - name: Test immutable parse snapshots against PostgreSQL
         run: python tests/parse_snapshot_db_check.py
+      - name: Test capture-only rich source persistence against PostgreSQL
+        run: python tests/capture_rich_db_check.py
