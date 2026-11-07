@@ -157,7 +157,7 @@ The existing protected inventory proof also supports explicit manual dispatch fr
 `main`; it has no new schedule. After every selected capture and the one-for-one
 legacy migration have passed their integrity and denominator checks, it retains
 the complete resulting inventory under a fresh
-`operations/v1/recovery-inventory/<UUID>.json` key in the existing private store.
+`operations/v1/recovery-inventory/<UUID>.json.gz` key in the existing private store.
 The report pins the executing code and frozen robot-state revisions, retains all
 item statuses and recovery evidence, and includes discovery/unbound exclusions.
 It is conditionally created and fully read back before success is reported.
@@ -170,3 +170,20 @@ claim the original-object namespace's Bucket Lock. A private checkpoint is an
 inventory, not an independent backup or restore test, and its existence does not
 close historical gaps or establish national replay. Positive-absence and
 completed-search requirements for `missing` remain unchanged.
+
+The full JSON report has a 50 MB uncompressed limit and a 10 MB gzip limit.
+Compression preserves the complete denominator and repeated evidence references;
+no items are truncated to fit. Both the compressed bytes and the decompressed JSON
+are compared exactly after provider readback. The logged digest identifies the
+uncompressed canonical JSON, and either size limit fails before storage writes.
+
+Within a single inventory invocation, one successful SHA-256/size readback of an
+immutable original may support multiple capture checks of the same byte identity.
+Only successful original-byte checks are cached; mismatched sizes, provider
+failures and catalogue results are never cached. Every capture/check still gets
+its own independent immutable catalogue verification. The cache is discarded
+when the invocation returns; the next run rereads the provider. Known historical
+versions may reuse those same positive original-byte checks without becoming
+verified captures when temporal provenance is missing. Catalogue hydration uses
+at most four read-only workers and preserves deterministic reference order. Any
+failed identity aborts hydration rather than returning a successful partial list.

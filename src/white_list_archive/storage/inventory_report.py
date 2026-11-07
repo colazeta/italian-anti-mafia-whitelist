@@ -5,13 +5,16 @@ The retained report includes the entire explicit denominator and its exclusions.
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
+from io import BytesIO
 import json
 import re
 from typing import Any
 from uuid import uuid4
 
-_MAX_BYTES = 10_000_000
+_MAX_RAW_BYTES = 50_000_000
+_MAX_COMPRESSED_BYTES = 10_000_000
 _SHA40 = re.compile(r'[0-9a-f]{40}')
 
 
@@ -41,20 +44,31 @@ def persist_inventory_report(
     }
     body = json.dumps(report, sort_keys=True, separators=(',', ':'),
                       ensure_ascii=False, allow_nan=False).encode('utf-8')
-    if len(body) > _MAX_BYTES:
-        raise ValueError('Private inventory report exceeds its bound')
-    key = f'operations/v1/recovery-inventory/{uuid4()}.json'
+    if len(body) > _MAX_RAW_BYTES:
+        raise ValueError('Private inventory report exceeds its raw bound')
+    compressed = gzip.compress(body, mtime=0)
+    if len(compressed) > _MAX_COMPRESSED_BYTES:
+        raise ValueError('Private inventory report exceeds its compressed bound')
+    key = f'operations/v1/recovery-inventory/{uuid4()}.json.gz'
     try:
-        store.client.put_object(Bucket=store.config.bucket, Key=key, Body=body,
-                                ContentType='application/json', IfNoneMatch='*')
+        store.client.put_object(Bucket=store.config.bucket, Key=key, Body=compressed,
+                                ContentType='application/json', ContentEncoding='gzip',
+                                IfNoneMatch='*')
         response = store.client.get_object(Bucket=store.config.bucket, Key=key)
         stream = response['Body']
         try:
-            actual = stream.read(len(body) + 1)
+            actual = stream.read(len(compressed) + 1)
         finally:
             stream.close()
     except Exception:
         raise RuntimeError('Private inventory report persistence/readback failed') from None
-    if actual != body:
+    if actual != compressed:
         raise RuntimeError('Private inventory report failed exact readback')
+    try:
+        with gzip.GzipFile(fileobj=BytesIO(actual)) as recovered:
+            decoded = recovered.read(len(body) + 1)
+    except Exception:
+        raise RuntimeError('Private inventory report decompression failed') from None
+    if decoded != body:
+        raise RuntimeError('Private inventory report failed decompressed readback')
     return hashlib.sha256(body).hexdigest()

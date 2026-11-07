@@ -117,3 +117,39 @@ def test_git_history_pins_head_and_rejects_incomplete_history(tmp_path):
     (tmp_path / '.git/shallow').write_text(heads[0] + '\n')
     with pytest.raises(ValueError, match='shallow'):
         read_robot_history(tmp_path, heads[1])
+
+
+def test_bounded_hydration_preserves_order_and_verifies_every_identity(monkeypatch):
+    import threading
+    import time
+    import white_list_archive.storage.robot_recovery as module
+    active = 0
+    peak = 0
+    calls = []
+    lock = threading.Lock()
+    references = [{'source_key': 'alpha-listed', 'capture_id': str(i),
+                   'resource_url': URL, 'expected': {'sha256': str(i)},
+                   'authority_key': 'alpha', 'evidence_refs': [str(i)]} for i in range(8)]
+
+    def load(catalogue, *, source_key, capture_id):
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+            calls.append(capture_id)
+        time.sleep(0.01 * (4 - int(capture_id) % 4))
+        with lock:
+            active -= 1
+        return {'resource_url': URL, 'sha256': capture_id}, {'receipt': capture_id}
+
+    monkeypatch.setattr(module, 'load_catalogued_capture', load)
+    result = rehydrate_robot_captures(references, object())
+    assert [row['capture']['sha256'] for row in result] == [str(i) for i in range(8)]
+    assert sorted(calls) == [str(i) for i in range(8)]
+    assert 1 < peak <= 4
+    # A per-capture manifest mismatch cannot become a successful partial result.
+    references[3]['expected']['sha256'] = 'different'
+    with pytest.raises(ValueError, match='Robot capture not verified'):
+        rehydrate_robot_captures(references, object())
+    with pytest.raises(ValueError, match='between one and four'):
+        rehydrate_robot_captures(references, object(), max_workers=5)

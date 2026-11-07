@@ -208,3 +208,49 @@ def test_corrupt_governed_object_is_not_misreported_as_missing(tmp_path):
     row = inventory["captures"][0]
     assert row["status"] == "not_verified"
     assert row["provider_check_error_class"] == "ValueError"
+
+
+def test_only_original_bytes_are_cached_within_one_inventory(tmp_path, monkeypatch):
+    evidence = store()
+    captures = [archived(tmp_path / str(i), evidence,
+        capture_id=f'{i:08d}-1111-4111-8111-111111111111',
+        data=b'shared bytes' if i < 3 else b'different bytes') for i in range(1, 4)]
+    original_get = evidence.client.get_object
+    calls = []
+    def tracked(**kwargs):
+        calls.append(kwargs['Key'])
+        return original_get(**kwargs)
+    monkeypatch.setattr(evidence.client, 'get_object', tracked)
+    expectations = envelope([expectation(c) for c in captures])
+    inventory = build_archive_inventory(expectations, evidence)
+    assert inventory['metrics']['verified'] == 3
+    assert len([k for k in calls if k.startswith('sha256/')]) == 2
+    for capture in captures:
+        assert calls.count(capture.catalogue_receipt['catalogue_key']) == 1
+    # Next invocation must independently verify originals again.
+    calls.clear()
+    evidence.client.objects[object_key(captures[0].manifest)] = b'corrupted'
+    inventory = build_archive_inventory(expectations, evidence)
+    assert inventory['metrics']['verified'] == 1
+    assert calls.count(object_key(captures[0].manifest)) == 2  # failures never cached
+    assert len([k for k in calls if k.startswith('sha256/')]) == 3
+
+
+def test_cached_bytes_never_bypass_capture_catalogue_or_conflicting_size(tmp_path, monkeypatch):
+    from copy import deepcopy
+    evidence = store()
+    first = archived(tmp_path / 'first', evidence,
+        capture_id='51515151-5151-4151-8151-515151515151', data=b'shared')
+    second = archived(tmp_path / 'second', evidence,
+        capture_id='61616161-6161-4161-8161-616161616161', data=b'shared')
+    broken = expectation(second)
+    evidence.client.objects[second.catalogue_receipt['catalogue_key']] = b'corrupt'
+    inventory = build_archive_inventory(envelope([expectation(first), broken]), evidence)
+    assert [r['status'] for r in inventory['captures']] == ['verified', 'not_verified']
+    assert inventory['captures'][1]['durable_original_verified'] is True
+    # Same digest and wrong size must not hit the positive identity cache.
+    broken = deepcopy(broken)
+    broken['capture']['byte_size'] += 1
+    inventory = build_archive_inventory(envelope([expectation(first), broken]), evidence)
+    assert inventory['captures'][1]['durable_original_verified'] is False
+    assert inventory['captures'][1]['status'] == 'not_verified'

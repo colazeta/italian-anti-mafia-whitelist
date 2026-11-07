@@ -220,6 +220,12 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
             }
         )
 
+    # Reuse only positive original-byte readbacks from this invocation.
+    # Capture provenance is still independently verified for every capture.
+    verified_sizes = {row["sha256"]: row["byte_size"]
+                      for row in capture_inventory["captures"]
+                      if row["durable_original_verified"]}
+
     for raw in expectations["known_versions"]:
         expected = _validate_known_version(raw)
         identity = (
@@ -239,12 +245,16 @@ def build_recovery_denominator(expectations: dict[str, Any], store: EvidenceStor
         provider_error = None
         verification_blocker = None
         try:
-            if byte_size is None:
+            cached_size = verified_sizes.get(digest)
+            if cached_size is not None and (byte_size is None or byte_size == cached_size):
+                verified_byte_size = cached_size
+            elif byte_size is None:
                 recovered = store.read_digest_verified(digest)
                 verified_byte_size = len(recovered)
             else:
                 store.read_verified({"sha256": digest, "byte_size": byte_size})
                 verified_byte_size = byte_size
+            verified_sizes[digest] = verified_byte_size
             durable_original_verified = True
             durable_content.add(digest)
             verification_blocker = "capture_identity_missing"
