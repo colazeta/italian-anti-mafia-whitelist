@@ -38,3 +38,15 @@ The persistence layer consumes the exact labelled capture set from each frozen s
 ## Scope and evidence claims
 
 This code path is necessary for production historical-observation persistence, but tests alone do not establish it. Unit tests verify the ordering boundary and fail-closed writer behaviour; PostgreSQL regressions separately verify append-only parse snapshots and labelled input constraints. Acceptance under #163 still requires an actual protected replay against the approved private provider and production evidence database, followed by readback evidence. National recovery reconciliation, a complete selected frozen release and independent restore controls remain separate acceptance items.
+
+## Capture-only semantic projection boundary
+
+The rich combined-White-List projector raises `EditionAttributionRequired`
+(`LookupError`) before creating a projection activity if any succeeded rich parse
+run in the requested series lacks a capture-to-edition attribution. This also
+prevents an attributed subset from being projected successfully while capture-only
+inputs are silently omitted by an inner join. The check does not create an edition
+or infer attribution from a capture timestamp, declared date or matching hash.
+Snapshot persistence remains independent of this downstream requirement. A reviewed
+attribution design is required before the affected rich observations can enter this
+edition-based semantic projector.

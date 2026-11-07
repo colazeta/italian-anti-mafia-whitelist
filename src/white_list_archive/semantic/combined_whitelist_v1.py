@@ -137,7 +137,44 @@ def _ensure_projection_run(cur, parse_run_id, parse_run_code: str) -> tuple[Any,
     return cur.fetchone()[0], True
 
 
+class EditionAttributionRequired(LookupError):
+    """A rich interpretation has not been attributed to a source edition."""
+
+
 def _parse_run_contexts(cur, series_code: str) -> list[dict[str, Any]]:
+    # The inner joins below must not silently discard capture-only inputs while
+    # successfully projecting another attributed interpretation of this series.
+    # Capture/readback or parser success does not itself approve an edition.
+    cur.execute(
+        """
+        SELECT EXISTS (
+            SELECT 1
+            FROM source.parse_run run
+            JOIN provenance.processing_activity pa
+              ON pa.processing_activity_id=run.processing_activity_id
+            JOIN source.parsed_record pr ON pr.parse_run_id=run.parse_run_id
+            JOIN source.source_schema_version sv ON sv.schema_version_id=pr.schema_version_id
+            JOIN source.source_schema ss ON ss.source_schema_id=sv.source_schema_id
+            JOIN source.source_series s ON s.series_id=ss.series_id
+            WHERE s.series_code=%s
+              AND run.status_code='succeeded'
+              AND pa.software_name='white_list_archive.parsers.cosenza_combined_v2'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM source.source_capture cap
+                  JOIN source.capture_edition ce ON ce.capture_id=cap.capture_id
+                  JOIN source.source_edition e ON e.edition_id=ce.edition_id
+                  WHERE cap.content_object_id=run.content_object_id
+                    AND e.series_id=s.series_id
+              )
+        )
+        """,
+        (series_code,),
+    )
+    if cur.fetchone()[0]:
+        raise EditionAttributionRequired(
+            "Rich parse runs require source-edition attribution before semantic projection"
+        )
     cur.execute(
         """
         SELECT DISTINCT
