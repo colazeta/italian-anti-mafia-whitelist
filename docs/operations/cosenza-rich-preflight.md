@@ -122,3 +122,9 @@ TO wl_ingest;
 
 This proposal grants no edition, semantic, canonical, UPDATE or DELETE access.
 It has not been executed by preparing the implementation or documentation.
+
+New rich rows/fields/mentions use bounded psycopg `executemany` batches; readback
+loads complete ordered record, field and mention sets rather than issuing one
+remote query per field. Reuse still rehashes and compares every persisted value.
+An existing interpretation with incomplete rich materialisation fails full
+readback and is not silently repaired or relabelled by this entrypoint.

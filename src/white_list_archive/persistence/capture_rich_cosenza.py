@@ -11,9 +11,7 @@ from white_list_archive.acquisition.auto_transform import read_snapshot_verified
 from white_list_archive.parsers import cosenza_combined_v2 as parser
 from white_list_archive.parsers.registry import select_parser
 from white_list_archive.persistence.parse_snapshot import persist_parse_snapshot, snapshot_sha256
-from white_list_archive.persistence.parsed_records import (
-    _ensure_entity_mention, _ensure_field_definition, _ensure_field_value, _ensure_parsed_record,
-)
+from white_list_archive.persistence.parsed_records import _ensure_field_definition
 from white_list_archive.persistence.parsed_records_v2 import (
     FIELD_DEFINITIONS, REQUIRED_RECORD_COLUMNS, _parsed_value,
 )
@@ -161,24 +159,26 @@ def verify_rich_readback(conn, *, capture_id, parse_run_id, source_sha256,
                      parser.SCHEMA_FINGERPRINT, SOURCE_KEY) for r in records]
         if [tuple(row[1:]) for row in parsed] != expected:
             raise ValueError('Rich parsed records/locators failed complete readback')
-        for stored, source in zip(parsed, records):
-            cur.execute('''SELECT fd.structural_locator,fd.normalised_source_label,
-                fd.ordinal_position,fd.source_label,fd.observed_datatype,fd.observed_cardinality,
-                sfv.raw_value,sfv.parsed_value_json,sfv.structural_locator
-                FROM source.source_field_value sfv
-                JOIN source.source_field_definition fd USING(field_definition_id)
-                WHERE sfv.parsed_record_id=%s ORDER BY fd.ordinal_position''', (stored[0],))
-            actual = cur.fetchall()
-            wanted = [(d['structural_locator'],d['normalised_source_label'],d['ordinal_position'],
-                       d['source_label'],d['observed_datatype'],d['observed_cardinality'],
-                       source[d['key']],_parsed_value(source,d),d['structural_locator'].split(':',1)[1])
-                      for d in FIELD_DEFINITIONS]
-            if actual != wanted:
-                raise ValueError('Rich field values/definitions failed full readback')
-            cur.execute('SELECT mention_role_code FROM source.entity_mention WHERE parsed_record_id=%s',
-                        (stored[0],))
-            if cur.fetchall() != [('unknown',)]:
-                raise ValueError('Rich entity mentions failed complete readback')
+        cur.execute('''SELECT pr.record_locator,fd.structural_locator,fd.normalised_source_label,
+            fd.ordinal_position,fd.source_label,fd.observed_datatype,fd.observed_cardinality,
+            sfv.raw_value,sfv.parsed_value_json,sfv.structural_locator
+            FROM source.source_field_value sfv
+            JOIN source.parsed_record pr USING(parsed_record_id)
+            JOIN source.source_field_definition fd USING(field_definition_id)
+            WHERE pr.parse_run_id=%s ORDER BY pr.record_locator,fd.ordinal_position''', (parse_run_id,))
+        actual = cur.fetchall()
+        wanted = [(f'row:{source["row_ordinal"]:06d}',d['structural_locator'],
+                   d['normalised_source_label'],d['ordinal_position'],d['source_label'],
+                   d['observed_datatype'],d['observed_cardinality'],source[d['key']],
+                   _parsed_value(source,d),d['structural_locator'].split(':',1)[1])
+                  for source in records for d in FIELD_DEFINITIONS]
+        if actual != wanted:
+            raise ValueError('Rich field values/definitions failed full readback')
+        cur.execute('''SELECT pr.record_locator,m.mention_role_code
+            FROM source.entity_mention m JOIN source.parsed_record pr USING(parsed_record_id)
+            WHERE pr.parse_run_id=%s ORDER BY pr.record_locator,m.mention_role_code''', (parse_run_id,))
+        if cur.fetchall() != [(f'row:{r["row_ordinal"]:06d}','unknown') for r in records]:
+            raise ValueError('Rich entity mentions failed complete readback')
     return {'parse_run_id': str(parse_run_id), 'record_count': expected_count,
             'field_value_count': expected_count * len(FIELD_DEFINITIONS),
             'entity_mention_count': expected_count, 'snapshot_sha256': digest,
@@ -211,16 +211,35 @@ def persist_capture_records(conn, *, capture_id, source_sha256, records,
         code_revision=code_revision, configuration_hash=parser.PARSER_CONFIGURATION_HASH,
         started_at=started_at, completed_at=completed_at,
         records=records, diagnostics=_diagnostics(expected_count))
-    with conn.cursor() as cur:
-        schema_id = _schema(cur, series_id, started_at)
-        definitions = {d['key']: _ensure_field_definition(cur, schema_id, d) for d in FIELD_DEFINITIONS}
-        for record in records:
-            record_id = _ensure_parsed_record(cur, result['parse_run_id'], schema_id, record)
-            for definition in FIELD_DEFINITIONS:
-                _ensure_field_value(cur, record_id, definitions[definition['key']], schema_id,
-                    record[definition['key']], _parsed_value(record,definition),
-                    definition['structural_locator'].split(':',1)[1])
-            _ensure_entity_mention(cur, record_id)
+    if not result['parse_run_reused']:
+        with conn.cursor() as cur:
+            schema_id = _schema(cur, series_id, started_at)
+            definitions = {d['key']: _ensure_field_definition(cur, schema_id, d) for d in FIELD_DEFINITIONS}
+            # Psycopg 3 executemany pipelines bounded inserts instead of imposing
+            # a network roundtrip for every one of thousands of field values.
+            cur.executemany('''INSERT INTO source.parsed_record(
+                parse_run_id,schema_version_id,record_locator,record_hash,raw_record_text)
+                VALUES (%s,%s,%s,%s,%s)''',
+                [(result['parse_run_id'],schema_id,f'row:{r["row_ordinal"]:06d}',
+                  r['record_hash'],r['raw_block']) for r in records])
+            cur.execute('SELECT record_locator,parsed_record_id FROM source.parsed_record WHERE parse_run_id=%s',
+                        (result['parse_run_id'],))
+            ids = dict(cur.fetchall())
+            if set(ids) != {f'row:{r["row_ordinal"]:06d}' for r in records}:
+                raise ValueError('Rich record locators differ after insertion')
+            values = []
+            for record in records:
+                record_id = ids[f'row:{record["row_ordinal"]:06d}']
+                for definition in FIELD_DEFINITIONS:
+                    parsed = _parsed_value(record,definition)
+                    values.append((record_id,definitions[definition['key']],schema_id,
+                        record[definition['key']],json.dumps(parsed,ensure_ascii=False) if parsed is not None else None,
+                        definition['structural_locator'].split(':',1)[1]))
+            cur.executemany('''INSERT INTO source.source_field_value(parsed_record_id,
+                field_definition_id,schema_version_id,raw_value,parsed_value_json,structural_locator)
+                VALUES (%s,%s,%s,%s,%s::jsonb,%s)''',values)
+            cur.executemany("INSERT INTO source.entity_mention(parsed_record_id,mention_role_code) VALUES (%s,'unknown')",
+                            [(record_id,) for record_id in ids.values()])
     verified = verify_rich_readback(conn, capture_id=capture_id,
         parse_run_id=result['parse_run_id'],source_sha256=source_sha256,
         expected_count=expected_count,expected_snapshot_sha256=digest,code_revision=code_revision)
