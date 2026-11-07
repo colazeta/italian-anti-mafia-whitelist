@@ -249,7 +249,7 @@ def transform_one(
                 persist_archived_capture(conn, archived, store)
                 conn.commit()
 
-        source_input = paths["primary"] if set(paths) == {"primary"} else paths
+        source_input = paths["primary"] if job["config"].get("resources") is None else paths
         started_at = datetime.now(timezone.utc)
         batch = registry._parse_source(source_input, cfg)
         completed_at = datetime.now(timezone.utc)
@@ -283,8 +283,6 @@ def transform_one(
             "records": len(batch.records),
             "approved_row_count_matches": count_matches,
             "dropped_date_rows": diagnostics.get("dropped_date_rows", 0),
-            "parse_run_id": str(result["parse_run_id"]),
-            "snapshot_sha256": result["snapshot_sha256"],
         }
 
 
@@ -310,7 +308,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("Private observation database is unavailable; no transformations were attempted")
     if _HEX40.fullmatch(args.code_revision) is None:
         raise SystemExit("An exact checked-out Git revision is required")
-    store = EvidenceStore(client_for(StoreConfig.from_env()), StoreConfig.from_env()) if jobs else None
+    store_config = StoreConfig.from_env() if jobs else None
+    store = EvidenceStore(client_for(store_config), store_config) if store_config else None
 
     outcomes = []
     for job in jobs:
