@@ -214,3 +214,7 @@ See the [27 September audit and evidence](docs/architecture/project-audit-2026-0
 ## Robot per Prefettura
 
 Ogni autorità ha un [robot dedicato di acquisizione](docs/architecture/prefecture-robots.md), eseguibile singolarmente o nel controllo nazionale giornaliero. La scheda **Robot** del portale mostra configurazione ed esiti; il workflow **Prefecture robots** controlla aggiornamenti e conserva le versioni acquisite. Le fonti e i parser approvati coprono 74 autorità; per le altre 32 resta esplicita la validazione da completare.
+
+## Trasformazione automatica delle acquisizioni revisionate
+
+Dopo ogni controllo nazionale dei robot concluso con successo, un [workflow di interpretazione privata](docs/architecture/automatic-reviewed-capture-transformation.md) elabora i nuovi contenuti già associati a fonti/parser revisionati, verificando originali e provenienza nell'archivio e persistendo le osservazioni nel database privato. I documenti modificati restano candidati da validare: questa automazione non approva nuove edizioni né modifica autonomamente il dataset pubblico.
