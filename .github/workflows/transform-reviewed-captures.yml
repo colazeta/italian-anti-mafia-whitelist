@@ -8,6 +8,7 @@ on:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
       - 'src/white_list_archive/acquisition/production_checkpoint.py'
+      - 'src/white_list_archive/acquisition/transform_resilience.py'
   # Weekly catch-up in case an upstream workflow_run event is missed.
   schedule:
     - cron: '43 18 * * 0'
@@ -24,9 +25,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  transform:
+  freeze-inputs:
     # Never execute PR-originated code or consume untrusted run artifacts.
     if: >-
+      github.ref == 'refs/heads/main' && (
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
@@ -34,7 +36,27 @@ jobs:
        github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
        (github.event.workflow_run.event == 'schedule' ||
-        github.event.workflow_run.event == 'workflow_dispatch'))
+        github.event.workflow_run.event == 'workflow_dispatch')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code_revision: ${{ steps.freeze.outputs.code_revision }}
+      robot_state_revision: ${{ steps.freeze.outputs.robot_state_revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Freeze one trusted code and robot-state revision for all shards
+        id: freeze
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin robot-state
+          echo "code_revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "robot_state_revision=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+
+  transform:
+    needs: freeze-inputs
     runs-on: ubuntu-latest
     timeout-minutes: 55
     environment: evidence-archive
@@ -52,12 +74,13 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
       EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      ROBOT_STATE_REVISION: ${{ needs.freeze-inputs.outputs.robot_state_revision }}
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
-      - name: Check out trusted main
+      - name: Check out frozen trusted main revision
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ needs.freeze-inputs.outputs.code_revision }}
           fetch-depth: 1
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -93,7 +116,7 @@ jobs:
           # Robot state is a discovery index, not authoritative source bytes.
           # Original files and capture provenance are read from the private store.
           git fetch --no-tags origin robot-state
-          git show FETCH_HEAD:state.json > "${RUNNER_TEMP}/robot-state.json"
+          git show "$ROBOT_STATE_REVISION:state.json" > "${RUNNER_TEMP}/robot-state.json"
           test -s "${RUNNER_TEMP}/robot-state.json"
       - name: Interpret changed captures from verified archive objects
         env:
