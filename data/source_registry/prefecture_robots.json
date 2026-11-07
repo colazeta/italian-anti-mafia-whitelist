@@ -2537,8 +2537,25 @@
       "allowed_hosts": [
         "prefettura.interno.gov.it"
       ],
-      "sources": [],
-      "population_mapping_reviewed": false,
+      "sources": [
+        {
+          "source_key": "reggio-calabria-listed",
+          "part": "main",
+          "population_scope": "listed",
+          "parser": "reggio_calabria_listed",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/white-list-foglio-unico-nuove-attivita-24-set-2026.pdf",
+          "approved_sha256": "f93a63a89c2c22f9fee27af29654c3dd5e97b58452dde92224b4b2259d3f148f"
+        },
+        {
+          "source_key": "reggio-calabria-applicants",
+          "part": "main",
+          "population_scope": "applicant",
+          "parser": "reggio_calabria_applicants",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-richieste-iscrizioni-white-list-foglio-del-24-set-2026.pdf",
+          "approved_sha256": "da60df92f7ffdfc1148ead109395e00ae34e11cb53c01ccc6928bbdff0c71d53"
+        }
+      ],
+      "population_mapping_reviewed": true,
       "discovery_source": "data/monitoring/national_coverage.json",
       "max_depth": 2,
       "max_requests": 60,

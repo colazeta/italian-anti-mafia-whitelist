@@ -3830,35 +3830,57 @@
       "region": "Calabria",
       "national_index_key": "reggio-calabria",
       "official_landing_page": "https://prefettura.interno.gov.it/it/prefetture/reggio-calabria/evidenza/white-list",
-      "source_verified": false,
-      "current_edition_identified": null,
+      "source_verified": true,
+      "current_edition_identified": true,
       "historical_editions_identified": null,
-      "capture_implemented": false,
-      "parser_implemented": false,
-      "parser_validated": false,
+      "capture_implemented": true,
+      "parser_implemented": true,
+      "parser_validated": true,
       "company_observations_loaded": false,
       "observation_layer": null,
       "canonical_integration_validated": false,
       "public_export_enabled": false,
-      "durable_evidence_verified": false,
-      "population_scopes_complete": false,
-      "latest_source_reference_date": null,
-      "latest_archived_edition": null,
-      "archived_evidence_storage_status": "not_documented",
-      "last_successful_source_check_at": null,
-      "last_attempted_source_check_at": null,
+      "durable_evidence_verified": true,
+      "population_scopes_complete": true,
+      "latest_source_reference_date": "2026-09-24",
+      "latest_archived_edition": "2026-09-24",
+      "archived_evidence_storage_status": "durable_r2_verified",
+      "last_successful_source_check_at": "2026-09-29T10:54:20Z",
+      "last_attempted_source_check_at": "2026-10-01T06:54:22Z",
       "last_content_change_at": null,
-      "last_successful_investigation_on": null,
-      "monitoring_status": "NEVER_CHECKED",
-      "unresolved_issue": [],
+      "last_successful_investigation_on": "2026-10-01",
+      "monitoring_status": "CURRENT",
+      "unresolved_issue": [
+        "Reviewed Reggio Calabria source/parser coverage is validated, but the national public candidate/release is not promoted here; the current candidate build is independently blocked by Lodi source-byte drift."
+      ],
       "actionable_issue": false,
-      "coverage_status": "SOURCE_IDENTIFIED",
+      "coverage_status": "VALIDATED",
       "terminal_reason": null,
-      "completion_evidence": [],
-      "known_content_sha256": [],
+      "completion_evidence": [
+        "docs/sources/reggio-calabria-operational-check-2026-09-29.md",
+        "src/white_list_archive/parsers/reggio_calabria_tables.py",
+        "tests/test_reggio_calabria_parser_semantics.py",
+        "data/publication/multi_prefecture_pilot.json",
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36828318024"
+      ],
+      "known_content_sha256": [
+        "f93a63a89c2c22f9fee27af29654c3dd5e97b58452dde92224b4b2259d3f148f",
+        "da60df92f7ffdfc1148ead109395e00ae34e11cb53c01ccc6928bbdff0c71d53"
+      ],
       "evidence": [
-        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+        "data/source_registry/verified_primary_pages.csv",
+        "data/source_registry/source_series_inventory.csv",
+        "data/publication/multi_prefecture_pilot.json",
+        "docs/sources/reggio-calabria-operational-check-2026-09-29.md",
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36557477529",
+        "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/36828318024"
+      ],
+      "last_completed_coverage_stage": "VALIDATED",
+      "observed_source_hashes": [
+        "f93a63a89c2c22f9fee27af29654c3dd5e97b58452dde92224b4b2259d3f148f",
+        "da60df92f7ffdfc1148ead109395e00ae34e11cb53c01ccc6928bbdff0c71d53"
+      ],
+      "source_update_pending": false
     },
     {
       "authority_key": "reggio-emilia",

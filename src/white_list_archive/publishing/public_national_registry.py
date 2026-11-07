@@ -83,6 +83,7 @@ from white_list_archive.parsers.trapani_tables import PARSERS as TRAPANI_PARSERS
 from white_list_archive.parsers.palermo_positioned import PARSERS as PALERMO_PARSERS
 from white_list_archive.parsers.matera_openxml import PARSERS as MATERA_PARSERS
 from white_list_archive.parsers.siracusa_tables import PARSERS as SIRACUSA_PARSERS
+from white_list_archive.parsers.reggio_calabria_tables import PARSERS as REGGIO_CALABRIA_PARSERS
 from white_list_archive.parsers.macerata_tables import PARSERS as MACERATA_PARSERS
 from white_list_archive.parsers.ferrara_tables import (
     PARSERS as FERRARA_PARSERS,
@@ -1232,6 +1233,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or PALERMO_PARSERS.get(cfg["parser"])
         or MATERA_PARSERS.get(cfg["parser"])
         or SIRACUSA_PARSERS.get(cfg["parser"])
+        or REGGIO_CALABRIA_PARSERS.get(cfg["parser"])
         or MACERATA_PARSERS.get(cfg["parser"])
         or FERRARA_PARSERS.get(cfg["parser"])
         or PORDENONE_PARSERS.get(cfg["parser"])
