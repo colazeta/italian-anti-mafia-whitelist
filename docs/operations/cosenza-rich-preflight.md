@@ -28,3 +28,9 @@ and create versioned source parsing lineage. Append privileges must be enumerate
 from its implementation separately from edition creation and attribution. The
 semantic owner selects exact capture/run pairs. A passing preflight does not
 certify canonical completeness, national coverage or eligibility for publication.
+
+Reviewed changes to this workflow or preflight module run a read-only acceptance
+on main against the exact already committed June capture/snapshot pair. The run
+UUID was independently read from production; it is not chosen by date, latest
+revision or matching bytes at runtime. Explicit dispatch remains available for
+other exact reviewed pairs. No source-edition attribution is created.
