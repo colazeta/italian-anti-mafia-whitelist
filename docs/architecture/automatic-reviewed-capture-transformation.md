@@ -257,3 +257,13 @@ Receipt/readback failure produces an unverified ageing diagnostic and a failing
 worker exit. These fields, source identities and hashes stay private; the public
 operational summary remains an explicit aggregate allowlist. No original rows,
 headers, exception messages or company identifiers enter these diagnostics.
+
+## One input revision per automatic cycle
+
+The workflow freezes one trusted main code revision and one robot-state commit
+before starting its matrix. Every shard checks out that exact code and reads the
+state file from the frozen commit, even if main or robot-state advances while
+other jobs are running. The freeze job receives no archive/database secrets; only
+main-originated permitted events can reach protected transformation jobs. A
+workflow run's trigger SHA may differ from this explicitly frozen execution SHA;
+private reports retain the actual executed revision.

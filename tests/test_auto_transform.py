@@ -294,6 +294,11 @@ def test_automatic_pipeline_is_private_and_has_independent_catchup_trigger():
     assert "schedule:" in workflow
     assert "  push:" in workflow
     assert "ref: main" in workflow
+    assert "needs: freeze-inputs" in workflow
+    assert "ref: ${{ needs.freeze-inputs.outputs.code_revision }}" in workflow
+    assert 'git show "$ROBOT_STATE_REVISION:state.json"' in workflow
+    assert "git show FETCH_HEAD:state.json" not in workflow
+    assert "github.ref == 'refs/heads/main'" in workflow
     assert "contents: read" in workflow
     assert "environment: evidence-archive" in workflow
     assert "Retain aggregate public operational verification only" in workflow
