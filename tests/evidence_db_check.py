@@ -238,3 +238,19 @@ with tempfile.TemporaryDirectory() as tmp, psycopg.connect(os.environ['TEST_DSN'
 
     conn.rollback()
 print('Archive-first reviewed-series registration/capture persistence/idempotence/MIME-relabel/corruption rejection passed against PostgreSQL; transaction rolled back.')
+
+# The scheduled KPI reader must execute real permission/catalogue SQL in a
+# read-only consistent snapshot; synthetic transport/unit doubles cannot prove it.
+from white_list_archive.acquisition.production_checkpoint import collect_checkpoint
+with psycopg.connect(os.environ['TEST_DSN']) as checkpoint_conn:
+    checkpoint = collect_checkpoint(checkpoint_conn, code_revision='a' * 40)
+    assert all(row['status'] == 'verified' for row in checkpoint['metrics'].values())
+    with checkpoint_conn.cursor() as cur:
+        cur.execute('SHOW transaction_read_only')
+        assert cur.fetchone()[0] == 'on'
+        cur.execute('SHOW transaction_isolation')
+        assert cur.fetchone()[0] == 'repeatable read'
+        cur.execute('SELECT count(*) FROM source.source_capture')
+        assert checkpoint['metrics']['captures']['value'] == cur.fetchone()[0]
+    checkpoint_conn.rollback()
+print('Private KPI PostgreSQL permission SQL and repeatable-read/read-only snapshot passed.')
