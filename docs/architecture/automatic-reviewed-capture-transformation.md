@@ -64,8 +64,11 @@ service, new database, credentials or paid resources.
   treated as absence, revocation, rejection or approved population growth.
 - Parsing outputs and the original documents are private. GitHub Actions
   step summaries contain only bounded counts and safe operational statuses.
-  A 14-day Actions artifact contains the same **sanitised source-level status**
-  (no parsed rows or original documents), including error classes and QA flags.
+  A 14-day Actions artifact contains a **closed, aggregate-only status**
+  (no parsed rows, documents, source identities or private coordinates).
+  Source-specific investigation remains within the private execution boundary;
+  the public artifact exposes only totals for transformations, QA flags,
+  blocked dependencies and quarantined candidates.
   There are no row-level artifacts, direct commits to main, public releases
   or Pages deployments from this workflow.
 - The same exact input/configuration/code revision uses the existing
@@ -89,8 +92,9 @@ The first protected run should demonstrate separately:
 6. QA checks for changed row and sector totals, dropped date rows and missing
    source-status fields; these flag review without automatically approving
    or withholding a successfully persisted private interpretation;
-7. a durable, bounded operational report for QA/deferred reasons, with no row-level
-   content and no public release or Pages deployment.
+7. a bounded aggregate public operational report, explicitly classified in
+   the repository artifact policy; source-specific and row-level reports are
+   never uploaded to public Actions artifacts; no public release or Pages deployment.
 
 Unit tests of the selection contract are necessary but **do not** prove
 production provider/database persistence. A controlled production run and
