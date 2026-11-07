@@ -107,7 +107,8 @@ jobs:
             --shard "$SHARD" \
             --shards 4 \
             --code-revision "$(git rev-parse HEAD)" \
-            --report "${RUNNER_TEMP}/auto-transform-summary.json"
+            --report "${RUNNER_TEMP}/auto-transform-summary.json" \
+            --public-report /tmp/public-actions/white-list-auto-transform/summary.json
       - name: Record safe operational totals
         if: always()
         run: |
@@ -130,12 +131,12 @@ jobs:
           PY
           fi
 
-      - name: Retain safe private-transformation status metadata
+      - name: Retain aggregate public operational verification only
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: white-list-transform-status-${{ matrix.shard }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/auto-transform-summary.json
+          path: /tmp/public-actions/white-list-auto-transform/summary.json
           if-no-files-found: warn
           retention-days: 14
 
