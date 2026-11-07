@@ -532,6 +532,27 @@ def public_operational_summary(report: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def quarantine_console_summary(outcomes: list[dict], *, report_persistence_failed: bool = False) -> dict:
+    """Return fixed aggregate receipt evidence; incomplete ages remain unknown."""
+    quarantines = [row for row in outcomes if row.get("status") == "quarantined"]
+    ages = []
+    for row in quarantines:
+        receipt = row.get("quarantine_age")
+        if not isinstance(receipt, dict) or receipt.get("verified") is not True:
+            continue
+        age = receipt.get("age_seconds")
+        # bool is an int subclass but is not evidence of elapsed seconds.
+        if type(age) is int and age >= 0:
+            ages.append(age)
+    expected = len(quarantines)
+    return {
+        "quarantine_receipts_verified": len(ages),
+        "quarantine_receipts_expected": expected,
+        "tracker_age_max_seconds": max(ages) if ages and len(ages) == expected else None,
+        "diagnostic_failures": expected - len(ages) + int(report_persistence_failed),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", required=True, type=Path)
@@ -634,6 +655,7 @@ def main(argv: list[str] | None = None) -> int:
         "database_verified": sum(row.get("database_readback") == "verified" for row in outcomes),
     }
     report_failure = ageing_failure
+    report_persistence_failed = False
     if store is not None:
         try:
             # Persist the verification claim only after successful exact readback.
@@ -642,6 +664,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             # Never print a provider exception: it can contain private coordinates.
             report_failure = True
+            report_persistence_failed = True
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     if args.public_report:
@@ -652,6 +675,7 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
     print(json.dumps({
+        **quarantine_console_summary(outcomes, report_persistence_failed=report_persistence_failed),
         "changed_sources": report["changed_sources"],
         "transformed_private": report["transformed"],
         "reused": report["reused"],

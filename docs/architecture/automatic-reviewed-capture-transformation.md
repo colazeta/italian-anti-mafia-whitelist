@@ -317,3 +317,15 @@ Reviewed main changes to the historical worker or its workflow also run a bounde
 acceptance batch (shard zero, cursor zero, two attempted interpretations). This
 is not a background drain or a second schedule; subsequent batches require exact
 continuation pins. Automatic acceptance retains pending work and quarantines.
+
+The safe console summary exposes `quarantine_receipts_verified` over
+`quarantine_receipts_expected` (current quarantined outcomes), plus
+`tracker_age_max_seconds` and `diagnostic_failures`. A receipt counts as verified
+only with an explicit true verification flag and a non-negative integer age.
+The maximum is null when there are no quarantines or any current quarantine
+lacks verified age evidence; unknown ages never become zero. Diagnostic failures
+count unverified current receipts plus a separate operational-report persistence
+failure, if present. These fixed aggregates contain no source identities, rows or
+private storage coordinates. They do not extend the public artefact contract.
+Operational acceptance requires complete receipt coverage and zero diagnostic
+failures in addition to the independent private-report readback claim.
