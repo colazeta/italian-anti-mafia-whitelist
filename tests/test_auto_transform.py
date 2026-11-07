@@ -331,3 +331,43 @@ def test_missing_private_database_reports_blocked_capture_instead_of_success(tmp
         "reason": "private_database_writer_unavailable",
     }]
     assert saved["publications"] == 0
+
+
+def test_actions_artifact_contains_only_aggregate_safe_operational_fields():
+    from white_list_archive.acquisition.auto_transform import public_operational_summary
+
+    report = {
+        "schema_version": 1,
+        "run_at": "2026-11-07T10:30:00+00:00",
+        "shard": 0,
+        "shards": 4,
+        "changed_sources": 1,
+        "transformed": 0,
+        "reused": 0,
+        "quarantined": 1,
+        "blocked": 0,
+        "deferred": 0,
+        "database_verified": 0,
+        "source_quality_flags": 1,
+        "publications": 0,
+        "outcomes": [{
+            "source_key": "sensitive-source",
+            "records": [{"company_name": "Not for public upload"}],
+            "sha256": H2,
+            "error_type": "ParserError",
+        }],
+        "deferred_reasons": {"internal_secret": 1},
+    }
+    output = public_operational_summary(report)
+    text = __import__("json").dumps(output)
+    assert output["quarantined"] == 1
+    assert output["publications"] == 0
+    assert "sensitive-source" not in text
+    assert "company_name" not in text
+    assert H2 not in text
+    assert "outcomes" not in output
+    assert "deferred_reasons" not in output
+
+    report["publications"] = 1
+    with pytest.raises(ValueError, match="never publish"):
+        public_operational_summary(report)
