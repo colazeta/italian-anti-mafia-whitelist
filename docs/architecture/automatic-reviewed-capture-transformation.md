@@ -212,3 +212,21 @@ This closes only the selected legacy captures, not the national historical
 backlog, normalised semantic/canonical population, independent recovery or any
 new public-release approval. Its archive-first compatibility path is deliberately
 separate from the strict writer for newly captured source manifests.
+
+## Private structure inspection for edition-bound quarantines
+
+Changed Lodi listed/applicant and Milano combined captures remain quarantined by
+`EditionReviewRequired`. Before that unchanged gate, verified archived inputs are
+inspected for CSV widths/header positions/section positions or HTML table/header
+shape. The append-only private operational report retains actual counts and
+booleans comparing selected structural properties with the reviewed parser.
+No source cell, company name, identifier, header string or exception message is
+included. An unreadable document records an incomplete inspection, not success.
+
+These diagnostics are a review aid, not a parser compatibility decision: matching
+counts cannot approve an edition, populate observations or clear the quarantine.
+Source reference dates remain unknown. Strict production parser date/hash and
+completeness checks are unchanged. Structural diagnostics are excluded from the
+closed aggregate public Actions report. Reviewers must still inspect the exact
+archived bytes and review dates, semantic/status interpretation and full parser
+invariants before any acceptance or publication.
