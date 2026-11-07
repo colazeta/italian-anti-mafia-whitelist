@@ -42,6 +42,19 @@ def persist_inventory_report(
         'robot_selection': robot_metrics,
         'inventory': inventory,
     }
+    return persist_private_inventory_document(store, report)
+
+
+def persist_private_inventory_document(store: Any, report: dict, *, key: str | None = None) -> str:
+    """Write a private inventory document, with exact compressed/decompressed readback.
+
+    A caller-supplied key is restricted to one run-attempt shard namespace. This
+    supports bounded jobs without publishing their full reports as CI artifacts.
+    """
+    if key is not None and not re.fullmatch(
+        r'operations/v1/recovery-inventory-shards/[0-9]+-[0-9]+/shard-[0-3]\.json\.gz', key,
+    ):
+        raise ValueError('Invalid private inventory shard key')
     body = json.dumps(report, sort_keys=True, separators=(',', ':'),
                       ensure_ascii=False, allow_nan=False).encode('utf-8')
     if len(body) > _MAX_RAW_BYTES:
@@ -49,7 +62,7 @@ def persist_inventory_report(
     compressed = gzip.compress(body, mtime=0)
     if len(compressed) > _MAX_COMPRESSED_BYTES:
         raise ValueError('Private inventory report exceeds its compressed bound')
-    key = f'operations/v1/recovery-inventory/{uuid4()}.json.gz'
+    key = key or f'operations/v1/recovery-inventory/{uuid4()}.json.gz'
     try:
         store.client.put_object(Bucket=store.config.bucket, Key=key, Body=compressed,
                                 ContentType='application/json', ContentEncoding='gzip',
@@ -72,3 +85,32 @@ def persist_inventory_report(
     if decoded != body:
         raise RuntimeError('Private inventory report failed decompressed readback')
     return hashlib.sha256(body).hexdigest()
+
+
+def read_private_inventory_document(store: Any, *, key: str) -> dict:
+    """Read a bounded canonical JSON shard from the exact private run-attempt key."""
+    if not re.fullmatch(
+        r'operations/v1/recovery-inventory-shards/[0-9]+-[0-9]+/shard-[0-3]\.json\.gz', key,
+    ):
+        raise ValueError('Invalid private inventory shard key')
+    try:
+        response = store.client.get_object(Bucket=store.config.bucket, Key=key)
+        stream = response['Body']
+        try:
+            compressed = stream.read(_MAX_COMPRESSED_BYTES + 1)
+        finally:
+            stream.close()
+        if len(compressed) > _MAX_COMPRESSED_BYTES:
+            raise ValueError('Compressed inventory shard exceeds its bound')
+        with gzip.GzipFile(fileobj=BytesIO(compressed)) as recovered:
+            raw = recovered.read(_MAX_RAW_BYTES + 1)
+        if len(raw) > _MAX_RAW_BYTES:
+            raise ValueError('Inventory shard exceeds its raw bound')
+        document = json.loads(raw)
+        canonical = json.dumps(document, sort_keys=True, separators=(',', ':'),
+                               ensure_ascii=False, allow_nan=False).encode('utf-8')
+        if canonical != raw or not isinstance(document, dict):
+            raise ValueError('Inventory shard must be a canonical JSON document')
+        return document
+    except Exception:
+        raise RuntimeError('Private inventory shard could not be verified') from None
