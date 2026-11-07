@@ -122,6 +122,7 @@ jobs:
               out.write(f"Changed reviewed sources: **{data['changed_sources']}**. ")
               out.write(f"Persisted private interpretations: **{data['transformed']}**. ")
               out.write(f"Quarantined: **{data['quarantined']}**. ")
+              out.write(f"Blocked: **{data['blocked']}**. ")
               out.write(f"Deferred: **{data['deferred']}**. ")
               out.write(f"Database readbacks: **{data['database_verified']}**. ")
               out.write(f"Source QA flags: **{data['source_quality_flags']}**. ")
