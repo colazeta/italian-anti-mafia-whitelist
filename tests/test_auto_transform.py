@@ -154,3 +154,73 @@ def test_parser_revision_requires_consistent_lineage():
     assert _parser_revision(Batch(), "foo") == "foo@3"
     with pytest.raises(ValueError):
         _parser_revision(Batch(), "different")
+
+
+def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_reparsing():
+    from white_list_archive.acquisition.auto_transform import _reuse_existing_snapshot
+
+    class Cursor:
+        def __init__(self, matches):
+            self.matches = matches
+            self.statements = []
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def execute(self, sql, values):
+            self.statements.append((sql, values))
+        def fetchall(self):
+            return self.matches
+
+    class Connection:
+        def __init__(self, matches):
+            self.current = Cursor(matches)
+        def cursor(self):
+            return self.current
+
+    inputs = [
+        {"label": "listed", "capture_id": "first"},
+        {"label": "applicant", "capture_id": "second"},
+    ]
+    conn = Connection([("run-1", {"listed": H2, "applicant": H3})])
+    assert _reuse_existing_snapshot(
+        conn, parser_name="approved_parser", code_revision="f" * 40,
+        configuration_hash=H1, capture_inputs=inputs,
+        input_hashes={"listed": H2, "applicant": H3},
+    )
+    assert len(conn.current.statements) == 3
+    assert conn.current.statements[1][1] == ("first", "run-1", "listed")
+    assert conn.current.statements[2][1] == ("second", "run-1", "applicant")
+
+    conn = Connection([("wrong", {"listed": H2})])
+    assert not _reuse_existing_snapshot(
+        conn, parser_name="approved_parser", code_revision="f" * 40,
+        configuration_hash=H1, capture_inputs=inputs,
+        input_hashes={"listed": H2, "applicant": H3},
+    )
+    assert len(conn.current.statements) == 1
+
+
+def test_ambiguous_existing_parse_identity_fails_closed():
+    from white_list_archive.acquisition.auto_transform import _reuse_existing_snapshot
+
+    class Cursor:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def execute(self, sql, values):
+            pass
+        def fetchall(self):
+            return [("one", {"primary": H2}), ("two", {"primary": H2})]
+    class Connection:
+        def cursor(self):
+            return Cursor()
+
+    with pytest.raises(ValueError, match="Multiple interpretation"):
+        _reuse_existing_snapshot(
+            Connection(), parser_name="approved_parser", code_revision="f" * 40,
+            configuration_hash=H1,
+            capture_inputs=[{"label": "primary", "capture_id": "capture"}],
+            input_hashes={"primary": H2},
+        )
