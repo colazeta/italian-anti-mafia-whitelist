@@ -428,6 +428,19 @@ def transform_one(
         }
 
 
+def public_operational_summary(report: dict[str, Any]) -> dict[str, Any]:
+    """Closed public artifact: totals only, never source identities or private rows."""
+    allowed = (
+        "schema_version", "run_at", "shard", "shards", "changed_sources",
+        "transformed", "reused", "quarantined", "blocked", "deferred",
+        "database_verified", "source_quality_flags", "publications",
+    )
+    result = {name: report[name] for name in allowed}
+    if result["publications"] != 0:
+        raise ValueError("The private transformer must never publish data")
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", required=True, type=Path)
@@ -437,6 +450,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shard", type=int, default=0)
     parser.add_argument("--shards", type=int, default=1)
     parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument("--public-report", type=Path)
     parser.add_argument("--code-revision", required=True)
     args = parser.parse_args(argv)
 
@@ -506,6 +520,13 @@ def main(argv: list[str] | None = None) -> int:
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    if args.public_report:
+        # Only this closed aggregate summary is allowed as an Actions artifact.
+        args.public_report.parent.mkdir(parents=True, exist_ok=True)
+        args.public_report.write_text(
+            json.dumps(public_operational_summary(report), sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
     print(json.dumps({
         "changed_sources": report["changed_sources"],
         "transformed_private": report["transformed"],
