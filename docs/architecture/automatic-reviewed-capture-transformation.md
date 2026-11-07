@@ -230,3 +230,30 @@ completeness checks are unchanged. Structural diagnostics are excluded from the
 closed aggregate public Actions report. Reviewers must still inspect the exact
 archived bytes and review dates, semantic/status interpretation and full parser
 invariants before any acceptance or publication.
+
+### Bounded transient retries and private quarantine age
+
+The private transformer retries an archived-input job at most three times, with
+one and two second delays. Only typed transient storage errors and explicitly
+allowlisted PostgreSQL SQLSTATEs at persistence/readback boundaries qualify.
+Parser failures, edition review requirements, hash mismatches, TLS validation
+failures and permission errors remain fail-closed without retries. A replay
+uses the same archived inputs and the existing snapshot idempotence/readback
+checks; it does not discover sources or approve an edition.
+
+Private outcomes retain the attempt count. For each quarantined source, input
+hash set, stage, reason and error class, an immutable receipt under
+`operations/v1/quarantine-first-observed/` records the first observation by this
+tracker. Conditional creation and bounded readback verify that receipt; a new
+receipt must also pass byte-for-byte readback. Each private operational report
+records the resulting age in seconds and its observation timestamps. Age is
+not inferred from capture time and does not establish how long a failure
+existed before this tracker. Changed bytes or failure classifications start a
+separate receipt, while a code deployment alone does not reset it. Previous
+receipts are never overwritten or deleted. Current reports identify current
+quarantines; receipts alone are not a list of unresolved cases.
+
+Receipt/readback failure produces an unverified ageing diagnostic and a failing
+worker exit. These fields, source identities and hashes stay private; the public
+operational summary remains an explicit aggregate allowlist. No original rows,
+headers, exception messages or company identifiers enter these diagnostics.
