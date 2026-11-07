@@ -65,3 +65,14 @@ The first live R2 attempt on 2026-09-09 exposed the provider-specific `ObjectLoc
 The corrected live workflow, run **34327668707** on `main`, then passed end-to-end for both frozen Cosenza documents. It verified official-source bytes against the frozen manifests, exercised R2 content-addressed storage, repeated writes under Bucket Lock, retrieved the objects in full and recomputed byte size and SHA-256. The private receipt artifact is `private-evidence-receipts-34327668707-1` with digest `sha256:8317c89bb193c814b06650ea20634da99dcc0ef06c1c8c80f2f57f168c8ddae3`.
 
 This closes the live provider compatibility/integrity gate. Policy/access/retention controls remain subject to periodic re-verification, and independent backup/restore plus production database promotion remain open before issue #16 or the overall durable-storage prerequisite can be closed.
+
+## Acquisition read budget
+
+`EvidenceStore.archive_verified` returns the ordinary private receipt and the
+exact remote bytes already read back and checked against frozen size/SHA-256.
+`archive_payload` compares those verified bytes with the acquired parser input,
+then persists and independently reads the immutable capture catalogue record.
+This removes a second identical ContentObject GET from each acquisition; it does
+not cache evidence, skip conditional PUTs, trust HEAD/ETag, reuse a former capture
+check or change the receipt schema. `archive` still returns the original receipt
+and retains its write/readback behaviour for live idempotency proofs.

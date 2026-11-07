@@ -152,6 +152,7 @@ A frozen national release is a reviewed interpretation of exact archived acquisi
 - Equal-time acquisitions with distinct payloads require an explicit reviewed choice; the selector must not invent an ordering.
 - Replay routes archived inputs by logical resource identity, disables live-source fallback, and fails closed if a selected capture or ContentObject is missing or corrupt.
 - Replay restores each source report's `document_checked_at` from the actual selected capture/check chronology. For a logical source requiring several resources this is the latest member capture time. `generated_at` remains replay/system time and is not relabelled as observation time.
+- Replay and candidate-staging dispatch preflights accept only integer schema versions 1 and 2. The pinned runtime still validates the complete manifest, exact reviewed configuration, archived captures and parser/projector revisions; accepting the envelope is not approval or publication.
 - Parser revision is finalised from the parser identity/version actually produced by replay before the frozen runtime pins are accepted.
 
 This keeps source-reference time, capture/observation time and replay/system time distinct while allowing an approved historical release to remain reproducible after a live Prefecture resource changes or disappears.

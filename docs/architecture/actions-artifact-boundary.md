@@ -20,6 +20,7 @@ The machine-readable allow-list is [`actions-artifact-policy.json`](actions-arti
 | `cosenza-address-validation.yml` | `cosenza-address-validation-verification-*` | operational verification | aggregate address coverage/quality figures, frozen review aggregates and hashes of internal row files |
 | `cosenza-content-capture.yml` | `cosenza-content-verification-*` | operational verification | frozen content identities, parser/semantic aggregates, population-coverage aggregates and hashes of internal outputs |
 | `evidence-store.yml` | `evidence-store-verification-*` | operational verification | redacted R2 write/retrieval verification only |
+| `transform-reviewed-captures.yml` | `white-list-transform-status-*` | operational verification | closed aggregate-only transformation counts and private database readback status; no source keys, rows or original documents |
 | `evidence-recovery.yml` | `evidence-recovery-verification-*` | operational verification | redacted recovery/restore verification only |
 | `fallback-geocoding-validation.yml` | `fallback-geocoding-verification-*` | operational verification | aggregate deterministic synthetic fallback-gate result |
 | `pistoia-address-replication.yml` | `pistoia-address-replication-verification-*` | operational verification | aggregate Pistoia replication result, source hashes/provider-version hashes and a binding to the internal review sample |

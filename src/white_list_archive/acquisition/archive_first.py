@@ -127,8 +127,7 @@ def archive_payload(
 
     # EvidenceStore.archive validates/freezes provenance before transport, verifies the
     # local bytes, conditionally persists the ContentObject and performs a full GET.
-    content_receipt = store.archive(local_path, manifest)
-    readback = store.read_verified(manifest)
+    content_receipt, readback = store.archive_verified(local_path, manifest)
     if readback != data:
         raise ValueError("Durable ContentObject readback differs from acquired payload")
 

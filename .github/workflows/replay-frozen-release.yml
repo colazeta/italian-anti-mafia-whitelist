@@ -64,7 +64,8 @@ jobs:
           if candidate.suffix.lower() != '.json' or not candidate.is_file():
               raise SystemExit('release_manifest must name an existing JSON file')
           manifest = json.loads(candidate.read_text(encoding='utf-8'))
-          if manifest.get('schema_version') != 1:
+          version = manifest.get('schema_version')
+          if type(version) is not int or version not in (1, 2):
               raise SystemExit('Unsupported frozen release schema_version')
           release_id = manifest.get('release_id')
           if not isinstance(release_id, str) or not release_id.strip():

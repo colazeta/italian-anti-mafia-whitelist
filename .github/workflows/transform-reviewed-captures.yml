@@ -1,0 +1,148 @@
+name: Transform reviewed captures into private observations
+
+on:
+  # Reviewable code changes bootstrap a full protected production acceptance run.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/transform-reviewed-captures.yml'
+      - 'src/white_list_archive/acquisition/auto_transform.py'
+  # Weekly catch-up in case an upstream workflow_run event is missed.
+  schedule:
+    - cron: '43 18 * * 0'
+  workflow_run:
+    workflows: ['Prefecture robots']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transform-reviewed-captures
+  cancel-in-progress: false
+
+jobs:
+  transform:
+    # Never execute PR-originated code or consume untrusted run artifacts.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment: evidence-archive
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare parser runtime
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 &&
+               sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Parser dependency installation failed' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,storage,database]' pytest
+      - name: Validate transformer selection contract
+        run: python -m pytest -q tests/test_auto_transform.py
+      - name: Load safe current capture index
+        run: |
+          set -euo pipefail
+          # Robot state is a discovery index, not authoritative source bytes.
+          # Original files and capture provenance are read from the private store.
+          git fetch --no-tags origin robot-state
+          git show FETCH_HEAD:state.json > "${RUNNER_TEMP}/robot-state.json"
+          test -s "${RUNNER_TEMP}/robot-state.json"
+      - name: Interpret changed captures from verified archive objects
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          python -m white_list_archive.acquisition.auto_transform \
+            --state "${RUNNER_TEMP}/robot-state.json" \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --authority-registry data/source_registry/territorial_authorities.csv \
+            --series-registry data/source_registry/source_series_inventory.csv \
+            --shard "$SHARD" \
+            --shards 4 \
+            --code-revision "$(git rev-parse HEAD)" \
+            --report "${RUNNER_TEMP}/auto-transform-summary.json" \
+            --public-report /tmp/public-actions/white-list-auto-transform/summary.json
+      - name: Record safe operational totals
+        if: always()
+        run: |
+          if [ -f "${RUNNER_TEMP}/auto-transform-summary.json" ]; then
+            python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads((Path(os.environ['RUNNER_TEMP']) / 'auto-transform-summary.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:
+              out.write(f"## Reviewed capture transformations: shard {data['shard']}\n\n")
+              out.write(f"Changed reviewed sources: **{data['changed_sources']}**. ")
+              out.write(f"Persisted private interpretations: **{data['transformed']}**. ")
+              out.write(f"Quarantined: **{data['quarantined']}**. ")
+              out.write(f"Blocked: **{data['blocked']}**. ")
+              out.write(f"Deferred: **{data['deferred']}**. ")
+              out.write(f"Database readbacks: **{data['database_verified']}**. ")
+              out.write(f"Source QA flags: **{data['source_quality_flags']}**. ")
+              out.write(f"Client TLS verified: **{data['database_tls_verified']}**. ")
+              out.write(f"Private report readback: **{data['private_report_verified']}**. ")
+              out.write(f"Reused interpretations: **{data['reused']}**. ")
+              out.write("Public promotions: **0**.\n")
+          PY
+          fi
+
+      - name: Retain aggregate public operational verification only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-list-transform-status-${{ matrix.shard }}-${{ github.run_id }}
+          path: /tmp/public-actions/white-list-auto-transform/summary.json
+          if-no-files-found: warn
+          retention-days: 14
+
+# Does not write to main/robot-state, upload original/source row data, alter
+# publication approval, create a public release or deploy a Pages artifact.
+# Public promotion remains the serial reviewed frozen-release process.

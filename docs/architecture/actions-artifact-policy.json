@@ -118,6 +118,14 @@
       "name": "robot-report-${{ matrix.shard }}",
       "path": "/tmp/public-actions/robot-report/report.json",
       "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/transform-reviewed-captures.yml",
+      "name": "white-list-transform-status-${{ matrix.shard }}-${{ github.run_id }}",
+      "path": "/tmp/public-actions/white-list-auto-transform/summary.json",
+      "classification": "public_operational_verification",
+      "scope": "Private transformer public verification only; source data and private QA remain off Actions artifacts",
+      "content_boundary": "Closed totals-only report: run time, shard, changed/parsed/reused/quarantined/blocked/deferred counts, QA-flag totals, verified database readback counts and zero public promotions. No source keys, companies, records, documents, capture identities, hashes, private storage or database coordinates."
     }
   ],
   "pages_artifacts": [

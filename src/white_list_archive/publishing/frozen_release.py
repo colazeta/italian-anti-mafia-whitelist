@@ -77,7 +77,8 @@ def validate_release_manifest(manifest: dict, config: dict) -> dict[ResourceIden
         "sources",
     }
     manifest_version = manifest.get("schema_version")
-    if set(manifest) != required or manifest_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}:
+    if (set(manifest) != required or type(manifest_version) is not int
+            or manifest_version not in {LEGACY_SCHEMA_VERSION, SCHEMA_VERSION}):
         raise ValueError("Unapproved frozen release manifest envelope")
     if not isinstance(manifest["release_id"], str) or not manifest["release_id"].strip():
         raise ValueError("Frozen release id is required")
