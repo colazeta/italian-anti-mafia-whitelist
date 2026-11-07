@@ -254,3 +254,80 @@ def test_cached_bytes_never_bypass_capture_catalogue_or_conflicting_size(tmp_pat
     inventory = build_archive_inventory(envelope([expectation(first), broken]), evidence)
     assert inventory['captures'][1]['durable_original_verified'] is False
     assert inventory['captures'][1]['status'] == 'not_verified'
+
+
+def test_parallel_inventory_deduplicates_inflight_bytes_but_checks_every_catalogue(tmp_path, monkeypatch):
+    import threading
+    import time
+    from white_list_archive.storage.capture_catalogue import CaptureCatalogue
+    evidence = store()
+    captures = [archived(tmp_path / str(i), evidence,
+        capture_id=f'{i:08d}-2222-4222-8222-222222222222', data=b'same original')
+        for i in range(1, 9)]
+    expected = envelope([expectation(c) for c in captures])
+    original_read = evidence.read_verified
+    catalogue_read = CaptureCatalogue.verify_receipt
+    lock = threading.Lock()
+    counts = {'original': 0, 'catalogue': 0, 'active': 0, 'peak': 0}
+
+    def slow_original(capture):
+        with lock:
+            counts['original'] += 1
+        time.sleep(0.03)  # All workers contend for the same original identity.
+        return original_read(capture)
+
+    def slow_catalogue(catalogue, capture, receipt):
+        with lock:
+            counts['catalogue'] += 1
+            counts['active'] += 1
+            counts['peak'] = max(counts['peak'], counts['active'])
+        time.sleep(0.01 * (4 - int(capture['capture_id'][:8]) % 4))
+        try:
+            return catalogue_read(catalogue, capture, receipt)
+        finally:
+            with lock:
+                counts['active'] -= 1
+
+    monkeypatch.setattr(evidence, 'read_verified', slow_original)
+    monkeypatch.setattr(CaptureCatalogue, 'verify_receipt', slow_catalogue)
+    result = build_archive_inventory(expected, evidence)
+    assert counts['original'] == 1
+    assert counts['catalogue'] == 8
+    assert 1 < counts['peak'] <= 4
+    assert [r['capture_id'] for r in result['captures']] == [c.manifest['capture_id'] for c in captures]
+    # Serial and concurrent output are identical; verification state never leaks.
+    serial = build_archive_inventory(expected, evidence, max_workers=1)
+    assert serial == result
+    assert counts['original'] == 2
+    assert counts['catalogue'] == 16
+    # One corrupt catalogue is never masked by another capture's valid bytes.
+    evidence.client.objects[captures[3].catalogue_receipt['catalogue_key']] = b'corrupt'
+    changed = build_archive_inventory(expected, evidence)
+    assert changed['metrics']['verified'] == 7
+    assert changed['captures'][3]['status'] == 'not_verified'
+    assert counts['catalogue'] == 24
+
+
+def test_parallel_inventory_bounds_outstanding_work_on_unexpected_failure(tmp_path, monkeypatch):
+    import pytest
+    import white_list_archive.storage.archive_inventory as module
+    evidence = store()
+    captures = [archived(tmp_path / str(i), evidence,
+        capture_id=f'{i:08d}-3333-4333-8333-333333333333', data=b'same original')
+        for i in range(1, 13)]
+    rows = [expectation(c) for c in captures]
+    for row in rows:
+        row['catalogue'] = None
+    reads = []
+    def unavailable(capture):
+        reads.append(capture['capture_id'])
+        raise RuntimeError('unavailable')
+    def unexpected(*args, **kwargs):
+        raise RuntimeError('unexpected recovery failure')
+    monkeypatch.setattr(evidence, 'read_verified', unavailable)
+    monkeypatch.setattr(module, '_verified_recovery_copy', unexpected)
+    with pytest.raises(RuntimeError, match='unexpected recovery failure'):
+        build_archive_inventory(envelope(rows), evidence)
+    assert 1 <= len(reads) <= 4
+    with pytest.raises(ValueError, match='between one and four'):
+        build_archive_inventory(envelope(rows), evidence, max_workers=5)

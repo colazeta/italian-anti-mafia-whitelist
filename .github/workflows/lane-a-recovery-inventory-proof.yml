@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 25
     environment: evidence-archive
     env:
+      PYTHONUNBUFFERED: '1'
       EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
       EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
       EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
@@ -127,6 +128,7 @@ jobs:
               )
 
           generated_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+          print('recovery_phase=repository_baseline')
           baseline = materialise_national_recovery(
               repository_root=root,
               store=store,
@@ -142,6 +144,7 @@ jobs:
           snapshots, robot_metrics = read_robot_history(root, 'refs/remotes/origin/robot-state')
           references, selection_metrics = collect_robot_capture_references(snapshots, authorities)
           robot_metrics.update(selection_metrics)
+          print('recovery_phase=robot_catalogue_hydration')
           recovered_robots = rehydrate_robot_captures(references, catalogue)
           existing = {(row['capture']['source_key'], row['capture']['capture_id']) for row in captures}
           additions = [row for row in recovered_robots
@@ -203,6 +206,7 @@ jobs:
                   )
               )
 
+          print('recovery_phase=complete_denominator_verification')
           migrated = materialise_migrating_recovery(
               repository_root=root,
               store=store,
