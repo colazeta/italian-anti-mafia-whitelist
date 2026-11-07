@@ -34,14 +34,11 @@ def private_connection(dsn: str):
     import psycopg
 
     with psycopg.connect(dsn, connect_timeout=30) as conn:
-        if not conn.info.ssl_in_use:
+        if not conn.pgconn.ssl_in_use:
             raise RuntimeError("Private ingestion requires a TLS connection")
-        # These attributes describe the negotiated client session, not pg_stat_ssl
-        # behind a provider proxy. Never return host, userinfo or the DSN.
-        protocol = conn.pgconn.ssl_attribute(b"protocol")
-        cipher = conn.pgconn.ssl_attribute(b"cipher")
-        if not protocol or not cipher:
-            raise RuntimeError("Private ingestion TLS negotiation is unverified")
+        # PQsslInUse describes this actual client session, not pg_stat_ssl
+        # behind a provider proxy. Psycopg does not expose PQsslAttribute; do
+        # not invent protocol/cipher attestation or return connection userinfo.
         yield conn
 
 

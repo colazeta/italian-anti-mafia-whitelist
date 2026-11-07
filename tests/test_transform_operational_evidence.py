@@ -13,7 +13,7 @@ def test_client_tls_is_required_even_if_database_connects(monkeypatch):
     import psycopg
 
     class Connection:
-        info = SimpleNamespace(ssl_in_use=False)
+        pgconn = SimpleNamespace(ssl_in_use=False)
         def __enter__(self):
             return self
         def __exit__(self, *args):
@@ -25,14 +25,18 @@ def test_client_tls_is_required_even_if_database_connects(monkeypatch):
             pytest.fail("Unencrypted connection must not reach ingestion")
 
 
-def test_tls_checks_negotiated_client_protocol_and_cipher(monkeypatch):
+def test_tls_uses_the_installed_libpq_client_api(monkeypatch):
     import psycopg
+    from unittest.mock import Mock
+
+    # A spec tied to the real driver prevents imaginary ConnectionInfo or
+    # PQsslAttribute accessors from passing mocked tests.
+    pgconn = Mock(spec_set=psycopg.pq.PGconn)
+    pgconn.ssl_in_use = True
 
     class Connection:
-        info = SimpleNamespace(ssl_in_use=True)
-        pgconn = SimpleNamespace(ssl_attribute=lambda key: {
-            b"protocol": b"TLSv1.3", b"cipher": b"TLS_AES_256_GCM_SHA384",
-        }[key])
+        def __init__(self):
+            self.pgconn = pgconn
         def __enter__(self):
             return self
         def __exit__(self, *args):
@@ -40,11 +44,7 @@ def test_tls_checks_negotiated_client_protocol_and_cipher(monkeypatch):
 
     monkeypatch.setattr(psycopg, "connect", lambda *a, **kw: Connection())
     with private_connection("not-disclosed") as conn:
-        assert conn.info.ssl_in_use
-    Connection.pgconn = SimpleNamespace(ssl_attribute=lambda key: None)
-    with pytest.raises(RuntimeError, match="unverified"):
-        with private_connection("not-disclosed"):
-            pytest.fail("Missing client TLS evidence must fail closed")
+        assert conn.pgconn.ssl_in_use
 
 
 def test_reuse_rehashes_committed_rows_rather_than_trusting_count():

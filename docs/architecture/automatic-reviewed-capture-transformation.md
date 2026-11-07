@@ -139,9 +139,10 @@ acceptance counts, not hard-coded expected population sizes. Three candidates
 none was promoted. The original nine interpretations all carried QA flags.
 
 Every transformer database connection now checks libpq's **client-side**
-`ssl_in_use`, negotiated protocol and cipher. A provider proxy's PostgreSQL
+`PGconn.ssl_in_use` (libpq `PQsslInUse`). A provider proxy's PostgreSQL
 backend `pg_stat_ssl` is not substituted for the actual client transport.
-Connections without TLS or negotiated transport evidence fail before writes.
+Connections without TLS fail before writes. Cipher/protocol details are not
+claimed because psycopg does not expose libpq PQsslAttribute.
 Only a boolean attestation is included in the public aggregate status. The
 connection string and its authentication material are never diagnostic fields.
 
