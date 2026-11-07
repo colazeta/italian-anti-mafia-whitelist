@@ -9,10 +9,13 @@ search complete. Otherwise uncertainty remains ``not_verified``.
 """
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 import hashlib
 from pathlib import Path
 from typing import Any
+from threading import Lock
 
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.evidence import EvidenceStore, freeze_capture_manifest
@@ -35,7 +38,9 @@ def _verified_recovery_copy(paths: list[str], *, sha256: str, byte_size: int) ->
     return False
 
 
-def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) -> dict[str, Any]:
+def build_archive_inventory(
+    expectations: dict[str, Any], store: EvidenceStore, *, max_workers: int = 4,
+) -> dict[str, Any]:
     """Verify an explicit set of expected captures against durable and recovery storage.
 
     ``expectations`` is intentionally separate from object-store discovery. This makes
@@ -53,15 +58,16 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
     if not isinstance(expectations["captures"], list):
         raise ValueError("Inventory captures must be a list")
 
-    rows: list[dict[str, Any]] = []
+    if type(max_workers) is not int or not 1 <= max_workers <= 4:
+        raise ValueError("Inventory workers must be between one and four")
+
+    validated = []
     identities: set[tuple[str, str]] = set()
-    verified_content: set[str] = set()
     authorities: set[str] = set()
-    provenance_verified = 0
     # Immutable original bytes may support many separately verified captures.
     # Cache only successful reads, keyed by validated content identity; never
     # cache catalogue results or carry verification between invocations.
-    verified_originals: set[tuple[str, int]] = set()
+    original_checks = {}
 
     for expected in expectations["captures"]:
         if not isinstance(expected, dict) or set(expected) != {
@@ -95,27 +101,39 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
         if not isinstance(recovery_paths, list) or any(not isinstance(path, str) for path in recovery_paths):
             raise ValueError("recovery_paths must be a list of paths")
 
+        catalogue = expected["catalogue"]
+        if catalogue is not None and not isinstance(catalogue, dict):
+            raise ValueError("catalogue receipt must be a mapping or null")
+        validated.append({**deepcopy(expected), "capture": capture})
+        byte_identity = (capture["sha256"], capture["byte_size"])
+        original_checks.setdefault(byte_identity, {"lock": Lock(), "verified": False})
+
+    def verify_capture(expected):
+        capture = expected["capture"]
+        authority_key = expected["authority_key"]
+        source_key, capture_id = capture["source_key"], capture["capture_id"]
+        recovery_paths = expected["recovery_paths"]
         durable_original_verified = False
         provider_error = None
         try:
             byte_identity = (capture["sha256"], capture["byte_size"])
-            if byte_identity not in verified_originals:
-                store.read_verified(capture)
-                verified_originals.add(byte_identity)
+            check = original_checks[byte_identity]
+            # Per-content lock deduplicates concurrent successful reads without
+            # sharing a capture provenance verdict or retaining failed results.
+            with check["lock"]:
+                if not check["verified"]:
+                    store.read_verified(capture)
+                    check["verified"] = True
             durable_original_verified = True
-            verified_content.add(capture["sha256"])
         except Exception as exc:  # provider failures are evidence of uncertainty, not absence
             provider_error = type(exc).__name__
 
         capture_provenance_verified = False
         catalogue = expected["catalogue"]
         if catalogue is not None:
-            if not isinstance(catalogue, dict):
-                raise ValueError("catalogue receipt must be a mapping or null")
             try:
                 CaptureCatalogue(store).verify_receipt(capture, catalogue)
                 capture_provenance_verified = True
-                provenance_verified += 1
             except Exception:
                 capture_provenance_verified = False
 
@@ -140,19 +158,40 @@ def build_archive_inventory(expectations: dict[str, Any], store: EvidenceStore) 
         else:
             status = "not_verified"
 
-        rows.append(
-            {
-                "authority_key": authority_key,
-                "source_key": source_key,
-                "capture_id": capture_id,
-                "sha256": capture["sha256"],
-                "byte_size": capture["byte_size"],
-                "status": status,
-                "durable_original_verified": durable_original_verified,
-                "capture_provenance_verified": capture_provenance_verified,
-                "provider_check_error_class": provider_error,
-            }
-        )
+        return {
+            "authority_key": authority_key,
+            "source_key": source_key,
+            "capture_id": capture_id,
+            "sha256": capture["sha256"],
+            "byte_size": capture["byte_size"],
+            "status": status,
+            "durable_original_verified": durable_original_verified,
+            "capture_provenance_verified": capture_provenance_verified,
+            "provider_check_error_class": provider_error,
+        }
+
+    # Keep at most max_workers tasks outstanding, preserving input/report order.
+    # An unexpected exception cancels queued work instead of submitting the whole
+    # national denominator; provider failures retain the existing per-item status.
+    rows = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        pending = deque()
+        selected = iter(validated)
+        for _ in range(min(max_workers, len(validated))):
+            pending.append(pool.submit(verify_capture, next(selected)))
+        try:
+            while pending:
+                rows.append(pending.popleft().result())
+                expected = next(selected, None)
+                if expected is not None:
+                    pending.append(pool.submit(verify_capture, expected))
+        except BaseException:
+            for future in pending:
+                future.cancel()
+            raise
+
+    verified_content = {row["sha256"] for row in rows if row["durable_original_verified"]}
+    provenance_verified = sum(row["capture_provenance_verified"] for row in rows)
 
     counts = Counter(row["status"] for row in rows)
     if set(counts) - STATUSES:

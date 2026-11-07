@@ -187,3 +187,13 @@ versions may reuse those same positive original-byte checks without becoming
 verified captures when temporal provenance is missing. Catalogue hydration uses
 at most four read-only workers and preserves deterministic reference order. Any
 failed identity aborts hydration rather than returning a successful partial list.
+
+Per-capture inventory verification likewise uses at most four read-only workers,
+with at most four outstanding tasks and deterministic report order. A separate
+lock for each validated SHA-256/byte-size pair lets simultaneous checks reuse only
+one successful original-byte read. Failed original reads remain retryable by
+another capture; catalogue checks remain individual and uncached. Counters are
+computed from ordered completed rows after workers finish, avoiding shared counter
+updates. Unexpected worker exceptions cancel outstanding queued work and prevent
+a final inventory from being returned. These execution changes preserve the
+existing per-item uncertainty, recovery and positive-absence rules.
