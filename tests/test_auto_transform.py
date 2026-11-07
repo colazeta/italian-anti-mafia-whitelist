@@ -224,3 +224,79 @@ def test_ambiguous_existing_parse_identity_fails_closed():
             capture_inputs=[{"label": "primary", "capture_id": "capture"}],
             input_hashes={"primary": H2},
         )
+
+
+def test_private_qa_flags_detect_drift_without_approving_publication():
+    from white_list_archive.acquisition.auto_transform import _quality_flags
+
+    flags = _quality_flags(
+        {"expected_source_rows": 4, "expected_sector_rows": 5},
+        [{"source_status": "listed"}, {"source_status": ""}],
+        {"sector_rows": 7, "dropped_date_rows": 1},
+    )
+    assert flags == [
+        "source_row_count_changed",
+        "source_sector_count_changed",
+        "source_date_rows_dropped",
+        "missing_source_status",
+    ]
+    assert _quality_flags(
+        {"expected_source_rows": 1},
+        [{"source_status": "listed"}],
+        {"dropped_date_rows": 0},
+    ) == []
+
+
+def test_database_readbacks_require_committed_capture_and_snapshot_identity():
+    from white_list_archive.acquisition.auto_transform import (
+        _check_capture_relational_readback, _check_snapshot_relational_readback,
+    )
+
+    class Cursor:
+        def __init__(self, row):
+            self.row = row
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def execute(self, sql, args):
+            self.args = args
+        def fetchone(self):
+            return self.row
+
+    class Connection:
+        def __init__(self, row):
+            self.current = Cursor(row)
+        def cursor(self):
+            return self.current
+
+    capture = Connection((H1, "durable"))
+    _check_capture_relational_readback(capture, "capture-1", H1)
+    assert capture.current.args == ("capture-1",)
+
+    with pytest.raises(RuntimeError, match="Relational capture readback"):
+        _check_capture_relational_readback(Connection((H2, "pending")), "capture-1", H1)
+    _check_snapshot_relational_readback(
+        Connection((H2, 6)), parse_run_id="run-1", digest=H2, record_count=6,
+    )
+    with pytest.raises(RuntimeError, match="Relational parse snapshot"):
+        _check_snapshot_relational_readback(
+            Connection((H2, 5)), parse_run_id="run-1", digest=H2, record_count=6,
+        )
+
+
+def test_automatic_pipeline_is_private_and_has_independent_catchup_trigger():
+    from pathlib import Path
+
+    workflow = (Path(__file__).resolve().parents[1] /
+        ".github/workflows/transform-reviewed-captures.yml").read_text()
+    assert "workflow_run:" in workflow
+    assert "schedule:" in workflow
+    assert "  push:" in workflow
+    assert "ref: main" in workflow
+    assert "contents: read" in workflow
+    assert "environment: evidence-archive" in workflow
+    assert "Retain safe private-transformation status metadata" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "actions/deploy-pages" not in workflow
+    assert "pages: write" not in workflow
