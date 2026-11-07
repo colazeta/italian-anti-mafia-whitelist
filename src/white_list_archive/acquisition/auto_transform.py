@@ -405,7 +405,7 @@ def main(argv: list[str] | None = None) -> int:
         "shard": args.shard,
         "shards": args.shards,
         "changed_sources": len(jobs),
-        "transformed": sum(row["status"] in {"parsed_private_review_required", "reused_private_interpretation"} for row in outcomes),
+        "transformed": sum(row["status"] == "parsed_private_review_required" for row in outcomes),
         "reused": sum(row["status"] == "reused_private_interpretation" for row in outcomes),
         "quarantined": sum(row["status"] == "quarantined" for row in outcomes),
         "deferred": len(deferred),
