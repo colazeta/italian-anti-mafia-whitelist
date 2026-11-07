@@ -1,5 +1,11 @@
 name: Private Cosenza rich preflight
 on:
+  # Fixed already committed capture/snapshot pair; read-only main acceptance.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cosenza-rich-preflight.yml'
+      - 'src/white_list_archive/normalisation/cosenza_preflight.py'
   workflow_dispatch:
     inputs:
       capture_id:
@@ -31,8 +37,8 @@ jobs:
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
       EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
       AWS_EC2_METADATA_DISABLED: 'true'
-      PIN_CAPTURE: ${{ inputs.capture_id }}
-      PIN_RUN: ${{ inputs.parse_run_id }}
+      PIN_CAPTURE: ${{ inputs.capture_id || '9e769f09-3d3c-5d2a-b0f7-1b53ee5895c0' }}
+      PIN_RUN: ${{ inputs.parse_run_id || 'd0e644d0-ec85-4a7e-87e7-e5aa3dc48c23' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

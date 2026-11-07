@@ -267,3 +267,53 @@ other jobs are running. The freeze job receives no archive/database secrets; onl
 main-originated permitted events can reach protected transformation jobs. A
 workflow run's trigger SHA may differ from this explicitly frozen execution SHA;
 private reports retain the actual executed revision.
+## Bounded historical interpretation catch-up
+
+The separate manual **Transform bounded historical reviewed captures** task closes
+the latest-only selection limitation without changing the ordinary robot-triggered
+worker or adding a recurring schedule. It serialises with the existing private
+transformer, uses the same protected environment, `transform_one`, typed bounded
+I/O retry policy and private quarantine-ageing receipts.
+
+Selection freezes the exact retained robot-state Git head and enumerates a full
+reviewed-authority shard denominator. Scalar sources include every positively
+indexed byte-distinct version, including the reviewed baseline. Repeated capture
+checks of the same bytes share one interpretation candidate; their immutable
+capture identities remain preserved in the archive/history. Complete bundle
+candidates contain only labelled capture identities that actually coexist as the
+active archived inputs in a retained resource-state revision. No Cartesian joins
+or invented source dates create additional bundle versions. Missing source
+bindings, unreviewed historical mappings, unknown byte identities and unresolved
+active bundle inputs remain explicit private selection-review items.
+
+The private plan pins configuration digests, interpretation keys, exact capture
+IDs and hashes, and the first retained Git revision witnessing each candidate.
+Legacy metadata absent from the index can be filled only from that exact capture's
+verified immutable catalogue record. Conflicting provenance fails; no live-source
+lookup, synthetic original or altered catalogue is permitted. The shared worker
+still independently verifies original bytes, persists/rereads captures and full
+snapshots, clears unreviewed candidate reference dates, and enforces edition-bound
+parser quarantines. A successful historical parse is not an approved edition.
+
+Each dispatch attempts one to ten jobs (two by default). Aggregate output gives
+the full shard denominator, selection digest, exact frozen robot head, current
+cursor, attempted batch size, next cursor and remaining pending count. Continuing
+from a nonzero cursor requires both the exact frozen robot head and its selection
+digest. Changing the selection invalidates the cursor. The cursor advances
+**attempts**, including visible quarantines, and is never a count of successful
+validation or public approvals. Re-dispatch an earlier cursor to revisit a failed
+batch; idempotency and reread checks remain those of the common transformer.
+
+The full bounded attempt report, selected outcomes, review items and complete
+candidate manifest are retained create-only in the existing private operations
+report namespace with exact readback. Only aggregate counts and code/history/
+selection digests reach logs; no original, parsed rows, report keys or detailed
+selection evidence is uploaded as a public artifact. This task covers retained
+reviewed robot capture identities, not undiscovered historical publications or
+legacy packages that lack that index. Those gaps, independent restore and frozen
+national release approval retain their separate acceptance requirements.
+
+Reviewed main changes to the historical worker or its workflow also run a bounded
+acceptance batch (shard zero, cursor zero, two attempted interpretations). This
+is not a background drain or a second schedule; subsequent batches require exact
+continuation pins. Automatic acceptance retains pending work and quarantines.
