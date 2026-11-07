@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
+      - 'src/white_list_archive/acquisition/production_checkpoint.py'
   # Weekly catch-up in case an upstream workflow_run event is missed.
   schedule:
     - cron: '43 18 * * 0'
@@ -109,6 +110,13 @@ jobs:
             --code-revision "$(git rev-parse HEAD)" \
             --report "${RUNNER_TEMP}/auto-transform-summary.json" \
             --public-report /tmp/public-actions/white-list-auto-transform/summary.json
+      - name: Retain consistent private database KPI checkpoint
+        if: always() && matrix.shard == 0
+        run: |
+          set -euo pipefail
+          python -m white_list_archive.acquisition.production_checkpoint \
+            --code-revision "$(git rev-parse HEAD)"
+
       - name: Record safe operational totals
         if: always()
         run: |
