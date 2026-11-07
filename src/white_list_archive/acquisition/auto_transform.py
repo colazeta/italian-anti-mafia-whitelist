@@ -238,6 +238,66 @@ def _reuse_existing_snapshot(
     return True
 
 
+def _quality_flags(cfg: dict[str, Any], records: list[dict], diagnostics: dict) -> list[str]:
+    """Screen for evidence-quality drift, without granting publication approval."""
+    flags: list[str] = []
+    count = len(records)
+    expected = cfg.get("expected_source_rows")
+    if expected is not None and count != int(expected):
+        flags.append("source_row_count_changed")
+    expected_sectors = cfg.get("expected_sector_rows")
+    if expected_sectors is not None and diagnostics.get("sector_rows") != int(expected_sectors):
+        flags.append("source_sector_count_changed")
+    if diagnostics.get("dropped_date_rows", 0):
+        flags.append("source_date_rows_dropped")
+    if any(not isinstance(record, dict) for record in records):
+        flags.append("invalid_parser_record")
+    if any(
+        isinstance(record, dict) and (
+            not isinstance(record.get("source_status"), str) or
+            not record["source_status"].strip()
+        )
+        for record in records
+    ):
+        flags.append("missing_source_status")
+    return flags
+
+
+def _check_capture_relational_readback(conn: Any, capture_id: str, sha256: str) -> None:
+    """Verify the committed durable capture in a distinct read-only transaction."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT o.sha256, o.storage_status_code
+            FROM source.source_capture c
+            JOIN source.content_object o ON o.content_object_id=c.content_object_id
+            WHERE c.capture_id=%s
+            """,
+            (capture_id,),
+        )
+        row = cur.fetchone()
+    if row != (sha256, "durable"):
+        raise RuntimeError("Relational capture readback does not match verified archive bytes")
+
+
+def _check_snapshot_relational_readback(
+    conn: Any, *, parse_run_id: str, digest: str, record_count: int,
+) -> None:
+    """Read back an independently committed parse snapshot before reporting success."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT snapshot_sha256, record_count
+            FROM source.parse_snapshot
+            WHERE parse_run_id=%s
+            """,
+            (parse_run_id,),
+        )
+        row = cur.fetchone()
+    if row != (digest, record_count):
+        raise RuntimeError("Relational parse snapshot readback failed")
+
+
 def transform_one(
     job: dict[str, Any],
     *,
@@ -301,6 +361,11 @@ def transform_one(
                 )
                 persist_archived_capture(conn, archived, store)
                 conn.commit()
+            # A receipt or in-transaction INSERT alone is not production persistence.
+            with psycopg.connect(dsn) as readback:
+                _check_capture_relational_readback(
+                    readback, manifest["capture_id"], manifest["sha256"],
+                )
 
         capture_inputs = [
             {"label": label, "capture_id": verified[label][0]["capture_id"]}
@@ -322,6 +387,7 @@ def transform_one(
                 "source_key": job["source_key"],
                 "status": "reused_private_interpretation",
                 "records": None,
+                "publication_approved": False,
             }
 
         source_input = paths["primary"] if job["config"].get("resources") is None else paths
@@ -345,15 +411,20 @@ def transform_one(
                 diagnostics=batch.diagnostics,
             )
             conn.commit()
-        diagnostics = batch.diagnostics
-        expected = job["config"].get("expected_source_rows")
-        count_matches = expected is None or int(expected) == len(batch.records)
+        with psycopg.connect(dsn) as readback:
+            _check_snapshot_relational_readback(
+                readback,
+                parse_run_id=result["parse_run_id"],
+                digest=result["snapshot_sha256"],
+                record_count=result["record_count"],
+            )
         return {
             "source_key": job["source_key"],
             "status": "parsed_private_review_required",
             "records": len(batch.records),
-            "approved_row_count_matches": count_matches,
-            "dropped_date_rows": diagnostics.get("dropped_date_rows", 0),
+            "qa_flags": _quality_flags(job["config"], batch.records, batch.diagnostics),
+            "database_readback": "verified",
+            "publication_approved": False,
         }
 
 
@@ -415,6 +486,8 @@ def main(argv: list[str] | None = None) -> int:
             for name in sorted({row["reason"] for row in deferred})
         },
         "publications": 0,
+        "source_quality_flags": sum(bool(row.get("qa_flags")) for row in outcomes),
+        "database_verified": sum(row.get("database_readback") == "verified" for row in outcomes),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -425,6 +498,8 @@ def main(argv: list[str] | None = None) -> int:
         "quarantined": report["quarantined"],
         "deferred": report["deferred"],
         "publications": 0,
+        "source_quality_flags": report["source_quality_flags"],
+        "database_verified": report["database_verified"],
     }, sort_keys=True))
     return 1 if report["quarantined"] else 0
 
