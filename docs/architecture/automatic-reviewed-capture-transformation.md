@@ -176,3 +176,39 @@ loop attempts to circumvent deterministic edition incompatibility.
 These controls do not establish exhaustive national QA, complete historical
 backfill, an independent recovery copy, a restore test or a newly approved public
 release. Issues #163, #16 and #225 remain open for those separate controls.
+
+## Bounded historical Cosenza reconciliation
+
+`Reconcile frozen Cosenza captures` materialises only the two exact historical
+capture identities already recovered into the private catalogue (28 June and
+3 August 2026). It never queries a live Prefecture URL or enumerates a bucket to
+infer that evidence is missing. The full original catalogue manifest, byte size,
+SHA-256, capture/reference dates and HTTP provenance must agree with the matching
+reviewed `data/captures/cosenza/combined_*.json` document before a database write.
+
+The historical recovery predates required resource/authority classification codes.
+Those codes are subsequent technical assessments, not new source observations:
+policy `reviewed-legacy-cosenza-classification-v1` explicitly classifies only these
+two reviewed official PDFs as `primary_official` / `pdf`. Any originally supplied
+conflicting code fails. The assessment is preserved separately at private
+`operations/v1/legacy-classification/<capture UUID>.json`, bound to the complete
+reviewed legacy-manifest digest, original byte digest and original capture UUID.
+Conditional creation and exact readback reject a conflicting later assessment.
+The original catalogue record and original manifest are never amended. Relational
+classification columns represent this separately evidenced assessment where the
+original capture lacked those optional fields; they must not be reported as
+classification metadata supplied at the original capture time.
+
+Both captures retain their historical UUIDs, timestamps, source locators and
+reference dates. The validated Cosenza parser reinterprets exact original bytes,
+with expected historical denominators of 1,327 and 1,334 records. Its configuration
+uses each matching historical source/page locator, not the current-edition URL.
+Each complete private snapshot pins the executing Git revision and configuration,
+and is independently read and rehashed after commit. The workflow executes two
+passes to prove stable identities are reused. It emits only aggregate totals;
+classifications, source rows, originals and detailed attempt reports stay private.
+
+This closes only the selected legacy captures, not the national historical
+backlog, normalised semantic/canonical population, independent recovery or any
+new public-release approval. Its archive-first compatibility path is deliberately
+separate from the strict writer for newly captured source manifests.
