@@ -95,8 +95,10 @@ def test_workflow_dispatch_stays_main_only_private_and_persists_after_validation
     assert "if: github.ref == 'refs/heads/main'" in workflow
     assert 'environment: evidence-archive' in workflow
     assert 'upload-artifact@' not in workflow
-    assert 'report_sha256 = persist_inventory_report(' in workflow
-    assert workflow.index('report_sha256 = persist_inventory_report(') > workflow.index('if version_key in known_keys:')
+    assert 'inventory_cycle merge' in workflow
+    runtime = Path('src/white_list_archive/storage/inventory_cycle.py').read_text()
+    assert runtime.index('persist_private_inventory_document(store, report,') > runtime.index('if version_key in known_keys:')
+    assert runtime.index('digest = persist_inventory_report(') > runtime.index('inventory = merge_inventory_shards(documents, context, expected)')
 
 
 @pytest.mark.parametrize('limit', ['raw', 'compressed'])

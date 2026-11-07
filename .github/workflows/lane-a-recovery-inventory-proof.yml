@@ -1,16 +1,14 @@
 name: Lane A governed recovery inventory proof
 
-# Read-only reconciliation of known captures against the existing private archive.
-# No schedule: a reviewed change or explicit dispatch runs this bounded proof.
-# Already recovered Cosenza captures are read from their immutable catalogue records;
-# the expired/retention-bound Actions package is no longer an operational dependency.
+# Four bounded private shards, followed by exact full-denominator reduction.
+# Each run attempt rereads its originals and immutable capture provenance.
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - .github/workflows/lane-a-recovery-inventory-proof.yml
+      - src/white_list_archive/storage/inventory_cycle.py
       - src/white_list_archive/storage/inventory_report.py
       - src/white_list_archive/storage/archive_inventory.py
       - src/white_list_archive/storage/recovery_denominator.py
@@ -19,12 +17,84 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: governed-recovery-inventory
+  cancel-in-progress: false
+
 jobs:
-  verify-recovery-denominator:
-    name: Reconcile retained robot captures and recovered Cosenza
+  freeze-denominator:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
+    outputs:
+      code_revision: ${{ steps.freeze.outputs.code_revision }}
+      robot_state_sha: ${{ steps.freeze.outputs.robot_state_sha }}
+      generated_at: ${{ steps.freeze.outputs.generated_at }}
+      denominator_items: ${{ steps.freeze.outputs.denominator_items }}
+      denominator_sha256: ${{ steps.freeze.outputs.denominator_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[storage]'
+      - name: Freeze complete robot history and denominator
+        id: freeze
+        env:
+          RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+          python -m white_list_archive.storage.inventory_cycle freeze \
+            --robot-head refs/remotes/origin/robot-state --run-key "$RUN_KEY" >> "$GITHUB_OUTPUT"
+
+  verify-recovery-shard:
+    needs: freeze-denominator
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: evidence-archive
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      PYTHONUNBUFFERED: '1'
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+      ROBOT_HEAD: ${{ needs.freeze-denominator.outputs.robot_state_sha }}
+      GENERATED_AT: ${{ needs.freeze-denominator.outputs.generated_at }}
+      DENOMINATOR_ITEMS: ${{ needs.freeze-denominator.outputs.denominator_items }}
+      DENOMINATOR_SHA256: ${{ needs.freeze-denominator.outputs.denominator_sha256 }}
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze-denominator.outputs.code_revision }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[storage]'
+      - name: Verify assigned captures against the complete frozen denominator
+        run: |
+          git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+          python -m white_list_archive.storage.inventory_cycle shard \
+            --robot-head "$ROBOT_HEAD" --run-key "$RUN_KEY" --generated-at "$GENERATED_AT" \
+            --denominator-items "$DENOMINATOR_ITEMS" --denominator-sha256 "$DENOMINATOR_SHA256" \
+            --shard "$SHARD"
+
+  verify-complete-denominator:
+    needs: [freeze-denominator, verify-recovery-shard]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: evidence-archive
     env:
       PYTHONUNBUFFERED: '1'
@@ -36,247 +106,26 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
       AWS_EC2_METADATA_DISABLED: 'true'
+      RUN_KEY: ${{ github.run_id }}-${{ github.run_attempt }}
+      ROBOT_HEAD: ${{ needs.freeze-denominator.outputs.robot_state_sha }}
+      GENERATED_AT: ${{ needs.freeze-denominator.outputs.generated_at }}
+      DENOMINATOR_ITEMS: ${{ needs.freeze-denominator.outputs.denominator_items }}
+      DENOMINATOR_SHA256: ${{ needs.freeze-denominator.outputs.denominator_sha256 }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.freeze-denominator.outputs.code_revision }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install archive runtime
-        run: python -m pip install -e '.[storage]'
-      - name: Require approved private store
+      - run: python -m pip install -e '.[storage]'
+      - name: Independently read all private shards and prove exact national coverage
         run: |
-          python - <<'PY'
-          import os
-          from white_list_archive.storage.evidence import StoreConfig
-          StoreConfig.from_env()
-          required = ('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
-          if any(not os.environ.get(name) for name in required):
-              raise SystemExit('Required protected evidence-store configuration is unavailable')
-          PY
-      - name: Freeze retained robot history
-        run: git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
-      - name: Read archived captures and verify the recovery denominator
-        run: |
-          python - <<'PY'
-          from datetime import datetime, timezone
-          import csv
-          import json
-          import subprocess
-          from pathlib import Path
+          git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+          python -m white_list_archive.storage.inventory_cycle merge \
+            --robot-head "$ROBOT_HEAD" --run-key "$RUN_KEY" --generated-at "$GENERATED_AT" \
+            --denominator-items "$DENOMINATOR_ITEMS" --denominator-sha256 "$DENOMINATOR_SHA256"
 
-          from white_list_archive.storage.capture_catalogue import CaptureCatalogue
-          from white_list_archive.storage.catalogue_recovery import load_catalogued_capture
-          from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
-          from white_list_archive.storage.robot_recovery import (
-              collect_robot_capture_references, read_robot_history, rehydrate_robot_captures,
-          )
-          from white_list_archive.storage.recovery_materialize import (
-              materialise_national_recovery,
-          )
-          from white_list_archive.storage.inventory_report import persist_inventory_report
-          from white_list_archive.storage.recovery_migration import (
-              materialise_migrating_recovery,
-          )
-
-          root = Path('.').resolve()
-          config = StoreConfig.from_env()
-          store = EvidenceStore(client_for(config), config)
-          catalogue = CaptureCatalogue(store)
-
-          def read_capture(source_key, capture_id):
-              try:
-                  return load_catalogued_capture(catalogue, source_key=source_key, capture_id=capture_id)
-              except Exception:
-                  raise SystemExit(f'Capture catalogue not verified: {source_key}/{capture_id}') from None
-
-          authorities = {}
-          with (root / 'data/source_registry/source_series_inventory.csv').open(
-              encoding='utf-8', newline=''
-          ) as handle:
-              for row in csv.DictReader(handle):
-                  source_key = (row.get('source_series_key') or '').strip()
-                  authority_key = (row.get('authority_key') or '').strip()
-                  if source_key and authority_key:
-                      prior = authorities.get(source_key)
-                      if prior is not None and prior != authority_key:
-                          raise SystemExit(
-                              'Reviewed SourceSeries registry has conflicting authority ownership'
-                          )
-                      authorities[source_key] = authority_key
-
-          controls = (
-              ('potenza-combined', '3c8a4e28-ed29-4502-9b78-cb6e7382c92d'),
-              ('aosta-listed', '5748d0d5-14a0-4c2d-9a26-6df0817a7dd5'),
-          )
-          captures = []
-          for source_key, capture_id in controls:
-              authority_key = authorities.get(source_key)
-              if not authority_key:
-                  raise SystemExit(f'Reviewed authority binding unavailable for {source_key}')
-              manifest, receipt = read_capture(source_key, capture_id)
-              captures.append(
-                  {
-                      'authority_key': authority_key,
-                      'capture': manifest,
-                      'catalogue': receipt,
-                      'recovery_paths': [],
-                      'durable_absence_confirmed': False,
-                      'operator_evidence_refs': [
-                          f'lane-a-governed-catalogue-proof:{source_key}:{capture_id}'
-                      ],
-                  }
-              )
-
-          generated_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-          print('recovery_phase=repository_baseline')
-          baseline = materialise_national_recovery(
-              repository_root=root,
-              store=store,
-              plan={
-                  'schema_version': 1,
-                  'generated_at': generated_at,
-                  'recovery_search_complete': False,
-                  'captures': captures,
-                  'known_version_recovery': [],
-              },
-          )
-
-          snapshots, robot_metrics = read_robot_history(root, 'refs/remotes/origin/robot-state')
-          references, selection_metrics = collect_robot_capture_references(snapshots, authorities)
-          robot_metrics.update(selection_metrics)
-          print('recovery_phase=robot_catalogue_hydration')
-          recovered_robots = rehydrate_robot_captures(references, catalogue)
-          existing = {(row['capture']['source_key'], row['capture']['capture_id']) for row in captures}
-          additions = [row for row in recovered_robots
-                       if (row['capture']['source_key'], row['capture']['capture_id']) not in existing]
-          captures.extend(additions)
-          robot_metrics['robot_captures_added_to_denominator'] = len(additions)
-          print('robot_recovery_selection=' + json.dumps(robot_metrics, sort_keys=True))
-
-          # These exact historical identities passed real provider/catalogue readback
-          # in run 36511913025. Reuse that recovery; never mint a new capture from a hash.
-          specs = (
-              ('data/captures/cosenza/combined_2026-06-28.json', '9e769f09-3d3c-5d2a-b0f7-1b53ee5895c0'),
-              ('data/captures/cosenza/combined_2026-08-03.json', '32f713a4-2106-5c58-8256-6f3c02c133c3'),
-          )
-
-          migrations = []
-          migrated_identities = []
-          for manifest_path, capture_id in specs:
-              historical = json.loads((root / manifest_path).read_text())
-              manifest, receipt = read_capture('cosenza-combined', capture_id)
-              expected = {key: historical[key] for key in (
-                  'sha256', 'byte_size', 'captured_at', 'reference_date', 'resource_url',
-                  'content_type', 'http_status', 'etag', 'last_modified',
-              )}
-              expected['resolved_url'] = historical['final_url']
-              if any(manifest.get(key) != value for key, value in expected.items()):
-                  raise SystemExit('Recovered Cosenza catalogue conflicts with historical provenance')
-              version_key = 'legacy-manifest:' + manifest_path
-              migrations.append(
-                  {
-                      'authority_key': 'cosenza',
-                      'evidence_version_key': version_key,
-                      'sha256': manifest['sha256'],
-                      'capture': manifest,
-                      'catalogue': receipt,
-                      'operator_evidence_refs': [
-                          manifest_path,
-                          'github-actions-run:34051655207',
-                          'github-actions-run:36511913025',
-                      ],
-                  }
-              )
-              migrated_identities.append(
-                  (manifest['source_key'], manifest['capture_id'], version_key)
-              )
-              print(
-                  'recovered_cosenza_capture=' + json.dumps(
-                      {
-                          'source_key': manifest['source_key'],
-                          'capture_id': manifest['capture_id'],
-                          'reference_date': manifest['reference_date'],
-                          'captured_at': manifest['captured_at'],
-                          'sha256': manifest['sha256'],
-                          'byte_size': manifest['byte_size'],
-                          'durable_capture_provenance_readback_verified': True,
-                          'read_only_reverification': True,
-                      },
-                      sort_keys=True,
-                  )
-              )
-
-          print('recovery_phase=complete_denominator_verification')
-          migrated = materialise_migrating_recovery(
-              repository_root=root,
-              store=store,
-              plan={
-                  'schema_version': 2,
-                  'generated_at': generated_at,
-                  'recovery_search_complete': False,
-                  'captures': captures,
-                  'known_version_recovery': [],
-                  'capture_migrations': migrations,
-              },
-          )
-
-          before = baseline['metrics']
-          after = migrated['metrics']
-          print('baseline_recovery_metrics=' + json.dumps(before, sort_keys=True))
-          print('migrated_recovery_metrics=' + json.dumps(after, sort_keys=True))
-
-          expected_deltas = {
-              'denominator_items': len(additions),
-              'captures_with_verified_provenance': len(additions) + 2,
-              'known_versions_without_capture_identity': -2,
-              'verified': len(additions) + 2,
-              'recoverable_pending': 0,
-              'missing': 0,
-              'not_verified': -2,
-          }
-          for key, delta in expected_deltas.items():
-              actual = after[key] - before[key]
-              if actual != delta:
-                  raise SystemExit(
-                      f'Unexpected recovery migration delta for {key}: expected {delta}, got {actual}'
-                  )
-
-          capture_items = {
-              (item.get('source_key'), item.get('capture_id')): item
-              for item in migrated['items']
-              if item.get('identity_kind') == 'capture'
-          }
-          known_keys = {
-              item.get('evidence_version_key')
-              for item in migrated['items']
-              if item.get('identity_kind') == 'known_version'
-          }
-          for source_key, capture_id, version_key in migrated_identities:
-              item = capture_items.get((source_key, capture_id))
-              if item is None:
-                  raise SystemExit(f'Migrated capture missing from denominator: {capture_id}')
-              if item['status'] != 'verified':
-                  raise SystemExit(f'Migrated capture is not verified: {capture_id}')
-              if not item['durable_original_verified'] or not item['capture_provenance_verified']:
-                  raise SystemExit(f'Migrated capture lacks complete provider readback: {capture_id}')
-              if version_key in known_keys:
-                  raise SystemExit(f'Consumed legacy version remains double-counted: {version_key}')
-
-          # Retain the entire denominator privately, not merely aggregate log counts.
-          # Verification failures above never produce a successful inventory report.
-          code_revision = subprocess.check_output(
-              ['git', 'rev-parse', 'HEAD'], text=True,
-          ).strip()
-          report_sha256 = persist_inventory_report(
-              store, inventory=migrated, robot_metrics=robot_metrics,
-              code_revision=code_revision,
-          )
-          print('private_inventory_report_verified=true')
-          print('private_inventory_report_sha256=' + report_sha256)
-          print('cosenza_legacy_migration_verified=true')
-          print('selected_robot_captures_verified=true')
-          PY
-
-# No original bytes, frozen manifests, private recovery reports, storage coordinates or
-# working data are uploaded as Actions artefacts. Logs receive only safe aggregate metrics
-# and redacted capture identity/readback evidence.
+# No source bytes, full manifests, rows, private reports, private report keys or
+# storage coordinates are uploaded as Actions artifacts or included in job outputs.
+# A partial/failed shard cannot produce a final national inventory checkpoint.

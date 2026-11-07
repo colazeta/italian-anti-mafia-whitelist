@@ -197,3 +197,41 @@ computed from ordered completed rows after workers finish, avoiding shared count
 updates. Unexpected worker exceptions cancel outstanding queued work and prevent
 a final inventory from being returned. These execution changes preserve the
 existing per-item uncertainty, recovery and positive-absence rules.
+
+## Bounded complete-denominator verification
+
+The national proof runs as four deterministic robot-capture shards, with at most
+two protected jobs active together. A read-only preparation job freezes the code
+revision, exact retained robot-state head, checkpoint timestamp, full expected
+identity count and SHA-256 of the complete expected denominator. All later jobs
+check out that code and recompute the same denominator from those frozen inputs.
+A moving `robot-state` branch cannot silently change a job's selected captures.
+
+Each shard independently rehydrates its assigned capture identities and verifies
+both their original bytes and their individual immutable catalogue provenance.
+The existing two live controls, two recovered Cosenza controls and repository
+known-version baseline are shared control scopes, rechecked by every shard.
+Cosenza's two legacy versions are replaced one-for-one as before. A shard writes
+its full private result only after all its selected captures have passed. It is
+explicitly labelled `complete_denominator: false` and `shard_complete: true`.
+Its create-only, bounded gzip checkpoint is retained within the existing private
+operations namespace, under a key specific to the GitHub run and attempt.
+Private shard reports, source rows and storage keys are never uploaded as Actions
+artifacts or returned as public job outputs.
+
+The final protected reducer reads all four private checkpoints independently. It
+rejects absent shards, results from another run/attempt, revision or timestamp,
+duplicate or unexpected identities, missing expected identities, captures lacking
+either original or provenance verification, and conflicting evidence in the shared
+controls. It reconstructs counters from the exact union instead of summing shard
+counters or double-counting shared controls. Only this successful reduction emits
+the existing complete private national inventory checkpoint and full metrics.
+A successful shard or a failed/partial workflow is never national completion.
+
+Every run attempt performs current provider readback. No successful or failed
+original-byte cache is shared between runs. To retry a failed cycle, start a new
+run or rerun **all** jobs; rerunning only failed jobs may leave an incomplete new
+attempt and will fail closed rather than reuse checkpoints from another attempt.
+Earlier partial checkpoints remain preserved as bounded operational evidence.
+The workflow has no new schedule and remains separate from interpretation,
+normalisation, independent backup/restore and public release promotion.
