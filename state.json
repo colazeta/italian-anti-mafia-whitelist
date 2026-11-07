@@ -178667,12 +178667,12 @@
     },
     "cosenza": {
       "authority_key": "cosenza",
-      "checked_at": "2026-11-07T11:10:13.509955+00:00",
-      "status": "partial",
+      "checked_at": "2026-11-07T19:18:46.055339+00:00",
+      "status": "changed",
       "mode": "capture",
       "requested_mode": "capture",
-      "last_successful_check_at": "2026-11-02T12:35:52.468398+00:00",
-      "requests": 60,
+      "last_successful_check_at": "2026-11-07T19:18:46.055339+00:00",
+      "requests": 6,
       "changed_urls": [
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list"
@@ -178682,63 +178682,9 @@
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list",
         "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-05/03-white-list-sez-iii-noli-a-freddo-di-macchinari.pdf",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-05/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.pdf",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-05/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.pdf",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-05/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-05.05.2025.pdf",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-10.03.2025.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/09-white-list-sez-ix-ristorazione-gestione-delle-mense-e-catering.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/08-white-list-sez-viii-servizi-funerari-e-cimiteriali.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/07-white-list-sez-vii-guardiania-ai-cantieri.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/06-white-list-sez-vi-autotrasporto-per-conto-terzi.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/05-white-list-sez-v-noli-a-caldo.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/04-white-list-sez-iv-fornitura-di-ferro-lavorato.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/03-white-list-sez-iii-noli-a-freddo-di-macchinari.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2025-03/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/09-white-list-sez-ix-ristorazione-gestione-delle-mense-e-catering.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/08-white-list-sez-viii-servizi-funerari-e-cimiteriali.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/07-white-list-sez-vii-guardiania-ai-cantieri.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/06-white-list-sez-vi-autotrasporto-per-conto-terzi_0.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/05-white-list-sez-v-noli-a-caldo.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/04-white-list-sez-iv-fornitura-di-ferro-lavorato.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/03-white-list-sez-iii-noli-a-freddo-di-macchinari.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-11/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-25.11.2024_0.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/09-white-list-sez-ix-ristorazione-gestione-delle-mense-e-catering.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/08-white-list-sez-viii-servizi-funerari-e-cimiteriali.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/07-white-list-sez-vii-guardiania-ai-cantieri.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/06-white-list-sez-vi-autotrasporto-per-conto-terzi.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/05-white-list-sez-v-noli-a-caldo.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/04-white-list-sez-iv-fornitura-di-ferro-lavorato.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/03-white-list-sez-iii-noli-a-freddo-di-macchinari.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-10/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-15.10.2024.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/09-white-list-sez-ix-ristorazione-gestione-delle-mense-e-catering.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/08-white-list-sez-viii-servizi-funerari-e-cimiteriali.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/07-white-list-sez-vii-guardiania-ai-cantieri.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/06-white-list-sez-vi-autotrasporto-per-conto-terzi.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/05-white-list-sez-v-noli-a-caldo.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/04-white-list-sez-iv-fornitura-di-ferro-lavorato.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/03-white-list-sez-iii-noli-a-freddo-di-macchinari.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-09/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-09.09.2024.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/09-white-list-sez-ix-ristorazione-gestione-delle-mense-e-catering.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/08-white-list-sez-viii-servizi-funerari-e-cimiteriali.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/07-white-list-sez-vii-guardiania-ai-cantieri_0.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/07-white-list-sez-vii-guardiania-ai-cantieri.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/06-white-list-sez-vi-autotrasporto-per-conto-terzi.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/05-white-list-sez-v-noli-a-caldo.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/04-white-list-sez-iv-fornitura-di-ferro-lavorato.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/03-white-list-sez-iii-noli-a-freddo-di-macchinari.docx"
+        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
+        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
+        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-24.06.2024.docx"
       ],
       "discovered_documents": [
         "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
@@ -178754,44 +178700,24 @@
         "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/10-white-list-sez-x-servizi-ambientali-comprese-le-attivita-di-raccolta-di-trasporto-nazionale-e-transfrontaliero.pdf"
       ],
       "external_links_for_review": [],
-      "pending_urls": [
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-24.06.2024.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-        "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx"
-      ],
-      "pending_queue": [
-        {
-          "url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-24.06.2024.docx",
-          "depth": 1,
-          "role": "candidate"
-        },
-        {
-          "url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
-          "depth": 1,
-          "role": "candidate"
-        },
-        {
-          "url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
-          "depth": 1,
-          "role": "candidate"
-        }
-      ],
+      "pending_urls": [],
+      "pending_queue": [],
       "cycle_started_at": "2026-11-03T12:01:48.467380+00:00",
       "errors": [],
       "resources": {
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list": {
-          "sha256": "5fb2b69e36c932d82006aee36dc43272fd0f2ac281c4881648af801a0481e415",
+          "sha256": "feffa8c6681157669d9aa3a364392e29490d70594f875195bb7bfae7c9d56c0a",
           "byte_size": 113011,
           "content_type": "text/html",
           "resolved_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/evidenza/white-list",
-          "etag": "\"1794049816-gzip\"",
-          "last_modified": "Sat, 07 Nov 2026 11:10:16 GMT",
-          "last_checked_at": "2026-11-07T11:10:13.509955+00:00",
+          "etag": "\"1794079130-gzip\"",
+          "last_modified": "Sat, 07 Nov 2026 19:18:50 GMT",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "landing",
           "source_keys": [],
-          "archived_sha256": "5fb2b69e36c932d82006aee36dc43272fd0f2ac281c4881648af801a0481e415",
+          "archived_sha256": "feffa8c6681157669d9aa3a364392e29490d70594f875195bb7bfae7c9d56c0a",
           "capture_ids": [
-            "f8d45bce-9e7e-4edf-bf16-eaa994fc024f"
+            "247a4f4f-8ccd-4de7-bbe5-4e0fd57dc6fe"
           ],
           "capture_history": [
             {
@@ -179213,22 +179139,32 @@
               "captured_at": "2026-11-07T11:10:16.900818+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "247a4f4f-8ccd-4de7-bbe5-4e0fd57dc6fe",
+              "source_key": "cosenza-robot-discovery",
+              "sha256": "feffa8c6681157669d9aa3a364392e29490d70594f875195bb7bfae7c9d56c0a",
+              "byte_size": 113011,
+              "content_type": "text/html; charset=UTF-8",
+              "captured_at": "2026-11-07T19:18:50.690023+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
         "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026": {
-          "sha256": "fb32f3e3fa960493a7f348928e2484d5e6aaeddf35790fc31f3f09d99b66aee6",
+          "sha256": "9edece647cc14881f0332d46c5a20aa7b07ea5575f9b0fa13323c850038b500a",
           "byte_size": 91734,
           "content_type": "text/html",
           "resolved_url": "https://prefettura.interno.gov.it/it/prefetture/cosenza/white-list-elenchi-aggiornati-03-agosto-2026",
-          "etag": "\"1794049813-gzip\"",
-          "last_modified": "Sat, 07 Nov 2026 11:10:13 GMT",
-          "last_checked_at": "2026-11-07T11:10:13.509955+00:00",
+          "etag": "\"1794079126-gzip\"",
+          "last_modified": "Sat, 07 Nov 2026 19:18:46 GMT",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "landing",
           "source_keys": [],
-          "archived_sha256": "fb32f3e3fa960493a7f348928e2484d5e6aaeddf35790fc31f3f09d99b66aee6",
+          "archived_sha256": "9edece647cc14881f0332d46c5a20aa7b07ea5575f9b0fa13323c850038b500a",
           "capture_ids": [
-            "132636d7-8008-41d6-a800-1a1e6dbae230"
+            "f35f114b-4f7d-4d6a-b7b0-6ee86e8122b5"
           ],
           "capture_history": [
             {
@@ -179650,6 +179586,16 @@
               "captured_at": "2026-11-07T11:10:14.425534+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "f35f114b-4f7d-4d6a-b7b0-6ee86e8122b5",
+              "source_key": "cosenza-robot-discovery",
+              "sha256": "9edece647cc14881f0332d46c5a20aa7b07ea5575f9b0fa13323c850038b500a",
+              "byte_size": 91734,
+              "content_type": "text/html; charset=UTF-8",
+              "captured_at": "2026-11-07T19:18:47.453117+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -179660,14 +179606,14 @@
           "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/34/2026-08/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-03.08.2026_0.pdf",
           "etag": "\"1072ea-658334fa0e063\"",
           "last_modified": "Tue, 04 Aug 2026 07:07:42 GMT",
-          "last_checked_at": "2026-11-07T11:10:13.509955+00:00",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "source",
           "source_keys": [
             "cosenza-combined"
           ],
           "archived_sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
           "capture_ids": [
-            "12bfbbc1-7ef8-4c01-b29f-3393f9532cbd"
+            "fb3fb243-bf2c-4462-a974-07b8a0a98eb9"
           ],
           "capture_history": [
             {
@@ -180087,6 +180033,16 @@
               "byte_size": 1077994,
               "content_type": "application/pdf",
               "captured_at": "2026-11-07T11:10:19.359956+00:00",
+              "reference_date": null,
+              "http_status": 200
+            },
+            {
+              "capture_id": "fb3fb243-bf2c-4462-a974-07b8a0a98eb9",
+              "source_key": "cosenza-combined",
+              "sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+              "byte_size": 1077994,
+              "content_type": "application/pdf",
+              "captured_at": "2026-11-07T19:18:53.489723+00:00",
               "reference_date": null,
               "http_status": 200
             }
@@ -201827,12 +201783,12 @@
           "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/02-white-list-sez-ii-confezionamento-fornitura-e-trasporto-di-calcestruzzi-e-di-bitume.docx",
           "etag": "\"c038-61bde6124b2eb\"",
           "last_modified": "Thu, 27 Jun 2024 12:36:26 GMT",
-          "last_checked_at": "2026-11-02T12:35:52.468398+00:00",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "12c8a5806c10e3197e62bc2c1701a5985f56787313ad22ee00e2b449d88d0b19",
           "capture_ids": [
-            "03d3eed9-4f9c-40c7-86ae-32517c0e58d4"
+            "29142f6e-33a2-4a01-9ae5-1331023ded48"
           ],
           "capture_history": [
             {
@@ -201904,6 +201860,16 @@
               "captured_at": "2026-11-02T12:37:54.336845+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "29142f6e-33a2-4a01-9ae5-1331023ded48",
+              "source_key": "cosenza-robot-discovery",
+              "sha256": "12c8a5806c10e3197e62bc2c1701a5985f56787313ad22ee00e2b449d88d0b19",
+              "byte_size": 49208,
+              "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "captured_at": "2026-11-07T19:18:56.502060+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -201914,12 +201880,12 @@
           "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/01-white-list-sez-i-estrazione-fornitura-di-terra-e-mat-inerti.docx",
           "etag": "\"1046b-61bde605c03ec\"",
           "last_modified": "Thu, 27 Jun 2024 12:36:13 GMT",
-          "last_checked_at": "2026-11-02T12:35:52.468398+00:00",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "ad98b10ffa77ac2217fbe3f01bcff9543b5c2baf8c40bb0f837192b62affcc91",
           "capture_ids": [
-            "280cc84b-0011-4d92-b1e7-ca26a2ae76a5"
+            "81528154-5b70-408a-85a0-0292d02dcb8f"
           ],
           "capture_history": [
             {
@@ -201991,6 +201957,16 @@
               "captured_at": "2026-11-02T12:37:57.057011+00:00",
               "reference_date": null,
               "http_status": 200
+            },
+            {
+              "capture_id": "81528154-5b70-408a-85a0-0292d02dcb8f",
+              "source_key": "cosenza-robot-discovery",
+              "sha256": "ad98b10ffa77ac2217fbe3f01bcff9543b5c2baf8c40bb0f837192b62affcc91",
+              "byte_size": 66667,
+              "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "captured_at": "2026-11-07T19:18:59.056885+00:00",
+              "reference_date": null,
+              "http_status": 200
             }
           ]
         },
@@ -202001,12 +201977,12 @@
           "resolved_url": "https://prefettura.interno.gov.it/sites/default/files/34/2024-06/00elenco-imprese-iscritte-e-richiedenti-iscrizione-aggiornato-al-24.06.2024.docx",
           "etag": "\"39d6d-61bde5f2ccaed\"",
           "last_modified": "Thu, 27 Jun 2024 12:35:53 GMT",
-          "last_checked_at": "2026-11-02T12:35:52.468398+00:00",
+          "last_checked_at": "2026-11-07T19:18:46.055339+00:00",
           "role": "candidate",
           "source_keys": [],
           "archived_sha256": "998d4d7f7bfee70fd23f5fa007efdfc8f83bcecf4b89dac4c964dda910ad1a53",
           "capture_ids": [
-            "3dca41dc-d4dd-438c-ac44-563f22d38467"
+            "de339342-beef-4ba3-84f3-e186673ff718"
           ],
           "capture_history": [
             {
@@ -202076,6 +202052,16 @@
               "byte_size": 236909,
               "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
               "captured_at": "2026-11-02T12:38:00.321139+00:00",
+              "reference_date": null,
+              "http_status": 200
+            },
+            {
+              "capture_id": "de339342-beef-4ba3-84f3-e186673ff718",
+              "source_key": "cosenza-robot-discovery",
+              "sha256": "998d4d7f7bfee70fd23f5fa007efdfc8f83bcecf4b89dac4c964dda910ad1a53",
+              "byte_size": 236909,
+              "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "captured_at": "2026-11-07T19:19:01.746907+00:00",
               "reference_date": null,
               "http_status": 200
             }
@@ -202888,7 +202874,7 @@
       },
       "population_mapping_reviewed": true,
       "publication_approved": false,
-      "run_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42366947143"
+      "run_url": "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/42405548754"
     },
     "gorizia": {
       "authority_key": "gorizia",
