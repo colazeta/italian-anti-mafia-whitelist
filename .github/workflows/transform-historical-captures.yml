@@ -7,8 +7,23 @@ on:
     paths:
       - '.github/workflows/transform-historical-captures.yml'
       - 'src/white_list_archive/acquisition/historical_transform.py'
+      - 'src/white_list_archive/acquisition/historical_checkpoint.py'
+  issue_comment:
+    types: [created]
+  workflow_run:
+    workflows: ['Prefecture robots']
+    types: [completed]
   workflow_dispatch:
     inputs:
+      mode:
+        description: Resume the durable frozen campaign or run a separate explicit batch
+        type: choice
+        options: ['resume', 'manual']
+        default: 'resume'
+      restart_cycle:
+        description: Explicitly preserve and replace the previous frozen campaign
+        type: boolean
+        default: false
       robot_state_sha:
         description: Frozen robot-state commit (empty only for the initial batch)
         type: string
@@ -37,12 +52,138 @@ permissions:
 
 concurrency:
   # Serialise with the ordinary private transformer; retain shared database controls.
-  group: transform-reviewed-captures
+  group: >-
+    ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'issue_comment' && github.event.action == 'created' &&
+         github.event.issue.number == 225 && !github.event.issue.pull_request &&
+         github.actor == github.repository_owner &&
+         github.event.comment.user.login == github.repository_owner &&
+         github.event.comment.user.type == 'User' && github.event.comment.created_at != '' &&
+         github.event.comment.created_at == github.event.comment.updated_at &&
+         github.event.comment.body == '/whitelist-history-resume') ||
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.name == 'Prefecture robots' &&
+         github.event.workflow_run.head_branch == 'main' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         (github.event.workflow_run.event == 'schedule' || github.event.workflow_run.event == 'workflow_dispatch'))) &&
+        'transform-reviewed-captures' || format('ignored-historical-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
+  prepare-resume:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.mode != 'manual') ||
+       github.event_name == 'push' ||
+       (github.event_name == 'issue_comment' && github.event.action == 'created' &&
+        github.event.issue.number == 225 && !github.event.issue.pull_request &&
+        github.actor == github.repository_owner &&
+        github.event.comment.user.login == github.repository_owner &&
+        github.event.comment.user.type == 'User' && github.event.comment.created_at != '' &&
+        github.event.comment.created_at == github.event.comment.updated_at &&
+        github.event.comment.body == '/whitelist-history-resume') ||
+       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.name == 'Prefecture robots' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        (github.event.workflow_run.event == 'schedule' || github.event.workflow_run.event == 'workflow_dispatch')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: evidence-archive
+    outputs:
+      code_revision: ${{ steps.prepare.outputs.code_revision }}
+      robot_state_sha: ${{ steps.prepare.outputs.robot_state_sha }}
+      cycle_id: ${{ steps.prepare.outputs.cycle_id }}
+      has_work: ${{ steps.prepare.outputs.has_work }}
+    env:
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      RESTART_CYCLE: ${{ github.event_name == 'workflow_dispatch' && inputs.restart_cycle == true && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[storage]'
+      - name: Independently read or initialise the private frozen campaign
+        id: prepare
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+          extra=()
+          if [ "$RESTART_CYCLE" = 'true' ]; then extra+=(--restart-cycle); fi
+          python -m white_list_archive.acquisition.historical_checkpoint prepare "${extra[@]}" >> "$GITHUB_OUTPUT"
+      - name: Record honest pending and unresolved campaign totals
+        run: python -m white_list_archive.acquisition.historical_checkpoint inspect
+
+  resume-frozen-batch:
+    needs: prepare-resume
+    if: needs.prepare-resume.outputs.has_work == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: evidence-archive
+    env:
+      PYTHONUNBUFFERED: '1'
+      EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+      EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+      EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+      EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+      EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+      AWS_EC2_METADATA_DISABLED: 'true'
+      CYCLE_ID: ${{ needs.prepare-resume.outputs.cycle_id }}
+      MAX_JOBS: ${{ inputs.max_jobs || (github.event_name == 'push' && '2' || '10') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-resume.outputs.code_revision }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install existing parser and private persistence runtime
+        run: |
+          set -euo pipefail
+          while IFS= read -r source_file; do
+            [ -n "$source_file" ] && sudo rm -f "$source_file"
+          done < <(grep -rlE 'dl\.google\.com/linux/chrome|packages\.google\.com/chrome' /etc/apt/sources.list.d 2>/dev/null || true)
+          if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '\|dl\.google\.com/linux/chrome|d;\|packages\.google\.com/chrome|d' /etc/apt/sources.list
+          fi
+          for attempt in 1 2 3; do
+            sudo rm -rf /var/lib/apt/lists/*
+            if sudo apt-get update -qq -o Acquire::Retries=3 &&
+               sudo apt-get install -y --no-install-recommends poppler-utils antiword; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Parser dependency installation failed' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
+          python -m pip install -e '.[publication,storage,database]'
+      - name: Resume exactly one bounded batch and commit its private CAS cursor
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin robot-state:refs/remotes/origin/robot-state
+          python -m white_list_archive.acquisition.historical_checkpoint resume \
+            --expected-cycle-id "$CYCLE_ID" --max-jobs "$MAX_JOBS"
+      - name: Independently verify the durable cursor and retained receipt
+        if: always()
+        run: python -m white_list_archive.acquisition.historical_checkpoint inspect
+
   historical-transform:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'manual'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: evidence-archive
