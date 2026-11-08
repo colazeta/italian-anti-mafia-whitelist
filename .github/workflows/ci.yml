@@ -126,3 +126,5 @@ jobs:
         run: python tests/capture_rich_db_check.py
       - name: Test read-only rich source QA against PostgreSQL
         run: python tests/cosenza_qa_db_check.py
+      - name: Test immutable private review candidates against PostgreSQL
+        run: python tests/cosenza_review_db_check.py

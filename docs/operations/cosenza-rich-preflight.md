@@ -39,7 +39,9 @@ other exact reviewed pairs. No source-edition attribution is created.
 
 The workflow mode defaults to `preflight` for both manual dispatch and push
 acceptance. `persist-source-only` is accepted only for an explicit
-`workflow_dispatch` event; a push never writes source rows. The same exact reviewed
+`workflow_dispatch` event or an exact authorised owner command. A push does not
+authorise new source writes; the durable queue can resume previous explicit owner
+requests. The same exact reviewed
 historical capture and existing aggregate snapshot UUIDs remain prerequisites.
 
 This mode uses `persistence.capture_rich_cosenza`, not the legacy
@@ -121,7 +123,8 @@ TO wl_ingest;
 ```
 
 This proposal grants no edition, semantic, canonical, UPDATE or DELETE access.
-It has not been executed by preparing the implementation or documentation.
+The owner approved these six INSERT permissions on 8 November 2026 and they were
+applied and independently checked. No additional grant is implied by this document.
 
 New rich rows/fields/mentions use bounded psycopg `executemany` batches; readback
 loads complete ordered record, field and mention sets rather than issuing one
@@ -141,6 +144,7 @@ user authorised source-only execution and the six INSERT permissions on8 Novembe
 A secret-free authorisation job rejects other actors, repositories, PR comments,
 edits, issue numbers, commands and refs before protected credentials are loaded.
 The protected job checks out the identical frozen code SHA and receives only
-validated mode/UUID outputs. Push remains read-only; existing protected environment,
+validated mode/UUID outputs. Push runs read-only preflight, then recovers prior
+authorised requests and retains private review candidates; existing protected environment,
 concurrency, byte verification, QA boundaries and idempotence remain in force.
 No additional schedule or publisher is introduced.
