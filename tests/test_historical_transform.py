@@ -123,7 +123,7 @@ def test_execution_uses_common_transformer_retry_and_explicit_edition_quarantine
 def test_historical_workflow_is_bounded_main_only_unscheduled_and_uses_shared_serialisation():
     text = Path('.github/workflows/transform-historical-captures.yml').read_text()
     assert "if: github.ref == 'refs/heads/main'" in text
-    assert 'group: transform-reviewed-captures' in text
+    assert "'transform-reviewed-captures'" in text
     assert 'environment: evidence-archive' in text
     assert 'schedule:' not in text
     assert 'upload-artifact@' not in text

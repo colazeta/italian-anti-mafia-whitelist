@@ -329,3 +329,55 @@ failure, if present. These fixed aggregates contain no source identities, rows o
 private storage coordinates. They do not extend the public artefact contract.
 Operational acceptance requires complete receipt coverage and zero diagnostic
 failures in addition to the independent private-report readback claim.
+
+## Automatic resumption of a frozen historical campaign
+
+The existing historical workflow now defaults to `resume`. It resumes one batch
+of at most ten interpretations, rotating fairly across all four authority shards.
+The first bounded acceptance push uses two jobs. Successful trusted-main
+`Prefecture robots` completion wakes the same workflow using the existing daily
+robot cadence; there is no additional cron, crawler, ChatGPT task or credential.
+The owner can also post the exact command `/whitelist-history-resume` on issue
+#225. Only a newly created comment by the repository owner on that exact issue
+is accepted; PRs, edited comments, other authors, arguments and other issues are
+ignored before the protected job. The runtime repeats that event authorisation.
+Ignored comments receive a unique concurrency group, so unrelated discussion
+cannot occupy the shared transformer lock. Accepted wakes remain serialised with
+the ordinary private transformer.
+
+Preparation creates a frozen campaign only when none exists. Its immutable
+context pins the exact code revision, configuration-file SHA-256, robot-state
+commit, all four interpretation-selection digests and their explicit denominators.
+Later robot heads and code deployments do not change an active campaign. The
+controller reads its private state and checks out the context's exact code before
+executing a worker. Selection/configuration drift fails before interpretation.
+A manual dispatch with `restart_cycle: true` explicitly preserves the previous
+closing state and starts a separate campaign; no wake-up implicitly restarts one.
+The older `manual` mode remains an independent explicit batch operation.
+
+The active JSON cursor under `operations/v1/historical-backlog/active.json` is
+mutable **operational state**, separate from source originals and catalogue
+records. Updates require the provider's exact ETag through conditional `IfMatch`.
+Every batch first writes a new immutable attempt receipt under its campaign's
+private operations path and verifies full readback. That receipt binds exact
+planned inputs and outcomes, the previous checkpoint hash and the complete next
+checkpoint. Only then can the active cursor advance. Reload independently reads
+both the immutable campaign context and last receipt and verifies that they agree
+with the complete cursor/result ledger. Missing ETags, conditional-write rejection
+or mismatched readback fail closed and cannot claim progress.
+
+A process interrupted after database commit but before checkpoint can repeat the
+same frozen inputs. The existing transformer rereads/reuses the committed parse
+snapshot rather than fabricating a new edition. A rejected cursor update leaves
+its append-only attempt receipt intact and the old cursor selected for retry.
+No source evidence is overwritten, and no failed result is treated as validation.
+
+The cursor counts attempted jobs. Successful results require independent database
+and TLS readback, and explicitly remain unapproved for public publication.
+Quarantines remain in a durable unresolved ledger while other unattempted jobs
+can progress. When all cursors are exhausted, any unresolved interpretation or
+scope-review item yields `blocked_review`, never `complete`. Aggregate inspection
+reports the full denominator, attempted, validated, pending and unresolved counts.
+A complete campaign therefore means its selected private historical interpretation
+scope passed; it does not approve administrative editions, close undiscovered
+historical gaps, prove independent restore or authorise a public release.
