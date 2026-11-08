@@ -30,6 +30,15 @@ def authorise(event_name, event, *, repository, actor, ref):
             raise ValueError('An exact owner command on issue225 is required')
         capture, run = PAIRS[comment['body']]
         mode = 'persist-source-only'
+    elif event_name == 'workflow_run':
+        run = event.get('workflow_run', {})
+        if (run.get('name') != 'Prefecture robots' or run.get('conclusion') != 'success'
+            or run.get('head_branch') != 'main'
+            or run.get('head_repository', {}).get('full_name') != REPOSITORY
+            or run.get('event') not in ('schedule', 'workflow_dispatch')):
+            raise ValueError('Only the trusted ordinary robots run may wake the queue')
+        capture, run = PAIRS['/cosenza-source-only 2026-06-28']
+        mode = 'drain-owner-queue'
     elif event_name == 'push':
         capture, run = PAIRS['/cosenza-source-only 2026-06-28']
         mode = 'preflight'
