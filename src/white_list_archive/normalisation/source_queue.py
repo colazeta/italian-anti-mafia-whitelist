@@ -185,7 +185,29 @@ def verify_queue_qa(store, request, result, source_revision, qa_revision):
     persist_operational_report(store, report)
 
 
-def drain_requests(store, requests, revision, *, execute=frozen_operation, qa=verify_queue_qa, limit=50):
+def retain_queue_review(store, inputs, revision):
+    """Retain private source candidates; expose only the dossier's safe summary."""
+    import os
+    from white_list_archive.acquisition.auto_transform import private_connection
+    from white_list_archive.normalisation.cosenza_review import retain_review
+    with private_connection(os.environ['EVIDENCE_DATABASE_URL']) as conn:
+        retained = retain_review(conn, store, inputs=inputs, dossier_code_revision=revision)
+        conn.rollback()
+    summary = retained['safe_summary']
+    allowed = {'contract', 'dossier_sha256', 'receipt_sha256', 'immutable',
+        'versions_expected', 'versions_verified', 'records_verified', 'comparison_verified',
+        'identical_occurrences', 'before_only_occurrences', 'after_only_occurrences',
+        'changed_document_mentions', 'administrative_reference_dates_unknown',
+        'database_writes', 'edition_approvals', 'semantic_ready', 'publication_ready'}
+    if (set(summary) != allowed or summary['immutable'] is not True
+        or summary['database_writes'] != 0 or summary['edition_approvals'] != 0
+        or summary['semantic_ready'] is not False or summary['publication_ready'] is not False):
+        raise ValueError('Private review summary lacks its closed source-only contract')
+    return summary
+
+
+def drain_requests(store, requests, revision, *, execute=frozen_operation, qa=verify_queue_qa,
+                   retain=None, limit=50):
     """At most fifty request receipts and two newly materialised pairs per wake-up."""
     verified = failures = processed = new_requests = new_completions = 0
     cache = {}
@@ -250,9 +272,32 @@ def drain_requests(store, requests, revision, *, execute=frozen_operation, qa=ve
                 failed_pairs.add(cache_key)
             # No provider exceptions, source rows, request IDs or private keys escape.
             failures += 1
+    dossiers = []
+    if retain is not None:
+        # Compare only exact, independently verified interpretations from the
+        # same actual source revision. Pair order is the explicit reviewed
+        # June/August input order, never a date inferred from acquisition.
+        revisions = sorted({key[1] for key in verified_results})
+        for source_revision in revisions:
+            inputs = []
+            for capture_id, prerequisite in PAIRS.values():
+                result = verified_results.get(((capture_id, prerequisite), source_revision))
+                if result is not None:
+                    inputs.append({'capture_id': capture_id,
+                        'parse_run_id': result['parse_run_id'],
+                        'source_revision': source_revision,
+                        'expected_count': result['record_count']})
+            if inputs:
+                try:
+                    dossiers.append(retain(store, inputs, revision))
+                except Exception:
+                    # An immutable request receipt is not dossier acceptance.
+                    # The next ordinary wake-up retries without source writes.
+                    failures += 1
     return {'requests_expected': len(requests), 'requests_verified': verified,
             'requests_pending': len(requests) - verified, 'diagnostic_failures': failures,
-            'bounded_remaining': len(requests) - verified - failures,
+            'bounded_remaining': max(0, len(requests) - verified - failures),
+            'review_dossiers_verified': len(dossiers), 'review_dossiers': dossiers,
             'qa_reports_verified': len(qa_verified), 'semantic_ready': False, 'publication_ready': False,
             'publications': 0, 'edition_approvals': 0}
 
@@ -264,7 +309,8 @@ def main():
         requests = ledger_requests(lambda path: github_json(path, os.environ['GITHUB_TOKEN']))
         config = StoreConfig.from_env()
         store = EvidenceStore(client_for(config), config)
-        report = drain_requests(store, requests, os.environ['EXECUTING_REVISION'])
+        report = drain_requests(store, requests, os.environ['EXECUTING_REVISION'],
+                                retain=retain_queue_review)
     except Exception:
         report = {'requests_expected': None, 'requests_verified': 0, 'requests_pending': None,
                   'diagnostic_failures': 1, 'publications': 0, 'edition_approvals': 0}

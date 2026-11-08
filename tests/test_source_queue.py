@@ -186,3 +186,38 @@ def test_repeated_failed_pair_is_not_retried_per_comment_and_no_success_receipts
     assert report['requests_verified']==0 and report['requests_pending']==9
     assert report['diagnostic_failures']==9
     assert not any(key.endswith('/completed.json') for key in archive.client.objects)
+
+
+def test_review_uses_exact_verified_pairs_in_explicit_order_and_actual_source_revision():
+    requests=ledger([[comment(1,list(PAIRS)[1]),comment(2)]])
+    archive=store(); retained=[]
+    def execute(revision,request,saved=None):
+        return saved or {'parse_run_id':request['capture_id'],'record_count':3}
+    def retain(store,inputs,revision):
+        retained.append((inputs,revision))
+        return {'private_readback_verified':True,'candidate_rows':6}
+    result=drain_requests(archive,requests,'a'*40,execute=execute,qa=lambda *args:None,retain=retain)
+    assert result['review_dossiers_verified']==1
+    assert [r['capture_id'] for r in retained[0][0]]==[pair[0] for pair in PAIRS.values()]
+    assert all(r['source_revision']=='a'*40 for r in retained[0][0])
+    result=drain_requests(archive,requests,'b'*40,execute=execute,qa=lambda *args:None,retain=retain)
+    assert retained[-1][1]=='b'*40
+    assert all(r['source_revision']=='a'*40 for r in retained[-1][0])
+    assert result['requests_pending']==0
+
+
+def test_failed_review_remains_visible_and_retries_without_rewriting_completed_requests():
+    requests=ledger([[comment()]])
+    archive=store()
+    def execute(revision,request,saved=None):
+        return saved or {'parse_run_id':request['capture_id'],'record_count':1}
+    def failed(*args):raise RuntimeError('PRIVATE-ROW-DETAILS')
+    first=drain_requests(archive,requests,'a'*40,execute=execute,qa=lambda *args:None,retain=failed)
+    assert first['diagnostic_failures']==1 and first['review_dossiers_verified']==0
+    assert first['requests_verified']==1 and first['bounded_remaining']==0
+    assert 'PRIVATE-ROW-DETAILS' not in str(first)
+    before=dict(archive.client.objects)
+    resumed=drain_requests(archive,requests,'b'*40,execute=execute,qa=lambda *args:None,
+        retain=lambda *args:{'private_readback_verified':True})
+    assert resumed['diagnostic_failures']==0 and resumed['review_dossiers_verified']==1
+    assert archive.client.objects==before

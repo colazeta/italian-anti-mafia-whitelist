@@ -1,6 +1,6 @@
 name: Private Cosenza rich preflight
 on:
-  # Fixed already committed capture/snapshot pair; read-only main acceptance.
+  # Read-only preflight, recovery of prior owner requests and private review.
   push:
     branches: [main]
     paths:
@@ -10,6 +10,10 @@ on:
       - 'src/white_list_archive/persistence/capture_rich_cosenza.py'
       - 'src/white_list_archive/normalisation/source_command.py'
       - 'src/white_list_archive/normalisation/source_queue.py'
+      - 'src/white_list_archive/normalisation/cosenza_qa.py'
+      - 'src/white_list_archive/normalisation/cosenza_review.py'
+      - 'src/white_list_archive/normalisation/cosenza_candidate.py'
+      - 'src/white_list_archive/semantic/combined_whitelist_v1.py'
   issue_comment:
     types: [created]
   workflow_run:
