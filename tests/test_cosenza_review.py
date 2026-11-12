@@ -150,3 +150,30 @@ def test_duplicate_versions_and_nonexact_code_are_rejected(verified):
         review.retain_review(object(),verified,inputs=[inputs()[0]]*2,dossier_code_revision='c'*40)
     with pytest.raises(ValueError,match='Exact dossier'):
         review.retain_review(object(),verified,inputs=inputs(),dossier_code_revision='main')
+
+
+def test_reordered_physical_rows_are_not_source_changes():
+    # Physical positions change between original PDFs; raw-block hashes do not.
+    first = [row(1, 'alpha', 'a'), row(2, 'beta', 'b'), row(3, 'gamma', 'c')]
+    rearranged = [row(1, 'gamma', 'c'), row(2, 'alpha', 'a'), row(3, 'beta', 'b')]
+    comparison = review.document_diff(first, rearranged)
+    assert comparison['identical_occurrences'] == 3
+    assert comparison['before_only_occurrences'] == 0
+    assert comparison['after_only_occurrences'] == 0
+    assert comparison['changed_unambiguous_document_mentions'] == []
+    assert comparison['legal_event_inference_performed'] is False
+
+
+def test_reordering_with_one_changed_block_does_not_match_on_ordinal():
+    first = [row(1, 'alpha', 'a'), row(2, 'beta', 'b'), row(3, 'gamma', 'c')]
+    rearranged = [row(1, 'gamma', 'c'), row(2, 'alpha revised', 'a'), row(3, 'beta', 'b')]
+    comparison = review.document_diff(first, rearranged)
+    assert comparison['identical_occurrences'] == 2
+    assert comparison['before_only_occurrences'] == 1
+    assert comparison['after_only_occurrences'] == 1
+    assert len(comparison['changed_unambiguous_document_mentions']) == 1
+    changed = comparison['changed_unambiguous_document_mentions'][0]
+    assert changed['before_row_ordinal'] == 1
+    assert changed['after_row_ordinal'] == 2
+    assert 'row_ordinal' not in changed['changed_fields']
+    assert comparison['legal_event_inference_performed'] is False
