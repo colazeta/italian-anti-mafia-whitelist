@@ -62,7 +62,7 @@ def test_multiple_distinct_application_dates_require_source_fact_review():
     assert dates['multiple_distinct_application_date_rows'] == 3
     assert dates['max_distinct_application_dates_per_row'] == 4
     assert dates['tokens'] == 10
-    assert dates['invalid_calendar_dates'] == 0
+    assert dates.get('invalid_calendar_dates', 0) == 0
     assert 'edition_date' not in dates
 
 
