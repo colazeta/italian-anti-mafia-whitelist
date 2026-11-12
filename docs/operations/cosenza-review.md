@@ -79,3 +79,42 @@ fixture. It verifies deterministic repeat retention and unchanged source,
 edition, semantic and canonical row counts in a read-only transaction. The
 external catalogue is mocked only for this isolated database check; a production
 main run must independently verify the actual R2 catalogue and original bytes.
+
+
+## Review-safe field-change counts (12 November 2026)
+
+The document diff now exposes a fixed-schema `changed_field_counts` aggregate
+inside the private dossier and its aggregate-only `safe_summary`. Each
+counter measures unambiguous **document mentions** with a changed source-field
+value. It is not a count of businesses, administrative acts, applications,
+legal effects or approved editions. Counters for different fields overlap
+and must not be summed as distinct mentions. The code never places source
+values, unexpected field names, row locators or private storage identifiers
+inside these aggregate counters. A one-version dossier returns `null` for
+this comparison rather than a misleading zero. Input order is only the
+explicit document-comparison order, never presumed chronology.
+
+Independent read-only PostgreSQL QA of one explicitly selected, verified
+rich parse run per original (1,327 and 1,334 source occurrences) found 1,313
+unambiguous matched document-mention keys, including 66 with changed
+record hashes. Within those 66, the changed field counts were: outcome
+source text 59, source status 55, observed listing date 50, application
+date candidates 23, observed expiry date 21, requested activities 3 and
+registered-office text 2. These are overlaps, not a partition; raw and
+normalised fields may describe the same change and are counted separately.
+No changed unambiguous mention was attributable *only* to raw-block/record-hash
+representation while all other source fields remained identical in this
+bounded comparison. The 14 and 21 unmatched mention keys are not interpreted
+as entrant/departure events. The independently verified exact-block
+comparison remains 1,247 identical blocks, 80 only in the first input and
+87 only in the second (including the 66 changed document mentions).
+
+A change in `source_status`, an observed date or `outcome_raw` must
+remain a **source observation**. None proves a new legal status, approved
+edition reference date, separate procedure, revocation, cancellation or
+interdiction. Before semantic execution, an authenticated documentary
+review must establish edition identity, source dates, population/sector
+scope and procedure linkage. Synthetic regression tests check that
+row reordering does not create field changes, unexpected keys and source
+values never enter the safe field counts, and dossier preparation retains
+blocked semantic/publication readiness.

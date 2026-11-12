@@ -17,6 +17,16 @@ from white_list_archive.storage.catalogue_recovery import load_catalogued_captur
 CONTRACT = 'cosenza-private-review-v1'
 PREFIX = 'operations/v1/cosenza-review/'
 MAX_BYTES = 32_000_000
+# Fixed schema fields only: never expose source values or dynamic source keys in safe QA.
+REVIEWED_SOURCE_FIELDS = frozenset({
+    'operator_name_raw', 'operator_name_normalised',
+    'registered_office_raw', 'secondary_office_raw',
+    'identifier_field_raw', 'identifiers_json',
+    'application_date_field_raw', 'application_dates_json',
+    'requested_activities_raw', 'requested_activities_json',
+    'observed_listing_date', 'observed_expiry_date',
+    'outcome_raw', 'outcome_json', 'source_status',
+})
 CHECKLIST = [
     {'item': 'document_identity', 'status': 'requires_review',
      'basis': 'Inspect the exact archived original and its catalogue provenance.'},
@@ -66,6 +76,12 @@ def document_diff(before, after):
                 'after_row_ordinal': right[0]['row_ordinal'],
                 'changed_fields': sorted(k for k in left[0] if k != 'row_ordinal'
                                          and left[0][k] != right[0][k])})
+    # Counts are per unambiguous *document mention*, not legal events or entities.
+    # Exclude hashes, raw blocks, ordinals and any unexpected/dynamic keys.
+    field_change_counts = Counter(
+        field for change in changes for field in change['changed_fields']
+        if field in REVIEWED_SOURCE_FIELDS
+    )
     def occurrences(counts):
         return [{'record_hash': key, 'occurrences': counts[key]} for key in sorted(counts)]
     return {'basis': 'explicit_input_order_document_occurrences_only',
@@ -75,6 +91,7 @@ def document_diff(before, after):
         'after_only_occurrences': sum(added.values()),
         'before_only_hashes': occurrences(removed), 'after_only_hashes': occurrences(added),
         'changed_unambiguous_document_mentions': changes,
+        'changed_field_counts': dict(sorted(field_change_counts.items())),
         'ambiguous_shared_mention_groups': ambiguous,
         'legal_event_inference_performed': False}
 
@@ -215,6 +232,7 @@ def retain_review(conn, store, *, inputs, dossier_code_revision):
         'before_only_occurrences': comparison['before_only_occurrences'] if comparison else None,
         'after_only_occurrences': comparison['after_only_occurrences'] if comparison else None,
         'changed_document_mentions': len(comparison['changed_unambiguous_document_mentions']) if comparison else None,
+        'changed_field_counts': comparison['changed_field_counts'] if comparison else None,
         'administrative_reference_dates_unknown': len(versions),
         'database_writes': 0, 'edition_approvals': 0, 'semantic_ready': False, 'publication_ready': False}
     return {'dossier_sha256': dossier_sha, 'receipt_sha256': receipt_sha,

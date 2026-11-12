@@ -177,3 +177,47 @@ def test_reordering_with_one_changed_block_does_not_match_on_ordinal():
     assert changed['after_row_ordinal'] == 2
     assert 'row_ordinal' not in changed['changed_fields']
     assert comparison['legal_event_inference_performed'] is False
+
+
+def test_review_field_change_counts_never_expose_source_values():
+    old = row(1, 'synthetic original', 'stable-synthetic-mention')
+    new = row(9, 'synthetic revised', 'stable-synthetic-mention')
+    old.update(outcome_raw='synthetic old outcome', source_status='listed',
+               observed_listing_date='01/01/2026', private_unknown_key='hidden-old')
+    new.update(outcome_raw='synthetic new outcome', source_status='applicant',
+               observed_listing_date='02/01/2026', private_unknown_key='hidden-new')
+    comparison = review.document_diff([old], [new])
+    assert comparison['identical_occurrences'] == 0
+    assert comparison['changed_field_counts'] == {
+        'observed_listing_date': 1, 'outcome_raw': 1, 'source_status': 1}
+    safe = json.dumps(comparison['changed_field_counts'])
+    assert 'synthetic' not in safe
+    assert 'private_unknown_key' not in safe
+    assert 'raw_block' not in safe
+    assert 'record_hash' not in safe
+    assert 'row_ordinal' not in safe
+    assert comparison['legal_event_inference_performed'] is False
+
+
+def test_review_field_counts_are_per_mention_and_ignore_row_reordering():
+    before = [row(1, 'alpha', 'alpha'), row(2, 'beta', 'beta')]
+    after = [row(11, 'beta', 'beta'), row(12, 'alpha', 'alpha')]
+    assert review.document_diff(before, after)['changed_field_counts'] == {}
+    before[0]['outcome_raw'] = 'synthetic original'
+    after[1]['outcome_raw'] = 'synthetic revised'
+    after[1]['record_hash'] = hashlib.sha256(b'alpha revised').hexdigest()
+    after[1]['raw_block'] = 'alpha revised'
+    diff = review.document_diff(before, after)
+    assert diff['changed_field_counts'] == {'outcome_raw': 1}
+    assert diff['identical_occurrences'] == 1
+    assert diff['legal_event_inference_performed'] is False
+
+
+def test_private_dossier_summary_field_counts_do_not_claim_approval(verified):
+    result = review.retain_review(
+        object(), verified, inputs=inputs(), dossier_code_revision='c'*40)
+    summary = result['safe_summary']
+    assert summary['changed_field_counts'] == {}
+    assert summary['edition_approvals'] == 0
+    assert summary['semantic_ready'] is False
+    assert summary['publication_ready'] is False
