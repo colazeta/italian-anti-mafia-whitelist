@@ -118,3 +118,16 @@ scope and procedure linkage. Synthetic regression tests check that
 row reordering does not create field changes, unexpected keys and source
 values never enter the safe field counts, and dossier preparation retains
 blocked semantic/publication readiness.
+
+
+The protected owner-request queue has a **separate closed safe-summary contract**:
+it now explicitly permits `changed_field_counts` while rejecting any
+unexpected top-level field, any unrecognised nested field, non-integer or
+negative values, field counts exceeding changed document mentions, and
+non-null comparison counts when no comparison was performed. This is enforced
+by regression tests in the actual queue wrapper, not only by the pure dossier
+planner. A post-merge protected preflight caught a contract mismatch on
+12 November 2026: source-only owner receipts and QA had succeeded, but the
+private dossier reporting step failed closed because the queue whitelist had
+not been updated. The correction leaves receipts and source records untouched;
+the protected rerun must independently prove successful dossier retention.
