@@ -45,3 +45,34 @@ def test_calendar_gate_does_not_claim_validation_without_dates():
     assert result['numerator'] == result['denominator'] == 0
     assert calendar_gate({'dates':{'tokens':2,'invalid_calendar_dates':1}})['status'] == 'blocked'
     assert calendar_gate({'dates':{'tokens':2}})['status'] == 'ready'
+
+
+def test_multiple_distinct_application_dates_require_source_fact_review():
+    import json
+    rows = []
+    for i, values in enumerate((['01/01/2026'], ['01/01/2026', '02/01/2026'],
+                                ['01/01/2026', '02/01/2026', '03/01/2026'],
+                                ['01/01/2026', '02/01/2026', '03/01/2026', '04/01/2026']), 1):
+        row = synthetic_record()
+        row['row_ordinal'] = i
+        row['application_date_field_raw'] = ' / '.join(values)
+        row['application_dates_json'] = json.dumps([{'date': value, 'raw_value': value} for value in values])
+        rows.append(row)
+    dates = source_facts(rows)['dates']
+    assert dates['multiple_distinct_application_date_rows'] == 3
+    assert dates['max_distinct_application_dates_per_row'] == 4
+    assert dates['tokens'] == 10
+    assert dates['invalid_calendar_dates'] == 0
+    assert 'edition_date' not in dates
+
+
+def test_repeating_a_date_does_not_create_a_second_distinct_candidate():
+    import json
+    row = synthetic_record()
+    row['application_dates_json'] = json.dumps([
+        {'date': '01/01/2026', 'raw_value': '01/01/2026'},
+        {'date': '01/01/2026', 'raw_value': '(01/01/2026)'}])
+    dates = source_facts([row])['dates']
+    assert dates['multiple_distinct_application_date_rows'] == 0
+    assert dates['max_distinct_application_dates_per_row'] == 1
+    assert dates['tokens'] == 2
