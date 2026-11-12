@@ -15,6 +15,18 @@ The dossier caller first verifies the R2 original and full relational rich readb
 
 Every row retains capture/run/physical locator/record hash. Identifier candidates, ambiguous schemes and raw source fields remain intact. Application, observed listing and observed expiry dates become calendar-valid candidate values, or null while their raw value remains available. Invalid populated observed date counts stay visible; these calendar candidates are never legal effective dates. Requested activity mappings are proposed concepts for requested activities, never proof of represented relationship sectors. Source outcome text remains a source classification. Canonical entity, legal status and edition approval are always null. Expiry, cancellation text or disappearance never generates a canonical legal event.
 
+## Multiple application dates: mandatory review signal
+
+Production aggregate QA counts `multiple_distinct_application_date_rows` and
+`max_distinct_application_dates_per_row` from the *source-cell* candidate list.
+Rows with two or more distinct application date candidates force the source-fact
+review gate to `unknown`; the dates remain separate in the private candidate.
+This is **not** evidence of multiple procedures, an edition date, an approval or
+a legal event. A reviewer must inspect the exact original and establish any
+procedure linkage explicitly before a separately authenticated semantic gate.
+The diagnostic is per parse run; repeated runs and editions must not be summed
+as distinct entities. The frozen historical code/campaign are not modified.
+
 ## Remaining execution controls
 
 The current projector `semantic.combined_whitelist_v1.project_series` requires exact rich parse/capture selection and a unique same-series edition/date. It also interprets relationship/procedure states. It does not authenticate a reviewer or materially enforce edition identity/attribution approval statuses. Consequently it cannot be called as a shortcut for safely typed source facts before attribution review. The current canonicaliser v2 additionally needs explicit selected projection IDs, reviewed identifier ambiguity/resolution and date/procedure rules. Planning performs neither operation.
