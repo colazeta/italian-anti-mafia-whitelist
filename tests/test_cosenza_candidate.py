@@ -69,3 +69,19 @@ def test_observed_dates_are_calendar_candidates_not_legal_effective_dates():
     assert facts['observed_expiry_date_calendar_candidate'] is None
     assert result['safe_summary']['issue_counts']['invalid_observed_expiry_date']==1
     assert result['private_payload']['rows'][0]['canonical_legal_status'] is None
+
+
+def test_multiple_application_dates_remain_distinct_private_candidates():
+    row = synthetic_record()
+    row['application_date_field_raw'] = '01/02/2026 (03/04/2026)'
+    row['application_dates_json'] = json.dumps([
+        {'date':'01/02/2026','raw_value':'01/02/2026','parenthesized':False},
+        {'date':'03/04/2026','raw_value':'(03/04/2026)','parenthesized':True}])
+    result = planned([row])
+    facts = result['private_payload']['rows'][0]['source_facts']
+    assert facts['application_date_field_raw'] == row['application_date_field_raw']
+    assert [d['calendar_date'] for d in facts['application_date_candidates']] == [
+        '2026-02-01','2026-04-03']
+    assert facts['application_date_candidates'][1]['source_value']['parenthesized'] is True
+    assert result['private_payload']['rows'][0]['edition_approval'] is None
+    assert result['safe_summary']['semantic_execution_ready'] is False
