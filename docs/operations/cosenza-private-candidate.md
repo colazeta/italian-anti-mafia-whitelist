@@ -47,3 +47,26 @@ Before any execution, independently authenticate edition identity/date basis and
 `provenance.processing_activity` SELECT/INSERT already exist. Edition append would separately lack INSERT on `source.source_edition` and `source.capture_edition`; do not grant or invoke the legacy manifest path merely to bypass absent attribution. Any complete edition materialiser must receive its own reviewed contract/privilege audit. No UPDATE/DELETE privilege is proposed. No privilege change was executed by this work.
 
 Tests verify deterministic hashes, immutable source ambiguity, impossible dates, revision/snapshot mismatch rejection, privacy of aggregate summaries and absence of inferred canonical states. PostgreSQL/source-store integration is exercised by the dossier caller using the same verified rich snapshot; this pure planner introduces no new SQL.
+
+## Physical row position is not longitudinal identity (QA, 12 November 2026)
+
+Independent aggregate SQL over the two persisted, immutable Cosenza originals
+selected one verified rich parse run per original (1,327 and 1,334 document
+occurrences). Their raw-block record hashes overlap for **1,247** occurrences.
+Of those identical content blocks, only **62** retain the same physical
+`row:NNNNNN` locator, while **1,185** occur at different row positions. There
+are **80** content blocks in the 1,327-row input with no exact hash match in
+the 1,334-row input and **87** in the reverse direction. Within each selected
+source input, no record hash is repeated. A same-position comparison would
+incorrectly suggest **1,265** changed blocks because physical row order is not
+stable between files.
+
+These are comparisons of **source document occurrences**, not identified
+companies, administrative entries, legal events or approved editions. Even
+identical source blocks do not themselves authorise canonical identity
+resolution. The comparison order is explicitly selected input order; it is
+not proof of chronology or of administrative reference dates. Unmatched text
+cannot be labelled removal, entry, revocation, rejection or interdiction.
+A synthetic regression test protects content-based comparison against row
+reordering; reviewer attribution and semantic/canonical execution remain
+separately blocked by the existing gates.
