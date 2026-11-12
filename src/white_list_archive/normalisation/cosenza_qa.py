@@ -44,7 +44,13 @@ def source_facts(records):
             identifiers['without_candidate_scheme'] += not bool(candidates)
             identifiers['ambiguous_scheme'] += len(candidates) != 1
             identifier_names.setdefault(value, set()).add(row['operator_name_normalised'])
-        for value in [d.get('date') for d in json.loads(row['application_dates_json'])] + [
+        application_dates = json.loads(row['application_dates_json'])
+        distinct_dates = {item.get('date') for item in application_dates if item.get('date')}
+        # Source-cell multiplicity is a review signal, not evidence of separate procedures.
+        dates['multiple_distinct_application_date_rows'] += len(distinct_dates) > 1
+        dates['max_distinct_application_dates_per_row'] = max(
+            dates['max_distinct_application_dates_per_row'], len(distinct_dates))
+        for value in [d.get('date') for d in application_dates] + [
                 row['observed_listing_date'], row['observed_expiry_date']]:
             if not value:
                 continue
@@ -128,6 +134,7 @@ def assess(conn, *, capture_id, parse_run_id, code_revision, expected_count, dec
                  facts['identifiers'].get('cross_name_tokens', 0) +
                  facts['identifiers'].get('unparsed_rows', 0) +
                  facts['dates'].get('application_unparsed_rows', 0) +
+                 facts['dates'].get('multiple_distinct_application_date_rows', 0) +
                  facts['source_status_counts'].get('other_or_unknown', 0))
     review = review_gate(decision, pins={'capture_id':capture_id,'parse_run_id':parse_run_id,
                                        'snapshot_sha256':snapshot_sha}, edition_links=links)
