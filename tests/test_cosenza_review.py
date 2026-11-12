@@ -205,9 +205,11 @@ def test_review_field_counts_are_per_mention_and_ignore_row_reordering():
     assert review.document_diff(before, after)['changed_field_counts'] == {}
     before[0]['outcome_raw'] = 'synthetic original'
     after[1]['outcome_raw'] = 'synthetic revised'
+    after[1]['record_hash'] = hashlib.sha256(b'alpha revised').hexdigest()
+    after[1]['raw_block'] = 'alpha revised'
     diff = review.document_diff(before, after)
     assert diff['changed_field_counts'] == {'outcome_raw': 1}
-    assert diff['identical_occurrences'] == 2  # raw block identity is unchanged
+    assert diff['identical_occurrences'] == 1
     assert diff['legal_event_inference_performed'] is False
 
 
