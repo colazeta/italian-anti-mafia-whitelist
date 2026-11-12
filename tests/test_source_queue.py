@@ -221,3 +221,49 @@ def test_failed_review_remains_visible_and_retries_without_rewriting_completed_r
         retain=lambda *args:{'private_readback_verified':True})
     assert resumed['diagnostic_failures']==0 and resumed['review_dossiers_verified']==1
     assert archive.client.objects==before
+
+
+def test_queue_review_accepts_bounded_field_aggregates_and_rejects_private_keys(monkeypatch):
+    import os
+    from contextlib import nullcontext
+    from white_list_archive.acquisition import auto_transform
+    from white_list_archive.normalisation import cosenza_review, source_queue
+
+    class SyntheticConn:
+        def rollback(self): pass
+
+    monkeypatch.setenv('EVIDENCE_DATABASE_URL', 'synthetic-test-only')
+    monkeypatch.setattr(auto_transform, 'private_connection',
+                        lambda dsn: nullcontext(SyntheticConn()))
+    summary = dict(
+        contract='cosenza-private-review-v1', dossier_sha256='a'*64,
+        receipt_sha256='b'*64, immutable=True, versions_expected=2,
+        versions_verified=2, records_verified=2, comparison_verified=True,
+        identical_occurrences=1, before_only_occurrences=1,
+        after_only_occurrences=1, changed_document_mentions=1,
+        changed_field_counts={'outcome_raw': 1, 'observed_listing_date': 1},
+        administrative_reference_dates_unknown=2, database_writes=0,
+        edition_approvals=0, semantic_ready=False, publication_ready=False)
+    monkeypatch.setattr(cosenza_review, 'retain_review',
+                        lambda *args, **kwargs: {'safe_summary':summary})
+    output = source_queue.retain_queue_review(store(), [], 'a'*40)
+    assert output['changed_field_counts'] == summary['changed_field_counts']
+    assert output['edition_approvals'] == 0
+
+    for invalid in (
+        {'private_name': 1},
+        {'outcome_raw': 'PRIVATE-SOURCE-VALUE'},
+        {'outcome_raw': 2},
+        {'outcome_raw': True},
+    ):
+        summary['changed_field_counts'] = invalid
+        with pytest.raises(ValueError, match='bounded aggregate'):
+            source_queue.retain_queue_review(store(), [], 'a'*40)
+
+    summary['comparison_verified'] = False
+    summary['changed_field_counts'] = None
+    summary['changed_document_mentions'] = None
+    assert source_queue.retain_queue_review(store(), [], 'a'*40)['comparison_verified'] is False
+    summary['changed_field_counts'] = {}
+    with pytest.raises(ValueError, match='Missing comparison'):
+        source_queue.retain_queue_review(store(), [], 'a'*40)
