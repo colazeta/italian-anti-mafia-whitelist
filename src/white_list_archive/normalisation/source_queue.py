@@ -189,7 +189,8 @@ def retain_queue_review(store, inputs, revision):
     """Retain private source candidates; expose only the dossier's safe summary."""
     import os
     from white_list_archive.acquisition.auto_transform import private_connection
-    from white_list_archive.normalisation.cosenza_review import retain_review
+    from white_list_archive.normalisation.cosenza_review import (
+        retain_review, REVIEWED_SOURCE_FIELDS)
     with private_connection(os.environ['EVIDENCE_DATABASE_URL']) as conn:
         retained = retain_review(conn, store, inputs=inputs, dossier_code_revision=revision)
         conn.rollback()
@@ -197,12 +198,24 @@ def retain_queue_review(store, inputs, revision):
     allowed = {'contract', 'dossier_sha256', 'receipt_sha256', 'immutable',
         'versions_expected', 'versions_verified', 'records_verified', 'comparison_verified',
         'identical_occurrences', 'before_only_occurrences', 'after_only_occurrences',
-        'changed_document_mentions', 'administrative_reference_dates_unknown',
+        'changed_document_mentions', 'changed_field_counts',
+        'administrative_reference_dates_unknown',
         'database_writes', 'edition_approvals', 'semantic_ready', 'publication_ready'}
     if (set(summary) != allowed or summary['immutable'] is not True
         or summary['database_writes'] != 0 or summary['edition_approvals'] != 0
         or summary['semantic_ready'] is not False or summary['publication_ready'] is not False):
         raise ValueError('Private review summary lacks its closed source-only contract')
+    field_counts = summary['changed_field_counts']
+    changed_mentions = summary['changed_document_mentions']
+    if summary['comparison_verified'] is True:
+        if (type(changed_mentions) is not int or changed_mentions < 0
+                or not isinstance(field_counts, dict)
+                or any(key not in REVIEWED_SOURCE_FIELDS or type(value) is not int
+                       or not 0 <= value <= changed_mentions
+                       for key, value in field_counts.items())):
+            raise ValueError('Private review field counts are not bounded aggregate QA')
+    elif field_counts is not None or changed_mentions is not None:
+        raise ValueError('Missing comparison cannot claim source field changes')
     return summary
 
 
