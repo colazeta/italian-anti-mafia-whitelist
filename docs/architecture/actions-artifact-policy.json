@@ -121,6 +121,14 @@
     },
     {
       "workflow": ".github/workflows/transform-reviewed-captures.yml",
+      "name": "white-list-candidate-extract-status-${{ matrix.shard }}-${{ github.run_id }}",
+      "path": "/tmp/public-actions/white-list-candidate-extract/summary.json",
+      "classification": "public_operational_verification",
+      "scope": "Unapproved private candidate extraction: aggregate verification only; full rows retained exclusively in protected object storage",
+      "content_boundary": "Closed totals-only fields: shard, candidate/extracted/reused/quarantined/blocked/deferred counts, QA-flag totals, exact private readback count and zero public promotions. No candidate URLs, source identities, companies, identifiers, hashes, archive storage keys or source row data."
+    },
+    {
+      "workflow": ".github/workflows/transform-reviewed-captures.yml",
       "name": "white-list-transform-status-${{ matrix.shard }}-${{ github.run_id }}",
       "path": "/tmp/public-actions/white-list-auto-transform/summary.json",
       "classification": "public_operational_verification",
