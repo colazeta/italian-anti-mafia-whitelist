@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 import tempfile
 import pdfplumber
@@ -51,9 +52,26 @@ def main() -> None:
                 raise SystemExit(f'{source_key}: candidate source SHA mismatch; no review performed')
             with pdfplumber.open(path) as pdf:
                 page_count=len(pdf.pages)
-                # Aggregate physical-document metadata only: no extracted rows,
-                # names, source text or private capture provenance in artifacts.
+                # Profile every physical page without logging table cells.
+                # These are review-only aggregates, not parser acceptance rules.
                 page_sizes=sorted(set((round(p.width),round(p.height)) for p in pdf.pages))
+                table_counts=Counter()
+                width_counts=Counter()
+                zero_table_pages=[]
+                multi_table_pages=[]
+                physical_rows=0
+                for pno,page in enumerate(pdf.pages,1):
+                    tables=page.find_tables()
+                    table_counts[len(tables)]+=1
+                    if not tables:
+                        zero_table_pages.append(pno)
+                    elif len(tables)>1:
+                        multi_table_pages.append(pno)
+                    for table in tables:
+                        rows=table.extract() or []
+                        physical_rows+=len(rows)
+                        for row in rows:
+                            width_counts[len(row)]+=1
             parser._REFERENCE_DATE=cfg['reference_date']
             if label=='listed':
                 parser._LISTED_SHA256=cfg['sha256']
@@ -67,7 +85,14 @@ def main() -> None:
                 'source_key':source_key, 'official_candidate_date':cfg['reference_date'],
                 'raw_sha256_verified':True,'physical_pages':page_count,
                 'legacy_expected_pages':expected_pages,
-                'page_sizes_pt':page_sizes, 'release_approved':False,
+                'page_sizes_pt':page_sizes,
+                'pages_by_table_count':dict(sorted(table_counts.items())),
+                'zero_table_pages':zero_table_pages[:25],
+                'more_than_25_zero_table_pages':len(zero_table_pages)>25,
+                'multi_table_pages':multi_table_pages[:25],
+                'observed_table_rows':physical_rows,
+                'extracted_row_widths':dict(sorted(width_counts.items())),
+                'release_approved':False,
             }
             try:
                 batch=run(path,cfg)
