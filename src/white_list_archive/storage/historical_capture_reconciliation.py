@@ -167,12 +167,36 @@ _FAILURE_CODES = frozenset({
     "capture_uuid_original_conflict",
     "capture_uuid_metadata_conflict",
     "resource_locator_type_conflict",
+    "resource_locator_web_url_conflict",
+    "resource_locator_web_url_and_type_conflict",
     "content_object_registration_conflict",
     "source_series_not_registered",
     "sql_integrity_or_permission_failure",
     "other_writer_or_readback_failure",
     "diagnostic_unavailable",
 })
+
+
+_RESOURCE_METADATA_CONFLICT_CODES = frozenset({
+    "resource_locator_type_conflict",
+    "resource_locator_web_url_conflict",
+    "resource_locator_web_url_and_type_conflict",
+})
+
+
+def _resource_conflict_reason(
+    *, stored_url: str, stored_type: str, archived_url: str, archived_type: str,
+) -> str | None:
+    """Classify immutable metadata differences; never alter the stored resource."""
+    url_conflict = stored_url != archived_url
+    type_conflict = stored_type != archived_type
+    if url_conflict and type_conflict:
+        return "resource_locator_web_url_and_type_conflict"
+    if url_conflict:
+        return "resource_locator_web_url_conflict"
+    if type_conflict:
+        return "resource_locator_type_conflict"
+    return None
 
 
 def classify_failed_capture(store: Any, manifest: dict, dsn: str, exc: Exception) -> str:
@@ -211,11 +235,14 @@ def classify_failed_capture(store: Any, manifest: dict, dsn: str, exc: Exception
                     (manifest["resource_url"],),
                 )
                 resource = cur.fetchone()
-                if resource and (
-                    resource[0] != manifest["resource_url"]
-                    or resource[1] != manifest["resource_type_code"]
-                ):
-                    return "resource_locator_type_conflict"
+                if resource:
+                    resource_conflict = _resource_conflict_reason(
+                        stored_url=resource[0], stored_type=resource[1],
+                        archived_url=manifest["resource_url"],
+                        archived_type=manifest["resource_type_code"],
+                    )
+                    if resource_conflict:
+                        return resource_conflict
                 cur.execute(
                     "SELECT file_size, storage_uri, storage_status_code "
                     "FROM source.content_object WHERE sha256=%s",
@@ -253,6 +280,7 @@ def reconcile_historical_capture_checks(
     readbacks = 0
     errors = 0
     failure_categories = {name: 0 for name in sorted(_FAILURE_CODES)}
+    resource_conflicts_by_series = {name: 0 for name in sorted(_ALLOWED_SERIES)}
     if dsn:
         for manifest, receipt in checked:
             try:
@@ -267,6 +295,10 @@ def reconcile_historical_capture_checks(
                 reason = classify_failed_capture(store, manifest, dsn, exc)
                 reason = reason if reason in _FAILURE_CODES else "diagnostic_unavailable"
                 failure_categories[reason] += 1
+                if reason in _RESOURCE_METADATA_CONFLICT_CODES:
+                    # Only three reviewed SourceSeries codes are exposed, never
+                    # per-capture provenance, resource URLs, or private keys.
+                    resource_conflicts_by_series[manifest["source_key"]] += 1
     return {
         **report,
         "writer_configured": bool(dsn),
@@ -275,6 +307,7 @@ def reconcile_historical_capture_checks(
         "new_content_objects": new_originals,
         "relational_reconciliation_failures": errors,
         "reconciliation_failure_categories": failure_categories,
+        "resource_metadata_conflicts_by_series": resource_conflicts_by_series,
         "editions_approved": 0,
         "semantic_or_canonical_writes": 0,
         "public_promotions": 0,
@@ -299,6 +332,9 @@ def main() -> int:
             "new_source_capture_checks": 0, "new_content_objects": 0,
             "relational_reconciliation_failures": 0,
             "reconciliation_failure_categories": {name: 0 for name in sorted(_FAILURE_CODES)},
+            "resource_metadata_conflicts_by_series": {
+                name: 0 for name in sorted(_ALLOWED_SERIES)
+            },
             "status": "unavailable_or_unverified",
             "editions_approved": 0, "semantic_or_canonical_writes": 0,
             "public_promotions": 0, "independent_restore_verified": False,
