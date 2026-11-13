@@ -188,11 +188,20 @@ def _read_existing(store, key: str, identity: dict) -> dict | None:
     payload = json.loads(raw)
     if (not isinstance(payload, dict) or payload.get("identity") != identity
             or not isinstance(payload.get("records"), list)
-            or not payload["records"]
-            or payload.get("review_status") != "unapproved_candidate_extraction"
             or not isinstance(payload.get("diagnostics"), dict)
             or not isinstance(payload.get("qa_flags"), list)):
         raise ValueError("Conflicting or damaged immutable candidate extraction")
+    status = payload.get("review_status")
+    if status == "unapproved_candidate_extraction":
+        if not payload["records"]:
+            raise ValueError("Empty immutable candidate extraction")
+    elif status == "quarantined_candidate_extraction":
+        if (payload["records"] or not isinstance(payload.get("error_type"), str)
+                or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,99}", payload["error_type"])
+                or payload.get("publication_approved") is not False):
+            raise ValueError("Invalid immutable candidate quarantine")
+    else:
+        raise ValueError("Conflicting immutable candidate review status")
     return payload
 
 
@@ -221,65 +230,87 @@ def extract_one(job: dict, *, store, code_revision: str) -> dict:
     key = _key(identity)
     old = _read_existing(store, key, identity)
     if old is not None:
-        return {"status": "reused_candidate_extraction",
+        quarantined = old["review_status"] == "quarantined_candidate_extraction"
+        return {"status": "reused_candidate_quarantine" if quarantined
+                else "reused_candidate_extraction",
                 "records": len(old["records"]), "qa_flags": old["qa_flags"],
                 "private_readback": True, "publication_approved": False}
     capture = {"url": job["url"], "state": job["capture"]}
     manifest, receipt, content = _verified_capture(store, capture)
     if manifest["source_key"] != identity["capture_source_key"]:
         raise ValueError("Unbound discovery capture identity was changed")
-    with tempfile.TemporaryDirectory(prefix="white-list-candidate-") as directory:
-        path = Path(directory) / ("candidate" + _suffix(job["url"]))
-        path.write_bytes(content)
-        cfg = deepcopy(job["config"])
-        cfg["reference_date"] = ""  # A download timestamp is not a source date.
-        cfg["sha256"] = manifest["sha256"]
-        cfg["resource_url"] = job["url"]  # A new document cannot cite the old approved URL.
-        candidate_parser = _parser_hypothesis(job)
-        cfg["parser"] = candidate_parser
-        if candidate_parser.startswith("catania_candidate_"):
-            from white_list_archive.parsers.catania_candidate import parse_candidate_xlsx
-            batch = parse_candidate_xlsx(path, cfg)
-        else:
-            batch = registry._parse_source(path, cfg)
-    if not isinstance(batch.records, list) or not batch.records:
-        raise ValueError("Candidate parser returned no rows")
-    revision = _parser_revision(batch, cfg["parser"])
-    # A reviewed parser may emit its established series key by design. That is
-    # a *hypothesis*, never authority to bind a new discovery document. Re-key
-    # every provisional observation to the actual unbound archive capture.
-    for record in batch.records:
-        if (not isinstance(record, dict)
-                or record.get("source_key") != job["config"]["source_key"]
-                or record.get("reference_date") not in ("", None)
-                or record.get("capture_sha256") != manifest["sha256"]):
-            raise ValueError("Candidate output identity disagrees with archived source")
-        ordinal = record.get("source_row_ordinal")
-        if type(ordinal) is not int or ordinal <= 0:
-            raise ValueError("Candidate observation lacks a positive row ordinal")
-        record["source_key"] = identity["capture_source_key"]
-        record["record_locator"] = f"{identity['capture_source_key']}:{manifest['sha256']}:{ordinal}"
-        record["resource_url"] = job["url"]
-        record["reference_date"] = ""
-    flags = _quality_flags(job["config"], batch.records, batch.diagnostics)
-    candidate_flags = batch.diagnostics.get("candidate_quality_flags", [])
-    if not isinstance(candidate_flags, list) or any(not isinstance(x, str) for x in candidate_flags):
-        raise ValueError("Invalid private candidate QA flags")
-    flags = list(dict.fromkeys(flags + candidate_flags))
-    # A candidate may legitimately differ from approved row totals. This is
-    # highlighted for review, not silently normalised or declared approved.
-    payload = {
-        "identity": identity,
-        "review_status": "unapproved_candidate_extraction",
-        "capture_id": manifest["capture_id"],
-        "capture_manifest_sha256": hashlib.sha256(json.dumps(
-            manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        ).encode()).hexdigest(),
-        "parser_revision": revision,
-        "qa_flags": flags,
-        "records": batch.records,
-        "diagnostics": batch.diagnostics,
-    }
+    # Once exact archive provenance is verified, a source/parser incompatibility
+    # is recorded under this exact code revision. Unchanged failures are reused
+    # on later cycles rather than starving the bounded processing backlog.
+    # Infrastructure/readback errors remain retryable and are not cached.
+    try:
+        with tempfile.TemporaryDirectory(prefix="white-list-candidate-") as directory:
+            path = Path(directory) / ("candidate" + _suffix(job["url"]))
+            path.write_bytes(content)
+            cfg = deepcopy(job["config"])
+            cfg["reference_date"] = ""  # A download timestamp is not a source date.
+            cfg["sha256"] = manifest["sha256"]
+            cfg["resource_url"] = job["url"]  # A new document cannot cite the old approved URL.
+            candidate_parser = _parser_hypothesis(job)
+            cfg["parser"] = candidate_parser
+            if candidate_parser.startswith("catania_candidate_"):
+                from white_list_archive.parsers.catania_candidate import parse_candidate_xlsx
+                batch = parse_candidate_xlsx(path, cfg)
+            else:
+                batch = registry._parse_source(path, cfg)
+        if not isinstance(batch.records, list) or not batch.records:
+            raise ValueError("Candidate parser returned no rows")
+        revision = _parser_revision(batch, cfg["parser"])
+        # A reviewed parser may emit its established series key by design. That is
+        # a *hypothesis*, never authority to bind a new discovery document. Re-key
+        # every provisional observation to the actual unbound archive capture.
+        for record in batch.records:
+            if (not isinstance(record, dict)
+                    or record.get("source_key") != job["config"]["source_key"]
+                    or record.get("reference_date") not in ("", None)
+                    or record.get("capture_sha256") != manifest["sha256"]):
+                raise ValueError("Candidate output identity disagrees with archived source")
+            ordinal = record.get("source_row_ordinal")
+            if type(ordinal) is not int or ordinal <= 0:
+                raise ValueError("Candidate observation lacks a positive row ordinal")
+            record["source_key"] = identity["capture_source_key"]
+            record["record_locator"] = f"{identity['capture_source_key']}:{manifest['sha256']}:{ordinal}"
+            record["resource_url"] = job["url"]
+            record["reference_date"] = ""
+        flags = _quality_flags(job["config"], batch.records, batch.diagnostics)
+        candidate_flags = batch.diagnostics.get("candidate_quality_flags", [])
+        if not isinstance(candidate_flags, list) or any(not isinstance(x, str) for x in candidate_flags):
+            raise ValueError("Invalid private candidate QA flags")
+        flags = list(dict.fromkeys(flags + candidate_flags))
+        # A candidate may legitimately differ from approved row totals. This is
+        # highlighted for review, not silently normalised or declared approved.
+        payload = {
+            "identity": identity,
+            "review_status": "unapproved_candidate_extraction",
+            "capture_id": manifest["capture_id"],
+            "capture_manifest_sha256": hashlib.sha256(json.dumps(
+                manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode()).hexdigest(),
+            "parser_revision": revision,
+            "qa_flags": flags,
+            "records": batch.records,
+            "diagnostics": batch.diagnostics,
+        }
+    except Exception as exc:
+        rejected = {
+            "identity": identity,
+            "review_status": "quarantined_candidate_extraction",
+            "capture_id": manifest["capture_id"],
+            "publication_approved": False,
+            "error_type": type(exc).__name__,
+            "qa_flags": [],
+            "records": [],
+            "diagnostics": {},
+        }
+        _persist(store, key, rejected)
+        return {"status": "quarantined", "error_type": type(exc).__name__,
+                "qa_flags": [], "private_readback": True,
+                "publication_approved": False}
     _persist(store, key, payload)
     return {"status": "extracted_candidate_for_review", "records": len(batch.records),
             "qa_flags": flags, "private_readback": True, "publication_approved": False}
@@ -336,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
             outcome = extract_one(job, store=store, code_revision=args.code_revision)
             outcomes.append({**outcome, "candidate_url": job["url"],
                              "source_series_hypothesis": job["source_key_hypothesis"]})
-            if outcome["status"] != "reused_candidate_extraction":
+            if outcome["status"] not in {"reused_candidate_extraction", "reused_candidate_quarantine"}:
                 new_attempts += 1
         except Exception as exc:
             # Safe diagnostic classes only; no provider messages, original rows,
@@ -350,7 +381,8 @@ def main(argv: list[str] | None = None) -> int:
         "shard": args.shard, "shards": args.shards, "candidate_files": len(jobs),
         "extracted": sum(r["status"] == "extracted_candidate_for_review" for r in outcomes),
         "reused": sum(r["status"] == "reused_candidate_extraction" for r in outcomes),
-        "quarantined": sum(r["status"] == "quarantined" for r in outcomes),
+        "quarantined": sum(r["status"] in {"quarantined", "reused_candidate_quarantine"}
+                           for r in outcomes),
         "blocked": sum(r["status"] == "blocked" for r in outcomes),
         "deferred": len(deferred), "deferred_reasons": dict(
             sorted(Counter(x["reason"] for x in deferred).items())),
