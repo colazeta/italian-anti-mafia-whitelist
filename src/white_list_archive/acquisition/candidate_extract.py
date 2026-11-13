@@ -136,6 +136,16 @@ def select_candidate_jobs(state: dict, config: dict, catalog: dict, *,
     return jobs, deferred
 
 
+def _parser_hypothesis(job: dict) -> str:
+    """Use an unpinned, private-only adapter for Catania's changing XLSX files."""
+    if job["authority_key"] == "catania" and _suffix(job["url"]) == ".xlsx":
+        from white_list_archive.parsers.catania_candidate import PARSERS
+        population = job["config"].get("population_scope")
+        if job["config"].get("parser", "").startswith("catania_") and population in PARSERS:
+            return PARSERS[population]
+    return job["config"]["parser"]
+
+
 def _identity(job: dict, code_revision: str) -> dict:
     cfg = job["config"]
     return {
@@ -143,7 +153,7 @@ def _identity(job: dict, code_revision: str) -> dict:
         "capture_source_key": job["authority_key"] + "-robot-discovery",
         "document_url": job["url"],
         "document_sha256": job["capture"]["sha256"],
-        "parser_hypothesis": cfg["parser"],
+        "parser_hypothesis": _parser_hypothesis(job),
         "source_series_hypothesis": cfg["source_key"],
         "parser_config_sha256": hashlib.sha256(json.dumps(
             cfg, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
@@ -224,11 +234,21 @@ def extract_one(job: dict, *, store, code_revision: str) -> dict:
         cfg = deepcopy(job["config"])
         cfg["reference_date"] = ""  # A download timestamp is not a source date.
         cfg["sha256"] = manifest["sha256"]
-        batch = registry._parse_source(path, cfg)
+        candidate_parser = _parser_hypothesis(job)
+        cfg["parser"] = candidate_parser
+        if candidate_parser.startswith("catania_candidate_"):
+            from white_list_archive.parsers.catania_candidate import parse_candidate_xlsx
+            batch = parse_candidate_xlsx(path, cfg)
+        else:
+            batch = registry._parse_source(path, cfg)
     if not isinstance(batch.records, list) or not batch.records:
         raise ValueError("Candidate parser returned no rows")
     revision = _parser_revision(batch, cfg["parser"])
     flags = _quality_flags(job["config"], batch.records, batch.diagnostics)
+    candidate_flags = batch.diagnostics.get("candidate_quality_flags", [])
+    if not isinstance(candidate_flags, list) or any(not isinstance(x, str) for x in candidate_flags):
+        raise ValueError("Invalid private candidate QA flags")
+    flags = list(dict.fromkeys(flags + candidate_flags))
     # A candidate may legitimately differ from approved row totals. This is
     # highlighted for review, not silently normalised or declared approved.
     payload = {
