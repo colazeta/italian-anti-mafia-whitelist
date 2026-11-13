@@ -922,3 +922,21 @@ jobs:
           gh release create "$RELEASE_TAG" /tmp/public-registry-release/*.gz /tmp/public-registry-release/manifest.json \
             --target "$GITHUB_SHA" --title "Validated public registry candidate $RELEASE_TAG" \
             --notes 'Public derivatives validated by the source, artifact, browser and link gates. Review manifest.json in a PR to select this version for Pages. Original-source archive verification remains a separate requirement.'
+
+  catania-source-only:
+    # Review-only exact-new-source workbook profiling. No Pages deployment,
+    # new approvals, private row artifacts or database writes.
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/catania-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install source-only workbook QA
+        run: python -m pip install -e '.[publication]'
+      - name: Validate November Catania workbook dimensions and syntax
+        run: python scripts/qualify_catania_candidate.py
