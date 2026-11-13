@@ -30,3 +30,7 @@
 .timeline-tick.first{left:0!important;transform:none}.timeline-tick.last{left:auto!important;right:0;transform:none}
 .date-values summary{min-height:44px;align-content:center;font-weight:bold}.date-values caption{text-align:left;padding:10px 0;font-weight:bold}
 @media(max-width:600px){.date-coverage{grid-template-columns:minmax(0,1fr)}.date-filters input{width:100%;min-width:0}.timeline-tick.secondary-tick{display:none}}
+
+/* The public data timestamp is a release scope statement, not a live Prefecture check. */
+.public-freshness-note{margin-top:4px;font-size:13px;font-weight:normal;line-height:1.35}
+.public-freshness-note a{color:#fff}
