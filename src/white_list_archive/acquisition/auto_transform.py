@@ -26,6 +26,24 @@ _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _MAX_BYTES = 100_000_000
 
 
+def _capture_timestamp_utc(value: Any) -> datetime | None:
+    """Parse a timezone-aware capture instant, never an edition/reference date.
+
+    Lexically sorting ISO strings with different offsets can select an older
+    document as the latest archive capture. Naive or malformed times must not
+    participate in trusted robot-state selection.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        return None
+    return instant.astimezone(timezone.utc)
+
+
 class EditionReviewRequired(RuntimeError):
     """The reviewed parser cannot accept an unknown new administrative edition."""
 
@@ -126,7 +144,7 @@ def select_reviewed_jobs(
                 and isinstance(h.get("capture_id"), str)
                 and isinstance(h.get("sha256"), str)
                 and _HEX64.fullmatch(h["sha256"])
-                and isinstance(h.get("captured_at"), str)
+                and _capture_timestamp_utc(h.get("captured_at")) is not None
                 and isinstance(h.get("byte_size"), int)
                 and 0 < h["byte_size"] <= _MAX_BYTES
             ]
@@ -136,7 +154,7 @@ def select_reviewed_jobs(
                 break
             captures[label] = {
                 "url": url,
-                "state": max(eligible, key=lambda h: (h["captured_at"], h["capture_id"])),
+                "state": max(eligible, key=lambda h: (_capture_timestamp_utc(h["captured_at"]), h["capture_id"])),
             }
         if not captures:
             continue
