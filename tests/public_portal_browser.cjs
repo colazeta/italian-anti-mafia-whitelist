@@ -775,7 +775,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
         assert.equal(collu.length,1);
         assert.equal(collu[0].registered_office,'');
       }
-      const bars=page.locator('#view-statistics .stat-table').first().locator('.stat-number');
+      const bars=page.locator('#view-statistics .stat-table:has(.stat-bar)').first().locator('.stat-number');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),stats.total);
       assert.equal(await page.locator('#view-statistics a').count(),new Set(stats.latest.map(r=>JSON.stringify([r.source_key,r.reference_date,r.capture_sha256]))).size);
       await page.locator('#stats-authority').selectOption('alessandria');
@@ -791,7 +791,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       await page.locator('#stats-authority').selectOption('cosenza');
       const cosenza=publicStatistics(registry.records,'cosenza');
       assert.equal((await bars.allTextContents()).reduce((n,t)=>n+numeric(t),0),cosenza.total);
-      const pendingBar=page.locator('#view-statistics .stat-table').first().locator('[data-stat-status="pending"]');
+      const pendingBar=page.locator('#view-statistics .stat-table:has(.stat-bar)').first().locator('[data-stat-status="pending"]');
       const pendingCount=numeric(await pendingBar.innerText());
       await pendingBar.focus();
       await pendingBar.press('Enter');
@@ -800,7 +800,7 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.equal(await page.locator('#reg-status').inputValue(),'pending');
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),pendingCount);
       await page.getByRole('button',{name:'Statistiche',exact:true}).click();
-      const bolognaBar=page.locator('#view-statistics .stat-table').nth(1).locator('[data-stat-authority="bologna"][data-stat-status="pending"]');
+      const bolognaBar=page.locator('#view-statistics .stat-table:has(.stat-bar)').nth(1).locator('[data-stat-authority="bologna"][data-stat-status="pending"]');
       const bolognaCount=numeric(await bolognaBar.innerText());
       assert.equal(bolognaCount,stats.latest.filter(r=>r.authority_key==='bologna'&&r.source_status==='pending').length);
       await bolognaBar.click();
