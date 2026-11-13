@@ -77,5 +77,5 @@ with the number of content editions.
   plus unequal-content, unknown-fingerprint and comparison-lineage cases.
 - Browser tests confirm a repeated capture does not create a new visible
   edition or suppress an existing, approved observational delta.
-- The private immutable ledger is neither rewritten nor compacted by this
+- The append-preserving aggregate history ledger is neither rewritten nor compacted by this
   presentation correction.
