@@ -162,3 +162,41 @@ def test_exact_prior_bundled_public_derivative_preserved_without_live_fetch(monk
         build._build_registry_from_selected_inputs(config,tmp_path,None,
             preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
     assert calls==[]
+
+
+@pytest.mark.parametrize('bundle', [False, True])
+def test_content_pinned_scope_survives_release_change_but_rejects_any_data_or_report_drift(monkeypatch, tmp_path, bundle):
+    config, approved, calls, manifest = setup(monkeypatch, tmp_path)
+    cfg = config['sources'][0]
+    if bundle:
+        cfg['resources'] = {'I': {'resource_url': 'https://example.test/one.pdf', 'sha256': 'f'*64}}
+    else:
+        cfg.update(approval_mode='semantic_sha256', semantic_sha256='c'*64)
+    manifest.write_text(json.dumps({'release_tag': 'public-data-later'}))
+    binding = dict(schema_version=2, snapshot_tag='public-data-original', purpose='test exact scope',
+                   source=copy.deepcopy(cfg), records_sha256=build._public_scope_digest(approved['records']),
+                   report_sha256=build._public_scope_digest(approved['meta']['sources'][0]))
+    path = tmp_path / 'scope.json'; path.write_text(json.dumps(binding))
+    monkeypatch.setattr(build, 'APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING' if bundle else 'APPROVED_PUBLIC_DERIVATIVE_BINDING', path)
+    result = build._build_registry_from_selected_inputs(config, tmp_path, None,
+        preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert result['records'][1] == approved['records'][0]
+    assert result['meta']['sources'][1] == approved['meta']['sources'][0]
+    calls.clear()
+    approved['records'][0]['name'] = 'Unapproved alteration'
+    with pytest.raises(ValueError):
+        build._build_registry_from_selected_inputs(config, tmp_path, None,
+            preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert not calls
+    del approved['records'][0]['name']
+    approved['meta']['sources'][0]['document_checked_at'] = '2026-11-13T00:00:00Z'
+    with pytest.raises(ValueError):
+        build._build_registry_from_selected_inputs(config, tmp_path, None,
+            preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert not calls
+    approved['meta']['sources'][0]['document_checked_at'] = '2026-09-22T07:49:10+00:00'
+    cfg['notes'] = 'Changed descriptor requires explicit review'
+    with pytest.raises(ValueError):
+        build._build_registry_from_selected_inputs(config, tmp_path, None,
+            preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
+    assert not calls

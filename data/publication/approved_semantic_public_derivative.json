@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "snapshot_tag": "public-data-36342687206-1",
-  "purpose": "Allow reuse of this exact, previously approved source after the Potenza public-field adapter changes the raw semantic payload. This is not approval for new source bytes or observations.",
+  "schema_version": 2,
+  "snapshot_tag": "public-data-43496640709-1",
+  "purpose": "Preserve only this exact already approved public scope and its original verification report across national release tags. Both public-field digests and the complete original source descriptor must match. No new source approval or refreshed document-check time.",
   "source": {
     "source_key": "potenza-combined",
     "parser": "potenza_combined",
@@ -20,5 +20,7 @@
     "last_source_update": "2026-09-27",
     "last_source_update_basis": "Observed official mutable-source capture boundary on 27 September 2026; not an inferred edition or legal-effect date.",
     "notes": "1,036 observations: 218 listed, 378 pending, 440 renewal/update in progress. Schema and identifiers unchanged. Six source-explicit returns to listed since the approved 22 September counts; expiry fields reflect the current source. See docs/sources/potenza-operational-check-2026-09-27.md."
-  }
+  },
+  "records_sha256": "bb226d9d1ce8379f3798c2f5fe4645e12d7e696b264281346920e7021cba3fac",
+  "report_sha256": "e66253ec5066f5ca4c29420c05b6d67bc88f60b22d0972904bb43c2ef7ea6cc2"
 }
