@@ -108,6 +108,12 @@ jobs:
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[publication,storage,database]' pytest
+      # Read exactly four publicly documented legacy SHA pins in the primary
+      # protected store. No live requests, capture/materialisation, source rows,
+      # approval or new runner. This is not a backup/restore acceptance test.
+      - name: Read back historical Lodi and Milano originals without reacquisition
+        if: matrix.shard == 0
+        run: python -m white_list_archive.acquisition.historical_object_audit
       - name: Validate transformer selection contract
         run: python -m pytest -q tests/test_auto_transform.py
       - name: Load safe current capture index
