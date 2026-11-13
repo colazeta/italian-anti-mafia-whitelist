@@ -1,6 +1,7 @@
 """Aggregate-only exact-November Catania source qualification (no company data)."""
 from __future__ import annotations
 from collections import Counter
+import hashlib
 from datetime import date, datetime
 from pathlib import Path
 import json
@@ -10,6 +11,7 @@ import tempfile
 import openpyxl
 from white_list_archive.publishing.public_national_registry import _download
 from white_list_archive.parsers import catania_openxml as old
+from white_list_archive.parsers import catania_openxml_november as november
 
 DATE = re.compile(r"^(?:\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2}(?: 00:00:00)?)$")
 SECTION = re.compile(r"^(?:\s*(?:10|[1-9])\s*[,;.]?)+$")
@@ -69,6 +71,7 @@ def profile(path: Path, key: str):
     totals=Counter()
     rows=last-start+1
     invalid_rows=[]
+    sector_semantic_exceptions=[]
     category_status=Counter()
     identifier_shapes=Counter()
     for n in range(start,last+1):
@@ -78,6 +81,12 @@ def profile(path: Path, key: str):
         totals["nonblank_offices"]+=bool(old._clean(values[1]))
         totals["nonblank_sectors"]+=bool(sections)
         if not SECTION.fullmatch(sections):totals["unrecognised_sector_syntax"]+=1
+        _,anomaly=november._sections(sections)
+        if anomaly:
+            sector_semantic_exceptions.append({
+                "row_number":n,
+                "raw_cell_sha256":hashlib.sha256(sections.encode("utf-8")).hexdigest()
+            })
         strict=old._strict_identifiers(values[4])
         identifier_shapes["strict" if strict else "raw_nonstandard" if old._clean(values[4]) else "missing"]+=1
         if applicant:
@@ -103,6 +112,7 @@ def profile(path: Path, key: str):
         "value_shapes":dict(sorted(totals.items())),
         "identifiers":dict(sorted(identifier_shapes.items())),
         "source_status_shapes":dict(sorted(category_status.items())),
+        "source_sector_anomaly_cells":sector_semantic_exceptions,
         "archive_byte_sha256_verified":True,
         "release_approved":False,
     }
