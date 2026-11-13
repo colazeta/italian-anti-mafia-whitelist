@@ -27,7 +27,7 @@ from .prefecture_robots import allowed
 
 SUPPORTED = frozenset({".pdf", ".xlsx", ".xls", ".csv", ".docx", ".doc"})
 RELEVANT = re.compile(r"white[\s_-]*list|elenc|iscritt|richied|imprese|ditte", re.I)
-EXCLUDE = re.compile(r"modul|fac.?simil|informativ|privacy|autocertific|"
+EXCLUDE = re.compile(r"modul|modell|fac.?simil|informativ|privacy|autocertific|"
                      r"dichiaraz|comunicaz|sequestrat|domanda-di-iscrizione", re.I)
 MAX_RECORD_BYTES = 40_000_000
 MAX_NEW_PER_SHARD = 6
@@ -107,7 +107,8 @@ def select_candidate_jobs(state: dict, config: dict, catalog: dict, *,
             # No filename, extension or URL can *approve* a new SourceSeries.
             # One unambiguous *candidate* parser is the maximum permitted claim.
             if len(routes) != 1:
-                deferred.append({"reason": "no_unique_parser_hypothesis"})
+                deferred.append({"authority_key": authority, "candidate_url": url,
+                                 "reason": "no_unique_parser_hypothesis"})
                 continue
             history = resource.get("capture_history", [])
             valid = [
@@ -120,7 +121,8 @@ def select_candidate_jobs(state: dict, config: dict, catalog: dict, *,
                 and _capture_timestamp_utc(h.get("captured_at")) is not None
             ] if isinstance(history, list) else []
             if not valid:
-                deferred.append({"reason": "missing_verified_discovery_capture"})
+                deferred.append({"authority_key": authority, "candidate_url": url,
+                                 "reason": "missing_verified_discovery_capture"})
                 continue
             latest = max(valid, key=lambda h: (_capture_timestamp_utc(h["captured_at"]),
                                                h["capture_id"]))
@@ -286,20 +288,25 @@ def main(argv: list[str] | None = None) -> int:
     new_attempts = 0
     for job in jobs:
         if blocked:
-            outcomes.append({"status": "blocked", "reason": "private_archive_unavailable"})
+            outcomes.append({"status": "blocked", "reason": "private_archive_unavailable",
+                             "candidate_url": job["url"], "source_series_hypothesis": job["source_key_hypothesis"]})
             continue
         if new_attempts >= MAX_NEW_PER_SHARD:
-            deferred.append({"reason": "bounded_parsing_backlog"})
+            deferred.append({"authority_key": job["authority_key"], "candidate_url": job["url"],
+                             "reason": "bounded_parsing_backlog"})
             continue
         try:
             outcome = extract_one(job, store=store, code_revision=args.code_revision)
-            outcomes.append(outcome)
+            outcomes.append({**outcome, "candidate_url": job["url"],
+                             "source_series_hypothesis": job["source_key_hypothesis"]})
             if outcome["status"] != "reused_candidate_extraction":
                 new_attempts += 1
         except Exception as exc:
             # Safe diagnostic classes only; no provider messages, original rows,
             # source URLs, object keys or identifiers cross this boundary.
-            outcomes.append({"status": "quarantined", "error_type": type(exc).__name__})
+            outcomes.append({"status": "quarantined", "error_type": type(exc).__name__,
+                             "candidate_url": job["url"],
+                             "source_series_hypothesis": job["source_key_hypothesis"]})
             new_attempts += 1
     report = {
         "schema_version": 1, "run_at": datetime.now(timezone.utc).isoformat(),
@@ -313,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
         "private_readback_verified": sum(bool(r.get("private_readback")) for r in outcomes),
         "source_quality_flags": sum(bool(r.get("qa_flags")) for r in outcomes),
         "publications": 0,
-        "outcomes": outcomes,
+        "outcomes": outcomes, "deferred_candidates": deferred,
     }
     failed_receipt = False
     if store is not None:
