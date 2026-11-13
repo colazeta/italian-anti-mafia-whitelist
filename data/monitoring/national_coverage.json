@@ -160,7 +160,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/agrigento-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "agrigento-applicants",
+          "register_key": "agrigento-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-04",
+          "sha256": "cfbf0dc1f9059437eb0d7801ff9867f9243f2fb83a91f2342e88ec9ed75416e9",
+          "parser": "agrigento_applicants"
+        },
+        {
+          "source_key": "agrigento-listed",
+          "register_key": "agrigento-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-04",
+          "sha256": "23ceb5785bb39ca2da2eef5a80ad0468b03a191ad2cc36c571524587dbafca81",
+          "parser": "agrigento_listed"
+        }
+      ],
+      "selected_public_source_presences": 1161,
+      "latest_selected_public_reference_date": "2026-09-04"
     },
     {
       "authority_key": "alessandria",
@@ -180,7 +200,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-04",
+      "latest_source_reference_date": "2026-10-28",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
@@ -203,7 +223,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/alessandria-operational-check-2026-09-09.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "alessandria-applicants",
+          "register_key": "alessandria-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-10-28",
+          "sha256": "b10733818c5e7f04b40c3b7d76da837acbe12e300e2d2e9b79f249bd48837b34",
+          "parser": "alessandria_applicants_2026_10"
+        },
+        {
+          "source_key": "alessandria-listed",
+          "register_key": "alessandria-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-10-28",
+          "sha256": "7081de5f4bd1a583abc2a9024396857db3717e2ed6d1ad0f5a4d6e30dc7152cf",
+          "parser": "alessandria_listed_2026_10"
+        }
+      ],
+      "selected_public_source_presences": 455,
+      "latest_selected_public_reference_date": "2026-10-28"
     },
     {
       "authority_key": "ancona",
@@ -252,7 +292,19 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/ancona-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "ancona-combined",
+          "register_key": "ancona-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-07",
+          "sha256": "09d5ba7264ee6f0c6170273713881273c5d5a045cc9a4a49de3dd36c3860f88d",
+          "parser": "ancona_combined"
+        }
+      ],
+      "selected_public_source_presences": 577,
+      "latest_selected_public_reference_date": "2026-09-07"
     },
     {
       "authority_key": "aosta",
@@ -303,7 +355,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/aosta-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "aosta-applicants",
+          "register_key": "aosta-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-17",
+          "sha256": "34a6277e6b956a82d76279c283f6fb8d4fa75c7395b0897a4eefef88448db32a",
+          "parser": "aosta_applicants"
+        },
+        {
+          "source_key": "aosta-listed",
+          "register_key": "aosta-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-17",
+          "sha256": "9e034f0e681d5352fe2c610982ca6726488e31db796e5e3d875e500edd9b18d9",
+          "parser": "aosta_listed"
+        }
+      ],
+      "selected_public_source_presences": 382,
+      "latest_selected_public_reference_date": "2026-09-17"
     },
     {
       "authority_key": "arezzo",
@@ -346,7 +418,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/arezzo-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "arezzo-applicants",
+          "register_key": "arezzo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "e12d9eb42894f90a4c7e40501006e36af14264ad34ce10cdee6c37e604bb15e7",
+          "parser": "arezzo_applicants"
+        },
+        {
+          "source_key": "arezzo-listed",
+          "register_key": "arezzo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-10",
+          "sha256": "9543260b49417fc8b223dc88a5838cd2cf4ef182fe4d3b690e4f5dbd5f6afd5f",
+          "parser": "arezzo_listed"
+        }
+      ],
+      "selected_public_source_presences": 364,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "ascoli-piceno",
@@ -396,7 +488,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/ascoli-piceno-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "ascoli-piceno-applicants",
+          "register_key": "ascoli-piceno-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-11",
+          "sha256": "b278d9eeb3c387ea6b8eb67f5da74a1918eecdac720a400b34e29b626e962453",
+          "parser": "ascoli_piceno_applicants"
+        },
+        {
+          "source_key": "ascoli-piceno-listed",
+          "register_key": "ascoli-piceno-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-11",
+          "sha256": "5c1e7e6145929162207721d79302a5267524e5b35429234a961eee504b75c43b",
+          "parser": "ascoli_piceno_listed"
+        }
+      ],
+      "selected_public_source_presences": 601,
+      "latest_selected_public_reference_date": "2026-08-11"
     },
     {
       "authority_key": "asti",
@@ -445,7 +557,27 @@
         "data/source_registry/source_series_inventory.csv",
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/asti-operational-check-2026-09-10.md"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "asti-applicants",
+          "register_key": "asti-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-03",
+          "sha256": "ae5d69a85541dae61ffd67f4983a78831f2a97d096bd752aeb8b93c9a88943a5",
+          "parser": "asti_applicants"
+        },
+        {
+          "source_key": "asti-listed",
+          "register_key": "asti-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-03",
+          "sha256": "8c26313c57588745e92600961e7071d4ff2246ab86555e39500f17f59c41c128",
+          "parser": "asti_listed"
+        }
+      ],
+      "selected_public_source_presences": 301,
+      "latest_selected_public_reference_date": "2026-08-03"
     },
     {
       "authority_key": "avellino",
@@ -496,7 +628,27 @@
         "src/white_list_archive/parsers/avellino_positioned.py",
         "tests/test_avellino_parser_semantics.py",
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "avellino-applicants",
+          "register_key": "avellino-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-01",
+          "sha256": "b541e057787e9d26982eb1e87c1233002e88a376e865b637d223c027a6b210be",
+          "parser": "avellino_applicants"
+        },
+        {
+          "source_key": "avellino-listed",
+          "register_key": "avellino-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-01",
+          "sha256": "9ada9195d72ba3b773448df0f0f46bab5efdd72ad7da35236bad389ad860eaf0",
+          "parser": "avellino_listed"
+        }
+      ],
+      "selected_public_source_presences": 627,
+      "latest_selected_public_reference_date": "2026-09-01"
     },
     {
       "authority_key": "bari",
@@ -547,7 +699,27 @@
         "docs/sources/bari-operational-check-2026-09-10.md"
       ],
       "last_completed_coverage_status": "SOURCE_IDENTIFIED",
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "bari-applicants",
+          "register_key": "bari-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-31",
+          "sha256": "9164ec87debb629291415f0eaf125ee35fd191775466b3582e9e34dea78cf36d",
+          "parser": "bari_applicants"
+        },
+        {
+          "source_key": "bari-listed",
+          "register_key": "bari-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-31",
+          "sha256": "a28fe31e102e601ea0253c3fc93c559c3f964dd28d5cfa55c64e9c309a5517d9",
+          "parser": "bari_listed"
+        }
+      ],
+      "selected_public_source_presences": 1670,
+      "latest_selected_public_reference_date": "2026-08-31"
     },
     {
       "authority_key": "barletta-andria-trani",
@@ -597,7 +769,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/barletta-andria-trani-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "barletta-andria-trani-applicants",
+          "register_key": "barletta-andria-trani-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "ce460ca66f2d996784ac28d559af5fe702ae8a1d72ed80affeb70a0cb36b0d57",
+          "parser": "barletta_andria_trani_applicants"
+        },
+        {
+          "source_key": "barletta-andria-trani-listed",
+          "register_key": "barletta-andria-trani-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "d3c0e61942cbdefd03cfa7d99f71b2abbfc430f25ff86b8693d44ef14de07e13",
+          "parser": "barletta_andria_trani_listed"
+        }
+      ],
+      "selected_public_source_presences": 574,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "belluno",
@@ -647,7 +839,19 @@
         "src/white_list_archive/parsers/belluno_combined.py",
         "tests/test_belluno_parser_semantics.py",
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "belluno-combined",
+          "register_key": "belluno-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-02",
+          "sha256": "65203c633f261deec31bba00be6c4893f90c8a40cd293b832066d20520ff8b58",
+          "parser": "belluno_combined"
+        }
+      ],
+      "selected_public_source_presences": 402,
+      "latest_selected_public_reference_date": "2026-09-02"
     },
     {
       "authority_key": "benevento",
@@ -698,7 +902,27 @@
         "src/white_list_archive/parsers/benevento_positioned.py",
         "tests/test_benevento_parser_semantics.py",
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "benevento-applicants",
+          "register_key": "benevento-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-31",
+          "sha256": "7e7333af70cef53e10e8c9d269cb6d5a70a88f33871630606b6cd06b1c2f5cac",
+          "parser": "benevento_applicants"
+        },
+        {
+          "source_key": "benevento-listed",
+          "register_key": "benevento-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-31",
+          "sha256": "a0e260f748d3447cf17378e15e3466ec93ca72b7da1f6a7b1e1144c11ba28c01",
+          "parser": "benevento_listed"
+        }
+      ],
+      "selected_public_source_presences": 938,
+      "latest_selected_public_reference_date": "2026-08-31"
     },
     {
       "authority_key": "bergamo",
@@ -748,7 +972,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/bergamo-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "bergamo-applicants",
+          "register_key": "bergamo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-27",
+          "sha256": "65f3db950b3c75f073edc2eaba47cebee9771b706b6c6dcbae21ef881a523ce6",
+          "parser": "bergamo_positioned_applicants"
+        },
+        {
+          "source_key": "bergamo-listed",
+          "register_key": "bergamo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-27",
+          "sha256": "b5f6229d4aac3674bcaf68895f93f5f5c60848a1bb6ab78b2e3d98a6c89ecaef",
+          "parser": "bergamo_positioned_listed"
+        }
+      ],
+      "selected_public_source_presences": 2046,
+      "latest_selected_public_reference_date": "2026-08-27"
     },
     {
       "authority_key": "biella",
@@ -800,7 +1044,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34433478263"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "biella-applicants",
+          "register_key": "biella-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-26",
+          "sha256": "70c353b4671aa7f751663d57cfff5ea5c8e45fc0078caad7a426266ee460084d",
+          "parser": "biella_html_applicants"
+        },
+        {
+          "source_key": "biella-listed",
+          "register_key": "biella-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-26",
+          "sha256": "70c353b4671aa7f751663d57cfff5ea5c8e45fc0078caad7a426266ee460084d",
+          "parser": "biella_html_listed"
+        }
+      ],
+      "selected_public_source_presences": 239,
+      "latest_selected_public_reference_date": "2026-08-26"
     },
     {
       "authority_key": "bologna",
@@ -843,7 +1107,43 @@
       ],
       "evidence": [
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "bologna-post-sisma-applicants",
+          "register_key": "bologna-post-sisma",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-14",
+          "sha256": "a4f13eed748040e4aa524b969ec27752065373544064bd5687c8389567509409",
+          "parser": "bologna_applicants"
+        },
+        {
+          "source_key": "bologna-post-sisma-listed",
+          "register_key": "bologna-post-sisma",
+          "population_scope": "listed",
+          "reference_date": "2026-08-14",
+          "sha256": "2a615ccb14807b295762fe63ed39f7cc3c9c00353fe8af044324e561f85fb40e",
+          "parser": "bologna_listed"
+        },
+        {
+          "source_key": "bologna-provincial-applicants",
+          "register_key": "bologna-provincial",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-14",
+          "sha256": "bfa91cd9b4d3f802b71ae569c3dc9d9169924b3793bfb79c87f2b7b6a946046c",
+          "parser": "bologna_applicants"
+        },
+        {
+          "source_key": "bologna-provincial-listed",
+          "register_key": "bologna-provincial",
+          "population_scope": "listed",
+          "reference_date": "2026-08-14",
+          "sha256": "50dd5d2a02089c58a09a646e889fdc030b978ddc9a257238a86426fc2691f87c",
+          "parser": "bologna_listed"
+        }
+      ],
+      "selected_public_source_presences": 2365,
+      "latest_selected_public_reference_date": "2026-08-14"
     },
     {
       "authority_key": "bolzano-bozen",
@@ -893,7 +1193,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/bolzano-operational-check-2026-09-12.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "bolzano-bozen-applicants",
+          "register_key": "bolzano-bozen-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "8b7321745edb19db688a001b9a1a706e84bee95cb457f9fdca1af144521ef3ae",
+          "parser": "bolzano_applicants"
+        },
+        {
+          "source_key": "bolzano-bozen-listed",
+          "register_key": "bolzano-bozen-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "96992db4caac16200fbebfa573bb602e1e396961ff854bbf006cb42e011c1e04",
+          "parser": "bolzano_listed"
+        }
+      ],
+      "selected_public_source_presences": 1222,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "brescia",
@@ -943,7 +1263,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/brescia-operational-check-2026-09-12.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "brescia-applicants",
+          "register_key": "brescia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "0ab15af0f0f2838aa162177cbc07b91f3d7d80b561ca490611b8ec368c595f34",
+          "parser": "brescia_applicants"
+        },
+        {
+          "source_key": "brescia-listed",
+          "register_key": "brescia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-10",
+          "sha256": "509e6724de2d4d63f403e254236ec2c5b77077d676ee8c17382464d5c9da07a7",
+          "parser": "brescia_listed"
+        }
+      ],
+      "selected_public_source_presences": 3334,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "brindisi",
@@ -993,7 +1333,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/brindisi-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "brindisi-applicants",
+          "register_key": "brindisi-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-08",
+          "sha256": "1153781d3bf17b6cfc6513c90f8e083edf3a432fe6be382c4a1ffde9845f9e1b",
+          "parser": "brindisi_applicants"
+        },
+        {
+          "source_key": "brindisi-listed",
+          "register_key": "brindisi-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-08",
+          "sha256": "11d33d62f5e40139d4869e5f39752b1a69686bb064e46446161929fd84eeb06a",
+          "parser": "brindisi_listed"
+        }
+      ],
+      "selected_public_source_presences": 411,
+      "latest_selected_public_reference_date": "2026-09-08"
     },
     {
       "authority_key": "cagliari",
@@ -1043,7 +1403,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/cagliari-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "cagliari-applicants",
+          "register_key": "cagliari-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-06",
+          "sha256": "7429040f5945ecb72cc7b152dbd8aaeee0e0a5df9bb7414e951a4cec4a4f50f7",
+          "parser": "cagliari_applicants"
+        },
+        {
+          "source_key": "cagliari-listed",
+          "register_key": "cagliari-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-06",
+          "sha256": "dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114",
+          "parser": "cagliari_listed"
+        }
+      ],
+      "selected_public_source_presences": 801,
+      "latest_selected_public_reference_date": "2026-09-06"
     },
     {
       "authority_key": "caltanissetta",
@@ -1093,7 +1473,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/caltanissetta-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "caltanissetta-applicants",
+          "register_key": "caltanissetta-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-09",
+          "sha256": "7c8b43dee53dc478d4a59d7e3d60763155814551cfc88811a398d82433d84954",
+          "parser": "caltanissetta_applicants"
+        },
+        {
+          "source_key": "caltanissetta-listed",
+          "register_key": "caltanissetta-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-09",
+          "sha256": "539285d8096c25c3f1d38ba7bb0d4cc33eb10e6de5ca24b268b1c7d2f31abb74",
+          "parser": "caltanissetta_listed"
+        }
+      ],
+      "selected_public_source_presences": 806,
+      "latest_selected_public_reference_date": "2026-09-09"
     },
     {
       "authority_key": "campobasso",
@@ -1143,7 +1543,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/campobasso-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "campobasso-applicants",
+          "register_key": "campobasso-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-11",
+          "sha256": "6b1b1f877a0ae5fe68d2472034975914723626a553257d4978296b3632a635ba",
+          "parser": "campobasso_applicants"
+        },
+        {
+          "source_key": "campobasso-listed",
+          "register_key": "campobasso-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-11",
+          "sha256": "9d07423eb023025e1dd318c610a205f287a4bee165e4f7fe34e2448f8d91d2a1",
+          "parser": "campobasso_listed"
+        }
+      ],
+      "selected_public_source_presences": 342,
+      "latest_selected_public_reference_date": "2026-08-11"
     },
     {
       "authority_key": "caserta",
@@ -1193,7 +1613,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/caserta-operational-check-2026-09-12.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "caserta-applicants",
+          "register_key": "caserta-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-31",
+          "sha256": "90f4bfbedd6c2e4794330066df83bfce834bb3a2707902fe2705430439d1ffc5",
+          "parser": "caserta_applicants"
+        },
+        {
+          "source_key": "caserta-listed",
+          "register_key": "caserta-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-31",
+          "sha256": "d323335641b3a84a2e13c047e403030b5bb6a98ec6d034c8648d1286d703585a",
+          "parser": "caserta_listed"
+        }
+      ],
+      "selected_public_source_presences": 2158,
+      "latest_selected_public_reference_date": "2026-08-31"
     },
     {
       "authority_key": "catania",
@@ -1213,7 +1653,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-11",
+      "latest_source_reference_date": "2026-11-06",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
@@ -1243,7 +1683,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/catania-operational-check-2026-09-12.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "catania-applicants",
+          "register_key": "catania-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-11-06",
+          "sha256": "adb590642773f68047e207beeb6aace3555ece674b6b64872c1347c0c7d4ffbb",
+          "parser": "catania_applicants_2026_11"
+        },
+        {
+          "source_key": "catania-listed",
+          "register_key": "catania-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-11-06",
+          "sha256": "ccd1a9abbf8144ae4edb43c7df07c1648c0273196a7aff278c03c62b39b733ff",
+          "parser": "catania_listed_2026_11"
+        }
+      ],
+      "selected_public_source_presences": 2037,
+      "latest_selected_public_reference_date": "2026-11-06"
     },
     {
       "authority_key": "catanzaro",
@@ -1293,7 +1753,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/catanzaro-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "catanzaro-applicants",
+          "register_key": "catanzaro-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "8c5b0ea684b20f0893016e4a528bac57fb2b05c40aa9669340bdf7bd7dab115c",
+          "parser": "catanzaro_applicants"
+        },
+        {
+          "source_key": "catanzaro-listed",
+          "register_key": "catanzaro-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-10",
+          "sha256": "8578a1b2d3ef0e2d71f1133381082d63d131182fd1b74c456cffe708ed94df7f",
+          "parser": "catanzaro_listed"
+        }
+      ],
+      "selected_public_source_presences": 887,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "chieti",
@@ -1343,7 +1823,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/chieti-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "chieti-applicants",
+          "register_key": "chieti-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-18",
+          "sha256": "2628230c417cf7b961d4a22490ba04f1b548c512782bd19a211890e11df54dc1",
+          "parser": "chieti_legacy_applicants"
+        },
+        {
+          "source_key": "chieti-listed",
+          "register_key": "chieti-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-18",
+          "sha256": "09c9b3ae1b1f4145c2a3795738a8d80d872c9816752cedb31b34cd730d801ddd",
+          "parser": "chieti_legacy_listed"
+        }
+      ],
+      "selected_public_source_presences": 936,
+      "latest_selected_public_reference_date": "2026-09-18"
     },
     {
       "authority_key": "como",
@@ -1395,7 +1895,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/como-operational-check-2026-09-17.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "como-applicants",
+          "register_key": "como-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "5b063838e0fe9c40413bbeb789b4ebce660b605f9f9735df9b40152ba838bfec",
+          "parser": "como_html_applicants"
+        },
+        {
+          "source_key": "como-listed",
+          "register_key": "como-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-10",
+          "sha256": "bbb3920c70f9ff7af1c3d7a3322e484ff6858207fba0d1687468df9109be5511",
+          "parser": "como_html_listed"
+        }
+      ],
+      "selected_public_source_presences": 409,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "cosenza",
@@ -1437,7 +1957,19 @@
         "docs/architecture/evidence-store-activation-2026-09-09.md",
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34327668707"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "cosenza-combined",
+          "register_key": "cosenza-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-08-03",
+          "sha256": "0d1ebcdaec25ea5a9f9dc859e2c68bea3ac72ceb988fed4eed4f8ba2ce338202",
+          "parser": "cosenza_combined_v2"
+        }
+      ],
+      "selected_public_source_presences": 1334,
+      "latest_selected_public_reference_date": "2026-08-03"
     },
     {
       "authority_key": "cremona",
@@ -1484,7 +2016,19 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/cremona-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "cremona-combined",
+          "register_key": "cremona-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-18",
+          "sha256": "55a9498a76120f0b781f9c7ae8da7144c141551598b63a98b0bc52caac79a550",
+          "parser": "cremona_combined"
+        }
+      ],
+      "selected_public_source_presences": 187,
+      "latest_selected_public_reference_date": "2026-09-18"
     },
     {
       "authority_key": "crotone",
@@ -1534,7 +2078,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/crotone-operational-check-2026-09-11.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "crotone-applicants",
+          "register_key": "crotone-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "af66ff6bf6a173c4156fef3e7741ca26956769e399285764123ef8405097e6d1",
+          "parser": "crotone_applicants"
+        },
+        {
+          "source_key": "crotone-listed",
+          "register_key": "crotone-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "c9a2774c5842b895cd0bb18be3fe30a0c8858b2d67e985a993983e1834f0d511",
+          "parser": "crotone_listed"
+        }
+      ],
+      "selected_public_source_presences": 505,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "cuneo",
@@ -1582,7 +2146,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/cuneo-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "cuneo-applicants",
+          "register_key": "cuneo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-15",
+          "sha256": "25ee4f5fff0b0f6580396c27f3e73abfdcfa994bfe673e7a86ca33377e784cea",
+          "parser": "cuneo_applicants"
+        },
+        {
+          "source_key": "cuneo-listed",
+          "register_key": "cuneo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-15",
+          "sha256": "3556b033acea0b035ad8f955973affa97637260c4abe233d53518e5c7a32a2f7",
+          "parser": "cuneo_listed"
+        }
+      ],
+      "selected_public_source_presences": 516,
+      "latest_selected_public_reference_date": "2026-09-15"
     },
     {
       "authority_key": "enna",
@@ -1636,7 +2220,19 @@
       "last_completed_coverage_stage": "VALIDATED",
       "observed_source_hashes": [
         "1a5dc0bc8cd6eef69724c1afe767108abdecc325f7f01e8ef80620cca0d622c6"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "enna-combined",
+          "register_key": "enna-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-18",
+          "sha256": "1a5dc0bc8cd6eef69724c1afe767108abdecc325f7f01e8ef80620cca0d622c6",
+          "parser": "enna_combined"
+        }
+      ],
+      "selected_public_source_presences": 515,
+      "latest_selected_public_reference_date": "2026-09-18"
     },
     {
       "authority_key": "fermo",
@@ -1686,7 +2282,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/fermo-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "fermo-applicants",
+          "register_key": "fermo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-05-22",
+          "sha256": "fa17e1f6676f84dc51e8abd1fd6e7627a1a2ed684a55c490708a06990e48676f",
+          "parser": "fermo_applicants"
+        },
+        {
+          "source_key": "fermo-listed",
+          "register_key": "fermo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-05-22",
+          "sha256": "2ed8f867c6ee477ec0af22a827ac0ccf54e4d483eec5de5fc27c812a0c31c6dd",
+          "parser": "fermo_listed"
+        }
+      ],
+      "selected_public_source_presences": 249,
+      "latest_selected_public_reference_date": "2026-05-22"
     },
     {
       "authority_key": "ferrara",
@@ -1706,7 +2322,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": null,
+      "latest_source_reference_date": "2026-09-20",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
@@ -1745,7 +2361,35 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/ferrara-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "ferrara-provincial-applicants",
+          "register_key": "ferrara-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-20",
+          "sha256": "c7437cdeebd1a64d4a6de8bbe5e8c108a688269409b7c772e8a6c87162e588e7",
+          "parser": "ferrara-provincial-applicants"
+        },
+        {
+          "source_key": "ferrara-provincial-listed",
+          "register_key": "ferrara-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-20",
+          "sha256": "0d631e678b7f85bb84d265b09b8de6fcffa09cc4a49b84be37c6c1d7b9dcd6d9",
+          "parser": "ferrara-provincial-listed"
+        },
+        {
+          "source_key": "ferrara-reconstruction-listed",
+          "register_key": "ferrara-reconstruction",
+          "population_scope": "listed",
+          "reference_date": "2026-09-20",
+          "sha256": "bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283",
+          "parser": "ferrara-reconstruction-listed"
+        }
+      ],
+      "selected_public_source_presences": 1583,
+      "latest_selected_public_reference_date": "2026-09-20"
     },
     {
       "authority_key": "firenze",
@@ -1794,7 +2438,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/firenze-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "firenze-applicants",
+          "register_key": "firenze-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-09",
+          "sha256": "6a6eb981f3476b67c4344067a82b14295076cb1c35a557337aecb8bc38a7d695",
+          "parser": "firenze_applicants"
+        },
+        {
+          "source_key": "firenze-listed",
+          "register_key": "firenze-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-09",
+          "sha256": "bc23303a5c9f398c4749def1178057f8d938644fe6f2b3745c8a8112901f17f0",
+          "parser": "firenze_listed"
+        }
+      ],
+      "selected_public_source_presences": 664,
+      "latest_selected_public_reference_date": "2026-09-09"
     },
     {
       "authority_key": "foggia",
@@ -1844,7 +2508,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/foggia-operational-check-2026-09-13.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "foggia-applicants",
+          "register_key": "foggia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "d76eab040fcb984dbabbff740296f9cd30b41ef028ba756d210d4b7d7df2f6d5",
+          "parser": "foggia_applicants"
+        },
+        {
+          "source_key": "foggia-listed",
+          "register_key": "foggia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-08",
+          "sha256": "313828d0d7fc0797920697841411503230a1a569e1eb8d41f93aec15908e5d5a",
+          "parser": "foggia_listed"
+        }
+      ],
+      "selected_public_source_presences": 958,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "forli-cesena",
@@ -1893,7 +2577,19 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/forli-cesena-operational-check-2026-09-13.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "forli-cesena-combined",
+          "register_key": "forli-cesena-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "f18e1980e6f7f5bc2ac55a55926ab7a221f290fc7a40f5d0781eef4885455468",
+          "parser": "forli_cesena_combined"
+        }
+      ],
+      "selected_public_source_presences": 749,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "frosinone",
@@ -1943,7 +2639,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/frosinone-operational-check-2026-09-13.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "frosinone-applicants",
+          "register_key": "frosinone-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-02",
+          "sha256": "9906d55864f4c1dc8e027efa2b44fa2c6463c512fb34241a32aa9b21a5ba6db8",
+          "parser": "frosinone_applicants"
+        },
+        {
+          "source_key": "frosinone-listed",
+          "register_key": "frosinone-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-02",
+          "sha256": "aad166b49393055a197b9b1fef4eba82d0a70453a90d84209f967180d2855d71",
+          "parser": "frosinone_listed"
+        }
+      ],
+      "selected_public_source_presences": 1236,
+      "latest_selected_public_reference_date": "2026-09-02"
     },
     {
       "authority_key": "genova",
@@ -1993,7 +2709,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/genova-operational-check-2026-09-12.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "genova-applicants",
+          "register_key": "genova-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "13ecfd8bea8616deea76349cd7592fd046d09f45e2b522c11dda1f084a4420a7",
+          "parser": "genova_applicants"
+        },
+        {
+          "source_key": "genova-listed",
+          "register_key": "genova-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-10",
+          "sha256": "baf72de8d1f28943a8e9ec2bdd6e95213eacd0058cd6799a04e233c06d9e5403",
+          "parser": "genova_listed"
+        }
+      ],
+      "selected_public_source_presences": 762,
+      "latest_selected_public_reference_date": "2026-09-10"
     },
     {
       "authority_key": "gorizia",
@@ -2043,7 +2779,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/gorizia-operational-check-2026-09-13.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "gorizia-applicants",
+          "register_key": "gorizia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-13",
+          "sha256": "befe7ed054e0cfe9dda48c8dec59f843b569019e40b925d6d5d1fcec19021c7c",
+          "parser": "gorizia_applicants"
+        },
+        {
+          "source_key": "gorizia-listed",
+          "register_key": "gorizia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-13",
+          "sha256": "680f0822f56ce7499a5d3f6c9e524d3d33b631feca51886e57e70fdf9e5fbd6d",
+          "parser": "gorizia_listed"
+        }
+      ],
+      "selected_public_source_presences": 127,
+      "latest_selected_public_reference_date": "2026-09-13"
     },
     {
       "authority_key": "grosseto",
@@ -2093,7 +2849,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/grosseto-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "grosseto-applicants",
+          "register_key": "grosseto-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-19",
+          "sha256": "814b53753a5ec3cb962d63564b24d0f0b5104f47213d160dca8218a102028248",
+          "parser": "grosseto_applicants"
+        },
+        {
+          "source_key": "grosseto-listed",
+          "register_key": "grosseto-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-19",
+          "sha256": "4e5221c25c669c062dd8512ea77bdf5760130bc8f1c2bcdb9ef456b66f5f6c18",
+          "parser": "grosseto_listed"
+        }
+      ],
+      "selected_public_source_presences": 418,
+      "latest_selected_public_reference_date": "2026-09-19"
     },
     {
       "authority_key": "imperia",
@@ -2143,7 +2919,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/imperia-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "imperia-applicants",
+          "register_key": "imperia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-18",
+          "sha256": "e1c93ece7e919e1b3f7c6cf2cd399e7585bcef5e7713876b0a9662de642b60f9",
+          "parser": "imperia_applicants"
+        },
+        {
+          "source_key": "imperia-listed",
+          "register_key": "imperia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-18",
+          "sha256": "9716cf0571946f5e39d90b177c41e7919957eb88adb71cf22fd928b73c615a3f",
+          "parser": "imperia_listed"
+        }
+      ],
+      "selected_public_source_presences": 273,
+      "latest_selected_public_reference_date": "2026-09-18"
     },
     {
       "authority_key": "isernia",
@@ -2179,7 +2975,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "laquila",
@@ -2229,7 +3028,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/laquila-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "laquila-applicants",
+          "register_key": "laquila-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "dd3c9bdd8304bb610aa941a7eed6593c9b7feea171136960a3db6f628b1e7081",
+          "parser": "laquila_applicants"
+        },
+        {
+          "source_key": "laquila-listed",
+          "register_key": "laquila-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "15636d4d353f41f35e3c755fb4c671f3f9d5f1e03ffed32b639b9a804796c453",
+          "parser": "laquila_listed"
+        }
+      ],
+      "selected_public_source_presences": 695,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "la-spezia",
@@ -2265,7 +3084,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "latina",
@@ -2301,7 +3123,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "lecce",
@@ -2351,7 +3176,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/lecce-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "lecce-applicants",
+          "register_key": "lecce-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-09",
+          "sha256": "9d94226065ea80c35a140da93c74ed404ceea79018a725f755768b1a55a30124",
+          "parser": "lecce_applicants"
+        },
+        {
+          "source_key": "lecce-listed",
+          "register_key": "lecce-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-09",
+          "sha256": "acbe7b735107d48735bc8d01902fc73d49f00e6d8d6ef11dc0c1f9dfd344765d",
+          "parser": "lecce_listed"
+        }
+      ],
+      "selected_public_source_presences": 915,
+      "latest_selected_public_reference_date": "2026-09-09"
     },
     {
       "authority_key": "lecco",
@@ -2401,7 +3246,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/lecco-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "lecco-applicants",
+          "register_key": "lecco-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-14",
+          "sha256": "7c24e015342cc2cb61cf4b5bf726621c8b3b90b195cd91c40942fc3ef6b6ba5b",
+          "parser": "lecco_applicants"
+        },
+        {
+          "source_key": "lecco-listed",
+          "register_key": "lecco-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-14",
+          "sha256": "80c439521cf2bd4062b54fff3646666487367f0f8b47c1a91a6c8f62bcf8e5bc",
+          "parser": "lecco_listed"
+        }
+      ],
+      "selected_public_source_presences": 256,
+      "latest_selected_public_reference_date": "2026-09-14"
     },
     {
       "authority_key": "livorno",
@@ -2437,7 +3302,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "lodi",
@@ -2457,7 +3325,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-21",
+      "latest_source_reference_date": "2026-09-27",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": "2026-09-21T10:32:25Z",
@@ -2496,7 +3364,27 @@
         "docs/sources/lodi-operational-check-2026-09-18.md",
         "docs/sources/lodi-source-transition-2026-09-21.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "lodi-applicants",
+          "register_key": "lodi-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-21",
+          "sha256": "c200e90a0410ba23fddee9d3ad0a5ac1532fec8dedfe0ec983eb2e94d0601a16",
+          "parser": "lodi_applicants"
+        },
+        {
+          "source_key": "lodi-listed",
+          "register_key": "lodi-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-27",
+          "sha256": "0cb78eec4e7c902a9ec9e6fa3b64ef52c276a2de32cd86cba3e59cf68775d945",
+          "parser": "lodi_listed"
+        }
+      ],
+      "selected_public_source_presences": 175,
+      "latest_selected_public_reference_date": "2026-09-27"
     },
     {
       "authority_key": "lucca",
@@ -2546,7 +3434,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/lucca-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "lucca-applicants",
+          "register_key": "lucca-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-08",
+          "sha256": "fd9cdc163e09c411ce5fd1f716d85811a15503f3527ac0f5abdaec909de4f084",
+          "parser": "lucca_applicants"
+        },
+        {
+          "source_key": "lucca-listed",
+          "register_key": "lucca-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "d5a0f11c68a0a3dfb01d10b30f35130c7899795bb46e0239226ad5ea575b5c67",
+          "parser": "lucca_listed"
+        }
+      ],
+      "selected_public_source_presences": 402,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "macerata",
@@ -2596,7 +3504,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/macerata-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "macerata-applicants",
+          "register_key": "macerata-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-21",
+          "sha256": "4d432d015c09060967da156d9ee54718645a22a623656c6def5a9fc58367aa17",
+          "parser": "macerata_applicants"
+        },
+        {
+          "source_key": "macerata-listed",
+          "register_key": "macerata-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-21",
+          "sha256": "7b1518847ea0bcc6bd76bd354ded1ae0e0cc7e7092cb9b7077dbcc689bfe1bce",
+          "parser": "macerata_listed"
+        }
+      ],
+      "selected_public_source_presences": 1358,
+      "latest_selected_public_reference_date": "2026-08-21"
     },
     {
       "authority_key": "mantova",
@@ -2632,7 +3560,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "massa-carrara",
@@ -2668,7 +3599,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "matera",
@@ -2718,7 +3652,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/matera-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "matera-applicants",
+          "register_key": "matera-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-07-31",
+          "sha256": "e4dae926800d1c513e1274b8ae45267337987eaa5b62b1581cbbcc56f6da898c",
+          "parser": "matera_applicants"
+        },
+        {
+          "source_key": "matera-listed",
+          "register_key": "matera-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-07-31",
+          "sha256": "4a2a3fad0711f9d3c159d78c93210983b9f1699c2810d8154b60d8fc5d958d3f",
+          "parser": "matera_listed"
+        }
+      ],
+      "selected_public_source_presences": 338,
+      "latest_selected_public_reference_date": "2026-07-31"
     },
     {
       "authority_key": "messina",
@@ -2768,7 +3722,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/messina-operational-check-2026-09-18.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "messina-applicants",
+          "register_key": "messina-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "852f8f59db96f134fae8e2f95ef3b75b041699a1eb4115639d5eb3a0c5e699e4",
+          "parser": "messina_applicants"
+        },
+        {
+          "source_key": "messina-listed",
+          "register_key": "messina-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "cf1219ccdfb4f6abafd1bb23edf325fdb8dc16d5611a7498378aeed51754644e",
+          "parser": "messina_listed"
+        }
+      ],
+      "selected_public_source_presences": 1034,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "milano",
@@ -2846,7 +3820,19 @@
       "observed_source_hashes": [
         "e656d98e49b0e5838cc8841d78ab6537b0be6ae18cc96252ba1e22993329e9cc"
       ],
-      "source_update_pending": true
+      "source_update_pending": true,
+      "selected_public_sources": [
+        {
+          "source_key": "milano-combined",
+          "register_key": "milano-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-21",
+          "sha256": "fe508b739494d6af29e494f90ac45646a3d24c6bd7bd5448ccaed4d779096b6d",
+          "parser": "milano_combined"
+        }
+      ],
+      "selected_public_source_presences": 2611,
+      "latest_selected_public_reference_date": "2026-09-21"
     },
     {
       "authority_key": "modena",
@@ -2898,7 +3884,43 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/modena-operational-check-2026-09-17.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "modena-post-sisma-applicants",
+          "register_key": "modena-post-sisma",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-16",
+          "sha256": "e21f47c956dd355fc2400ef110916349632ad6f31eb7878c99a3d05834eb5bf1",
+          "parser": "modena_applicants"
+        },
+        {
+          "source_key": "modena-post-sisma-listed",
+          "register_key": "modena-post-sisma",
+          "population_scope": "listed",
+          "reference_date": "2026-09-16",
+          "sha256": "658e24f8342c04dc8c16dba8d4e3660c16fbff89722507a30dfba1d9a43274d0",
+          "parser": "modena_listed"
+        },
+        {
+          "source_key": "modena-provincial-applicants",
+          "register_key": "modena-provincial",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-16",
+          "sha256": "323c1dace295b50f4baff85545879be920dc05ef9072f34b4d98449acf11f79f",
+          "parser": "modena_applicants"
+        },
+        {
+          "source_key": "modena-provincial-listed",
+          "register_key": "modena-provincial",
+          "population_scope": "listed",
+          "reference_date": "2026-09-16",
+          "sha256": "84f7ffa41f8e14b7cb1b3f5817d46e20c721b43a1a77280955999be331f2380a",
+          "parser": "modena_listed"
+        }
+      ],
+      "selected_public_source_presences": 3792,
+      "latest_selected_public_reference_date": "2026-09-16"
     },
     {
       "authority_key": "monza-e-della-brianza",
@@ -2934,7 +3956,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "napoli",
@@ -2954,7 +3979,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-11",
+      "latest_source_reference_date": "2026-09-13",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
@@ -2984,7 +4009,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/napoli-operational-check-2026-09-13.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "napoli-applicants",
+          "register_key": "napoli-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-13",
+          "sha256": "053be2500b07a7da536c344aede12084dde9b7cf28b4717af99764cbd05e7e6b",
+          "parser": "napoli_applicants"
+        },
+        {
+          "source_key": "napoli-listed",
+          "register_key": "napoli-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-13",
+          "sha256": "93a8635c0bd9b00587f9cc60c52752061bd239a7c16cb34b64a11e495a0ab4be",
+          "parser": "napoli_listed"
+        }
+      ],
+      "selected_public_source_presences": 4830,
+      "latest_selected_public_reference_date": "2026-09-13"
     },
     {
       "authority_key": "novara",
@@ -3020,7 +4065,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "nuoro",
@@ -3056,7 +4104,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "oristano",
@@ -3092,7 +4143,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "padova",
@@ -3142,7 +4196,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/padova-operational-check-2026-09-14.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "padova-applicants",
+          "register_key": "padova-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-14",
+          "sha256": "b2cce4c2d34db016a7b84ac83f71032acdf319c020e1bf881d923ef1d45601a3",
+          "parser": "padova_applicants"
+        },
+        {
+          "source_key": "padova-listed",
+          "register_key": "padova-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-14",
+          "sha256": "d140451c7a091e7df497f49465177ba012422917d2031c24df676e76dd909289",
+          "parser": "padova_listed"
+        }
+      ],
+      "selected_public_source_presences": 1005,
+      "latest_selected_public_reference_date": "2026-08-14"
     },
     {
       "authority_key": "palermo",
@@ -3192,7 +4266,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/palermo-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "palermo-applicants",
+          "register_key": "palermo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-17",
+          "sha256": "82dd288c21c85ea563c75cbfc8346c528b603e54c3a78283a0ae67983e97f2f5",
+          "parser": "palermo_applicants"
+        },
+        {
+          "source_key": "palermo-listed",
+          "register_key": "palermo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-18",
+          "sha256": "2349d3ae3dcd37e5da7fc5fdec1326a9408e00fcc0b3b78b0a0809ad75c0837f",
+          "parser": "palermo_listed"
+        }
+      ],
+      "selected_public_source_presences": 1538,
+      "latest_selected_public_reference_date": "2026-09-18"
     },
     {
       "authority_key": "parma",
@@ -3232,7 +4326,19 @@
       ],
       "evidence": [
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "parma-operational",
+          "register_key": "parma-ordinary",
+          "population_scope": "operational_mixed",
+          "reference_date": "2026-09-05",
+          "sha256": "f433f212755b91762b0ca75f5e2677c36e0a3b316c507a834e642b51b4260bec",
+          "parser": "parma_operational"
+        }
+      ],
+      "selected_public_source_presences": 1036,
+      "latest_selected_public_reference_date": "2026-09-05"
     },
     {
       "authority_key": "pavia",
@@ -3268,7 +4374,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "perugia",
@@ -3288,7 +4397,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-03",
+      "latest_source_reference_date": "2026-11-05",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": null,
@@ -3318,7 +4427,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/perugia-operational-check-2026-09-14.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "perugia-applicants",
+          "register_key": "perugia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-11-05",
+          "sha256": "c049e8ec3d94f3a87ec7e6749cdd5f88b769c318156d38a51bba07b777762e77",
+          "parser": "perugia_applicants_2026_11"
+        },
+        {
+          "source_key": "perugia-listed",
+          "register_key": "perugia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-11-05",
+          "sha256": "d8dd83ac23e8fd1fa3b3913423d0b08ff5b1bc12a964738d4ff1a8499fa274f8",
+          "parser": "perugia_listed_2026_11"
+        }
+      ],
+      "selected_public_source_presences": 2263,
+      "latest_selected_public_reference_date": "2026-11-05"
     },
     {
       "authority_key": "pesaro-e-urbino",
@@ -3369,7 +4498,19 @@
         "src/white_list_archive/parsers/pesaro_urbino_combined.py",
         "tests/test_pesaro_urbino_parser_semantics.py",
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "pesaro-urbino-combined",
+          "register_key": "pesaro-urbino-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-08-31",
+          "sha256": "7cadfb4d4473f9100691793b0b695d0c71bf93eebf7b7351060b28196dbe149a",
+          "parser": "pesaro_urbino_combined"
+        }
+      ],
+      "selected_public_source_presences": 484,
+      "latest_selected_public_reference_date": "2026-08-31"
     },
     {
       "authority_key": "pescara",
@@ -3419,7 +4560,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/pescara-operational-check-2026-09-21.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "pescara-applicants",
+          "register_key": "pescara-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-04",
+          "sha256": "2a0f74ab6548ad2418f539aba7fc2eaf0d23998b709b0bc247e512d7b46a578c",
+          "parser": "pescara_legacy_applicants"
+        },
+        {
+          "source_key": "pescara-listed",
+          "register_key": "pescara-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-16",
+          "sha256": "6a8aa832db7d0f55c17d9ed1f8179d9ed46a7c927b5b88d85319f79a1da92239",
+          "parser": "pescara_legacy_listed"
+        }
+      ],
+      "selected_public_source_presences": 642,
+      "latest_selected_public_reference_date": "2026-09-16"
     },
     {
       "authority_key": "piacenza",
@@ -3469,7 +4630,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/piacenza-operational-check-2026-09-21.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "piacenza-applicants",
+          "register_key": "piacenza-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-21",
+          "sha256": "99e2809359df95497ea921fdc69b2c4e826112ab4cd5d31209b38110a3c4d335",
+          "parser": "piacenza_legacy_applicants"
+        },
+        {
+          "source_key": "piacenza-listed",
+          "register_key": "piacenza-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-21",
+          "sha256": "e53d2f0a1c044efb2b28adf058893c4d482b2262396f936dc17a93a43f7aaea8",
+          "parser": "piacenza_legacy_listed"
+        }
+      ],
+      "selected_public_source_presences": 570,
+      "latest_selected_public_reference_date": "2026-09-21"
     },
     {
       "authority_key": "pisa",
@@ -3520,7 +4701,35 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/pisa-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "pisa-applicants",
+          "register_key": "pisa-white-list",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-08",
+          "sha256": "ed3bbf19670dbed899f6386836f4723898e4c20f9315e4d4297156fd1dcd6b12",
+          "parser": "pisa_applicants"
+        },
+        {
+          "source_key": "pisa-listed",
+          "register_key": "pisa-white-list",
+          "population_scope": "listed",
+          "reference_date": "2026-09-08",
+          "sha256": "30eea93e542aea6ceb13bcfd4e3f1358e1c3f9cfb274b23e738dfb304b1dea23",
+          "parser": "pisa_listed"
+        },
+        {
+          "source_key": "pisa-renewal-update",
+          "register_key": "pisa-white-list",
+          "population_scope": "listed",
+          "reference_date": "2026-09-08",
+          "sha256": "8658cd2e6048c44de18687b3933980778dd36bbf3721cd944063f61c0e2ceedb",
+          "parser": "pisa_renewal_update"
+        }
+      ],
+      "selected_public_source_presences": 449,
+      "latest_selected_public_reference_date": "2026-09-08"
     },
     {
       "authority_key": "pistoia",
@@ -3561,7 +4770,27 @@
       ],
       "evidence": [
         "data/publication/multi_prefecture_pilot.json"
-      ]
+      ],
+      "selected_public_sources": [
+        {
+          "source_key": "pistoia-applicants",
+          "register_key": "pistoia-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-08-21",
+          "sha256": "4045086a335fd80e4f493c9a0e6aca73fa58ca491e5c04a42f007879661bd965",
+          "parser": "pistoia_applicants"
+        },
+        {
+          "source_key": "pistoia-listed",
+          "register_key": "pistoia-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-08-21",
+          "sha256": "f26819f1ebe6b3217a2055d793b5cfdc60380c8ed4d17fe8097fdab356de8c86",
+          "parser": "pistoia_listed"
+        }
+      ],
+      "selected_public_source_presences": 317,
+      "latest_selected_public_reference_date": "2026-08-21"
     },
     {
       "authority_key": "pordenone",
@@ -3621,7 +4850,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/pordenone-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "pordenone-provincial-applicants",
+          "register_key": "pordenone-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-01",
+          "sha256": "b8875c9392f9c7273c3c773110d90141eada8aebaa538ae1e3115be27bfdaea1",
+          "parser": "pordenone-provincial-applicants"
+        },
+        {
+          "source_key": "pordenone-provincial-listed",
+          "register_key": "pordenone-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-01",
+          "sha256": "bundle:ce7759de3f7bc81c9f79298c8ad427a387446e8d61ff2d9f1c78cb8ad258e4a3",
+          "parser": "pordenone-provincial-listed"
+        }
+      ],
+      "selected_public_source_presences": 433,
+      "latest_selected_public_reference_date": "2026-09-01"
     },
     {
       "authority_key": "potenza",
@@ -3686,7 +4935,19 @@
         "1d6dbaf66350aab1e62c3191695850927638412ed2750848bbcc401e1067123a",
         "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b"
       ],
-      "source_update_pending": false
+      "source_update_pending": false,
+      "selected_public_sources": [
+        {
+          "source_key": "potenza-combined",
+          "register_key": "potenza-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-27",
+          "sha256": "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b",
+          "parser": "potenza_combined"
+        }
+      ],
+      "selected_public_source_presences": 1036,
+      "latest_selected_public_reference_date": "2026-09-27"
     },
     {
       "authority_key": "prato",
@@ -3737,7 +4998,27 @@
         "docs/sources/prato-operational-check-2026-09-21.md"
       ],
       "source_update_pending": false,
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "prato-applicants",
+          "register_key": "prato-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-21",
+          "sha256": "cbf5c84522db544adb495272ebe170d105d35a9131e1853396b0584b7865a27d",
+          "parser": "prato_legacy_applicants"
+        },
+        {
+          "source_key": "prato-listed",
+          "register_key": "prato-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-21",
+          "sha256": "f3d5644d57f9162d35de7f7f972deecda969824324d1b82c3cb3c21cac99c540",
+          "parser": "prato_openxml_listed"
+        }
+      ],
+      "selected_public_source_presences": 160,
+      "latest_selected_public_reference_date": "2026-09-21"
     },
     {
       "authority_key": "ragusa",
@@ -3773,7 +5054,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "ravenna",
@@ -3822,7 +5106,19 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/ravenna-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "ravenna-combined",
+          "register_key": "ravenna-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-09-17",
+          "sha256": "8d249118ca1fc90cb744a5a630a3c991eee44a963576a031596c9209910ac555",
+          "parser": "ravenna_combined"
+        }
+      ],
+      "selected_public_source_presences": 706,
+      "latest_selected_public_reference_date": "2026-09-17"
     },
     {
       "authority_key": "reggio-calabria",
@@ -3858,7 +5154,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "reggio-emilia",
@@ -3894,7 +5193,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "rieti",
@@ -3930,7 +5232,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "rimini",
@@ -3966,7 +5271,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "roma",
@@ -4016,7 +5324,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/roma-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "roma-applicants",
+          "register_key": "roma-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-14",
+          "sha256": "9bf34641f92b7480492646f0ab442b47305438a06547e1739dafd324c2b1b32a",
+          "parser": "roma_positioned_applicants"
+        },
+        {
+          "source_key": "roma-listed",
+          "register_key": "roma-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-14",
+          "sha256": "8a2bbdb210757a8e7bf1da74db4bd7440c4fc45b3198b09e225c0aee2e6ef4af",
+          "parser": "roma_positioned_listed"
+        }
+      ],
+      "selected_public_source_presences": 4428,
+      "latest_selected_public_reference_date": "2026-09-14"
     },
     {
       "authority_key": "rovigo",
@@ -4052,7 +5380,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "salerno",
@@ -4088,7 +5419,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "sassari",
@@ -4137,7 +5471,19 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/sassari-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "sassari-combined",
+          "register_key": "sassari-ordinary",
+          "population_scope": "listed_and_applicant",
+          "reference_date": "2026-08-31",
+          "sha256": "e5cf9776971e4c0b46b97c56e2764f906bd07e3d573ac07b59fcd6605ab9c370",
+          "parser": "sassari_combined"
+        }
+      ],
+      "selected_public_source_presences": 478,
+      "latest_selected_public_reference_date": "2026-08-31"
     },
     {
       "authority_key": "savona",
@@ -4173,7 +5519,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "siena",
@@ -4209,7 +5558,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "siracusa",
@@ -4259,7 +5611,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/siracusa-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "siracusa-applicants",
+          "register_key": "siracusa-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-03",
+          "sha256": "c2e49fa6dc16da383c017b1c4ebed7c493d8013d53ea58d813fe4b4187375ba2",
+          "parser": "siracusa_applicants"
+        },
+        {
+          "source_key": "siracusa-listed",
+          "register_key": "siracusa-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-03",
+          "sha256": "90e6bc87e6a3c6cfc46871473565fae8858d252e4be7787915a21978b0b963a9",
+          "parser": "siracusa_listed"
+        }
+      ],
+      "selected_public_source_presences": 419,
+      "latest_selected_public_reference_date": "2026-09-03"
     },
     {
       "authority_key": "sondrio",
@@ -4295,7 +5667,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "taranto",
@@ -4351,7 +5726,27 @@
         "ed6c92d2348068b5f70b47d6d32e62396f17d520c39bcd57e2fa0289c84857a3",
         "d4be4042c30c6622ef7aad2520f8bacb62443a5b346855430712022da2bcf338"
       ],
-      "source_update_pending": true
+      "source_update_pending": true,
+      "selected_public_sources": [
+        {
+          "source_key": "taranto-applicants",
+          "register_key": "taranto-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-07",
+          "sha256": "b1f6c6cc74111d3e31df2a39acbfd013f7be29eceb56cbc90ddb5fdb67b36236",
+          "parser": "taranto_html_applicants"
+        },
+        {
+          "source_key": "taranto-listed",
+          "register_key": "taranto-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-07",
+          "sha256": "95f5253e43fb6c02b5e289ef047601c7239a631b904146e45239b9a15b13fd00",
+          "parser": "taranto_html_listed"
+        }
+      ],
+      "selected_public_source_presences": 600,
+      "latest_selected_public_reference_date": "2026-09-07"
     },
     {
       "authority_key": "teramo",
@@ -4387,7 +5782,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "terni",
@@ -4423,7 +5821,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "torino",
@@ -4473,7 +5874,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/torino-operational-check-2026-09-15.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "torino-applicants",
+          "register_key": "torino-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "f84d6da09090d557ba85cd216bc1e4962935f0f43ddb2614e77995b613ed2f51",
+          "parser": "torino_applicants"
+        },
+        {
+          "source_key": "torino-listed",
+          "register_key": "torino-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "5c8341cd984de01f6472e049b9fa22569798ebc41761e6f85763796c8a90ba0d",
+          "parser": "torino_listed"
+        }
+      ],
+      "selected_public_source_presences": 1663,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "trapani",
@@ -4523,7 +5944,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/trapani-operational-check-2026-09-19.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "trapani-applicants",
+          "register_key": "trapani-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-11",
+          "sha256": "d42720c3ebf9c24055371fc42b1de89060604fc98d60861ec72a54e650412ae9",
+          "parser": "trapani_applicants"
+        },
+        {
+          "source_key": "trapani-listed",
+          "register_key": "trapani-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "060c5ddb20b24f733066b59f27aa1ea98a8fdc04d22b0196b90c9e383253b476",
+          "parser": "trapani_listed"
+        }
+      ],
+      "selected_public_source_presences": 555,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "trento",
@@ -4573,7 +6014,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/trento-operational-check-2026-09-14.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "trento-applicants",
+          "register_key": "trento-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-10",
+          "sha256": "9f36797e3e11834c979f9b5f5d58d693e19fa2456c69ce5859628d4e56a056c0",
+          "parser": "trento_applicants"
+        },
+        {
+          "source_key": "trento-listed",
+          "register_key": "trento-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-11",
+          "sha256": "b831570c01220b8709ebf9c4dbdfe856aba37a21c46353cf7bc9eedb5965c8af",
+          "parser": "trento_listed"
+        }
+      ],
+      "selected_public_source_presences": 1464,
+      "latest_selected_public_reference_date": "2026-09-11"
     },
     {
       "authority_key": "treviso",
@@ -4609,7 +6070,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "trieste",
@@ -4645,7 +6109,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "udine",
@@ -4695,7 +6162,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/udine-operational-check-2026-09-10.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "udine-applicants",
+          "register_key": "udine-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-09",
+          "sha256": "4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971",
+          "parser": "udine_positioned_applicants"
+        },
+        {
+          "source_key": "udine-listed",
+          "register_key": "udine-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-09",
+          "sha256": "0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba",
+          "parser": "udine_positioned_listed"
+        }
+      ],
+      "selected_public_source_presences": 1450,
+      "latest_selected_public_reference_date": "2026-09-09"
     },
     {
       "authority_key": "varese",
@@ -4731,7 +6218,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "venezia",
@@ -4767,7 +6257,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "verbano-cusio-ossola",
@@ -4803,7 +6296,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "vercelli",
@@ -4839,7 +6335,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "verona",
@@ -4875,7 +6374,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "vibo-valentia",
@@ -4911,7 +6413,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "vicenza",
@@ -4947,7 +6452,10 @@
       "known_content_sha256": [],
       "evidence": [
         "https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/34252484175"
-      ]
+      ],
+      "selected_public_sources": [],
+      "selected_public_source_presences": 0,
+      "latest_selected_public_reference_date": null
     },
     {
       "authority_key": "viterbo",
@@ -4996,7 +6504,27 @@
         "data/publication/multi_prefecture_pilot.json",
         "docs/sources/viterbo-operational-check-2026-09-20.md"
       ],
-      "last_completed_coverage_stage": "VALIDATED"
+      "last_completed_coverage_stage": "VALIDATED",
+      "selected_public_sources": [
+        {
+          "source_key": "viterbo-applicants",
+          "register_key": "viterbo-ordinary",
+          "population_scope": "applicant",
+          "reference_date": "2026-09-02",
+          "sha256": "a0a2280f4c4352e29997ab3b5b532500f1a7d5eb57b5e44f82a62515ac66a545",
+          "parser": "viterbo_applicants"
+        },
+        {
+          "source_key": "viterbo-listed",
+          "register_key": "viterbo-ordinary",
+          "population_scope": "listed",
+          "reference_date": "2026-09-02",
+          "sha256": "ee6bdb1f9020689ae4e24d91397cdf07e7bf17999a85f4f2620eb127541f2e78",
+          "parser": "viterbo_listed"
+        }
+      ],
+      "selected_public_source_presences": 260,
+      "latest_selected_public_reference_date": "2026-09-02"
     }
   ],
   "operational_prerequisites": {
@@ -5028,5 +6556,16 @@
       "content_changed": true,
       "content_sha256": "b92945af542b89ca99122d60a6f2d1c4c22359bb2c1bbe7c40672c7738bbc58a"
     }
-  ]
+  ],
+  "selected_publication": {
+    "release_tag": "public-data-43524455108-1",
+    "registry_sha256": "e235c2bae950cd85ec4f3c6b477c3ebba0a05ea745430142ce2020d0da843226",
+    "source_presences": 74483,
+    "authority_count": 74,
+    "register_count": 77,
+    "source_count": 142,
+    "unit": "source_document_presences_not_distinct_businesses",
+    "live_deployment_verified": null,
+    "freshness_of_all_sources_verified": false
+  }
 }
