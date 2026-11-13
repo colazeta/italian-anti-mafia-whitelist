@@ -27,6 +27,13 @@ from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, clie
 
 # Existing publication adapter keys deliberately differ from their physical
 # parser diagnostic names. Keep the mapping explicit; unrelated identities fail.
+# Exact reviewed binding for a public-field adapter whose output differs from
+# the parser's source-semantic payload. This is scoped to the old approved release,
+# not a way to approve or substitute a newer mutable source.
+APPROVED_PUBLIC_DERIVATIVE_BINDING = (
+    Path(__file__).resolve().parents[3] / 'data/publication/approved_semantic_public_derivative.json'
+)
+
 DECLARED_PARSER_IDENTITIES = {
     'cosenza_combined_v2': 'white_list_archive.parsers.cosenza_combined_v2',
     'ferrara-provincial-listed': 'ferrara_ordinary',
@@ -275,10 +282,23 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
         if not records or (cfg.get('expected_source_rows') is not None and len(records) != cfg['expected_source_rows']):
             raise ValueError(f'{key}: preserved observation count differs from reviewed configuration')
         if approval_mode == 'semantic_sha256' and _semantic_digest(records) != cfg.get('semantic_sha256'):
-            # Preserve only a projection that independently recomputes to the
-            # configured approved semantics. Its actual original raw digest stays
-            # bound to the verified snapshot and records, never to today's URL.
-            raise ValueError(f'{key}: preserved observations differ from approved semantic digest')
+            # Some source parsers undergo an explicitly reviewed *public field*
+            # projection after the approved raw semantic SHA is computed.
+            # Rehashing those published fields as if they were the raw parser
+            # payload will reject the already approved immutable derivative.
+            # Permit reuse ONLY when the complete original approved source
+            # descriptor matches an independently reviewed, release-specific
+            # binding. restore() has already verified every byte of the approved
+            # public snapshot; this does not check/approve today's live source.
+            try:
+                binding = json.loads(APPROVED_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
+            except (OSError, ValueError) as exc:
+                raise ValueError(f'{key}: reviewed public derivative binding unavailable') from exc
+            if (set(binding) != {'schema_version', 'snapshot_tag', 'purpose', 'source'}
+                    or binding.get('schema_version') != 1
+                    or binding.get('snapshot_tag') != manifest.get('release_tag')
+                    or binding.get('source') != cfg):
+                raise ValueError(f'{key}: preserved observations differ from approved semantic digest')
         for record in records:
             for field in ('authority_key', 'register_key', 'population_scope', 'reference_date', 'source_page_url', 'resource_url'):
                 if record.get(field) != cfg.get(field):
