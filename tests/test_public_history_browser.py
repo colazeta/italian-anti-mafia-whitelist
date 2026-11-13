@@ -13,11 +13,17 @@ from white_list_archive.publishing.public_history import compare_releases
 ROOT=Path(__file__).resolve().parents[1]
 
 
-def load_page(page, missing_history=False):
+def load_page(page, missing_history=False, repeated_check=False):
     root=ROOT/'public-site'
     before=fixture_registry()
     current=fixture_registry('2026-07-01','b'*64,('listed','listed','pending'))
     history=compare_releases(before,current)
+    if repeated_check:
+        # A new byte identity, unchanged approved rows and source date.
+        earlier=next(e for e in history['editions'] if e['reference_date']=='2026-06-01')
+        duplicate={**earlier, 'id':'synthetic-repeat', 'document_sha256':'f'*64}
+        history['editions'].append(duplicate)
+        history['checks'].append({'edition_id':duplicate['id'], 'checked_at':'2026-09-16T12:00:00+00:00', 'kind':'approved_document_verification'})
     site=json.loads((root/'data/site.json').read_text())
     data={'./data/registry.json':current,'./data/history.json':None if missing_history else history,'./data/site.json':site,'./data/prefectures.json':{'meta':{'national_index_url':'https://example.test/index'},'prefectures':[{'authority_key':'fixture','jurisdiction_name':'Fixture Prefecture','mapping_status':'published','published_registers':['Fixture register'],'official_white_list_urls':['https://example.test/page']}]}}
     html=re.sub(r'<script src="[^"]+"></script>','',(root/'index.html').read_text())
@@ -55,6 +61,25 @@ def test_history_is_simple_prefecture_delta_view(width,tmp_path):
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1')
         assert not errors
         page.screenshot(path=str(tmp_path/f'history-{width}.png'),full_page=True)
+        browser.close()
+
+
+
+def test_repeated_same_content_is_one_visible_edition_with_technical_audit_counts():
+    with playwright.sync_playwright() as p:
+        binary=os.environ.get('PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH') or shutil.which('chromium')
+        browser=p.chromium.launch(executable_path=binary,headless=True,args=['--no-sandbox'])
+        page=browser.new_page(viewport={'width':1440,'height':950},locale='it-IT')
+        load_page(page,repeated_check=True)
+        page.locator('[data-view="history"]').click()
+        text=page.locator('#view-history').inner_text()
+        assert '2 edizioni di dati distinte' in text
+        assert '3 versioni documentali' in text
+        assert '3 controlli registrati' in text
+        assert page.locator('.history-editions-table tbody tr').count()==2
+        assert '30 giorni' in text
+        assert 'Nuove presenze osservate nell’elenco' in text
+        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1')
         browser.close()
 
 
