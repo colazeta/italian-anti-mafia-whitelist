@@ -191,3 +191,57 @@ def test_unexpected_diagnostic_class_never_leaks(monkeypatch):
     )
     assert result["reconciliation_failure_categories"]["diagnostic_unavailable"] == 1
     assert "secret" not in json.dumps(result)
+
+
+def test_resource_conflict_classification_separates_type_and_locator_without_leaking_values():
+    loc = "https://private.example/never-output"
+    other = "https://private.example/also-never-output"
+    assert backfill._resource_conflict_reason(
+        stored_url=loc, stored_type="html", archived_url=loc, archived_type="other",
+    ) == "resource_locator_type_conflict"
+    assert backfill._resource_conflict_reason(
+        stored_url=loc, stored_type="html", archived_url=other, archived_type="html",
+    ) == "resource_locator_web_url_conflict"
+    assert backfill._resource_conflict_reason(
+        stored_url=loc, stored_type="html", archived_url=other, archived_type="other",
+    ) == "resource_locator_web_url_and_type_conflict"
+    assert backfill._resource_conflict_reason(
+        stored_url=loc, stored_type="html", archived_url=loc, archived_type="html",
+    ) is None
+    assert loc not in json.dumps(sorted(backfill._FAILURE_CODES))
+
+
+def test_resource_conflicts_are_bounded_series_aggregates(monkeypatch):
+    store, sha = fixture(source="milano-combined")
+    def fake_failure(*args):
+        raise ValueError("private locator and capture UUID must never be reported")
+    monkeypatch.setattr(backfill, "persist_and_independently_readback", fake_failure)
+    monkeypatch.setattr(
+        backfill, "classify_failed_capture",
+        lambda *args: "resource_locator_type_conflict",
+    )
+    result = backfill.reconcile_historical_capture_checks(
+        store, "test-dsn", targets=(("milano-combined", "fixture", sha),),
+    )
+    assert result["resource_metadata_conflicts_by_series"] == {
+        "lodi-applicants": 0,
+        "lodi-listed": 0,
+        "milano-combined": 1,
+    }
+    assert result["relational_reconciliation_failures"] == 1
+    assert result["reconciliation_failure_categories"]["resource_locator_type_conflict"] == 1
+    assert "private locator" not in json.dumps(result)
+    assert "private.example" not in json.dumps(result)
+    assert sha not in json.dumps(result)
+
+
+def test_no_writer_has_zero_closed_scope_counts():
+    store, sha = fixture()
+    result = backfill.reconcile_historical_capture_checks(
+        store, "", targets=targets(sha),
+    )
+    assert result["resource_metadata_conflicts_by_series"] == {
+        "lodi-applicants": 0,
+        "lodi-listed": 0,
+        "milano-combined": 0,
+    }
