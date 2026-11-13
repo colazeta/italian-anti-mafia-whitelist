@@ -45,7 +45,21 @@ def main():
         raise RuntimeError("Catania candidate changed source-series coverage")
     changed_non_catania=[key for key in before if key not in SOURCE_KEYS and digest(before[key])!=digest(after[key])]
     if changed_non_catania:
-        raise RuntimeError(f"Non-Catania source observations changed unexpectedly: {len(changed_non_catania)} sources")
+        details=[]
+        for key in sorted(changed_non_catania):
+            previous={r["record_locator"]:r for r in before[key]}
+            proposed={r["record_locator"]:r for r in after[key]}
+            field_counts=Counter()
+            for loc in set(previous) & set(proposed):
+                for field in set(previous[loc]) | set(proposed[loc]):
+                    if previous[loc].get(field)!=proposed[loc].get(field):
+                        field_counts[field]+=1
+            details.append({"source_key":key,
+                            "old_count":len(before[key]),"new_count":len(after[key]),
+                            "changed_field_names_only":dict(field_counts),
+                            "added_locators":len(set(proposed)-set(previous)),
+                            "removed_locators":len(set(previous)-set(proposed))})
+        raise RuntimeError(f"Unexpected non-Catania changes (safe metadata only): {details}")
     if proposal["meta"]["authority_count"]!=74 or proposal["meta"]["register_count"]!=77:
         raise RuntimeError("Catania release lost approved authority/register coverage")
     expected_total=len(approved["records"])+sum(SOURCE_COUNTS[k]-len(before[k]) for k in SOURCE_KEYS)
