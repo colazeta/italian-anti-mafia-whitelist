@@ -112,6 +112,12 @@ def parse_candidate_xlsx(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
             # complete company signature. Never silently skip a data-like row
             # with just one of the two mandatory semantic anchors.
             if not id_text and not sector_text:
+                # A footer may have a title or explanatory text, but a row
+                # with a business signature or populated date/outcome fields
+                # cannot be silently discarded as formatting.
+                if ((name_text and _clean(office))
+                        or any(_clean(cell) for cell in raw[4:])):
+                    raise ValueError("Unclassified candidate row may contain company information")
                 continue
             if not id_text or not sector_text:
                 raise ValueError("Candidate source contains an incomplete data-like row")
