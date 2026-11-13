@@ -17,6 +17,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 REPOSITORY = "colazeta/italian-anti-mafia-whitelist"
+PAGES_URL = "https://colazeta.github.io/italian-anti-mafia-whitelist/"
 FILES = {"registry.json", "registry.csv", "prefectures.json", "prefectures.csv", "history.json"}
 
 
@@ -75,6 +76,33 @@ def restore(manifest: dict, destination: Path) -> None:
             (staging / name).replace(destination / name)
 
 
+def verify_live(manifest: dict, base_url: str = PAGES_URL, *, attempts: int = 4, sleep=time.sleep) -> dict:
+    """Verify the actual deployed bytes, allowing bounded CDN propagation time.
+
+    Only the existing public Pages origin and the closed five-file derivative
+    surface are read. Never substitute a release download for a failed live check.
+    """
+    validate_manifest(manifest)
+    if base_url.rstrip("/") + "/" != PAGES_URL or attempts < 1:
+        raise ValueError("Unapproved live publication origin or retry bound")
+    checked = {}
+    for name, item in sorted(manifest["files"].items()):
+        for attempt in range(1, attempts + 1):
+            url = (f"{PAGES_URL}data/{name}?snapshot={manifest['release_tag']}"
+                   f"&verification_attempt={attempt}")
+            try:
+                body = download(url, item["bytes"])
+                verify(body, item, name)
+            except (ValueError, HTTPError, URLError, TimeoutError, ConnectionError):
+                if attempt == attempts:
+                    raise
+                sleep(5 * attempt)
+            else:
+                checked[name] = {"bytes": len(body), "sha256": hashlib.sha256(body).hexdigest()}
+                break
+    return {"release_tag": manifest["release_tag"], "live_files_verified": checked}
+
+
 def pack(source: Path, destination: Path, tag: str) -> dict:
     manifest = {"schema_version": 1, "repository": REPOSITORY, "release_tag": tag, "files": {}}
     destination.mkdir(parents=True, exist_ok=True)
@@ -91,16 +119,21 @@ def pack(source: Path, destination: Path, tag: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["restore", "pack"])
+    parser.add_argument("mode", choices=["restore", "pack", "verify-live"])
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--data", type=Path, default=Path("public-site/data"))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--tag")
+    parser.add_argument("--base-url", default=PAGES_URL)
     args = parser.parse_args()
     if args.mode == "restore":
         if not args.manifest:
             parser.error("restore requires --manifest")
         restore(json.loads(args.manifest.read_text()), args.data)
+    elif args.mode == "verify-live":
+        if not args.manifest:
+            parser.error("verify-live requires --manifest")
+        print(json.dumps(verify_live(json.loads(args.manifest.read_text()), args.base_url), sort_keys=True))
     else:
         if not args.output or not args.tag:
             parser.error("pack requires --output and --tag")

@@ -102,3 +102,38 @@ def test_public_snapshot_retries_connection_reset_without_changing_input(monkeyp
     url = 'https://github.com/colazeta/italian-anti-mafia-whitelist/releases/download/public-data-test/registry.json.gz'
     assert public_snapshot.download(url, 64) == b'verified downstream'
     assert calls == [url, url]
+
+
+def test_live_verification_reads_only_actual_pages_and_pins_all_five_files(monkeypatch):
+    from urllib.parse import urlparse
+    calls = []
+    def download(url, limit):
+        calls.append(url)
+        return urlparse(url).path.rsplit('/', 1)[-1].encode()
+    monkeypatch.setattr(snapshot, 'download', download)
+    result = snapshot.verify_live(fixture_manifest())
+    assert result['live_files_verified'] == fixture_manifest()['files']
+    assert len(calls) == 5 and all(url.startswith(snapshot.PAGES_URL + 'data/') for url in calls)
+    assert all('snapshot=public-data-test' in url for url in calls)
+    with pytest.raises(ValueError, match='origin'):
+        snapshot.verify_live(fixture_manifest(), 'https://unreviewed.example/')
+    with pytest.raises(ValueError, match='retry bound'):
+        snapshot.verify_live(fixture_manifest(), attempts=0)
+
+
+def test_live_cdn_propagation_is_retried_but_a_persistent_mismatch_never_passes(monkeypatch):
+    from urllib.parse import urlparse
+    calls, waits = [], []
+    def download(url, limit):
+        calls.append(url)
+        name = urlparse(url).path.rsplit('/', 1)[-1]
+        return b'stale' if name == 'history.json' and 'attempt=1' in url else name.encode()
+    monkeypatch.setattr(snapshot, 'download', download)
+    result = snapshot.verify_live(fixture_manifest(), sleep=waits.append)
+    assert len(result['live_files_verified']) == 5 and len(calls) == 6 and waits == [5]
+    calls.clear(); waits.clear()
+    monkeypatch.setattr(snapshot, 'download', lambda url, limit: calls.append(url) or b'tampered')
+    with pytest.raises(ValueError, match='integrity'):
+        snapshot.verify_live(fixture_manifest(), attempts=2, sleep=waits.append)
+    assert len(calls) == 2 and waits == [5]
+    assert all(url.startswith(snapshot.PAGES_URL) and '/releases/' not in url for url in calls)
