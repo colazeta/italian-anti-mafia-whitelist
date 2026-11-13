@@ -93,3 +93,38 @@ def test_semantic_edition_requires_recomputed_approved_projection(monkeypatch, t
         build._build_registry_from_selected_inputs(config, tmp_path, None,
             preserved_source_keys=('preserved',), public_snapshot_manifest=manifest)
     assert calls == []
+
+
+def test_potenza_style_public_adapter_can_reuse_exact_immutable_approved_derivative(monkeypatch, tmp_path):
+    config, approved, calls, manifest = setup(monkeypatch, tmp_path)
+    original_cfg=config['sources'][0]
+    original_cfg.update(approval_mode='semantic_sha256', sha256='b'*64,
+                        semantic_sha256='c'*64)
+    # The published record already passed a source-semantic gate *before* a
+    # reviewed public-field adapter altered its shape. Its public digest is
+    # intentionally different from the source parser's approved semantic digest.
+    assert build._semantic_digest(approved['records']) != original_cfg['semantic_sha256']
+    manifest.write_text(json.dumps({'release_tag':'public-data-reviewed'}))
+    binding=tmp_path/'approved-derivative.json'
+    binding.write_text(json.dumps({'schema_version':1,'snapshot_tag':'public-data-reviewed',
+                                   'purpose':'test binding','source':copy.deepcopy(original_cfg)}))
+    monkeypatch.setattr(build,'APPROVED_PUBLIC_DERIVATIVE_BINDING',binding)
+
+    result=build._build_registry_from_selected_inputs(config,tmp_path,None,
+        preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert result['records'][1] == approved['records'][0]
+    assert result['meta']['sources'][1]['document_checked_at'] == approved['meta']['sources'][0]['document_checked_at']
+    assert [s['source_key'] for s in calls[0]['sources']] == ['fresh']
+
+    calls.clear()
+    config['sources'][0]['semantic_sha256']='d'*64
+    with pytest.raises(ValueError, match='semantic digest'):
+        build._build_registry_from_selected_inputs(config,tmp_path,None,
+            preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert calls == []
+    config['sources'][0]['semantic_sha256']='c'*64
+    manifest.write_text(json.dumps({'release_tag':'public-data-other'}))
+    with pytest.raises(ValueError, match='semantic digest'):
+        build._build_registry_from_selected_inputs(config,tmp_path,None,
+            preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert calls == []
