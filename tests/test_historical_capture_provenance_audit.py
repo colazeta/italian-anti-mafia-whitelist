@@ -111,6 +111,10 @@ def test_full_manifest_catalogue_and_original_are_both_required():
     assert row["verified_capture_checks"] == 1
     assert row["bounded_catalogue_listing_complete"] is True
     assert report["pins_with_verified_capture_provenance"] == 1
+    assert report["explicit_writer_provenance_ready_checks"] == 0
+    assert report["missing_writer_provenance_checks"] == 1
+    assert row["missing_writer_provenance_checks"] == 1
+    assert report["postgresql_writer_or_commit_verified_here"] is False
     assert report["capture_or_database_writes"] == 0
     assert report["administrative_editions_approved"] == 0
     assert report["public_promotions"] == 0
@@ -218,3 +222,39 @@ def test_capture_key_validation_never_uses_untrusted_locator():
     assert _valid_capture_key(
         "captures/v1/lodi-listed/../../private.json", source_key="lodi-listed"
     ) is None
+
+
+def test_explicit_writer_provenance_is_a_separate_verified_gate():
+    client = FakeClient()
+    raw = b"synthetic reviewed writer preflight"
+    digest, key = register_capture(client, raw=raw)
+    record = json.loads(client.objects[key])
+    manifest = record["capture_manifest"]
+    manifest.update(
+        origin_type="official_current",
+        authority_rank_code="primary_official",
+        resource_type_code="other",
+    )
+    receipt = {
+        "sha256": digest,
+        "byte_size": len(raw),
+        "manifest_sha256": hashlib.sha256(json.dumps(
+            manifest, sort_keys=True, separators=(",", ":")
+        ).encode()).hexdigest(),
+        "verified_at": "2026-09-27T11:01:00+00:00",
+    }
+    rewritten = freeze_capture_record(manifest, receipt)
+    client.objects[key] = json.dumps(
+        rewritten, sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")
+    report = audit_historical_catalogue(
+        store(client), targets=(("lodi-listed", "synthetic", digest),)
+    )
+    assert report["pins_with_verified_capture_provenance"] == 1
+    assert report["explicit_writer_provenance_ready_checks"] == 1
+    assert report["missing_writer_provenance_checks"] == 0
+    assert report["capture_or_database_writes"] == 0
+    assert report["administrative_editions_approved"] == 0
+    assert "https://official.example" not in json.dumps(report)
+    assert digest not in json.dumps(report)

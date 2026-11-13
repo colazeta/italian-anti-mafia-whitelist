@@ -63,6 +63,8 @@ def audit_historical_catalogue(
 
     # Store only counts. The capture IDs are retained in-memory for deduplication.
     matches = {scope: set() for _, scope, _ in targets}
+    writer_ready = {scope: set() for _, scope, _ in targets}
+    writer_blocked = {scope: set() for _, scope, _ in targets}
     listing_complete = {key: False for key in groups}
     catalogue = CaptureCatalogue(store)
     for source_key, source_targets in groups.items():
@@ -99,6 +101,15 @@ def audit_historical_catalogue(
                     for scope, expected_sha in source_targets.items():
                         if digest == expected_sha:
                             matches[scope].add(capture_id)
+                            # Source-only PostgreSQL persistence requires fields
+                            # already present in the *immutable* archived manifest.
+                            # Never infer provenance from URL, clock or hash.
+                            required = ("origin_type", "authority_rank_code", "resource_type_code")
+                            if all(isinstance(manifest.get(f), str) and manifest[f].strip()
+                                   for f in required):
+                                writer_ready[scope].add(capture_id)
+                            else:
+                                writer_blocked[scope].add(capture_id)
                 except Exception:
                     # Provider exceptions or malformed legacy provenance can leak
                     # source coordinates; they remain unverified without logging.
@@ -112,6 +123,8 @@ def audit_historical_catalogue(
             "scope": scope,
             "status": "verified_immutable_capture_provenance" if matches[scope] else "unknown",
             "verified_capture_checks": len(matches[scope]),
+            "explicit_writer_provenance_ready_checks": len(writer_ready[scope]),
+            "missing_writer_provenance_checks": len(writer_blocked[scope]),
             "bounded_catalogue_listing_complete": listing_complete[source_key],
         }
         for source_key, scope, _ in targets
@@ -120,6 +133,9 @@ def audit_historical_catalogue(
         "schema_version": 1,
         "checked_historical_pins": len(results),
         "pins_with_verified_capture_provenance": sum(bool(matches[scope]) for _, scope, _ in targets),
+        "explicit_writer_provenance_ready_checks": sum(len(writer_ready[scope]) for _, scope, _ in targets),
+        "missing_writer_provenance_checks": sum(len(writer_blocked[scope]) for _, scope, _ in targets),
+        "postgresql_writer_or_commit_verified_here": False,
         "results": results,
         "capture_or_database_writes": 0,
         "administrative_editions_approved": 0,
@@ -138,10 +154,15 @@ def main() -> int:
         result = {
             "schema_version": 1, "checked_historical_pins": len(TARGETS),
             "pins_with_verified_capture_provenance": 0,
+            "explicit_writer_provenance_ready_checks": 0,
+            "missing_writer_provenance_checks": 0,
+            "postgresql_writer_or_commit_verified_here": False,
             "results": [
                 {
                     "scope": scope, "status": "unknown",
                     "verified_capture_checks": 0,
+                    "explicit_writer_provenance_ready_checks": 0,
+                    "missing_writer_provenance_checks": 0,
                     "bounded_catalogue_listing_complete": False,
                 }
                 for _, scope, _ in TARGETS
