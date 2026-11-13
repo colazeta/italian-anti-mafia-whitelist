@@ -128,3 +128,37 @@ def test_potenza_style_public_adapter_can_reuse_exact_immutable_approved_derivat
         build._build_registry_from_selected_inputs(config,tmp_path,None,
             preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
     assert calls == []
+
+
+def test_exact_prior_bundled_public_derivative_preserved_without_live_fetch(monkeypatch,tmp_path):
+    config, approved, calls, manifest = setup(monkeypatch,tmp_path)
+    source=config['sources'][0]
+    source.update(sha256='bundle:'+'a'*64, resources={
+        'I': {'resource_url':'https://example.test/I.pdf','sha256':'1'*64},
+        'II':{'resource_url':'https://example.test/II.pdf','sha256':'2'*64},
+    })
+    approved['records'][0]['capture_sha256']=source['sha256']
+    approved['meta']['sources'][0]['sha256']=source['sha256']
+    manifest.write_text(json.dumps({'release_tag':'public-data-frozen'}))
+    binding=tmp_path/'reviewed-bundle.json'
+    binding.write_text(json.dumps({'schema_version':1,'snapshot_tag':'public-data-frozen',
+                                  'purpose':'test exact reviewed bundle',
+                                  'source':copy.deepcopy(source)}))
+    monkeypatch.setattr(build,'APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING',binding)
+    result=build._build_registry_from_selected_inputs(config,tmp_path,None,
+        preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert result['records'][1] == approved['records'][0]
+    assert result['meta']['sources'][1]['sha256'] == source['sha256']
+    assert [x['source_key'] for x in calls[0]['sources']]==['fresh']
+    calls.clear()
+    source['resources']['II']['sha256']='3'*64
+    with pytest.raises(ValueError,match='provenance mismatch'):
+        build._build_registry_from_selected_inputs(config,tmp_path,None,
+            preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert calls==[]
+    source['resources']['II']['sha256']='2'*64
+    manifest.write_text(json.dumps({'release_tag':'public-data-other'}))
+    with pytest.raises(ValueError,match='provenance mismatch'):
+        build._build_registry_from_selected_inputs(config,tmp_path,None,
+            preserved_source_keys=('preserved',),public_snapshot_manifest=manifest)
+    assert calls==[]
