@@ -46,6 +46,7 @@ from white_list_archive.parsers.bolzano_docx import (
     parse_bolzano_listed,
 )
 from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
+from white_list_archive.parsers.alessandria_october import PARSERS as ALESSANDRIA_OCTOBER_PARSERS
 from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
 from white_list_archive.parsers.catania_openxml_november import PARSERS as CATANIA_NOVEMBER_PARSERS
 from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
@@ -1175,6 +1176,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         return _adapt_cosenza(path, cfg)
     parser = (
         PARSERS.get(cfg["parser"])
+        or ALESSANDRIA_OCTOBER_PARSERS.get(cfg["parser"])
         or AREZZO_PARSERS.get(cfg["parser"])
         or AVELLINO_PARSERS.get(cfg["parser"])
         or PESARO_PARSERS.get(cfg["parser"])

@@ -18,6 +18,7 @@ on:
       - 'src/white_list_archive/publishing/public_contract.py'
       - 'src/white_list_archive/publishing/public_artifact.py'
       - 'src/white_list_archive/parsers/multi_prefecture_tables.py'
+      - 'src/white_list_archive/parsers/alessandria_october.py'
       - 'src/white_list_archive/parsers/cosenza_combined_v2.py'
       - 'src/white_list_archive/parsers/arezzo_openxml.py'
       - 'src/white_list_archive/parsers/avellino_positioned.py'
@@ -169,6 +170,9 @@ jobs:
             --registry-csv public-site/data/registry.csv \
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
+      - name: Verify Alessandria October exact incremental public delta
+        if: ${{ startsWith(github.head_ref, 'alignment/alessandria-') || github.ref == 'refs/heads/main' }}
+        run: python scripts/audit_alessandria_public_candidate.py
       - name: Verify Perugia November public candidate is an exact incremental delta
         if: ${{ startsWith(github.head_ref, 'candidate/perugia-') || github.ref == 'refs/heads/main' }}
         run: python scripts/audit_perugia_public_candidate.py
@@ -973,3 +977,26 @@ jobs:
       - run: python -m pip install -e '.[publication]'
       - name: Verify all November Perugia source contracts and public projections
         run: python scripts/qualify_perugia_candidate.py
+
+  alessandria-source-only:
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'alignment/alessandria-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Qualify exact Alessandria October PDFs without source approval
+        env:
+          ALESSANDRIA_QA_DIR: /tmp/public-actions/alessandria-source-qa
+        run: python scripts/qualify_alessandria_candidate.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alessandria-safe-source-qa
+          path: /tmp/public-actions/alessandria-source-qa
+          retention-days: 14
+          if-no-files-found: error
