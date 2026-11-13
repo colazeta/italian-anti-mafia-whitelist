@@ -993,14 +993,14 @@
       "register_key": "catania-ordinary",
       "register_name": "White List ordinaria",
       "population_scope": "listed",
-      "reference_date": "2026-09-11",
+      "reference_date": "2026-11-06",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
-      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
-      "sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-iscritti-aggiornato-06-novembre-2026.xlsx",
+      "sha256": "ccd1a9abbf8144ae4edb43c7df07c1648c0273196a7aff278c03c62b39b733ff",
       "expected_source_rows": 1632,
-      "last_source_update": "2026-09-11",
-      "last_source_update_basis": "dated official resource",
-      "notes": "Source formulas and reviewed malformed strings remain provenance; canonical values are emitted only under explicit fail-closed parser rules documented in the Catania operational check."
+      "last_source_update": "2026-11-06",
+      "last_source_update_basis": "UNAPPROVED DRAFT: official Catania White List notification dated 6 November 2026; original byte SHA verified by archive-first robot 13 November 2026; date and content require exact-source review.",
+      "notes": "DRAFT only. expected_source_rows still reflects September and is a deliberately failing verification gate; obtain reviewed November row totals, parser QA, original provenance and source/edition approval before publishing."
     },
     {
       "source_key": "catania-applicants",
@@ -1010,14 +1010,14 @@
       "register_key": "catania-ordinary",
       "register_name": "White List ordinaria",
       "population_scope": "applicant",
-      "reference_date": "2026-09-11",
+      "reference_date": "2026-11-06",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
-      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
-      "sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-richiedenti-aggiornato-06-novembre-2026.xlsx",
+      "sha256": "adb590642773f68047e207beeb6aace3555ece674b6b64872c1347c0c7d4ffbb",
       "expected_source_rows": 324,
-      "last_source_update": "2026-09-11",
-      "last_source_update_basis": "dated official resource",
-      "notes": "Applicant status is grounded in the separately identified official applicant population; nonstandard identifiers remain raw and are never repaired."
+      "last_source_update": "2026-11-06",
+      "last_source_update_basis": "UNAPPROVED DRAFT: official Catania White List notification dated 6 November 2026; original byte SHA verified by archive-first robot 13 November 2026; date and content require exact-source review.",
+      "notes": "DRAFT only. expected_source_rows still reflects September and is a deliberately failing verification gate; obtain reviewed November row totals, parser QA, original provenance and source/edition approval before publishing."
     },
     {
       "authority_key": "genova",
