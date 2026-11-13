@@ -21914,6 +21914,31 @@
       "checked_at": "2026-11-13T18:14:19+00:00",
       "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
       "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T19:55:25+00:00",
+      "edition_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T19:55:30+00:00",
+      "edition_id": "0fca2956ff7447f67e3fd7473ca12f4df64bcd5252548f1f3b9e091073c686cb",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T19:55:31+00:00",
+      "edition_id": "0265a4c5ed524ac37cad1386fd5f5e830461798573ea9708e296c0750282c933",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T19:55:43+00:00",
+      "edition_id": "bb469063f32b340b7c811e902c3c3cd7837184f3280c00f7dc39ff30e8f9d59e",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T19:55:48+00:00",
+      "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
+      "kind": "approved_document_verification"
     }
   ],
   "comparisons": [
@@ -24477,6 +24502,29 @@
     {
       "authority_key": "catania",
       "authority_name": "Prefettura di Catania",
+      "data_fingerprint": "2e28d8478f7826e8f22100bc2a5b101b2b71363de5d78bd92c3d4356085d7141",
+      "document_sha256": "adb590642773f68047e207beeb6aace3555ece674b6b64872c1347c0c7d4ffbb",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "0265a4c5ed524ac37cad1386fd5f5e830461798573ea9708e296c0750282c933",
+      "parser_signature": "catania_applicants_2026_11@2026-11-06.1",
+      "population_scope": "applicant",
+      "reference_date": "2026-11-06",
+      "reference_date_raw": "2026-11-06",
+      "register_key": "catania-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-richiedenti-aggiornato-06-novembre-2026.xlsx",
+      "source_key": "catania-applicants",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+      "status_counts": {
+        "pending": 173
+      },
+      "total": 173
+    },
+    {
+      "authority_key": "catania",
+      "authority_name": "Prefettura di Catania",
       "data_fingerprint": "dae2c70bfab751dbb964a8fdc4fb266291f12f09198f9edea424b636eef39c78",
       "document_sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291",
       "evidence": [
@@ -24497,6 +24545,30 @@
         "renewal_update_in_progress": 351
       },
       "total": 1632
+    },
+    {
+      "authority_key": "catania",
+      "authority_name": "Prefettura di Catania",
+      "data_fingerprint": "73d78f805404a819adb325fb4388f35a1678e332a57257d173b4e312866c694f",
+      "document_sha256": "ccd1a9abbf8144ae4edb43c7df07c1648c0273196a7aff278c03c62b39b733ff",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "0fca2956ff7447f67e3fd7473ca12f4df64bcd5252548f1f3b9e091073c686cb",
+      "parser_signature": "catania_listed_2026_11@2026-11-06.1",
+      "population_scope": "listed",
+      "reference_date": "2026-11-06",
+      "reference_date_raw": "2026-11-06",
+      "register_key": "catania-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-iscritti-aggiornato-06-novembre-2026.xlsx",
+      "source_key": "catania-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/catania/comunicazioni/white-list-provinciale",
+      "status_counts": {
+        "listed": 1662,
+        "renewal_update_in_progress": 202
+      },
+      "total": 1864
     },
     {
       "authority_key": "catanzaro",
