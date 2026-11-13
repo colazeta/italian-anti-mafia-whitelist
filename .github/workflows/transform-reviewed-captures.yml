@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
+      - 'src/white_list_archive/acquisition/candidate_extract.py'
       - 'src/white_list_archive/acquisition/production_checkpoint.py'
       - 'src/white_list_archive/acquisition/transform_resilience.py'
       - 'src/white_list_archive/acquisition/historical_source_qualification.py'
@@ -129,9 +130,10 @@ jobs:
       - name: Reconcile exact historical capture checks in PostgreSQL (source only)
         if: matrix.shard == 0
         run: python -m white_list_archive.storage.historical_capture_reconciliation
-      - name: Validate transformer selection contract
-        run: python -m pytest -q tests/test_auto_transform.py
+      - name: Validate transformer and candidate-extraction selection contracts
+        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py
       - name: Load safe current capture index
+        id: load-capture-index
         run: |
           set -euo pipefail
           # Robot state is a discovery index, not authoritative source bytes.
@@ -160,6 +162,33 @@ jobs:
           set -euo pipefail
           python -m white_list_archive.acquisition.production_checkpoint \
             --code-revision "$(git rev-parse HEAD)"
+
+      # A new URL remains an unbound robot-discovery capture. Parser matching
+      # only stages an unapproved candidate in the protected evidence store;
+      # it never assigns an official edition date or writes the public registry.
+      # Run even when the reviewed-source transformer quarantines another input.
+      - name: Extract unbound archived candidates for private review
+        if: ${{ always() && steps.load-capture-index.outcome == 'success' }}
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python -m white_list_archive.acquisition.candidate_extract \
+            --state "${RUNNER_TEMP}/robot-state.json" \
+            --source-config data/publication/multi_prefecture_pilot.json \
+            --robot-catalog data/source_registry/prefecture_robots.json \
+            --shard "$SHARD" \
+            --shards 4 \
+            --code-revision "$(git rev-parse HEAD)" \
+            --report "${RUNNER_TEMP}/candidate-extract-summary.json" \
+            --public-report /tmp/public-actions/white-list-candidate-extract/summary.json
+      - name: Retain aggregate candidate-extraction status only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: white-list-candidate-extract-status-${{ matrix.shard }}-${{ github.run_id }}
+          path: /tmp/public-actions/white-list-candidate-extract/summary.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Record safe operational totals
         if: always()
