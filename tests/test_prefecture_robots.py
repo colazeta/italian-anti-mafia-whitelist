@@ -50,7 +50,7 @@ def test_every_authority_has_a_reproducible_dedicated_robot():
     validate_catalog(catalog, keys)
     assert len(catalog['robots']) == 106
     assert catalog == generate_catalog(ROOT)
-    assert len({r['authority_key'] for r in catalog['robots'] if r['sources']}) == 74
+    assert len({r['authority_key'] for r in catalog['robots'] if r['sources']}) == 75
 
 
 def test_deduplicate_pages_and_resources_and_detect_same_url_change(run):
