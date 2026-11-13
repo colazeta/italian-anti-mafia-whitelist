@@ -923,6 +923,16 @@ jobs:
           RELEASE_TAG: public-data-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           python -m white_list_archive.publishing.public_snapshot pack --output /tmp/public-registry-release --tag "$RELEASE_TAG"
+          # A fixed five-file, SHA-pinned PUBLIC derivative manifest. Expose
+          # only aggregate release metadata for an exact reviewed selector PR;
+          # no source documents, row-level observations or private coordinates.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest=json.loads(Path('/tmp/public-registry-release/manifest.json').read_text(encoding='utf-8'))
+          assert set(manifest['files'])=={'registry.json','registry.csv','history.json','prefectures.json','prefectures.csv'}
+          print('PUBLIC_REVIEW_MANIFEST_JSON='+json.dumps(manifest,sort_keys=True))
+          PY
           gh release create "$RELEASE_TAG" /tmp/public-registry-release/*.gz /tmp/public-registry-release/manifest.json \
             --target "$GITHUB_SHA" --title "Validated public registry candidate $RELEASE_TAG" \
             --notes 'Public derivatives validated by the source, artifact, browser and link gates. Review manifest.json in a PR to select this version for Pages. Original-source archive verification remains a separate requirement.'
