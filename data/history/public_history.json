@@ -21964,6 +21964,31 @@
       "checked_at": "2026-11-13T20:53:12+00:00",
       "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
       "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T23:06:11+00:00",
+      "edition_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T23:06:17+00:00",
+      "edition_id": "8ec282a78caa095471fab89a7af45de9007964f8e89153057c9e0e4b678cbc7a",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T23:06:17+00:00",
+      "edition_id": "945306767c21d8efe783e9b5cb069729795d4de7d22f06e4b57cc69d447fbb64",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T23:06:32+00:00",
+      "edition_id": "bb469063f32b340b7c811e902c3c3cd7837184f3280c00f7dc39ff30e8f9d59e",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T23:06:39+00:00",
+      "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
+      "kind": "approved_document_verification"
     }
   ],
   "comparisons": [
@@ -22355,6 +22380,30 @@
     {
       "authority_key": "alessandria",
       "authority_name": "Prefettura di Alessandria",
+      "data_fingerprint": "ed151773ed4ba5debd1cb34241c7ea4ef6e827abb6f7f98f9fb5c6dcd461a9eb",
+      "document_sha256": "b10733818c5e7f04b40c3b7d76da837acbe12e300e2d2e9b79f249bd48837b34",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "8ec282a78caa095471fab89a7af45de9007964f8e89153057c9e0e4b678cbc7a",
+      "parser_signature": "alessandria_applicants_2026_10@1",
+      "population_scope": "applicant",
+      "reference_date": "2026-10-28",
+      "reference_date_raw": "2026-10-28",
+      "register_key": "alessandria-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-10/elenco-imprese-richiedenti-iscrizione-in-white-list-28-ottobre-2026.pdf",
+      "source_key": "alessandria-applicants",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list",
+      "status_counts": {
+        "other_or_unknown": 1,
+        "pending": 64
+      },
+      "total": 65
+    },
+    {
+      "authority_key": "alessandria",
+      "authority_name": "Prefettura di Alessandria",
       "data_fingerprint": "35db30fe36e6e466990b0f932cac69a57ba24dbbca104e4038d45654e53b530c",
       "document_sha256": "78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95",
       "evidence": [
@@ -22376,6 +22425,31 @@
         "renewal_update_in_progress": 135
       },
       "total": 363
+    },
+    {
+      "authority_key": "alessandria",
+      "authority_name": "Prefettura di Alessandria",
+      "data_fingerprint": "a3b3c99c8969473eb296e51925c40c8095cdb635f71d7cb961f2454aadc55641",
+      "document_sha256": "7081de5f4bd1a583abc2a9024396857db3717e2ed6d1ad0f5a4d6e30dc7152cf",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "945306767c21d8efe783e9b5cb069729795d4de7d22f06e4b57cc69d447fbb64",
+      "parser_signature": "alessandria_listed_2026_10@1",
+      "population_scope": "listed",
+      "reference_date": "2026-10-28",
+      "reference_date_raw": "2026-10-28",
+      "register_key": "alessandria-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-10/white-list-28-ottobre-2026.pdf",
+      "source_key": "alessandria-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/alessandria/evidenza/white-list",
+      "status_counts": {
+        "listed": 272,
+        "other_or_unknown": 2,
+        "renewal_update_in_progress": 116
+      },
+      "total": 390
     },
     {
       "authority_key": "ancona",
