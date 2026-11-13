@@ -217,6 +217,47 @@ def test_archived_bytes_are_parsed_once_and_rows_stay_in_private_store(monkeypat
     assert seen == [("verified", "catania-robot-discovery"), ("parsed", "")]
 
 
+
+def test_incompatible_verified_candidate_is_quarantined_once_then_reused(monkeypatch):
+    state, cfg, robots = _fixture()
+    job = next(j for j in c.select_candidate_jobs(state, cfg, robots)[0]
+               if j["url"] == NEW_LIST)
+    store = _store()
+    verifies = []
+    def verify(storage, entry):
+        verifies.append(entry["state"]["capture_id"])
+        return ({
+            "source_key": "catania-robot-discovery",
+            "capture_id": "synthetic-capture-01",
+            "sha256": HASH_NEW,
+        }, {"receipt": "verified"}, b"synthetic malformed workbook")
+
+    monkeypatch.setattr(c, "_verified_capture", verify)
+    from white_list_archive.parsers import catania_candidate
+    attempted = []
+    def fail_parser(path, cfg):
+        attempted.append(path)
+        raise ValueError("Unrecognised column layout: includes private values")
+
+    monkeypatch.setattr(catania_candidate, "parse_candidate_xlsx", fail_parser)
+    first = c.extract_one(job, store=store, code_revision=SHA_CODE)
+    assert first["status"] == "quarantined"
+    assert first["error_type"] == "ValueError"
+    assert first["private_readback"] is True
+    assert store.client.writes == 1
+    staged = json.loads(next(iter(store.client.objects.values())))
+    assert staged["records"] == []
+    assert staged["review_status"] == "quarantined_candidate_extraction"
+    assert staged["publication_approved"] is False
+    assert "private values" not in json.dumps(staged)
+    second = c.extract_one(job, store=store, code_revision=SHA_CODE)
+    assert second["status"] == "reused_candidate_quarantine"
+    assert second["private_readback"] is True
+    assert len(verifies) == 1 and len(attempted) == 1
+    assert store.client.writes == 1
+    assert c._key(c._identity(job, "d" * 40)) != c._key(c._identity(job, SHA_CODE))
+
+
 def test_conflicting_existing_candidate_is_rejected_instead_of_overwritten():
     state, cfg, robots = _fixture()
     job = c.select_candidate_jobs(state, cfg, robots)[0][0]
