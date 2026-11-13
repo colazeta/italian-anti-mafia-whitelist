@@ -141,3 +141,18 @@ def test_strict_source_dates_do_not_repair_invalid_inputs():
     assert _source_date("32/11/2026") == ("", True)
     assert _source_date("November 2026") == ("", True)
     assert _source_date("") == ("", False)
+
+
+
+def test_data_like_row_without_sector_and_identifier_is_not_silently_dropped(tmp_path):
+    path = tmp_path / "listed.xlsx"
+    _make_sheet(path, "listed")
+    book = openpyxl.load_workbook(path)
+    sheet = book.active
+    sheet.cell(7, 1, "Fixture incomplete enterprise")
+    sheet.cell(7, 2, "Catania")
+    sheet.cell(7, 6, "13/11/2026")
+    book.save(path)
+    book.close()
+    with pytest.raises(ValueError, match="Unclassified candidate row"):
+        parse_candidate_xlsx(path, _config("listed"))
