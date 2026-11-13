@@ -48,6 +48,45 @@
     }
     return result;
   }
+
+  // The immutable public ledger stores document/parser snapshots. The reader
+  // shows distinct dated *data* editions without deleting technical evidence.
+  function logicalEditions(editions, checks=[]) {
+    const checkTimes=new Map();
+    for(const check of checks) {
+      if(!checkTimes.has(check.edition_id)) checkTimes.set(check.edition_id,[]);
+      checkTimes.get(check.edition_id).push(check.checked_at);
+    }
+    const groups=new Map();
+    for(const e of editions) {
+      // Missing content fingerprints cannot prove equality of different files.
+      const contentIdentity=e.data_fingerprint
+        ? ['data',e.data_fingerprint]
+        : ['document-and-parser',e.document_sha256,e.parser_signature];
+      const key=JSON.stringify([scope(e),e.reference_date_raw,contentIdentity]);
+      if(!groups.has(key)) groups.set(key,[]);
+      groups.get(key).push(e);
+    }
+    return [...groups.values()].map(versions=>{
+      const archivedIds=[...new Set(versions.flatMap(e=>e.archived_ids||[e.id]))].sort();
+      const documentHashes=[...new Set(versions.flatMap(e=>e.document_hashes||[e.document_sha256]))].sort();
+      const checkedFor=e=>(e.archived_ids||[e.id]).flatMap(id=>checkTimes.get(id)||[]);
+      const best=[...versions].sort((a,b)=>{
+        const lastA=checkedFor(a).sort().at(-1)||a.latest_check||'';
+        const lastB=checkedFor(b).sort().at(-1)||b.latest_check||'';
+        return lastB.localeCompare(lastA)||a.id.localeCompare(b.id);
+      })[0];
+      const allChecks=archivedIds.flatMap(id=>checkTimes.get(id)||[]);
+      return {
+        ...best,
+        archived_ids:archivedIds,
+        document_hashes:documentHashes,
+        document_versions:documentHashes.length,
+        check_count:checks.length ? allChecks.length : versions.reduce((n,e)=>n+(e.check_count||0),0),
+        latest_check:allChecks.sort().at(-1)||versions.map(e=>e.latest_check||'').sort().at(-1)||null
+      };
+    });
+  }
   function inPeriod(date, state) {
     return (!state.from && !state.to) || (!!date && (!state.from || date>=state.from) && (!state.to || date<=state.to));
   }
@@ -61,7 +100,8 @@
   function comparison(history, a, b) {
     if(!a || !b || scope(a)!==scope(b) || !a.reference_date || !b.reference_date || a.reference_date>=b.reference_date) return null;
     if(a.parser_signature!==b.parser_signature) return null;
-    const found=history.comparisons.filter(c=>c.before_id===a.id && c.after_id===b.id);
+    const beforeIds=new Set(a.archived_ids||[a.id]), afterIds=new Set(b.archived_ids||[b.id]);
+    const found=history.comparisons.filter(c=>beforeIds.has(c.before_id) && afterIds.has(c.after_id));
     return found.find(c=>c.basis==='frozen_observational_diff') || found[0] || null;
   }
   function eventType(a,b) {
@@ -172,13 +212,14 @@
   }
 
   function createController({history,historyRoot}) {
+    const displayEditions=logicalEditions(history.editions,history.checks);
     const root=document.querySelector(historyRoot);
     const authorityMap=new Map();
-    for(const e of history.editions) {
+    for(const e of displayEditions) {
       if(!authorityMap.has(e.authority_key)) authorityMap.set(e.authority_key,e.authority_name);
     }
     const authorityScores=[...authorityMap].map(([key,name])=>{
-      const editions=history.editions.filter(e=>e.authority_key===key);
+      const editions=displayEditions.filter(e=>e.authority_key===key);
       const comparable=[...group(editions).values()].filter(series=>latestComparablePair(series).before).length;
       return {key,name,comparable,editions:editions.length};
     }).sort((a,b)=>b.comparable-a.comparable||b.editions-a.editions||a.name.localeCompare(b.name,'it'));
@@ -190,7 +231,7 @@
     const seriesName=e=>`${e.register_name} · ${e.source_key}`;
 
     function selectedEditions(){
-      return history.editions.filter(e=>e.authority_key===state.authority);
+      return displayEditions.filter(e=>e.authority_key===state.authority);
     }
     function selectedSeries(){
       return [...group(selectedEditions())].map(([key,series])=>({key,series:[...series].sort((a,b)=>(a.reference_date||'').localeCompare(b.reference_date||''))}))
@@ -211,7 +252,7 @@
     function seriesTable(groups) {
       const rows=groups.map(({key,series})=>{
         const pair=latestComparablePair(series), selected=key===state.series;
-        if(!pair.after) return '';
+        if(!pair.after) return '<tr><th scope="row">'+esc(seriesName(series[0]))+'</th><td colspan="6">Date mancanti o versioni diverse con la stessa data: confronto non ordinabile.</td><td><button class="btn" type="button" data-h-series="'+esc(key)+'">Apri</button></td></tr>';
         const interval=pair.before?days(pair.before.reference_date,pair.after.reference_date):null;
         const delta=pair.before?pair.after.total-pair.before.total:null;
         return `<tr class="${selected?'history-selected':''}">
@@ -260,9 +301,9 @@
     }
     function editionsTable(editions) {
       const rows=[...editions].sort((a,b)=>(b.reference_date||'').localeCompare(a.reference_date||'')||seriesName(a).localeCompare(seriesName(b),'it')).map(e=>
-        `<tr><td>${esc(seriesName(e))}</td><td>${esc(dateLabel(e.reference_date))}</td><td class="num">${fmt(e.total)}</td><td>${link(e.resource_url,'Elenco ufficiale')}</td></tr>`
+        `<tr><td>${esc(seriesName(e))}</td><td>${esc(dateLabel(e.reference_date))}</td><td class="num">${fmt(e.total)}</td><td class="num">${fmt(e.document_versions)}</td><td class="num">${fmt(e.check_count)}</td><td>${link(e.resource_url,'Elenco ufficiale')}</td></tr>`
       ).join('');
-      return `<div class="gridwrap"><table class="grid history-editions-table"><thead><tr><th>Registro / elenco</th><th>Data dell’edizione</th><th>Presenze</th><th>Fonte</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Nessuna edizione archiviata.</td></tr>'}</tbody></table></div>`;
+      return `<div class="gridwrap"><table class="grid history-editions-table"><thead><tr><th>Registro / elenco</th><th>Data dell’edizione</th><th>Presenze</th><th>Versioni file</th><th>Controlli</th><th>Fonte</th></tr></thead><tbody>${rows||'<tr><td colspan="6">Nessuna edizione archiviata.</td></tr>'}</tbody></table></div>`;
     }
     function bind() {
       root.querySelector('#h-authority')?.addEventListener('change',e=>{
@@ -282,16 +323,16 @@
       ensureSeries(groups);
       const authorityName=authorityMap.get(state.authority)||'Prefettura';
       root.innerHTML=
-        `<div class="note"><b>Storico per Prefettura.</b> Questa pagina confronta le edizioni archiviate degli elenchi pubblicati. Il delta riguarda le presenze osservate nelle fonti, non provvedimenti amministrativi.</div>`+
-        section('PREFETTURA',`<div class="toolbar history-prefecture-select"><label for="h-authority">Seleziona</label><select id="h-authority">${authorityScores.map(a=>option(a.key,a.name,state.authority)).join('')}</select></div><p>${esc(authorityName)} · ${fmt(editions.length)} edizioni archiviate · ${fmt(groups.length)} serie di elenchi.</p>`)+
+        `<div class="note"><b>Storico per Prefettura.</b> La pagina mostra le edizioni di dati distinte per serie e data. File diversi con dati identici restano tracciati come versioni documentali, senza duplicare le edizioni. Il delta riguarda presenze osservate, non provvedimenti amministrativi.</div>`+
+        section('PREFETTURA',`<div class="toolbar history-prefecture-select"><label for="h-authority">Seleziona</label><select id="h-authority">${authorityScores.map(a=>option(a.key,a.name,state.authority)).join('')}</select></div><p>${esc(authorityName)} · ${fmt(editions.length)} edizioni di dati distinte · ${fmt(editions.reduce((n,e)=>n+e.document_versions,0))} versioni documentali · ${fmt(editions.reduce((n,e)=>n+e.check_count,0))} controlli registrati · ${fmt(groups.length)} serie di elenchi.</p>`)+
         section('ULTIME EDIZIONI E DELTA',`<p>Per ogni elenco viene confrontata l’ultima edizione con la precedente edizione compatibile. Serie diverse non vengono sommate tra loro.</p>${seriesTable(groups)}`)+
         detail(groups)+
-        section('EDIZIONI ARCHIVIATE',`<p>Elenco cronologico delle edizioni conservate per la Prefettura selezionata.</p>${editionsTable(editions)}`);
+        section('EDIZIONI ARCHIVIATE',`<p>Una riga per ciascuna edizione di dati distinta. Le versioni del file e le verifiche restano conteggiate separatamente.</p>${editionsTable(editions)}`);
       bind();
     }
     function renderUpdates() { /* Kept as a no-op for backwards compatibility with app initialisation. */ }
     return {renderHistory,renderUpdates,state};
   }
 
-  return {scope,count,days,median,events,asOf,frequency,comparison,csv,createController,latestComparablePair};
+  return {scope,count,days,median,events,asOf,frequency,comparison,csv,createController,latestComparablePair,logicalEditions};
 });
