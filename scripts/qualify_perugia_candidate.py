@@ -7,6 +7,8 @@ preflight process; strict production parsers remain unchanged/fail-closed.
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import re
 from collections import Counter
 from pathlib import Path
@@ -50,6 +52,11 @@ def main() -> None:
             digest=_download(cfg['resource_url'],path)
             if digest!=cfg['sha256']:
                 raise SystemExit(f'{source_key}: candidate source SHA mismatch; no review performed')
+            evidence_dir = os.environ.get('PERUGIA_REVIEW_EVIDENCE_DIR')
+            if evidence_dir:
+                target = Path(evidence_dir)
+                target.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, target / f'{source_key}.pdf')
             with pdfplumber.open(path) as pdf:
                 page_count=len(pdf.pages)
                 # Profile every physical page without logging table cells.
@@ -107,7 +114,7 @@ def main() -> None:
                                 value=cells[col]
                                 if not value:
                                     date_shapes[f'column_{col}_blank']+=1
-                                elif re.fullmatch(r'\\d{1,2}[./]\\d{1,2}[./]\\d{4}', value):
+                                elif re.fullmatch(r'\d{1,2}[./]\d{1,2}[./]\d{4}', value):
                                     date_shapes[f'column_{col}_calendar_like']+=1
                                 else:
                                     date_shapes[f'column_{col}_other']+=1

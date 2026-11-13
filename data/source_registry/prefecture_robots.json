@@ -774,17 +774,17 @@
           "source_key": "catania-listed",
           "part": "main",
           "population_scope": "listed",
-          "parser": "catania_listed",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-iscritti-aggiornato-11-settembre-2026.xlsx",
-          "approved_sha256": "1d2cbba0751998da03ed7335c6525a8392bd3ec12513e81ee5f3f020e498a291"
+          "parser": "catania_listed_2026_11",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-iscritti-aggiornato-06-novembre-2026.xlsx",
+          "approved_sha256": "ccd1a9abbf8144ae4edb43c7df07c1648c0273196a7aff278c03c62b39b733ff"
         },
         {
           "source_key": "catania-applicants",
           "part": "main",
           "population_scope": "applicant",
-          "parser": "catania_applicants",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-09/white-list-richiedenti-aggiornato-11-settembre-2026.xlsx",
-          "approved_sha256": "4e0cb83a5718cd54b284847a0746fe52fc48bb81be201b758d55024662cb2c27"
+          "parser": "catania_applicants_2026_11",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/18/2026-11/white-list-richiedenti-aggiornato-06-novembre-2026.xlsx",
+          "approved_sha256": "adb590642773f68047e207beeb6aace3555ece674b6b64872c1347c0c7d4ffbb"
         }
       ],
       "population_mapping_reviewed": true,
