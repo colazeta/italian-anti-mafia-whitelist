@@ -48,12 +48,24 @@ The candidate extractor:
 6. Runs a compatible parser or, for Catania XLSX, a separate unpinned candidate parser with
    `reference_date=""`. Rejects empty outputs or parser lineage failure.
    Flags source row count, sector count, date and status drift.
-7. Writes the **complete parser output and diagnostics** to an immutable,
+7. Re-keys extracted provisional rows to the verified
+   `<authority>-robot-discovery` capture, including the **new document URL**,
+   true document SHA-256 and source row ordinal. The older approved URL and
+   registered series key are retained only as parser-selection hypotheses,
+   never as evidential attribution for the new document.
+8. Writes the **complete parser output and diagnostics** to an immutable,
    content-addressed private `operations/v1/candidate-extract/` receipt,
    then independently reads back the exact result. A repeat input/parser/code
    identity reuses the stored extraction instead of rerunning the parser.
 
-Each outcome carries `review_status=unapproved_candidate_extraction`,
+A parser mismatch after verified archive readback is stored instead as a
+`quarantined_candidate_extraction` receipt containing **only the error class**,
+the unbound source identity and zero rows. Subsequent runs reuse this immutable
+quarantine until the source/parser/code identity changes; failures cannot
+indefinitely consume the six-new-attempts-per-shard budget. Provider/archive
+readback failures are not cached as parser mismatches.
+
+Each successful extraction carries `review_status=unapproved_candidate_extraction`,
 `publication_approved=false` and a **null** source reference date.
 The original unbound discovery capture remains unbound. No source
 administrative date, canonical entity decision or publication event is inferred.
