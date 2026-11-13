@@ -214,6 +214,7 @@ def run_robot(robot, previous=None, *, mode='capture', store=None, work_dir=Path
     previous = previous or {}
     at = datetime.now(timezone.utc).isoformat()
     resources = deepcopy(previous.get('resources', {}))
+    document_observations = deepcopy(previous.get('document_observations', {}))
     approved = {}
     for item in robot['sources']:
         approved.setdefault(item['url'], []).append(item)
@@ -323,6 +324,11 @@ def run_robot(robot, previous=None, *, mode='capture', store=None, work_dir=Path
                 stage = 'discovery'
                 docs, pages, elsewhere = discover_links(body, response['resolved_url'], robot['allowed_hosts'])
                 external.update(elsewhere); discovered.update(docs)
+                # Link discovery is independent of document download and parsing.
+                for document_url in docs:
+                    observation = document_observations.setdefault(document_url,
+                        {'first_seen_at': at, 'landing_page': response['resolved_url']})
+                    observation['last_seen_at'] = at
                 queue.extend((u, depth, 'candidate') for u in docs if u not in seen)
                 if depth < robot['max_depth']:
                     queue.extend((u, depth + 1, 'landing') for u in pages if u not in seen)
@@ -347,6 +353,7 @@ def run_robot(robot, previous=None, *, mode='capture', store=None, work_dir=Path
         'mode': 'capture', 'requested_mode': mode,
         'last_successful_check_at': at if status != 'partial' else previous.get('last_successful_check_at'),
         'requests': len(seen), 'changed_urls': changed, 'new_urls': new, 'captured_urls': captures,
+        'document_observations': document_observations,
         'discovered_documents': sorted(discovered), 'external_links_for_review': sorted(external),
         'pending_urls': pending, 'pending_queue': [frontier[url] for url in pending],
         'cycle_started_at': cycle_started_at, 'errors': errors, 'resources': resources,

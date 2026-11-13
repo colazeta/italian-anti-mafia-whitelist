@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const {robotDocumentDate,robotDocumentHistory,robotLatestDocument}=require('../public-site/robots.js');
+assert.equal(robotDocumentDate('https://example.org/white_list_06_11_2026.pdf'),'2026-11-06');
+assert.equal(robotDocumentDate('https://example.org/white_list_2026-02-30.pdf'),'');
+assert.equal(robotDocumentDate('https://example.org/2026-11/white_list.pdf'),'');
+const url='https://prefettura.interno.gov.it/sites/default/files/white_list_06_11_2026.pdf';
+const report={document_observations:{[url]:{first_seen_at:'2026-11-13T12:00:00Z'}},discovered_documents:[url],resources:{[url]:{role:'candidate',capture_history:[{sha256:'a'},{sha256:'a'},{sha256:'b'}]}}};
+assert.equal(robotDocumentHistory(report).length,1);
+assert.equal(robotDocumentHistory(report)[0].versions,2);
+assert.equal(robotLatestDocument(report),'2026-11-06');
+assert.deepEqual(robotDocumentHistory(null),[]);
+console.log('Document history checks passed');
