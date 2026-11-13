@@ -1,6 +1,7 @@
 """Aggregate-only exact-November Catania source qualification (no company data)."""
 from __future__ import annotations
 from collections import Counter
+from datetime import date, datetime
 from pathlib import Path
 import json
 import re
@@ -18,7 +19,7 @@ FORMULA = re.compile(r"^=DATE\\(YEAR\\(F\\d+\\)\\+1,MONTH\\(F\\d+\\),DAY\\(F\\d+
 def classify(value):
     if value is None or old._clean(value) == "":
         return "missing"
-    if isinstance(value, (openpyxl.utils.datetime.datetime, openpyxl.utils.datetime.date)):
+    if isinstance(value, (date, datetime)):
         return "excel_calendar"
     if isinstance(value, str) and value.startswith("="):
         return "formula" if FORMULA.fullmatch(value) else "unexpected_formula"
