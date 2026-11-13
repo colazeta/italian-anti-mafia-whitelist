@@ -181,6 +181,8 @@ def test_archived_bytes_are_parsed_once_and_rows_stay_in_private_store(monkeypat
         records = [
             {"parser_name": "catania_candidate_listed",
              "parser_version": "1", "source_status": "listed",
+             "source_key": "catania-listed", "reference_date": "",
+             "capture_sha256": HASH_NEW, "source_row_ordinal": 1,
              "name": "Private fixture firm", "identifiers": ["12345678901"]}
         ]
         diagnostics = {"public_records": 1, "sector_rows": 1, "dropped_date_rows": 0}
@@ -203,6 +205,9 @@ def test_archived_bytes_are_parsed_once_and_rows_stay_in_private_store(monkeypat
     assert payload["identity"]["source_reference_date"] is None
     assert payload["identity"]["publication_approved"] is False
     assert payload["identity"]["capture_source_key"] == "catania-robot-discovery"
+    assert payload["records"][0]["source_key"] == "catania-robot-discovery"
+    assert payload["records"][0]["resource_url"] == NEW_LIST
+    assert payload["records"][0]["record_locator"] == "catania-robot-discovery:" + HASH_NEW + ":1"
     assert payload["review_status"] == "unapproved_candidate_extraction"
     assert payload["identity"]["parser_hypothesis"] == "catania_candidate_listed"
 
