@@ -9,6 +9,7 @@ This directory is the documentation entry point for the Open Italian Anti-Mafia 
 | Understand the project in five minutes | [`../README.md`](../README.md) |
 | Find the data that currently exist | [`data-access.md`](data-access.md) and [`../data/catalog.csv`](../data/catalog.csv) |
 | Review the current Dataset Explorer checkpoint | [`product/data-explorer-checkpoint.md`](product/data-explorer-checkpoint.md) |
+| Understand why repeated captures are not new historical data editions | [`product/public-history-identity.md`](product/public-history-identity.md) |
 | Understand geography enrichment and the mandatory listed/applicant completeness rule | [`architecture/geography-and-population-coverage.md`](architecture/geography-and-population-coverage.md) |
 | Understand original PDF retention and independent parser verification | [`architecture/source-evidence-archive.md`](architecture/source-evidence-archive.md) |
 | Understand the independent evidence backup/restore gate | [`architecture/evidence-recovery.md`](architecture/evidence-recovery.md) |
