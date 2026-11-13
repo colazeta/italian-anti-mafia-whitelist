@@ -7,6 +7,7 @@ preflight process; strict production parsers remain unchanged/fail-closed.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import tempfile
 import pdfplumber
@@ -87,6 +88,13 @@ def main() -> None:
                     except Exception as deeper_exc:
                         result.update(next_parser_gate=category(deeper_exc),
                                       next_error_class=type(deeper_exc).__name__)
+                        # A numeric page count is a harmless diagnostic; never
+                        # emit source rows, names or exception text.
+                        match=re.search(r'table-count drift on page (\\d+): (\\d+) != (\\d+)',str(deeper_exc))
+                        if match:
+                            result.update(first_changed_table_page=int(match.group(1)),
+                                          observed_tables_on_page=int(match.group(2)),
+                                          legacy_expected_tables=int(match.group(3)))
                     else:
                         result.update(next_parser_gate='all_remaining_legacy_gates_passed',
                                       probe_observations=len(deeper.records))
