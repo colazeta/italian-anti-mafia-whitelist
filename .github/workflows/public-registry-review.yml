@@ -168,6 +168,9 @@ jobs:
             --registry-csv public-site/data/registry.csv \
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
+      - name: Verify Catania November public candidate is an exact incremental delta
+        if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/catania-') }}
+        run: python scripts/audit_catania_public_candidate.py
       - name: Validate public artifact and national registry
         id: validate_public
         run: |
