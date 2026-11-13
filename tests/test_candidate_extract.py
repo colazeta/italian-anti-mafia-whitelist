@@ -179,15 +179,15 @@ def test_archived_bytes_are_parsed_once_and_rows_stay_in_private_store(monkeypat
 
     class Batch:
         records = [
-            {"parser_name": "catania_listed_2026_11",
-             "parser_version": "2", "source_status": "listed",
+            {"parser_name": "catania_candidate_listed",
+             "parser_version": "1", "source_status": "listed",
              "name": "Private fixture firm", "identifiers": ["12345678901"]}
         ]
         diagnostics = {"public_records": 1, "sector_rows": 1, "dropped_date_rows": 0}
 
     monkeypatch.setattr(c, "_verified_capture", verify)
-    from white_list_archive.publishing import public_national_registry as registry
-    monkeypatch.setattr(registry, "_parse_source", lambda path, parse_cfg: (
+    from white_list_archive.parsers import catania_candidate
+    monkeypatch.setattr(catania_candidate, "parse_candidate_xlsx", lambda path, parse_cfg: (
         seen.append(("parsed", parse_cfg["reference_date"])) or Batch()
     ))
     first = c.extract_one(job, store=store, code_revision=SHA_CODE)
@@ -204,6 +204,7 @@ def test_archived_bytes_are_parsed_once_and_rows_stay_in_private_store(monkeypat
     assert payload["identity"]["publication_approved"] is False
     assert payload["identity"]["capture_source_key"] == "catania-robot-discovery"
     assert payload["review_status"] == "unapproved_candidate_extraction"
+    assert payload["identity"]["parser_hypothesis"] == "catania_candidate_listed"
 
     second = c.extract_one(job, store=store, code_revision=SHA_CODE)
     assert second["status"] == "reused_candidate_extraction"
