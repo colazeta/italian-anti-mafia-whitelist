@@ -8,6 +8,15 @@ verified source bytes in the protected evidence store. The existing
 into the private PostgreSQL `source.parse_snapshot` table, preserving the
 source data, provenance and independent database readback.
 
+For Catania XLSX, the provisional workflow uses the separate
+`catania_candidate` family: it requires the expected column headers but
+accepts a changing number of data rows, preserves raw malformed sector/date
+cells and flags formula, identifier and outcome anomalies. It **does not**
+relax or modify the exact-SHA official November 6 release parser. Newer
+Perugia PDFs and several other prefectural formats still need additional
+schema-family adapters: a parser that is intrinsically pinned to one edition
+cannot be safely repurposed by replacing its input hash.
+
 A newly discovered PDF/XLSX/DOC/CSV at **another URL** has previously remained
 an unbound `<authority>-robot-discovery` capture. It must **not** be relabelled
 as a confirmed listed/applicant SourceSeries merely because its filename
@@ -36,7 +45,7 @@ The candidate extractor:
 5. Reads the original source bytes from the protected archive and verifies
    the complete private capture catalogue/manifest, size and SHA-256.
    **No public or live download occurs in the extraction worker.**
-6. Runs the existing reviewed parser as a provisional hypothesis with
+6. Runs a compatible parser or, for Catania XLSX, a separate unpinned candidate parser with
    `reference_date=""`. Rejects empty outputs or parser lineage failure.
    Flags source row count, sector count, date and status drift.
 7. Writes the **complete parser output and diagnostics** to an immutable,
