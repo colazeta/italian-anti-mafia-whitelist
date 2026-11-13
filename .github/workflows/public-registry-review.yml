@@ -51,6 +51,7 @@ on:
       - 'src/white_list_archive/parsers/napoli_tables.py'
       - 'src/white_list_archive/parsers/padova_tables.py'
       - 'src/white_list_archive/parsers/perugia_tables.py'
+      - 'src/white_list_archive/parsers/perugia_tables_november.py'
       - 'src/white_list_archive/parsers/trento_tables.py'
       - 'src/white_list_archive/parsers/lodi_sheets.py'
       - 'src/white_list_archive/parsers/roma_positioned.py'
@@ -168,6 +169,9 @@ jobs:
             --registry-csv public-site/data/registry.csv \
             --prefectures-json public-site/data/prefectures.json \
             --prefectures-csv public-site/data/prefectures.csv
+      - name: Verify Perugia November public candidate is an exact incremental delta
+        if: ${{ startsWith(github.head_ref, 'candidate/perugia-') || github.ref == 'refs/heads/main' }}
+        run: python scripts/audit_perugia_public_candidate.py
       - name: Verify Catania November public candidate is an exact incremental delta
         if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/catania-') }}
         run: python scripts/audit_catania_public_candidate.py
@@ -956,8 +960,6 @@ jobs:
         run: python scripts/qualify_catania_candidate.py
 
   perugia-source-only:
-    # A separate PR-only diagnostic. It cannot stage data or trigger the Pages
-    # publisher; production Perugia parsers keep their original approved pins.
     if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/perugia-') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -968,16 +970,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install read-only PDF source QA dependencies
-        run: python -m pip install -e '.[publication]'
-      - name: Check exact Perugia candidates against frozen parser geometry
-        env:
-          PERUGIA_REVIEW_EVIDENCE_DIR: ${{ runner.temp }}/perugia-review-evidence
+      - run: python -m pip install -e '.[publication]'
+      - name: Verify all November Perugia source contracts and public projections
         run: python scripts/qualify_perugia_candidate.py
-      - name: Retain bounded original-document review evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: perugia-original-review-${{ github.run_id }}
-          path: ${{ runner.temp }}/perugia-review-evidence/*.pdf
-          retention-days: 1
-          if-no-files-found: error

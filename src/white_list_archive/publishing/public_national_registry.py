@@ -56,6 +56,7 @@ from white_list_archive.parsers.gorizia_tables import parse_gorizia_applicants, 
 from white_list_archive.parsers.napoli_tables import PARSERS as NAPOLI_PARSERS
 from white_list_archive.parsers.padova_tables import PARSERS as PADOVA_PARSERS
 from white_list_archive.parsers.perugia_tables import PARSERS as PERUGIA_PARSERS
+from white_list_archive.parsers.perugia_tables_november import PARSERS as PERUGIA_NOVEMBER_PARSERS
 from white_list_archive.parsers.trento_tables import parse_trento_applicants, parse_trento_listed
 from white_list_archive.parsers.torino_tables import parse_torino_applicants, parse_torino_listed
 from white_list_archive.parsers.potenza_webapp import PARSERS as POTENZA_PARSERS
@@ -1206,6 +1207,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or NAPOLI_PARSERS.get(cfg["parser"])
         or PADOVA_PARSERS.get(cfg["parser"])
         or PERUGIA_PARSERS.get(cfg["parser"])
+        or PERUGIA_NOVEMBER_PARSERS.get(cfg["parser"])
         or TRENTO_PARSERS.get(cfg["parser"])
         or TORINO_PARSERS.get(cfg["parser"])
         or POTENZA_PARSERS.get(cfg["parser"])
@@ -1263,8 +1265,8 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_napoli_public_fields(batch, cfg["parser"])
     if cfg["parser"] in PADOVA_PARSERS:
         batch = _adapt_padova_public_fields(batch, cfg["parser"])
-    if cfg["parser"] in PERUGIA_PARSERS:
-        batch = _adapt_perugia_public_fields(batch, cfg["parser"])
+    if cfg["parser"] in PERUGIA_PARSERS or cfg["parser"] in PERUGIA_NOVEMBER_PARSERS:
+        batch = _adapt_perugia_public_fields(batch, cfg["parser"].removesuffix("_2026_11"))
     if cfg["parser"] in TRENTO_PARSERS:
         batch = _adapt_trento_public_fields(batch, cfg["parser"])
     if cfg["parser"] in LODI_PARSERS:

@@ -1250,14 +1250,14 @@
       "reference_date": "2026-11-05",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
       "last_source_update": "2026-11-05",
-      "last_source_update_basis": "DRAFT candidate only: official Prefecture landing page labels listed/applicant attachments as 5 November 2026; robot archive metadata reports exact URI and SHA-256 readback on 13 November. No SourceEdition/individual publication approved.",
+      "last_source_update_basis": "Official landing-page attachment labels and update timestamp identify both populations as 5 November 2026; exact original SHA-256 read back from the 13 November robot archive and independently reacquired for full source QA.",
       "source_key": "perugia-listed",
-      "parser": "perugia_listed",
+      "parser": "perugia_listed_2026_11",
       "population_scope": "listed",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
       "sha256": "d8dd83ac23e8fd1fa3b3913423d0b08ff5b1bc12a964738d4ff1a8499fa274f8",
-      "expected_source_rows": 1016,
-      "notes": "DRAFT, NOT FOR PUBLICATION until reviewer verifies exact original content/date, parser compatibility, counts, sectors/statuses, and source attribution. expected_source_rows retains old September count as a deliberately conservative failing preflight until new-version QA establishes its actual value."
+      "expected_source_rows": 1020,
+      "notes": "Exact-source November v2 parser: all 412 pages inspected by finite table/stitching contracts; malformed dates and bare outcome retained raw; no inferred administrative events. See docs/sources/perugia-publication-review-2026-11-05.md."
     },
     {
       "authority_key": "perugia",
@@ -1267,14 +1267,14 @@
       "reference_date": "2026-11-05",
       "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
       "last_source_update": "2026-11-05",
-      "last_source_update_basis": "DRAFT candidate only: official Prefecture landing page labels listed/applicant attachments as 5 November 2026; robot archive metadata reports exact URI and SHA-256 readback on 13 November. No SourceEdition/individual publication approved.",
+      "last_source_update_basis": "Official landing-page attachment labels and update timestamp identify both populations as 5 November 2026; exact original SHA-256 read back from the 13 November robot archive and independently reacquired for full source QA.",
       "source_key": "perugia-applicants",
-      "parser": "perugia_applicants",
+      "parser": "perugia_applicants_2026_11",
       "population_scope": "applicant",
       "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
       "sha256": "c049e8ec3d94f3a87ec7e6749cdd5f88b769c318156d38a51bba07b777762e77",
-      "expected_source_rows": 1213,
-      "notes": "DRAFT, NOT FOR PUBLICATION until reviewer verifies exact original content/date, parser compatibility, counts, sectors/statuses, and source attribution. expected_source_rows retains old September count as a deliberately conservative failing preflight until new-version QA establishes its actual value."
+      "expected_source_rows": 1243,
+      "notes": "Exact-source November v2 parser: all 412 pages inspected by finite table/stitching contracts; malformed dates and bare outcome retained raw; no inferred administrative events. See docs/sources/perugia-publication-review-2026-11-05.md."
     },
     {
       "authority_key": "trento",
