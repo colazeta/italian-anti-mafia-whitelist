@@ -98,3 +98,30 @@ def test_snapshot_envelope_is_closed_for_scalar_and_bundle_inputs(tmp_path) -> N
     path.write_text(json.dumps(bundle), encoding="utf-8")
     with pytest.raises(ValueError, match="exactly one of capture_id or capture_inputs"):
         _load_snapshot_envelope(path)
+
+def test_integer_section_counter_hash_survives_json_roundtrip():
+    records = [{'source_status': 'listed', 'source_fields': {'sections': ['I']}}]
+    diagnostics = {'parser': 'grosseto_listed', 'section_counts': {n: n+2 for n in range(1, 11)}}
+    payload = json.loads(json.dumps({'records': records, 'diagnostics': diagnostics}))
+    assert snapshot_sha256(records, diagnostics) == snapshot_sha256(payload['records'], payload['diagnostics'])
+    assert diagnostics['section_counts'][10] == 12  # No mutation of caller's counter.
+
+
+def test_retained_legacy_counter_digest_requires_exact_full_original_bytes():
+    import hashlib
+    from copy import deepcopy
+    from white_list_archive.persistence.parse_snapshot import snapshot_digest_matches
+    records = [{'source_status': 'listed', 'source_fields': {'physical_locator': 'sheet:R1'}}]
+    diagnostics = {'parser': 'grosseto_listed', 'section_counts': {n: n+2 for n in range(1, 11)}}
+    old_digest = hashlib.sha256(json.dumps({'records': records, 'diagnostics': diagnostics},
+        sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+    stored = json.loads(json.dumps(diagnostics))
+    assert old_digest != snapshot_sha256(records, stored)
+    assert snapshot_digest_matches(records, stored, old_digest)
+    changed = deepcopy(records)
+    changed[0]['source_status'] = 'pending'
+    assert not snapshot_digest_matches(changed, stored, old_digest)
+    stored['section_counts']['10'] += 1
+    assert not snapshot_digest_matches(records, stored, old_digest)
+    stored['parser'] = 'unreviewed_parser'
+    assert not snapshot_digest_matches(records, stored, old_digest)

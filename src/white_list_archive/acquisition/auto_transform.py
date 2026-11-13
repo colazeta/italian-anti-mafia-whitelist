@@ -377,7 +377,7 @@ def _check_snapshot_relational_readback(
 
 def read_snapshot_verified(conn: Any, parse_run_id: str) -> tuple[list, dict]:
     """Rehash actual committed observations, including on interpretation reuse."""
-    from white_list_archive.persistence.parse_snapshot import snapshot_sha256
+    from white_list_archive.persistence.parse_snapshot import snapshot_digest_matches
 
     with conn.cursor() as cur:
         cur.execute(
@@ -388,7 +388,7 @@ def read_snapshot_verified(conn: Any, parse_run_id: str) -> tuple[list, dict]:
     if row is None:
         raise RuntimeError("Committed snapshot is missing")
     digest, count, records, diagnostics = row
-    if len(records) != count or snapshot_sha256(records, diagnostics) != digest:
+    if len(records) != count or not snapshot_digest_matches(records, diagnostics, digest):
         raise RuntimeError("Committed snapshot content integrity failed")
     return records, diagnostics
 

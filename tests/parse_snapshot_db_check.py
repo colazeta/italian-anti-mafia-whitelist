@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import json
 import os
 import threading
 import time
@@ -31,7 +32,8 @@ records = [
         "source_fields": {"physical_locator": "row:2", "sections": ["II"]},
     },
 ]
-diagnostics = {"source_rows": 2, "public_records": 2, "warnings": []}
+diagnostics = {"source_rows": 2, "public_records": 2, "warnings": [],
+               "section_counts": {n: n+2 for n in range(1, 11)}}
 
 with psycopg.connect(dsn) as conn:
     with conn.cursor() as cur:
@@ -211,7 +213,8 @@ with psycopg.connect(dsn) as conn:
         )
         persisted_records, persisted_diagnostics = cur.fetchone()
         assert persisted_records == records
-        assert persisted_diagnostics == diagnostics
+        assert persisted_diagnostics == json.loads(json.dumps(diagnostics))
+        assert snapshot_sha256(persisted_records, persisted_diagnostics) == first["snapshot_sha256"]
         cur.execute(
             "SELECT count(*) FROM source.source_edition WHERE series_id=%s",
             (series_id,),

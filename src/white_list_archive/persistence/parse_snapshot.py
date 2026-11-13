@@ -55,19 +55,48 @@ def canonical_snapshot_bytes(
         raise ValueError("records must be a JSON array of objects")
     if not isinstance(diagnostics, dict):
         raise ValueError("diagnostics must be a JSON object")
-    return json.dumps(
+    encoded = json.dumps(
         {"records": records, "diagnostics": diagnostics},
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
         allow_nan=False,
-    ).encode("utf-8")
+    )
+    # JSON object keys are strings. Normalise before sorting/hashing: a Python
+    # counter with integer keys 1..10 otherwise sorts numerically before the
+    # write, but lexically after PostgreSQL's JSON round trip.
+    return json.dumps(json.loads(encoded), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False, allow_nan=False).encode("utf-8")
 
 
 def snapshot_sha256(
     records: list[dict[str, Any]], diagnostics: dict[str, Any]
 ) -> str:
     return hashlib.sha256(canonical_snapshot_bytes(records, diagnostics)).hexdigest()
+
+
+def snapshot_digest_matches(records: list, diagnostics: dict, digest: str) -> bool:
+    """Verify exact canonical bytes, including three retained legacy count maps.
+
+    Legacy parser integer section-count keys lost only their Python key type at
+    JSON storage. Reconstruct that documented encoding and require the ORIGINAL
+    exact SHA; never rewrite the stored payload/digest or accept a count alone.
+    """
+    if snapshot_sha256(records, diagnostics) == digest:
+        return True
+    if diagnostics.get("parser") not in {
+        "prato_openxml_listed", "grosseto_listed", "grosseto_applicants",
+    }:
+        return False
+    counts = diagnostics.get("section_counts")
+    if (not isinstance(counts, dict) or not counts
+            or not set(counts) <= {str(n) for n in range(1, 11)}
+            or any(type(v) is not int or v < 0 for v in counts.values())):
+        return False
+    legacy = {**diagnostics, "section_counts": {int(k): v for k, v in counts.items()}}
+    encoded = json.dumps({"records": records, "diagnostics": legacy}, sort_keys=True,
+                         separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest() == digest
 
 
 def _parse_run_code(
@@ -391,7 +420,8 @@ def persist_parse_snapshot(
     if completed_at < started_at:
         raise ValueError("completed_at must not precede started_at")
     # Validate and hash the complete parser output before any database write.
-    canonical_snapshot_bytes(records, diagnostics)
+    normalised = json.loads(canonical_snapshot_bytes(records, diagnostics))
+    records, diagnostics = normalised["records"], normalised["diagnostics"]
 
     with conn.cursor() as cur:
         inputs = _resolve_capture_inputs(
