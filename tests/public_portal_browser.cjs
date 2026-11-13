@@ -97,6 +97,10 @@ const statusCounts=records=>Object.fromEntries([...records.reduce((m,r)=>m.set(r
       assert.ok(!(await page.locator('#view-registry tbody').innerText()).match(/\b\d{4}-\d{2}-\d{2}\b/));
       assert.equal(numeric(await page.locator('#view-registry .section-title').last().innerText()),registry.records.filter(r=>r.source_status==='listed').length);
       assert.equal(numeric((await page.locator('.public-banner').first().innerText()).match(/([\d.,]+) presenze/)[1]),registry.records.length);
+      const publicationBanner=await page.locator('#view-registry .public-banner').innerText();
+      assert.ok(publicationBanner.includes('Edizione più recente nel dataset pubblico: '+displayDate(registry.records.map(r=>r.reference_date).sort().at(-1))));
+      assert.match(publicationBanner,/Le Prefetture possono avere pubblicato edizioni successive/);
+      assert.doesNotMatch(publicationBanner,/Edizione più recente disponibile/);
       await page.screenshot({path:`test-results/registry-${width}.png`});
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
       assert.equal(overflow,false,`Unexpected outer horizontal overflow at ${width}px`);
