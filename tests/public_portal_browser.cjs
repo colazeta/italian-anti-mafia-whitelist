@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const {createHash}=require('node:crypto');
 const approvedManifestBytes=fs.readFileSync('data/publication/multi_prefecture_pilot.json');
 const approvedManifestBlob=Buffer.concat([
-  Buffer.from('blob '+approvedManifestBytes.length+'\\0'),approvedManifestBytes
+  Buffer.from('blob '+approvedManifestBytes.length),Buffer.from([0]),approvedManifestBytes
 ]);
 const isSeptemberBaseline=createHash('sha1').update(approvedManifestBlob).digest('hex')==='ee2e56c86796326d2a91d7b218d987d464c62c53';
 const registry=JSON.parse(fs.readFileSync('public-site/data/registry.json'));
