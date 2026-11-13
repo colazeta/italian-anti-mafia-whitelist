@@ -24,10 +24,11 @@ def test_scalar_history_includes_approved_old_and_changed_versions_without_dupli
     assert all(job['first_history_revision'] == 'a'*40 for job in jobs)
     assert digest(selection_manifest(jobs)) == digest(selection_manifest(jobs))
     assert all(job['config']['reference_date'] == '2026-10-01' for job in jobs)
-    # Common transformer explicitly clears dates instead of assigning this old date
-    # to historical bytes that have not passed edition review.
+    # Only exact approved bytes retain the reviewed date; changed historical
+    # bytes must never inherit it.
     from white_list_archive.acquisition.auto_transform import _parse_config
-    assert all(_parse_config(job)['reference_date'] == '' for job in jobs)
+    dates = {job['captures']['primary']['state']['sha256']: _parse_config(job)['reference_date'] for job in jobs}
+    assert dates == {H1: '2026-10-01', H2: ''}
 
 
 def test_bundle_selection_uses_only_labelled_inputs_that_coexisted_in_a_real_state():
