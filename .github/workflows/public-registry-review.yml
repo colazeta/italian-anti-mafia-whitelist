@@ -42,6 +42,7 @@ on:
       - 'src/white_list_archive/parsers/bolzano_docx.py'
       - 'src/white_list_archive/parsers/caserta_tables.py'
       - 'src/white_list_archive/parsers/catania_openxml.py'
+      - 'src/white_list_archive/parsers/catania_openxml_november.py'
       - 'src/white_list_archive/parsers/genova_tables.py'
       - 'src/white_list_archive/parsers/foggia_tables.py'
       - 'src/white_list_archive/parsers/forli_cesena_combined.py'
