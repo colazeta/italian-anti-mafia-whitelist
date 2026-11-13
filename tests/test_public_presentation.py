@@ -122,3 +122,44 @@ for(const bad of [{fromYear:2026,toYear:2025},{fromYear:NaN},{fromYear:0},{toYea
 """
     for timezone in ['UTC', 'Europe/Rome', 'America/Los_Angeles']:
         subprocess.run(['node', '-e', script], cwd=ROOT, env={**os.environ, 'TZ': timezone}, check=True)
+
+
+def test_robot_updates_distinguish_pages_candidates_and_reviewed_sources():
+    script = r"""
+const assert = require('node:assert/strict');
+const {robotCandidateDocuments,robotObservedChangeCounts} = require('./public-site/robots.js');
+const domain='https://prefettura.interno.gov.it/';
+const candidate=domain+'sites/default/files/18/2026-11/white-list-iscritti-aggiornato-13-novembre-2026.xlsx';
+const irrelevant=domain+'sites/default/files/0/2026-11/mezzi-sequestrati-da-pubblicare-sul-sito-2026-62.xlsx';
+const landing=domain+'it/prefetture/catania/evidenza/white-list';
+const reviewed=domain+'sites/default/files/18/2026-11/white-list-iscritti-aggiornato-06-novembre-2026.xlsx';
+const oldCandidate=domain+'sites/default/files/18/2026-10/elenco-imprese-richiedenti.pdf';
+const state={
+ changed_urls:[landing,reviewed],
+ new_urls:[candidate,irrelevant],
+ resources:{
+  [candidate]:{role:'candidate',archived_sha256:'known',last_modified:'Fri, 13 Nov 2026 14:15:32 GMT'},
+  [irrelevant]:{role:'candidate',archived_sha256:'known'},
+  [landing]:{role:'landing'},
+  [reviewed]:{role:'source'},
+  [oldCandidate]:{role:'candidate',last_modified:'Tue, 13 Oct 2026 12:00:00 GMT'}
+ }
+};
+assert.deepEqual(robotObservedChangeCounts(state),{
+ landingPages:1,associatedSources:1,newCandidateDocuments:1
+});
+const docs=robotCandidateDocuments(state);
+assert.equal(docs.length,2);
+assert.equal(docs[0].url,candidate);
+assert.equal(docs[0].newInLastCheck,true);
+assert.equal(docs[1].newInLastCheck,false);
+assert.equal(docs.some(doc=>doc.url===irrelevant),false);
+assert.deepEqual(robotObservedChangeCounts(null),{
+ landingPages:0,associatedSources:0,newCandidateDocuments:0
+});
+assert.deepEqual(robotCandidateDocuments(null),[]);
+assert.equal(robotCandidateDocuments({resources:{
+ 'https://attacker.example/white-list-iscritti.pdf':{role:'candidate'}
+}}).length,0);
+"""
+    subprocess.run(['node', '-e', script], cwd=ROOT, check=True)
