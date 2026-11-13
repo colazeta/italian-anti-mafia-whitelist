@@ -234,6 +234,7 @@ def extract_one(job: dict, *, store, code_revision: str) -> dict:
         cfg = deepcopy(job["config"])
         cfg["reference_date"] = ""  # A download timestamp is not a source date.
         cfg["sha256"] = manifest["sha256"]
+        cfg["resource_url"] = job["url"]  # A new document cannot cite the old approved URL.
         candidate_parser = _parser_hypothesis(job)
         cfg["parser"] = candidate_parser
         if candidate_parser.startswith("catania_candidate_"):
@@ -244,6 +245,22 @@ def extract_one(job: dict, *, store, code_revision: str) -> dict:
     if not isinstance(batch.records, list) or not batch.records:
         raise ValueError("Candidate parser returned no rows")
     revision = _parser_revision(batch, cfg["parser"])
+    # A reviewed parser may emit its established series key by design. That is
+    # a *hypothesis*, never authority to bind a new discovery document. Re-key
+    # every provisional observation to the actual unbound archive capture.
+    for record in batch.records:
+        if (not isinstance(record, dict)
+                or record.get("source_key") != job["config"]["source_key"]
+                or record.get("reference_date") not in ("", None)
+                or record.get("capture_sha256") != manifest["sha256"]):
+            raise ValueError("Candidate output identity disagrees with archived source")
+        ordinal = record.get("source_row_ordinal")
+        if type(ordinal) is not int or ordinal <= 0:
+            raise ValueError("Candidate observation lacks a positive row ordinal")
+        record["source_key"] = identity["capture_source_key"]
+        record["record_locator"] = f"{identity['capture_source_key']}:{manifest['sha256']}:{ordinal}"
+        record["resource_url"] = job["url"]
+        record["reference_date"] = ""
     flags = _quality_flags(job["config"], batch.records, batch.diagnostics)
     candidate_flags = batch.diagnostics.get("candidate_quality_flags", [])
     if not isinstance(candidate_flags, list) or any(not isinstance(x, str) for x in candidate_flags):
