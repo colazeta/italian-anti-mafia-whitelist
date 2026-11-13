@@ -100,6 +100,7 @@ def select_reviewed_jobs(
     *,
     shard: int = 0,
     shards: int = 1,
+    approved_only: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Select complete latest *captured* inputs, never discover by filename.
 
@@ -148,6 +149,10 @@ def select_reviewed_jobs(
                 and isinstance(h.get("byte_size"), int)
                 and 0 < h["byte_size"] <= _MAX_BYTES
             ]
+            if approved_only:
+                expected = (cfg.get("sha256") if cfg.get("resources") is None
+                            else cfg["resources"][label].get("sha256"))
+                eligible = [h for h in eligible if h["sha256"] == expected]
             if not eligible:
                 deferred.append({"source_key": key, "reason": "missing_verified_capture"})
                 captures = {}
@@ -165,7 +170,7 @@ def select_reviewed_jobs(
                 captures[label]["state"]["sha256"] != cfg["resources"][label].get("sha256")
                 for label in captures
             )
-        if changed:
+        if changed or approved_only:
             jobs.append({"source_key": key, "config": cfg, "captures": captures})
     return jobs, deferred
 
@@ -174,6 +179,14 @@ def _parse_config(job: dict[str, Any]) -> dict[str, Any]:
     """Never reuse the approved edition date for newly changed source bytes."""
     cfg = deepcopy(job["config"])
     captures = job["captures"]
+    approved = (
+        set(captures) == set(_resource_urls(cfg)) and all(
+            part["state"]["sha256"] == (
+                cfg.get("sha256") if cfg.get("resources") is None
+                else cfg["resources"][label].get("sha256")
+            ) for label, part in captures.items()
+        )
+    )
     if cfg.get("resources") is None:
         cfg["sha256"] = captures["primary"]["state"]["sha256"]
     else:
@@ -184,7 +197,8 @@ def _parse_config(job: dict[str, Any]) -> dict[str, Any]:
         cfg["sha256"] = "bundle:" + hashlib.sha256(
             "".join(hashes[label] for label in sorted(hashes)).encode("ascii")
         ).hexdigest()
-    cfg["reference_date"] = ""  # Unknown until the publication-date evidence is reviewed.
+    if not approved:
+        cfg["reference_date"] = ""  # Changed bytes have no reviewed edition date.
     return cfg
 
 
