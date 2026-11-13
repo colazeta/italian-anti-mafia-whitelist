@@ -33,6 +33,11 @@ from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, clie
 APPROVED_PUBLIC_DERIVATIVE_BINDING = (
     Path(__file__).resolve().parents[3] / 'data/publication/approved_semantic_public_derivative.json'
 )
+# A separate, exact reviewed binding for a multi-resource source whose parser's
+# previously approved public derivative must not be rebuilt with altered fields.
+APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING = (
+    Path(__file__).resolve().parents[3] / 'data/publication/approved_bundle_public_derivative.json'
+)
 
 DECLARED_PARSER_IDENTITIES = {
     'cosenza_combined_v2': 'white_list_archive.parsers.cosenza_combined_v2',
@@ -264,8 +269,24 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
     for key in keys:
         cfg = by_key[key]
         approval_mode = cfg.get('approval_mode', 'raw_sha256')
-        if approval_mode not in {'raw_sha256', 'semantic_sha256'} or cfg.get('resources'):
-            raise ValueError(f'{key}: public preservation requires one resource and a supported approval mode')
+        if approval_mode not in {'raw_sha256', 'semantic_sha256'}:
+            raise ValueError(f'{key}: public preservation requires a supported approval mode')
+        if cfg.get('resources'):
+            # Exact prior bundled originals have already been byte-verified for
+            # the approved *public derivative*. Reuse is not a new interpretation.
+            # The full descriptor (including EACH member's URL/hash and parser)
+            # and precise historical release tag must match the reviewed binding.
+            if approval_mode != 'raw_sha256':
+                raise ValueError(f'{key}: bundled public preservation requires raw SHA approval')
+            try:
+                binding = json.loads(APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
+            except (OSError, ValueError) as exc:
+                raise ValueError(f'{key}: approved public source bundle binding unavailable') from exc
+            if (set(binding) != {'schema_version', 'snapshot_tag', 'purpose', 'source'}
+                    or binding.get('schema_version') != 1
+                    or binding.get('snapshot_tag') != manifest.get('release_tag')
+                    or binding.get('source') != cfg):
+                raise ValueError(f'{key}: approved bundle/public derivative provenance mismatch')
         reports = [s for s in approved['meta']['sources'] if s['source_key'] == key]
         if len(reports) != 1:
             raise ValueError(f'{key}: approved public edition is absent or ambiguous')
