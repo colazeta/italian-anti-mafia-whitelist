@@ -50,17 +50,17 @@
           "source_key": "alessandria-listed",
           "part": "main",
           "population_scope": "listed",
-          "parser": "alessandria_listed",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/white-list-4-settembre-2026.pdf",
-          "approved_sha256": "78606eafbfd6237b0c513ffd9faea1826f39cbda228538d197a42bcf20317b95"
+          "parser": "alessandria_listed_2026_10",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-10/white-list-28-ottobre-2026.pdf",
+          "approved_sha256": "7081de5f4bd1a583abc2a9024396857db3717e2ed6d1ad0f5a4d6e30dc7152cf"
         },
         {
           "source_key": "alessandria-applicants",
           "part": "main",
           "population_scope": "applicant",
-          "parser": "alessandria_applicants",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-09/elenco-imprese-richiedenti-iscrizione-in-white-list-4-settembre-2026.pdf",
-          "approved_sha256": "34f151daa69ad3d84e0ad892cbc5048ff516ad9ae371805321bbe5156c82deb0"
+          "parser": "alessandria_applicants_2026_10",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/14/2026-10/elenco-imprese-richiedenti-iscrizione-in-white-list-28-ottobre-2026.pdf",
+          "approved_sha256": "b10733818c5e7f04b40c3b7d76da837acbe12e300e2d2e9b79f249bd48837b34"
         }
       ],
       "population_mapping_reviewed": true,

@@ -9,8 +9,9 @@ import tempfile
 
 import pdfplumber
 from white_list_archive.parsers.multi_prefecture_tables import (
-    PARSERS, _clean, _AL_YEAR, _DMY_FLEX,
+    _clean, _AL_YEAR, _DMY_FLEX,
 )
+from white_list_archive.parsers.alessandria_october import PARSERS
 from white_list_archive.publishing.public_national_registry import _download
 from white_list_archive.publishing.public_contract import public_record
 
@@ -56,18 +57,15 @@ def main():
                             if len(c)>index and c[0] and len(re.sub(r'[^A-Za-z0-9]','',c[index])) >= 8 and re.search(r'\d',c[index]):
                                 candidates += 1
                     if pno == 1:
-                        # Export title/column headings only. Stop at the FIRST row that is
-                        # not positively recognised as a table header; never export rows.
-                        top = page.height
-                        for table in tables:
-                            for geometry, values in zip(table.rows, table.extract() or []):
-                                cells = [_clean(v) for v in values]
-                                header = (not any(cells) or (cells and cells[0].upper().startswith('SEZIONE'))
-                                          or any('RAGIONE' in v.upper() or 'CODICE FISCALE' in v.upper() for v in cells))
-                                if not header:
-                                    top = min(top, geometry.bbox[1]); break
-                        if top < page.height and top > 0:
-                            page.crop((0,0,page.width,top)).to_image(resolution=130).save(output/(label+'-headers.png'))
+                        # Exact pinned documents: the reviewed column-heading row is
+                        # r10 (listed) / r2 (applicants), before any company record.
+                        first_table = tables[0]
+                        header_index = 9 if label == 'listed' else 1
+                        header_cells = [_clean(v) for v in first_table.extract()[header_index]]
+                        if not any('RAGIONE' in v.upper() for v in header_cells):
+                            raise RuntimeError('Alessandria safe-header boundary drift')
+                        top = first_table.rows[header_index].bbox[3]
+                        page.crop((0,0,page.width,top)).to_image(resolution=130).save(output/(label+'-headers.png'))
             batch = PARSERS[cfg['parser']](path, cfg)
             for row in batch.records: public_record(row)
             diagnostics = batch.diagnostics

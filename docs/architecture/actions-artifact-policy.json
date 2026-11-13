@@ -134,6 +134,12 @@
       "classification": "public_operational_verification",
       "scope": "Private transformer public verification only; source data and private QA remain off Actions artifacts",
       "content_boundary": "Closed totals-only report: run time, shard, changed/parsed/reused/quarantined/blocked/deferred counts, QA-flag totals, verified database readback counts and zero public promotions. No source keys, companies, records, documents, capture identities, hashes, private storage or database coordinates."
+    },
+    {
+      "workflow": ".github/workflows/public-registry-review.yml",
+      "name": "alessandria-safe-source-qa",
+      "path": "/tmp/public-actions/alessandria-source-qa",
+      "classification": "public_operational_verification"
     }
   ],
   "pages_artifacts": [
