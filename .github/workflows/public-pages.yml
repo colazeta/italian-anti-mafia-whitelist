@@ -83,6 +83,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
@@ -94,3 +95,15 @@ jobs:
           enablement: true
       - uses: actions/deploy-pages@v4
         id: deployment
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify all five deployed public files against the selected manifest
+        env:
+          PYTHONPATH: src
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+        run: >-
+          python -m white_list_archive.publishing.public_snapshot verify-live
+          --manifest data/publication/public_snapshot.json
+          --base-url "$PAGES_URL"
