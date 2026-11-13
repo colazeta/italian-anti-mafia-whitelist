@@ -57,9 +57,17 @@ def main() -> None:
                 page_sizes=sorted(set((round(p.width),round(p.height)) for p in pdf.pages))
                 table_counts=Counter()
                 width_counts=Counter()
+                row_masks=Counter()
+                status_categories=Counter()
+                date_shapes=Counter()
+                missing_first_column=[]
+                header_coords=[]
+                unusual_status_coords=[]
+                unusual_date_coords=[]
                 zero_table_pages=[]
                 multi_table_pages=[]
                 physical_rows=0
+                page_row_counts={}
                 for pno,page in enumerate(pdf.pages,1):
                     tables=page.find_tables()
                     table_counts[len(tables)]+=1
@@ -69,9 +77,51 @@ def main() -> None:
                         multi_table_pages.append(pno)
                     for table in tables:
                         rows=table.extract() or []
+                        page_row_counts[pno]=page_row_counts.get(pno,0)+len(rows)
                         physical_rows+=len(rows)
-                        for row in rows:
+                        for rno,row in enumerate(rows,1):
                             width_counts[len(row)]+=1
+                            cells=[parser._clean(v) for v in row]
+                            if len(cells)!=7:
+                                continue
+                            mask=''.join('1' if v else '0' for v in cells)
+                            row_masks[mask]+=1
+                            if cells[0]=='Ragione Sociale':
+                                header_coords.append([pno,rno])
+                                continue
+                            if not cells[0] and any(cells):
+                                missing_first_column.append([pno,rno,mask])
+                            if not any(cells):
+                                continue
+                            c6=cells[6]
+                            if label=='listed':
+                                kind='SI' if c6=='SI' else 'blank' if not c6 else 'other'
+                            else:
+                                kind='blank' if not c6 else next(
+                                    (part for part in ('rinnovo','iscritta','iscrizione')
+                                     if c6.casefold().startswith(part)), 'other')
+                            status_categories[kind]+=1
+                            if kind=='other':
+                                unusual_status_coords.append([pno,rno])
+                            for col in (4,5):
+                                value=cells[col]
+                                if not value:
+                                    date_shapes[f'column_{col}_blank']+=1
+                                elif re.fullmatch(r'\\d{1,2}[./]\\d{1,2}[./]\\d{4}', value):
+                                    date_shapes[f'column_{col}_calendar_like']+=1
+                                else:
+                                    date_shapes[f'column_{col}_other']+=1
+                                    if len(unusual_date_coords)<40:
+                                        unusual_date_coords.append([pno,rno,col])
+                if label=='listed':
+                    legacy_continuations=list(parser._LISTED_CONTINUATIONS)
+                else:
+                    legacy_continuations=list(parser._APPLICANT_CONTINUATIONS)
+                legacy_continuations=[list(x) for x in sorted(legacy_continuations)]
+                by_tens={}
+                for pno,count in page_row_counts.items():
+                    group=f'{((pno-1)//10)*10+1}-{((pno-1)//10)*10+10}'
+                    by_tens[group]=by_tens.get(group,0)+count
             parser._REFERENCE_DATE=cfg['reference_date']
             if label=='listed':
                 parser._LISTED_SHA256=cfg['sha256']
@@ -92,6 +142,16 @@ def main() -> None:
                 'multi_table_pages':multi_table_pages[:25],
                 'observed_table_rows':physical_rows,
                 'extracted_row_widths':dict(sorted(width_counts.items())),
+                'header_coords':header_coords,
+                'nonempty_row_masks':dict(sorted(row_masks.items())),
+                'rows_missing_name_count':len(missing_first_column),
+                'rows_missing_name_coords':missing_first_column[:80],
+                'legacy_continuation_coords':legacy_continuations,
+                'status_categories':dict(sorted(status_categories.items())),
+                'unusual_status_coords':unusual_status_coords[:50],
+                'date_shapes':dict(sorted(date_shapes.items())),
+                'unusual_date_coords':unusual_date_coords,
+                'page_rows_by_ten':by_tens,
                 'release_approved':False,
             }
             try:
