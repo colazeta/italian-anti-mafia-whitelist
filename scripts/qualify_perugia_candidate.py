@@ -74,6 +74,22 @@ def main() -> None:
                 result.update(strict_legacy_parser='quarantined',
                               issue_category=category(exc),
                               error_class=type(exc).__name__)
+                if page_count != expected_pages:
+                    # Diagnostic pass only: override the one observed physical
+                    # page count to expose the NEXT fail-closed parser invariant.
+                    # The shipping parser stays byte-for-byte unchanged.
+                    if label == 'listed':
+                        parser._LISTED_PAGES=page_count
+                    else:
+                        parser._APPLICANT_PAGES=page_count
+                    try:
+                        deeper=run(path,cfg)
+                    except Exception as deeper_exc:
+                        result.update(next_parser_gate=category(deeper_exc),
+                                      next_error_class=type(deeper_exc).__name__)
+                    else:
+                        result.update(next_parser_gate='all_remaining_legacy_gates_passed',
+                                      probe_observations=len(deeper.records))
             else:
                 result.update(strict_legacy_parser='compatible',
                               observations=len(batch.records),
