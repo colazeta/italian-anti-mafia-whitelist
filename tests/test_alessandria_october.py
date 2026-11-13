@@ -31,3 +31,16 @@ def test_incremental_release_rejects_unrelated_row_changes_and_wrong_provenance(
     with pytest.raises(ValueError,match='outside'): audit_incremental(proposal,approved,{'updated':spec})
     proposal['records'][1]=sample('unchanged');proposal['records'][0]['capture_sha256']='different'
     with pytest.raises(ValueError,match='provenance'): audit_incremental(proposal,approved,{'updated':spec})
+
+
+def test_reviewed_manifest_binds_all_october_row_denominators():
+    import json
+    from pathlib import Path
+    cfg=json.loads((Path(__file__).resolve().parents[1]/'data/publication/multi_prefecture_pilot.json').read_text())
+    sources={r['source_key']:r for r in cfg['sources']}
+    for label,p in october.PROFILES.items():
+        source=sources['alessandria-'+label]
+        assert source['sha256']==p['sha256']
+        assert source['reference_date']==october.REFERENCE_DATE
+        assert source['expected_source_rows']==p['records']
+    assert sources['alessandria-listed']['expected_sector_rows']==715

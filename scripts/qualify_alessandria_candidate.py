@@ -62,7 +62,7 @@ def main():
                         first_table = tables[0]
                         header_index = 9 if label == 'listed' else 1
                         header_cells = [_clean(v) for v in first_table.extract()[header_index]]
-                        if not any('RAGIONE' in v.upper() for v in header_cells):
+                        if not any('RAGIONE' in v.upper() or 'CODICE FISCALE' in v.upper() for v in header_cells):
                             raise RuntimeError('Alessandria safe-header boundary drift')
                         top = first_table.rows[header_index].bbox[3]
                         page.crop((0,0,page.width,top)).to_image(resolution=130).save(output/(label+'-headers.png'))
