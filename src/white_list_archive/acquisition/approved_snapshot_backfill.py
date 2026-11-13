@@ -27,10 +27,10 @@ def existing_snapshot(conn, job):
         cur.execute('''
             SELECT pr.parse_run_id, jsonb_object_agg(i.input_label, co.sha256)
             FROM source.parse_run pr
-            JOIN provenance.processing_activity pa USING (processing_activity_id)
-            JOIN source.parse_snapshot ps USING (parse_run_id)
-            JOIN source.parse_run_input i USING (parse_run_id)
-            JOIN source.content_object co USING (content_object_id)
+            JOIN provenance.processing_activity pa ON pa.processing_activity_id=pr.processing_activity_id
+            JOIN source.parse_snapshot ps ON ps.parse_run_id=pr.parse_run_id
+            JOIN source.parse_run_input i ON i.parse_run_id=pr.parse_run_id
+            JOIN source.content_object co ON co.content_object_id=i.content_object_id
             WHERE pa.software_name=%s AND pa.configuration_hash=%s
               AND pr.status_code='succeeded'
             GROUP BY pr.parse_run_id
@@ -109,6 +109,9 @@ def main(argv=None):
     report.update(schema_version=1, run_at=datetime.now(timezone.utc).isoformat(),
                   shard=args.shard, shards=args.shards, code_revision=args.code_revision,
                   missing_capture_bindings=len(deferred))
+    from collections import Counter
+    report['quarantine_error_types'] = dict(sorted(Counter(
+        row['error_type'] for row in report['outcomes'] if 'error_type' in row).items()))
     transform.persist_operational_report(store, report)
     print(json.dumps({k: v for k, v in report.items() if k != 'outcomes'}, sort_keys=True))
     return int(bool(report['quarantined']))

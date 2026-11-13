@@ -89,6 +89,10 @@ jobs:
           exit 1
       - name: Apply schema and seeds
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/apply.sql
+      - name: Verify approved backfill lookup on the actual PostgreSQL schema
+        env:
+          BACKFILL_TEST_DSN: ${{ env.TEST_DSN }}
+        run: python -m pytest -q tests/test_approved_snapshot_backfill_db.py
       - name: Run database integrity tests
         run: psql -h localhost -U whitelist -d whitelist -v ON_ERROR_STOP=1 -f db/test.sql
       - name: Persist frozen Cosenza capture manifests twice
