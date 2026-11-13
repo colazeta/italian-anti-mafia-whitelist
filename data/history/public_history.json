@@ -21939,6 +21939,31 @@
       "checked_at": "2026-11-13T19:55:48+00:00",
       "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
       "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T20:52:23+00:00",
+      "edition_id": "b5c1908c389701e4b2c43ee4ad789b31eb829a4713db9a4cd4c70c144510851a",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T20:52:38+00:00",
+      "edition_id": "01223b24519e5f72b02c87805eb5b594f16c8be8307812667956ae3a95ccaa07",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T20:52:52+00:00",
+      "edition_id": "0d4b97b38dc5e10e372d7f78dfb91077df57f6c119a85f9f8a9c88ed0c4587d0",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T20:53:06+00:00",
+      "edition_id": "bb469063f32b340b7c811e902c3c3cd7837184f3280c00f7dc39ff30e8f9d59e",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-13T20:53:12+00:00",
+      "edition_id": "278af9dd12886e3c012580c6a1b20a9b9e9c46d5fd2fae65bea2eaa9858610e0",
+      "kind": "approved_document_verification"
     }
   ],
   "comparisons": [
@@ -27116,6 +27141,31 @@
     {
       "authority_key": "perugia",
       "authority_name": "Prefettura di Perugia",
+      "data_fingerprint": "adc2c84e1f099288da4699f83f6c5e80100fed62f77bdb9ed8bdd5c700471978",
+      "document_sha256": "c049e8ec3d94f3a87ec7e6749cdd5f88b769c318156d38a51bba07b777762e77",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "0d4b97b38dc5e10e372d7f78dfb91077df57f6c119a85f9f8a9c88ed0c4587d0",
+      "parser_signature": "perugia_applicants_2026_11@2",
+      "population_scope": "applicant",
+      "reference_date": "2026-11-05",
+      "reference_date_raw": "2026-11-05",
+      "register_key": "perugia-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
+      "source_key": "perugia-applicants",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
+      "status_counts": {
+        "listed": 1038,
+        "other_or_unknown": 1,
+        "pending": 204
+      },
+      "total": 1243
+    },
+    {
+      "authority_key": "perugia",
+      "authority_name": "Prefettura di Perugia",
       "data_fingerprint": "b36db3067536bc01fb422e3aaa97129363b5930dfd9418fc9c20c4d51e2a0498",
       "document_sha256": "c9cd39452fb2f751c2b9e105c10ecf0b9e57569006138af7f766d6851748029f",
       "evidence": [
@@ -27136,6 +27186,30 @@
         "renewal_update_in_progress": 342
       },
       "total": 1016
+    },
+    {
+      "authority_key": "perugia",
+      "authority_name": "Prefettura di Perugia",
+      "data_fingerprint": "861df2f9249341331b268292673c035c5947944788a3d69e9be2c8f91c3c5bda",
+      "document_sha256": "d8dd83ac23e8fd1fa3b3913423d0b08ff5b1bc12a964738d4ff1a8499fa274f8",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "01223b24519e5f72b02c87805eb5b594f16c8be8307812667956ae3a95ccaa07",
+      "parser_signature": "perugia_listed_2026_11@2",
+      "population_scope": "listed",
+      "reference_date": "2026-11-05",
+      "reference_date_raw": "2026-11-05",
+      "register_key": "perugia-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
+      "source_key": "perugia-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/perugia/evidenza/white-list",
+      "status_counts": {
+        "listed": 642,
+        "renewal_update_in_progress": 378
+      },
+      "total": 1020
     },
     {
       "authority_key": "pesaro-e-urbino",
