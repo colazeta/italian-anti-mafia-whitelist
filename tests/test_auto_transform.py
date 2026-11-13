@@ -67,6 +67,43 @@ def test_changed_reviewed_scalar_is_selected_without_silent_source_date_reuse():
     assert config["sources"][0]["sha256"] == H1
 
 
+def test_capture_selection_uses_utc_instant_not_lexical_offset_order():
+    state, config = _scalar()
+    url = config["sources"][0]["resource_url"]
+    state["robots"]["sample"]["resources"][url]["capture_history"] = [
+        _history("sample-listed", H1, "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+                 "2026-11-06T08:00:00+00:00"),
+        _history("sample-listed", H2, "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+                 "2026-11-06T09:00:00+02:00"),
+    ]
+    # The newer real instant is the H1 original: no changed-source dispatch.
+    jobs, deferred = select_reviewed_jobs(state, config)
+    assert jobs == []
+    assert deferred == []
+
+
+def test_untrusted_capture_timestamps_do_not_mask_a_valid_capture():
+    state, config = _scalar()
+    url = config["sources"][0]["resource_url"]
+    history = state["robots"]["sample"]["resources"][url]["capture_history"]
+    history.extend([
+        _history("sample-listed", H3, "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+                 "not-a-capture-date"),
+        _history("sample-listed", H3, "dddddddd-dddd-4ddd-dddd-dddddddddddd",
+                 "2026-12-01T00:00:00"),
+    ])
+    jobs, deferred = select_reviewed_jobs(state, config)
+    assert deferred == []
+    assert len(jobs) == 1
+    assert jobs[0]["captures"]["primary"]["state"]["sha256"] == H2
+
+    # Missing an unambiguous UTC instant is not evidence of a new version.
+    state["robots"]["sample"]["resources"][url]["capture_history"] = history[-2:]
+    jobs, deferred = select_reviewed_jobs(state, config)
+    assert jobs == []
+    assert deferred == [{"source_key": "sample-listed", "reason": "missing_verified_capture"}]
+
+
 def test_unchanged_captures_do_not_reparse_or_create_a_new_edition():
     state, config = _scalar()
     state["robots"]["sample"]["resources"][config["sources"][0]["resource_url"]]["capture_history"].pop()
