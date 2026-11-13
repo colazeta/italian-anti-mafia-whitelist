@@ -65,6 +65,7 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.getByRole('button',{name:'Registro',exact:true}).click();
       await page.locator('#reg-q').waitFor({timeout:60000});
       assert.equal(await page.locator('#reg-status').inputValue(),'listed');
+      assert.match(await page.locator('#view-registry .public-banner').innerText(),/Edizione più recente nel dataset pubblico:/);
       // A selected state with zero rows must remain visible after narrowing scope.
       // Previously the select displayed "Iscritte (855)" while filtering cancellations.
       await page.locator('#reg-status').selectOption('cancellation_related');
