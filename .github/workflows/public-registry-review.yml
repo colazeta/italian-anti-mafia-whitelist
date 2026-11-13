@@ -922,3 +922,21 @@ jobs:
           gh release create "$RELEASE_TAG" /tmp/public-registry-release/*.gz /tmp/public-registry-release/manifest.json \
             --target "$GITHUB_SHA" --title "Validated public registry candidate $RELEASE_TAG" \
             --notes 'Public derivatives validated by the source, artifact, browser and link gates. Review manifest.json in a PR to select this version for Pages. Original-source archive verification remains a separate requirement.'
+
+  perugia-source-only:
+    # A separate PR-only diagnostic. It cannot stage data or trigger the Pages
+    # publisher; production Perugia parsers keep their original approved pins.
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/perugia-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install read-only PDF source QA dependencies
+        run: python -m pip install -e '.[publication]'
+      - name: Check exact Perugia candidates against frozen parser geometry
+        run: python scripts/qualify_perugia_candidate.py
