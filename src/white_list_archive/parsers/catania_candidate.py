@@ -50,7 +50,7 @@ def _source_date(value: Any) -> tuple[str, bool]:
         if not match:
             continue
         try:
-            if pattern.startswith("(\\d{2})"):
+            if "/" in text:
                 d, m, y = map(int, match.groups())
             else:
                 y, m, d = map(int, match.groups())
@@ -90,8 +90,8 @@ def parse_candidate_xlsx(path: Path, cfg: dict[str, Any]) -> ParsedBatch:
     population = cfg.get("population_scope")
     if population not in PARSERS or cfg.get("parser") != PARSERS[population]:
         raise ValueError("Catania candidate population/parser hypothesis is inconsistent")
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=False)
-    cached = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    wb = openpyxl.load_workbook(path, read_only=False, data_only=False)
+    cached = openpyxl.load_workbook(path, read_only=False, data_only=True)
     try:
         if wb.sheetnames != ["Foglio1"] or cached.sheetnames != wb.sheetnames:
             raise ValueError("Unexpected Catania candidate worksheet identity")
