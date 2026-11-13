@@ -2120,17 +2120,17 @@
           "source_key": "perugia-listed",
           "part": "main",
           "population_scope": "listed",
-          "parser": "perugia_listed",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
-          "approved_sha256": "c9cd39452fb2f751c2b9e105c10ecf0b9e57569006138af7f766d6851748029f"
+          "parser": "perugia_listed_2026_11",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-iscritte-white_list_perugia_0.pdf",
+          "approved_sha256": "d8dd83ac23e8fd1fa3b3913423d0b08ff5b1bc12a964738d4ff1a8499fa274f8"
         },
         {
           "source_key": "perugia-applicants",
           "part": "main",
           "population_scope": "applicant",
-          "parser": "perugia_applicants",
-          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
-          "approved_sha256": "003e2ee6614302b1a1f8a504baae2b0c5d38752c70cfb509f693e1b4c1374f14"
+          "parser": "perugia_applicants_2026_11",
+          "url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-11/elenco-delle-imprese-richiedenti-l-iscrizione_0.pdf",
+          "approved_sha256": "c049e8ec3d94f3a87ec7e6749cdd5f88b769c318156d38a51bba07b777762e77"
         }
       ],
       "population_mapping_reviewed": true,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import tempfile
@@ -250,6 +251,33 @@ def _build_registry_from_selected_inputs(
     return registry
 
 
+def _public_scope_digest(value: object) -> str:
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
+                                     separators=(",", ":")).encode()).hexdigest()
+
+
+def _bound_public_scope_matches(binding: dict, cfg: dict, manifest: dict,
+                                records: list[dict], report: dict) -> bool:
+    """A later release can carry a scope only when every approved field is identical.
+
+    Schema 1 remains bound to its single release tag. Schema 2 additionally pins
+    all public observations and their original verification report, allowing the
+    exact already approved derivative to survive a change of national release.
+    restore() independently validates the entire selected five-file snapshot.
+    """
+    common = {"schema_version", "snapshot_tag", "purpose", "source"}
+    if binding.get("source") != cfg:
+        return False
+    if binding.get("schema_version") == 1:
+        return set(binding) == common and binding.get("snapshot_tag") == manifest.get("release_tag")
+    if binding.get("schema_version") != 2 or set(binding) != common | {"records_sha256", "report_sha256"}:
+        return False
+    if not isinstance(binding.get("snapshot_tag"), str) or not binding["snapshot_tag"].startswith("public-data-"):
+        return False
+    return (binding["records_sha256"] == _public_scope_digest(sorted(records, key=lambda r: r["record_locator"]))
+            and binding["report_sha256"] == _public_scope_digest(report))
+
+
 def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tuple[str, ...], manifest_path: Path) -> dict:
     """Compose explicit approved public editions with newly checked source scopes.
 
@@ -271,22 +299,6 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
         approval_mode = cfg.get('approval_mode', 'raw_sha256')
         if approval_mode not in {'raw_sha256', 'semantic_sha256'}:
             raise ValueError(f'{key}: public preservation requires a supported approval mode')
-        if cfg.get('resources'):
-            # Exact prior bundled originals have already been byte-verified for
-            # the approved *public derivative*. Reuse is not a new interpretation.
-            # The full descriptor (including EACH member's URL/hash and parser)
-            # and precise historical release tag must match the reviewed binding.
-            if approval_mode != 'raw_sha256':
-                raise ValueError(f'{key}: bundled public preservation requires raw SHA approval')
-            try:
-                binding = json.loads(APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
-            except (OSError, ValueError) as exc:
-                raise ValueError(f'{key}: approved public source bundle binding unavailable') from exc
-            if (set(binding) != {'schema_version', 'snapshot_tag', 'purpose', 'source'}
-                    or binding.get('schema_version') != 1
-                    or binding.get('snapshot_tag') != manifest.get('release_tag')
-                    or binding.get('source') != cfg):
-                raise ValueError(f'{key}: approved bundle/public derivative provenance mismatch')
         reports = [s for s in approved['meta']['sources'] if s['source_key'] == key]
         if len(reports) != 1:
             raise ValueError(f'{key}: approved public edition is absent or ambiguous')
@@ -302,6 +314,15 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
         records = [r for r in approved['records'] if r['source_key'] == key]
         if not records or (cfg.get('expected_source_rows') is not None and len(records) != cfg['expected_source_rows']):
             raise ValueError(f'{key}: preserved observation count differs from reviewed configuration')
+        if cfg.get('resources'):
+            if approval_mode != 'raw_sha256':
+                raise ValueError(f'{key}: bundled public preservation requires raw SHA approval')
+            try:
+                binding = json.loads(APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
+            except (OSError, ValueError) as exc:
+                raise ValueError(f'{key}: approved public source bundle binding unavailable') from exc
+            if not _bound_public_scope_matches(binding, cfg, manifest, records, report):
+                raise ValueError(f'{key}: approved bundle/public derivative provenance mismatch')
         if approval_mode == 'semantic_sha256' and _semantic_digest(records) != cfg.get('semantic_sha256'):
             # Some source parsers undergo an explicitly reviewed *public field*
             # projection after the approved raw semantic SHA is computed.
@@ -315,10 +336,7 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
                 binding = json.loads(APPROVED_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
             except (OSError, ValueError) as exc:
                 raise ValueError(f'{key}: reviewed public derivative binding unavailable') from exc
-            if (set(binding) != {'schema_version', 'snapshot_tag', 'purpose', 'source'}
-                    or binding.get('schema_version') != 1
-                    or binding.get('snapshot_tag') != manifest.get('release_tag')
-                    or binding.get('source') != cfg):
+            if not _bound_public_scope_matches(binding, cfg, manifest, records, report):
                 raise ValueError(f'{key}: preserved observations differ from approved semantic digest')
         for record in records:
             for field in ('authority_key', 'register_key', 'population_scope', 'reference_date', 'source_page_url', 'resource_url'):

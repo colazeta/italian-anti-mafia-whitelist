@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
-  "snapshot_tag": "public-data-36342687206-1",
-  "purpose": "Exact-source preservation of the previously approved immutable public derivative for the September Pordenone multi-PDF bundle. No new original, source edition, or public permission is inferred.",
+  "schema_version": 2,
+  "snapshot_tag": "public-data-43496640709-1",
+  "purpose": "Preserve only this exact already approved public scope and its original verification report across national release tags. Both public-field digests and the complete original source descriptor must match. No new source approval or refreshed document-check time.",
   "source": {
     "authority_key": "pordenone",
     "authority_name": "Prefettura di Pordenone",
@@ -61,5 +61,7 @@
     },
     "expected_source_rows": 401,
     "notes": "Sections I-X are acquired and hash-verified independently before parsing. The fail-closed parser freezes 595 physical sector rows into 401 compatible logical observations: 335 listed, 65 renewal/update in progress and 1 other/unknown; 234 logical records carry strict structured identifiers. Multi-sector provenance and conflicting date/status identities are preserved."
-  }
+  },
+  "records_sha256": "50af2bd4a97425bbe52b14f21887f64380510438d0594731c05affa09bda1869",
+  "report_sha256": "61f72eb349f24193bdce83f63455ed2e8beaca28ff421b598dfc0d5814962f81"
 }
