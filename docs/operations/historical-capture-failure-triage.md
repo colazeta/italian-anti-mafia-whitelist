@@ -1,0 +1,7 @@
+# Closed diagnostics for failed historical capture reconciliation
+
+The first protected run after source-only backfill PR #256 verified four of six eligible immutable historical capture checks in PostgreSQL; two attempts failed closed. The existence of original bytes and a verified capture manifest does not establish that every relational metadata constraint can be satisfied.
+
+The existing protected transformer now performs a read-only, exact-identity SQL diagnostic for failures and prints fixed aggregate category counts only. Possible causes include conflicting immutable capture UUID/original, capture metadata, existing resource-locator classification, registered original metadata, missing reviewed SourceSeries, SQL integrity/permissions or a remaining writer/readback failure. A failed diagnostic is explicitly classified as unavailable. No raw exception, private URL, original, identifier, storage key or individual record is logged.
+
+This change does not retry with inferred metadata, overwrite conflicts, modify quarantine conditions, add database privileges or mark any original as an approved edition. Previously committed source-only checks remain intact. A new run is required to verify the aggregate diagnostic and independent PostgreSQL state; success of CI alone does not establish recovery.

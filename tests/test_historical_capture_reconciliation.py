@@ -159,3 +159,35 @@ def test_error_after_selection_is_fail_closed_and_redacted(monkeypatch):
     assert result["relational_reconciliation_failures"] == 1
     assert "secret" not in json.dumps(result)
     assert "private" not in json.dumps(result)
+
+
+def test_failed_capture_diagnostic_has_only_closed_aggregates(monkeypatch):
+    store, sha = fixture()
+    def fake_failure(*args):
+        raise RuntimeError("secret private URL, source row")
+    monkeypatch.setattr(backfill, "persist_and_independently_readback", fake_failure)
+    monkeypatch.setattr(
+        backfill, "classify_failed_capture",
+        lambda *args: "capture_uuid_original_conflict",
+    )
+    result = backfill.reconcile_historical_capture_checks(
+        store, "test-dsn", targets=targets(sha),
+    )
+    assert result["relational_reconciliation_failures"] == 1
+    assert result["reconciliation_failure_categories"]["capture_uuid_original_conflict"] == 1
+    assert sum(result["reconciliation_failure_categories"].values()) == 1
+    assert "secret" not in json.dumps(result)
+    assert "official.example" not in json.dumps(result)
+
+
+def test_unexpected_diagnostic_class_never_leaks(monkeypatch):
+    store, sha = fixture()
+    def fake_failure(*args):
+        raise RuntimeError("secret")
+    monkeypatch.setattr(backfill, "persist_and_independently_readback", fake_failure)
+    monkeypatch.setattr(backfill, "classify_failed_capture", lambda *args: "secret")
+    result = backfill.reconcile_historical_capture_checks(
+        store, "test-dsn", targets=targets(sha),
+    )
+    assert result["reconciliation_failure_categories"]["diagnostic_unavailable"] == 1
+    assert "secret" not in json.dumps(result)

@@ -162,6 +162,88 @@ def persist_and_independently_readback(store: Any, manifest: dict, receipt: dict
     return not already_captured, not already_registered
 
 
+
+_FAILURE_CODES = frozenset({
+    "capture_uuid_original_conflict",
+    "capture_uuid_metadata_conflict",
+    "resource_locator_type_conflict",
+    "content_object_registration_conflict",
+    "source_series_not_registered",
+    "sql_integrity_or_permission_failure",
+    "other_writer_or_readback_failure",
+    "diagnostic_unavailable",
+})
+
+
+def classify_failed_capture(store: Any, manifest: dict, dsn: str, exc: Exception) -> str:
+    """Use read-only SQL after a failed append; emit a fixed redacted code only."""
+    from white_list_archive.acquisition.auto_transform import private_connection
+    try:
+        with private_connection(dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT ss.series_code, co.sha256, c.captured_at,
+                              sr.canonical_locator, sr.resource_type_code,
+                              c.origin_type_code, c.authority_rank_code
+                       FROM source.source_capture c
+                       JOIN source.source_series ss ON ss.series_id=c.series_id
+                       JOIN source.content_object co ON co.content_object_id=c.content_object_id
+                       JOIN source.source_resource sr ON sr.resource_id=c.resource_id
+                       WHERE c.capture_id=%s""",
+                    (manifest["capture_id"],),
+                )
+                prior = cur.fetchone()
+                if prior:
+                    if prior[0] != manifest["source_key"] or prior[1] != manifest["sha256"]:
+                        return "capture_uuid_original_conflict"
+                    timestamp = datetime.fromisoformat(
+                        manifest["captured_at"].replace("Z", "+00:00"),
+                    )
+                    if (prior[2] != timestamp
+                            or prior[3] != manifest["resource_url"]
+                            or prior[4] != manifest["resource_type_code"]
+                            or prior[5] != manifest["origin_type"]
+                            or prior[6] != manifest["authority_rank_code"]):
+                        return "capture_uuid_metadata_conflict"
+                cur.execute(
+                    "SELECT web_url, resource_type_code FROM source.source_resource "
+                    "WHERE canonical_locator=%s",
+                    (manifest["resource_url"],),
+                )
+                resource = cur.fetchone()
+                if resource and (
+                    resource[0] != manifest["resource_url"]
+                    or resource[1] != manifest["resource_type_code"]
+                ):
+                    return "resource_locator_type_conflict"
+                cur.execute(
+                    "SELECT file_size, storage_uri, storage_status_code "
+                    "FROM source.content_object WHERE sha256=%s",
+                    (manifest["sha256"],),
+                )
+                obj = cur.fetchone()
+                uri = (
+                    f"{store.config.endpoint.rstrip('/')}/{store.config.bucket}/"
+                    f"{object_key(manifest)}"
+                )
+                if obj and (
+                    obj[0] != manifest["byte_size"]
+                    or (obj[2] == "durable" and obj[1] != uri)
+                ):
+                    return "content_object_registration_conflict"
+                cur.execute(
+                    "SELECT 1 FROM source.source_series WHERE series_code=%s",
+                    (manifest["source_key"],),
+                )
+                if cur.fetchone() is None:
+                    return "source_series_not_registered"
+    except Exception:
+        return "diagnostic_unavailable"
+    if getattr(exc, "sqlstate", None) in {"23503", "23505", "23514", "42501"}:
+        return "sql_integrity_or_permission_failure"
+    return "other_writer_or_readback_failure"
+
+
 def reconcile_historical_capture_checks(
     store: Any, dsn: str, *, targets: tuple = TARGETS,
 ) -> dict:
@@ -170,6 +252,7 @@ def reconcile_historical_capture_checks(
     new_originals = 0
     readbacks = 0
     errors = 0
+    failure_categories = {name: 0 for name in sorted(_FAILURE_CODES)}
     if dsn:
         for manifest, receipt in checked:
             try:
@@ -179,8 +262,11 @@ def reconcile_historical_capture_checks(
                 new_captures += int(capture_created)
                 new_originals += int(original_created)
                 readbacks += 1
-            except Exception:
+            except Exception as exc:
                 errors += 1
+                reason = classify_failed_capture(store, manifest, dsn, exc)
+                reason = reason if reason in _FAILURE_CODES else "diagnostic_unavailable"
+                failure_categories[reason] += 1
     return {
         **report,
         "writer_configured": bool(dsn),
@@ -188,6 +274,7 @@ def reconcile_historical_capture_checks(
         "new_source_capture_checks": new_captures,
         "new_content_objects": new_originals,
         "relational_reconciliation_failures": errors,
+        "reconciliation_failure_categories": failure_categories,
         "editions_approved": 0,
         "semantic_or_canonical_writes": 0,
         "public_promotions": 0,
@@ -211,6 +298,7 @@ def main() -> int:
             "source_capture_checks_postcommit_verified": 0,
             "new_source_capture_checks": 0, "new_content_objects": 0,
             "relational_reconciliation_failures": 0,
+            "reconciliation_failure_categories": {name: 0 for name in sorted(_FAILURE_CODES)},
             "status": "unavailable_or_unverified",
             "editions_approved": 0, "semantic_or_canonical_writes": 0,
             "public_promotions": 0, "independent_restore_verified": False,
