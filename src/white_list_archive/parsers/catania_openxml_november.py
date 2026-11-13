@@ -45,6 +45,16 @@ _HEADERS = {
                   4:"CODICE FISCALE/PARTITA IVA",5:"DATA PRESENTAZIONE ISTANZA",6:"ESITO"},
 }
 _SECTORS = {str(n) for n in range(1,11)}
+# Safely classified from exact official original without exposing business data.
+# Fused/invalid source notation is preserved verbatim as raw source evidence;
+# no invented sector is emitted.
+_REVIEWED_SECTOR_ANOMALY_CELL_HASHES = {
+    406: "38fb0ec05f4bbcc18a3f69a85cc9e3c06a56c8b8bb7229c302a3a4e5ce52ed17",
+    892: "f81a89a265352f9eaff5db565539ca7d1dd301bf806b04f77c9c82cd247258e3",
+    1264: "60ea9a8b3b875d8890842ccb696d0205cc2d18f00d8a47507b9e952ec763e0c0",
+    1353: "74796ee222e137f49196fab535ec306b08c2041ebe32fd7e69224f99854b950b",
+}
+
 
 
 def _check_cfg(path: Path, cfg: dict[str,Any], parser_name: str) -> None:
@@ -127,6 +137,10 @@ def parse_catania_listed_2026_11(path:Path,cfg:dict[str,Any]) -> ParsedBatch:
             raise RuntimeError("Catania November listed incomplete company row")
         name,office,secondary,sectors,rawid,listing,expiry,annotation=row
         sector_values,sector_anomaly=_sections(sectors)
+        observed_hash=hashlib.sha256(_clean(sectors).encode("utf-8")).hexdigest()
+        expected_hash=_REVIEWED_SECTOR_ANOMALY_CELL_HASHES.get(rowno)
+        if sector_anomaly != (expected_hash is not None) or (expected_hash and observed_hash!=expected_hash):
+            raise RuntimeError("Catania November listed source sector-anomaly provenance drift")
         count["sector_anomalies"]+=sector_anomaly
         count["blank_offices"]+=not bool(_clean(office))
         identifiers=_strict_identifiers(rawid)
@@ -167,7 +181,7 @@ def parse_catania_listed_2026_11(path:Path,cfg:dict[str,Any]) -> ParsedBatch:
         rec["identifiers"]=identifiers
         result.append(rec)
     expected={
-        "strict_identifiers":1819,"sector_anomalies":3,"blank_offices":2,
+        "strict_identifiers":1819,"sector_anomalies":4,"blank_offices":2,
         "unparsed_listing_dates":2,"unparsed_expiry_dates":0,
         "standard_expiry_formulas":1581,
         "listed":1662,"renewal_update_in_progress":202,"nonrenewal_status_notes":5,
