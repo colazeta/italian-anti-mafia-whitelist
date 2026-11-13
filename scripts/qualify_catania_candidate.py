@@ -11,9 +11,9 @@ import openpyxl
 from white_list_archive.publishing.public_national_registry import _download
 from white_list_archive.parsers import catania_openxml as old
 
-DATE = re.compile(r"^(?:\\d{1,2}/\\d{1,2}/\\d{4}|\\d{4}-\\d{2}-\\d{2}(?: 00:00:00)?)$")
-SECTION = re.compile(r"^(?:\\s*(?:10|[1-9])\\s*[,;.]?)+$")
-FORMULA = re.compile(r"^=DATE\\(YEAR\\(F\\d+\\)\\+1,MONTH\\(F\\d+\\),DAY\\(F\\d+\\)\\)$", re.I)
+DATE = re.compile(r"^(?:\d{1,2}/\d{1,2}/\d{4}|\d{4}-\d{2}-\d{2}(?: 00:00:00)?)$")
+SECTION = re.compile(r"^(?:\s*(?:10|[1-9])\s*[,;.]?)+$")
+FORMULA = re.compile(r"^=DATE\(YEAR\(F\d+\)\+1,MONTH\(F\d+\),DAY\(F\d+\)\)$", re.I)
 
 
 def classify(value):
@@ -48,11 +48,24 @@ def profile(path: Path, key: str):
             7:"AGGIORNAMENTO IN CORSO",
         }).items()
     )
-    last=start-1
-    for n in range(start,raw.max_row+1):
+    first_body=None
+    body_masks={}
+    for n in range(start,min(raw.max_row+1,start+45)):
+        values=[old._clean(raw.cell(n,c+1).value) for c in range(field_count)]
+        body_masks[n]="".join("1" if value else "0" for value in values)
+    for n in range(start,raw.max_row-11):
+        values=[old._clean(raw.cell(n,c+1).value) for c in range(field_count)]
+        if values[0] and values[1] and values[3]:
+            first_body=n
+            break
+    if first_body is None:
+        raise RuntimeError(f"{key}: company block not found")
+    last=first_body-1
+    for n in range(first_body,raw.max_row-11):
         if not old._clean(raw.cell(n,1).value):
             break
         last=n
+    start=first_body
     totals=Counter()
     rows=last-start+1
     invalid_rows=[]
@@ -83,6 +96,7 @@ def profile(path: Path, key: str):
         "max_row":raw.max_row,"max_column":raw.max_column,
         "header_compatible":same_headers,
         "company_rows":rows,"first_company_row":start,"last_company_row":last,
+        "first_45_row_shape_masks":body_masks,
         "historical_rows":old._APPLICANT_RECORDS if applicant else old._LISTED_RECORDS,
         "footer_labels_match": [x[0] for x in footer] == expected,
         "footer_rows":len(footer),
