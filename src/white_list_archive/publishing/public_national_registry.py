@@ -47,6 +47,7 @@ from white_list_archive.parsers.bolzano_docx import (
 )
 from white_list_archive.parsers.caserta_tables import PARSERS as CASERTA_PARSERS
 from white_list_archive.parsers.catania_openxml import PARSERS as CATANIA_PARSERS
+from white_list_archive.parsers.catania_openxml_november import PARSERS as CATANIA_NOVEMBER_PARSERS
 from white_list_archive.parsers.genova_tables import PARSERS as GENOVA_PARSERS
 from white_list_archive.parsers.foggia_tables import parse_foggia_applicants, parse_foggia_listed
 from white_list_archive.parsers.forli_cesena_combined import parse_forli_cesena_combined
@@ -1196,6 +1197,7 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         or BOLZANO_PARSERS.get(cfg["parser"])
         or CASERTA_PARSERS.get(cfg["parser"])
         or CATANIA_PARSERS.get(cfg["parser"])
+        or CATANIA_NOVEMBER_PARSERS.get(cfg["parser"])
         or GENOVA_PARSERS.get(cfg["parser"])
         or FOGGIA_PARSERS.get(cfg["parser"])
         or FORLI_CESENA_PARSERS.get(cfg["parser"])
@@ -1279,7 +1281,11 @@ def _parse_source(path: Path | dict[str, Path], cfg: dict[str, Any]) -> ParsedBa
         batch = _adapt_ravenna_public_fields(batch, cfg["parser"])
     if cfg["parser"] in PIACENZA_PARSERS:
         batch = _adapt_piacenza_public_fields(batch, cfg["parser"])
-    legacy_version = "2" if cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS else "1"
+    legacy_version = (
+        "2" if cfg["parser"] in CATANIA_NOVEMBER_PARSERS
+        or cfg["parser"] in NAPOLI_PARSERS or cfg["parser"] in POTENZA_PARSERS
+        else "1"
+    )
     return _apply_parser_lineage(batch, cfg["parser"], legacy_version)
 
 
