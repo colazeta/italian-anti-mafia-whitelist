@@ -96,11 +96,13 @@ def test_missing_or_wrong_capture_identity_cannot_be_extracted():
     source["capture_history"] = [_capture(source="catania-listed")]
     jobs, deferred = c.select_candidate_jobs(state, cfg, robots)
     assert len(jobs) == 1
-    assert deferred == [{"reason": "missing_verified_discovery_capture"}]
+    assert deferred == [{"authority_key": "catania", "candidate_url": NEW_LIST,
+                         "reason": "missing_verified_discovery_capture"}]
     source["capture_history"] = [_capture(when="2026-11-13T12:00:00")]
     jobs, deferred = c.select_candidate_jobs(state, cfg, robots)
     assert len(jobs) == 1
-    assert deferred == [{"reason": "missing_verified_discovery_capture"}]
+    assert deferred == [{"authority_key": "catania", "candidate_url": NEW_LIST,
+                         "reason": "missing_verified_discovery_capture"}]
 
 
 def test_capture_chronology_uses_utc_not_lexicographic_order():
@@ -124,7 +126,8 @@ def test_ambiguous_parser_selection_never_promotes_a_candidate():
     jobs, deferred = c.select_candidate_jobs(state, cfg, robots)
     assert len(jobs) == 1
     assert jobs[0]["source_key_hypothesis"] == "catania-applicants"
-    assert deferred == [{"reason": "no_unique_parser_hypothesis"}]
+    assert deferred == [{"authority_key": "catania", "candidate_url": NEW_LIST,
+                         "reason": "no_unique_parser_hypothesis"}]
 
 
 class MissingObject(Exception):
