@@ -90,7 +90,7 @@ def main() -> None:
                                       next_error_class=type(deeper_exc).__name__)
                         # A numeric page count is a harmless diagnostic; never
                         # emit source rows, names or exception text.
-                        match=re.search(r'table-count drift on page (\\d+): (\\d+) != (\\d+)',str(deeper_exc))
+                        match=re.search(r'table-count drift on page (\d+): (\d+) != (\d+)',str(deeper_exc))
                         if match:
                             result.update(first_changed_table_page=int(match.group(1)),
                                           observed_tables_on_page=int(match.group(2)),
