@@ -228,7 +228,7 @@ jobs:
           # Changed manifests still require the generic gates above, exact byte
           # pinning, source-specific parser QA, privacy checks and manual selection.
           legacy_blob_sha = hashlib.sha1(
-              b'blob ' + str(len(config_bytes)).encode() + b'\\0' + config_bytes
+              b'blob ' + str(len(config_bytes)).encode() + bytes([0]) + config_bytes
           ).hexdigest()
           if legacy_blob_sha == 'ee2e56c86796326d2a91d7b218d987d464c62c53':
               assert reg['meta']['record_count'] == 74347
