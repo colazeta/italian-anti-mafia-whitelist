@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "snapshot_tag": "public-data-36342687206-1",
+  "purpose": "Allow reuse of this exact, previously approved source after the Potenza public-field adapter changes the raw semantic payload. This is not approval for new source bytes or observations.",
+  "source": {
+    "source_key": "potenza-combined",
+    "parser": "potenza_combined",
+    "authority_key": "potenza",
+    "authority_name": "Prefettura di Potenza",
+    "register_key": "potenza-ordinary",
+    "register_name": "White List ordinaria",
+    "population_scope": "listed_and_applicant",
+    "reference_date": "2026-09-27",
+    "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/potenza/white-list",
+    "resource_url": "https://www.utgpotenza.it/data/vis_imprese.php?action=list&jtStartIndex=0&jtPageSize=2000&jtSorting=ragione_sociale%20ASC&cerca_ragione_sociale=&cerca_sede_legale=&cerca_stato_richiesta=0&cerca_sezione=0",
+    "sha256": "69317d249f8968b5a4a39811a78bb47f53fae03b593c1fc1aea4e1c52ca4909b",
+    "expected_source_rows": 1036,
+    "approval_mode": "semantic_sha256",
+    "semantic_sha256": "8a4191ef20a28b965311601655ae312b79b95deed4f0f3636f594c835b06c198",
+    "last_source_update": "2026-09-27",
+    "last_source_update_basis": "Observed official mutable-source capture boundary on 27 September 2026; not an inferred edition or legal-effect date.",
+    "notes": "1,036 observations: 218 listed, 378 pending, 440 renewal/update in progress. Schema and identifiers unchanged. Six source-explicit returns to listed since the approved 22 September counts; expiry fields reflect the current source. See docs/sources/potenza-operational-check-2026-09-27.md."
+  }
+}
