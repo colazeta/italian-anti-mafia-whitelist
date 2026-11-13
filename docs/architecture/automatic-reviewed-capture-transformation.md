@@ -19,6 +19,19 @@ source/parser configurations. One latest complete capture set is considered
 per source scope, including every labelled member of a source bundle. If its
 bytes equal the approved baseline, no new transformation is attempted.
 
+## Trusted capture chronology
+
+Within one reviewed source, robot-state candidate captures are ordered by
+**UTC instants**, not the textual order of ISO 8601 timestamps. An offset-aware
+capture timestamp is required; malformed or timezone-naive candidates are
+ineligible rather than being mistaken for the latest document. Identical UTC
+instants retain the existing deterministic capture-ID tie-break.
+
+This selection still only proposes an archive candidate. The existing private
+catalogue, exact manifest, immutable original-byte readback and parser gates
+remain mandatory. Capture timestamps do not determine administrative edition
+dates, and this change does not re-run or re-pin a frozen historical campaign.
+
 ## Archive-first and database boundaries
 
 1. The robot state selects a candidate capture by exact approved source key
