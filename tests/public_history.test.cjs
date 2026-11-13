@@ -57,7 +57,7 @@ test('Biella repeated captures remain auditable but count as two content edition
  }
 });
 test('content change under the same declared date stays a separate, unordered version',()=>{
- const a={...baseline[0],id:'test-one'};
+ const a={...baseline[0],id:'test-one',data_fingerprint:'a'.repeat(64)};
  const same={...a,id:'test-two',document_sha256:'f'.repeat(64),parser_signature:'fixture@2'};
  const altered={...a,id:'test-three',document_sha256:'e'.repeat(64),data_fingerprint:'d'.repeat(64)};
  const logical=H.logicalEditions([a,same,altered]);
@@ -71,10 +71,12 @@ test('missing fingerprints never deduplicate distinct source files by equal tota
  assert.equal(H.logicalEditions([a,b]).length,2);
 });
 test('approved observational comparisons remain reachable through grouped capture IDs',()=>{
- const a={...baseline[0],id:'replayed-before',document_sha256:'c'.repeat(64)};
- const b={...baseline[1],id:'replayed-after',document_sha256:'d'.repeat(64)};
- const first=H.logicalEditions([a,baseline[0]])[0];
- const second=H.logicalEditions([b,baseline[1]])[0];
+ const before={...baseline[0],data_fingerprint:'a'.repeat(64)};
+ const after={...baseline[1],data_fingerprint:'b'.repeat(64)};
+ const a={...before,id:'replayed-before',document_sha256:'c'.repeat(64)};
+ const b={...after,id:'replayed-after',document_sha256:'d'.repeat(64)};
+ const first=H.logicalEditions([a,before])[0];
+ const second=H.logicalEditions([b,after])[0];
  const evidence=H.comparison(history,first,second);
  assert.ok(evidence);
  assert.equal(evidence.added,21);
