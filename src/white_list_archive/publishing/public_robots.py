@@ -30,7 +30,7 @@ def _selected_public_sources():
         for source in sources:
             fields = ("source_key", "register_key", "population_scope", "reference_date", "sha256")
             item = {key: source[key] for key in fields}
-            if item["source_key"] in seen_keys or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]):
+            if item["source_key"] in seen_keys or not re.fullmatch(r"(?:[0-9a-f]{64}|bundle:[0-9a-f]{64})", item["sha256"]):
                 raise ValueError("Unusable selected source identity")
             if not re.fullmatch(r"20\d\d-\d\d-\d\d", item["reference_date"]):
                 raise ValueError("Unusable selected source date")
