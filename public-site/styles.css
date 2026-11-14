@@ -34,3 +34,6 @@
 /* The public data timestamp is a release scope statement, not a live Prefecture check. */
 .public-freshness-note{margin-top:4px;font-size:13px;font-weight:normal;line-height:1.35}
 .public-freshness-note a{color:#fff}
+
+/* Keep long official filenames readable in the compact robot table. */
+.robot-file-name{overflow-wrap:anywhere;word-break:break-word}
