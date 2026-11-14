@@ -45,12 +45,14 @@ white-list-explorer-address-validation-patch = "white_list_archive.publishing.ex
 white-list-explorer-address-quality-patch = "white_list_archive.publishing.explorer_address_quality_patch:main"
 white-list-build-explorer-preview = "white_list_archive.publishing.explorer_bundle:main"
 white-list-build-explorer-preview-v2 = "white_list_archive.publishing.explorer_bundle_v2:main"
+white-list-public-mcp = "white_list_archive.mcp_public.server:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pdfplumber>=0.11,<0.12", "openpyxl>=3.1,<4", "python-docx>=1.1,<2", "xlrd>=2.0,<3"]
 storage = ["boto3>=1.40,<2"]
 database = ["psycopg[binary]>=3.2"]
 publication = ["pdfplumber>=0.11,<0.12", "openpyxl>=3.1,<4", "python-docx>=1.1,<2", "xlrd>=2.0,<3"]
+mcp = ["mcp>=2,<3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,0 +1,74 @@
+name: Public MCP
+
+on:
+  push:
+    paths:
+      - "src/white_list_archive/mcp_public/**"
+      - "tests/test_mcp_public_store.py"
+      - "pyproject.toml"
+      - ".github/workflows/public-mcp.yml"
+  pull_request:
+    paths:
+      - "src/white_list_archive/mcp_public/**"
+      - "tests/test_mcp_public_store.py"
+      - "pyproject.toml"
+      - ".github/workflows/public-mcp.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install MCP surface and tests
+        run: python -m pip install -e '.[dev,mcp]'
+      - name: Test snapshot query semantics
+        run: pytest -q tests/test_mcp_public_store.py
+      - name: Verify MCP discovery over Streamable HTTP
+        run: |
+          PORT=8765 white-list-public-mcp >/tmp/whitelist-mcp.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import json
+          import time
+          from urllib.request import urlopen
+
+          for _ in range(40):
+              try:
+                  with urlopen("http://127.0.0.1:8765/health", timeout=1) as response:
+                      payload = json.load(response)
+                  assert payload["status"] == "ok"
+                  break
+              except Exception:
+                  time.sleep(0.25)
+          else:
+              raise SystemExit("MCP health endpoint did not become ready")
+          PY
+          python - <<'PY'
+          import asyncio
+          from mcp import Client
+
+          EXPECTED = {
+              "search_registry",
+              "get_observation",
+              "get_prefecture",
+              "compare_prefectures",
+              "date_distribution",
+              "get_history",
+              "get_robot_directory",
+              "get_dataset_metadata",
+          }
+
+          async def main():
+              async with Client("http://127.0.0.1:8765/mcp") as client:
+                  listed = await client.list_tools()
+                  names = {tool.name for tool in listed.tools}
+                  missing = EXPECTED - names
+                  assert not missing, f"Missing MCP tools: {sorted(missing)}"
+
+          asyncio.run(main())
+          PY
