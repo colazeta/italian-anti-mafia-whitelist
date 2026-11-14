@@ -80,6 +80,80 @@ function robotDocumentHistory(report){
 }
 function robotLatestDocument(report){return robotDocumentHistory(report).find(d=>d.date)?.date||'';}
 function robotLatestFile(report){return robotDocumentHistory(report)[0]||null;}
+// Compare newly detected document clues against the exact selected public source editions.
+// A candidate URL/date is not a parser-approved or legally confirmed new list.
+function robotDocumentPopulation(name){
+  const lower=String(name||'').toLocaleLowerCase('it');
+  const applicant=/richiedent|richiest|aspirant/i.test(lower);
+  const listed=/iscritt|permanenz|imprese.iscritte/i.test(lower);
+  return applicant&&listed?'listed_and_applicant':applicant?'applicant':listed?'listed':'';
+}
+function robotPublicationGap(report,selectedSources){
+  if(!Array.isArray(selectedSources)||!selectedSources.length)
+    return {status:'no_release',count:null,later:[],unclassified:[],incomplete:false};
+  if(!report)
+    return {status:'no_report',count:null,later:[],unclassified:[],incomplete:false};
+  const dates=selectedSources.map(s=>s.reference_date).filter(Boolean).sort();
+  if(!dates.length)
+    return {status:'no_release',count:null,later:[],unclassified:[],incomplete:false};
+  const byKey=new Map(selectedSources.map(s=>[s.source_key,s]));
+  const publishedHashes=new Set(selectedSources.map(s=>s.sha256).filter(Boolean));
+  const latest=dates.at(-1);
+  const earliest=dates[0];
+  const later=new Map(),unclassified=[];
+  for(const doc of robotDocumentHistory(report)){
+    const resource=report.resources?.[doc.url]||{};
+    const digest=resource.sha256||resource.archived_sha256||'';
+    // A source already selected for publication cannot also be outstanding.
+    if(digest&&publishedHashes.has(digest))continue;
+    const population=robotDocumentPopulation(doc.name);
+    const sourceKeys=(Array.isArray(resource.source_keys)?resource.source_keys:[]).filter(k=>byKey.has(k));
+    const scoped=sourceKeys.length?sourceKeys.map(k=>byKey.get(k)):
+      selectedSources.filter(s=>s.population_scope===population||
+        (population&&['listed_and_applicant','operational_mixed'].includes(s.population_scope)));
+    // Only an exact source binding or a unique compatible source scope identifies
+    // a narrower baseline. Otherwise require a date later than EVERY published
+    // source, not just one unrelated list.
+    const exact=sourceKeys.length===1||(!sourceKeys.length&&scoped.length===1);
+    const cutoff=exact?scoped[0].reference_date:latest;
+    if(doc.date&&doc.date>cutoff){
+      const key=exact?scoped[0].source_key+'|'+doc.date:
+        (digest?'sha256:'+digest:'scope:'+population+'|'+doc.date);
+      if(!later.has(key))later.set(key,{...doc,population,publicationBaseline:cutoff,
+        captured:Boolean(resource.archived_sha256),binding:exact?scoped[0].source_key:null});
+    }else if(!doc.date||doc.date===cutoff||(!exact&&doc.date>earliest&&doc.date<=latest)){
+      // Same-date variants and documents without an interpretable date require
+      // manual examination; neither is silently counted as a newer edition.
+      if(resource.role==='candidate'||(resource.role==='source'&&digest))
+        unclassified.push({...doc,population,captured:Boolean(resource.archived_sha256)});
+    }
+  }
+  const rows=[...later.values()].sort((a,b)=>b.date.localeCompare(a.date)||a.url.localeCompare(b.url));
+  return {status:'ok',count:rows.length,later:rows,unclassified,
+    incomplete:report.status==='partial'||Boolean(report.pending_urls?.length)||Boolean(report.errors?.length)};
+}
+function robotLastPublishedDate(selectedSources){
+  if(!Array.isArray(selectedSources)||!selectedSources.length)return '';
+  return selectedSources.map(s=>s.reference_date).filter(Boolean).sort().at(-1)||'';
+}
+function robotBacklogCell(gap){
+  if(gap.status==='no_release')return '<span class="muted">Non confrontabile</span><div class="small muted">Nessuna edizione pubblicata</div>';
+  if(gap.status==='no_report')return '<span class="muted">Non disponibile</span><div class="small muted">Rapporto robot assente</div>';
+  const count=gap.count;
+  const display=gap.incomplete?'Almeno '+count:String(count);
+  return '<b>'+esc(display)+'</b><div class="small muted">'+
+    (count===1?'Documento successivo candidato':'Documenti successivi candidati')+' · da verificare'+
+    (gap.unclassified.length?' · '+esc(gap.unclassified.length)+' senza confronto certo':'')+'</div>';
+}
+function robotBacklogDetail(gap){
+  if(gap.status!=='ok')return '<p>Non è possibile confrontare le pubblicazioni senza un rapporto del robot e una release selezionata.</p>';
+  const rows=gap.later.slice(0,20);
+  return '<p><b>'+esc(gap.count)+' documenti successivi rilevati.</b> Il conteggio riguarda i file candidati con una data nel nome successiva alla rispettiva data di riferimento della release, non edizioni pronte per essere pubblicate. I documenti con date assenti o ambigue non sono inclusi.</p>'+
+    (rows.length?'<ul>'+rows.map(doc=>'<li><b>'+esc(doc.date)+'</b> · <a href="'+esc(doc.url)+'" target="_blank" rel="noopener noreferrer">'+esc(doc.name)+'</a> · '+(doc.captured?'Copia conservata':'Acquisizione non attestata')+'</li>').join('')+'</ul>':'')+
+    (gap.count>rows.length?'<p>Altri '+esc(gap.count-rows.length)+' documenti candidati non mostrati; consulta lo storico.</p>':'')+
+    (gap.unclassified.length?'<p><b>'+esc(gap.unclassified.length)+' documenti da verificare separatamente</b> (data assente, non successiva in modo certo o differenza documentale con la stessa data).</p>':'')+
+    (gap.incomplete?'<p>Il controllo del robot è parziale: il numero mostrato è soltanto quello già rilevato.</p>':'');
+}
 function robotDocumentCell(report){
   const doc=robotLatestFile(report);
   if(!doc)return '<span class="muted">Nessun documento rilevato</span>';
@@ -121,6 +195,8 @@ function drawRobots(){
   const query=robotState.query.trim().toLocaleLowerCase('it');
   const shown=robots.filter(r=>(r.name+' '+r.region+' '+r.authority_key).toLocaleLowerCase('it').includes(query)&&(robotState.filter==='all'||(robotState.reports[r.authority_key]?.status||'unseen')===robotState.filter));
   const selected=robots.find(r=>r.authority_key===robotState.selected),report=selected?robotState.reports[selected.authority_key]:null;
+  const selectedSources=selected?.selected_public_sources||[];
+  const selectedGap=robotPublicationGap(report,selectedSources);
   const detail=selected?section(`ROBOT · ${selected.name}`,`<p><b>Controlla o acquisisci una nuova versione:</b> apri <a href="${ROBOT_RUN}" target="_blank" rel="noopener">l’esecuzione su GitHub</a>, premi “Run workflow” e indica <code>${esc(selected.authority_key)}</code> nel campo <code>authority</code>. Usa <code>capture</code> per controllare le fonti e conservare le versioni acquisite. La conservazione non implica la validazione del contenuto.</p><div class="kv"><div>Ultimo tentativo</div><div>${esc(robotDate(report?.checked_at))} · ora italiana</div><div>Esito</div><div>${esc(robotLabels[report?.status||'unseen']||'Da verificare')}</div><div>Ultimo ciclo di controllo completato</div><div>${esc(robotDate(report?.last_successful_check_at))}</div><div>Risorse acquisite nell’ultimo tentativo</div><div>${report?.captured_urls?.length||0}</div><div>Estrazione dei record</div><div>${selected.population_mapping_reviewed?'Fonti e parser già validati per le versioni approvate. Ogni nuova versione richiede verifica.':'Acquisizione e scoperta disponibili; mappatura delle popolazioni e parser da validare.'}</div></div><details class="robot-detail"><summary>Pagine ufficiali e dettagli del controllo</summary><ul>${selected.landing_pages.map(url=>`<li><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></li>`).join('')}</ul>${report?`<p>${report.requests} risorse controllate · ${report.errors?.length||0} errori · ${report.pending_urls?.length||0} risorse in coda. Il controllo successivo riprende dai documenti rimasti.</p>${report.run_url&&/^https:\/\/github\.com\/colazeta\/italian-anti-mafia-whitelist\/actions\/runs\/\d+$/.test(report.run_url)?`<a href="${esc(report.run_url)}" target="_blank" rel="noopener">Apri il rapporto di esecuzione</a>`:''}`:''}</details>`):'';
 
   const changedSources=checked.filter(r=>robotObservedChangeCounts(robotState.reports[r.authority_key]).associatedSources>0);
@@ -133,6 +209,8 @@ function drawRobots(){
     const published=typeof PREFECTURES!=='undefined'?PREFECTURES?.prefectures?.find(p=>p.authority_key===selected.authority_key):null;
     const edition=published?.last_source_update?displayDate(published.last_source_update):
       (published?'Nessuna edizione di questa Prefettura nella release selezionata':'Dato pubblico non disponibile');
+    const released=robotLastPublishedDate(selectedSources);
+    const publicationAligned=Boolean(published)&&((published.last_source_update||'')===released);
     const docList=candidates.length?'<ul>'+candidates.slice(0,6).map(doc=>
       '<li><a href="'+esc(doc.url)+'" target="_blank" rel="noopener noreferrer">'+esc(doc.name)+'</a>'+
       (doc.newInLastCheck?' · <b>Nuovo collegamento</b>':'')+
@@ -141,6 +219,7 @@ function drawRobots(){
     stage=section('STATO DELL’AGGIORNAMENTO',
       '<div class="kv">'+
       '<div>Ultima edizione nella release pubblica</div><div><b>'+esc(edition)+'</b></div>'+
+      '<div>Documenti successivi rilevati</div><div>'+(publicationAligned?robotBacklogCell(selectedGap):'Dati delle release non allineati')+'</div>'+
       '<div>File individuato dal robot</div><div>'+robotDocumentCell(report)+'</div>'+
       '<div>Serie e parser mappati</div><div>'+(selected.population_mapping_reviewed?'Mappatura revisionata; nuove strutture da ricontrollare':'Mappatura ancora da validare')+'</div>'+
       '<div>Modifiche alle pagine monitorate</div><div>'+changes.landingPages+'</div>'+
@@ -151,14 +230,15 @@ function drawRobots(){
       '<p><b>Documenti potenzialmente rilevanti non ancora associati a una serie approvata: '+
       candidates.length+'.</b> Sono collegamenti da qualificare, non nuove edizioni certificate. '+
       'La data HTTP di modifica non equivale alla data amministrativa dell’elenco.</p>'+docList+
+      (publicationAligned?robotBacklogDetail(selectedGap):'<p>Confronto fra release e robot non disponibile: dati delle release non allineati.</p>')+
       (candidates.length>6?'<p>Mostrati i 6 documenti più recenti tra quelli riconoscibili.</p>':'')
     );
   }
-  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Data più recente nel nome di un documento: <b>${esc(latestDocument||'Non disponibile')}</b> · indizio, non pubblicazione certificata</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento individuato · data nel nome</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(r=>{const s=robotState.reports[r.authority_key];return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${robotDocumentCell(s)}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="6">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
+  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Data più recente nel nome di un documento: <b>${esc(latestDocument||'Non disponibile')}</b> · indizio, non pubblicazione certificata</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento individuato · data nel nome</th><th>Ultima edizione pubblicata</th><th>Documenti successivi rilevati</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(r=>{const s=robotState.reports[r.authority_key];return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${robotDocumentCell(s)}</td><td>${(() => {const d=robotLastPublishedDate(r.selected_public_sources);const p=typeof PREFECTURES!=='undefined'?PREFECTURES?.prefectures?.find(x=>x.authority_key===r.authority_key):null;return p&&((p.last_source_update||'')===d)?(d?esc(displayDate(d)):'<span class="muted">Nessuna edizione</span>'):'<span class="muted">Dati non allineati</span>'})()}</td><td>${(() => {const d=robotLastPublishedDate(r.selected_public_sources);const p=typeof PREFECTURES!=='undefined'?PREFECTURES?.prefectures?.find(x=>x.authority_key===r.authority_key):null;return p&&((p.last_source_update||'')===d)?robotBacklogCell(robotPublicationGap(s,r.selected_public_sources)):'<span class="muted">Non disponibile</span>'})()}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="8">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
   view.querySelector('#robot-q').addEventListener('input',e=>{robotState.query=e.target.value;redrawSearch('#robot-q',drawRobots,e.target)});
   view.querySelector('#robot-filter').addEventListener('change',e=>{robotState.filter=e.target.value;drawRobots()});
   view.querySelector('#robot-refresh').addEventListener('click',async e=>{e.target.disabled=true;robotState.loaded=false;await renderRobots()});
   view.querySelectorAll('[data-robot]').forEach(button=>button.addEventListener('click',()=>{robotState.selected=button.dataset.robot;drawRobots();view.querySelector('.kv')?.scrollIntoView({block:'center'})}));
 }
 
-if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDateInText,robotDocumentDate,robotDocumentHistory,robotLatestDocument,robotLatestFile};}
+if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDateInText,robotDocumentDate,robotDocumentHistory,robotLatestDocument,robotLatestFile,robotDocumentPopulation,robotPublicationGap,robotLastPublishedDate};}
