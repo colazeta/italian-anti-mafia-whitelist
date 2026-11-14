@@ -43,3 +43,14 @@
 .robot-grid td:nth-child(3){min-width:250px}
 .robot-grid td:nth-child(4){min-width:130px}
 .robot-grid td:nth-child(5){min-width:175px}
+
+/* Prioritisation uses observed evidence, without implying publication approval. */
+.robot-priority-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.robot-priority-metrics>div{min-width:0;border:1px solid #bbb;padding:8px 10px;background:#f7f7f7}
+.robot-priority-metrics b{display:block;font:700 23px/1.2 "Courier New",monospace;font-variant-numeric:tabular-nums}
+.robot-priority-metrics span{display:block;font-size:12px;color:#555;margin-top:4px}
+.robot-priority-table{min-width:810px}
+.robot-priority-table td:nth-child(5){min-width:140px}
+.robot-priority-meter{height:5px;margin-top:5px;background:#ddd;overflow:hidden}
+.robot-priority-meter span{display:block;height:100%;background:#224b76}
+@media(max-width:680px){.robot-priority-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.robot-priority-metrics b{font-size:21px}}
