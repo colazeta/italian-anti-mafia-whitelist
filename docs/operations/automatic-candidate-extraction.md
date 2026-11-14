@@ -170,3 +170,25 @@ A failure of this read-only diagnostic is isolated from the other transform,
 backfill and quarantine lanes. The existing private source reports remain the
 authoritative location for detailed review. The latest selected public release
 must be preserved until the newer inputs pass their own complete controls.
+
+### Catania 13 November — aggregate-only ambiguous-row triage
+
+When the exact verified listed workbook produces the known
+`unclassified_data_like_row` rejection, the protected read-only probe also
+counts source-row **shapes** over that same workbook and validated header.
+The separate summary distinguishes full anchor rows, incomplete anchors,
+ambiguous rows before/between/after anchored rows and two non-exclusive
+categories of populated cells (name with office; other non-anchor cells).
+It never emits a cell value, source row number, identifier, address, hash of
+a row, original URL or private object coordinate. The triage is `null`
+when its independent workbook inspection fails or when another parser error
+occurs; unknown remains unknown. Its counts are not records accepted by a
+production parser and cannot be added to publication totals.
+
+This helps determine privately whether the new XLSX layout contains an
+interleaved continuation, extra administrative annotation or another
+source-specific structure requiring review. **No ambiguous row is skipped,
+reinterpreted or published.** The same exact source hash, Catania-specific
+parser approval, capture/catalogue binding, documented edition date,
+listed/applicant QA and unchanged non-Catania release comparison remain
+mandatory. Synthetic XLSX regressions verify aggregate counts and redaction.
