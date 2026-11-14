@@ -117,3 +117,41 @@ receipts before approving a new source series or public edition.
 
 The transform never deploys Pages or modifies
 `data/publication/public_snapshot.json`.
+
+## Catania 13 November candidate-source QA
+
+An additional **read-only step in the existing protected transform workflow** (shard 0
+only) checks the two original 13 November Catania XLSX SHA-256 pins already
+documented in issue #267, using the primary content-addressed archive. It
+does not fetch a live URL, change the source registry, issue a new capture,
+dispatch another workflow or write to PostgreSQL.
+
+For each original, the step verifies the complete bytes against the frozen
+digest and runs the separate provisional Catania candidate parser *without*
+an administrative reference date. It emits aggregate source-observation and
+status counts and a closed set of quality counters only. The extracted rows
+remain ephemeral, and exception messages, raw names, identifiers, private
+storage keys and original URLs are never logged.
+
+The reported states are distinct:
+
+- `unknown`: the exact original could not be positively read back; this
+  **does not** establish loss or absence;
+- `layout_or_parser_review_required`: the original bytes were positively
+  verified, but its unapproved sheet/row contract failed;
+- `provisional_extraction_for_review`: the exact bytes passed the provisional
+  parser, yielding only *candidate* source-row statistics.
+
+Positive primary-byte verification **does not** verify immutable capture
+catalogue provenance, associate a robot-discovery capture with a reviewed
+SourceSeries, establish the official 13 November edition date, approve the
+physical parser, create a `SourceEdition`, create a semantic/canonical
+observation or authorise new public records. The independent capture/catalogue
+receipt, full layout/row/date/sector/status review and a separately versioned,
+fail-closed production parser are still required before an incremental public
+candidate and selector change.
+
+A failure of this read-only diagnostic is isolated from the other transform,
+backfill and quarantine lanes. The existing private source reports remain the
+authoritative location for detailed review. The latest selected public release
+must be preserved until the newer inputs pass their own complete controls.
