@@ -10,6 +10,7 @@ on:
       - 'src/white_list_archive/acquisition/approved_snapshot_backfill.py'
       - 'src/white_list_archive/acquisition/candidate_extract.py'
       - 'src/white_list_archive/acquisition/catania_november13_archive_qa.py'
+      - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
       - 'src/white_list_archive/parsers/catania_candidate.py'
       - 'src/white_list_archive/acquisition/production_checkpoint.py'
       - 'src/white_list_archive/acquisition/transform_resilience.py'
@@ -129,6 +130,10 @@ jobs:
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.catania_november13_archive_qa
       # Positive immutable catalogue provenance only; never infer missing bytes from listings.
+      - name: Stage immutable private Catania tail review packet
+        if: matrix.shard == 0
+        continue-on-error: true
+        run: python -m white_list_archive.acquisition.catania_tail_private_review
       - name: Read back bounded historical Lodi and Milano capture provenance
         if: matrix.shard == 0
         run: python -m white_list_archive.storage.historical_capture_provenance_audit
@@ -139,7 +144,7 @@ jobs:
         run: python -m white_list_archive.storage.historical_capture_reconciliation
       - name: Validate transformer and candidate-extraction selection contracts
         id: transform-contracts
-        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_approved_snapshot_backfill.py
+        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_catania_tail_private_review.py tests/test_approved_snapshot_backfill.py
       - name: Load safe current capture index
         id: load-capture-index
         run: |
