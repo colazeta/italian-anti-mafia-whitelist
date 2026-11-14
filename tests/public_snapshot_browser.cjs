@@ -18,7 +18,18 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       page.on('pageerror',error=>errors.push(error.message));
       let registryRequests=0;
       await page.route('**/data/registry.json',route=>{registryRequests++;return route.abort()});
-      await page.route('**/robot-state/state.json',route=>route.fulfill({json:{schema_version:1,robots:{cosenza:{status:'unchanged',checked_at:'2026-09-27T20:00:00Z',last_successful_check_at:'2026-09-27T20:00:00Z',requests:2,captured_urls:[],errors:[],pending_urls:[]}}}}));
+      await page.route('**/robot-state/state.json',route=>route.fulfill({json:{schema_version:1,robots:{
+        cosenza:{status:'unchanged',checked_at:'2026-09-27T20:00:00Z',
+          last_successful_check_at:'2026-09-27T20:00:00Z',requests:2,
+          captured_urls:[],errors:[],pending_urls:[]},
+        trento:{status:'changed',checked_at:'2026-11-14T11:00:00Z',
+          last_successful_check_at:'2026-11-14T11:00:00Z',requests:2,
+          captured_urls:[],errors:[],pending_urls:[],resources:{
+            'https://prefettura.interno.gov.it/sites/default/files/86/2026-11/imprese-iscritte-11-novembre-2026.pdf':{
+              role:'candidate',sha256:'robot-test-new-edition',archived_sha256:'robot-test-new-edition'
+            }
+          }}
+      }}}));
       await page.goto(baseURL+'#electoral');
       await page.locator('#electoral-event').waitFor();
       assert.equal(registryRequests,0,'electoral deep link must not download registry');
@@ -50,6 +61,18 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
         ['Ultima edizione pubblicata','Documenti successivi rilevati']);
       const cosenzaPublic=JSON.parse(fs.readFileSync('public-site/data/prefectures.json')).prefectures.find(p=>p.authority_key==='cosenza');
       assert.ok(cosenzaPublic?.last_source_update);
+      assert.equal((await page.locator('.robot-priority-table tbody tr').first().locator('td').nth(1).innerText()).trim().split('\n')[0],'Trento');
+      assert.match(await page.locator('.robot-priority-table tbody tr').first().innerText(),/1/);
+      assert.match(await page.locator('.robot-priority-metrics').innerText(),/Prefetture con delta positivo/);
+      assert.equal((await page.locator('.robot-grid tbody tr').first().locator('td').first().innerText()).trim().split('\n')[0],'Trento');
+      await page.locator('#robot-backlog-filter').selectOption('positive');
+      assert.equal(await page.locator('.robot-grid tbody tr').count(),1);
+      await page.locator('#robot-backlog-filter').selectOption('no_release');
+      assert.ok(await page.locator('.robot-grid tbody tr').count()>0);
+      await page.locator('#robot-backlog-filter').selectOption('all');
+      await page.locator('#robot-sort').selectOption('name');
+      assert.equal((await page.locator('.robot-grid tbody tr').first().locator('td').first().innerText()).trim().split('\n')[0],'Agrigento');
+      await page.locator('#robot-sort').selectOption('delta');
       assert.equal((await page.locator('.robot-grid tbody tr').count()),106);
       await page.locator('#robot-q').fill('cosenza');
       assert.equal(await page.locator('.robot-grid tbody tr').count(),1);
