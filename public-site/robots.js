@@ -191,7 +191,7 @@ function robotPriorityPanel(rows){
       esc(previous)+'</td><td>'+esc(latest)+'</td><td class="num"><b>'+
       (row.gap.incomplete?'≥ ':'')+count+'</b><div class="robot-priority-meter" aria-hidden="true"><span style="width:'+
       (100*count/maxCount).toFixed(1)+'%"></span></div></td><td class="num">'+
-      row.gap.unclassified.length+'</td><td><button type="button" class="btn" data-robot="'+
+      row.gap.unclassified.length+'</td><td><button type="button" class="btn" aria-label="Apri robot di '+esc(row.robot.name)+'" data-robot="'+
       esc(row.robot.authority_key)+'">Apri robot</button></td></tr>';
   }).join('');
   return section('PRIORITÀ DI ALLINEAMENTO',
