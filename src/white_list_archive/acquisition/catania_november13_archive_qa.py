@@ -30,6 +30,11 @@ _ALLOWED_FLAGS = frozenset({
     "formula_without_cached_date", "unclassified_status_notes",
     "unclassified_source_outcomes",
 })
+# The provisional listed parser also reports how many original expiry cells
+# contain formulas. This is a traceability metric, not itself a QA anomaly.
+# It must not be mistaken for an unknown diagnostic and quarantine a verified
+# source. Keep the reported counter allowlist closed to reject all other keys.
+_ALLOWED_COUNTS = _ALLOWED_FLAGS | {"source_expiry_formulas"}
 
 
 def _candidate_config(source_key: str, population: str, digest: str) -> dict[str, Any]:
@@ -102,7 +107,7 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
             counts = batch.diagnostics.get("counts")
             if (not isinstance(flags, list) or not set(flags) <= _ALLOWED_FLAGS
                     or not isinstance(counts, dict)
-                    or any(name not in _ALLOWED_FLAGS or type(value) is not int
+                    or any(name not in _ALLOWED_COUNTS or type(value) is not int
                            or value < 0 for name, value in counts.items())):
                 raise ValueError("Unexpected candidate diagnostics")
             status_counts = Counter()
@@ -120,7 +125,7 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
             row["source_rows_for_review"] = len(batch.records)
             row["source_status_counts"] = dict(sorted(status_counts.items()))
             row["candidate_quality_counts"] = {
-                name: counts.get(name, 0) for name in sorted(_ALLOWED_FLAGS)
+                name: counts.get(name, 0) for name in sorted(_ALLOWED_COUNTS)
             }
         except Exception:
             # Positive primary-byte proof survives failed layout/parser QA.
