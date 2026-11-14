@@ -103,6 +103,9 @@ function robotPublicationGap(report,selectedSources){
   const later=new Map(),unclassified=[];
   for(const doc of robotDocumentHistory(report)){
     const resource=report.resources?.[doc.url]||{};
+    // Only an explicitly associated source or a filename plausibly identifying
+    // a White List attachment can enter an automatic backlog comparison.
+    if(resource.role!=='source'&&!/white[ _-]*list|iscritt|richiedent|richiest|elenco.{0,30}(imprese|ditte)/i.test(doc.name))continue;
     const digest=resource.sha256||resource.archived_sha256||'';
     const acquired=Boolean(resource.archived_sha256&&resource.archived_sha256===digest);
     // A source already selected for publication cannot also be outstanding.
