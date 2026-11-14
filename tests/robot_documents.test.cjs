@@ -78,6 +78,10 @@ assert.equal(gap.count,2); // Listed and applicants count as distinct documents.
 assert.deepEqual(new Set(gap.later.map(r=>r.population)),new Set(['listed','applicant']));
 assert.equal(gap.unclassified.length,1);
 assert.equal(gap.incomplete,false);
+const unrelated='https://prefettura.interno.gov.it/sites/default/files/18/2026-11/elenco-parcheggi-14-novembre-2026.pdf';
+const withUnrelated={...newerReport,resources:{...newerReport.resources,
+  [unrelated]:{role:'candidate',sha256:'parking-file',archived_sha256:'parking-file'}}};
+assert.equal(robotPublicationGap(withUnrelated,published).count,2);
 assert.equal(robotLastPublishedDate(published),'2026-11-06');
 assert.equal(robotLastPublishedDate([]),'');
 assert.equal(robotPublicationGap(null,published).status,'no_report');
