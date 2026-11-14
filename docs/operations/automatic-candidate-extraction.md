@@ -214,3 +214,38 @@ publication is authorised. A source reviewer must still inspect the exact
 original privately and document the row treatment before a format-specific
 production parser is considered. Synthetic regression checks enforce the
 aggregate-only report boundary.
+
+
+### Exact Catania listed ambiguous-tail private reviewer packet
+
+The separate, existing protected transform worker now stages an **immutable,
+source-only, row-level packet exclusively inside the private evidence archive**
+for the original Catania listed XLSX of 13 November. The exact original SHA
+and a closed workbook/header/layout contract are mandatory before any private
+row is selected. The packet retains the ten previously ambiguous trailing
+rows, their physical worksheet coordinates, original Excel cell types,
+styles, number formats and values solely for authenticated source review.
+It does **not** infer that those rows are duplicates, footers, applicants,
+administrative status events or companies eligible for public dissemination.
+
+The object key is content-identity-derived, written with conditional create,
+and fully read back. Repeated code/input reuses the identical immutable
+private packet; a conflicting existing packet fails closed. Logs and public
+Actions artefacts carry only aggregate counts and the digest of the *private
+review packet*, never source rows, private storage keys, row identifiers,
+names, addresses, URLs or provider exception messages. The packet does not
+constitute a reviewer signature, capture-catalogue validation, SourceEdition,
+parser approval, semantic projection, canonicalisation or a release decision.
+The approved 6 November Catania observations and the selected Alessandria
+release are unchanged.
+
+If the exact worksheet shape differs from 1,887 complete-anchor rows followed
+by ten ambiguous rows, or one incomplete-anchor row appears, the private
+packet is **not** created. These counts are for the specifically frozen
+13 November original only, not universal publication acceptance thresholds.
+The private row reviewer must establish the meaning and disposition of all
+ten rows against the original and document source identity, date, population,
+sector/status treatment and provenance before a separately versioned
+production parser can be proposed. The new private-review step is isolated
+as a best-effort lane inside the existing transform workflow; other
+acquisition/backfill activities are not interrupted by its failure.
