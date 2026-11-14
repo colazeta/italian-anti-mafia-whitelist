@@ -152,3 +152,38 @@ def test_undeclared_counter_still_quarantines_without_leaking_raw_information():
     assert all(row["candidate_schema"] == "layout_or_parser_review_required"
                for row in result["results"])
     assert "private-unknown-counter" not in json.dumps(result)
+
+
+def test_closed_parser_layout_category_is_reported_without_source_text():
+    pins, payloads = _fixture_pins()
+
+    def rejecting_parser(path, cfg):
+        raise ValueError("Candidate source contains an incomplete data-like row")
+
+    result = audit_primary_archive(Archive(payloads), pins=pins, parser=rejecting_parser)
+    assert result["primary_originals_verified"] == 2
+    assert result["provisional_extractions"] == 0
+    assert all(row["candidate_blocker_class"] == "incomplete_data_like_row"
+               for row in result["results"])
+    assert all(row["source_rows_for_review"] is None for row in result["results"])
+    assert result["postgresql_writes"] == result["public_promotions"] == 0
+
+
+def test_unrecognised_parser_exception_never_discloses_error_text():
+    pins, payloads = _fixture_pins()
+
+    def secret_exception(path, cfg):
+        raise ValueError("private account: secret identifier from worksheet")
+
+    result = audit_primary_archive(Archive(payloads), pins=pins, parser=secret_exception)
+    assert all(row["candidate_blocker_class"] == "other_review_required"
+               for row in result["results"])
+    assert "private account" not in json.dumps(result)
+    assert "secret identifier" not in json.dumps(result)
+
+
+def test_unknown_bytes_have_no_layout_classification():
+    pins, payloads = _fixture_pins()
+    result = audit_primary_archive(Archive({}), pins=pins, parser=_parser)
+    assert all(row["primary_bytes"] == "unknown" for row in result["results"])
+    assert all(row["candidate_blocker_class"] is None for row in result["results"])
