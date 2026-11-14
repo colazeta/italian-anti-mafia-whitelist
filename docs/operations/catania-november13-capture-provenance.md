@@ -33,3 +33,16 @@ The ten Catania listed tail rows still require private document-level
 classification and a versioned parser with QA before any new public release.
 The selected Alessandria release and all its Catania 6 Nov/Perugia 5 Nov
 observations remain untouched. Independent recovery is a separate control.
+
+## Private tail packet repeat acceptance (14 November 2026)
+
+The protected step must demonstrate **both** first readback and same-code,
+same-original, same-packet reuse on the immutable `IfNoneMatch` key. The second
+staging invocation must report `created=false`, the same complete packet digest
+and source-shape counts, with a full second readback. Existing private packet
+content must never be replaced: a conflicting object or failed second readback
+fails closed with a redacted error. Only a boolean repeat-reuse verdict and
+aggregate counts may leave the protected workflow. This is not a second
+acquisition, an authenticated documentary classification of the ten tail rows,
+a CaptureCatalogue receipt, a PostgreSQL write, an approved SourceEdition or a
+public release. The two original Catania SHA pins remain unchanged.
