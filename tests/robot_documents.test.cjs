@@ -133,4 +133,25 @@ assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{rol
 assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'discovered-only'}}},published).unclassified.length,1);
 assert.equal(robotPublicationGap({...newerReport,status:'partial',pending_urls:[listedUrl]},published).incomplete,true);
 
+
+// Queue order must never treat an unknown or absent baseline as a zero gap.
+const {robotPriorityCompare}=require('../public-site/robots.js');
+const prefectures=[{authority_key:'trento',name:'Trento'},
+  {authority_key:'cosenza',name:'Cosenza'},
+  {authority_key:'chieti',name:'Chieti'},
+  {authority_key:'agrigento',name:'Agrigento'}];
+const ranking=new Map([
+  ['trento',{status:'ok',count:24,unclassified:[]}],
+  ['chieti',{status:'ok',count:24,unclassified:[]}],
+  ['cosenza',{status:'ok',count:2,unclassified:Array(201).fill(null)}],
+  ['agrigento',{status:'no_release',count:null,unclassified:[]}],
+]);
+assert.deepEqual([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'gap')).map(x=>x.authority_key),
+  ['chieti','trento','cosenza','agrigento']);
+assert.deepEqual([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'unclassified')).map(x=>x.authority_key),
+  ['cosenza','chieti','trento','agrigento']);
+assert.equal([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'not_comparable'))[0].authority_key,'agrigento');
+assert.deepEqual([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'name')).map(x=>x.authority_key),
+  ['agrigento','chieti','cosenza','trento']);
+
 console.log('Document history, publication baseline and candidate counts passed');
