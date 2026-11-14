@@ -76,7 +76,7 @@ const gap=robotPublicationGap(newerReport,published);
 assert.equal(gap.status,'ok');
 assert.equal(gap.count,2); // Listed and applicants count as distinct documents.
 assert.deepEqual(new Set(gap.later.map(r=>r.population)),new Set(['listed','applicant']));
-assert.equal(gap.unclassified.length,1);
+assert.equal(gap.unclassified.length,2); // Undated file and discovered-only duplicate are not counted.
 assert.equal(gap.incomplete,false);
 const unrelated='https://prefettura.interno.gov.it/sites/default/files/18/2026-11/elenco-parcheggi-14-novembre-2026.pdf';
 const withUnrelated={...newerReport,resources:{...newerReport.resources,
