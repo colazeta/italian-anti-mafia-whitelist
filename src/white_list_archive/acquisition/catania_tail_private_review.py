@@ -156,11 +156,34 @@ def prepare_private_tail_review(store, *, source_sha: str = PINS[0][2],
     }
 
 
+def prepare_and_verify_repeat(store, *, source_sha: str = PINS[0][2],
+                              expected_full: int = EXPECTED_FULL,
+                              expected_ambiguous: int = EXPECTED_AMBIGUOUS) -> dict:
+    """Prove same-code/source private packet reuse, not just first-write readback.
+
+    Re-run the real staging contract against the same verified bytes and immutable
+    key. A second creation, different digest or missing readback fails closed.
+    Neither call approves source rows, creates a capture or publishes data.
+    """
+    args = {"source_sha": source_sha, "expected_full": expected_full,
+            "expected_ambiguous": expected_ambiguous}
+    first = prepare_private_tail_review(store, **args)
+    repeat = prepare_private_tail_review(store, **args)
+    if (not first["private_review_packet_verified"]
+            or not repeat["private_review_packet_verified"]
+            or repeat["private_review_packet_created"]
+            or first["private_review_packet_sha256"] != repeat["private_review_packet_sha256"]
+            or first["ambiguous_tail_rows"] != repeat["ambiguous_tail_rows"]
+            or first["full_signature_rows"] != repeat["full_signature_rows"]):
+        raise ValueError("Private review packet repeat verification failed")
+    return {**first, "private_review_packet_repeat_reused": True}
+
+
 def main() -> int:
     from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
     try:
         config = StoreConfig.from_env()
-        safe = prepare_private_tail_review(EvidenceStore(client_for(config), config))
+        safe = prepare_and_verify_repeat(EvidenceStore(client_for(config), config))
     except Exception:
         print(json.dumps({"scope": "catania_2026_11_13_listed_private_tail_review",
                           "private_review_packet_verified": False,
