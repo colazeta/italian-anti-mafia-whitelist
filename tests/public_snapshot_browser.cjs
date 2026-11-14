@@ -46,6 +46,12 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.getByRole('button',{name:'Robot',exact:true}).click();
       await page.locator('#robot-q').waitFor();
       assert.equal(await page.locator('.robot-grid tbody tr').count(),106);
+      assert.equal(await page.locator('#robot-sort').inputValue(),'gap');
+      assert.match(await page.locator('.robot-grid tbody tr').first().locator('td').first().innerText(),/Cosenza/);
+      await page.locator('#robot-sort').selectOption('name');
+      assert.match(await page.locator('.robot-grid tbody tr').first().locator('td').first().innerText(),/Agrigento/);
+      await page.locator('#robot-sort').selectOption('not_comparable');
+      await page.locator('#robot-sort').selectOption('gap');
       assert.deepEqual((await page.locator('.robot-grid thead th').allTextContents()).slice(3,5),
         ['Ultima edizione pubblicata','Documenti successivi rilevati']);
       const cosenzaPublic=JSON.parse(fs.readFileSync('public-site/data/prefectures.json')).prefectures.find(p=>p.authority_key==='cosenza');
