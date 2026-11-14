@@ -151,6 +151,14 @@ receipt, full layout/row/date/sector/status review and a separately versioned,
 fail-closed production parser are still required before an incremental public
 candidate and selector change.
 
+The listed parser separately counts expiry cells containing Excel formulas as
+`source_expiry_formulas`. This is an informational source-layout count, **not**
+itself an error or a date inferred from a formula. `formula_without_cached_date`
+is a distinct quality flag that must be retained. The private QA aggregate keeps
+both counters distinct, accepts only its documented closed diagnostic keys, and
+quarantines unknown counters or parser mismatches. No value, formula or person-
+level row is published by this read-only check.
+
 A failure of this read-only diagnostic is isolated from the other transform,
 backfill and quarantine lanes. The existing private source reports remain the
 authoritative location for detailed review. The latest selected public release
