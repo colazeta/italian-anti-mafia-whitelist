@@ -1,4 +1,4 @@
-const robotState={data:null,reports:{},query:'',filter:'all',sort:'gap',selected:null,loaded:false,notice:''};
+const robotState={data:null,reports:{},query:'',filter:'all',sort:'gap',selected:null,loaded:false,notice:'',gapCache:null};
 const ROBOT_RUN='https://github.com/colazeta/italian-anti-mafia-whitelist/actions/workflows/prefecture-robots.yml';
 const ROBOT_REPORT='https://raw.githubusercontent.com/colazeta/italian-anti-mafia-whitelist/robot-state/state.json';
 const robotLabels={baseline:'Prima rilevazione',unchanged:'Nessuna variazione rilevata',changed:'Variazione tecnica rilevata',partial:'Controllo parziale',unseen:'Non ancora controllato'};
@@ -208,12 +208,20 @@ function drawRobots(){
   const checked=robots.filter(r=>robotState.reports[r.authority_key]);
   const partial=checked.filter(r=>robotState.reports[r.authority_key].status==='partial');
   const changed=checked.filter(r=>robotState.reports[r.authority_key].status==='changed');
-  const gaps=new Map(robots.map(r=>{
-    const published=publishedByKey.get(r.authority_key),date=robotLastPublishedDate(r.selected_public_sources);
-    const aligned=Boolean(published)&&(published.last_source_update||'')===date;
-    return [r.authority_key,aligned?robotPublicationGap(robotState.reports[r.authority_key],r.selected_public_sources):
-      {status:'not_aligned',count:null,unclassified:[],incomplete:false}];
-  }));
+  // Source reports can be large; avoid rescanning their document histories on
+  // each search keystroke. Reload and public release changes invalidate the cache.
+  const publicRows=typeof PREFECTURES!=='undefined'?PREFECTURES?.prefectures:null;
+  const cache=robotState.gapCache;
+  let gaps=cache?.gaps;
+  if(!cache||cache.reports!==robotState.reports||cache.robots!==robots||cache.publicRows!==publicRows){
+    gaps=new Map(robots.map(r=>{
+      const published=publishedByKey.get(r.authority_key),date=robotLastPublishedDate(r.selected_public_sources);
+      const aligned=Boolean(published)&&(published.last_source_update||'')===date;
+      return [r.authority_key,aligned?robotPublicationGap(robotState.reports[r.authority_key],r.selected_public_sources):
+        {status:'not_aligned',count:null,unclassified:[],incomplete:false}];
+    }));
+    robotState.gapCache={gaps,reports:robotState.reports,robots,publicRows};
+  }
   const comparable=[...gaps.values()].filter(g=>g.status==='ok');
   const totalDetected=comparable.reduce((n,g)=>n+g.count,0);
   const withDetected=comparable.filter(g=>g.count>0).length;
