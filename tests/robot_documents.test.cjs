@@ -133,4 +133,36 @@ assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{rol
 assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'discovered-only'}}},published).unclassified.length,1);
 assert.equal(robotPublicationGap({...newerReport,status:'partial',pending_urls:[listedUrl]},published).incomplete,true);
 
+// Priority rankings are derived from live source observations, never a fixed top-10 list.
+const {robotPriorityRows,robotPriorityCompare,robotPrioritySummary}=require('../public-site/robots.js');
+const queue=[
+  {authority_key:'catania',name:'Catania',region:'Sicilia',selected_public_sources:published},
+  {authority_key:'firenze',name:'Firenze',region:'Toscana',selected_public_sources:[source('firenze-listed','listed','2026-08-31')]},
+  {authority_key:'aosta',name:'Aosta',region:'Valle d’Aosta',selected_public_sources:[]},
+  {authority_key:'missing',name:'Missing',region:'Unknown',selected_public_sources:[]}
+];
+const releasedMap=new Map([
+  ['catania',{last_source_update:'2026-11-06'}],
+  ['firenze',{last_source_update:'2026-08-31'}],
+  ['aosta',{last_source_update:null}],
+]);
+const ranked=robotPriorityRows(queue,{catania:newerReport},releasedMap);
+const totals=robotPrioritySummary(ranked);
+assert.equal(totals.total,2);
+assert.equal(totals.positive,1);
+assert.equal(totals.withoutRelease,1);
+assert.equal(totals.unavailable,2);
+assert.equal(totals.uncertain,2);
+assert.equal(ranked.find(x=>x.robot.authority_key==='catania').lastCandidate.date,'2026-11-13');
+assert.equal(ranked.find(x=>x.robot.authority_key==='aosta').gap.status,'no_release');
+assert.equal(ranked.find(x=>x.robot.authority_key==='missing').gap.status,'unavailable');
+assert.deepEqual([...ranked].sort((a,b)=>robotPriorityCompare(a,b)).map(x=>x.robot.authority_key),
+  ['catania','aosta','firenze','missing'].sort((a,b)=>{
+    // Non-comparable authorities are equally ranked after all quantified rows.
+    const ar=a==='catania'?2:-1,br=b==='catania'?2:-1;
+    return br-ar||({aosta:1,firenze:2,missing:3}[a]-{aosta:1,firenze:2,missing:3}[b]);
+  }));
+assert.equal([...ranked].sort((a,b)=>robotPriorityCompare(a,b,'name'))[0].robot.name,'Aosta');
+assert.equal(robotPrioritySummary([]).total,0);
+
 console.log('Document history, publication baseline and candidate counts passed');
