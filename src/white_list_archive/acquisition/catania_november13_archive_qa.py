@@ -62,7 +62,11 @@ def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
         start = _header_row(sheet, population) + 1
         width = 8 if population == "listed" else 7
         full_anchor_rows: list[int] = []
-        ambiguous_rows: list[tuple[int, bool, bool]] = []
+        # Private in-memory exact text comparisons are structural clues only;
+        # no source text, tokens, row hashes or locators enter the report.
+        anchored_names: set[str] = set()
+        anchored_name_offices: set[tuple[str, str]] = set()
+        ambiguous_rows: list[tuple[int, bool, bool, str, str, bool]] = []
         incomplete_anchor_rows = 0
         for row_number in range(start, sheet.max_row + 1):
             cells = [_clean(sheet.cell(row_number, col + 1).value)
@@ -70,14 +74,21 @@ def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
             sector, identifier = cells[3], cells[4]
             if sector and identifier:
                 full_anchor_rows.append(row_number)
+                if cells[0]:
+                    anchored_names.add(cells[0].casefold())
+                    if cells[1]:
+                        anchored_name_offices.add((cells[0].casefold(), cells[1].casefold()))
             elif sector or identifier:
                 incomplete_anchor_rows += 1
             else:
                 name_and_office = bool(cells[0] and cells[1])
                 nonanchor_details = any(bool(cell) for cell in cells[5:])
                 if name_and_office or nonanchor_details:
-                    ambiguous_rows.append((row_number, name_and_office,
-                                           nonanchor_details))
+                    ambiguous_rows.append((
+                        row_number, name_and_office, nonanchor_details,
+                        cells[0].casefold(), cells[1].casefold(),
+                        name_and_office and not any(cells[2:]),
+                    ))
         result = {
             "full_anchor_rows": len(full_anchor_rows),
             "incomplete_anchor_rows": incomplete_anchor_rows,
@@ -88,8 +99,12 @@ def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
             "unclassified_without_anchors": 0,
             "unclassified_with_name_and_office": 0,
             "unclassified_with_nonanchor_details": 0,
+            "unclassified_only_name_and_office_cells": 0,
+            "unclassified_name_text_matches_anchored_row": 0,
+            "unclassified_name_office_text_matches_anchored_row": 0,
         }
-        for position, has_name_office, has_details in ambiguous_rows:
+        for (position, has_name_office, has_details, name_text,
+             office_text, only_name_office) in ambiguous_rows:
             if not full_anchor_rows:
                 result["unclassified_without_anchors"] += 1
             elif position < full_anchor_rows[0]:
@@ -100,6 +115,12 @@ def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
                 result["unclassified_between_anchors"] += 1
             result["unclassified_with_name_and_office"] += int(has_name_office)
             result["unclassified_with_nonanchor_details"] += int(has_details)
+            result["unclassified_only_name_and_office_cells"] += int(only_name_office)
+            result["unclassified_name_text_matches_anchored_row"] += int(
+                bool(name_text) and name_text in anchored_names)
+            result["unclassified_name_office_text_matches_anchored_row"] += int(
+                bool(name_text and office_text)
+                and (name_text, office_text) in anchored_name_offices)
         return result
     finally:
         workbook.close()
