@@ -192,3 +192,25 @@ reinterpreted or published.** The same exact source hash, Catania-specific
 parser approval, capture/catalogue binding, documented edition date,
 listed/applicant QA and unchanged non-Catania release comparison remain
 mandatory. Synthetic XLSX regressions verify aggregate counts and redaction.
+
+### Catania ambiguous-tail cross-check (source-only)
+
+The same read-only and fail-closed layout probe also counts, **without emitting
+any source text**, whether ambiguous rows' cleaned name text matches a name in
+any complete-anchor row of that *same exact workbook*, whether both name and
+office text match such a row, and whether a row has only those first two fields
+populated. Counts are aggregated across the workbook: no exact string, hashed
+identity, row position, individual result, or private coordinate leaves process
+memory. These are literal text-equality diagnostics, **not identity resolution**:
+repeated names can denote different entities and matches do not establish a
+continuation, a duplicate, or a harmless note. Non-matches cannot prove a new
+company or approve a row with missing source anchors.
+
+This information narrows the private review of the ten trailing ambiguous rows
+observed on the pinned 13 November listed source. Every ambiguous row continues
+to fail the existing physical parser; no omitted-record exception, new edition,
+semantic status, administrative date, source binding, public candidate or
+publication is authorised. A source reviewer must still inspect the exact
+original privately and document the row treatment before a format-specific
+production parser is considered. Synthetic regression checks enforce the
+aggregate-only report boundary.
