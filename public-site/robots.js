@@ -1,4 +1,4 @@
-const robotState={data:null,reports:{},query:'',filter:'all',selected:null,loaded:false,notice:''};
+const robotState={data:null,reports:{},query:'',filter:'all',backlogFilter:'all',sort:'delta',selected:null,loaded:false,notice:''};
 const ROBOT_RUN='https://github.com/colazeta/italian-anti-mafia-whitelist/actions/workflows/prefecture-robots.yml';
 const ROBOT_REPORT='https://raw.githubusercontent.com/colazeta/italian-anti-mafia-whitelist/robot-state/state.json';
 const robotLabels={baseline:'Prima rilevazione',unchanged:'Nessuna variazione rilevata',changed:'Variazione tecnica rilevata',partial:'Controllo parziale',unseen:'Non ancora controllato'};
@@ -140,6 +140,81 @@ function robotLastPublishedDate(selectedSources){
   if(!Array.isArray(selectedSources)||!selectedSources.length)return '';
   return selectedSources.map(s=>s.reference_date).filter(Boolean).sort().at(-1)||'';
 }
+
+/* Rank the current robot observations without changing the publication or parser gates. */
+function robotPriorityRows(robots,reports,publishedByKey){
+  return robots.map(robot=>{
+    const report=reports?.[robot.authority_key]||null;
+    const published=publishedByKey.get(robot.authority_key);
+    const publishedDate=robotLastPublishedDate(robot.selected_public_sources);
+    const aligned=Boolean(published)&&(published.last_source_update||'')===publishedDate;
+    const gap=aligned?robotPublicationGap(report,robot.selected_public_sources):
+      {status:'unavailable',count:null,later:[],unclassified:[],incomplete:false};
+    const lastCandidate=gap.later?.reduce((last,doc)=>!last||doc.date>last.date?doc:last,null)||null;
+    return {robot,report,publishedDate,aligned,gap,lastCandidate};
+  });
+}
+function robotPriorityCompare(a,b,sort='delta'){
+  const left=a.robot.name.toLocaleLowerCase('it'),right=b.robot.name.toLocaleLowerCase('it');
+  if(sort==='name')return left.localeCompare(right,'it');
+  const aCount=a.gap.count??-1,bCount=b.gap.count??-1;
+  if(sort==='latest'){
+    return (b.lastCandidate?.date||'').localeCompare(a.lastCandidate?.date||'')||
+      bCount-aCount||left.localeCompare(right,'it');
+  }
+  if(sort==='review'){
+    return b.gap.unclassified.length-a.gap.unclassified.length||
+      bCount-aCount||left.localeCompare(right,'it');
+  }
+  return bCount-aCount||
+    (b.lastCandidate?.date||'').localeCompare(a.lastCandidate?.date||'')||
+    left.localeCompare(right,'it');
+}
+function robotPrioritySummary(rows){
+  const comparable=rows.filter(row=>row.gap.status==='ok');
+  const positive=comparable.filter(row=>row.gap.count>0);
+  return {positive:positive.length,total:positive.reduce((sum,row)=>sum+row.gap.count,0),
+    withoutRelease:rows.filter(row=>row.gap.status==='no_release').length,
+    unavailable:rows.filter(row=>row.gap.status==='no_report'||row.gap.status==='unavailable').length,
+    uncertain:comparable.reduce((sum,row)=>sum+row.gap.unclassified.length,0),
+    partial:comparable.filter(row=>row.gap.incomplete).length};
+}
+function robotPriorityPanel(rows){
+  const summary=robotPrioritySummary(rows);
+  const top=rows.filter(row=>row.gap.status==='ok'&&row.gap.count>0)
+    .sort((a,b)=>robotPriorityCompare(a,b)).slice(0,10);
+  const maxCount=top[0]?.gap.count||1;
+  const ranked=top.map((row,index)=>{
+    const count=row.gap.count,latest=row.lastCandidate?.date||'—',previous=row.publishedDate||'—';
+    return '<tr><td class="num">'+(index+1)+'</td><td><b>'+esc(row.robot.name)+
+      '</b><div class="small muted">'+esc(row.robot.region)+'</div></td><td>'+
+      esc(previous)+'</td><td>'+esc(latest)+'</td><td class="num"><b>'+
+      (row.gap.incomplete?'≥ ':'')+count+'</b><div class="robot-priority-meter" aria-hidden="true"><span style="width:'+
+      (100*count/maxCount).toFixed(1)+'%"></span></div></td><td class="num">'+
+      row.gap.unclassified.length+'</td><td><button type="button" class="btn" data-robot="'+
+      esc(row.robot.authority_key)+'">Apri robot</button></td></tr>';
+  }).join('');
+  return section('PRIORITÀ DI ALLINEAMENTO',
+    '<div class="robot-priority-metrics">'+
+    '<div><b>'+summary.total+'</b><span>Documenti successivi acquisiti e datati</span></div>'+
+    '<div><b>'+summary.positive+'</b><span>Prefetture con delta positivo</span></div>'+
+    '<div><b>'+summary.withoutRelease+'</b><span>Senza edizione pubblicata</span></div>'+
+    '<div><b>'+summary.uncertain+'</b><span>Documenti con confronto incerto</span></div>'+
+    '</div>'+
+    '<p>Graduatoria dei documenti acquisiti successivi alla rispettiva fonte dell’ultima release pubblica. '+
+    'Non equivale al numero di elaborazioni o pubblicazioni necessarie: le edizioni intermedie possono essere superate da versioni più recenti. '+
+    'Verifica prima l’ultimo file di ciascuna serie (iscritti, richiedenti ed eventuali registri separati). '+
+    (summary.partial?'Per '+summary.partial+' Prefetture con controllo parziale il valore può essere sottostimato. ':'')+
+    'I documenti con data incerta sono esclusi dal delta.</p>'+
+    '<div class="gridwrap"><table class="grid robot-priority-table"><thead><tr><th>Pos.</th><th>Prefettura</th>'+
+    '<th>Ultima edizione pubblica</th><th>Ultimo candidato datato</th><th>Delta documenti</th>'+
+    '<th>Da verificare a parte</th><th>Dettagli</th></tr></thead><tbody>'+
+    (ranked||'<tr><td colspan="7">Nessun documento successivo confrontabile nei rapporti disponibili.</td></tr>')+
+    '</tbody></table></div>'+
+    (summary.unavailable?'<p class="small muted">'+summary.unavailable+
+      ' Prefetture non confrontabili per rapporto mancante o baseline non allineata.</p>':''));
+}
+
 function robotBacklogCell(gap){
   if(gap.status==='no_release')return '<span class="muted">Non confrontabile</span><div class="small muted">Nessuna edizione pubblicata</div>';
   if(gap.status==='no_report')return '<span class="muted">Non disponibile</span><div class="small muted">Rapporto robot assente</div>';
@@ -194,14 +269,26 @@ async function renderRobots(){
 function drawRobots(){
   const view=document.querySelector('#view-robots'),robots=robotState.data.robots;
   const publishedByKey=new Map((typeof PREFECTURES!=='undefined'?PREFECTURES?.prefectures:[])?.map(p=>[p.authority_key,p])||[]);
+  const priorityRows=robotPriorityRows(robots,robotState.reports,publishedByKey);
+  const priorityByKey=new Map(priorityRows.map(row=>[row.robot.authority_key,row]));
   const checked=robots.filter(r=>robotState.reports[r.authority_key]);
   const partial=checked.filter(r=>robotState.reports[r.authority_key].status==='partial');
   const changed=checked.filter(r=>robotState.reports[r.authority_key].status==='changed');
   const query=robotState.query.trim().toLocaleLowerCase('it');
-  const shown=robots.filter(r=>(r.name+' '+r.region+' '+r.authority_key).toLocaleLowerCase('it').includes(query)&&(robotState.filter==='all'||(robotState.reports[r.authority_key]?.status||'unseen')===robotState.filter));
+  const shown=priorityRows.filter(row=>{
+    const r=row.robot;
+    const matches=(r.name+' '+r.region+' '+r.authority_key).toLocaleLowerCase('it').includes(query);
+    const statusMatches=robotState.filter==='all'||(row.report?.status||'unseen')===robotState.filter;
+    const backlogMatches=robotState.backlogFilter==='all'||
+      (robotState.backlogFilter==='positive'&&row.gap.count>0)||
+      (robotState.backlogFilter==='uncertain'&&row.gap.unclassified.length>0)||
+      (robotState.backlogFilter==='no_release'&&row.gap.status==='no_release')||
+      (robotState.backlogFilter==='unavailable'&&['unavailable','no_report'].includes(row.gap.status));
+    return matches&&statusMatches&&backlogMatches;
+  }).sort((a,b)=>robotPriorityCompare(a,b,robotState.sort));
   const selected=robots.find(r=>r.authority_key===robotState.selected),report=selected?robotState.reports[selected.authority_key]:null;
   const selectedSources=selected?.selected_public_sources||[];
-  const selectedGap=robotPublicationGap(report,selectedSources);
+  const selectedGap=selected?priorityByKey.get(selected.authority_key).gap:null;
   const detail=selected?section(`ROBOT · ${selected.name}`,`<p><b>Controlla o acquisisci una nuova versione:</b> apri <a href="${ROBOT_RUN}" target="_blank" rel="noopener">l’esecuzione su GitHub</a>, premi “Run workflow” e indica <code>${esc(selected.authority_key)}</code> nel campo <code>authority</code>. Usa <code>capture</code> per controllare le fonti e conservare le versioni acquisite. La conservazione non implica la validazione del contenuto.</p><div class="kv"><div>Ultimo tentativo</div><div>${esc(robotDate(report?.checked_at))} · ora italiana</div><div>Esito</div><div>${esc(robotLabels[report?.status||'unseen']||'Da verificare')}</div><div>Ultimo ciclo di controllo completato</div><div>${esc(robotDate(report?.last_successful_check_at))}</div><div>Risorse acquisite nell’ultimo tentativo</div><div>${report?.captured_urls?.length||0}</div><div>Estrazione dei record</div><div>${selected.population_mapping_reviewed?'Fonti e parser già validati per le versioni approvate. Ogni nuova versione richiede verifica.':'Acquisizione e scoperta disponibili; mappatura delle popolazioni e parser da validare.'}</div></div><details class="robot-detail"><summary>Pagine ufficiali e dettagli del controllo</summary><ul>${selected.landing_pages.map(url=>`<li><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a></li>`).join('')}</ul>${report?`<p>${report.requests} risorse controllate · ${report.errors?.length||0} errori · ${report.pending_urls?.length||0} risorse in coda. Il controllo successivo riprende dai documenti rimasti.</p>${report.run_url&&/^https:\/\/github\.com\/colazeta\/italian-anti-mafia-whitelist\/actions\/runs\/\d+$/.test(report.run_url)?`<a href="${esc(report.run_url)}" target="_blank" rel="noopener">Apri il rapporto di esecuzione</a>`:''}`:''}</details>`):'';
 
   const changedSources=checked.filter(r=>robotObservedChangeCounts(robotState.reports[r.authority_key]).associatedSources>0);
@@ -239,14 +326,14 @@ function drawRobots(){
       (candidates.length>6?'<p>Mostrati i 6 documenti più recenti tra quelli riconoscibili.</p>':'')
     );
   }
-  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Data più recente nel nome di un documento: <b>${esc(latestDocument||'Non disponibile')}</b> · indizio, non pubblicazione certificata</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. «Documenti successivi rilevati» indica candidati datati più recenti della rispettiva fonte nella release pubblica, non edizioni già validate o pronte alla pubblicazione. I file senza data confrontabile o non ancora acquisiti non entrano nel conteggio. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento individuato · data nel nome</th><th>Ultima edizione pubblicata</th><th>Documenti successivi rilevati</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(r=>{const s=robotState.reports[r.authority_key];const publishedDate=robotLastPublishedDate(r.selected_public_sources);
-    const published=publishedByKey.get(r.authority_key);
-    const aligned=Boolean(published)&&(published.last_source_update||'')===publishedDate;
-    return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${robotDocumentCell(s)}</td><td>${aligned?(publishedDate?esc(displayDate(publishedDate)):'<span class="muted">Nessuna edizione</span>'):'<span class="muted">Dati non allineati</span>'}</td><td>${aligned?robotBacklogCell(robotPublicationGap(s,r.selected_public_sources)):'<span class="muted">Non disponibile</span>'}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="8">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
+  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Data più recente nel nome di un documento: <b>${esc(latestDocument||'Non disponibile')}</b> · indizio, non pubblicazione certificata</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. «Documenti successivi rilevati» indica candidati datati più recenti della rispettiva fonte nella release pubblica, non edizioni già validate o pronte alla pubblicazione. I file senza data confrontabile o non ancora acquisiti non entrano nel conteggio. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}${robotPriorityPanel(priorityRows)}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><label for="robot-backlog-filter">Delta</label><select id="robot-backlog-filter">${option('all','Tutte',robotState.backlogFilter)}${option('positive','Con documenti successivi',robotState.backlogFilter)}${option('uncertain','Da verificare',robotState.backlogFilter)}${option('no_release','Senza edizione pubblica',robotState.backlogFilter)}${option('unavailable','Non confrontabili',robotState.backlogFilter)}</select><label for="robot-sort">Ordina</label><select id="robot-sort">${option('delta','Delta decrescente',robotState.sort)}${option('latest','Data ultimo candidato',robotState.sort)}${option('review','Confronti incerti',robotState.sort)}${option('name','Prefettura A–Z',robotState.sort)}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento individuato · data nel nome</th><th>Ultima edizione pubblicata</th><th>Documenti successivi rilevati</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(row=>{const r=row.robot,s=row.report,publishedDate=row.publishedDate,aligned=row.aligned;
+    return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${robotDocumentCell(s)}</td><td>${aligned?(publishedDate?esc(displayDate(publishedDate)):'<span class="muted">Nessuna edizione</span>'):'<span class="muted">Dati non allineati</span>'}</td><td>${aligned?robotBacklogCell(row.gap):'<span class="muted">Non disponibile</span>'}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="8">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
   view.querySelector('#robot-q').addEventListener('input',e=>{robotState.query=e.target.value;redrawSearch('#robot-q',drawRobots,e.target)});
   view.querySelector('#robot-filter').addEventListener('change',e=>{robotState.filter=e.target.value;drawRobots()});
+  view.querySelector('#robot-backlog-filter').addEventListener('change',e=>{robotState.backlogFilter=e.target.value;drawRobots()});
+  view.querySelector('#robot-sort').addEventListener('change',e=>{robotState.sort=e.target.value;drawRobots()});
   view.querySelector('#robot-refresh').addEventListener('click',async e=>{e.target.disabled=true;robotState.loaded=false;await renderRobots()});
   view.querySelectorAll('[data-robot]').forEach(button=>button.addEventListener('click',()=>{robotState.selected=button.dataset.robot;drawRobots();view.querySelector('.kv')?.scrollIntoView({block:'center'})}));
 }
 
-if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDateInText,robotDocumentDate,robotDocumentHistory,robotLatestDocument,robotLatestFile,robotDocumentPopulation,robotPublicationGap,robotLastPublishedDate};}
+if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDateInText,robotDocumentDate,robotDocumentHistory,robotLatestDocument,robotLatestFile,robotDocumentPopulation,robotPublicationGap,robotLastPublishedDate,robotPriorityRows,robotPriorityCompare,robotPrioritySummary};}
