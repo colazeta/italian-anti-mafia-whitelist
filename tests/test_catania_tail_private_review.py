@@ -10,7 +10,7 @@ import openpyxl
 import pytest
 
 from white_list_archive.acquisition.catania_tail_private_review import (
-    prepare_private_tail_review, _private_key,
+    prepare_private_tail_review, prepare_and_verify_repeat, _private_key,
 )
 from white_list_archive.parsers.catania_candidate import HEADERS
 
@@ -101,6 +101,50 @@ def test_identical_repeat_reuses_same_key_and_verified_bytes():
                                         expected_ambiguous=2)
     assert first["private_review_packet_sha256"] == again["private_review_packet_sha256"]
     assert again["private_review_packet_created"] is False
+    assert len(store.client.objects) == 1
+
+
+def test_protected_entrypoint_proves_second_immutable_readback_and_reuse():
+    raw = synthetic_xlsx()
+    digest = hashlib.sha256(raw).hexdigest()
+    store = Store(raw)
+    report = prepare_and_verify_repeat(
+        store, source_sha=digest, expected_full=2, expected_ambiguous=2,
+    )
+    assert report["private_review_packet_repeat_reused"] is True
+    assert report["private_review_packet_verified"] is True
+    assert report["private_review_packet_created"] is True
+    assert store.client.write_calls == 2
+    assert len(store.client.objects) == 1
+    second_run = prepare_and_verify_repeat(
+        store, source_sha=digest, expected_full=2, expected_ambiguous=2,
+    )
+    assert second_run["private_review_packet_created"] is False
+    assert second_run["private_review_packet_repeat_reused"] is True
+    assert second_run["private_review_packet_sha256"] == report["private_review_packet_sha256"]
+    assert len(store.client.objects) == 1
+    assert "PRIVATE SYNTHETIC" not in json.dumps(second_run)
+
+
+def test_repeat_fails_closed_when_stored_packet_changes_between_reads():
+    raw = synthetic_xlsx()
+    digest = hashlib.sha256(raw).hexdigest()
+    store = Store(raw)
+    original = store.client.get_object
+    reads = 0
+
+    def corrupt_second_read(*, Bucket, Key):
+        nonlocal reads
+        reads += 1
+        if reads == 2:
+            return {"Body": BytesIO(b"corrupted")}
+        return original(Bucket=Bucket, Key=Key)
+
+    store.client.get_object = corrupt_second_read
+    with pytest.raises(ValueError, match="readback mismatch"):
+        prepare_and_verify_repeat(
+            store, source_sha=digest, expected_full=2, expected_ambiguous=2,
+        )
     assert len(store.client.objects) == 1
 
 
