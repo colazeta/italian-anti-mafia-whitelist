@@ -115,3 +115,40 @@ def test_duplicate_source_pins_fail_before_access_to_the_store():
         pass
     else:
         raise AssertionError("Distinct official originals are required")
+
+
+def test_formula_counter_is_a_closed_informational_metric_not_a_parser_failure():
+    """Provisional listed extracts may report source_expiry_formulas without a flag."""
+    pins, payloads = _fixture_pins()
+
+    def parser_with_formulas(path, cfg):
+        batch = _parser(path, cfg)
+        if cfg["population_scope"] == "listed":
+            batch.diagnostics["counts"]["source_expiry_formulas"] = 2
+        return batch
+
+    result = audit_primary_archive(Archive(payloads), pins=pins,
+                                   parser=parser_with_formulas)
+    assert result["primary_originals_verified"] == 2
+    assert result["provisional_extractions"] == 2
+    assert result["results"][0]["candidate_schema"] == "provisional_extraction_for_review"
+    assert result["results"][0]["candidate_quality_counts"]["source_expiry_formulas"] == 2
+    assert result["date_attribution_or_edition_approved"] is False
+    assert result["postgresql_writes"] == result["public_promotions"] == 0
+
+
+def test_undeclared_counter_still_quarantines_without_leaking_raw_information():
+    pins, payloads = _fixture_pins()
+
+    def parser_with_unreviewed_counter(path, cfg):
+        batch = _parser(path, cfg)
+        batch.diagnostics["counts"]["private-unknown-counter"] = 1
+        return batch
+
+    result = audit_primary_archive(Archive(payloads), pins=pins,
+                                   parser=parser_with_unreviewed_counter)
+    assert result["primary_originals_verified"] == 2
+    assert result["provisional_extractions"] == 0
+    assert all(row["candidate_schema"] == "layout_or_parser_review_required"
+               for row in result["results"])
+    assert "private-unknown-counter" not in json.dumps(result)
