@@ -55,12 +55,37 @@ def _candidate_config(source_key: str, population: str, digest: str) -> dict[str
     }
 
 
+# Only exact, code-owned parser errors may be classified. Never forward exception
+# strings: openpyxl/provider failures can include private workbook material.
+_CLOSED_BLOCKERS = {
+    "Unexpected Catania candidate worksheet identity": "worksheet_identity",
+    "Catania candidate worksheet exceeds reviewed processing bounds": "worksheet_bounds",
+    "Catania candidate worksheet header identity is unknown": "header_identity",
+    "Unclassified candidate row may contain company information": "unclassified_data_like_row",
+    "Candidate source contains an incomplete data-like row": "incomplete_data_like_row",
+    "Unexpected repeated source header within candidate data": "repeated_header",
+    "Catania candidate contains no recognisable source observations": "no_source_observations",
+    "No candidate records": "no_candidate_records",
+    "Provisional parser review contract mismatch": "parser_contract",
+    "Unexpected candidate diagnostics": "diagnostic_contract",
+    "Unknown source-status taxonomy": "status_taxonomy",
+    "Candidate unexpectedly assigned source date": "unexpected_source_date",
+}
+
+
+def _closed_blocker_class(exc: Exception) -> str:
+    if type(exc) is ValueError:
+        return _CLOSED_BLOCKERS.get(str(exc), "other_review_required")
+    return "other_review_required"
+
+
 def _unknown(source_key: str, population: str) -> dict[str, Any]:
     return {
         "source_key": source_key,
         "population": population,
         "primary_bytes": "unknown",
         "candidate_schema": "not_tested",
+        "candidate_blocker_class": None,
         "source_rows_for_review": None,
         "source_status_counts": {},
         "candidate_quality_counts": {},
@@ -127,10 +152,11 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
             row["candidate_quality_counts"] = {
                 name: counts.get(name, 0) for name in sorted(_ALLOWED_COUNTS)
             }
-        except Exception:
+        except Exception as exc:
             # Positive primary-byte proof survives failed layout/parser QA.
             # A quarantined format is not retroactively erased or approved.
             row["candidate_schema"] = "layout_or_parser_review_required"
+            row["candidate_blocker_class"] = _closed_blocker_class(exc)
         results.append(row)
     return {
         "schema_version": 1,
