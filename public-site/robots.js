@@ -37,28 +37,63 @@ function robotObservedChangeCounts(report){
 }
 
 // Dates in filenames are discovery clues, never certified administrative dates.
+const robotMonths={gennaio:1,febbraio:2,marzo:3,aprile:4,maggio:5,giugno:6,luglio:7,agosto:8,settembre:9,ottobre:10,novembre:11,dicembre:12};
+function robotDateInText(text){
+  if(typeof text!=='string'||text.length>500)return '';
+  const dates=new Set();
+  function add(y,m,d){
+    const value=[String(y),String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
+    const date=new Date(value+'T00:00:00Z');
+    if(Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value)dates.add(value);
+  }
+  // Numeric formats: YYYY-MM-DD, DD-MM-YYYY, with spaces/dots/underscores.
+  const numeric=/(?:^|[^0-9])(?:(20\d{2})[-_.\s]+(\d{1,2})[-_.\s]+(\d{1,2})|(\d{1,2})[-_.\s]+(\d{1,2})[-_.\s]+(20\d{2}))(?!\d)/g;
+  for(const m of text.matchAll(numeric))add(m[1]||m[6],m[2]||m[5],m[3]||m[4]);
+  // Common official Italian attachment names: "4-settembre-2026".
+  const written=/(?:^|[^0-9])(\d{1,2})[-_.\s]+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)[-_.\s]+(20\d{2})(?!\d)/gi;
+  for(const m of text.matchAll(written))add(m[3],robotMonths[m[2].toLowerCase()],m[1]);
+  // Conflicting date strings in one filename must not be resolved by guessing.
+  return dates.size===1?[...dates][0]:'';
+}
 function robotDocumentDate(url){
-  let name;try{name=decodeURIComponent(url.split('?')[0].split('/').pop());}catch{return '';}
-  const matches=[...name.matchAll(/(?:^|[^0-9])(20\d{2})[-_. ](\d{1,2})[-_. ](\d{1,2})(?!\d)|(?:^|[^0-9])(\d{1,2})[-_. ](\d{1,2})[-_. ](20\d{2})(?!\d)/g)];
-  const dates=matches.map(m=>{const y=m[1]||m[6],mo=m[2]||m[5],d=m[3]||m[4];const value=`${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;const dt=new Date(value);return !isNaN(dt)&&dt.toISOString().slice(0,10)===value?value:'';}).filter(Boolean);
-  return [...new Set(dates)].length===1?dates[0]:'';
+  if(typeof url!=='string')return '';
+  let name;try{name=decodeURIComponent(url.split(/[?#]/)[0].split('/').pop()||'');}catch{return '';}
+  return robotDateInText(name);
 }
 function robotDocumentHistory(report){
   const observations=report?.document_observations||{};
   const urls=new Set([...Object.keys(observations),...Object.keys(report?.resources||{}),...(report?.discovered_documents||[])]);
-  return [...urls].filter(url=>/^https?:\/\//i.test(url)&&/\.(pdf|xlsx?|docx?)(?:\?.*)?$/i.test(url)).filter(url=>{
-    let name;try{name=decodeURIComponent(url.split('/').pop());}catch{return false;}
-    return report?.resources?.[url]?.role==='source'||(/white[ _-]*list|iscritt|richiedent|elenco/i.test(name)&&!/modul|dichiaraz|domand|istanza|fac.?simil/i.test(name));
-  }).map(url=>{const resource=report?.resources?.[url]||{};const captures=resource.capture_history||[];
+  return [...urls].filter(url=>typeof url==='string'&&/^https:\/\//i.test(url)&&/\.(pdf|xlsx?|docx?)(?:[?#].*)?$/i.test(url)).filter(url=>{
+    let name;try{name=decodeURIComponent(url.split(/[?#]/)[0].split('/').pop()||'');}catch{return false;}
+    return report?.resources?.[url]?.role==='source'||(
+      /white[ _-]*list|iscritt|richiedent|elenco/i.test(name)&&
+      !/sequestrat|modul|dichiaraz|domand|istanza|comunicaz|fac.?simil|autocertificaz/i.test(name));
+  }).map(url=>{
+    const resource=report?.resources?.[url]||{};
+    const captures=Array.isArray(resource.capture_history)?resource.capture_history:[];
     const seen=observations[url]?.first_seen_at||captures.map(c=>c.captured_at).filter(Boolean).sort()[0]||'';
-    const versions=new Set(captures.map(c=>c.sha256).filter(Boolean)).size;
-    return {url,date:robotDocumentDate(url),seen,modified:resource.last_modified||'',versions};
-  }).sort((a,b)=>b.date.localeCompare(a.date)||b.seen.localeCompare(a.seen)||a.url.localeCompare(b.url));
+    let name;try{name=decodeURIComponent(url.split(/[?#]/)[0].split('/').pop()||'');}catch{name='Documento ufficiale';}
+    return {url,name,date:robotDocumentDate(url),seen,modified:resource.last_modified||'',
+      versions:new Set(captures.map(c=>c.sha256).filter(Boolean)).size};
+  }).sort((a,b)=>b.date.localeCompare(a.date)||b.seen.localeCompare(a.seen)||
+    (Date.parse(b.modified)||0)-(Date.parse(a.modified)||0)||a.url.localeCompare(b.url));
 }
 function robotLatestDocument(report){return robotDocumentHistory(report).find(d=>d.date)?.date||'';}
+function robotLatestFile(report){return robotDocumentHistory(report)[0]||null;}
+function robotDocumentCell(report){
+  const doc=robotLatestFile(report);
+  if(!doc)return '<span class="muted">Nessun documento rilevato</span>';
+  return '<div>'+(doc.date?'<b>'+esc(doc.date)+'</b>':'<span class="muted">Data non identificata</span>')+'</div>'+
+    '<div class="small robot-file-name"><a href="'+esc(doc.url)+'" target="_blank" rel="noopener noreferrer">'+esc(doc.name)+'</a></div>'+
+    '<div class="small muted">'+(doc.date?'Data nel nome · da verificare':doc.seen?'Prima rilevazione: '+esc(robotDate(doc.seen)):'Data di pubblicazione non disponibile')+'</div>';
+}
 function robotHistoryPanel(report){
   const rows=robotDocumentHistory(report);
-  return section('STORICO DEI DOCUMENTI WHITE LIST', '<p>Documenti rilevati sulle fonti ufficiali, anche prima del download e dell’estrazione delle imprese. La data nel nome del file è un indizio da verificare. Le rilevazioni ripetute dello stesso collegamento non creano nuove righe. Lo storico copre solo le evidenze conservate.</p><div class="gridwrap"><table class="grid"><thead><tr><th>Data nel nome del documento</th><th>Prima rilevazione conservata</th><th>Modifica HTTP</th><th>Versioni acquisite distinte</th><th>Documento ufficiale</th></tr></thead><tbody>'+rows.map(d=>'<tr><td>'+esc(d.date||'Non identificabile')+'</td><td>'+esc(robotDate(d.seen))+'</td><td>'+esc(robotDate(d.modified))+'</td><td>'+d.versions+'</td><td><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">'+esc(d.url.split('/').pop())+'</a></td></tr>').join('')+(rows.length?'':'<tr><td colspan="5">Nessun documento identificabile nelle evidenze disponibili.</td></tr>')+'</tbody></table></div>');
+  return section('STORICO DEI DOCUMENTI WHITE LIST',
+    '<p>File individuati sui siti ufficiali, anche prima della loro estrazione. La data nel nome è un indizio e non certifica la pubblicazione. In assenza di data, i file sono ordinati per prima rilevazione conservata quando disponibile. Le rilevazioni ripetute dello stesso collegamento non creano nuove righe.</p>'+
+    '<div class="gridwrap"><table class="grid"><thead><tr><th>Data nel nome del file</th><th>Prima rilevazione</th><th>Modifica HTTP (tecnica)</th><th>Versioni acquisite distinte</th><th>File individuato</th></tr></thead><tbody>'+
+    rows.map(d=>'<tr><td>'+esc(d.date||'Non identificata')+'</td><td>'+esc(robotDate(d.seen))+'</td><td>'+esc(robotDate(d.modified))+'</td><td>'+d.versions+'</td><td class="robot-file-name"><a target="_blank" rel="noopener noreferrer" href="'+esc(d.url)+'">'+esc(d.name)+'</a></td></tr>').join('')+
+    (rows.length?'':'<tr><td colspan="5">Nessun documento identificato nelle evidenze disponibili.</td></tr>')+'</tbody></table></div>');
 }
 
 async function renderRobots(){
@@ -106,6 +141,7 @@ function drawRobots(){
     stage=section('STATO DELL’AGGIORNAMENTO',
       '<div class="kv">'+
       '<div>Ultima edizione nella release pubblica</div><div><b>'+esc(edition)+'</b></div>'+
+      '<div>File individuato dal robot</div><div>'+robotDocumentCell(report)+'</div>'+
       '<div>Serie e parser mappati</div><div>'+(selected.population_mapping_reviewed?'Mappatura revisionata; nuove strutture da ricontrollare':'Mappatura ancora da validare')+'</div>'+
       '<div>Modifiche alle pagine monitorate</div><div>'+changes.landingPages+'</div>'+
       '<div>Modifiche a URL di fonti associate</div><div>'+changes.associatedSources+'</div>'+
@@ -118,11 +154,11 @@ function drawRobots(){
       (candidates.length>6?'<p>Mostrati i 6 documenti più recenti tra quelli riconoscibili.</p>':'')
     );
   }
-  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Documento più recente trovato: <b>${esc(latestDocument||'Data non identificabile')}</b> · data nel nome, da verificare</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento più recente · data nel nome</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(r=>{const s=robotState.reports[r.authority_key];return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${esc(robotLatestDocument(s)||'Non identificabile')}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="6">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
+  view.innerHTML=`<div class="public-banner">Robot delle Prefetture · controllo delle fonti e acquisizione delle versioni</div><div class="robot-summary"><span><b>${robots.length}</b> robot dedicati</span><span>Data più recente nel nome di un documento: <b>${esc(latestDocument||'Non disponibile')}</b> · indizio, non pubblicazione certificata</span><span><b>${checked.length}</b> con un tentativo registrato</span><span><b>${changed.length}</b> variazioni tecniche</span><span><b>${changedSources.length}</b> fonti associate con variazioni</span><span><b>${newDocumentCount}</b> nuovi documenti candidati</span><span><b>${partial.length}</b> controlli parziali</span></div><p>Ogni Prefettura ha un robot eseguibile singolarmente. Il controllo nazionale è programmato ogni giorno. I cambiamenti delle pagine web non provano un aggiornamento degli elenchi. Gli orari si riferiscono all’ultimo tentativo registrato, anche quando la fonte non è raggiungibile.</p>${robotState.notice?`<div class="note" role="status">${esc(robotState.notice)}</div>`:''}<div class="toolbar"><label for="robot-q">Prefettura</label><input id="robot-q" type="search" placeholder="Nome, regione o codice…" value="${esc(robotState.query)}"><label for="robot-filter">Esito</label><select id="robot-filter">${option('all','Tutti',robotState.filter)}${Object.entries(robotLabels).map(([key,label])=>option(key,label,robotState.filter)).join('')}</select><button id="robot-refresh" class="btn">Ricarica rapporti</button><a class="btn linkbtn" href="${ROBOT_RUN}" target="_blank" rel="noopener">Esegui su GitHub</a></div>${detail}${stage}${selected?robotHistoryPanel(report):''}${section(`ROBOT — ${shown.length} PREFETTURE`,`<div class="gridwrap"><table class="grid robot-grid"><thead><tr><th>Prefettura</th><th>Ultimo tentativo · ora italiana</th><th>Documento individuato · data nel nome</th><th>Esito</th><th>Risorse già associate</th><th>Comandi</th></tr></thead><tbody>${shown.map(r=>{const s=robotState.reports[r.authority_key];return `<tr><td><b>${esc(r.name)}</b><div class="small muted">${esc(r.region)}</div></td><td>${esc(robotDate(s?.checked_at))}</td><td>${robotDocumentCell(s)}</td><td><span class="badge ${s?.status==='partial'?'warn':''}">${esc(robotLabels[s?.status||'unseen']||'Da verificare')}</span></td><td class="num">${r.reviewed_resources}</td><td><button class="btn" data-robot="${esc(r.authority_key)}">Apri robot</button></td></tr>`}).join('')||'<tr><td colspan="6">Nessuna Prefettura trovata.</td></tr>'}</tbody></table></div>`)}<div class="note">Una variazione nei file o nei collegamenti richiede verifica: può dipendere anche dal formato della pagina. Gli originali acquisiti sono conservati nell’archivio di evidenze; l’estrazione e la pubblicazione dei dati delle imprese seguono i controlli della fonte. Per ${robots.filter(r=>!r.population_mapping_reviewed).length} autorità la mappatura delle popolazioni e i parser restano da validare.</div>`;
   view.querySelector('#robot-q').addEventListener('input',e=>{robotState.query=e.target.value;redrawSearch('#robot-q',drawRobots,e.target)});
   view.querySelector('#robot-filter').addEventListener('change',e=>{robotState.filter=e.target.value;drawRobots()});
   view.querySelector('#robot-refresh').addEventListener('click',async e=>{e.target.disabled=true;robotState.loaded=false;await renderRobots()});
   view.querySelectorAll('[data-robot]').forEach(button=>button.addEventListener('click',()=>{robotState.selected=button.dataset.robot;drawRobots();view.querySelector('.kv')?.scrollIntoView({block:'center'})}));
 }
 
-if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDocumentDate,robotDocumentHistory,robotLatestDocument};}
+if(typeof module!=='undefined'&&module.exports){module.exports={robotCandidateDocuments,robotObservedChangeCounts,robotDateInText,robotDocumentDate,robotDocumentHistory,robotLatestDocument,robotLatestFile};}

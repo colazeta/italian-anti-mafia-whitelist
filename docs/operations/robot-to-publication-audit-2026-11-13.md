@@ -68,3 +68,14 @@ The subsequent [robot run 43496640775](https://github.com/colazeta/italian-anti-
 6. **Geographic enrichment:** never use optional geocoding as a publication gate; preserve literal source addresses.
 
 This audit does not itself promote a release, rewrite the protected archive or certify the present status of an individual firm.
+
+
+## Robot filename/date display (14 November 2026)
+
+The public Robot table now links the selected identifiable document filename instead of presenting only a date or "Non identificabile". It recognises strictly validated numeric dates and written Italian month names **in the filename itself**, for example elenco-iscritte-4-settembre-2026.pdf. A directory component such as /2026-11/ is never treated as the document's date.
+
+If no filename date is recoverable, the view still shows the original filename and link; the earliest preserved discovery/capture observation is displayed as **prima rilevazione**, explicitly not an official publication date. Selection prefers a file with an unambiguous filename date, then preserved first-observation chronology, then technical HTTP metadata, and finally stable URL ordering. An undated document might have been published later than the selected dated document. The detail history retains all observed file links for review.
+
+This is a monitoring presentation correction, not a new official reference date, SourceEdition approval, parser validation or public release promotion. The selected published-company edition is separately labelled. A website-declared publication date would require a source-bound observation with explicit date semantics rather than substitution of Last-Modified, first-seen timestamps or archived capture time.
+
+Regression coverage: tests/robot_documents.test.cjs, executed as part of the public-portal Python test suite.
