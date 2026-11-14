@@ -250,6 +250,9 @@ def test_protected_probe_triages_ambiguous_layout_without_exposing_cells():
         "unclassified_without_anchors": 0,
         "unclassified_with_name_and_office": 1,
         "unclassified_with_nonanchor_details": 1,
+        "unclassified_only_name_and_office_cells": 0,
+        "unclassified_name_text_matches_anchored_row": 0,
+        "unclassified_name_office_text_matches_anchored_row": 0,
     }
     assert result["results"][1]["candidate_layout_triage"] is None
     safe = json.dumps(result)
@@ -271,3 +274,54 @@ def test_malformed_workbook_cannot_fabricate_ambiguous_row_counts():
     assert all(row["candidate_blocker_class"] == "unclassified_data_like_row"
                for row in result["results"])
     assert all(row["candidate_layout_triage"] is None for row in result["results"])
+
+
+def test_ambiguous_trailing_text_overlap_is_counted_without_source_disclosure():
+    """Text equality is a reviewer clue, not an entity match or skip permission."""
+    from io import BytesIO
+
+    import openpyxl
+
+    from white_list_archive.parsers.catania_candidate import parse_candidate_xlsx
+
+    book = openpyxl.load_workbook(BytesIO(_synthetic_catania_workbook()))
+    sheet = book.active
+    sheet.append(["SYNTHETIC A", "SYNTHETIC OFFICE", "", "", "", "", "", ""])
+    sheet.append(["SYNTHETIC A", "OTHER PRIVATE OFFICE", "", "", "", "", "", ""])
+    stream = BytesIO()
+    book.save(stream)
+    book.close()
+    listed = stream.getvalue()
+    applicant = b"applicant synthetic placeholder"
+    pins = (
+        ("catania-listed", "listed", hashlib.sha256(listed).hexdigest()),
+        ("catania-applicants", "applicant", hashlib.sha256(applicant).hexdigest()),
+    )
+
+    def parsed(path, cfg):
+        if cfg["population_scope"] == "listed":
+            return parse_candidate_xlsx(path, cfg)
+        return _parser(path, cfg)
+
+    report = audit_primary_archive(
+        Archive({pins[0][2]: listed, pins[1][2]: applicant}),
+        pins=pins, parser=parsed,
+    )
+    first = report["results"][0]
+    assert first["candidate_schema"] == "layout_or_parser_review_required"
+    assert first["candidate_blocker_class"] == "unclassified_data_like_row"
+    assert first["source_rows_for_review"] is None
+    triage = first["candidate_layout_triage"]
+    assert triage["full_anchor_rows"] == 2
+    assert triage["unclassified_data_like_rows"] == 3
+    assert triage["unclassified_between_anchors"] == 1
+    assert triage["unclassified_after_last_anchor"] == 2
+    assert triage["unclassified_only_name_and_office_cells"] == 2
+    assert triage["unclassified_name_text_matches_anchored_row"] == 2
+    assert triage["unclassified_name_office_text_matches_anchored_row"] == 1
+    safe = json.dumps(report)
+    for text in ("SYNTHETIC A", "SYNTHETIC OFFICE", "OTHER PRIVATE OFFICE",
+                 "SECRET-COMPANY-ROW", "SECRET-LOCATION"):
+        assert text not in safe
+    assert report["date_attribution_or_edition_approved"] is False
+    assert report["postgresql_writes"] == report["public_promotions"] == 0
