@@ -94,7 +94,7 @@ assert.equal(robotPublicationGap(duplicates,published).count,2);
 // Compare each population against its own published date, not the prefecture's maximum.
 const uneven=[source('listed','listed','2026-11-13'),source('app','applicant','2026-11-06')];
 const applicantBetween='https://prefettura.interno.gov.it/sites/default/files/18/2026-11/elenco-richiedenti-10-novembre-2026.pdf';
-const applicantReport={status:'unchanged',resources:{[applicantBetween]:{role:'candidate',sha256:'candidate-new'}}};
+const applicantReport={status:'unchanged',resources:{[applicantBetween]:{role:'candidate',sha256:'candidate-new',archived_sha256:'candidate-new'}}};
 assert.equal(robotPublicationGap(applicantReport,uneven).count,1);
 
 // Ambiguous population/register mapping cannot make an older file appear newer.
@@ -104,7 +104,7 @@ assert.equal(robotPublicationGap(ambiguousReport,uneven).count,0);
 assert.equal(robotPublicationGap(ambiguousReport,uneven).unclassified.length,1);
 
 // Repeated captures of one immutable document must not inflate the count.
-const repeatReport={status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'new-listed',
+const repeatReport={status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'new-listed',archived_sha256:'new-listed',
   capture_history:[{sha256:'new-listed'},{sha256:'new-listed'},{sha256:'new-listed'}]}}};
 assert.equal(robotPublicationGap(repeatReport,published).count,1);
 
@@ -121,10 +121,12 @@ const bologna=[
 const provincial='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-iscritti-provinciale-10-settembre-2026.pdf';
 const sisma='https://prefettura.interno.gov.it/sites/default/files/0/2026-09/elenco-iscritti-post-sisma-10-settembre-2026.pdf';
 const bolognaReport={status:'unchanged',resources:{
-  [provincial]:{role:'source',sha256:'updated-prov',source_keys:['prov-listed']},
-  [sisma]:{role:'source',sha256:'updated-sisma',source_keys:['sisma-listed']}
+  [provincial]:{role:'source',sha256:'updated-prov',archived_sha256:'updated-prov',source_keys:['prov-listed']},
+  [sisma]:{role:'source',sha256:'updated-sisma',archived_sha256:'updated-sisma',source_keys:['sisma-listed']}
 }};
 assert.equal(robotPublicationGap(bolognaReport,bologna).count,2);
+assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'discovered-only'}}},published).count,0);
+assert.equal(robotPublicationGap({status:'unchanged',resources:{[listedUrl]:{role:'candidate',sha256:'discovered-only'}}},published).unclassified.length,1);
 assert.equal(robotPublicationGap({...newerReport,status:'partial',pending_urls:[listedUrl]},published).incomplete,true);
 
 console.log('Document history, publication baseline and candidate counts passed');
