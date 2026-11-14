@@ -159,6 +159,13 @@ both counters distinct, accepts only its documented closed diagnostic keys, and
 quarantines unknown counters or parser mismatches. No value, formula or person-
 level row is published by this read-only check.
 
+For a verified original that fails the provisional parser, the report now
+records only a **closed diagnostic category** (for example, header identity,
+worksheet bounds, incomplete data-like row or unclassified source row).
+Unknown errors are assigned `other_review_required`. Neither workbook values
+nor exception messages enter the public report. This classification is for
+triage, not a new parser approval or a reason to drop source rows.
+
 A failure of this read-only diagnostic is isolated from the other transform,
 backfill and quarantine lanes. The existing private source reports remain the
 authoritative location for detailed review. The latest selected public release
