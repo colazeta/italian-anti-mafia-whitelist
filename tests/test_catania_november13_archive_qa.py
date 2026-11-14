@@ -187,3 +187,87 @@ def test_unknown_bytes_have_no_layout_classification():
     result = audit_primary_archive(Archive({}), pins=pins, parser=_parser)
     assert all(row["primary_bytes"] == "unknown" for row in result["results"])
     assert all(row["candidate_blocker_class"] is None for row in result["results"])
+
+
+def _synthetic_catania_workbook() -> bytes:
+    """Entirely invented fixture, never an archived Prefecture row."""
+    from io import BytesIO
+
+    import openpyxl
+
+    from white_list_archive.parsers.catania_candidate import HEADERS
+
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.title = "Foglio1"
+    headings = [""] * 8
+    for position, label in HEADERS["listed"].items():
+        headings[position] = label
+    headings[3] = "ATTIVITA' SOGGETTE"
+    sheet.append(headings)
+    sheet.append(["SYNTHETIC A", "SYNTHETIC OFFICE", "", "1",
+                  "12345678901", "", "", ""])
+    sheet.append(["SECRET-COMPANY-ROW", "SECRET-LOCATION", "", "",
+                  "", "SECRET-DATE-CELL", "", ""])
+    sheet.append(["SYNTHETIC B", "SYNTHETIC OFFICE", "", "2",
+                  "12345678901", "", "", ""])
+    stream = BytesIO()
+    book.save(stream)
+    book.close()
+    return stream.getvalue()
+
+
+def test_protected_probe_triages_ambiguous_layout_without_exposing_cells():
+    from white_list_archive.parsers.catania_candidate import parse_candidate_xlsx
+
+    listed = _synthetic_catania_workbook()
+    applicant = b"applicant synthetic placeholder"
+    pins = (
+        ("catania-listed", "listed", hashlib.sha256(listed).hexdigest()),
+        ("catania-applicants", "applicant", hashlib.sha256(applicant).hexdigest()),
+    )
+    def parsed(path, config):
+        if config["population_scope"] == "listed":
+            return parse_candidate_xlsx(path, config)
+        return _parser(path, config)
+
+    result = audit_primary_archive(Archive({
+        pins[0][2]: listed, pins[1][2]: applicant,
+    }), pins=pins, parser=parsed)
+    first = result["results"][0]
+    assert result["primary_originals_verified"] == 2
+    assert result["provisional_extractions"] == 1
+    assert first["candidate_schema"] == "layout_or_parser_review_required"
+    assert first["candidate_blocker_class"] == "unclassified_data_like_row"
+    assert first["source_rows_for_review"] is None
+    assert first["candidate_layout_triage"] == {
+        "full_anchor_rows": 2,
+        "incomplete_anchor_rows": 0,
+        "unclassified_data_like_rows": 1,
+        "unclassified_before_first_anchor": 0,
+        "unclassified_between_anchors": 1,
+        "unclassified_after_last_anchor": 0,
+        "unclassified_without_anchors": 0,
+        "unclassified_with_name_and_office": 1,
+        "unclassified_with_nonanchor_details": 1,
+    }
+    assert result["results"][1]["candidate_layout_triage"] is None
+    safe = json.dumps(result)
+    for secret in ("SECRET-COMPANY-ROW", "SECRET-LOCATION", "SECRET-DATE-CELL"):
+        assert secret not in safe
+    assert result["date_attribution_or_edition_approved"] is False
+    assert result["postgresql_writes"] == result["public_promotions"] == 0
+
+
+def test_malformed_workbook_cannot_fabricate_ambiguous_row_counts():
+    pins, payloads = _fixture_pins()
+
+    def strict_rejection(path, cfg):
+        raise ValueError("Unclassified candidate row may contain company information")
+
+    result = audit_primary_archive(Archive(payloads), pins=pins,
+                                   parser=strict_rejection)
+    assert result["primary_originals_verified"] == 2
+    assert all(row["candidate_blocker_class"] == "unclassified_data_like_row"
+               for row in result["results"])
+    assert all(row["candidate_layout_triage"] is None for row in result["results"])

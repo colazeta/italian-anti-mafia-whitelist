@@ -14,7 +14,12 @@ from pathlib import Path
 import tempfile
 from typing import Any
 
-from white_list_archive.parsers.catania_candidate import PARSERS, parse_candidate_xlsx
+import openpyxl
+
+from white_list_archive.parsers.catania_candidate import (
+    MAX_COLS, MAX_ROWS, PARSERS, _header_row, parse_candidate_xlsx,
+)
+from white_list_archive.parsers.multi_prefecture_tables import _clean
 
 # Source identities recorded in the reviewed operational issue #267.
 # In particular, these are NOT the approved Catania 6 November originals.
@@ -35,6 +40,69 @@ _ALLOWED_FLAGS = frozenset({
 # It must not be mistaken for an unknown diagnostic and quarantine a verified
 # source. Keep the reported counter allowlist closed to reject all other keys.
 _ALLOWED_COUNTS = _ALLOWED_FLAGS | {"source_expiry_formulas"}
+
+
+
+def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
+    """Count only row *shapes* on the exact source; never emit any source cell.
+
+    This is not a replacement parser, a row-level review package or an
+    authorisation to discard data-like rows. No row coordinates leave this
+    function, including for a singleton. It is invoked only after a verified
+    archived original produces the exact known unclassified-row error.
+    """
+    workbook = openpyxl.load_workbook(path, read_only=False, data_only=False)
+    try:
+        if workbook.sheetnames != ["Foglio1"]:
+            raise ValueError("Unknown worksheet")
+        sheet = workbook.active
+        if (not sheet.max_row or sheet.max_row > MAX_ROWS
+                or not sheet.max_column or sheet.max_column > MAX_COLS):
+            raise ValueError("Unreviewed workbook bounds")
+        start = _header_row(sheet, population) + 1
+        width = 8 if population == "listed" else 7
+        full_anchor_rows: list[int] = []
+        ambiguous_rows: list[tuple[int, bool, bool]] = []
+        incomplete_anchor_rows = 0
+        for row_number in range(start, sheet.max_row + 1):
+            cells = [_clean(sheet.cell(row_number, col + 1).value)
+                     for col in range(width)]
+            sector, identifier = cells[3], cells[4]
+            if sector and identifier:
+                full_anchor_rows.append(row_number)
+            elif sector or identifier:
+                incomplete_anchor_rows += 1
+            else:
+                name_and_office = bool(cells[0] and cells[1])
+                nonanchor_details = any(bool(cell) for cell in cells[5:])
+                if name_and_office or nonanchor_details:
+                    ambiguous_rows.append((row_number, name_and_office,
+                                           nonanchor_details))
+        result = {
+            "full_anchor_rows": len(full_anchor_rows),
+            "incomplete_anchor_rows": incomplete_anchor_rows,
+            "unclassified_data_like_rows": len(ambiguous_rows),
+            "unclassified_before_first_anchor": 0,
+            "unclassified_between_anchors": 0,
+            "unclassified_after_last_anchor": 0,
+            "unclassified_without_anchors": 0,
+            "unclassified_with_name_and_office": 0,
+            "unclassified_with_nonanchor_details": 0,
+        }
+        for position, has_name_office, has_details in ambiguous_rows:
+            if not full_anchor_rows:
+                result["unclassified_without_anchors"] += 1
+            elif position < full_anchor_rows[0]:
+                result["unclassified_before_first_anchor"] += 1
+            elif position > full_anchor_rows[-1]:
+                result["unclassified_after_last_anchor"] += 1
+            else:
+                result["unclassified_between_anchors"] += 1
+            result["unclassified_with_name_and_office"] += int(has_name_office)
+            result["unclassified_with_nonanchor_details"] += int(has_details)
+        return result
+    finally:
+        workbook.close()
 
 
 def _candidate_config(source_key: str, population: str, digest: str) -> dict[str, Any]:
@@ -86,6 +154,7 @@ def _unknown(source_key: str, population: str) -> dict[str, Any]:
         "primary_bytes": "unknown",
         "candidate_schema": "not_tested",
         "candidate_blocker_class": None,
+        "candidate_layout_triage": None,
         "source_rows_for_review": None,
         "source_status_counts": {},
         "candidate_quality_counts": {},
@@ -121,7 +190,18 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
             with tempfile.TemporaryDirectory(prefix="catania-private-qa-") as directory:
                 path = Path(directory) / "candidate.xlsx"
                 path.write_bytes(raw)
-                batch = parser(path, _candidate_config(key, population, sha))
+                try:
+                    batch = parser(path, _candidate_config(key, population, sha))
+                except Exception as exc:
+                    if _closed_blocker_class(exc) == "unclassified_data_like_row":
+                        try:
+                            row["candidate_layout_triage"] = _safe_ambiguous_layout_shape(
+                                path, population)
+                        except Exception:
+                            # A failed independent read is unknown, not evidence
+                            # about a row or a reason to weaken parser QA.
+                            pass
+                    raise
             if not isinstance(batch.records, list) or not batch.records:
                 raise ValueError("No candidate records")
             if (batch.diagnostics.get("publication_approved") is not False
