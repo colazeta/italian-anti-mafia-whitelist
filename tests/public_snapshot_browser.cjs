@@ -46,8 +46,16 @@ const baseURL=process.env.PUBLIC_SITE_URL||'http://127.0.0.1:8765/';
       await page.getByRole('button',{name:'Robot',exact:true}).click();
       await page.locator('#robot-q').waitFor();
       assert.equal(await page.locator('.robot-grid tbody tr').count(),106);
+      assert.deepEqual((await page.locator('.robot-grid thead th').allTextContents()).slice(3,5),
+        ['Ultima edizione pubblicata','Documenti successivi rilevati']);
+      const cosenzaPublic=JSON.parse(fs.readFileSync('public-site/data/prefectures.json')).prefectures.find(p=>p.authority_key==='cosenza');
+      assert.ok(cosenzaPublic?.last_source_update);
+      assert.equal((await page.locator('.robot-grid tbody tr').count()),106);
       await page.locator('#robot-q').fill('cosenza');
       assert.equal(await page.locator('.robot-grid tbody tr').count(),1);
+      assert.equal((await page.locator('.robot-grid tbody tr td').nth(3).innerText()).trim(),
+        cosenzaPublic.last_source_update.split('-').reverse().join('/'));
+      assert.match((await page.locator('.robot-grid tbody tr td').nth(4).innerText()),/0/);
       await page.getByRole('button',{name:'Apri robot',exact:true}).click();
       assert.match(await page.locator('#view-robots').innerText(),/Nessuna variazione rilevata/);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

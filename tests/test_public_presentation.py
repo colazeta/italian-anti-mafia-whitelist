@@ -167,3 +167,41 @@ assert.equal(robotCandidateDocuments({resources:{
 
 def test_robot_document_filename_fallback():
     subprocess.run(['node', 'tests/robot_documents.test.cjs'], cwd=ROOT, check=True)
+
+
+def test_robot_public_baseline_matches_selected_release_manifest():
+    import json
+    from white_list_archive.publishing.public_robots import public_directory, _selected_public_sources
+
+    catalog = json.loads((ROOT / 'data/source_registry/prefecture_robots.json').read_text())
+    ledger = json.loads((ROOT / 'data/monitoring/national_coverage.json').read_text())
+    snapshot = json.loads((ROOT / 'data/publication/public_snapshot.json').read_text())
+    assert ledger['selected_publication']['registry_sha256'] == snapshot['files']['registry.json']['sha256']
+    directory = public_directory(catalog)
+    assert len(directory['robots']) == 106
+    sources = [item for row in directory['robots'] for item in row['selected_public_sources']]
+    assert len(sources) == ledger['selected_publication']['source_count']
+    assert len({s['source_key'] for s in sources}) == len(sources)
+    assert sum(bool(r['selected_public_sources']) for r in directory['robots']) == ledger['selected_publication']['authority_count']
+    assert directory['robots'][0]['selected_public_sources'] == _selected_public_sources()[directory['robots'][0]['authority_key']]
+    for row in directory['robots']:
+        selected = row['selected_public_sources']
+        assert all(set(s) == {'source_key', 'register_key', 'population_scope', 'reference_date', 'sha256'} for s in selected)
+        assert max((s['reference_date'] for s in selected), default=None) == next(
+            x['latest_selected_public_reference_date'] for x in ledger['prefectures']
+            if x['authority_key'] == row['authority_key']
+        )
+
+
+def test_robot_public_baseline_rejects_mismatched_snapshot(monkeypatch, tmp_path):
+    import json
+    import pytest
+    import white_list_archive.publishing.public_robots as robots
+
+    bad = json.loads(robots.MONITORING.read_text())
+    bad['selected_publication']['registry_sha256'] = '0' * 64
+    path = tmp_path / 'monitoring.json'
+    path.write_text(json.dumps(bad))
+    monkeypatch.setattr(robots, 'MONITORING', path)
+    with pytest.raises(ValueError, match='selected release ledger'):
+        robots._selected_public_sources()

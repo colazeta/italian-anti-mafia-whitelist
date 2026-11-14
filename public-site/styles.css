@@ -37,3 +37,9 @@
 
 /* Keep long official filenames readable in the compact robot table. */
 .robot-file-name{overflow-wrap:anywhere;word-break:break-word}
+
+/* The monitoring matrix has two additional provenance-aware publication columns. */
+.robot-grid{min-width:1120px}
+.robot-grid td:nth-child(3){min-width:250px}
+.robot-grid td:nth-child(4){min-width:130px}
+.robot-grid td:nth-child(5){min-width:175px}
