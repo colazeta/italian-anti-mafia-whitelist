@@ -163,3 +163,7 @@ assert.equal(robotCandidateDocuments({resources:{
 }}).length,0);
 """
     subprocess.run(['node', '-e', script], cwd=ROOT, check=True)
+
+
+def test_robot_document_filename_fallback():
+    subprocess.run(['node', 'tests/robot_documents.test.cjs'], cwd=ROOT, check=True)
