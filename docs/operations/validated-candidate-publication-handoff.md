@@ -101,3 +101,18 @@ new pair from preservation and uses an intent bound to the newly selected base.
 
 The previous selected immutable release
 remains available for rollback throughout failure and recovery.
+
+
+## Post-selection qualification of mutable Como pages
+
+After the exact Como pair was approved, selected and five-file-live verified,
+later updates to the mutable official HTML URLs correctly fail raw SHA checks.
+The selected release must not be invalidated or silently repinned to those
+new bytes. On main only, following the completed immutable registry replay,
+the source-specific qualifier recognises **both** exact Como scopes explicitly
+preserved and a historical (not current) Como intent, returning a non-approval
+reuse state without refetching the live URLs. Partial preservation and current
+release intents touching Como still fail closed or run the original source
+review. Candidate Como PRs always run the original strict qualifier; a new
+edition needs reviewed byte pins, census, date, status, sector, privacy and
+new intent against the then-current selected baseline.
