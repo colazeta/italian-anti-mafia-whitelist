@@ -1012,7 +1012,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-08-26",
+      "latest_source_reference_date": "2026-11-12",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": "2026-09-10T03:29:00Z",
@@ -1050,21 +1050,21 @@
           "source_key": "biella-applicants",
           "register_key": "biella-ordinary",
           "population_scope": "applicant",
-          "reference_date": "2026-08-26",
-          "sha256": "70c353b4671aa7f751663d57cfff5ea5c8e45fc0078caad7a426266ee460084d",
+          "reference_date": "2026-11-12",
+          "sha256": "2f12c48f90ac54c3dc8f7039ede87377b98ed13e1adabfb81d0456f0d889b53a",
           "parser": "biella_html_applicants"
         },
         {
           "source_key": "biella-listed",
           "register_key": "biella-ordinary",
           "population_scope": "listed",
-          "reference_date": "2026-08-26",
-          "sha256": "70c353b4671aa7f751663d57cfff5ea5c8e45fc0078caad7a426266ee460084d",
+          "reference_date": "2026-11-12",
+          "sha256": "2f12c48f90ac54c3dc8f7039ede87377b98ed13e1adabfb81d0456f0d889b53a",
           "parser": "biella_html_listed"
         }
       ],
-      "selected_public_source_presences": 239,
-      "latest_selected_public_reference_date": "2026-08-26"
+      "selected_public_source_presences": 243,
+      "latest_selected_public_reference_date": "2026-11-12"
     },
     {
       "authority_key": "bologna",
@@ -6558,9 +6558,9 @@
     }
   ],
   "selected_publication": {
-    "release_tag": "public-data-43524455108-1",
-    "registry_sha256": "e235c2bae950cd85ec4f3c6b477c3ebba0a05ea745430142ce2020d0da843226",
-    "source_presences": 74483,
+    "release_tag": "public-data-43725882600-1",
+    "registry_sha256": "cd8f12215b73934606ed88399de7ad2a8fc6aa7032ae3f48fb8d8f7f57f82526",
+    "source_presences": 74487,
     "authority_count": 74,
     "register_count": 77,
     "source_count": 142,
