@@ -68,7 +68,7 @@ def fake_store(*, truncated=False, count=1):
 
 
 def test_catalogue_scan_requires_one_unique_complete_registered_capture(monkeypatch):
-    monkeypatch.setattr(backfill, "CaptureCatalogue", lambda store: object())
+    monkeypatch.setattr(backfill, "CaptureCatalogue", lambda store: SimpleNamespace(\n        _read_record=lambda key: (b"{}", {"sha256": backfill.APPROVED_SHA256})\n    ))
     monkeypatch.setattr(backfill, "load_catalogued_capture",
                         lambda *args, **kwargs: (manifest(), {}))
     assert backfill._exact_catalogued_manifest(fake_store())["sha256"] == backfill.APPROVED_SHA256
