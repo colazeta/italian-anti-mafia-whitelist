@@ -113,6 +113,38 @@ def biella_complete_physical_rows(path: Path, population: str) -> int:
     return candidates
 
 
+def como_complete_physical_rows(path: Path, population: str) -> int:
+    """Classify every nonempty row, including rows the family would skip."""
+    from white_list_archive.parsers import como_html as family
+    if population not in {"listed", "applicant"}:
+        raise ValueError("Unknown Como population")
+    applicant = population == "applicant"
+    title = family._APPLICANT_TITLE if applicant else family._LISTED_TITLE
+    header = family._APPLICANT_HEADER if applicant else family._LISTED_HEADER
+    label = "numero aziende in fase iscrizione:" if applicant else "numero aziende iscritte:"
+    table = family._find_table(family._tables(path), applicant=applicant)
+    rows, summaries = 0, 0
+    for row in table:
+        values = [family._clean(value) for value in row]
+        if not any(values):
+            continue
+        if values[0].casefold() == title.casefold() and not any(values[1:]):
+            continue
+        if len(values) == 8 and family._fold(values) == header:
+            continue
+        if len(values) == 8 and values[0].casefold() == label:
+            if not values[1].isdigit() or any(values[2:]):
+                raise ValueError("Unclassified Como source counter")
+            summaries += 1
+            continue
+        if len(values) != 8 or not values[0] or not any(values[1:]):
+            raise ValueError("Unclassified nonempty Como physical row")
+        rows += 1
+    if not rows or summaries != 1:
+        raise ValueError("Incomplete Como physical source census")
+    return rows
+
+
 def inspect_job(job, store):
     """Strict source triage; QA drift from the old edition remains explicit."""
     from white_list_archive.publishing import public_national_registry as registry
@@ -135,6 +167,10 @@ def inspect_job(job, store):
             physical = biella_complete_physical_rows(path, cfg["population_scope"])
             if physical != batch.diagnostics.get("sector_rows"):
                 raise ValueError("Physical source denominator mismatch")
+        elif cfg["authority_key"] == "como":
+            physical = como_complete_physical_rows(path, cfg["population_scope"])
+            if physical != batch.diagnostics.get("source_rows") or physical != len(batch.records):
+                raise ValueError("Como physical source denominator mismatch")
     return {
         "source_key": job["source_key"], "status": "source_candidate_requires_review",
         "sha256": manifest["sha256"], "bytes": manifest["byte_size"],
@@ -203,7 +239,8 @@ def public_summary(report):
     """Closed source-level counters; private diagnostics can never expand logs."""
     numeric = {"sector_rows", "public_records", "identifier_coverage", "raw_identifier_only",
                "missing_application_dates", "missing_expiry_dates", "grouped_sector_repetitions",
-               "dropped_date_rows", "unique_source_identities"}
+               "dropped_date_rows", "unique_source_identities", "source_rows", "declared_count",
+               "declared_count_delta", "blank_identifier_rows", "malformed_date_rows"}
     allowed = {"source_key", "status", "sha256", "bytes", "reference_date", "previous_reference_date",
                "date_basis", "parser", "parser_revision", "records", "physical_rows", "semantic_sha256",
                "original_and_capture_provenance_verified", "publication_approved", "error_type"}

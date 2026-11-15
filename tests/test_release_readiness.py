@@ -105,6 +105,26 @@ def test_biella_census_accounts_for_every_row_and_rejects_silently_skipped_width
         readiness.biella_complete_physical_rows(path, 'applicant')
 
 
+@pytest.mark.parametrize('population', ['listed', 'applicant'])
+def test_como_independent_census_preserves_source_counter_discrepancy_and_rejects_skipped_rows(tmp_path, population):
+    from white_list_archive.parsers import como_html as family
+    from test_como_parser_semantics import _write
+    applicant = population == 'applicant'
+    title = family._APPLICANT_TITLE if applicant else family._LISTED_TITLE
+    header = family._APPLICANT_HEADER if applicant else family._LISTED_HEADER
+    label = 'NUMERO AZIENDE IN FASE ISCRIZIONE:' if applicant else 'NUMERO AZIENDE ISCRITTE:'
+    rows = [[title, '', '', '', '', '', '', ''], [label, '0', '', '', '', '', '', ''], list(header),
+            ['SYNTHETIC COMPANY', 'COMO', '', '', '', 'Sez. I', '', 'nov-26' if applicant else '']]
+    path = _write(tmp_path, 'source.html', rows)
+    assert readiness.como_complete_physical_rows(path, population) == 1  # Source counter remains zero.
+    path = _write(tmp_path, 'source.html', rows + [['unclassified', 'details', '123']])
+    with pytest.raises(ValueError, match='Unclassified'):
+        readiness.como_complete_physical_rows(path, population)
+    path = _write(tmp_path, 'source.html', rows + [['', '', '', 'unclassified note', '', '', '', '']])
+    with pytest.raises(ValueError, match='Unclassified'):
+        readiness.como_complete_physical_rows(path, population)
+
+
 def test_authorities_and_populations_are_independent_and_never_approved():
     jobs = [{'source_key': a+'-'+p, 'config': {'authority_key': a, 'population_scope': p}}
             for a in ('biella', 'como') for p in ('listed', 'applicant')]
