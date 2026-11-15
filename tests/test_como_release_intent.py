@@ -61,3 +61,45 @@ def test_production_qa_rejects_unreviewed_public_values_even_if_source_inspectio
     result = json.loads(capsys.readouterr().out)
     assert {s['failure_code'] for s in result['sources']} == {'public_records_mismatch'}
     assert result['publications'] == 0 and result['approval_granted'] is False
+
+
+def test_como_selected_scope_mode_skips_only_complete_prior_reviewed_release():
+    from scripts import qualify_como_candidate as command
+    config = configs()
+    keys = {s['source_key'] for s in config['sources']}
+    selected = {'schema_version': 1, 'release_tag': 'reviewed-release', 'files': {}}
+    historic_intent = {'baseline_manifest_sha256': 'older-review-baseline',
+                       'changes': {'como-listed': {}}}
+    assert command.selected_como_mode(config, sorted(keys), selected, historic_intent) == 'preserved'
+    assert command.selected_como_mode(config, sorted(keys - set(review.PINS)), selected,
+                                       historic_intent) == 'fresh'
+    with pytest.raises(ValueError, match='Partially preserved'):
+        command.selected_como_mode(config, sorted(keys - {'como-applicants'}), selected, historic_intent)
+    with pytest.raises(ValueError, match='Current Como release intent'):
+        command.selected_como_mode(config, sorted(keys), selected,
+                                   {'baseline_manifest_sha256': _digest(selected),
+                                    'changes': {'como-applicants': {}}})
+    with pytest.raises(ValueError, match='Duplicate'):
+        command.selected_como_mode(config, sorted(keys) + ['como-listed'], selected, historic_intent)
+    with pytest.raises(ValueError, match='unknown'):
+        command.selected_como_mode(config, sorted(keys) + ['unreviewed'], selected, historic_intent)
+
+
+def test_main_only_como_selected_pair_does_not_contact_mutable_originals(monkeypatch, tmp_path, capsys):
+    from scripts import qualify_como_candidate as command
+    config = configs()
+    keys = sorted(s['source_key'] for s in config['sources'])
+    root = tmp_path/'data'/'publication'
+    root.mkdir(parents=True)
+    (root/'multi_prefecture_pilot.json').write_text(json.dumps(config))
+    (root/'preserved_public_sources.json').write_text(json.dumps(keys))
+    (root/'public_snapshot.json').write_text(json.dumps({'release_tag': 'reviewed-release'}))
+    (root/'incremental_release_intent.json').write_text(
+        json.dumps({'baseline_manifest_sha256': 'prior-release', 'changes': {'como-listed': {}}}))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(review, 'main', lambda **kwargs:
+                        (_ for _ in ()).throw(AssertionError('No live source request in selected-only mode')))
+    assert command.main(['--reviewed-config', '--respect-selected-preservation']) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result['state'] == 'selected_immutable_pair_reused'
+    assert result['publications'] == 0 and not result['approval_granted']
