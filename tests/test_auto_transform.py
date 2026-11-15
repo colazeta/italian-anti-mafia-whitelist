@@ -112,6 +112,42 @@ def test_unchanged_captures_do_not_reparse_or_create_a_new_edition():
     assert deferred == []
 
 
+def test_read_only_latest_selection_includes_unchanged_without_changing_default_or_backfill():
+    from copy import deepcopy
+
+    state, config = _scalar()
+    url = config["sources"][0]["resource_url"]
+    # A changed version was observed, then the official source returned to the
+    # approved bytes. Readiness must inspect the latest capture, not the delta.
+    state["robots"]["sample"]["resources"][url]["capture_history"].append(
+        _history("sample-listed", H1, "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+                 "2026-11-08T08:00:00+00:00")
+    )
+    before = deepcopy((state, config))
+    assert select_reviewed_jobs(state, config) == ([], [])
+    jobs, deferred = select_reviewed_jobs(state, config, include_unchanged=True)
+    assert deferred == []
+    assert len(jobs) == 1
+    assert jobs[0]["captures"]["primary"]["state"]["capture_id"] == "cccccccc-cccc-4ccc-cccc-cccccccccccc"
+    assert _parse_config(jobs[0]) == config["sources"][0]
+    assert select_reviewed_jobs(state, config, approved_only=True, include_unchanged=True) == (jobs, [])
+    assert (state, config) == before
+
+
+def test_read_only_latest_selection_preserves_source_review_and_complete_bundle_gates():
+    state, config = _scalar()
+    state["robots"]["sample"]["population_mapping_reviewed"] = False
+    assert select_reviewed_jobs(state, config, include_unchanged=True) == (
+        [], [{"source_key": "sample-listed", "reason": "unreviewed_authority"}])
+    state["robots"]["sample"]["population_mapping_reviewed"] = True
+    source = config["sources"][0]
+    url = source.pop("resource_url")
+    source["resources"] = {"listed": {"resource_url": url, "sha256": H1},
+                           "applicant": {"resource_url": "https://official.example/missing", "sha256": H3}}
+    assert select_reviewed_jobs(state, config, include_unchanged=True) == (
+        [], [{"source_key": "sample-listed", "reason": "missing_verified_capture"}])
+
+
 def test_only_exact_reviewed_source_capture_is_considered():
     state, config = _scalar()
     url = config["sources"][0]["resource_url"]
