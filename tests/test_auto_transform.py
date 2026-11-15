@@ -193,7 +193,7 @@ def test_parser_revision_requires_consistent_lineage():
         _parser_revision(Batch(), "different")
 
 
-def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_reparsing():
+def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_reparsing(monkeypatch):
     from white_list_archive.acquisition.auto_transform import _reuse_existing_snapshot
 
     class Cursor:
@@ -219,7 +219,9 @@ def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_repars
         {"label": "listed", "capture_id": "first"},
         {"label": "applicant", "capture_id": "second"},
     ]
-    conn = Connection([("run-1", {"listed": H2, "applicant": H3})])
+    monkeypatch.setattr("white_list_archive.acquisition.auto_transform.read_snapshot_verified",
+                        lambda conn, identity: ([{"source_status": "listed"}], {}))
+    conn = Connection([("run-1", {"listed": H2, "applicant": H3}, "parser@1+git." + "f"*40)])
     assert _reuse_existing_snapshot(
         conn, parser_name="approved_parser", code_revision="f" * 40,
         configuration_hash=H1, capture_inputs=inputs,
@@ -229,7 +231,7 @@ def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_repars
     assert conn.current.statements[1][1] == ("first", "run-1", "listed")
     assert conn.current.statements[2][1] == ("second", "run-1", "applicant")
 
-    conn = Connection([("wrong", {"listed": H2})])
+    conn = Connection([("wrong", {"listed": H2}, "parser@1+git." + "f"*40)])
     assert not _reuse_existing_snapshot(
         conn, parser_name="approved_parser", code_revision="f" * 40,
         configuration_hash=H1, capture_inputs=inputs,
@@ -238,7 +240,7 @@ def test_existing_private_snapshot_reuses_complete_labelled_bytes_without_repars
     assert len(conn.current.statements) == 1
 
 
-def test_ambiguous_existing_parse_identity_fails_closed():
+def test_conflicting_equivalent_interpretations_fail_closed(monkeypatch):
     from white_list_archive.acquisition.auto_transform import _reuse_existing_snapshot
 
     class Cursor:
@@ -249,11 +251,14 @@ def test_ambiguous_existing_parse_identity_fails_closed():
         def execute(self, sql, values):
             pass
         def fetchall(self):
-            return [("one", {"primary": H2}), ("two", {"primary": H2})]
+            return [("one", {"primary": H2}, "parser@1+git." + "f"*40),
+                    ("two", {"primary": H2}, "parser@1+git." + "f"*40)]
     class Connection:
         def cursor(self):
             return Cursor()
 
+    monkeypatch.setattr("white_list_archive.acquisition.auto_transform.read_snapshot_verified",
+                        lambda conn, identity: ([{"source_status": identity}], {}))
     with pytest.raises(ValueError, match="Multiple interpretation"):
         _reuse_existing_snapshot(
             Connection(), parser_name="approved_parser", code_revision="f" * 40,
