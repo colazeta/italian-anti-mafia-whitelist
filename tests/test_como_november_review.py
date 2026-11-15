@@ -60,3 +60,15 @@ def test_source_review_failure_never_prints_original_values_or_exception_message
     text = capsys.readouterr().out
     assert 'PRIVATE SOURCE VALUES' not in text
     assert json.loads(text)['publications'] == 0
+
+
+def test_source_pin_failure_has_closed_reason_and_safe_original_metadata(monkeypatch, capsys):
+    raw = b'PRIVATE SOURCE VALUES'
+    monkeypatch.setattr(review, '_download', lambda url, path: path.write_bytes(raw))
+    assert review.main() == 1
+    result = json.loads(capsys.readouterr().out)
+    for source in result['sources']:
+        assert source['failure_code'] == 'original_pin_mismatch'
+        assert source['downloaded_sha256'] == hashlib.sha256(raw).hexdigest()
+        assert source['downloaded_bytes'] == len(raw)
+    assert raw.decode() not in json.dumps(result)

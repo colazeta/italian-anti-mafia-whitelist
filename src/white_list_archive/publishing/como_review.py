@@ -23,27 +23,44 @@ PINS = {
 REFERENCE_DATE = '2026-11-10'
 
 
+class SourceReviewError(ValueError):
+    """Closed failure code; the exception text never reaches public logs."""
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
 def inspect(path, cfg, *, checked_at):
     key = cfg['source_key']
     profile = PINS[key]
     expected_parser = 'como_html_' + ('listed' if key == 'como-listed' else 'applicants')
     if cfg.get('authority_key') != 'como' or cfg.get('register_key') != 'como-ordinary' or cfg.get('parser') != expected_parser:
-        raise ValueError('Unreviewed Como parser/register binding')
+        raise SourceReviewError('binding_mismatch', 'Unreviewed Como parser/register binding')
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != profile['sha256']:
-        raise ValueError('Original differs from the independently archived source pin')
-    if explicit_update_date(raw, checked_at) != REFERENCE_DATE:
-        raise ValueError('Explicit official source date differs')
+        raise SourceReviewError('original_pin_mismatch', 'Original differs from the independently archived source pin')
+    try:
+        updated = explicit_update_date(raw, checked_at)
+    except ValueError as exc:
+        raise SourceReviewError('source_date_rejected', 'Explicit official source date rejected') from exc
+    if updated != REFERENCE_DATE:
+        raise SourceReviewError('source_date_mismatch', 'Explicit official source date differs')
     candidate = {**cfg, 'reference_date': REFERENCE_DATE, 'sha256': profile['sha256']}
-    batch = _parse_source(path, candidate)
-    physical = como_complete_physical_rows(path, cfg['population_scope'])
+    try:
+        batch = _parse_source(path, candidate)
+    except Exception as exc:
+        raise SourceReviewError('parser_rejected', 'Source parser rejected the original') from exc
+    try:
+        physical = como_complete_physical_rows(path, cfg['population_scope'])
+    except ValueError as exc:
+        raise SourceReviewError('physical_census_rejected', 'Unclassified physical source row') from exc
     if (physical != profile['records'] or len(batch.records) != physical
             or batch.diagnostics.get('source_rows') != physical
             or batch.diagnostics.get('parser') != expected_parser
             or batch.diagnostics.get('parser_version') != '2'
             or batch.diagnostics.get('status_counts') != profile['statuses']
             or _semantic_digest(batch.records) != profile['semantic_sha256']):
-        raise ValueError('Independent physical/semantic source census mismatch')
+        raise SourceReviewError('physical_or_semantic_mismatch', 'Independent physical/semantic source census mismatch')
     records = [public_record(row) for row in batch.records]
     # Diagnostics are emitted through an explicitly numeric/closed projection.
     counts = {name: value for name, value in batch.diagnostics.items()
@@ -68,14 +85,19 @@ def main():
     result, failed = [], False
     with tempfile.TemporaryDirectory(prefix='como-exact-source-review-') as td:
         for cfg in selected:
+            metadata = {}
             try:
                 path = Path(td)/(cfg['source_key'] + '.html')
                 _download(cfg['resource_url'], path)
+                metadata = {'downloaded_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                            'downloaded_bytes': path.stat().st_size}
                 result.append(inspect(path, cfg, checked_at=datetime.now(timezone.utc).isoformat()))
             except Exception as exc:
                 failed = True
                 result.append({'source_key': cfg['source_key'], 'status': 'requires_source_review',
-                               'error_type': type(exc).__name__, 'approval_granted': False})
+                               'error_type': type(exc).__name__,
+                               'failure_code': exc.code if isinstance(exc, SourceReviewError) else 'operation_failed',
+                               **metadata, 'approval_granted': False})
     print(json.dumps({'sources': result, 'publications': 0, 'approval_granted': False}, sort_keys=True))
     return int(failed)
 
