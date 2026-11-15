@@ -37,7 +37,15 @@ malformed source dates are counted and preserved, not invented or discarded.
 Each authority and each population has its own result. One failure cannot prevent
 the next cohort authority from reaching review. `review_metadata_ready` means
 metadata for a human/agent source review exists; it is not release eligibility or
-approval. Taranto still needs a separate exhaustive physical census. Como's
+approval. Taranto now has an independent fail-closed physical row census for each population:
+it reads the entire selected HTML evidence table rather than the parser's filtered
+rows and rejects unexpected pre-header content, repeated or modified headers,
+nonstandard widths, nameless or incomplete rows. The census count must match
+both parser source_rows and complete public-contract observations. This is a
+structural test, not an assertion that the November originals have passed in
+production. The protected existing readiness workflow must still verify both
+exact archived bytes, explicit page-update dates, statuses, sectors and the full
+finite source review before any publication intent or candidate release. Como's
 source-specific finite profile and publication intent still require review. The
 private report is persisted/read back in the existing operations namespace. Console
 output is a closed set of counts, dates and content identities; raw rows, names,

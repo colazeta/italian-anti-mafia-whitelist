@@ -30,7 +30,15 @@ def test_como_review_binds_both_populations_to_the_independent_source_and_public
                         'reference_date': review.REFERENCE_DATE, 'sha256': profile['sha256'],
                         'parser': cfg['parser'], 'records_sha256': review.PUBLIC_RECORD_DIGESTS[cfg['source_key']]}
     preserved = set(json.loads((ROOT/'data/publication/preserved_public_sources.json').read_text()))
-    assert preserved == {s['source_key'] for s in config['sources']} - set(review.PINS)
+    all_keys = {s['source_key'] for s in config['sources']}
+    selected_manifest = json.loads((ROOT/'data/publication/public_snapshot.json').read_text())
+    if intent['baseline_manifest_sha256'] == _digest(selected_manifest):
+        # Pending publication: only the explicitly reviewed changed scopes are fresh.
+        assert preserved == all_keys - set(review.PINS)
+    else:
+        # The prior finite intent has already been selected: revalidate every
+        # approved scope from exact immutable public derivatives, not live URLs.
+        assert preserved == all_keys
     assert {'biella-listed', 'biella-applicants'} <= preserved
 
 

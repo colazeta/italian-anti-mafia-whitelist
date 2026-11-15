@@ -175,6 +175,47 @@ def como_complete_physical_rows(path: Path, population: str) -> int:
     return rows
 
 
+def taranto_complete_physical_rows(path: Path, population: str) -> int:
+    """Independent fail-closed census of the complete Taranto evidence table.
+
+    This deliberately examines raw physical cells instead of using the family
+    parser's _find_rows output, which may discard content before its header.
+    An unexpected caption, header, row width or incomplete row is a review gate.
+    """
+    from white_list_archive.parsers import taranto_html as family
+    if population not in {"listed", "applicant"}:
+        raise ValueError("Unknown Taranto population")
+    header = family._LISTED_HEADER if population == "listed" else family._APPLICANT_HEADER
+    width = len(header)
+    selected = []
+    for table in family._tables(path):
+        for row in table:
+            values = [family._clean(value) for value in row]
+            if values and values[0].casefold() == header[0] and family._fold(row) != header:
+                raise ValueError("Unreviewed Taranto table header drift")
+        positions = [index for index, row in enumerate(table) if family._fold(row) == header]
+        if positions:
+            if len(positions) != 1:
+                raise ValueError("Repeated Taranto evidence table header")
+            selected.append((table, positions[0]))
+    if len(selected) != 1:
+        raise ValueError("Missing or ambiguous Taranto evidence table")
+    table, header_index = selected[0]
+    if any(any(family._clean(value) for value in row) for row in table[:header_index]):
+        raise ValueError("Unreviewed Taranto pre-header physical row")
+    count = 0
+    for row in table[header_index + 1:]:
+        values = [family._clean(value) for value in row]
+        if not any(values):
+            continue
+        if len(values) != width or not values[0] or not any(values[1:]) or family._fold(row) == header:
+            raise ValueError("Unclassified nonempty Taranto physical row")
+        count += 1
+    if count == 0:
+        raise ValueError("No complete Taranto physical observations")
+    return count
+
+
 def inspect_job(job, store):
     """Strict source triage; QA drift from the old edition remains explicit."""
     from white_list_archive.publishing import public_national_registry as registry
@@ -201,6 +242,10 @@ def inspect_job(job, store):
             physical = como_complete_physical_rows(path, cfg["population_scope"])
             if physical != batch.diagnostics.get("source_rows") or physical != len(batch.records):
                 raise ValueError("Como physical source denominator mismatch")
+        elif cfg["authority_key"] == "taranto":
+            physical = taranto_complete_physical_rows(path, cfg["population_scope"])
+            if physical != batch.diagnostics.get("source_rows") or physical != len(batch.records):
+                raise ValueError("Taranto physical source denominator mismatch")
     return {
         "source_key": job["source_key"], "status": "source_candidate_requires_review",
         "sha256": manifest["sha256"], "bytes": manifest["byte_size"],
