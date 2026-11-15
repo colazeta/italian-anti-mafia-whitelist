@@ -26,10 +26,19 @@ physical table row; widths silently skipped by the legacy parser are quarantined
 Grouped sector repetitions and applicant observations remain different units.
 Old-edition count drift is recorded for review, never automatically approved.
 
+Como has its own independent census using the existing v2 family's exact table,
+title/header and source-counter structures. It classifies every nonempty row,
+rejects unknown widths or unnamed nonempty rows, and reconciles physical rows
+with both parser source_rows and complete observations. The page's source counter
+may disagree with physical rows: retain both values and their discrepancy for
+finite review instead of silently changing either. Blank source identifiers and
+malformed source dates are counted and preserved, not invented or discarded.
+
 Each authority and each population has its own result. One failure cannot prevent
 the next cohort authority from reaching review. `review_metadata_ready` means
 metadata for a human/agent source review exists; it is not release eligibility or
-approval. Como/Taranto still need a separate exhaustive physical census. The
+approval. Taranto still needs a separate exhaustive physical census. Como's
+source-specific finite profile and publication intent still require review. The
 private report is persisted/read back in the existing operations namespace. Console
 output is a closed set of counts, dates and content identities; raw rows, names,
 locators, exception messages and provider coordinates cannot expand its surface.

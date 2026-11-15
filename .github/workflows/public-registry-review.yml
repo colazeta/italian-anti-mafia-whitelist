@@ -1060,3 +1060,18 @@ jobs:
           path: /tmp/public-actions/alessandria-source-qa
           retention-days: 14
           if-no-files-found: error
+
+  como-source-only:
+    if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/como-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication]'
+      - name: Census exact already-archived Como originals without approving them
+        run: python scripts/qualify_como_candidate.py
