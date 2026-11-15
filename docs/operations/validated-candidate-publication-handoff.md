@@ -89,5 +89,15 @@ candidate. Ordinary required PR checks and source/privacy rules still apply.
 
 `proposal.json` contains only source keys, aggregate identities, Git revisions,
 state and the branch/commit to resume. Original bytes, private rows and provider
-coordinates never enter this handoff. The previous selected immutable release
+coordinates never enter this handoff. After a reviewed source-pair release has been selected and all five live assets
+have passed SHA/size acceptance, the corresponding scopes can be added to the
+explicit preserved-public-source set. In the fully preserved case, the builder
+restores the exact selected five-file derivative, checks every scoped source
+descriptor, report, parser and complete record identity, and reuses it without
+refetching mutable official pages. It fails closed on a changed source descriptor
+or any corrupt/missing selected asset; this is **not** approval of newer page
+bytes or an alternative publisher. The next source-review PR removes only the
+new pair from preservation and uses an intent bound to the newly selected base.
+
+The previous selected immutable release
 remains available for rollback throughout failure and recovery.
