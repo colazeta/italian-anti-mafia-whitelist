@@ -368,6 +368,16 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
                 raise ValueError(f'{key}: preserved parser provenance is missing or different')
         preserved_records.extend(records)
         preserved_reports.append(report)
+    # Once every source in a selected public release has been reviewed and
+    # explicitly carried forward, replay the fully verified prior derivative.
+    # Never fetch mutable live HTML merely to rebuild an unchanged edition.
+    # Each scope above has independently passed the descriptor, provenance,
+    # parser and complete-public-record checks against the verified snapshot.
+    if len(keys) == len(config['sources']):
+        if (len(preserved_records) != len(approved['records'])
+                or len(preserved_reports) != len(approved['meta']['sources'])):
+            raise ValueError('All-preserved release does not cover every approved observation and report')
+        return approved
     fresh_config = {**config, 'sources': [s for s in config['sources'] if s['source_key'] not in keys]}
     registry = _build_registry_from_selected_inputs(fresh_config, work_dir, None)
     registry['records'].extend(preserved_records)
