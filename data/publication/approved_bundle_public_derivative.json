@@ -1,67 +1,127 @@
 {
-  "schema_version": 2,
-  "snapshot_tag": "public-data-43496640709-1",
-  "purpose": "Preserve only this exact already approved public scope and its original verification report across national release tags. Both public-field digests and the complete original source descriptor must match. No new source approval or refreshed document-check time.",
-  "source": {
-    "authority_key": "pordenone",
-    "authority_name": "Prefettura di Pordenone",
-    "approval_mode": "raw_sha256",
-    "reference_date": "2026-09-01",
-    "last_source_update": "2026-09-01",
-    "last_source_update_basis": "official publication page metadata observed during the verified 20 September 2026 source capture; this is the source-edition boundary, not a company legal-effect date",
-    "register_key": "pordenone-ordinary",
-    "register_name": "White List ordinaria",
-    "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pordenone/white-list-elenco-ditte-iscritte",
-    "source_key": "pordenone-provincial-listed",
-    "parser": "pordenone-provincial-listed",
-    "population_scope": "listed",
-    "resource_url": "https://prefettura.interno.gov.it/it/prefetture/pordenone/white-list-elenco-ditte-iscritte",
-    "sha256": "bundle:ce7759de3f7bc81c9f79298c8ad427a387446e8d61ff2d9f1c78cb8ad258e4a3",
-    "resources": {
-      "I": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-i-estrazione-fornitura-etc_0.pdf",
-        "sha256": "f4e6374e5e03daa25daedd49ada730ae39c6b77437e763e3c0308aa0a0c627de"
+  "schema_version": 3,
+  "bindings": [
+    {
+      "schema_version": 2,
+      "snapshot_tag": "public-data-43496640709-1",
+      "purpose": "Preserve only this exact already approved public scope and its original verification report across national release tags. Both public-field digests and the complete original source descriptor must match. No new source approval or refreshed document-check time.",
+      "source": {
+        "authority_key": "pordenone",
+        "authority_name": "Prefettura di Pordenone",
+        "approval_mode": "raw_sha256",
+        "reference_date": "2026-09-01",
+        "last_source_update": "2026-09-01",
+        "last_source_update_basis": "official publication page metadata observed during the verified 20 September 2026 source capture; this is the source-edition boundary, not a company legal-effect date",
+        "register_key": "pordenone-ordinary",
+        "register_name": "White List ordinaria",
+        "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/pordenone/white-list-elenco-ditte-iscritte",
+        "source_key": "pordenone-provincial-listed",
+        "parser": "pordenone-provincial-listed",
+        "population_scope": "listed",
+        "resource_url": "https://prefettura.interno.gov.it/it/prefetture/pordenone/white-list-elenco-ditte-iscritte",
+        "sha256": "bundle:ce7759de3f7bc81c9f79298c8ad427a387446e8d61ff2d9f1c78cb8ad258e4a3",
+        "resources": {
+          "I": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-i-estrazione-fornitura-etc_0.pdf",
+            "sha256": "f4e6374e5e03daa25daedd49ada730ae39c6b77437e763e3c0308aa0a0c627de"
+          },
+          "II": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ii-confezionamento-fornitura-etc_0.pdf",
+            "sha256": "62d63a080b3025e2ee2f37c3af1d486f12095be8f83e73cae611e2ca56bf84d5"
+          },
+          "III": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iii-noli-a-freddo-di-macchinari.pdf",
+            "sha256": "2204fe651b733e32fe13f001c97fd2c6a93ccd9a846cc9f4ddd40d4f471e6ce9"
+          },
+          "IV": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iv-fornitura-di-ferro-lavorato_0.pdf",
+            "sha256": "55a1edd7bcc52de101536c42091e14e040892cf1122462c36b37a861c48eeb62"
+          },
+          "V": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-v-noli-a-caldo_0.pdf",
+            "sha256": "4fcd95954d20ba19ffcfb11e64a911a637056ba2fd794d47c5d3f19171f77803"
+          },
+          "VI": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vi-autotrasporti-per-conto-terzi_1.pdf",
+            "sha256": "62c39abfc260ecacf59b0201867263499643fe5dc36c95500e380fa53deb87aa"
+          },
+          "VII": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vii-guardiania-dei-cantieri.pdf",
+            "sha256": "35c5ef5ddb218e50d1f5a56007f2c1886ac73b6a91c5a13fb37e4b7f4952d2c8"
+          },
+          "VIII": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-08/sez-viii-servizi-funerari-e-cimiteriali.pdf",
+            "sha256": "cac3354a388d87b3f7ee1fef965f7b9968d2fea4dfcbafa776fc175bee5d96b3"
+          },
+          "IX": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ix-ristorazione-mense-e-catering.pdf",
+            "sha256": "a3b7c0b749be947692cb6ebb031e21e6c2e61913f34c1ad9f4741f3a7b9e96fa"
+          },
+          "X": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-x-servizi-ambientali-trasporto-rifiuti-etc_0.pdf",
+            "sha256": "af639b5c55ff31893bfd3906876e0c60e1e6614065efae1e5c7871ac62290c0f"
+          }
+        },
+        "expected_source_rows": 401,
+        "notes": "Sections I-X are acquired and hash-verified independently before parsing. The fail-closed parser freezes 595 physical sector rows into 401 compatible logical observations: 335 listed, 65 renewal/update in progress and 1 other/unknown; 234 logical records carry strict structured identifiers. Multi-sector provenance and conflicting date/status identities are preserved."
       },
-      "II": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ii-confezionamento-fornitura-etc_0.pdf",
-        "sha256": "62d63a080b3025e2ee2f37c3af1d486f12095be8f83e73cae611e2ca56bf84d5"
-      },
-      "III": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iii-noli-a-freddo-di-macchinari.pdf",
-        "sha256": "2204fe651b733e32fe13f001c97fd2c6a93ccd9a846cc9f4ddd40d4f471e6ce9"
-      },
-      "IV": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-iv-fornitura-di-ferro-lavorato_0.pdf",
-        "sha256": "55a1edd7bcc52de101536c42091e14e040892cf1122462c36b37a861c48eeb62"
-      },
-      "V": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-v-noli-a-caldo_0.pdf",
-        "sha256": "4fcd95954d20ba19ffcfb11e64a911a637056ba2fd794d47c5d3f19171f77803"
-      },
-      "VI": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vi-autotrasporti-per-conto-terzi_1.pdf",
-        "sha256": "62c39abfc260ecacf59b0201867263499643fe5dc36c95500e380fa53deb87aa"
-      },
-      "VII": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-vii-guardiania-dei-cantieri.pdf",
-        "sha256": "35c5ef5ddb218e50d1f5a56007f2c1886ac73b6a91c5a13fb37e4b7f4952d2c8"
-      },
-      "VIII": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-08/sez-viii-servizi-funerari-e-cimiteriali.pdf",
-        "sha256": "cac3354a388d87b3f7ee1fef965f7b9968d2fea4dfcbafa776fc175bee5d96b3"
-      },
-      "IX": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-ix-ristorazione-mense-e-catering.pdf",
-        "sha256": "a3b7c0b749be947692cb6ebb031e21e6c2e61913f34c1ad9f4741f3a7b9e96fa"
-      },
-      "X": {
-        "resource_url": "https://prefettura.interno.gov.it/sites/default/files/74/2026-09/sez-x-servizi-ambientali-trasporto-rifiuti-etc_0.pdf",
-        "sha256": "af639b5c55ff31893bfd3906876e0c60e1e6614065efae1e5c7871ac62290c0f"
-      }
+      "records_sha256": "50af2bd4a97425bbe52b14f21887f64380510438d0594731c05affa09bda1869",
+      "report_sha256": "61f72eb349f24193bdce83f63455ed2e8beaca28ff421b598dfc0d5814962f81"
     },
-    "expected_source_rows": 401,
-    "notes": "Sections I-X are acquired and hash-verified independently before parsing. The fail-closed parser freezes 595 physical sector rows into 401 compatible logical observations: 335 listed, 65 renewal/update in progress and 1 other/unknown; 234 logical records carry strict structured identifiers. Multi-sector provenance and conflicting date/status identities are preserved."
-  },
-  "records_sha256": "50af2bd4a97425bbe52b14f21887f64380510438d0594731c05affa09bda1869",
-  "report_sha256": "61f72eb349f24193bdce83f63455ed2e8beaca28ff421b598dfc0d5814962f81"
+    {
+      "schema_version": 2,
+      "snapshot_tag": "public-data-43524455108-1",
+      "purpose": "Preserve only the exact already approved Ferrara reconstruction public observations and original verification report across national release tags. No source recheck, reinterpretation, edition approval or refreshed date.",
+      "source": {
+        "authority_key": "ferrara",
+        "authority_name": "Prefettura di Ferrara",
+        "approval_mode": "raw_sha256",
+        "reference_date": "2026-09-20",
+        "last_source_update": "2026-08-24",
+        "last_source_update_basis": "page-rendered update metadata observed on the official current series page; the registry reference_date remains the 20 September 2026 verified-capture boundary and is not a company legal-effect date",
+        "register_key": "ferrara-reconstruction",
+        "register_name": "White List ricostruzione",
+        "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte",
+        "source_key": "ferrara-reconstruction-listed",
+        "parser": "ferrara-reconstruction-listed",
+        "population_scope": "listed",
+        "resource_url": "https://prefettura.interno.gov.it/it/prefetture/ferrara/white-list-ricostruzione-elenco-imprese-iscritte",
+        "sha256": "bundle:f3d9093a8859e082ed304b1342ab7a3ae687f7735da04b3d363bbe7440543283",
+        "resources": {
+          "A": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-a-fornitura-moduli-prefabbricati-e-dei-relativi-arredi_is_0.pdf",
+            "sha256": "4fdf292b1538892c7b5ff79d3c0c14e0ed3b5830effb791316b0fddb8c90ae01"
+          },
+          "B": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-b-demolizione-di-edifici-ed-altre-strutture_is_0.pdf",
+            "sha256": "97d9af0d587af0b7d93d31df33bd612440bf5be5b48b57872d436e2afeb164ec"
+          },
+          "C": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-c-movimenti-di-terra_is_0.pdf",
+            "sha256": "99f519101dccff84dddd9753f0d6fa27170c33b1982858afe9fdf9ebbc63c57e"
+          },
+          "D": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-d-noleggio-con-coducente-mezzi-speciali_is_0.pdf",
+            "sha256": "07c27b38e48a879aa0d1efff4710bf7dbbf1bb323e59f62eb0b0b796a75a46d8"
+          },
+          "E": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-e-fornitura-e-posa-in-opera-impianti-fotovoltaici_is_0.pdf",
+            "sha256": "9cea950d37f653d0356edb9a46a7f43665a382e771c969bc93f7027f95fecf9e"
+          },
+          "F": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-f-fornitura-e-manutenzione-impianti-tecnologici_is_0.pdf",
+            "sha256": "ac7dd77f1c4633c27a62c0ad7e074f507a10b091a327c2fc1072cfb52fd45664"
+          },
+          "G": {
+            "resource_url": "https://prefettura.interno.gov.it/sites/default/files/0/2026-08/h-bis-g-fornitura-beni-necessari-ricostruzione_is_0.pdf",
+            "sha256": "0657c7e0f0b9fb8ad7f0b341682716d695132e61131adc92407627a5cae82bae"
+          }
+        },
+        "expected_source_rows": 694,
+        "notes": "Seven official reconstruction sector PDFs A-G are acquired and SHA-256 verified independently before parsing. Their deterministic ordered hash bundle identifies the logical source edition. The parser freezes 1,161 physical sector observations into 694 compatible logical observations (539 listed, 153 renewal/update in progress, 2 other/unknown) without collapsing conflicting date/status identities."
+      },
+      "records_sha256": "d6242512025755a57815a09cde740bd3ca43991105fe71d08336b7911c2fb6dd",
+      "report_sha256": "f9c9a1c8432a1ff483eaddbf89df8f25ed61c5d766a79ea39ef105fbd875e0ae"
+    }
+  ]
 }
