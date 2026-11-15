@@ -52,6 +52,15 @@ def test_independent_source_census_rejects_what_the_legacy_parser_silently_skips
         review.inspect(path, cfg, checked_at='2026-11-15T12:00:00Z')
 
 
+def test_exact_authority_caption_is_metadata_only_without_other_cell_values(tmp_path, monkeypatch):
+    path, cfg = fixture(tmp_path, monkeypatch)
+    path.write_text(path.read_text().replace('<table>', '<table><tr><td>Prefettura di Como</td><td></td></tr>'))
+    assert review.como_complete_physical_rows(path, 'applicant') == 1
+    path.write_text(path.read_text().replace('<td>Prefettura di Como</td><td>', '<td>Prefettura di Como</td><td>UNREVIEWED VALUE'))
+    with pytest.raises(ValueError, match='Unclassified'):
+        review.como_complete_physical_rows(path, 'applicant')
+
+
 def test_source_review_failure_never_prints_original_values_or_exception_messages(monkeypatch, capsys):
     def fail(*_):
         raise ValueError('PRIVATE SOURCE VALUES')
