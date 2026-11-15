@@ -10,8 +10,11 @@ from white_list_archive.acquisition.auto_transform import private_connection, pe
 
 # Fixed names only: SQL identifiers are never supplied by a caller.
 TABLES = {
+    "source_series": "source.source_series",
     "captures": "source.source_capture",
     "content_objects": "source.content_object",
+    "parse_runs": "source.parse_run",
+    "parse_run_inputs": "source.parse_run_input",
     "snapshots": "source.parse_snapshot",
     "capture_interpretation_links": "source.capture_parse_run",
     "parsed_records": "source.parsed_record",
@@ -67,8 +70,71 @@ def collect_checkpoint(conn, *, code_revision: str) -> dict:
             metrics["snapshot_count_mismatches"] = {
                 "numerator": int(mismatches), "denominator": metrics["snapshots"]["value"],
                 "status": "verified", "origin": "stored record_count versus JSON array length",
+                "integrity_status": "failed" if mismatches else "passed",
                 "scope": "structural count check; not a canonical SHA-256 rehash",
             }
+        if all(metrics[k]["status"] == "verified" for k in ("parse_runs", "snapshots")):
+            metrics["parse_run_snapshot_coverage"] = {
+                "numerator": metrics["snapshots"]["value"],
+                "denominator": metrics["parse_runs"]["value"],
+                "status": "verified", "origin": "source.parse_snapshot / source.parse_run",
+                "unit": "interpretation_runs", "scope": "persisted snapshots; not edition approval",
+            }
+        else:
+            metrics["parse_run_snapshot_coverage"] = {
+                "numerator": None, "denominator": metrics["parse_runs"].get("value"),
+                "status": "not_verified", "reason": "reader_unavailable",
+                "origin": "source.parse_snapshot / source.parse_run",
+            }
+        required = ("captures", "capture_interpretation_links", "parse_run_inputs", "snapshots")
+        if all(metrics[k]["status"] == "verified" for k in required):
+            # The primary parse_run anchor is insufficient for a bundle: match
+            # the exact input label before counting a capture as interpreted.
+            cur.execute("""SELECT count(*), count(DISTINCT c.series_id)
+                           FROM source.source_capture c
+                           WHERE EXISTS (
+                               SELECT 1 FROM source.capture_parse_run cp
+                               JOIN source.parse_run_input i
+                                 ON i.parse_run_id=cp.parse_run_id AND i.input_label=cp.input_label
+                               JOIN source.parse_snapshot s ON s.parse_run_id=cp.parse_run_id
+                               WHERE cp.capture_id=c.capture_id
+                                 AND i.content_object_id=c.content_object_id)""")
+            interpreted_captures, interpreted_series = cur.fetchone()
+            metrics["capture_interpretation_coverage"] = {
+                "numerator": int(interpreted_captures), "denominator": metrics["captures"]["value"],
+                "status": "verified", "unit": "captures",
+                "origin": "source.source_capture / labelled parse input / persisted snapshot",
+                "scope": "any persisted interpretation revision; not latest-version or approval coverage",
+            }
+            metrics["series_interpretation_coverage"] = {
+                "numerator": int(interpreted_series), "denominator": metrics["source_series"].get("value"),
+                "status": "verified" if metrics["source_series"]["status"] == "verified" else "not_verified",
+                "unit": "registered_source_series", "origin": "distinct source.source_capture.series_id",
+                "scope": "at least one interpreted capture; not complete historical coverage",
+            }
+            if metrics["series_interpretation_coverage"]["status"] == "not_verified":
+                metrics["series_interpretation_coverage"]["reason"] = "denominator_reader_unavailable"
+            cur.execute("""SELECT count(*) FROM source.capture_parse_run cp
+                           LEFT JOIN source.source_capture c ON c.capture_id=cp.capture_id
+                           LEFT JOIN source.parse_run_input i
+                             ON i.parse_run_id=cp.parse_run_id AND i.input_label=cp.input_label
+                           WHERE c.content_object_id IS NULL OR i.content_object_id IS NULL
+                              OR c.content_object_id IS DISTINCT FROM i.content_object_id""")
+            mismatches = int(cur.fetchone()[0])
+            metrics["capture_parse_input_mismatches"] = {
+                "numerator": mismatches,
+                "denominator": metrics["capture_interpretation_links"]["value"],
+                "status": "verified", "integrity_status": "failed" if mismatches else "passed",
+                "unit": "capture_interpretation_links",
+                "origin": "capture ContentObject versus exact labelled parse_run_input ContentObject",
+            }
+        else:
+            for key, denominator in (("capture_interpretation_coverage", "captures"),
+                                     ("series_interpretation_coverage", "source_series"),
+                                     ("capture_parse_input_mismatches", "capture_interpretation_links")):
+                metrics[key] = {"numerator": None, "denominator": metrics[denominator].get("value"),
+                                "status": "not_verified", "reason": "reader_unavailable",
+                                "origin": "labelled capture/parse/snapshot relational check"}
     return {"kind": "private-production-checkpoint", "schema_version": 1,
             "code_revision": code_revision, "checked_at": checked_at,
             "metrics": metrics, "publications": 0,
@@ -90,11 +156,13 @@ def main(argv=None) -> int:
         # Database/provider errors can contain private coordinates or queries.
         print(json.dumps({"checkpoint_persisted": False, "publications": 0}))
         return 1
+    failed_integrity_checks = sum(m.get("integrity_status") == "failed" for m in report["metrics"].values())
     print(json.dumps({"checkpoint_persisted": True,
                       "verified_metrics": sum(m["status"] == "verified" for m in report["metrics"].values()),
                       "unverified_metrics": sum(m["status"] != "verified" for m in report["metrics"].values()),
+                      "failed_integrity_checks": failed_integrity_checks,
                       "publications": 0}, sort_keys=True))
-    return 0
+    return int(failed_integrity_checks > 0)
 
 
 if __name__ == "__main__":
