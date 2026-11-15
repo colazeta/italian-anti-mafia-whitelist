@@ -22019,6 +22019,16 @@
       "checked_at": "2026-11-15T16:26:55+00:00",
       "edition_id": "db55492b03a8b86c6f9780f675d2332d261efe83679300b647f001e1640fc7db",
       "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-15T16:38:13+00:00",
+      "edition_id": "8d90c309e7b65152b49c7a5e95b080fe614eba8f3d4a9aeebbf4f2b6da26cc8d",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-15T16:38:13+00:00",
+      "edition_id": "fdb9feec4b5cd9857b99195d40e6a87ce53819e2fef0ce10af423635d118025d",
+      "kind": "approved_document_verification"
     }
   ],
   "comparisons": [
@@ -25240,6 +25250,29 @@
     {
       "authority_key": "como",
       "authority_name": "Prefettura di Como",
+      "data_fingerprint": "e71be6fe137d47beb3c25209200012d07f60d6273f09ef4a1eaf77ba4d9dec0d",
+      "document_sha256": "afd73b6ee1286a4a4d8ac1cd26f2b44214c5b69150f87409bc612cdbc2241d8a",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "8d90c309e7b65152b49c7a5e95b080fe614eba8f3d4a9aeebbf4f2b6da26cc8d",
+      "parser_signature": "como_html_applicants@2",
+      "population_scope": "applicant",
+      "reference_date": "2026-11-10",
+      "reference_date_raw": "2026-11-10",
+      "register_key": "como-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+      "source_key": "como-applicants",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
+      "status_counts": {
+        "pending": 18
+      },
+      "total": 18
+    },
+    {
+      "authority_key": "como",
+      "authority_name": "Prefettura di Como",
       "data_fingerprint": "e8d24dca0b76c70d84f1e1fcbb12e3bceae8356e3825f15db2df7fc863ff9b12",
       "document_sha256": "4274d624b8087f655681a773661bad67ad40277023d98fdc72f842b1a7e89bee",
       "evidence": [
@@ -25644,6 +25677,30 @@
         "renewal_update_in_progress": 32
       },
       "total": 391
+    },
+    {
+      "authority_key": "como",
+      "authority_name": "Prefettura di Como",
+      "data_fingerprint": "a8f4cfc645f2cc148087b00e28a561820504653e1ab705c3a9f21c7b5abb87f6",
+      "document_sha256": "f8ea7067f3e2218d9e5b9ff1994dc6f30ba8fca3518ee39cde4a5af7b4733900",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "fdb9feec4b5cd9857b99195d40e6a87ce53819e2fef0ce10af423635d118025d",
+      "parser_signature": "como_html_listed@2",
+      "population_scope": "listed",
+      "reference_date": "2026-11-10",
+      "reference_date_raw": "2026-11-10",
+      "register_key": "como-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
+      "source_key": "como-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
+      "status_counts": {
+        "listed": 361,
+        "renewal_update_in_progress": 39
+      },
+      "total": 400
     },
     {
       "authority_key": "cosenza",
