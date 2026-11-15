@@ -113,6 +113,15 @@ def biella_complete_physical_rows(path: Path, population: str) -> int:
     return candidates
 
 
+class ComoCensusError(ValueError):
+    """Safe structural diagnostics, never source cell values."""
+    def __init__(self, message, values):
+        super().__init__(message)
+        self.metadata = {'row_width': len(values), 'nonempty_cells': sum(bool(v) for v in values),
+                         'first_cell_sha256': hashlib.sha256(values[0].encode()).hexdigest(),
+                         'is_authority_heading': values[0].casefold() == 'prefettura di como'}
+
+
 def como_complete_physical_rows(path: Path, population: str) -> int:
     """Classify every nonempty row, including rows the family would skip."""
     from white_list_archive.parsers import como_html as family
@@ -134,11 +143,11 @@ def como_complete_physical_rows(path: Path, population: str) -> int:
             continue
         if len(values) == 8 and values[0].casefold() == label:
             if not values[1].isdigit() or any(values[2:]):
-                raise ValueError("Unclassified Como source counter")
+                raise ComoCensusError("Unclassified Como source counter", values)
             summaries += 1
             continue
         if len(values) != 8 or not values[0] or not any(values[1:]):
-            raise ValueError("Unclassified nonempty Como physical row")
+            raise ComoCensusError("Unclassified nonempty Como physical row", values)
         rows += 1
     if not rows or summaries != 1:
         raise ValueError("Incomplete Como physical source census")

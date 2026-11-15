@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 
-from white_list_archive.acquisition.release_readiness import como_complete_physical_rows, explicit_update_date
+from white_list_archive.acquisition.release_readiness import ComoCensusError, como_complete_physical_rows, explicit_update_date
 from white_list_archive.publishing.incremental_audit import _digest
 from white_list_archive.publishing.public_contract import public_record
 from white_list_archive.publishing.public_national_registry import _download, _parse_source, _semantic_digest
@@ -53,7 +53,9 @@ def inspect(path, cfg, *, checked_at):
     try:
         physical = como_complete_physical_rows(path, cfg['population_scope'])
     except ValueError as exc:
-        raise SourceReviewError('physical_census_rejected', 'Unclassified physical source row') from exc
+        failure = SourceReviewError('physical_census_rejected', 'Unclassified physical source row')
+        failure.metadata = exc.metadata if isinstance(exc, ComoCensusError) else {}
+        raise failure from exc
     if (physical != profile['records'] or len(batch.records) != physical
             or batch.diagnostics.get('source_rows') != physical
             or batch.diagnostics.get('parser') != expected_parser
@@ -97,6 +99,7 @@ def main():
                 result.append({'source_key': cfg['source_key'], 'status': 'requires_source_review',
                                'error_type': type(exc).__name__,
                                'failure_code': exc.code if isinstance(exc, SourceReviewError) else 'operation_failed',
+                               'structure': getattr(exc, 'metadata', {}),
                                **metadata, 'approval_granted': False})
     print(json.dumps({'sources': result, 'publications': 0, 'approval_granted': False}, sort_keys=True))
     return int(failed)
