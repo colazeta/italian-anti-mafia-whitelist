@@ -24,8 +24,10 @@ def test_reviewed_configuration_has_exact_both_populations_and_pinned_archive_or
     assert {s['approval_mode'] for s in selected} == {'raw_sha256'}
     preserved = set(json.loads((ROOT/'data/publication/preserved_public_sources.json').read_text()))
     all_keys = {s['source_key'] for s in json.loads((ROOT/'data/publication/multi_prefecture_pilot.json').read_text())['sources']}
-    assert preserved == all_keys - set(review.PROFILES)
-    assert len(preserved) == 140
+    intent = ROOT/'data/publication/incremental_release_intent.json'
+    updates = set(json.loads(intent.read_text())['changes']) if intent.exists() else set(review.PROFILES)
+    assert updates and updates <= all_keys
+    assert preserved == all_keys - updates
 
 
 def test_full_source_profile_rejects_new_bytes_dates_parser_and_semantics(tmp_path, monkeypatch):

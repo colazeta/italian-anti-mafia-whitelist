@@ -13,6 +13,8 @@ on:
       - 'data/publication/approved_semantic_public_derivative.json'
       - 'src/white_list_archive/publishing/public_candidate_gate.py'
       - 'src/white_list_archive/publishing/biella_review.py'
+      - 'src/white_list_archive/publishing/como_review.py'
+      - 'scripts/qualify_como_candidate.py'
       - 'data/source_registry/verified_primary_pages.csv'
       - 'data/source_registry/source_series_inventory.csv'
       - 'data/source_registry/national_index_authority_aliases.csv'
@@ -99,6 +101,8 @@ on:
       - '.github/workflows/public-registry-review.yml'
   pull_request:
     paths:
+      - 'src/white_list_archive/publishing/como_review.py'
+      - 'scripts/qualify_como_candidate.py'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'data/publication/incremental_release_intent.json'
       - 'src/white_list_archive/publishing/publication_handoff.py'
@@ -188,6 +192,9 @@ jobs:
       - name: Verify Perugia November public candidate is an exact incremental delta
         if: ${{ startsWith(github.head_ref, 'candidate/perugia-') || github.ref == 'refs/heads/main' }}
         run: python scripts/audit_perugia_public_candidate.py
+      - name: Qualify the reviewed Como November originals and complete public values
+        if: ${{ startsWith(github.head_ref, 'candidate/como-') || github.ref == 'refs/heads/main' }}
+        run: python scripts/qualify_como_candidate.py --reviewed-config
       - name: Verify Catania November public candidate is an exact incremental delta
         if: ${{ github.event_name == 'pull_request' && startsWith(github.head_ref, 'candidate/catania-') }}
         run: python scripts/audit_catania_public_candidate.py
