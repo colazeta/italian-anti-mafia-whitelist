@@ -237,10 +237,14 @@ def test_taranto_census_never_promotes_source_observations(monkeypatch, tmp_path
     from white_list_archive.publishing.publication_handoff import records_digest
     from white_list_archive.publishing.public_contract import public_record
     from white_list_archive.publishing.public_national_registry import _parse_source
-    original = tmp_path / "original.html"
+    original = tmp_path / "source.html"
     original.write_bytes(raw)
+    # The verified input uses the exact capture hash, not the legacy
+    # configuration hash. Check the same source identity as the producer.
+    pinned_config = readiness.transform._parse_config(job)
+    pinned_config["reference_date"] = result["reference_date"]
     expected_records = [public_record(row) for row in _parse_source(
-        original, {**cfg, "reference_date": "2026-11-06"}).records]
+        original, pinned_config).records]
     assert result["public_records_sha256"] == records_digest(expected_records)
     assert result["blank_names"] == sum(not row["name"] for row in expected_records)
     assert result["blank_activities"] == sum(not row["requested_activities"] for row in expected_records)
