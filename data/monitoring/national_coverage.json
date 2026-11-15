@@ -1863,7 +1863,7 @@
       "public_export_enabled": true,
       "durable_evidence_verified": false,
       "population_scopes_complete": true,
-      "latest_source_reference_date": "2026-09-10",
+      "latest_source_reference_date": "2026-11-10",
       "latest_archived_edition": null,
       "archived_evidence_storage_status": "not_documented",
       "last_successful_source_check_at": "2026-09-17T10:27:10Z",
@@ -1901,21 +1901,21 @@
           "source_key": "como-applicants",
           "register_key": "como-ordinary",
           "population_scope": "applicant",
-          "reference_date": "2026-09-10",
-          "sha256": "5b063838e0fe9c40413bbeb789b4ebce660b605f9f9735df9b40152ba838bfec",
+          "reference_date": "2026-11-10",
+          "sha256": "afd73b6ee1286a4a4d8ac1cd26f2b44214c5b69150f87409bc612cdbc2241d8a",
           "parser": "como_html_applicants"
         },
         {
           "source_key": "como-listed",
           "register_key": "como-ordinary",
           "population_scope": "listed",
-          "reference_date": "2026-09-10",
-          "sha256": "bbb3920c70f9ff7af1c3d7a3322e484ff6858207fba0d1687468df9109be5511",
+          "reference_date": "2026-11-10",
+          "sha256": "f8ea7067f3e2218d9e5b9ff1994dc6f30ba8fca3518ee39cde4a5af7b4733900",
           "parser": "como_html_listed"
         }
       ],
-      "selected_public_source_presences": 409,
-      "latest_selected_public_reference_date": "2026-09-10"
+      "selected_public_source_presences": 418,
+      "latest_selected_public_reference_date": "2026-11-10"
     },
     {
       "authority_key": "cosenza",
@@ -6558,9 +6558,9 @@
     }
   ],
   "selected_publication": {
-    "release_tag": "public-data-43725882600-1",
-    "registry_sha256": "cd8f12215b73934606ed88399de7ad2a8fc6aa7032ae3f48fb8d8f7f57f82526",
-    "source_presences": 74487,
+    "release_tag": "public-data-43736522316-1",
+    "registry_sha256": "45ae107ff8396cd46748ef0542bbb16d1a6eeea14c5dc1496888fc8c7ba87713",
+    "source_presences": 74496,
     "authority_count": 74,
     "register_count": 77,
     "source_count": 142,
