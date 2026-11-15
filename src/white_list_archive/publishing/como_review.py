@@ -21,6 +21,27 @@ PINS = {
         'semantic_sha256': 'e930da7209455cc8aaa1fc9fb81f21da50888dc7988e6b890c56426a8298a739'},
 }
 REFERENCE_DATE = '2026-11-10'
+PUBLIC_RECORD_DIGESTS = {
+    'como-listed': '7885debb230c6c2aeed598bfc4896850c2a6905583215cb8757ef91983b773d9',
+    'como-applicants': '1d22f1b410bebb25ed2e9659890da70b03db91a6fee736d5e5d576d2dfd928fc',
+}
+
+
+def qualify_configuration(cfg):
+    """Bind a production review to the independently qualified November edition."""
+    key = cfg.get('source_key')
+    if key not in PINS:
+        raise ValueError('Unreviewed Como source key')
+    population = 'listed' if key == 'como-listed' else 'applicant'
+    parser = 'como_html_' + ('listed' if population == 'listed' else 'applicants')
+    slug = 'elenco-ditte-iscritte-white-list' if population == 'listed' else 'elenco-ditte-fase-iscrizione-white-list'
+    url = 'https://prefettura.interno.gov.it/it/prefetture/como/' + slug
+    expected = {'authority_key': 'como', 'register_key': 'como-ordinary', 'population_scope': population,
+                'parser': parser, 'source_page_url': url, 'resource_url': url, 'approval_mode': 'raw_sha256',
+                'reference_date': REFERENCE_DATE, 'sha256': PINS[key]['sha256'],
+                'semantic_sha256': PINS[key]['semantic_sha256'], 'expected_source_rows': PINS[key]['records']}
+    if cfg.get('resources') is not None or any(cfg.get(k) != v for k, v in expected.items()):
+        raise ValueError('Como reviewed configuration binding drift')
 
 
 class SourceReviewError(ValueError):
@@ -78,7 +99,7 @@ def inspect(path, cfg, *, checked_at):
             'approval_granted': False, 'publications': 0}
 
 
-def main():
+def main(*, reviewed_config=False):
     config = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
     selected = [s for s in config['sources'] if s['authority_key'] == 'como']
     if {s['source_key'] for s in selected} != set(PINS):
@@ -89,11 +110,16 @@ def main():
         for cfg in selected:
             metadata = {}
             try:
+                if reviewed_config:
+                    qualify_configuration(cfg)
                 path = Path(td)/(cfg['source_key'] + '.html')
                 _download(cfg['resource_url'], path)
                 metadata = {'downloaded_sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
                             'downloaded_bytes': path.stat().st_size}
-                result.append(inspect(path, cfg, checked_at=datetime.now(timezone.utc).isoformat()))
+                summary = inspect(path, cfg, checked_at=datetime.now(timezone.utc).isoformat())
+                if reviewed_config and summary['public_records_sha256'] != PUBLIC_RECORD_DIGESTS[cfg['source_key']]:
+                    raise SourceReviewError('public_records_mismatch', 'Complete public-record digest differs')
+                result.append(summary)
             except Exception as exc:
                 failed = True
                 result.append({'source_key': cfg['source_key'], 'status': 'requires_source_review',

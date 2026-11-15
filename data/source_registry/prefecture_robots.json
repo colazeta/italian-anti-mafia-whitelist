@@ -881,7 +881,7 @@
           "population_scope": "listed",
           "parser": "como_html_listed",
           "url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-iscritte-white-list",
-          "approved_sha256": "276fcec3a27893b0b57af24ff8d69ebb64338fd5bc955e4722bd48eb33535413"
+          "approved_sha256": "f8ea7067f3e2218d9e5b9ff1994dc6f30ba8fca3518ee39cde4a5af7b4733900"
         },
         {
           "source_key": "como-applicants",
@@ -889,7 +889,7 @@
           "population_scope": "applicant",
           "parser": "como_html_applicants",
           "url": "https://prefettura.interno.gov.it/it/prefetture/como/elenco-ditte-fase-iscrizione-white-list",
-          "approved_sha256": "a4ed63b8e04a277af0221288c40552027437c31064d89ddbc44da432eada42c7"
+          "approved_sha256": "afd73b6ee1286a4a4d8ac1cd26f2b44214c5b69150f87409bc612cdbc2241d8a"
         }
       ],
       "population_mapping_reviewed": true,
