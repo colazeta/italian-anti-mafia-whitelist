@@ -27,7 +27,14 @@ def test_reviewed_configuration_has_exact_both_populations_and_pinned_archive_or
     intent = ROOT/'data/publication/incremental_release_intent.json'
     updates = set(json.loads(intent.read_text())['changes']) if intent.exists() else set(review.PROFILES)
     assert updates and updates <= all_keys
-    assert preserved == all_keys - updates
+    from white_list_archive.publishing.publication_handoff import _digest
+    selected = json.loads((ROOT/'data/publication/public_snapshot.json').read_text())
+    # A finite intent for a prior selected baseline is historical evidence,
+    # not an instruction to refetch an already published mutable source.
+    if json.loads(intent.read_text())['baseline_manifest_sha256'] == _digest(selected):
+        assert preserved == all_keys - updates
+    else:
+        assert preserved == all_keys
 
 
 def test_full_source_profile_rejects_new_bytes_dates_parser_and_semantics(tmp_path, monkeypatch):
