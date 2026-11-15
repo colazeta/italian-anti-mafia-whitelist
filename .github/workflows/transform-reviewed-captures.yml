@@ -8,6 +8,7 @@ on:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
       - 'src/white_list_archive/acquisition/approved_snapshot_backfill.py'
+      - 'src/white_list_archive/acquisition/ascoli_private_source_qa.py'
       - 'src/white_list_archive/acquisition/candidate_extract.py'
       - 'src/white_list_archive/acquisition/catania_november13_archive_qa.py'
       - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
@@ -126,6 +127,9 @@ jobs:
       - name: Qualify exact historical Lodi bytes with reviewed strict parsers (source-only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.historical_source_qualification
+      - name: Qualify exact Ascoli comprehensive original and immutable catalogue (read-only)
+        if: matrix.shard == 0
+        run: python -m white_list_archive.acquisition.ascoli_private_source_qa
       - name: Check exact Catania 13 November candidate originals (read-only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.catania_november13_archive_qa
@@ -149,7 +153,7 @@ jobs:
         run: python -m white_list_archive.storage.historical_capture_reconciliation
       - name: Validate transformer and candidate-extraction selection contracts
         id: transform-contracts
-        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_catania_tail_private_review.py tests/test_catania_capture_provenance_audit.py tests/test_approved_snapshot_backfill.py
+        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_catania_tail_private_review.py tests/test_catania_capture_provenance_audit.py tests/test_approved_snapshot_backfill.py tests/test_ascoli_private_source_qa.py
       - name: Load safe current capture index
         id: load-capture-index
         run: |

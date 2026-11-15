@@ -62,3 +62,25 @@ approval remain separate, explicit gates.
 This review does not change the selected national release and does not
 resolve the other 17 manifest-to-database exact-input gaps. It is not an
 executed independent recovery test.
+
+## Exact primary-original and physical-parser QA (15 November 2026)
+
+The new read-only `acquisition.ascoli_private_source_qa` compares the frozen
+`ascoli-piceno-listed` public descriptor with the reviewed
+`ascoli-piceno-listed-comprehensive` source series. It reads the entire
+474,484-byte original from the existing primary R2 content-addressed store,
+checks the full SHA-256 again and executes the existing strict 110-page
+`ascoli_piceno_listed` parser in a transient private directory. It independently
+requires 544 source occurrences, 448 explicit listed states, 96 explicit
+update-in-progress states, source section fields, identifier coverage and
+source-backed decision/expiry dates, without displaying original text or rows.
+
+In the same protected step it *independently* audits pre-existing immutable
+CaptureCatalogue entries for that exact registered comprehensive series and
+digest, with bounded listing and full original readback. A successful parser
+check must never substitute for an authentic capture record or PostgreSQL
+snapshot; an unknown catalogue result remains unknown. This audit creates no
+capture, parser snapshot, SourceEdition, semantic/canonical observation, alias
+binding or public promotion. Review the real job receipt and a separate Neon
+readback before claiming production acceptance. The original public release
+selector is unchanged. The verification is not an independent backup/restore.
