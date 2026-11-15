@@ -47,11 +47,18 @@ def _exact_catalogued_manifest(store: Any) -> dict:
         capture_id = _valid_capture_key(item.get("Key"), source_key=REGISTERED_KEY)
         if capture_id is None:
             raise ValueError("Malformed registered capture catalogue key")
+        # Other revisions may be old catalogue formats: they do not need to
+        # pass a modern manifest gate to identify the ONE frozen SHA target.
+        # Never infer absence from an unreadable listing or candidate record.
+        _, record = catalogue._read_record(item["Key"])
+        if record.get("sha256") != APPROVED_SHA256:
+            continue
         manifest, _ = load_catalogued_capture(
             catalogue, source_key=REGISTERED_KEY, capture_id=capture_id,
         )
-        if manifest["sha256"] == APPROVED_SHA256:
-            matches.append(manifest)
+        if manifest["sha256"] != APPROVED_SHA256:
+            raise ValueError("Stored catalogue target digest changed")
+        matches.append(manifest)
     if len(matches) != 1:
         raise ValueError("Exactly one immutable Ascoli original is required")
     return matches[0]
