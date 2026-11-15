@@ -139,9 +139,10 @@ def como_complete_physical_rows(path: Path, population: str) -> int:
             continue
         if values[0].casefold() == title.casefold() and not any(values[1:]):
             continue
-        # Both independently pinned November originals have a two-cell
-        # authority caption. It is metadata only when every other cell is empty.
-        if len(values) == 2 and values[0].casefold() == 'prefettura di como' and not values[1]:
+        # Both independently pinned November originals have these two-cell
+        # authority captions (SHA2565cd7775c... and089e6344...). Empty tails only.
+        if len(values) == 2 and values[0].casefold() in {
+                'prefettura di como', 'ufficio territoriale del governo'} and not values[1]:
             continue
         if len(values) == 8 and family._fold(values) == header:
             continue

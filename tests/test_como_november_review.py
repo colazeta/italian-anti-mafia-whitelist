@@ -54,7 +54,7 @@ def test_independent_source_census_rejects_what_the_legacy_parser_silently_skips
 
 def test_exact_authority_caption_is_metadata_only_without_other_cell_values(tmp_path, monkeypatch):
     path, cfg = fixture(tmp_path, monkeypatch)
-    path.write_text(path.read_text().replace('<table>', '<table><tr><td>Prefettura di Como</td><td></td></tr>'))
+    path.write_text(path.read_text().replace('<table>', '<table><tr><td>Prefettura di Como</td><td></td></tr><tr><td>Ufficio Territoriale del Governo</td><td></td></tr>'))
     assert review.como_complete_physical_rows(path, 'applicant') == 1
     path.write_text(path.read_text().replace('<td>Prefettura di Como</td><td>', '<td>Prefettura di Como</td><td>UNREVIEWED VALUE'))
     with pytest.raises(ValueError, match='Unclassified'):
