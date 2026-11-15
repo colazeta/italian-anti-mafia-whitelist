@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/publication/incremental_release_intent.json'
+      - 'src/white_list_archive/publishing/publication_handoff.py'
+      - 'src/white_list_archive/acquisition/release_readiness.py'
       - 'data/publication/preserved_public_sources.json'
       - 'data/publication/approved_semantic_public_derivative.json'
       - 'src/white_list_archive/publishing/public_candidate_gate.py'
@@ -97,6 +100,9 @@ on:
   pull_request:
     paths:
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/publication/incremental_release_intent.json'
+      - 'src/white_list_archive/publishing/publication_handoff.py'
+      - 'src/white_list_archive/acquisition/release_readiness.py'
       - 'data/publication/preserved_public_sources.json'
       - 'data/publication/approved_semantic_public_derivative.json'
       - 'src/white_list_archive/publishing/public_candidate_gate.py'
@@ -928,19 +934,37 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Resolve the successful build artifact across preserve-only retries
+        id: public-build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: src
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" > "$RUNNER_TEMP/public-artifacts.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from white_list_archive.publishing.publication_handoff import choose_build_artifact
+          artifact = choose_build_artifact(json.loads(Path(os.environ['RUNNER_TEMP'], 'public-artifacts.json').read_text())['artifacts'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('artifact_name=' + artifact + '\n')
+          PY
       - uses: actions/download-artifact@v4
         with:
-          name: public-portal-review-attempt-${{ github.run_attempt }}
+          name: ${{ steps.public-build.outputs.artifact_name }}
           path: public-site/
-      - name: Preserve the validated public candidate without changing the live selector
+      - name: Preserve validated derivatives and prepare the governed selector handoff
         env:
           GH_TOKEN: ${{ github.token }}
           PYTHONPATH: src
           RELEASE_TAG: public-data-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
+          set -euo pipefail
           python -m white_list_archive.publishing.public_snapshot pack --output /tmp/public-registry-release --tag "$RELEASE_TAG"
           # A fixed five-file, SHA-pinned PUBLIC derivative manifest. Expose
           # only aggregate release metadata for an exact reviewed selector PR;
@@ -952,9 +976,34 @@ jobs:
           assert set(manifest['files'])=={'registry.json','registry.csv','history.json','prefectures.json','prefectures.csv'}
           print('PUBLIC_REVIEW_MANIFEST_JSON='+json.dumps(manifest,sort_keys=True))
           PY
-          gh release create "$RELEASE_TAG" /tmp/public-registry-release/*.gz /tmp/public-registry-release/manifest.json \
-            --target "$GITHUB_SHA" --title "Validated public registry candidate $RELEASE_TAG" \
-            --notes 'Public derivatives validated by the source, artifact, browser and link gates. Review manifest.json in a PR to select this version for Pages. Original-source archive verification remains a separate requirement.'
+          python -m white_list_archive.publishing.publication_handoff \
+            --candidate-manifest /tmp/public-registry-release/manifest.json \
+            --candidate-data public-site/data --output /tmp/public-selection-proposal
+          state=$(python -c 'import json; print(json.load(open("/tmp/public-selection-proposal/proposal.json"))["state"])')
+          if [ "$state" = no_release_delta ]; then
+            echo 'Already selected source observations: no duplicate release or selector branch.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" /tmp/public-registry-release/*.gz /tmp/public-registry-release/manifest.json \
+              --target "$GITHUB_SHA" --title "Validated public registry candidate $RELEASE_TAG" \
+              --notes 'Validated public derivatives. The publication_handoff receipt identifies the governed selector proposal or the exact review boundary. Only Public retro portal deploys the selected version.'
+          fi
+          # Verify the durable public assets, including the existing-release path,
+          # before any proposal can point at them. Never overwrite release assets.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from white_list_archive.publishing.public_snapshot import restore
+          restore(json.loads(Path('/tmp/public-registry-release/manifest.json').read_text()), Path('/tmp/public-release-readback'))
+          PY
+          if [ "$state" = selector_proposal_ready ]; then
+            python -m white_list_archive.publishing.publication_handoff \
+              --candidate-manifest /tmp/public-registry-release/manifest.json \
+              --candidate-data public-site/data --output /tmp/public-selection-proposal --write-branch
+          fi
+          gh release upload "$RELEASE_TAG" /tmp/public-selection-proposal/proposal.json
+          cat /tmp/public-selection-proposal/proposal.json >> "$GITHUB_STEP_SUMMARY"
 
   catania-source-only:
     # Review-only exact-new-source workbook profiling. No Pages deployment,
