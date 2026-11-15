@@ -47,10 +47,19 @@ def explicit_update_date(raw: bytes, captured_at: str) -> str:
     parser.close()
     text = " ".join(" ".join(parser.parts).split()).casefold()
     weekdays = "|".join(WEEKDAYS)
-    found = re.findall(r"ultimo aggiornamento\s*:?\s*(?:(" + weekdays +
-                       r")\s+)?(\d{1,2})\s+([a-z]+)\s+(\d{4})", text)
+    # Inspect every declaration, including unsupported date formats. Looking
+    # only for successful matches would silently ignore a conflicting label.
+    labels = list(re.finditer(r"\bultimo aggiornamento", text))
+    pattern = re.compile(r"\s*:?\s*(?:(" + weekdays +
+                         r")\s+)?([0-9]{1,2})\s+([a-z]+)\s+([0-9]{4})"
+                         r"(?![\w/-]|\.[0-9])")
     values = set()
-    for weekday, day, month, year in found:
+    for index, label in enumerate(labels):
+        end = labels[index + 1].start() if index + 1 < len(labels) else len(text)
+        found = pattern.match(text, label.end(), end)
+        if found is None:
+            raise ValueError("Unrecognised explicit source update declaration")
+        weekday, day, month, year = found.groups()
         if month not in MONTHS: raise ValueError("Unrecognised explicit source month")
         declared = date(int(year), MONTHS[month], int(day))
         if weekday and WEEKDAYS[declared.weekday()] != weekday:
@@ -175,7 +184,10 @@ def main(argv=None):
         from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
         config = StoreConfig.from_env()
         store = EvidenceStore(client_for(config), config)
-        jobs, _ = transform.select_reviewed_jobs(json.loads(args.state.read_text()), json.loads(args.source_config.read_text()))
+        jobs, _ = transform.select_reviewed_jobs(
+            json.loads(args.state.read_text()), json.loads(args.source_config.read_text()),
+            include_unchanged=True,
+        )
         report = triage(jobs, lambda job: inspect_job(job, store))
         transform.persist_operational_report(store, report)
     except Exception:

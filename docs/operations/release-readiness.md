@@ -7,8 +7,16 @@ writes, edition attribution, selection or public release.
 
 The cohort requires a complete latest reviewed `listed` and `applicant` capture
 pair, genuine immutable CaptureCatalogue manifests and full original SHA/size
-readback. Source dates must be explicitly labelled `Ultimo aggiornamento` in the
-original HTML. Ambiguous, absent, invalid and future dates fail closed. The
+readback. Both latest population inputs are selected even when one or both match
+the approved bytes: byte change is not a completeness prerequisite. This opt-in
+selection leaves the ordinary changed-source worker and approved-only backfill
+unchanged; source/provenance checks still run on each selected input.
+
+Source dates must be explicitly labelled `Ultimo aggiornamento` in the
+original HTML, using the reviewed Italian day/month-name/four-digit-year format.
+Every visible declaration must be interpretable and agree, including repetitions;
+an unsupported second declaration cannot disappear from the date census. Partial
+year tokens, ambiguous, absent, invalid and future dates fail closed. The
 date is an official **page update**, not an administrative event, capture date or
 assertion that every company entry was decided that day.
 

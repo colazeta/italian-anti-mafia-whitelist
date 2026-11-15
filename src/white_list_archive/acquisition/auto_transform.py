@@ -101,11 +101,14 @@ def select_reviewed_jobs(
     shard: int = 0,
     shards: int = 1,
     approved_only: bool = False,
+    include_unchanged: bool = False,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Select complete latest *captured* inputs, never discover by filename.
 
     Robot/check metadata is only a candidate index: both private-store objects
     are independently read and verified before a parser sees source bytes.
+    Read-only population review may request unchanged latest inputs as well.
+    ``approved_only`` still restricts selection to the exact approved hashes.
     """
     if shards < 1 or not 0 <= shard < shards:
         raise ValueError("Invalid shard")
@@ -170,7 +173,7 @@ def select_reviewed_jobs(
                 captures[label]["state"]["sha256"] != cfg["resources"][label].get("sha256")
                 for label in captures
             )
-        if changed or approved_only:
+        if changed or approved_only or include_unchanged:
             jobs.append({"source_key": key, "config": cfg, "captures": captures})
     return jobs, deferred
 
