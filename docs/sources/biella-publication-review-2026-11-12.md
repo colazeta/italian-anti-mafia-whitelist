@@ -52,6 +52,7 @@ Acceptance remains separate: immutable R2 original/capture readback; full physic
 and semantic source QA; CI/PostgreSQL; exact zero-change outside-scope row **and
 report** audit; public contract/privacy; desktop/mobile and official-link checks;
 immutable candidate release; selector PR and regenerated national monitoring;
+candidate build materialisation of the robot view from the selected-release ledger;
 sole **Public retro portal** deployment; all five live SHA/size readbacks. A source
 profile, successful build or candidate tag alone is not publication. The old
 selected release remains rollback. No canonical-model or independent-recovery

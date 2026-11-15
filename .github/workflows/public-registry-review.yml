@@ -188,6 +188,11 @@ jobs:
       - name: Validate public artifact and national registry
         id: validate_public
         run: |
+          # The reviewed source catalogue may change with an incremental source
+          # update. Materialise its public view before the artifact validator,
+          # just as the single Pages publisher already does. Publication dates
+          # still come only from the selected release ledger.
+          python -m white_list_archive.publishing.public_robots
           test -f public-site/index.html
           test -f public-site/data/site.json
           test -f public-site/data/registry.json
