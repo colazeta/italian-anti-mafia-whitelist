@@ -252,5 +252,12 @@ with psycopg.connect(os.environ['TEST_DSN']) as checkpoint_conn:
         assert cur.fetchone()[0] == 'repeatable read'
         cur.execute('SELECT count(*) FROM source.source_capture')
         assert checkpoint['metrics']['captures']['value'] == cur.fetchone()[0]
+        metrics = checkpoint['metrics']
+        assert metrics['capture_interpretation_coverage']['denominator'] == metrics['captures']['value']
+        assert metrics['series_interpretation_coverage']['denominator'] == metrics['source_series']['value']
+        assert metrics['capture_interpretation_coverage']['numerator'] <= metrics['captures']['value']
+        assert metrics['series_interpretation_coverage']['numerator'] <= metrics['source_series']['value']
+        assert metrics['capture_parse_input_mismatches']['numerator'] == 0
+        assert metrics['capture_parse_input_mismatches']['integrity_status'] == 'passed'
     checkpoint_conn.rollback()
 print('Private KPI PostgreSQL permission SQL and repeatable-read/read-only snapshot passed.')
