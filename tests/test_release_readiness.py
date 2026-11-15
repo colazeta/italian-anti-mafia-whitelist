@@ -165,3 +165,71 @@ def test_source_inspection_uses_verified_original_and_never_reuses_old_date(monk
     assert result['previous_edition_qa_differences'] == ['source_row_count_changed']
     assert result['publication_approved'] is False
     assert result['original_and_capture_provenance_verified'] is True
+
+
+def _taranto_census_fixture(population):
+    from white_list_archive.parsers import taranto_html as family
+    from html import escape
+    header = family._LISTED_HEADER if population == "listed" else family._APPLICANT_HEADER
+    cells = (["EXAMPLE COMPANY", "TARANTO", "01234567890", "01/09/2026", "01/09/2027", "I", ""]
+             if population == "listed" else
+             ["EXAMPLE COMPANY", "TARANTO", "01234567890", "I", "01/09/2026"])
+    header_html = "<tr>" + "".join("<th>" + escape(v) + "</th>" for v in header) + "</tr>"
+    company_html = "<tr>" + "".join("<td>" + escape(v) + "</td>" for v in cells) + "</tr>"
+    return "<table><tr><td>layout<table>" + header_html + company_html + "</table></td></tr></table>"
+
+
+@pytest.mark.parametrize("population", ["listed", "applicant"])
+def test_taranto_independent_census_counts_physical_rows_without_parser_filter(tmp_path, population):
+    path = tmp_path / "taranto.html"
+    html = _taranto_census_fixture(population)
+    path.write_text(html)
+    assert readiness.taranto_complete_physical_rows(path, population) == 1
+    from white_list_archive.parsers import taranto_html as family
+    assert len(family._find_rows(family._tables(path), applicant=population == "applicant")) == 1
+
+
+@pytest.mark.parametrize("population", ["listed", "applicant"])
+@pytest.mark.parametrize("kind", ["row_width", "missing_name", "pre_header", "header_drift", "repeated_header"])
+def test_taranto_independent_census_quarantines_unclassified_physical_content(tmp_path, population, kind):
+    from white_list_archive.parsers import taranto_html as family
+    from html import escape
+    html = _taranto_census_fixture(population)
+    width = 7 if population == "listed" else 5
+    if kind == "row_width":
+        row = "<tr><td>EXTRA</td><td>UNREVIEWED</td></tr>"
+        html = html.replace("</table>", row + "</table>", 1)
+    elif kind == "missing_name":
+        row = "<tr><td></td>" + "<td>UNREVIEWED</td>" * (width - 1) + "</tr>"
+        html = html.replace("</table>", row + "</table>", 1)
+    elif kind == "pre_header":
+        html = html.replace("<table><tr><th>", "<table><tr><td>UNREVIEWED</td></tr><tr><th>", 1)
+    elif kind == "header_drift":
+        # A second header-like row with an unexpected schema must be rejected.
+        row = "<tr><th>Ragione sociale</th><th>UNREVIEWED</th></tr>"
+        html = html.replace("</table>", row + "</table>", 1)
+    else:
+        header = family._LISTED_HEADER if population == "listed" else family._APPLICANT_HEADER
+        row = "<tr>" + "".join("<th>" + escape(v) + "</th>" for v in header) + "</tr>"
+        html = html.replace("</table>", row + "</table>", 1)
+    path = tmp_path / "taranto.html"
+    path.write_text(html)
+    with pytest.raises(ValueError, match="Taranto"):
+        readiness.taranto_complete_physical_rows(path, population)
+
+
+def test_taranto_census_never_promotes_source_observations(monkeypatch):
+    from test_taranto_html import _cfg
+    import hashlib
+    cfg = {**_cfg("listed"), "parser": "taranto_html_listed", "expected_source_rows": 99}
+    raw = (_taranto_census_fixture("listed") + "<p>Ultimo aggiornamento 6 novembre 2026</p>").encode()
+    sha = hashlib.sha256(raw).hexdigest()
+    job = {"source_key": "taranto-listed", "config": cfg,
+           "captures": {"primary": {"url": cfg["resource_url"], "state": {"sha256": sha}}}}
+    monkeypatch.setattr(readiness.transform, "_verified_capture", lambda store, entry: (
+        {"sha256": sha, "byte_size": len(raw), "captured_at": "2026-11-15T12:00:00Z"}, {}, raw))
+    result = readiness.inspect_job(job, object())
+    assert result["records"] == result["physical_rows"] == 1
+    assert result["reference_date"] == "2026-11-06"
+    assert result["publication_approved"] is False
+    assert result["original_and_capture_provenance_verified"] is True
