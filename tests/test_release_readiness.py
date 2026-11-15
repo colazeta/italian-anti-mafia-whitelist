@@ -140,7 +140,8 @@ def test_authorities_and_populations_are_independent_and_never_approved():
 def test_public_readiness_is_closed_against_private_diagnostics_and_messages():
     report = {'kind': 'archived-release-readiness', 'results': [{'authority_key': 'biella', 'status': 'review_metadata_ready', 'sources': [{
         'source_key': 'biella-listed', 'status': 'source_candidate_requires_review', 'publication_approved': False,
-        'private_text': 'sensitive fixture', 'diagnostics': {'sector_rows': 10, 'rows': ['sensitive fixture'],
+        'private_text': 'sensitive fixture', 'public_records_sha256': 'sensitive fixture',
+        'blank_names': 'sensitive fixture', 'diagnostics': {'sector_rows': 10, 'rows': ['sensitive fixture'],
         'identifier_coverage': 'sensitive fixture', 'status_counts': {'listed': 3, 'sensitive fixture': 2}}}]}]}
     safe = readiness.public_summary(report)
     assert 'sensitive fixture' not in json.dumps(safe)
@@ -218,7 +219,7 @@ def test_taranto_independent_census_quarantines_unclassified_physical_content(tm
         readiness.taranto_complete_physical_rows(path, population)
 
 
-def test_taranto_census_never_promotes_source_observations(monkeypatch):
+def test_taranto_census_never_promotes_source_observations(monkeypatch, tmp_path):
     from test_taranto_html import _cfg
     import hashlib
     cfg = {**_cfg("listed"), "parser": "taranto_html_listed", "expected_source_rows": 99}
@@ -233,3 +234,24 @@ def test_taranto_census_never_promotes_source_observations(monkeypatch):
     assert result["reference_date"] == "2026-11-06"
     assert result["publication_approved"] is False
     assert result["original_and_capture_provenance_verified"] is True
+    from white_list_archive.publishing.publication_handoff import records_digest
+    from white_list_archive.publishing.public_contract import public_record
+    from white_list_archive.publishing.public_national_registry import _parse_source
+    original = tmp_path / "source.html"
+    original.write_bytes(raw)
+    # The verified input uses the exact capture hash, not the legacy
+    # configuration hash. Check the same source identity as the producer.
+    pinned_config = readiness.transform._parse_config(job)
+    pinned_config["reference_date"] = result["reference_date"]
+    expected_records = [public_record(row) for row in _parse_source(
+        original, pinned_config).records]
+    assert result["public_records_sha256"] == records_digest(expected_records)
+    assert result["blank_names"] == sum(not row["name"] for row in expected_records)
+    assert result["blank_activities"] == sum(not row["requested_activities"] for row in expected_records)
+    safe = readiness.public_summary({"kind": "archived-release-readiness", "results": [
+        {"authority_key": "taranto", "status": "review_metadata_ready", "sources": [result]}]})
+    published = safe["results"][0]["sources"][0]
+    assert published["public_records_sha256"] == result["public_records_sha256"]
+    assert published["blank_names"] == result["blank_names"]
+    assert published["blank_activities"] == result["blank_activities"]
+    assert published["publication_approved"] is False

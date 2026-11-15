@@ -232,7 +232,8 @@ def inspect_job(job, store):
         batch = registry._parse_source(path, cfg)
         if not batch.records or batch.diagnostics.get("dropped_date_rows", 0):
             raise ValueError("Empty or incomplete source extraction")
-        for record in batch.records: public_record(record)
+        public_records = [public_record(record) for record in batch.records]
+        from white_list_archive.publishing.publication_handoff import records_digest
         physical = None
         if cfg["authority_key"] == "biella":
             physical = biella_complete_physical_rows(path, cfg["population_scope"])
@@ -254,6 +255,9 @@ def inspect_job(job, store):
         "parser": cfg["parser"], "parser_revision": transform._parser_revision(batch, cfg["parser"]),
         "records": len(batch.records), "physical_rows": physical,
         "semantic_sha256": registry._semantic_digest(batch.records),
+        "public_records_sha256": records_digest(public_records),
+        "blank_names": sum(not row["name"] for row in public_records),
+        "blank_activities": sum(not row["requested_activities"] for row in public_records),
         "diagnostics": batch.diagnostics,
         "previous_edition_qa_differences": transform._quality_flags(job["config"], batch.records, batch.diagnostics),
         "original_and_capture_provenance_verified": True,
@@ -324,6 +328,13 @@ def public_summary(report):
         safe = {"authority_key": group["authority_key"], "status": group["status"], "sources": []}
         for row in group.get("sources", []):
             projected = {k: v for k, v in row.items() if k in allowed}
+            digest = row.get("public_records_sha256")
+            if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest):
+                projected["public_records_sha256"] = digest
+            for name in ("blank_names", "blank_activities"):
+                value = row.get(name)
+                if type(value) is int and value >= 0:
+                    projected[name] = value
             diag = row.get("diagnostics", {})
             projected["quality_counts"] = {k: v for k, v in diag.items() if k in numeric and type(v) is int}
             projected["status_counts"] = {k: v for k, v in diag.get("status_counts", {}).items()
