@@ -14,6 +14,11 @@ def test_lookup_on_real_schema_disambiguates_both_content_object_columns():
     with psycopg.connect(os.environ['BACKFILL_TEST_DSN']) as conn:
         conn.execute('SET TRANSACTION READ ONLY')
         assert existing_snapshot(conn, job) is False
+        from white_list_archive.acquisition.auto_transform import _reuse_existing_snapshot
+        assert _reuse_existing_snapshot(
+            conn, parser_name='nonexistent-regression-parser', code_revision='0'*40,
+            configuration_hash='0'*64, capture_inputs=[], input_hashes={'primary': '0'*64},
+        ) is False
 
 
 @pytest.mark.skipif(not os.environ.get('BACKFILL_TEST_DSN'), reason='Requires CI PostgreSQL')

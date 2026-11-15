@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
+      - 'src/white_list_archive/acquisition/interpretation_code.py'
       - 'src/white_list_archive/acquisition/approved_snapshot_backfill.py'
       - 'src/white_list_archive/acquisition/ascoli_private_source_qa.py'
       - 'src/white_list_archive/acquisition/ascoli_private_snapshot_backfill.py'
@@ -92,7 +93,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ needs.freeze-inputs.outputs.code_revision }}
-          fetch-depth: 1
+          # Historical Git objects prove whether interpretation code changed.
+          # No old code is executed, and absent objects forbid cross-revision reuse.
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

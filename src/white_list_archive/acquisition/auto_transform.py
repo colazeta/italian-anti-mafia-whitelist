@@ -279,7 +279,7 @@ def _reuse_existing_snapshot(
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT pr.parse_run_id, jsonb_object_agg(i.input_label, co.sha256)
+            SELECT pr.parse_run_id, jsonb_object_agg(i.input_label, co.sha256), pa.software_version
             FROM source.parse_run pr
             JOIN provenance.processing_activity pa
               ON pa.processing_activity_id = pr.processing_activity_id
@@ -287,22 +287,32 @@ def _reuse_existing_snapshot(
             JOIN source.parse_run_input i ON i.parse_run_id = pr.parse_run_id
             JOIN source.content_object co ON co.content_object_id = i.content_object_id
             WHERE pa.software_name = %s
-              AND pa.software_version LIKE %s
               AND pa.configuration_hash = %s
               AND pr.status_code = 'succeeded'
-            GROUP BY pr.parse_run_id
+            GROUP BY pr.parse_run_id, pa.software_version, pa.started_at
+            ORDER BY pa.started_at, pr.parse_run_id
             """,
-            (parser_name, "%+git." + code_revision, configuration_hash),
+            (parser_name, configuration_hash),
         )
+        from .interpretation_code import equivalent_revision
         matches = [
             parse_run_id
-            for parse_run_id, members in cur.fetchall()
+            for parse_run_id, members, version in cur.fetchall()
             if members == input_hashes
+            and isinstance(version, str) and "+git." in version
+            and equivalent_revision(version.rsplit("+git.", 1)[1], code_revision)
         ]
-        if len(matches) > 1:
-            raise ValueError("Multiple interpretation identities match the same complete input set")
         if not matches:
             return False
+        # Historical commit-driven copies are retained. Reuse only when every
+        # matching interpretation is intact and agrees on its COMPLETE output.
+        from white_list_archive.persistence.parse_snapshot import snapshot_sha256
+        digests = set()
+        for identity in matches:
+            records, diagnostics = read_snapshot_verified(conn, str(identity))
+            digests.add(snapshot_sha256(records, diagnostics))
+        if len(digests) != 1:
+            raise ValueError("Multiple interpretation outputs conflict for equivalent code and inputs")
         for row in capture_inputs:
             cur.execute(
                 """
