@@ -6,11 +6,12 @@ from white_list_archive.acquisition.production_checkpoint import collect_checkpo
 
 
 class Cursor:
-    def __init__(self, denied=(), snapshot_mismatches=1):
+    def __init__(self, denied=(), snapshot_mismatches=1, input_mismatches=0):
         self.calls = []
         self.result = None
         self.denied = set(denied)
         self.snapshot_mismatches = snapshot_mismatches
+        self.input_mismatches = input_mismatches
 
     def __enter__(self):
         return self
@@ -29,7 +30,7 @@ class Cursor:
         elif "count(DISTINCT c.series_id)" in sql:
             self.result = (27, 19)
         elif "FROM source.capture_parse_run cp" in sql:
-            self.result = (0,)
+            self.result = (self.input_mismatches,)
         elif "storage_status_code" in sql:
             self.result = (14,)
         else:
@@ -102,8 +103,9 @@ def test_missing_series_denominator_cannot_be_reported_as_verified_coverage():
 
 
 @pytest.mark.parametrize('mismatches,exit_code', [(0, 0), (1, 1)])
+@pytest.mark.parametrize('mismatch_kind', ['snapshot', 'labelled_input'])
 def test_cli_persists_integrity_findings_before_failing_without_disclosing_report(
-        monkeypatch, capsys, mismatches, exit_code):
+        monkeypatch, capsys, mismatches, exit_code, mismatch_kind):
     import json
     from contextlib import contextmanager
     from white_list_archive.acquisition import production_checkpoint as checkpoint
@@ -111,7 +113,8 @@ def test_cli_persists_integrity_findings_before_failing_without_disclosing_repor
 
     @contextmanager
     def connection(dsn):
-        yield Connection(snapshot_mismatches=mismatches)
+        yield Connection(snapshot_mismatches=mismatches if mismatch_kind == 'snapshot' else 0,
+                         input_mismatches=mismatches if mismatch_kind == 'labelled_input' else 0)
     monkeypatch.setenv('EVIDENCE_DATABASE_URL', 'private-test-dsn')
     monkeypatch.setattr(checkpoint, 'private_connection', connection)
     monkeypatch.setattr(evidence.StoreConfig, 'from_env', lambda: object())
