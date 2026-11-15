@@ -84,3 +84,42 @@ capture, parser snapshot, SourceEdition, semantic/canonical observation, alias
 binding or public promotion. Review the real job receipt and a separate Neon
 readback before claiming production acceptance. The original public release
 selector is unchanged. The verification is not an independent backup/restore.
+
+## Bounded source-only materialisation (subsequent controlled step)
+
+`acquisition.ascoli_private_snapshot_backfill` is a **separate** protected
+worker step, not a change to the original read-only audit. It is restricted to
+the **single exact** 11 August 2026 comprehensive listed original and performs
+the following gates before calling the already-tested common database writer:
+
+1. Require the unchanged published legacy descriptor and reviewed registered
+   `ascoli-piceno-listed-comprehensive` inventory, full original digest/size,
+   544 parsed records, 448 listed and 96 update-in-progress statuses, dates,
+   identifiers and sections, and one authenticated complete CaptureCatalogue
+   record with explicit source provenance.
+2. Re-read the source-specific, bounded immutable catalogue (without live
+   acquisition or alias rewriting), require one and only one exact capture and
+   match its original source URL, HTTP status, unknown capture reference date,
+   origin and authority rank to the frozen approved source.
+3. Preserve the actual `capture_id` and registered source key in the private
+   relational writer. The reviewed document date can be used for the *source
+   observation* configuration; the unknown capture date stays unknown.
+4. Before a write, search all earlier code revisions for the same parser,
+   full labelled original hashes and configuration hash. Reuse and rehash a
+   valid existing snapshot. Otherwise write one source snapshot, verify the
+   committed result independently and re-run the cross-revision lookup.
+
+Unknown/mismatched provenance, parser QA, incomplete catalogue, TLS/readback
+failure, non-unique capture or field/count drift **fail closed**. Console output
+contains only a closed aggregate outcome, with no original rows, company data,
+capture identifiers, provider locations or exception details. This step is
+wired into the **existing** `Transform reviewed captures` protected shard 0;
+it does not add a crawler, executor, scheduler or independent publisher.
+
+This implementation does **not** by itself prove a production write. Acceptance
+requires exact-head tests and post-merge CI, protected job terminal status and
+independent PostgreSQL readback showing the expected Ascoli ParseRun/ParseSnapshot
+for the original SHA. Even a successful snapshot is not a SourceEdition,
+semantic/canonical observation, approved *new* edition or public promotion.
+The selected public release remains unchanged unless an independent reviewed
+publication process explicitly approves a new immutable candidate.
