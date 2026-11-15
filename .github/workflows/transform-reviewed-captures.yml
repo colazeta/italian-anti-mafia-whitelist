@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/transform-reviewed-captures.yml'
+      - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/source_registry/source_series_inventory.csv'
+      - 'src/white_list_archive/parsers/**'
+      - 'src/white_list_archive/publishing/public_national_registry.py'
       - 'src/white_list_archive/acquisition/auto_transform.py'
       - 'src/white_list_archive/acquisition/interpretation_code.py'
       - 'src/white_list_archive/acquisition/release_readiness.py'

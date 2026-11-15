@@ -9,6 +9,7 @@ on:
       - 'data/publication/preserved_public_sources.json'
       - 'data/publication/approved_semantic_public_derivative.json'
       - 'src/white_list_archive/publishing/public_candidate_gate.py'
+      - 'src/white_list_archive/publishing/biella_review.py'
       - 'data/source_registry/verified_primary_pages.csv'
       - 'data/source_registry/source_series_inventory.csv'
       - 'data/source_registry/national_index_authority_aliases.csv'
@@ -173,6 +174,11 @@ jobs:
       - name: Verify Alessandria October exact incremental public delta
         if: ${{ startsWith(github.head_ref, 'alignment/alessandria-') || github.ref == 'refs/heads/main' }}
         run: python scripts/audit_alessandria_public_candidate.py
+      - name: Qualify exact Biella original and verify the two-source incremental delta
+        if: ${{ startsWith(github.head_ref, 'candidate/biella-') || github.ref == 'refs/heads/main' }}
+        run: |
+          python scripts/qualify_biella_candidate.py
+          python scripts/audit_biella_public_candidate.py
       - name: Verify Perugia November public candidate is an exact incremental delta
         if: ${{ startsWith(github.head_ref, 'candidate/perugia-') || github.ref == 'refs/heads/main' }}
         run: python scripts/audit_perugia_public_candidate.py

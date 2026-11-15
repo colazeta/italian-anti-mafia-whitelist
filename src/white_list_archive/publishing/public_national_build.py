@@ -278,6 +278,28 @@ def _bound_public_scope_matches(binding: dict, cfg: dict, manifest: dict,
             and binding["report_sha256"] == _public_scope_digest(report))
 
 
+def _read_scope_binding(path: Path, cfg: dict) -> dict:
+    """Select exactly one approved scope; retain legacy single-binding formats."""
+    value = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(value, dict):
+        raise ValueError('Invalid public derivative binding')
+    if value.get('schema_version') != 3:
+        return value
+    if set(value) != {'schema_version', 'bindings'} or not isinstance(value['bindings'], list) or not value['bindings']:
+        raise ValueError('Invalid public derivative binding collection')
+    by_key = {}
+    for binding in value['bindings']:
+        if not isinstance(binding, dict) or not isinstance(binding.get('source'), dict):
+            raise ValueError('Invalid public derivative scope binding')
+        key = binding['source'].get('source_key')
+        if not isinstance(key, str) or not key or key in by_key:
+            raise ValueError('Missing or duplicate public derivative scope binding')
+        by_key[key] = binding
+    if cfg['source_key'] not in by_key:
+        raise ValueError('Approved public derivative scope binding unavailable')
+    return by_key[cfg['source_key']]
+
+
 def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tuple[str, ...], manifest_path: Path) -> dict:
     """Compose explicit approved public editions with newly checked source scopes.
 
@@ -318,7 +340,7 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
             if approval_mode != 'raw_sha256':
                 raise ValueError(f'{key}: bundled public preservation requires raw SHA approval')
             try:
-                binding = json.loads(APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
+                binding = _read_scope_binding(APPROVED_BUNDLE_PUBLIC_DERIVATIVE_BINDING, cfg)
             except (OSError, ValueError) as exc:
                 raise ValueError(f'{key}: approved public source bundle binding unavailable') from exc
             if not _bound_public_scope_matches(binding, cfg, manifest, records, report):
@@ -333,7 +355,7 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
             # binding. restore() has already verified every byte of the approved
             # public snapshot; this does not check/approve today's live source.
             try:
-                binding = json.loads(APPROVED_PUBLIC_DERIVATIVE_BINDING.read_text(encoding='utf-8'))
+                binding = _read_scope_binding(APPROVED_PUBLIC_DERIVATIVE_BINDING, cfg)
             except (OSError, ValueError) as exc:
                 raise ValueError(f'{key}: reviewed public derivative binding unavailable') from exc
             if not _bound_public_scope_matches(binding, cfg, manifest, records, report):
@@ -342,7 +364,7 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
             for field in ('authority_key', 'register_key', 'population_scope', 'reference_date', 'source_page_url', 'resource_url'):
                 if record.get(field) != cfg.get(field):
                     raise ValueError(f'{key}: preserved observation differs from configured {field}')
-            if record.get('parser_name') != cfg['parser'] or not record.get('parser_version'):
+            if record.get('parser_name') not in (cfg['parser'], DECLARED_PARSER_IDENTITIES.get(cfg['parser'], cfg['parser'])) or not record.get('parser_version'):
                 raise ValueError(f'{key}: preserved parser provenance is missing or different')
         preserved_records.extend(records)
         preserved_reports.append(report)

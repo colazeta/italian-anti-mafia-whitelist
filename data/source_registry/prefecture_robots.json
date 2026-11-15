@@ -452,7 +452,7 @@
           "population_scope": "listed",
           "parser": "biella_html_listed",
           "url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
-          "approved_sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53"
+          "approved_sha256": "2f12c48f90ac54c3dc8f7039ede87377b98ed13e1adabfb81d0456f0d889b53a"
         },
         {
           "source_key": "biella-applicants",
@@ -460,7 +460,7 @@
           "population_scope": "applicant",
           "parser": "biella_html_applicants",
           "url": "https://prefettura.interno.gov.it/it/prefetture/biella/evidenza/white-list",
-          "approved_sha256": "636389e9980b58b80e3ef5338feca39221db934b6b7ccb0f29b8d286c95dca53"
+          "approved_sha256": "2f12c48f90ac54c3dc8f7039ede87377b98ed13e1adabfb81d0456f0d889b53a"
         }
       ],
       "population_mapping_reviewed": true,
