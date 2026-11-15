@@ -61,6 +61,18 @@ def test_exact_authority_caption_is_metadata_only_without_other_cell_values(tmp_
         review.como_complete_physical_rows(path, 'applicant')
 
 
+@pytest.mark.parametrize('caption', ['Legenda', '(art. 1, commi dal 52 al 57, della legge n. 190/2012, D.P.C.M. 18 aprile 2013)'])
+def test_reviewed_boilerplate_is_only_allowed_before_the_exact_header(tmp_path, monkeypatch, caption):
+    path, cfg = fixture(tmp_path, monkeypatch)
+    original = path.read_text()
+    row = '<tr><td>' + caption + '</td></tr>'
+    path.write_text(original.replace('<table>', '<table>' + row))
+    assert review.como_complete_physical_rows(path, 'applicant') == 1
+    path.write_text(original.replace('</table>', row + '</table>'))
+    with pytest.raises(ValueError, match='Unclassified'):
+        review.como_complete_physical_rows(path, 'applicant')
+
+
 def test_source_review_failure_never_prints_original_values_or_exception_messages(monkeypatch, capsys):
     def fail(*_):
         raise ValueError('PRIVATE SOURCE VALUES')

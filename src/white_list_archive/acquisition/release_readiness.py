@@ -122,6 +122,17 @@ class ComoCensusError(ValueError):
                          'is_authority_heading': values[0].casefold() == 'prefettura di como'}
 
 
+# Literal official headings, legal reference, portal notice and sector legend,
+# independently inspected on both official pages; no company observation hashes.
+COMO_PREAMBLE_SHA256 = frozenset({
+    '8d95bab7879bdce11aaf6614a9c2ebed8730c8b52ecabf1b8939d21457dda29f',
+    '61154f2a8bab2dfcb2aa6c0c0ea46874317214043ddb4af4c83858d4e736dd71',
+    'cf7aad8af439460d0672e2fe4394175c4ff860c6227a7083d2d4bea58931e304',
+    '5b0541c7234d00ba6e603c9a72c71286b90ae93ee04652f77edb546d8d3aebc6',
+    'aa32ba55c30505bf47cbb265b8bd91dcc80cf4c8aa2ced23d765438aa8311f37',
+})
+
+
 def como_complete_physical_rows(path: Path, population: str) -> int:
     """Classify every nonempty row, including rows the family would skip."""
     from white_list_archive.parsers import como_html as family
@@ -132,26 +143,31 @@ def como_complete_physical_rows(path: Path, population: str) -> int:
     header = family._APPLICANT_HEADER if applicant else family._LISTED_HEADER
     label = "numero aziende in fase iscrizione:" if applicant else "numero aziende iscritte:"
     table = family._find_table(family._tables(path), applicant=applicant)
-    rows, summaries = 0, 0
+    rows, summaries, headers = 0, 0, 0
     for row in table:
         values = [family._clean(value) for value in row]
         if not any(values):
             continue
-        if values[0].casefold() == title.casefold() and not any(values[1:]):
+        if not headers and values[0].casefold() == title.casefold() and not any(values[1:]):
             continue
         # Both independently pinned November originals have these two-cell
         # authority captions (SHA2565cd7775c... and089e6344...). Empty tails only.
-        if len(values) == 2 and values[0].casefold() in {
+        if not headers and len(values) == 2 and values[0].casefold() in {
                 'prefettura di como', 'ufficio territoriale del governo'} and not values[1]:
             continue
+        if not headers and not any(values[1:]) and hashlib.sha256(values[0].encode()).hexdigest() in COMO_PREAMBLE_SHA256:
+            continue
         if len(values) == 8 and family._fold(values) == header:
+            if headers:
+                raise ComoCensusError('Repeated Como table header', values)
+            headers += 1
             continue
         if len(values) == 8 and values[0].casefold() == label:
-            if not values[1].isdigit() or any(values[2:]):
+            if headers or not values[1].isdigit() or any(values[2:]):
                 raise ComoCensusError("Unclassified Como source counter", values)
             summaries += 1
             continue
-        if len(values) != 8 or not values[0] or not any(values[1:]):
+        if headers != 1 or len(values) != 8 or not values[0] or not any(values[1:]):
             raise ComoCensusError("Unclassified nonempty Como physical row", values)
         rows += 1
     if not rows or summaries != 1:
