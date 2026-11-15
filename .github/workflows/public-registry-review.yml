@@ -899,6 +899,16 @@ jobs:
                   raise SystemExit(f'Forbidden artifact in public site: {token}')
           print('Public national registry validated:', reg['meta']['record_count'], 'records; Prefectures:', pref['meta'])
           PY
+      # The same full-value/scope gate runs before merge and again in the
+      # protected preserver. PRs get no Git write, release or deploy authority.
+      # Keep the review receipt outside the public build/artifact.
+      - name: Validate the finite publication intent before merge
+        run: |
+          python -m white_list_archive.publishing.public_snapshot pack \
+            --output /tmp/public-intent-review --tag public-data-review-${{ github.run_id }}
+          python -m white_list_archive.publishing.publication_handoff --review-only \
+            --candidate-manifest /tmp/public-intent-review/manifest.json \
+            --candidate-data public-site/data --output /tmp/public-intent-review-result
       - name: Install browser acceptance test runtime
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0

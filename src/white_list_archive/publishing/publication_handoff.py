@@ -223,15 +223,24 @@ def main(argv=None):
     parser.add_argument("--candidate-manifest", type=Path, required=True)
     parser.add_argument("--candidate-data", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--write-branch", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--write-branch", action="store_true")
+    mode.add_argument("--review-only", action="store_true",
+                      help="Validate the exact reviewed tree without any Git remote or branch operation")
     args = parser.parse_args(argv)
     root = Path.cwd()
-    subprocess.run(["git", "fetch", "--no-tags", "origin", "main"], check=True)
-    build = _git("rev-parse", "HEAD")
-    base = _git("rev-parse", "FETCH_HEAD")
-    assert_current_base(build, base)
-    selected_manifest = json.loads(_git("show", base + ":" + SELECTOR))
-    monitoring = json.loads(_git("show", base + ":" + MONITORING))
+    if args.review_only:
+        # A PR tree cannot be an ancestor of main. Validate its exact pinned
+        # review inputs now; production still rechecks current main after merge.
+        selected_manifest = json.loads((root / SELECTOR).read_text())
+        monitoring = json.loads((root / MONITORING).read_text())
+    else:
+        subprocess.run(["git", "fetch", "--no-tags", "origin", "main"], check=True)
+        build = _git("rev-parse", "HEAD")
+        base = _git("rev-parse", "FETCH_HEAD")
+        assert_current_base(build, base)
+        selected_manifest = json.loads(_git("show", base + ":" + SELECTOR))
+        monitoring = json.loads(_git("show", base + ":" + MONITORING))
     config = json.loads((root / "data/publication/multi_prefecture_pilot.json").read_text())
     candidate_manifest = json.loads(args.candidate_manifest.read_text())
     candidate_bytes = verify_candidate_files(candidate_manifest, args.candidate_data)
@@ -244,7 +253,11 @@ def main(argv=None):
         selected_bytes = (Path(td) / "registry.json").read_bytes()
     receipt, files = prepare_proposal(selected_manifest=selected_manifest, candidate_manifest=candidate_manifest,
         selected_bytes=selected_bytes, candidate_bytes=candidate_bytes, config=config, monitoring=monitoring, intent=intent)
-    receipt.update(build_revision=build, base_revision=base)
+    if args.review_only:
+        receipt["review_only"] = True
+        files = {}  # Only a safe aggregate receipt; no selector files even locally.
+    else:
+        receipt.update(build_revision=build, base_revision=base)
     if files and args.write_branch:
         # Release byte readback may take time. Recheck main immediately before
         # staging the branch and preserve independently newer monitoring facts.

@@ -23,6 +23,19 @@ own branch push; the orchestrator opens the PR through the existing connected
 GitHub access. This is an explicit continuation boundary, not a new unattended
 approval mechanism or a promise that a quarantined document will publish.
 
+## Pre-merge review
+
+The existing candidate build also runs the identical five-file/full-record
+intent gate with `--review-only` before browser and link acceptance. It reads the
+exact checked-out PR tree and its SHA-pinned selected baseline; it performs no
+Git operation, release creation, branch write, approval or deployment. It writes
+only an aggregate temporary receipt outside the public build. A stale intent,
+unexpected outside-scope observation/report, corrupt asset or missing source
+review therefore fails before merge. The two execution modes are mutually
+exclusive. After merge the protected preserver still independently revalidates
+current main, all durable assets and branch consistency; PR success cannot
+substitute for those production checks or live verification.
+
 ## Finite reviewed intent
 
 A source-review PR may add/update
