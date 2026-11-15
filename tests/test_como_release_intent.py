@@ -64,7 +64,7 @@ def test_production_qa_rejects_unreviewed_public_values_even_if_source_inspectio
 
 
 def test_como_selected_scope_mode_skips_only_complete_prior_reviewed_release():
-    from scripts import qualify_como_candidate as command
+    command = _load_qualifier_command()
     config = configs()
     keys = {s['source_key'] for s in config['sources']}
     selected = {'schema_version': 1, 'release_tag': 'reviewed-release', 'files': {}}
@@ -86,7 +86,7 @@ def test_como_selected_scope_mode_skips_only_complete_prior_reviewed_release():
 
 
 def test_main_only_como_selected_pair_does_not_contact_mutable_originals(monkeypatch, tmp_path, capsys):
-    from scripts import qualify_como_candidate as command
+    command = _load_qualifier_command()
     config = configs()
     keys = sorted(s['source_key'] for s in config['sources'])
     root = tmp_path/'data'/'publication'
@@ -103,3 +103,16 @@ def test_main_only_como_selected_pair_does_not_contact_mutable_originals(monkeyp
     result = json.loads(capsys.readouterr().out)
     assert result['state'] == 'selected_immutable_pair_reused'
     assert result['publications'] == 0 and not result['approval_granted']
+
+
+def _load_qualifier_command():
+    # The GitHub Actions entry point is a standalone script, not an installed
+    # package. Load it by its exact repository path for regression testing.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "white_list_como_qualification_entrypoint",
+        ROOT/'scripts/qualify_como_candidate.py')
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
