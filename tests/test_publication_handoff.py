@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import os
 import sys
+import textwrap
 
 import pytest
 
@@ -202,3 +203,17 @@ def test_metadata_preserver_does_not_require_a_parser_runtime():
     root = Path(__file__).resolve().parents[1]
     subprocess.run([sys.executable, '-S', '-c', 'import white_list_archive.publishing.publication_handoff'],
                    cwd=root, env={**os.environ, 'PYTHONPATH': str(root/'src')}, check=True)
+
+
+def test_actual_workflow_artifact_output_contains_a_real_newline(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root/'.github/workflows/public-registry-review.yml').read_text()
+    step = workflow.split('      - name: Resolve the successful build artifact', 1)[1]
+    script = textwrap.dedent(step.split("python - <<'PY'\n", 1)[1].split('\n          PY', 1)[0])
+    (tmp_path/'public-artifacts.json').write_text(json.dumps({'artifacts': [
+        {'name': 'public-portal-review-attempt-1', 'expired': False}]}))
+    output = tmp_path/'github-output'
+    subprocess.run([sys.executable, '-S', '-c', script], cwd=root,
+                   env={**os.environ, 'PYTHONPATH': str(root/'src'),
+                        'RUNNER_TEMP': str(tmp_path), 'GITHUB_OUTPUT': str(output)}, check=True)
+    assert output.read_bytes() == b'artifact_name=public-portal-review-attempt-1\n'
