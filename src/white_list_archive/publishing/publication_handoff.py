@@ -28,7 +28,8 @@ PROPOSAL_PATHS = (SELECTOR, MONITORING)
 APPROVAL_PATHS = (
     "src/white_list_archive/publishing", "src/white_list_archive/parsers",
     "src/white_list_archive/acquisition/published_monitoring.py",
-    "src/white_list_archive/acquisition/national_index.py", "data/source_registry",
+    "src/white_list_archive/acquisition/national_index.py",
+    "src/white_list_archive/acquisition/release_readiness.py", "scripts", "data/source_registry",
     "data/publication", "public-site", "pyproject.toml",
     ".github/workflows/public-registry-review.yml", ".github/workflows/public-pages.yml",
     "tests/public_portal_browser.cjs", "tests/public_snapshot_browser.cjs",
