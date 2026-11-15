@@ -87,6 +87,11 @@ service, new database, credentials or paid resources.
 - The same exact input/configuration/code revision uses the existing
   append-only parse-run identity and database idempotency rules. Repeated
   source checks still preserve separate immutable capture/check provenance.
+  Equivalent complete interpretation Git objects may also reuse verified
+  snapshots across commits. Downstream release/Como review tooling does not
+  invalidate physical extraction; all retained parser, contract, dispatcher,
+  runtime, input and per-source configuration gates remain conservative. See
+  [the bounded reuse policy](../operations/interpretation-reuse-boundary.md).
 - The last approved public snapshot remains in place until the separately
   governed, *frozen archive-backed* staging and public-contract checks pass.
   Automatic public promotion would require a distinct reviewed governance

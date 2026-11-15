@@ -20,6 +20,13 @@ INTERPRETATION_PATHS = (
     "src/white_list_archive/acquisition/national_index.py",
     "pyproject.toml",
 )
+# These two modules inspect already parsed output or prepare a release selector.
+# Physical extraction/normalisation never imports them. Every other existing or
+# newly added publishing object remains in the conservative interpretation key.
+POST_INTERPRETATION_PATHS = frozenset({
+    "src/white_list_archive/publishing/publication_handoff.py",
+    "src/white_list_archive/publishing/como_review.py",
+})
 
 
 @lru_cache(maxsize=256)
@@ -39,7 +46,21 @@ def code_objects(revision: str, root: Path | None = None) -> bytes | None:
     paths = {line.split(b"\t", 1)[-1].decode("utf-8") for line in lines}
     if paths != set(INTERPRETATION_PATHS):
         return None
-    return result.stdout
+    try:
+        recursive = subprocess.run(
+            ["git", "-C", str(root), "ls-tree", "-r", revision, "--", *INTERPRETATION_PATHS],
+            capture_output=True, check=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    retained = [line for line in recursive.stdout.splitlines()
+                if line.split(b"\t", 1)[-1].decode("utf-8") not in POST_INTERPRETATION_PATHS]
+    # Excluding downstream tools must not make an otherwise empty or incomplete
+    # publishing tree appear to be a verified interpretation implementation.
+    if not any(line.split(b"\t", 1)[-1].startswith(b"src/white_list_archive/publishing/")
+               for line in retained):
+        return None
+    return b"\n".join(retained) + b"\n"
 
 
 def equivalent_revision(previous: str, current: str) -> bool:
