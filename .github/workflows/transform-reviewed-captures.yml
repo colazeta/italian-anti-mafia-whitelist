@@ -8,6 +8,7 @@ on:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'src/white_list_archive/acquisition/auto_transform.py'
       - 'src/white_list_archive/acquisition/interpretation_code.py'
+      - 'src/white_list_archive/acquisition/release_readiness.py'
       - 'src/white_list_archive/acquisition/approved_snapshot_backfill.py'
       - 'src/white_list_archive/acquisition/ascoli_private_source_qa.py'
       - 'src/white_list_archive/acquisition/ascoli_private_snapshot_backfill.py'
@@ -173,6 +174,14 @@ jobs:
           git fetch --no-tags origin robot-state
           git show "$ROBOT_STATE_REVISION:state.json" > "${RUNNER_TEMP}/robot-state.json"
           test -s "${RUNNER_TEMP}/robot-state.json"
+      # Candidate triage has its own outcome. A quarantined source or population
+      # cannot prevent another complete authority from reaching source review.
+      - name: Prepare bounded archived release-readiness metadata (no approval)
+        if: ${{ always() && matrix.shard == 1 && steps.load-capture-index.outcome == 'success' && steps.transform-contracts.outcome == 'success' }}
+        run: >-
+          python -m white_list_archive.acquisition.release_readiness
+          --state "${RUNNER_TEMP}/robot-state.json"
+          --source-config data/publication/multi_prefecture_pilot.json
       - name: Interpret changed captures from verified archive objects
         env:
           SHARD: ${{ matrix.shard }}
