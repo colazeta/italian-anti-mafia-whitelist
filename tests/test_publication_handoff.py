@@ -140,6 +140,72 @@ def test_preserver_retry_selects_one_existing_build_artifact_and_rejects_ambigui
     with pytest.raises(ValueError): handoff.choose_build_artifact([])
 
 
+def _review_tree(tmp_path, monkeypatch):
+    args = fixture()
+    for path, data in ((handoff.SELECTOR, args['selected_manifest']),
+                       (handoff.MONITORING, args['monitoring']),
+                       ('data/publication/multi_prefecture_pilot.json', args['config']),
+                       (handoff.INTENT, args['intent'])):
+        target = tmp_path/path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(data))
+    document = tmp_path/args['intent']['review_document']
+    document.parent.mkdir(parents=True)
+    document.write_text('Independent source review')
+    manifest, files = _manifest(json.loads(args['candidate_bytes']), 'public-data-review')
+    directory = tmp_path/'candidate'
+    directory.mkdir()
+    for name, body in files.items(): (directory/name).write_bytes(body)
+    (tmp_path/'candidate-manifest.json').write_text(json.dumps(manifest))
+    def restore_selected(manifest, destination):
+        assert manifest == args['selected_manifest']
+        (destination/'registry.json').write_bytes(args['selected_bytes'])
+    def forbidden(*a, **k):
+        raise AssertionError('Review-only must not operate Git or write a branch')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(handoff, 'restore', restore_selected)
+    monkeypatch.setattr(handoff, '_git', forbidden)
+    monkeypatch.setattr(handoff.subprocess, 'run', forbidden)
+    monkeypatch.setattr(handoff, 'write_proposal_branch', forbidden)
+    argv = ['--review-only', '--candidate-manifest', str(tmp_path/'candidate-manifest.json'),
+            '--candidate-data', str(directory), '--output', str(tmp_path/'receipt')]
+    return args, argv
+
+
+def test_review_only_checks_full_candidate_without_any_git_operation_or_selector_write(tmp_path, monkeypatch):
+    args, argv = _review_tree(tmp_path, monkeypatch)
+    assert handoff.main(argv) == 0
+    paths = list((tmp_path/'receipt').rglob('*'))
+    assert paths == [tmp_path/'receipt/proposal.json']
+    receipt = json.loads(paths[0].read_text())
+    assert receipt['state'] == 'selector_proposal_ready' and receipt['review_only'] is True
+    assert receipt['publications'] == 0 and receipt['approval_granted'] is False
+    assert 'commit' not in receipt and 'branch_state' not in receipt
+
+
+@pytest.mark.parametrize('defect', ['stale_intent', 'outside_scope', 'corrupt_asset', 'missing_review', 'write_flag'])
+def test_premerge_review_fails_closed_before_any_external_write(tmp_path, monkeypatch, defect):
+    args, argv = _review_tree(tmp_path, monkeypatch)
+    if defect == 'stale_intent':
+        args['intent']['baseline_manifest_sha256'] = '0'*64
+        (tmp_path/handoff.INTENT).write_text(json.dumps(args['intent']))
+    elif defect == 'outside_scope':
+        candidate = json.loads(args['candidate_bytes'])
+        candidate['records'][-1]['name'] = 'Unreviewed source change'
+        manifest, files = _manifest(candidate, 'public-data-review')
+        for name, body in files.items(): (tmp_path/'candidate'/name).write_bytes(body)
+        (tmp_path/'candidate-manifest.json').write_text(json.dumps(manifest))
+    elif defect == 'corrupt_asset':
+        (tmp_path/'candidate/history.json').write_bytes(b'corrupt')
+    elif defect == 'missing_review':
+        (tmp_path/args['intent']['review_document']).unlink()
+    elif defect == 'write_flag':
+        argv.append('--write-branch')
+    with pytest.raises((ValueError, SystemExit)):
+        handoff.main(argv)
+    assert not (tmp_path/'receipt').exists()
+
+
 def _git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args], stderr=subprocess.DEVNULL).decode().strip()
 
