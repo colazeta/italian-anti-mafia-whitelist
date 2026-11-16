@@ -116,3 +116,28 @@ release intents touching Como still fail closed or run the original source
 review. Candidate Como PRs always run the original strict qualifier; a new
 edition needs reviewed byte pins, census, date, status, sector, privacy and
 new intent against the then-current selected baseline.
+
+
+## Bounded mixed-source replay (implementation gate, not source approval)
+
+The public registry builder can compose *explicitly selected* unchanged public
+scopes from the five-file SHA-verified selected release with *only* the changed
+source scopes from a frozen archive manifest. The frozen manifest is supplied
+separately and must bind exactly the non-preserved source keys, their complete
+reviewed source descriptors, immutable capture/catalogue receipts and byte
+hashes. The existing replay validator also requires the exact code revision,
+public projector revision and per-source parser revisions. Any incomplete,
+corrupt or mismatched archived input terminates the build; there is no fallback
+to a live Prefecture URL.
+
+This is a code-level capability and regression boundary, **not** evidence that
+the frozen Taranto inputs have been supplied to or verified by the publication
+workflow. PR checks remain unprivileged: they must not receive new R2 secrets or
+publish archived individual source rows. Before any main-only candidate can
+proceed, the existing authorised protected runner must provide a reviewable,
+source-key-exact frozen manifest and run the replay and five-asset tests.
+Publication handoff remains conditional on reviewed intent, complete public
+digests, unchanged outside-scope reports and the existing sole publisher.
+A failed or unavailable protected replay leaves the selected Como release
+untouched. No new SourceEdition, administrative status, semantic or canonical
+observation follows merely from successful source replay.
