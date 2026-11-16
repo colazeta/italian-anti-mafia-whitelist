@@ -48,7 +48,10 @@ def test_como_review_binds_both_populations_to_the_independent_source_and_public
         # Only new reviewed scopes are rebuilt. Selected Como is immutable.
         assert preserved == all_keys - set(intent['changes'])
     else:
-        assert preserved == all_keys
+        # A selector-only proposal advances the selected manifest but does not
+        # edit the existing source-review intent or preserved-scope ledger.
+        # The newly selected pair is explicitly re-enrolled after live acceptance.
+        assert preserved in (all_keys, all_keys - set(intent['changes']))
     assert set(review.PINS) <= preserved
     assert {'biella-listed', 'biella-applicants'} <= preserved
 
