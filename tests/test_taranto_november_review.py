@@ -26,13 +26,13 @@ def test_taranto_exact_reviewed_pair_and_current_baseline_intent():
     selected = json.loads((ROOT / "data/publication/public_snapshot.json").read_text())
     intent = json.loads((ROOT / "data/publication/incremental_release_intent.json").read_text())
     sources = {s["source_key"]: s for s in config["sources"]}
-    assert set(PINN) <= set(sources)
+    assert set(PINNED) <= set(sources)
     assert selected["release_tag"] == "public-data-43736522316-1"
     assert intent["baseline_manifest_sha256"] == _digest(selected)
     assert intent["source_config_sha256"] == _digest(config)
     assert intent["review_document"] == "docs/sources/taranto-publication-review-2026-11-06.md"
     assert (ROOT / intent["review_document"]).is_file()
-    assert set(intent["changes"]) == set(PINN)
+    assert set(intent["changes"]) == set(PINNED)
     for key, pin in PINNED.items():
         source = sources[key]
         assert source["sha256"] == pin["sha256"]
@@ -48,7 +48,7 @@ def test_taranto_exact_reviewed_pair_and_current_baseline_intent():
         }
     preserved = json.loads((ROOT / "data/publication/preserved_public_sources.json").read_text())
     assert len(preserved) == len(set(preserved)) == len(sources) - 2
-    assert set(preserved) == set(sources) - set(PINN)
+    assert set(preserved) == set(sources) - set(PINNED)
     assert {"como-listed", "como-applicants", "biella-listed", "biella-applicants"} <= set(preserved)
 
 
