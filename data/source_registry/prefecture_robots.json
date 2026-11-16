@@ -2794,7 +2794,7 @@
           "population_scope": "listed",
           "parser": "taranto_html_listed",
           "url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
-          "approved_sha256": "545d6db44a8f68ec1e9ef460a4a8129e64d77385bfab318f8d050051219643c9"
+          "approved_sha256": "013cc91b1a62e353e77ab0e773299b6c0ed25c930d9d26d9bd62ec4613ed9396"
         },
         {
           "source_key": "taranto-applicants",
@@ -2802,7 +2802,7 @@
           "population_scope": "applicant",
           "parser": "taranto_html_applicants",
           "url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
-          "approved_sha256": "ade85a5326dc8aa99c4cc2695bad87aee897964cd4c10c59b665793ec3d900f6"
+          "approved_sha256": "c873e011a424e278f91a1bf80abec69282fc5ea53d310aa7118e49693c81c970"
         }
       ],
       "population_mapping_reviewed": true,
