@@ -27,12 +27,18 @@ def test_taranto_exact_reviewed_pair_and_current_baseline_intent():
     intent = json.loads((ROOT / "data/publication/incremental_release_intent.json").read_text())
     sources = {s["source_key"]: s for s in config["sources"]}
     assert set(PINNED) <= set(sources)
-    assert selected["release_tag"] == "public-data-43736522316-1"
-    assert intent["baseline_manifest_sha256"] == _digest(selected)
-    assert intent["source_config_sha256"] == _digest(config)
-    assert intent["review_document"] == "docs/sources/taranto-publication-review-2026-11-06.md"
-    assert (ROOT / intent["review_document"]).is_file()
-    assert set(intent["changes"]) == set(PINNED)
+    # Pin the original source-review decision independently of whichever
+    # release the selector subsequently serves. Selector-only promotion must
+    # not invalidate the historical Taranto evidence or manufacture a new intent.
+    assert (ROOT / "docs/sources/taranto-publication-review-2026-11-06.md").is_file()
+    taranto_intent_current = set(intent["changes"]) == set(PINNED)
+    if taranto_intent_current:
+        assert intent["baseline_manifest_sha256"] == "892a2825c45f373c2702715ca23469c0e56901166dc3dcab3fcc7c97fa4166e3"
+        assert intent["source_config_sha256"] == _digest(config)
+        assert intent["review_document"] == "docs/sources/taranto-publication-review-2026-11-06.md"
+        assert (ROOT / intent["review_document"]).is_file()
+        if selected["release_tag"] == "public-data-43736522316-1":
+            assert intent["baseline_manifest_sha256"] == _digest(selected)
     for key, pin in PINNED.items():
         source = sources[key]
         assert source["sha256"] == pin["sha256"]
@@ -41,14 +47,24 @@ def test_taranto_exact_reviewed_pair_and_current_baseline_intent():
         assert source["expected_source_rows"] == pin["count"]
         assert source["reference_date"] == source["last_source_update"] == "2026-11-06"
         assert source["approval_mode"] == "semantic_sha256"
-        assert intent["changes"][key] == {
-            "count": pin["count"], "statuses": pin["statuses"],
-            "reference_date": "2026-11-06", "sha256": pin["sha256"],
-            "parser": pin["parser"], "records_sha256": pin["records_sha256"],
-        }
+        if taranto_intent_current:
+            assert intent["changes"][key] == {
+                "count": pin["count"], "statuses": pin["statuses"],
+                "reference_date": "2026-11-06", "sha256": pin["sha256"],
+                "parser": pin["parser"], "records_sha256": pin["records_sha256"],
+            }
     preserved = json.loads((ROOT / "data/publication/preserved_public_sources.json").read_text())
-    assert len(preserved) == len(set(preserved)) == len(sources) - 2
-    assert set(preserved) == set(sources) - set(PINNED)
+    assert len(preserved) == len(set(preserved))
+    if taranto_intent_current and selected["release_tag"] == "public-data-43736522316-1":
+        # Before promotion, only these two reviewed source keys may be rebuilt.
+        assert set(preserved) == set(sources) - set(PINNED)
+    elif taranto_intent_current:
+        # The selector proposal modifies only selector/monitoring. The subsequent
+        # preservation enrolment may not yet have been committed.
+        assert set(preserved) in (set(sources) - set(PINNED), set(sources))
+    else:
+        # After a later source review, Taranto has to be preserved explicitly.
+        assert set(PINNED) <= set(preserved)
     assert {"como-listed", "como-applicants", "biella-listed", "biella-applicants"} <= set(preserved)
 
 
