@@ -150,3 +150,121 @@ def test_all_preserved_release_uses_verified_approved_derivatives_without_networ
         with pytest.raises(ValueError, match='differs from configured'):
             build._build_with_preserved_public_sources(
                 {'sources': [altered]}, tmp_path, ('test-listed',), manifest)
+
+
+def test_preserved_public_sources_compose_only_with_exact_frozen_new_scope(monkeypatch, tmp_path):
+    """Frozen input for one changed scope must never refetch the 140 preserved URLs."""
+    import json
+    import pytest
+    import white_list_archive.publishing.public_national_build as build
+
+    def scope(key, population, digest, date):
+        return {
+            'source_key': key, 'authority_key': 'sample', 'register_key': 'sample-ordinary',
+            'population_scope': population, 'reference_date': date,
+            'parser': 'reviewed_parser', 'sha256': digest,
+            'source_page_url': 'https://official.example/page',
+            'resource_url': 'https://official.example/archive',
+            'expected_source_rows': 1,
+        }
+
+    prior = scope('sample-listed', 'listed', 'a' * 64, '2026-09-01')
+    current = scope('sample-applicants', 'applicant', 'b' * 64, '2026-11-06')
+
+    def record(cfg, status):
+        return {
+            **{key: cfg[key] for key in (
+                'source_key', 'authority_key', 'register_key', 'population_scope',
+                'reference_date', 'source_page_url', 'resource_url',
+            )},
+            'parser_name': cfg['parser'], 'parser_version': '1',
+            'record_locator': 'row:1', 'source_status': status,
+        }
+
+    approved_report = {**prior, 'document_checked_at': '2026-09-02T10:00:00Z'}
+    new_report = {**current, 'document_checked_at': '2026-11-06T10:00:00Z'}
+    original = {'records': [record(prior, 'listed')], 'meta': {
+        'sources': [approved_report], 'record_count': 1, 'source_count': 1,
+    }}
+    frozen = {'records': [record(current, 'pending')], 'meta': {
+        'sources': [new_report], 'record_count': 1, 'source_count': 1,
+    }}
+    snapshot = tmp_path / 'selected.json'
+    snapshot.write_text(json.dumps({'release_tag': 'approved-baseline'}))
+    frozen_manifest = tmp_path / 'frozen.json'
+    frozen_manifest.write_text('{"test":"exact archived manifest supplied by protected workflow"}')
+    checked = []
+
+    def restore_approved(manifest, destination):
+        assert manifest['release_tag'] == 'approved-baseline'
+        (destination / 'registry.json').write_text(json.dumps(original))
+
+    def archived_child(config, work_dir, release_manifest_path, *, runtime_code_revision=None, **kwargs):
+        assert [s['source_key'] for s in config['sources']] == ['sample-applicants']
+        assert release_manifest_path == frozen_manifest
+        assert runtime_code_revision == 'frozen-code-sha'
+        checked.append('archived-only')
+        return frozen
+
+    monkeypatch.setattr(build, 'restore', restore_approved)
+    monkeypatch.setattr(build, 'validate_registry', lambda registry: None)
+    monkeypatch.setattr(build, '_build_registry_from_selected_inputs', archived_child)
+    monkeypatch.setattr(build, '_build_registry_with_network_retries',
+                        lambda *args, **kwargs: pytest.fail('No live source fallback permitted'))
+
+    result = build._build_with_preserved_public_sources(
+        {'sources': [prior, current]}, tmp_path, ('sample-listed',), snapshot,
+        release_manifest_path=frozen_manifest, runtime_code_revision='frozen-code-sha',
+    )
+    assert checked == ['archived-only']
+    assert result['meta']['record_count'] == 2
+    assert result['meta']['source_count'] == 2
+    assert result['meta']['status_counts'] == {'listed': 1, 'pending': 1}
+    assert result['meta']['sources'][1] is approved_report or result['meta']['sources'][1] == approved_report
+    assert result['meta']['sources'][1]['document_checked_at'] == '2026-09-02T10:00:00Z'
+    assert {r['source_key'] for r in result['records']} == {'sample-listed', 'sample-applicants'}
+
+    def rejected(*args, **kwargs):
+        raise ValueError('archived provenance mismatch')
+
+    monkeypatch.setattr(build, '_build_registry_from_selected_inputs', rejected)
+    with pytest.raises(ValueError, match='archived provenance mismatch'):
+        build._build_with_preserved_public_sources(
+            {'sources': [prior, current]}, tmp_path, ('sample-listed',), snapshot,
+            release_manifest_path=frozen_manifest, runtime_code_revision='frozen-code-sha',
+        )
+
+
+def test_mixed_frozen_replay_requires_runtime_and_selected_baseline(monkeypatch, tmp_path):
+    import pytest
+    import white_list_archive.publishing.public_national_build as build
+
+    cfg = {'sources': [{'source_key': 'new-applicant'}]}
+    frozen = tmp_path / 'frozen.json'
+    frozen.write_text('{}')
+    selected = tmp_path / 'selected.json'
+    selected.write_text('{}')
+    delegated = []
+
+    def delegate(*args, **kwargs):
+        delegated.append(kwargs)
+        return {'records': []}
+
+    monkeypatch.setattr(build, '_build_with_preserved_public_sources', delegate)
+    with pytest.raises(ValueError, match='runtime code revision'):
+        build._build_registry_from_selected_inputs(
+            cfg, tmp_path, frozen, preserved_source_keys=('old-listed',),
+            public_snapshot_manifest=selected,
+        )
+    with pytest.raises(ValueError, match='both explicit source keys'):
+        build._build_registry_from_selected_inputs(
+            cfg, tmp_path, frozen, runtime_code_revision='exact-code',
+            preserved_source_keys=('old-listed',),
+        )
+    assert not delegated
+    build._build_registry_from_selected_inputs(
+        cfg, tmp_path, frozen, runtime_code_revision='exact-code',
+        preserved_source_keys=('old-listed',), public_snapshot_manifest=selected,
+    )
+    assert delegated[0]['release_manifest_path'] == frozen
+    assert delegated[0]['runtime_code_revision'] == 'exact-code'
