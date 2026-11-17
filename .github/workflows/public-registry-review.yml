@@ -157,6 +157,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
   build:
+    needs: stage-reviewed
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name == 'pull_request' || needs.stage-reviewed.result == 'success')
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -198,9 +205,16 @@ jobs:
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[publication]'
+      - name: Restore verified national derivatives for mixed archive-backed publication
+        id: reviewed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/restore_protected_candidate.py
       - name: Build approved multi-Prefecture registry
+        if: steps.reviewed.outputs.restored != 'true'
         run: |
           white-list-public-national-build \
+            --require-archived-changes \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
             --source-series data/source_registry/source_series_inventory.csv \
@@ -241,6 +255,8 @@ jobs:
         run: python scripts/audit_catania_public_candidate.py
       - name: Validate public artifact and national registry
         id: validate_public
+        env:
+          RESTORED_SELECTED: ${{ steps.reviewed.outputs.selected }}
         run: |
           # The reviewed source catalogue may change with an incremental source
           # update. Materialise its public view before the artifact validator,
@@ -260,6 +276,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          import os
           root = Path('public-site')
           site = json.loads((root/'data/site.json').read_text(encoding='utf-8'))
           reg = json.loads((root/'data/registry.json').read_text(encoding='utf-8'))
@@ -920,7 +937,7 @@ jobs:
               assert source['document_checked_at']
               assert 'diagnostics' not in source
               diagnostic_path = Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json')
-              if source['source_key'] in preserved:
+              if source['source_key'] in preserved or os.environ.get('RESTORED_SELECTED') == 'true':
                   # The builder already verifies exact approved provenance. No
                   # new parse/check is claimed or fabricated for a reused edition.
                   assert not diagnostic_path.exists()

@@ -18,27 +18,41 @@ def test_como_review_binds_both_populations_to_the_independent_source_and_public
     selected = [s for s in config['sources'] if s['authority_key'] == 'como']
     assert {s['source_key'] for s in selected} == set(review.PINS)
     assert {s['population_scope'] for s in selected} == {'listed', 'applicant'}
+    # Como's approved source review remains pinned after newer finite release
+    # intents (Taranto, etc.) supersede Como's historical intent file.
     intent = json.loads((ROOT/'data/publication/incremental_release_intent.json').read_text())
-    assert intent['baseline_manifest_sha256'] == '0ac57b1838b4e6226572a7afc275ebb7b9e46c734fc98904330321f3cdfe7f28'
     assert intent['source_config_sha256'] == _digest(config)
     assert (ROOT/intent['review_document']).is_file()
-    assert set(intent['changes']) == set(review.PINS)
+    assert (ROOT/'docs/sources/como-publication-review-2026-11-10.md').is_file()
     for cfg in selected:
         review.qualify_configuration(cfg)
-        spec, profile = intent['changes'][cfg['source_key']], review.PINS[cfg['source_key']]
-        assert spec == {'count': profile['records'], 'statuses': profile['statuses'],
-                        'reference_date': review.REFERENCE_DATE, 'sha256': profile['sha256'],
-                        'parser': cfg['parser'], 'records_sha256': review.PUBLIC_RECORD_DIGESTS[cfg['source_key']]}
+        profile = review.PINS[cfg['source_key']]
+        assert cfg['reference_date'] == review.REFERENCE_DATE
+        assert cfg['sha256'] == profile['sha256']
+        assert profile['records'] > 0
+        assert len(review.PUBLIC_RECORD_DIGESTS[cfg['source_key']]) == 64
+    if set(intent['changes']) == set(review.PINS):
+        # Preserve the historical Como exact-intent regression when this is
+        # the current review: a new source cannot borrow an older Como intent.
+        assert intent['baseline_manifest_sha256'] == '0ac57b1838b4e6226572a7afc275ebb7b9e46c734fc98904330321f3cdfe7f28'
+        for cfg in selected:
+            profile = review.PINS[cfg['source_key']]
+            assert intent['changes'][cfg['source_key']] == {
+                'count': profile['records'], 'statuses': profile['statuses'],
+                'reference_date': review.REFERENCE_DATE, 'sha256': profile['sha256'],
+                'parser': cfg['parser'], 'records_sha256': review.PUBLIC_RECORD_DIGESTS[cfg['source_key']]}
     preserved = set(json.loads((ROOT/'data/publication/preserved_public_sources.json').read_text()))
     all_keys = {s['source_key'] for s in config['sources']}
     selected_manifest = json.loads((ROOT/'data/publication/public_snapshot.json').read_text())
     if intent['baseline_manifest_sha256'] == _digest(selected_manifest):
-        # Pending publication: only the explicitly reviewed changed scopes are fresh.
-        assert preserved == all_keys - set(review.PINS)
+        # Only new reviewed scopes are rebuilt. Selected Como is immutable.
+        assert preserved == all_keys - set(intent['changes'])
     else:
-        # The prior finite intent has already been selected: revalidate every
-        # approved scope from exact immutable public derivatives, not live URLs.
-        assert preserved == all_keys
+        # A selector-only proposal advances the selected manifest but does not
+        # edit the existing source-review intent or preserved-scope ledger.
+        # The newly selected pair is explicitly re-enrolled after live acceptance.
+        assert preserved in (all_keys, all_keys - set(intent['changes']))
+    assert set(review.PINS) <= preserved
     assert {'biella-listed', 'biella-applicants'} <= preserved
 
 

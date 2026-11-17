@@ -132,7 +132,7 @@ def prepare_proposal(*, selected_manifest, candidate_manifest, selected_bytes, c
             raise ValueError("Reviewed source observation/status count mismatch")
         for field in ("reference_date", "sha256", "parser"):
             if reports[key].get(field) != spec[field] or cfg.get(field) != spec[field]:
-                raise ValueError("Reviewed source provenance mismatch")
+                raise ValueError(f"Reviewed source provenance mismatch: {key}/{field}")
         for field in ("authority_key", "register_key", "population_scope"):
             if reports[key].get(field) != cfg[field]:
                 raise ValueError("Reviewed source scope mismatch")

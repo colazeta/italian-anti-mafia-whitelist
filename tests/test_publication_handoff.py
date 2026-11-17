@@ -111,6 +111,15 @@ def test_stale_unreviewed_or_outside_scope_inputs_fail_closed(defect):
     with pytest.raises(ValueError): handoff.prepare_proposal(**args)
 
 
+def test_provenance_gate_reports_only_public_scope_key_and_field():
+    args = fixture()
+    args['intent']['changes']['fixture-combined']['sha256'] = '0' * 64
+    with pytest.raises(ValueError, match=r"Reviewed source provenance mismatch: fixture-combined/sha256") as error:
+        handoff.prepare_proposal(**args)
+    assert 'https://' not in str(error.value)
+    assert 'raw_value' not in str(error.value)
+
+
 def test_changed_wrapper_tag_reuses_one_proposal_identity_for_the_same_reviewed_data():
     args = fixture()
     first, _ = handoff.prepare_proposal(**args)

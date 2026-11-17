@@ -1,29 +1,29 @@
 {
   "schema_version": 1,
-  "baseline_manifest_sha256": "0ac57b1838b4e6226572a7afc275ebb7b9e46c734fc98904330321f3cdfe7f28",
-  "source_config_sha256": "4b95f99572ccc977cd058679437c4ecd0035f4fb68b29ecf7c53682d41452c93",
-  "review_document": "docs/sources/como-publication-review-2026-11-10.md",
+  "baseline_manifest_sha256": "892a2825c45f373c2702715ca23469c0e56901166dc3dcab3fcc7c97fa4166e3",
+  "source_config_sha256": "d36860ead30810f7b02c40653d6707c43b872fe5d6794acb9c650a73401fa282",
+  "review_document": "docs/sources/taranto-publication-review-2026-11-06.md",
   "changes": {
-    "como-listed": {
-      "count": 400,
+    "taranto-listed": {
+      "count": 383,
       "statuses": {
-        "listed": 361,
-        "renewal_update_in_progress": 39
+        "listed": 183,
+        "renewal_update_in_progress": 200
       },
-      "reference_date": "2026-11-10",
-      "sha256": "f8ea7067f3e2218d9e5b9ff1994dc6f30ba8fca3518ee39cde4a5af7b4733900",
-      "parser": "como_html_listed",
-      "records_sha256": "7885debb230c6c2aeed598bfc4896850c2a6905583215cb8757ef91983b773d9"
+      "reference_date": "2026-11-06",
+      "sha256": "013cc91b1a62e353e77ab0e773299b6c0ed25c930d9d26d9bd62ec4613ed9396",
+      "parser": "taranto_html_listed",
+      "records_sha256": "c7bc0802534ccfa65e9b01d46727af52362c5bf6b64d40ee15dadf114fc6d524"
     },
-    "como-applicants": {
-      "count": 18,
+    "taranto-applicants": {
+      "count": 226,
       "statuses": {
-        "pending": 18
+        "pending": 226
       },
-      "reference_date": "2026-11-10",
-      "sha256": "afd73b6ee1286a4a4d8ac1cd26f2b44214c5b69150f87409bc612cdbc2241d8a",
-      "parser": "como_html_applicants",
-      "records_sha256": "1d22f1b410bebb25ed2e9659890da70b03db91a6fee736d5e5d576d2dfd928fc"
+      "reference_date": "2026-11-06",
+      "sha256": "c873e011a424e278f91a1bf80abec69282fc5ea53d310aa7118e49693c81c970",
+      "parser": "taranto_html_applicants",
+      "records_sha256": "534b016ae55363ae802d646c0c2da35cfe74e4f8b0f0695766f77bd1647c183c"
     }
   }
 }
