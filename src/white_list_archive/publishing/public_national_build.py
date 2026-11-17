@@ -215,6 +215,7 @@ def _build_registry_from_selected_inputs(
     runtime_code_revision: str | None = None,
     preserved_source_keys: tuple[str, ...] = (),
     public_snapshot_manifest: Path | None = None,
+    require_archived_changes: bool = False,
 ) -> dict:
     """Select live legacy mode or strict archive-backed release replay.
 
@@ -231,7 +232,7 @@ def _build_registry_from_selected_inputs(
     # A mixed candidate has new source scopes. Their approved frozen originals
     # must be supplied explicitly: never substitute mutable official URLs when
     # the unprivileged PR runner has no access to the protected archive.
-    if preserved_source_keys and len(preserved_source_keys) != len(config["sources"]) and release_manifest_path is None:
+    if require_archived_changes and preserved_source_keys and len(preserved_source_keys) != len(config["sources"]) and release_manifest_path is None:
         raise ValueError("Mixed public preservation requires an explicit frozen archive release manifest; live source fallback is forbidden")
     if preserved_source_keys:
         return _build_with_preserved_public_sources(
@@ -428,6 +429,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry-csv", type=Path, required=True)
     parser.add_argument("--prefectures-json", type=Path, required=True)
     parser.add_argument("--prefectures-csv", type=Path, required=True)
+    parser.add_argument('--require-archived-changes', action='store_true',
+                        help='Fail closed if mixed preserved/new source scopes lack a frozen archive manifest.')
     parser.add_argument('--preserve-public-source', action='append', default=[],
                         help='Explicitly reuse an unchanged approved public source edition; repeat for each scope.')
     parser.add_argument('--preserved-public-sources', type=Path,
@@ -469,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
             runtime_code_revision=args.runtime_code_revision,
             preserved_source_keys=tuple(preserved_keys),
             public_snapshot_manifest=args.public_snapshot_manifest,
+            require_archived_changes=args.require_archived_changes,
         )
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
