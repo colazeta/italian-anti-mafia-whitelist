@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - 'scripts/stage_reviewed_national_candidate.py'
+      - 'data/publication/archive_replay_requests/**'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'data/publication/incremental_release_intent.json'
       - 'src/white_list_archive/publishing/publication_handoff.py'
@@ -125,6 +127,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stage-reviewed:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: evidence-archive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication,storage,database]'
+      - name: Build reviewed national candidate from verified private manifest
+        env:
+          EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+          EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+          EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+          EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+          EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+          AWS_EC2_METADATA_DISABLED: 'true'
+        run: python scripts/stage_reviewed_national_candidate.py /tmp/reviewed-national
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-national-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/reviewed-national/
+          if-no-files-found: ignore
+          retention-days: 30
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

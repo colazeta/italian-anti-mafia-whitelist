@@ -69,5 +69,11 @@
   "parser_versions": {
     "taranto-listed": "1",
     "taranto-applicants": "1"
+  },
+  "publication": {
+    "schema_version": 1,
+    "baseline_manifest_sha256": "892a2825c45f373c2702715ca23469c0e56901166dc3dcab3fcc7c97fa4166e3",
+    "source_config_sha256": "d36860ead30810f7b02c40653d6707c43b872fe5d6794acb9c650a73401fa282",
+    "review_document": "docs/sources/taranto-publication-review-2026-11-06.md"
   }
 }
