@@ -1,0 +1,73 @@
+{
+  "config": {
+    "schema_version": 1,
+    "verified_at": "2026-09-11",
+    "sources": [
+      {
+        "source_key": "taranto-listed",
+        "parser": "taranto_html_listed",
+        "authority_key": "taranto",
+        "authority_name": "Prefettura di Taranto",
+        "register_key": "taranto-ordinary",
+        "register_name": "White List ordinaria",
+        "population_scope": "listed",
+        "reference_date": "2026-11-06",
+        "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+        "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+        "sha256": "013cc91b1a62e353e77ab0e773299b6c0ed25c930d9d26d9bd62ec4613ed9396",
+        "semantic_sha256": "80fd32841490c1c72845fb394c8fab796d95b3e6f481a51951824f0d0c29a19b",
+        "approval_mode": "semantic_sha256",
+        "expected_source_rows": 383,
+        "last_source_update": "2026-11-06",
+        "last_source_update_basis": "Explicit 'Ultimo aggiornamento' 6 November 2026 in SHA-verified official archived HTML; independently verified 15 November 2026 by protected R2 census. Source reference date only, never a company event.",
+        "notes": "Reviewed November official HTML: 383 physical and public observations (183 listed, 200 renewal/update in progress); 377 structured and 6 raw-only identifiers; 8 malformed row dates retained in raw evidence with corresponding normalised values blank. SHA-pinned protected census, sector/status QA and full record digest documented in docs/sources/taranto-publication-review-2026-11-06.md."
+      },
+      {
+        "source_key": "taranto-applicants",
+        "parser": "taranto_html_applicants",
+        "authority_key": "taranto",
+        "authority_name": "Prefettura di Taranto",
+        "register_key": "taranto-ordinary",
+        "register_name": "White List ordinaria",
+        "population_scope": "applicant",
+        "reference_date": "2026-11-06",
+        "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+        "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+        "sha256": "c873e011a424e278f91a1bf80abec69282fc5ea53d310aa7118e49693c81c970",
+        "semantic_sha256": "1b51bb0dda7e0e001435351e07ce60b11d982afd2cf5cdb07373034da2b2e033",
+        "approval_mode": "semantic_sha256",
+        "expected_source_rows": 226,
+        "last_source_update": "2026-11-06",
+        "last_source_update_basis": "Explicit 'Ultimo aggiornamento' 6 November 2026 in SHA-verified official archived HTML; independently verified 15 November 2026 by protected R2 census. Source reference date only, never a company event.",
+        "notes": "Reviewed November official HTML: 226 physical and public pending observations; 225 structured and 1 raw-only identifier; no malformed row dates. SHA-pinned protected census, sector/status QA and full record digest documented in docs/sources/taranto-publication-review-2026-11-06.md."
+      }
+    ]
+  },
+  "changes": {
+    "taranto-listed": {
+      "count": 383,
+      "statuses": {
+        "listed": 183,
+        "renewal_update_in_progress": 200
+      },
+      "reference_date": "2026-11-06",
+      "sha256": "013cc91b1a62e353e77ab0e773299b6c0ed25c930d9d26d9bd62ec4613ed9396",
+      "parser": "taranto_html_listed",
+      "records_sha256": "c7bc0802534ccfa65e9b01d46727af52362c5bf6b64d40ee15dadf114fc6d524"
+    },
+    "taranto-applicants": {
+      "count": 226,
+      "statuses": {
+        "pending": 226
+      },
+      "reference_date": "2026-11-06",
+      "sha256": "c873e011a424e278f91a1bf80abec69282fc5ea53d310aa7118e49693c81c970",
+      "parser": "taranto_html_applicants",
+      "records_sha256": "534b016ae55363ae802d646c0c2da35cfe74e4f8b0f0695766f77bd1647c183c"
+    }
+  },
+  "parser_versions": {
+    "taranto-listed": "1",
+    "taranto-applicants": "1"
+  }
+}
