@@ -8,7 +8,7 @@ on:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'data/publication/archive_replay_requests/**'
-      - 'src/white_list_archive/publishing/recover_reviewed_manifest.py'
+      - 'src/white_list_archive/acquisition/recover_reviewed_manifest.py'
       - 'data/source_registry/source_series_inventory.csv'
       - 'src/white_list_archive/parsers/**'
       - 'src/white_list_archive/publishing/public_national_registry.py'
@@ -133,7 +133,7 @@ jobs:
         id: archive_replay
         if: matrix.shard == 1
         continue-on-error: true
-        run: python -m white_list_archive.publishing.recover_reviewed_manifest
+        run: python -m white_list_archive.acquisition.recover_reviewed_manifest
       # Read exactly four publicly documented legacy SHA pins in the primary
       # protected store. No live requests, capture/materialisation, source rows,
       # approval or new runner. This is not a backup/restore acceptance test.

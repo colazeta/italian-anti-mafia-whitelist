@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from white_list_archive.publishing import recover_reviewed_manifest as recovery
+from white_list_archive.acquisition import recover_reviewed_manifest as recovery
 
 
 def test_recovers_only_exact_reviewed_captures(monkeypatch):

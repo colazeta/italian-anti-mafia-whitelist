@@ -11,10 +11,10 @@ from white_list_archive.acquisition.auto_transform import private_connection
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.catalogue_recovery import load_catalogued_capture
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
-from .frozen_release import PUBLIC_PROJECTOR_REVISION
-from .frozen_release_select import _head_revision, select_verified_release, write_new_release
-from .publication_handoff import records_digest
-from .public_national_build import _build_registry_from_selected_inputs
+from white_list_archive.publishing.frozen_release import PUBLIC_PROJECTOR_REVISION
+from white_list_archive.publishing.frozen_release_select import _head_revision, select_verified_release, write_new_release
+from white_list_archive.publishing.publication_handoff import records_digest
+from white_list_archive.publishing.public_national_build import _build_registry_from_selected_inputs
 
 
 def selection(request, connection, catalogue):
