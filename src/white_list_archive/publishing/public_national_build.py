@@ -215,6 +215,7 @@ def _build_registry_from_selected_inputs(
     runtime_code_revision: str | None = None,
     preserved_source_keys: tuple[str, ...] = (),
     public_snapshot_manifest: Path | None = None,
+    require_archived_changes: bool = False,
 ) -> dict:
     """Select live legacy mode or strict archive-backed release replay.
 
@@ -226,10 +227,19 @@ def _build_registry_from_selected_inputs(
     """
     if bool(preserved_source_keys) != bool(public_snapshot_manifest):
         raise ValueError("Public source preservation requires both explicit source keys and a reviewed snapshot manifest")
+    if release_manifest_path is not None and not runtime_code_revision:
+        raise ValueError("Frozen release replay requires an explicit runtime code revision")
+    # A mixed candidate has new source scopes. Their approved frozen originals
+    # must be supplied explicitly: never substitute mutable official URLs when
+    # the unprivileged PR runner has no access to the protected archive.
+    if require_archived_changes and preserved_source_keys and len(preserved_source_keys) != len(config["sources"]) and release_manifest_path is None:
+        raise ValueError("Mixed public preservation requires an explicit frozen archive release manifest; live source fallback is forbidden")
     if preserved_source_keys:
-        if release_manifest_path is not None:
-            raise ValueError("Public derivative preservation cannot be mixed with original-source frozen replay")
-        return _build_with_preserved_public_sources(config, work_dir, preserved_source_keys, public_snapshot_manifest)
+        return _build_with_preserved_public_sources(
+            config, work_dir, preserved_source_keys, public_snapshot_manifest,
+            release_manifest_path=release_manifest_path,
+            runtime_code_revision=runtime_code_revision,
+        )
     release_manifest = None
     if release_manifest_path is None:
         registry = _build_registry_with_network_retries(config, work_dir)
@@ -300,7 +310,10 @@ def _read_scope_binding(path: Path, cfg: dict) -> dict:
     return by_key[cfg['source_key']]
 
 
-def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tuple[str, ...], manifest_path: Path) -> dict:
+def _build_with_preserved_public_sources(
+    config: dict, work_dir: Path, keys: tuple[str, ...], manifest_path: Path,
+    *, release_manifest_path: Path | None = None, runtime_code_revision: str | None = None,
+) -> dict:
     """Compose explicit approved public editions with newly checked source scopes.
 
     This is selected before acquisition, never as an automatic error fallback. It
@@ -379,7 +392,14 @@ def _build_with_preserved_public_sources(config: dict, work_dir: Path, keys: tup
             raise ValueError('All-preserved release does not cover every approved observation and report')
         return approved
     fresh_config = {**config, 'sources': [s for s in config['sources'] if s['source_key'] not in keys]}
-    registry = _build_registry_from_selected_inputs(fresh_config, work_dir, None)
+    # The frozen manifest MUST contain every and only the non-preserved source.
+    # Its existing validator authenticates source/config, each catalogue receipt,
+    # original SHA, runtime and parser revisions before any result is combined.
+    # A replay failure must never fall back to mutable source URLs.
+    registry = _build_registry_from_selected_inputs(
+        fresh_config, work_dir, release_manifest_path,
+        runtime_code_revision=runtime_code_revision,
+    )
     registry['records'].extend(preserved_records)
     registry['meta']['sources'].extend(preserved_reports)
     meta = registry['meta']
@@ -409,6 +429,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry-csv", type=Path, required=True)
     parser.add_argument("--prefectures-json", type=Path, required=True)
     parser.add_argument("--prefectures-csv", type=Path, required=True)
+    parser.add_argument('--require-archived-changes', action='store_true',
+                        help='Fail closed if mixed preserved/new source scopes lack a frozen archive manifest.')
     parser.add_argument('--preserve-public-source', action='append', default=[],
                         help='Explicitly reuse an unchanged approved public source edition; repeat for each scope.')
     parser.add_argument('--preserved-public-sources', type=Path,
@@ -450,6 +472,7 @@ def main(argv: list[str] | None = None) -> int:
             runtime_code_revision=args.runtime_code_revision,
             preserved_source_keys=tuple(preserved_keys),
             public_snapshot_manifest=args.public_snapshot_manifest,
+            require_archived_changes=args.require_archived_changes,
         )
         prefectures = build_prefecture_index(
             _alias_publication_config(config, args.authority_aliases),
