@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/transform-reviewed-captures.yml'
       - 'data/publication/multi_prefecture_pilot.json'
+      - 'data/publication/archive_replay_requests/**'
+      - 'src/white_list_archive/acquisition/recover_reviewed_manifest.py'
       - 'data/source_registry/source_series_inventory.csv'
       - 'src/white_list_archive/parsers/**'
       - 'src/white_list_archive/publishing/public_national_registry.py'
@@ -127,6 +129,11 @@ jobs:
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[publication,storage,database]' pytest
+      - name: Recover and replay reviewed archive manifests
+        id: archive_replay
+        if: matrix.shard == 1
+        continue-on-error: true
+        run: python -m white_list_archive.acquisition.recover_reviewed_manifest
       # Read exactly four publicly documented legacy SHA pins in the primary
       # protected store. No live requests, capture/materialisation, source rows,
       # approval or new runner. This is not a backup/restore acceptance test.
@@ -278,6 +285,10 @@ jobs:
           path: /tmp/public-actions/white-list-auto-transform/summary.json
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Surface incomplete reviewed archive replay after independent work
+        if: always() && steps.archive_replay.outcome == 'failure'
+        run: exit 1
 
 # Does not write to main/robot-state, upload original/source row data, alter
 # publication approval, create a public release or deploy a Pages artifact.
