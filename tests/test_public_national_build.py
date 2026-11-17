@@ -296,4 +296,5 @@ def test_partial_public_preservation_without_frozen_manifest_fails_before_networ
             preserved_source_keys=("sample-listed",),
             public_snapshot_manifest=selected,
             runtime_code_revision="pinned-revision",
+            require_archived_changes=True,
         )
