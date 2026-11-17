@@ -128,7 +128,13 @@ reviewed source descriptors, immutable capture/catalogue receipts and byte
 hashes. The existing replay validator also requires the exact code revision,
 public projector revision and per-source parser revisions. Any incomplete,
 corrupt or mismatched archived input terminates the build; there is no fallback
-to a live Prefecture URL.
+to a live Prefecture URL. The existing candidate workflow now passes
+`--require-archived-changes`: if only some public scopes are preserved and no
+frozen release manifest is supplied, the builder fails **before any source
+request**. This is an explicit fail-closed diagnostic, not evidence of a
+completed private replay or a passed publication candidate. Legacy stand-alone
+builder calls remain available for existing migration tests and are not
+mistaken for this protected release gate.
 
 This is a code-level capability and regression boundary, **not** evidence that
 the frozen Taranto inputs have been supplied to or verified by the publication
