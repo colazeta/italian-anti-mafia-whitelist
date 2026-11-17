@@ -228,6 +228,11 @@ def _build_registry_from_selected_inputs(
         raise ValueError("Public source preservation requires both explicit source keys and a reviewed snapshot manifest")
     if release_manifest_path is not None and not runtime_code_revision:
         raise ValueError("Frozen release replay requires an explicit runtime code revision")
+    # A mixed candidate has new source scopes. Their approved frozen originals
+    # must be supplied explicitly: never substitute mutable official URLs when
+    # the unprivileged PR runner has no access to the protected archive.
+    if preserved_source_keys and len(preserved_source_keys) != len(config["sources"]) and release_manifest_path is None:
+        raise ValueError("Mixed public preservation requires an explicit frozen archive release manifest; live source fallback is forbidden")
     if preserved_source_keys:
         return _build_with_preserved_public_sources(
             config, work_dir, preserved_source_keys, public_snapshot_manifest,
