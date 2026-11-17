@@ -170,6 +170,7 @@ jobs:
       - name: Build approved multi-Prefecture registry
         run: |
           white-list-public-national-build \
+            --require-archived-changes \
             --source-config data/publication/multi_prefecture_pilot.json \
             --verified-pages data/source_registry/verified_primary_pages.csv \
             --source-series data/source_registry/source_series_inventory.csv \
