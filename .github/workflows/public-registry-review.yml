@@ -5,6 +5,8 @@ on:
     branches:
       - main
     paths:
+      - 'scripts/stage_reviewed_national_candidate.py'
+      - 'data/publication/archive_replay_requests/**'
       - 'data/publication/multi_prefecture_pilot.json'
       - 'data/publication/incremental_release_intent.json'
       - 'src/white_list_archive/publishing/publication_handoff.py'
@@ -125,7 +127,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stage-reviewed:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: evidence-archive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e '.[publication,storage,database]'
+      - name: Build reviewed national candidate from verified private manifest
+        env:
+          EVIDENCE_BUCKET: ${{ vars.EVIDENCE_BUCKET }}
+          EVIDENCE_ENDPOINT: ${{ vars.EVIDENCE_ENDPOINT }}
+          EVIDENCE_REGION: ${{ vars.EVIDENCE_REGION }}
+          EVIDENCE_POLICY_EVIDENCE: ${{ vars.EVIDENCE_POLICY_EVIDENCE }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.EVIDENCE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.EVIDENCE_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.EVIDENCE_SESSION_TOKEN }}
+          EVIDENCE_DATABASE_URL: ${{ secrets.EVIDENCE_DATABASE_URL }}
+          AWS_EC2_METADATA_DISABLED: 'true'
+        run: python scripts/stage_reviewed_national_candidate.py /tmp/reviewed-national
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-national-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/reviewed-national/
+          if-no-files-found: ignore
+          retention-days: 30
   build:
+    needs: stage-reviewed
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name == 'pull_request' || needs.stage-reviewed.result == 'success')
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -167,7 +205,13 @@ jobs:
             sleep $((attempt * 3))
           done
           python -m pip install -e '.[publication]'
+      - name: Restore verified national derivatives for mixed archive-backed publication
+        id: reviewed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/restore_protected_candidate.py
       - name: Build approved multi-Prefecture registry
+        if: steps.reviewed.outputs.restored != 'true'
         run: |
           white-list-public-national-build \
             --require-archived-changes \
@@ -211,6 +255,8 @@ jobs:
         run: python scripts/audit_catania_public_candidate.py
       - name: Validate public artifact and national registry
         id: validate_public
+        env:
+          RESTORED_SELECTED: ${{ steps.reviewed.outputs.selected }}
         run: |
           # The reviewed source catalogue may change with an incremental source
           # update. Materialise its public view before the artifact validator,
@@ -230,6 +276,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          import os
           root = Path('public-site')
           site = json.loads((root/'data/site.json').read_text(encoding='utf-8'))
           reg = json.loads((root/'data/registry.json').read_text(encoding='utf-8'))
@@ -890,7 +937,7 @@ jobs:
               assert source['document_checked_at']
               assert 'diagnostics' not in source
               diagnostic_path = Path('/tmp/public-national-sources', source['source_key'] + '.diagnostics.json')
-              if source['source_key'] in preserved:
+              if source['source_key'] in preserved or os.environ.get('RESTORED_SELECTED') == 'true':
                   # The builder already verifies exact approved provenance. No
                   # new parse/check is claimed or fabricated for a reused edition.
                   assert not diagnostic_path.exists()
