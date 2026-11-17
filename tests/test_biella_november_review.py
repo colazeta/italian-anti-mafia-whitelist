@@ -33,8 +33,19 @@ def test_reviewed_configuration_has_exact_both_populations_and_pinned_archive_or
     # not an instruction to refetch an already published mutable source.
     if json.loads(intent.read_text())['baseline_manifest_sha256'] == _digest(selected):
         assert preserved == all_keys - updates
-    else:
-        assert preserved == all_keys
+    elif preserved != all_keys:
+        # The generated two-file selector can precede preservation enrolment.
+        # Verify that only the reviewed pair/scopes are outstanding and that
+        # the selector-bound monitoring evidence already includes each edition.
+        assert preserved == all_keys - updates
+        monitoring = json.loads((ROOT/'data/monitoring/national_coverage.json').read_text())
+        published = monitoring['selected_publication']
+        assert published['release_tag'] == selected['release_tag']
+        assert published['registry_sha256'] == selected['files']['registry.json']['sha256']
+        sources = {s['source_key']: s for authority in monitoring['prefectures']
+                   for s in authority.get('selected_public_sources', [])}
+        for key, profile in json.loads(intent.read_text())['changes'].items():
+            assert all(sources[key][field] == profile[field] for field in ('reference_date', 'sha256', 'parser'))
 
 
 def test_full_source_profile_rejects_new_bytes_dates_parser_and_semantics(tmp_path, monkeypatch):
