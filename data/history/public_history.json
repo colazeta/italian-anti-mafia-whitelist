@@ -22031,6 +22031,16 @@
       "kind": "approved_document_verification"
     },
     {
+      "checked_at": "2026-11-15T16:45:30.181642+00:00",
+      "edition_id": "155a1c0390a0fca429ebba6155074da3d32ff73517de66ac7e07ede3ae8d0839",
+      "kind": "approved_document_verification"
+    },
+    {
+      "checked_at": "2026-11-15T16:45:33.601260+00:00",
+      "edition_id": "492a95dbe729acc4b097f6e8a0212a28d1abe2ffb6141ba003d01bffd5b16050",
+      "kind": "approved_document_verification"
+    },
+    {
       "checked_at": "2026-11-15T16:56:26+00:00",
       "edition_id": "8d90c309e7b65152b49c7a5e95b080fe614eba8f3d4a9aeebbf4f2b6da26cc8d",
       "kind": "approved_document_verification"
@@ -22042,6 +22052,23 @@
     }
   ],
   "comparisons": [
+    {
+      "added": null,
+      "after_id": "492a95dbe729acc4b097f6e8a0212a28d1abe2ffb6141ba003d01bffd5b16050",
+      "basis": "exact_identifier_observations_v1",
+      "before_id": "0ab299a2f61ca36c61f3e898634731fc2b2e9df9107313e26f8882cd3fd3dad3",
+      "common": 211,
+      "content_changed": 0,
+      "disappeared": null,
+      "evidence": [
+        "approved-public-registry",
+        "exact_identifier_observations_v1"
+      ],
+      "status_changed": 0,
+      "transition_counts": {},
+      "unresolved_after": 1,
+      "unresolved_before": 1
+    },
     {
       "added": null,
       "after_id": "3a9e9207e0454e5ed5d93ee0cecb379714f368f946be1fc7759e905b1ee61b48",
@@ -22111,6 +22138,25 @@
       "transition_counts": {},
       "unresolved_after": 0,
       "unresolved_before": 0
+    },
+    {
+      "added": null,
+      "after_id": "155a1c0390a0fca429ebba6155074da3d32ff73517de66ac7e07ede3ae8d0839",
+      "basis": "exact_identifier_observations_v1",
+      "before_id": "57ca5d04bd354baab683aa8584caf3e94066b41fa858903c935c03d23b6e5907",
+      "common": 377,
+      "content_changed": 26,
+      "disappeared": null,
+      "evidence": [
+        "approved-public-registry",
+        "exact_identifier_observations_v1"
+      ],
+      "status_changed": 26,
+      "transition_counts": {
+        "listed->renewal_update_in_progress": 26
+      },
+      "unresolved_after": 6,
+      "unresolved_before": 7
     },
     {
       "added": null,
@@ -28407,6 +28453,29 @@
     {
       "authority_key": "taranto",
       "authority_name": "Prefettura di Taranto",
+      "data_fingerprint": "fd5bc00afabebfebaf7a0eebb05b47e95c1e4447a6bbc187480de9a2c0d608a4",
+      "document_sha256": "c873e011a424e278f91a1bf80abec69282fc5ea53d310aa7118e49693c81c970",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "492a95dbe729acc4b097f6e8a0212a28d1abe2ffb6141ba003d01bffd5b16050",
+      "parser_signature": "taranto_html_applicants@1",
+      "population_scope": "applicant",
+      "reference_date": "2026-11-06",
+      "reference_date_raw": "2026-11-06",
+      "register_key": "taranto-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+      "source_key": "taranto-applicants",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/elenco-imprese-richiedenti-liscrizione-nella-white-list",
+      "status_counts": {
+        "pending": 226
+      },
+      "total": 226
+    },
+    {
+      "authority_key": "taranto",
+      "authority_name": "Prefettura di Taranto",
       "data_fingerprint": "a3339b21e832bf06275f4e96b9b30ebc0b27ac8d4c7e7ccf38c2f2349cce2d73",
       "document_sha256": "effed8a004f72a373afd0123b8c1c5642060f7ba5a33c199554ec2a037e7d730",
       "evidence": [
@@ -28787,6 +28856,30 @@
         "renewal_update_in_progress": 176
       },
       "total": 388
+    },
+    {
+      "authority_key": "taranto",
+      "authority_name": "Prefettura di Taranto",
+      "data_fingerprint": "a1e320a434181a6991b2d8fa1aa8c4c0b943bd40332c6c7df73693209889fe6a",
+      "document_sha256": "013cc91b1a62e353e77ab0e773299b6c0ed25c930d9d26d9bd62ec4613ed9396",
+      "evidence": [
+        "approved-public-registry"
+      ],
+      "id": "155a1c0390a0fca429ebba6155074da3d32ff73517de66ac7e07ede3ae8d0839",
+      "parser_signature": "taranto_html_listed@1",
+      "population_scope": "listed",
+      "reference_date": "2026-11-06",
+      "reference_date_raw": "2026-11-06",
+      "register_key": "taranto-ordinary",
+      "register_name": "White List ordinaria",
+      "resource_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+      "source_key": "taranto-listed",
+      "source_page_url": "https://prefettura.interno.gov.it/it/prefetture/taranto/white-list-elenco-imprese-iscritte",
+      "status_counts": {
+        "listed": 183,
+        "renewal_update_in_progress": 200
+      },
+      "total": 383
     },
     {
       "authority_key": "torino",
