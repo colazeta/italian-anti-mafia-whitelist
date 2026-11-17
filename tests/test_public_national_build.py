@@ -268,3 +268,32 @@ def test_mixed_frozen_replay_requires_runtime_and_selected_baseline(monkeypatch,
     )
     assert delegated[0]['release_manifest_path'] == frozen
     assert delegated[0]['runtime_code_revision'] == 'exact-code'
+
+def test_partial_public_preservation_without_frozen_manifest_fails_before_network(monkeypatch, tmp_path):
+    """Unprivileged review must not refetch changed immutable-source pins live."""
+    import pytest
+    import white_list_archive.publishing.public_national_build as build
+
+    config = {"sources": [
+        {"source_key": "sample-listed"},
+        {"source_key": "sample-applicants"},
+    ]}
+    selected = tmp_path / "selected.json"
+    selected.write_text("{}")
+    monkeypatch.setattr(
+        build, "_build_with_preserved_public_sources",
+        lambda *args, **kwargs: pytest.fail("No archive manifest: preservation must not start"),
+    )
+    monkeypatch.setattr(
+        build, "_build_registry_with_network_retries",
+        lambda *args, **kwargs: pytest.fail("Mutable official sources must not be fetched"),
+    )
+    with pytest.raises(ValueError, match="explicit frozen archive release manifest"):
+        build._build_registry_from_selected_inputs(
+            config,
+            tmp_path,
+            None,
+            preserved_source_keys=("sample-listed",),
+            public_snapshot_manifest=selected,
+            runtime_code_revision="pinned-revision",
+        )
