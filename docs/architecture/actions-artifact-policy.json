@@ -140,6 +140,12 @@
       "name": "alessandria-safe-source-qa",
       "path": "/tmp/public-actions/alessandria-source-qa",
       "classification": "public_operational_verification"
+    },
+    {
+      "workflow": ".github/workflows/public-registry-review.yml",
+      "name": "reviewed-national-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/reviewed-national/",
+      "classification": "deliberately_public_publication"
     }
   ],
   "pages_artifacts": [
