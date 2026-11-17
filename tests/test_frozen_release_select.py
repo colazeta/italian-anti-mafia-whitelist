@@ -200,3 +200,27 @@ def test_release_output_is_create_only(tmp_path: Path) -> None:
     write_new_release(output, manifest)
     with pytest.raises(FileExistsError):
         write_new_release(output, manifest)
+
+
+@pytest.mark.parametrize("conflict", [False, True])
+def test_v2_selection_verifies_source_date_separately_from_capture(conflict):
+    config = _config()
+    selection = _selection(config)
+    selection["schema_version"] = 2
+    source = config["sources"][0]
+    resource = selection["sources"][0]["resources"][0]
+    resource.update(reviewed_resource_url=source["resource_url"],
+                    source_reference_date=source["reference_date"])
+    resource["capture"]["reference_date"] = "2026-09-21" if conflict else None
+    store, catalogue = FakeStore(), FakeCatalogue()
+    if conflict:
+        with pytest.raises(ValueError, match="capture reference date conflicts"):
+            _select(config, selection, store, catalogue=catalogue)
+        assert store.reads == catalogue.reads == []
+        return
+    manifest = _select(config, selection, store, catalogue=catalogue)
+    selected = manifest["sources"][0]["resources"][0]
+    assert manifest["schema_version"] == 2
+    assert selected["capture"]["reference_date"] is None
+    assert selected["source_reference_date"] == source["reference_date"]
+    assert store.reads == catalogue.reads == [resource["capture"]["capture_id"]]
