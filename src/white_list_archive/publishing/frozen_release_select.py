@@ -41,7 +41,7 @@ def _selection_sources(selection: dict[str, Any]) -> dict[str, dict[str, Any]]:
     # Processing time and executing code revision are deliberately not operator fields:
     # the selector binds them at execution time after the private inputs are chosen.
     required = {"schema_version", "release_id", "sources"}
-    if set(selection) != required or selection.get("schema_version") != 1:
+    if set(selection) != required or type(selection.get("schema_version")) is not int or selection["schema_version"] not in (1, 2):
         raise ValueError("Unapproved frozen-release selection envelope")
     sources = selection.get("sources")
     if not isinstance(sources, list) or not sources:
@@ -123,7 +123,7 @@ def select_verified_release(
         )
 
     candidate: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": selection["schema_version"],
         "release_id": selection["release_id"],
         "created_at": created_at,
         "code_revision": code_revision,
