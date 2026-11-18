@@ -142,6 +142,8 @@ jobs:
     environment: evidence-archive
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -164,6 +166,12 @@ jobs:
         with:
           name: reviewed-national-${{ github.run_id }}-${{ github.run_attempt }}
           path: /tmp/reviewed-national/
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rebased-review-proposals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/reviewed-national-proposals/
           if-no-files-found: ignore
           retention-days: 30
   report-blocked:

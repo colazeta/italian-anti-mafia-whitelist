@@ -71,3 +71,49 @@ def test_reviewable_build_requires_all_previous_checks_to_pass():
     workflow = (ROOT/'.github/workflows/public-registry-review.yml').read_text()
     step = workflow.split('- name: Save reviewable public build', 1)[1].split('with:', 1)[0]
     assert 'if: success()' in step
+
+
+def test_published_bundle_corruption_is_rejected(tmp_path, monkeypatch):
+    module = script('reviewed_bundle_release')
+    bundle = tmp_path/('a'*64)
+    bundle.mkdir()
+    for name in module.ASSETS:
+        (bundle/name).write_bytes(b'{}')
+    monkeypatch.setattr(module, 'release', lambda tag: dict(
+        isDraft=False, isPrerelease=True, assets=[{'name': n} for n in module.ASSETS]))
+    def download(args, check):
+        for n in module.ASSETS:
+            (Path(args[-1])/n).write_bytes(b'{}' if n != 'registry.csv.gz' else b'corrupt')
+    monkeypatch.setattr(module.subprocess, 'run', download)
+    with pytest.raises(ValueError):
+        module.retain(bundle, 'b'*40)
+
+
+@pytest.mark.parametrize('selected_value,expected', [('new', 'complete'), ('old', 'rebase'), ('other', 'conflict')])
+def test_reconcile_advanced_baseline(monkeypatch, selected_value, expected):
+    module = script('stage_reviewed_national_candidate')
+    config = {'sources': [{'source_key': 'one'}]}
+    original, selected = {'v': 1}, {'v': 2}
+    def rows(value):
+        return [{'record_locator': '1', 'source_key': 'one', 'source_status': 'listed', 'value': value}]
+    provenance = dict(parser='p', sha256='a'*64, reference_date='2026-11-01')
+    request = {'publication': {'baseline_manifest_sha256': module.configuration_sha256(original),
+                               'source_config_sha256': module.configuration_sha256(config)},
+               'changes': {'one': {**provenance, 'count': 1, 'statuses': {'listed': 1},
+                                   'records_sha256': module.publication_handoff.records_digest(rows('new'))}}}
+    def restore(manifest, dest):
+        dest.mkdir()
+        registry = {'records': rows(selected_value if manifest == selected else 'old'),
+                    'meta': {'sources': [dict(source_key='one', **provenance)]}}
+        (dest/'registry.json').write_text(json.dumps(registry))
+    monkeypatch.setattr(module.public_snapshot, 'restore', restore)
+    monkeypatch.setattr(module, 'baseline_revision', lambda _: ('rev', original))
+    monkeypatch.setattr(module, 'tracked_json', lambda *_: config.copy())
+    args = request, selected, config, {'one': config['sources'][0]}
+    if expected == 'conflict':
+        with pytest.raises(ValueError, match='Concurrent'):
+            module.reconcile(*args)
+    elif expected == 'complete':
+        assert module.reconcile(*args) is None
+    else:
+        assert module.reconcile(*args)['baseline_manifest_sha256'] == module.configuration_sha256(selected)

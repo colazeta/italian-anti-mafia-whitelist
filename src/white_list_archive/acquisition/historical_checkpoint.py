@@ -176,6 +176,27 @@ def campaign_summary(state):
             'status': status, 'publications': 0}
 
 
+def diagnostic_groups(state, root, configuration):
+    context = state['context']
+    snapshots, _ = read_robot_history(root, context['robot_state_sha'])
+    counts = {}
+    for shard, frozen in enumerate(context['selection']):
+        jobs, _ = select_historical_jobs(snapshots, configuration, shard=shard, shards=4)
+        plan = selection_manifest(jobs)
+        if digest(plan) != frozen['selection_sha256']:
+            raise ValueError('Historical diagnostic plan differs from frozen selection')
+        for index, entry in enumerate(plan):
+            key = entry['interpretation_key']
+            outcome = state['unresolved'].get(key)
+            if outcome is None and index < state['cursors'][shard]:
+                continue
+            group = (shard, entry['source_key'], outcome.get('stage') if outcome else 'pending',
+                     outcome.get('reason') if outcome else 'awaiting_attempt')
+            counts[group] = counts.get(group, 0) + 1
+    return [dict(shard=s, source_key=k, stage=t, reason=r, count=n)
+            for (s, k, t, r), n in counts.items()]
+
+
 def choose_shard(state):
     validate_state(state)
     for offset in range(4):
@@ -317,7 +338,13 @@ def main(argv=None):
         print('has_work=' + ('true' if choose_shard(state) is not None else 'false'))
         return 0
     if args.mode == 'inspect':
-        print(json.dumps({**campaign_summary(state), 'private_checkpoint_readback_verified': True}, sort_keys=True))
+        configuration = subprocess.check_output(['git', 'show',
+            state['context']['code_revision'] + ':data/publication/multi_prefecture_pilot.json'])
+        if hashlib.sha256(configuration).hexdigest() != state['context']['config_sha256']:
+            raise ValueError('Historical diagnostic configuration mismatch')
+        groups = diagnostic_groups(state, root, json.loads(configuration))
+        print(json.dumps({**campaign_summary(state), 'diagnostic_groups': groups,
+                          'private_checkpoint_readback_verified': True}, sort_keys=True))
         return 0
     if args.expected_cycle_id != state['context']['cycle_id']:
         raise ValueError('Prepared historical campaign changed before worker execution')

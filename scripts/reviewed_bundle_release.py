@@ -1,12 +1,14 @@
 """Keep fully validated public review bundles addressable by publication intent."""
 from pathlib import Path
 import json
+import gzip
+import hashlib
 import re
 import subprocess
 import sys
 import tempfile
 
-from white_list_archive.publishing.public_snapshot import FILES
+from white_list_archive.publishing.public_snapshot import FILES, validate_manifest, verify
 
 ASSETS = sorted({'manifest.json', 'source-qa.json'} | {name + '.gz' for name in FILES})
 
@@ -26,6 +28,15 @@ def verify_assets(info):
         raise ValueError('Incomplete or unexpected candidate release')
 
 
+def comparable(value):
+    if isinstance(value, dict):
+        return {k: comparable(v) for k, v in value.items()
+                if k not in {'generated_at', 'document_checked_at'}}
+    if isinstance(value, list):
+        return [comparable(v) for v in value]
+    return value
+
+
 def retain(bundle, revision):
     if not re.fullmatch('[0-9a-f]{64}', bundle.name) or sorted(p.name for p in bundle.iterdir()) != ASSETS:
         raise ValueError('Unexpected intent directory or unapproved assets')
@@ -33,6 +44,32 @@ def retain(bundle, revision):
     existing = release(tag)
     if existing and not existing['isDraft']:
         verify_assets(existing)
+        with tempfile.TemporaryDirectory() as directory:
+            remote = Path(directory)
+            subprocess.run(['gh', 'release', 'download', tag, '--dir', directory], check=True)
+            if all((remote/n).read_bytes() == (bundle/n).read_bytes() for n in ASSETS):
+                return
+            # Fresh builds have a new tag and verification timestamps. Verify
+            # the retained files against their manifest and the reviewed build.
+            manifest = json.loads((remote/'manifest.json').read_bytes())
+            validate_manifest(manifest)
+            for asset in existing['assets']:
+                path = remote/asset['name']
+                if asset.get('digest') != 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest():
+                    raise ValueError('Published asset digest mismatch')
+            for name in FILES:
+                spec = manifest['files'][name]
+                with gzip.open(remote/(name+'.gz')) as source:
+                    body = source.read(spec['bytes'] + 1)
+                verify(body, spec, name)
+                with gzip.open(bundle/(name+'.gz')) as source:
+                    fresh = source.read()
+                if body == fresh:
+                    continue
+                if not name.endswith('.json') or comparable(json.loads(body)) != comparable(json.loads(fresh)):
+                    raise ValueError('Published derivative differs from reviewed build')
+            if json.loads((remote/'source-qa.json').read_bytes()) != json.loads((bundle/'source-qa.json').read_bytes()):
+                raise ValueError('Published diagnostics differ from reviewed build')
         return
     if not existing:
         subprocess.run(['gh', 'release', 'create', tag, '--draft', '--prerelease', '--latest=false',
