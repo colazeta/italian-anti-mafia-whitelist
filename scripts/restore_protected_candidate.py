@@ -21,6 +21,16 @@ def api(path):
     return json.loads(subprocess.check_output(['gh', 'api', path]))
 
 
+def pages(url, field):
+    page = 1
+    while True:
+        rows = api(f'{url}&page={page}')[field]
+        yield from rows
+        if len(rows) < 100:
+            return
+        page += 1
+
+
 def restore(bundle, changes, target, work):
     manifest = json.loads((bundle/'manifest.json').read_text())
     validate_manifest(manifest)
@@ -73,15 +83,31 @@ def main():
         return
     repository = os.environ['GITHUB_REPOSITORY']
     prefix = 'repos/' + repository
-    runs = api(prefix+'/actions/workflows/public-registry-review.yml/runs?branch=main&per_page=50')['workflow_runs']
+    runs_url = prefix+'/actions/workflows/public-registry-review.yml/runs?branch=main&per_page=100'
     identity = configuration_sha256(intent)
+    tag = 'reviewed-intent-' + identity
+    from reviewed_bundle_release import release, verify_assets
+    # Trusted main must use this run's successful replay. A blocked current
+    # request cannot borrow a prior successful bundle with the same intent.
+    current_run = os.environ['GITHUB_RUN_ID'] if os.environ['GITHUB_REF'] == 'refs/heads/main' else None
+    durable = None if current_run else release(tag)
+    if durable and not durable['isDraft']:
+        verify_assets(durable)
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(['gh', 'release', 'download', tag, '--dir', directory], check=True)
+            restore(Path(directory), intent['changes'], Path('public-site/data'), Path('/tmp/public-national-sources'))
+        output('restored', 'true')
+        return
+    runs = [api(f'{prefix}/actions/runs/{current_run}')] if current_run else pages(runs_url, 'workflow_runs')
     for run in runs:
         if (run['event'] not in {'push', 'workflow_dispatch'} or run['head_branch'] != 'main'
                 or run['head_repository']['full_name'] != repository):
             continue
         run_id = run['id']
-        artifacts = api(f'{prefix}/actions/runs/{run_id}/artifacts?per_page=100')['artifacts']
+        artifacts = pages(f'{prefix}/actions/runs/{run_id}/artifacts?per_page=100', 'artifacts')
         for artifact in reversed(sorted(artifacts, key=lambda item: item['id'])):
+            if current_run and str(artifact['id']) != os.environ.get('REVIEWED_ARTIFACT_ID'):
+                continue
             if artifact['expired'] or not artifact['name'].startswith(f'reviewed-national-{run_id}-'):
                 continue
             with tempfile.TemporaryDirectory() as directory:

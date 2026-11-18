@@ -84,14 +84,35 @@ def stage(request_path, output):
         (bundle/'source-qa.json').write_text(json.dumps(diagnostics))
         output.mkdir(parents=True, exist_ok=True)
         import shutil
-        shutil.copytree(bundle, output/configuration_sha256(intent))
+        destination = output/configuration_sha256(intent)
+        if not destination.exists():
+            with tempfile.TemporaryDirectory(dir=output.parent) as staging:
+                complete = Path(staging)/'bundle'
+                shutil.copytree(bundle, complete)
+                complete.rename(destination)
         print(json.dumps(approved), flush=True)
+
+
+def stage_requests(requests, output):
+    blocked = []
+    for path in sorted(requests):
+        try:
+            if 'publication' in json.loads(path.read_text()):
+                stage(path, output)
+        except Exception as error:
+            # Private errors can include source rows or provider details.
+            blocked.append(path.name)
+            print(f'::warning::Blocked {path.name} ({type(error).__name__})', flush=True)
+    return blocked
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output', type=Path)
     args = parser.parse_args()
-    for path in sorted(Path('data/publication/archive_replay_requests').glob('*.json')):
-        if 'publication' in json.loads(path.read_text()):
-            stage(path, args.output)
+    blocked = stage_requests(Path('data/publication/archive_replay_requests').glob('*.json'), args.output)
+    if 'GITHUB_OUTPUT' in os.environ:
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as target:
+            target.write(f'blocked={len(blocked)}\n')
+    elif blocked:
+        raise SystemExit(1)
