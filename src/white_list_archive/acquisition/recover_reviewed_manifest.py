@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 
@@ -11,7 +12,7 @@ from white_list_archive.acquisition.auto_transform import private_connection
 from white_list_archive.storage.capture_catalogue import CaptureCatalogue
 from white_list_archive.storage.catalogue_recovery import load_catalogued_capture
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
-from white_list_archive.publishing.frozen_release import PUBLIC_PROJECTOR_REVISION
+from white_list_archive.publishing.frozen_release import PUBLIC_PROJECTOR_REVISION, configuration_sha256
 from white_list_archive.publishing.frozen_release_select import _head_revision, select_verified_release, write_new_release
 from white_list_archive.publishing.publication_handoff import records_digest
 from white_list_archive.publishing.public_national_build import _build_registry_from_selected_inputs
@@ -74,11 +75,45 @@ def retain_manifest(store, manifest):
     return digest
 
 
+def read_private(store, key, limit):
+    stream = store.client.get_object(Bucket=store.config.bucket, Key=key)['Body']
+    try:
+        body = stream.read(limit + 1)
+        if len(body) > limit:
+            raise ValueError('Private recovery object exceeds limit')
+        return body
+    finally:
+        stream.close()
+
+
+def indexed_manifest(store, key, directory):
+    digest = read_private(store, key, 64).decode('ascii')
+    if not re.fullmatch('[0-9a-f]{64}', digest):
+        raise ValueError('Invalid private replay index')
+    body = read_private(store, f'operations/v1/reviewed-replay/manifests/{digest}.json', 2_000_000)
+    if hashlib.sha256(body).hexdigest() != digest:
+        raise ValueError('Private indexed manifest digest mismatch')
+    (directory/'manifest.json').write_bytes(body)
+    return digest
+
+
 def recover(request_path, directory, connection, store):
     request = json.loads(request_path.read_text())
     config = request['config']
     bindings = selection(request, connection, CaptureCatalogue(store))
     revision = _head_revision()
+    identity = configuration_sha256([request_path.stem, request, bindings, revision])
+    index = f'operations/v1/reviewed-replay/index/{identity}'
+    receipt = {'request': request_path.stem, 'sources_verified': len(bindings),
+               'records_verified': sum(change['count'] for change in request['changes'].values()),
+               'code_revision': revision}
+    try:
+        store.client.head_object(Bucket=store.config.bucket, Key=index)
+    except Exception as exc:
+        if getattr(exc, 'response', {}).get('Error', {}).get('Code') not in {'404', 'NotFound', 'NoSuchKey'}:
+            raise
+    else:
+        return {**receipt, 'private_manifest_sha256': indexed_manifest(store, index, directory)}
     manifest = select_verified_release(
         config, dict(schema_version=2, release_id=request_path.stem, sources=bindings),
         store, code_revision=revision, created_at=datetime.now(timezone.utc).isoformat())
@@ -90,9 +125,13 @@ def recover(request_path, directory, connection, store):
         if (len(rows) != expected['count'] or Counter(row['source_status'] for row in rows) != expected['statuses']
                 or records_digest(rows) != expected['records_sha256']):
             raise ValueError(f'{key}: frozen replay differs from the independently reviewed public records')
-    return {'request': request_path.stem, 'sources_verified': len(bindings),
-            'records_verified': len(registry['records']), 'code_revision': revision,
-            'private_manifest_sha256': retain_manifest(store, manifest)}
+    digest = retain_manifest(store, manifest)
+    try:
+        store.client.put_object(Bucket=store.config.bucket, Key=index, Body=digest.encode(), IfNoneMatch='*')
+    except Exception as exc:
+        if getattr(exc, 'response', {}).get('Error', {}).get('Code') not in {'PreconditionFailed', '412'}:
+            raise
+    return {**receipt, 'private_manifest_sha256': indexed_manifest(store, index, directory)}
 
 
 def main():

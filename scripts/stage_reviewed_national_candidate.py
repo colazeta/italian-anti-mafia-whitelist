@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import subprocess
+from collections import Counter
 
 from white_list_archive.acquisition.auto_transform import private_connection
 from white_list_archive.acquisition.recover_reviewed_manifest import recover
@@ -14,17 +16,64 @@ from white_list_archive.publishing.public_candidate_gate import validate_public_
 from white_list_archive.storage.evidence import StoreConfig, EvidenceStore, client_for
 
 
+def baseline_revision(digest):
+    path = publication_handoff.SELECTOR
+    commits = subprocess.check_output(['git', 'log', '--format=%H', '--', path], text=True)
+    for revision in commits.splitlines():
+        manifest = tracked_json(revision, path)
+        if configuration_sha256(manifest) == digest:
+            return revision, manifest
+    raise ValueError('Reviewed selector missing from version history')
+
+
+def tracked_json(revision, path):
+    return json.loads(subprocess.check_output(['git', 'show', f'{revision}:{path}']))
+
+
+def reconcile(request, selected, national, updates):
+    intent = {**request['publication'], 'changes': request['changes']}
+    if configuration_sha256(selected) == intent['baseline_manifest_sha256']:
+        return intent
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        public_snapshot.restore(selected, root/'current')
+        rows, reports = publication_handoff._groups(json.loads((root/'current/registry.json').read_bytes()))
+        if all(publication_handoff.records_digest(rows[k]) == spec['records_sha256']
+               and len(rows[k]) == spec['count']
+               and Counter(r['source_status'] for r in rows[k]) == spec['statuses']
+               and all(reports[k].get(f) == spec[f] for f in ('parser', 'sha256', 'reference_date'))
+               for k, spec in intent['changes'].items()):
+            print('Reviewed edition already selected', flush=True)
+            return None
+        revision, original = baseline_revision(intent['baseline_manifest_sha256'])
+        previous = tracked_json(revision, 'data/publication/multi_prefecture_pilot.json')
+        previous['sources'] = [updates.get(s['source_key'], s) for s in previous['sources']]
+        if configuration_sha256(previous) != intent['source_config_sha256']:
+            raise ValueError('Original reviewed configuration mismatch')
+        public_snapshot.restore(original, root/'original')
+        old, old_reports = publication_handoff._groups(json.loads((root/'original/registry.json').read_bytes()))
+        for key in updates:
+            if (publication_handoff.records_digest(old[key]) != publication_handoff.records_digest(rows[key])
+                    or publication_handoff._without_check_time(old_reports[key]) !=
+                    publication_handoff._without_check_time(reports[key])):
+                print('Conflicting selected edition for ' + key, flush=True)
+                raise ValueError('Concurrent change to reviewed source')
+    return {**intent, 'baseline_manifest_sha256': configuration_sha256(selected),
+            'source_config_sha256': configuration_sha256(national)}
+
+
 def stage(request_path, output):
     request = json.loads(request_path.read_text())
     intent = {**request['publication'], 'changes': request['changes']}
     selected = json.loads(Path(publication_handoff.SELECTOR).read_text())
-    if configuration_sha256(selected) != intent['baseline_manifest_sha256']:
-        return  # The reviewed baseline has already advanced.
     if not Path(intent['review_document']).is_file():
         raise ValueError('Publication review document missing')
     national = json.loads(Path('data/publication/multi_prefecture_pilot.json').read_text())
     updates = {s['source_key']: s for s in request['config']['sources']}
     national['sources'] = [updates.get(s['source_key'], s) for s in national['sources']]
+    intent = reconcile(request, selected, national, updates)
+    if intent is None:
+        return
     if configuration_sha256(national) != intent['source_config_sha256']:
         raise ValueError('Reconstructed national configuration differs from the reviewed intent')
     preserved = [s['source_key'] for s in national['sources'] if s['source_key'] not in updates]
@@ -90,6 +139,13 @@ def stage(request_path, output):
                 complete = Path(staging)/'bundle'
                 shutil.copytree(bundle, complete)
                 complete.rename(destination)
+        if intent['baseline_manifest_sha256'] != request['publication']['baseline_manifest_sha256']:
+            proposal = output.with_name(output.name + '-proposals') / configuration_sha256(intent)
+            proposal.mkdir(parents=True, exist_ok=True)
+            for name, value in [('incremental_release_intent.json', intent),
+                                ('multi_prefecture_pilot.json', national),
+                                ('preserved_public_sources.json', preserved)]:
+                (proposal/name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
         print(json.dumps(approved), flush=True)
 
 
