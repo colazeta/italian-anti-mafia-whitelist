@@ -146,6 +146,12 @@
       "name": "reviewed-national-${{ github.run_id }}-${{ github.run_attempt }}",
       "path": "/tmp/reviewed-national/",
       "classification": "deliberately_public_publication"
+    },
+    {
+      "workflow": ".github/workflows/public-registry-review.yml",
+      "name": "rebased-review-proposals-${{ github.run_id }}-${{ github.run_attempt }}",
+      "path": "/tmp/reviewed-national-proposals/",
+      "classification": "deliberately_public_publication"
     }
   ],
   "pages_artifacts": [

@@ -28,12 +28,26 @@ def verify_assets(info):
         raise ValueError('Incomplete or unexpected candidate release')
 
 
-def comparable(value):
-    if isinstance(value, dict):
-        return {k: comparable(v) for k, v in value.items()
-                if k not in {'generated_at', 'document_checked_at'}}
-    if isinstance(value, list):
-        return [comparable(v) for v in value]
+def comparable(name, body, checks, changed):
+    from datetime import datetime, timezone
+    value = json.loads(body)
+    if name in {'registry.json', 'prefectures.json'}:
+        value['meta'].pop('generated_at', None)
+    if name == 'registry.json':
+        for report in value['meta']['sources']:
+            if report['source_key'] in changed:
+                stamp = datetime.fromisoformat(report.pop('document_checked_at').replace('Z', '+00:00'))
+                if stamp.tzinfo is None:
+                    raise ValueError('Invalid review timestamp')
+                checks[report['source_key']] = (report['reference_date'], stamp.astimezone(timezone.utc).isoformat())
+    if name == 'history.json':
+        editions = {e['id']: e for e in value['editions']}
+        for row in value['checks']:
+            edition = editions[row['edition_id']]
+            if (row['kind'] == 'approved_document_verification' and
+                    checks.get(edition['source_key']) == (edition['reference_date_raw'], row['checked_at'])):
+                row['checked_at'] = 'current reviewed verification'
+        value['checks'].sort(key=lambda row: (row['edition_id'], row['kind'], row['checked_at']))
     return value
 
 
@@ -57,16 +71,19 @@ def retain(bundle, revision):
                 path = remote/asset['name']
                 if asset.get('digest') != 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest():
                     raise ValueError('Published asset digest mismatch')
-            for name in FILES:
+            changed = json.loads((bundle/'source-qa.json').read_bytes())
+            remote_checks, fresh_checks = {}, {}
+            for name in ['registry.json', *sorted(FILES - {'registry.json', 'history.json'}), 'history.json']:
                 spec = manifest['files'][name]
                 with gzip.open(remote/(name+'.gz')) as source:
                     body = source.read(spec['bytes'] + 1)
                 verify(body, spec, name)
                 with gzip.open(bundle/(name+'.gz')) as source:
                     fresh = source.read()
-                if body == fresh:
+                if body == fresh and name != 'registry.json':
                     continue
-                if not name.endswith('.json') or comparable(json.loads(body)) != comparable(json.loads(fresh)):
+                if (not name.endswith('.json') or comparable(name, body, remote_checks, changed)
+                        != comparable(name, fresh, fresh_checks, changed)):
                     raise ValueError('Published derivative differs from reviewed build')
             if json.loads((remote/'source-qa.json').read_bytes()) != json.loads((bundle/'source-qa.json').read_bytes()):
                 raise ValueError('Published diagnostics differ from reviewed build')
