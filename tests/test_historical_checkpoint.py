@@ -266,3 +266,41 @@ def test_irrelevant_workflow_results_do_not_enter_shared_transform_concurrency()
     assert "github.event.comment.user.type == 'User'" in group
     assert 'github.event.comment.created_at == github.event.comment.updated_at' in group
     assert "format('ignored-historical-{0}', github.run_id)" in group
+
+
+
+def test_historical_diagnostics_split_error_classes_without_leaking_arbitrary_exception_names(monkeypatch):
+    from white_list_archive.acquisition import historical_checkpoint as hc
+    store, state, etag, plans = fixture(counts=(3, 0, 0, 0))
+    for error_type in ('ValueError', 'RuntimeError', 'SensitiveIdentifierInCustomError'):
+        attempt = report(state, plans, quarantined=True)
+        attempt['outcomes'][0]['error_type'] = error_type
+        state, etag = commit_attempt(store, state, etag, report=attempt)
+    monkeypatch.setattr(hc, 'read_robot_history', lambda *_: ([], {}))
+    monkeypatch.setattr(hc, 'select_historical_jobs',
+                        lambda snapshots, configuration, *, shard, shards: (plans[shard], []))
+    monkeypatch.setattr(hc, 'selection_manifest', lambda jobs: jobs)
+    rows = hc.diagnostic_groups(state, Path('.'), {})
+    assert sum(row['count'] for row in rows) == 3
+    assert {row['error_type'] for row in rows} == {
+        'ValueError', 'RuntimeError', 'other_error_class'}
+    assert 'SensitiveIdentifierInCustomError' not in json.dumps(rows)
+    assert state['unresolved']  # original private evidence remains unchanged
+
+
+def test_historical_diagnostics_reconcile_pending_and_fail_closed_on_unmatched_key(monkeypatch):
+    from white_list_archive.acquisition import historical_checkpoint as hc
+    store, state, etag, plans = fixture(counts=(2, 0, 0, 0))
+    state, _ = commit_attempt(store, state, etag, report=report(state, plans, quarantined=True))
+    monkeypatch.setattr(hc, 'read_robot_history', lambda *_: ([], {}))
+    monkeypatch.setattr(hc, 'select_historical_jobs',
+                        lambda snapshots, configuration, *, shard, shards: (plans[shard], []))
+    monkeypatch.setattr(hc, 'selection_manifest', lambda jobs: jobs)
+    rows = hc.diagnostic_groups(state, Path('.'), {})
+    assert sum(row['count'] for row in rows) == 2
+    assert any(row['stage'] == 'pending' and row['error_type'] == 'not_recorded' for row in rows)
+    corrupted = deepcopy(state)
+    old = next(iter(corrupted['unresolved']))
+    corrupted['unresolved']['f'*64] = corrupted['unresolved'].pop(old)
+    with pytest.raises(ValueError, match='diagnostic tally differs'):
+        hc.diagnostic_groups(corrupted, Path('.'), {})
