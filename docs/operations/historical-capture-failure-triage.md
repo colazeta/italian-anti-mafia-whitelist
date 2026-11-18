@@ -25,3 +25,25 @@ acquisition, permission or publication boundary changes. Any correction needs
 explicit documentary comparison of the frozen capture manifest and registered
 resource metadata in the protected environment, followed by a separate
 reviewed, append-only resolution contract; do not overwrite either source.
+
+
+## Historical campaign: safe error-class diagnosis (19 November 2026)
+
+The existing protected `historical_checkpoint inspect` reports each unresolved
+frozen selection by shard, source key, stage, reason and a **closed exception
+class label**. The exception class is sourced from the original private
+attempt receipt, not inferred from current PostgreSQL rows or parser versions.
+Only allowlisted, non-sensitive class names are echoed in Actions logs; absent
+values become `not_recorded`, all other class names become
+`other_error_class`. Raw exception text, original bytes, capture identifiers,
+URLs, keys and individual rows are never logged. The underlying private state,
+receipts and frozen campaign are unchanged.
+
+The diagnostic fails closed unless its grouped count reconciles exactly to
+unresolved plus not-yet-attempted interpretations. A class label is a triage
+signal, not a root-cause determination or permission to retry, revise an
+immutable capture, assign an edition, or publish observations. For the exhausted
+490-attempt campaign, the 146 unresolved inputs remain blocked until relevant
+code/configuration/source evidence changes and the next execution is separately
+reviewed. The new field is additive to the existing stage/reason report; it
+requires a fresh protected inspect run for production acceptance.
