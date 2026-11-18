@@ -28,6 +28,23 @@ MAX_BYTES = 2_000_000
 SHA40 = re.compile(r'[0-9a-f]{40}')
 SHA64 = re.compile(r'[0-9a-f]{64}')
 SUCCESS = {'parsed_private_review_required', 'reused_private_interpretation'}
+# Only fixed, non-sensitive Python exception class names enter public Actions logs.
+# Full type/detail and the immutable failure receipt remain in the private store.
+SAFE_ERROR_TYPES = frozenset({
+    'AssertionError', 'AttributeError', 'ClientError', 'ConnectionError',
+    'DataError', 'DatabaseError', 'EditionReviewRequired', 'FileNotFoundError',
+    'HTTPError', 'IndexError', 'IntegrityError', 'JSONDecodeError', 'KeyError',
+    'LookupError', 'NotImplementedError', 'OSError', 'OperationalError',
+    'ParserError', 'PermissionError', 'ProgrammingError', 'ReadTimeout',
+    'RuntimeError', 'SSLError', 'TimeoutError', 'TypeError', 'UnicodeDecodeError',
+    'ValueError',
+})
+
+
+def safe_error_type(value):
+    if value is None:
+        return 'not_recorded'
+    return value if isinstance(value, str) and value in SAFE_ERROR_TYPES else 'other_error_class'
 
 
 def canonical(value):
@@ -191,10 +208,14 @@ def diagnostic_groups(state, root, configuration):
             if outcome is None and index < state['cursors'][shard]:
                 continue
             group = (shard, entry['source_key'], outcome.get('stage') if outcome else 'pending',
-                     outcome.get('reason') if outcome else 'awaiting_attempt')
+                     outcome.get('reason') if outcome else 'awaiting_attempt',
+                     safe_error_type(outcome.get('error_type')) if outcome else 'not_recorded')
             counts[group] = counts.get(group, 0) + 1
-    return [dict(shard=s, source_key=k, stage=t, reason=r, count=n)
-            for (s, k, t, r), n in counts.items()]
+    expected = len(state['unresolved']) + sum(row['interpretations'] for row in context['selection']) - sum(state['cursors'])
+    if sum(counts.values()) != expected:
+        raise ValueError('Historical diagnostic tally differs from frozen unresolved/pending denominator')
+    return [dict(shard=s, source_key=k, stage=t, reason=r, error_type=e, count=n)
+            for (s, k, t, r, e), n in counts.items()]
 
 
 def choose_shard(state):
