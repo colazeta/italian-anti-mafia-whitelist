@@ -325,3 +325,49 @@ def test_ambiguous_trailing_text_overlap_is_counted_without_source_disclosure():
         assert text not in safe
     assert report["date_attribution_or_edition_approved"] is False
     assert report["postgresql_writes"] == report["public_promotions"] == 0
+
+def test_private_prior_edition_overlap_is_only_aggregate_review_evidence(tmp_path):
+    from io import BytesIO
+    import openpyxl
+    from white_list_archive.acquisition.catania_november13_archive_qa import (
+        _compare_ambiguous_to_prior_listed,
+    )
+    prior = _synthetic_catania_workbook()
+    prior_sha = hashlib.sha256(prior).hexdigest()
+    current = openpyxl.load_workbook(BytesIO(prior))
+    sheet = current.active
+    sheet.append(["SYNTHETIC A", "SYNTHETIC OFFICE", "", "", "", "", "", ""])
+    sheet.append(["UNSEEN PRIVATE NAME", "UNSEEN PRIVATE OFFICE", "", "", "", "", "", ""])
+    candidate = tmp_path / "synthetic-private-source.xlsx"
+    current.save(candidate)
+    current.close()
+    result = _compare_ambiguous_to_prior_listed(
+        Archive({prior_sha: prior}), candidate, prior_sha,
+    )
+    assert result == {
+        "prior_original_sha256_verified": True,
+        "ambiguous_name_office_rows_compared": 3,
+        "names_matching_prior_anchored": 1,
+        "name_office_pairs_matching_prior_anchored": 1,
+    }
+    safe = json.dumps(result)
+    for name in ("SYNTHETIC A", "SYNTHETIC OFFICE", "UNSEEN PRIVATE NAME",
+                 "UNSEEN PRIVATE OFFICE", "SECRET-COMPANY-ROW"):
+        assert name not in safe
+
+
+def test_prior_edition_comparison_rejects_unverified_bytes(tmp_path):
+    from white_list_archive.acquisition.catania_november13_archive_qa import (
+        _compare_ambiguous_to_prior_listed,
+    )
+    digest = hashlib.sha256(b"expected").hexdigest()
+    candidate = tmp_path / "synthetic-private.xlsx"
+    candidate.write_bytes(_synthetic_catania_workbook())
+    try:
+        _compare_ambiguous_to_prior_listed(
+            Archive({digest: b"tampered"}), candidate, digest,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Prior SHA must be rehashed, not trusted")

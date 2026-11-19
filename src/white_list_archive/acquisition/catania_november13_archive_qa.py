@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 import hashlib
+from io import BytesIO
 import json
 from pathlib import Path
 import tempfile
@@ -30,6 +31,9 @@ PINS = (
      "65c630bc4b12741f0a3848a73efb104a61ef8fe7cf41d0c65f69d44c8f900033"),
 )
 MAX_SOURCE_BYTES = 10_000_000
+# Earlier independently reviewed listed original, used only as a fixed comparison.
+# Never a substitute for current source approval or the selected release.
+PRIOR_LISTED_SHA256 = "ccd1a9abbf8144ae4edb43c7df07c1648c0273196a7aff278c03c62b39b733ff"
 _ALLOWED_FLAGS = frozenset({
     "sector_anomalies", "unrecognised_identifiers", "unparsed_source_dates",
     "formula_without_cached_date", "unclassified_status_notes",
@@ -126,6 +130,63 @@ def _safe_ambiguous_layout_shape(path: Path, population: str) -> dict[str, int]:
         workbook.close()
 
 
+def _compare_ambiguous_to_prior_listed(
+    store: Any, current_path: Path, prior_sha256: str,
+) -> dict[str, int | bool]:
+    """Compare private source text in memory; emit only aggregate equality counts.
+
+    Historical name equality does not establish canonical identity, a missing
+    source identifier, an administrative event or publication approval.
+    """
+    if (not isinstance(prior_sha256, str) or len(prior_sha256) != 64
+            or any(char not in "0123456789abcdef" for char in prior_sha256)):
+        raise ValueError("Unreviewed previous-source pin")
+    raw = store.read_digest_verified(prior_sha256)
+    if (type(raw) is not bytes or not (0 < len(raw) <= MAX_SOURCE_BYTES)
+            or hashlib.sha256(raw).hexdigest() != prior_sha256):
+        raise ValueError("Previous source readback not verified")
+    previous = openpyxl.load_workbook(BytesIO(raw), read_only=False, data_only=False)
+    current = openpyxl.load_workbook(current_path, read_only=False, data_only=False)
+    try:
+        if previous.sheetnames != ["Foglio1"] or current.sheetnames != ["Foglio1"]:
+            raise ValueError("Unreviewed worksheet identity")
+        old_sheet, new_sheet = previous.active, current.active
+        if any(
+            not sheet.max_row or sheet.max_row > MAX_ROWS
+            or not sheet.max_column or sheet.max_column > MAX_COLS
+            for sheet in (old_sheet, new_sheet)
+        ):
+            raise ValueError("Unreviewed worksheet bounds")
+        old_start = _header_row(old_sheet, "listed") + 1
+        new_start = _header_row(new_sheet, "listed") + 1
+        previous_names: set[str] = set()
+        previous_pairs: set[tuple[str, str]] = set()
+        for row in range(old_start, old_sheet.max_row + 1):
+            cells = [_clean(old_sheet.cell(row, col).value) for col in range(1, 9)]
+            if cells[3] and cells[4] and cells[0]:
+                previous_names.add(cells[0].casefold())
+                if cells[1]:
+                    previous_pairs.add((cells[0].casefold(), cells[1].casefold()))
+        inspected = names = pairs = 0
+        for row in range(new_start, new_sheet.max_row + 1):
+            cells = [_clean(new_sheet.cell(row, col).value) for col in range(1, 9)]
+            if not cells[3] and not cells[4] and cells[0] and cells[1]:
+                inspected += 1
+                name = cells[0].casefold()
+                office = cells[1].casefold()
+                names += int(name in previous_names)
+                pairs += int((name, office) in previous_pairs)
+        return {
+            "prior_original_sha256_verified": True,
+            "ambiguous_name_office_rows_compared": inspected,
+            "names_matching_prior_anchored": names,
+            "name_office_pairs_matching_prior_anchored": pairs,
+        }
+    finally:
+        previous.close()
+        current.close()
+
+
 def _candidate_config(source_key: str, population: str, digest: str) -> dict[str, Any]:
     # Deliberately no document URL and no edition date. The parser output is
     # discarded after aggregation, never attributed to the approved series.
@@ -218,6 +279,21 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
                         try:
                             row["candidate_layout_triage"] = _safe_ambiguous_layout_shape(
                                 path, population)
+                            # The older approved source supplies review context only.
+                            # Other fixture/source pins never trigger that extra read.
+                            if population == "listed" and sha == PINS[0][2]:
+                                try:
+                                    overlap = _compare_ambiguous_to_prior_listed(
+                                        store, path, PRIOR_LISTED_SHA256)
+                                    if (overlap["ambiguous_name_office_rows_compared"]
+                                            != row["candidate_layout_triage"][
+                                                "unclassified_with_name_and_office"]):
+                                        raise ValueError("Cross-edition row-classification mismatch")
+                                    row["candidate_layout_triage"]["prior_edition_overlap"] = overlap
+                                except Exception:
+                                    row["candidate_layout_triage"]["prior_edition_overlap"] = {
+                                        "state": "unknown"
+                                    }
                         except Exception:
                             # A failed independent read is unknown, not evidence
                             # about a row or a reason to weaken parser QA.
