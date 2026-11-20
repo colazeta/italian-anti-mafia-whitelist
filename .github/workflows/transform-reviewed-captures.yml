@@ -20,6 +20,7 @@ on:
       - 'src/white_list_archive/acquisition/ascoli_private_snapshot_backfill.py'
       - 'src/white_list_archive/acquisition/candidate_extract.py'
       - 'src/white_list_archive/acquisition/catania_november13_archive_qa.py'
+      - 'src/white_list_archive/acquisition/reggio_archive_census.py'
       - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
       - 'src/white_list_archive/parsers/catania_candidate.py'
       - 'src/white_list_archive/acquisition/production_checkpoint.py'
@@ -152,6 +153,10 @@ jobs:
       - name: Materialise exact reviewed Ascoli source snapshot (private only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.ascoli_private_snapshot_backfill
+      - name: Census exact Reggio Calabria 16 November candidate originals (read-only)
+        if: matrix.shard == 0
+        continue-on-error: true
+        run: python -m white_list_archive.acquisition.reggio_archive_census
       - name: Check exact Catania 13 November candidate originals (read-only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.catania_november13_archive_qa
