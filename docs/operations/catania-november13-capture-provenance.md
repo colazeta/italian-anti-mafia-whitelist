@@ -46,3 +46,25 @@ aggregate counts may leave the protected workflow. This is not a second
 acquisition, an authenticated documentary classification of the ten tail rows,
 a CaptureCatalogue receipt, a PostgreSQL write, an approved SourceEdition or a
 public release. The two original Catania SHA pins remain unchanged.
+
+
+## Cross-population private review clue (20 November 2026)
+
+The existing source-only Catania 13 November QA compares the ten unclassified
+listed-tail rows in memory against two *different* exact originals: the
+previously reviewed listed edition of 6 November and the **same-edition
+13 November applicants workbook**. Both originals must pass complete
+SHA-256 readback and explicit worksheet/header/bounds checks. The second
+comparison only counts exact case-folded name matches and name-plus-office
+matches against *fully anchored applicant rows*. Source strings, row
+coordinates, per-row hashes, original bytes and provider exceptions do not
+enter the aggregate log. Inconsistent row counts or unverified applicant bytes
+yield `unknown`, never a fabricated zero.
+
+A positive or negative cross-population text match is not evidence of
+administrative transition, source population attribution, enterprise identity,
+or permission to discard the ambiguous rows. The existing ten-row immutable
+private packet remains the evidence for physical review; the provisional
+parser still fails closed and the November 13 source has no new publication
+intent or approved edition. This diagnostic does not create captures,
+PostgreSQL records, GRANTs, services or a public selector.

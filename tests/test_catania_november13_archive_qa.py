@@ -371,3 +371,78 @@ def test_prior_edition_comparison_rejects_unverified_bytes(tmp_path):
         pass
     else:
         raise AssertionError("Prior SHA must be rehashed, not trusted")
+
+
+def test_current_applicants_overlap_is_aggregate_only(tmp_path):
+    """Same-edition cross-population equality must not classify listed rows."""
+    from io import BytesIO
+
+    import openpyxl
+
+    from white_list_archive.acquisition.catania_november13_archive_qa import (
+        _compare_ambiguous_to_current_applicants,
+    )
+    from white_list_archive.parsers.catania_candidate import HEADERS
+
+    listed_book = openpyxl.load_workbook(BytesIO(_synthetic_catania_workbook()))
+    listed_book.active.append([
+        "SYNTHETIC A", "SYNTHETIC OFFICE", "", "", "", "", "", "",
+    ])
+    listed_book.active.append([
+        "UNMATCHED PRIVATE NAME", "UNMATCHED PRIVATE OFFICE", "", "",
+        "", "", "", "",
+    ])
+    listed_path = tmp_path / "synthetic-listed.xlsx"
+    listed_book.save(listed_path)
+    listed_book.close()
+
+    applicants_book = openpyxl.Workbook()
+    applicants_sheet = applicants_book.active
+    applicants_sheet.title = "Foglio1"
+    heading = [""] * 7
+    for index, label in HEADERS["applicant"].items():
+        heading[index] = label
+    heading[3] = "ATTIVITA' SOGGETTE"
+    applicants_sheet.append(heading)
+    applicants_sheet.append([
+        "SECRET-COMPANY-ROW", "SECRET-LOCATION", "", "1",
+        "12345678901", "", "",
+    ])
+    applicants_sheet.append([
+        "SYNTHETIC A", "SYNTHETIC OFFICE", "", "2",
+        "12345678901", "", "",
+    ])
+    raw = BytesIO()
+    applicants_book.save(raw)
+    applicants_book.close()
+    applicant_sha = hashlib.sha256(raw.getvalue()).hexdigest()
+    result = _compare_ambiguous_to_current_applicants(
+        Archive({applicant_sha: raw.getvalue()}), listed_path, applicant_sha,
+    )
+    assert result == {
+        "applicant_original_sha256_verified": True,
+        "ambiguous_listed_rows_compared": 3,
+        "names_matching_current_applicants": 2,
+        "name_office_pairs_matching_current_applicants": 2,
+    }
+    output = json.dumps(result)
+    for private in ("SECRET-COMPANY-ROW", "SECRET-LOCATION",
+                    "UNMATCHED PRIVATE NAME", "SYNTHETIC OFFICE"):
+        assert private not in output
+
+
+def test_current_applicants_overlap_is_fail_closed_on_bad_digest(tmp_path):
+    from white_list_archive.acquisition.catania_november13_archive_qa import (
+        _compare_ambiguous_to_current_applicants,
+    )
+    listed_path = tmp_path / "synthetic-listed.xlsx"
+    listed_path.write_bytes(_synthetic_catania_workbook())
+    applicant_sha = hashlib.sha256(b"expected applicant").hexdigest()
+    try:
+        _compare_ambiguous_to_current_applicants(
+            Archive({applicant_sha: b"wrong bytes"}), listed_path, applicant_sha,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Applicant input must be SHA-rehashed")

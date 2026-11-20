@@ -187,6 +187,64 @@ def _compare_ambiguous_to_prior_listed(
         current.close()
 
 
+def _compare_ambiguous_to_current_applicants(
+    store: Any, current_listed_path: Path, applicant_sha256: str,
+) -> dict[str, int | bool]:
+    """Compare ambiguous listed text against exact same-edition applicant rows.
+
+    Source-only structural review clue. A match is neither a legal-status
+    transition nor permission to omit the ambiguous listed source row.
+    Source values, row locators, row hashes and provider errors never leave
+    this function.
+    """
+    if (not isinstance(applicant_sha256, str) or len(applicant_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in applicant_sha256)):
+        raise ValueError("Unreviewed applicant source pin")
+    raw = store.read_digest_verified(applicant_sha256)
+    if (type(raw) is not bytes or not (0 < len(raw) <= MAX_SOURCE_BYTES)
+            or hashlib.sha256(raw).hexdigest() != applicant_sha256):
+        raise ValueError("Applicant source readback not verified")
+    applicants = openpyxl.load_workbook(BytesIO(raw), read_only=False, data_only=False)
+    listed = openpyxl.load_workbook(current_listed_path, read_only=False, data_only=False)
+    try:
+        if applicants.sheetnames != ["Foglio1"] or listed.sheetnames != ["Foglio1"]:
+            raise ValueError("Unreviewed comparison worksheet identity")
+        applicant_sheet, listed_sheet = applicants.active, listed.active
+        if any(
+            not sheet.max_row or sheet.max_row > MAX_ROWS
+            or not sheet.max_column or sheet.max_column > MAX_COLS
+            for sheet in (applicant_sheet, listed_sheet)
+        ):
+            raise ValueError("Unreviewed comparison worksheet bounds")
+        applicant_start = _header_row(applicant_sheet, "applicant") + 1
+        listed_start = _header_row(listed_sheet, "listed") + 1
+        applicant_names: set[str] = set()
+        applicant_pairs: set[tuple[str, str]] = set()
+        for row in range(applicant_start, applicant_sheet.max_row + 1):
+            cells = [_clean(applicant_sheet.cell(row, col).value) for col in range(1, 8)]
+            if cells[3] and cells[4] and cells[0]:
+                applicant_names.add(cells[0].casefold())
+                if cells[1]:
+                    applicant_pairs.add((cells[0].casefold(), cells[1].casefold()))
+        inspected = names = pairs = 0
+        for row in range(listed_start, listed_sheet.max_row + 1):
+            cells = [_clean(listed_sheet.cell(row, col).value) for col in range(1, 9)]
+            if not cells[3] and not cells[4] and cells[0] and cells[1]:
+                inspected += 1
+                name, office = cells[0].casefold(), cells[1].casefold()
+                names += int(name in applicant_names)
+                pairs += int((name, office) in applicant_pairs)
+        return {
+            "applicant_original_sha256_verified": True,
+            "ambiguous_listed_rows_compared": inspected,
+            "names_matching_current_applicants": names,
+            "name_office_pairs_matching_current_applicants": pairs,
+        }
+    finally:
+        applicants.close()
+        listed.close()
+
+
 def _candidate_config(source_key: str, population: str, digest: str) -> dict[str, Any]:
     # Deliberately no document URL and no edition date. The parser output is
     # discarded after aggregation, never attributed to the approved series.
@@ -294,6 +352,21 @@ def audit_primary_archive(store: Any, *, pins=PINS, parser=parse_candidate_xlsx)
                                     row["candidate_layout_triage"]["prior_edition_overlap"] = {
                                         "state": "unknown"
                                     }
+                                # Same-edition applicants are an independent clue
+                                # about the unclassified listed tail, not a reason
+                                # to assign it to either logical population.
+                                try:
+                                    overlap = _compare_ambiguous_to_current_applicants(
+                                        store, path, PINS[1][2])
+                                    if (overlap["ambiguous_listed_rows_compared"]
+                                            != row["candidate_layout_triage"][
+                                                "unclassified_with_name_and_office"]):
+                                        raise ValueError("Cross-population row count mismatch")
+                                    row["candidate_layout_triage"][
+                                        "current_applicants_overlap"] = overlap
+                                except Exception:
+                                    row["candidate_layout_triage"][
+                                        "current_applicants_overlap"] = {"state": "unknown"}
                         except Exception:
                             # A failed independent read is unknown, not evidence
                             # about a row or a reason to weaken parser QA.
