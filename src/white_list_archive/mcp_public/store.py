@@ -126,7 +126,7 @@ class SnapshotStore:
         self.release_base = release_base
         self.robots_url = robots_url
         self.refresh_seconds = max(30, int(refresh_seconds))
-        self.db_path = self.cache_dir / "registry.sqlite3"
+        self.db_path = self.cache_dir / "registry-v2.sqlite3"
         self.manifest_path = self.cache_dir / "manifest.json"
         self.prefectures_path = self.cache_dir / "prefectures.json"
         self.history_path = self.cache_dir / "history.json"
@@ -145,7 +145,7 @@ class SnapshotStore:
             self._validate_manifest(manifest)
             if self.db_path.exists() and self.prefectures_path.exists() and self.history_path.exists():
                 self._release_tag = str(manifest["release_tag"])
-        except (OSError, ValueError, json.JSONDecodeError, KeyError):
+        except (OSError, ValueError, KeyError, SnapshotError):
             self._release_tag = None
 
     @staticmethod
@@ -240,6 +240,11 @@ class SnapshotStore:
     @staticmethod
     def _authority_key_for_name(authority_name: str, prefectures: list[dict[str, Any]]) -> str:
         target = normalise_text(authority_name)
+        place = re.sub(r"^prefettura (?:di |dell |della |del )?", "", target)
+        keys = {str(item.get("authority_key") or "") for item in prefectures}
+        exact = {key for key in keys if key and normalise_text(key) == place}
+        if len(exact) == 1:
+            return exact.pop()
         matches: list[tuple[int, str]] = []
         for item in prefectures:
             jurisdiction = normalise_text(str(item.get("jurisdiction_name") or ""))
@@ -283,6 +288,7 @@ class SnapshotStore:
             placeholders = ",".join("?" for _ in range(len(REGISTRY_FIELDS) + 4))
             insert_sql = f"INSERT INTO registry VALUES ({placeholders})"
             batch: list[tuple[str, ...]] = []
+            authority_keys: dict[str, str] = {}
             with registry_csv.open(encoding="utf-8", newline="") as handle:
                 reader = csv.DictReader(handle)
                 missing = set(REGISTRY_FIELDS) - set(reader.fieldnames or [])
@@ -290,7 +296,10 @@ class SnapshotStore:
                     raise SnapshotError(f"Registry CSV missing fields: {sorted(missing)}")
                 for source in reader:
                     values = tuple(str(source.get(field) or "") for field in REGISTRY_FIELDS)
-                    authority_key = self._authority_key_for_name(source.get("authority_name", ""), rows)
+                    authority_name = source.get("authority_name") or ""
+                    if authority_name not in authority_keys:
+                        authority_keys[authority_name] = self._authority_key_for_name(authority_name, rows)
+                    authority_key = authority_keys[authority_name]
                     name_norm = normalise_text(source.get("name", ""))
                     identifiers_norm = normalise_identifier(source.get("identifiers", ""))
                     search_norm = normalise_text(
