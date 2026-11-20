@@ -138,3 +138,15 @@ def test_compare_prefectures_does_not_deduplicate_companies(tmp_path):
     result = store.compare_prefectures(["Milano", "Catanzaro"])
     assert [item["record_count"] for item in result["comparisons"]] == [2, 1]
     assert result["denominator"] == "public source observations in the selected reviewed snapshot"
+
+
+
+def test_authority_name_resolves_exact_normalised_index_key():
+    directory = [{"authority_key": "pesaro-e-urbino", "jurisdiction_name": "Pesaro-Urbino"}]
+    assert SnapshotStore._authority_key_for_name("Prefettura di Pesaro e Urbino", directory) == "pesaro-e-urbino"
+
+
+def test_invalid_local_manifest_allows_rebuilding_cache(tmp_path):
+    (tmp_path / "manifest.json").write_text("{}", encoding="utf-8")
+    store = SnapshotStore(cache_dir=tmp_path)
+    assert store._release_tag is None
