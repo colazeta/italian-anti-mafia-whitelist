@@ -6,6 +6,8 @@ on:
     paths:
       - 'public-site/**'
       - 'data/source_registry/prefecture_robots.json'
+      - 'data/monitoring/national_coverage.json'
+      - 'src/white_list_archive/acquisition/prefecture_robots.py'
       - 'src/white_list_archive/publishing/public_robots.py'
       - 'data/publication/public_snapshot.json'
       - 'src/white_list_archive/publishing/public_snapshot.py'
@@ -17,6 +19,8 @@ on:
     paths:
       - 'public-site/**'
       - 'data/source_registry/prefecture_robots.json'
+      - 'data/monitoring/national_coverage.json'
+      - 'src/white_list_archive/acquisition/prefecture_robots.py'
       - 'src/white_list_archive/publishing/public_robots.py'
       - 'data/publication/public_snapshot.json'
       - 'src/white_list_archive/publishing/public_snapshot.py'
