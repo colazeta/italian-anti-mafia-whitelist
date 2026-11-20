@@ -292,3 +292,65 @@ def test_actual_workflow_artifact_output_contains_a_real_newline(tmp_path):
                    env={**os.environ, 'PYTHONPATH': str(root/'src'),
                         'RUNNER_TEMP': str(tmp_path), 'GITHUB_OUTPUT': str(output)}, check=True)
     assert output.read_bytes() == b'artifact_name=public-portal-review-attempt-1\n'
+
+
+def expansion_fixture():
+    args = fixture()
+    selected = json.loads(args['selected_bytes'])
+    added = deepcopy(fixture_registry()['records'])
+    for row in added:
+        row.update(source_key='new-combined', authority_key='unpublished',
+                   register_key='new-register', record_locator='new:' + row['record_locator'])
+    candidate = _complete(reconcile(selected['records'] + added))
+    config = {'sources': deepcopy(candidate['meta']['sources'])}
+    report = next(row for row in config['sources'] if row['source_key'] == 'new-combined')
+    args['intent'].update(
+        source_config_sha256=handoff._digest(config),
+        expansion_authorities=['unpublished'],
+        changes={'new-combined': {
+            **{key: report[key] for key in ('reference_date', 'sha256', 'parser')},
+            'count': len(added),
+            'statuses': dict(Counter(row['source_status'] for row in added)),
+            'records_sha256': handoff.records_digest(added),
+        }},
+    )
+    manifest, files = _manifest(candidate, 'public-data-expanded')
+    args.update(config=config, candidate_manifest=manifest, candidate_bytes=files['registry.json'])
+    return args
+
+
+def test_reviewed_expansion_prepares_selector():
+    receipt, files = handoff.prepare_proposal(**expansion_fixture())
+    assert receipt['state'] == 'selector_proposal_ready'
+    assert receipt['changed_sources'] == ['new-combined']
+    assert json.loads(files[handoff.MONITORING])['selected_publication']['authority_count'] == 3
+
+
+@pytest.mark.parametrize('defect', ['missing_intent', 'wrong_authority', 'removed_source',
+                                    'modified_existing_row', 'modified_existing_report',
+                                    'incomplete_population'])
+def test_expansion_fails_closed_for_unreviewed_or_unrelated_changes(defect):
+    args = expansion_fixture()
+    if defect == 'missing_intent':
+        args['intent'] = None
+    elif defect == 'wrong_authority':
+        args['intent']['expansion_authorities'] = ['other']
+    else:
+        candidate = json.loads(args['candidate_bytes'])
+        if defect == 'removed_source':
+            candidate = _complete(reconcile([r for r in candidate['records'] if r['authority_key'] != 'other']))
+        elif defect == 'modified_existing_row':
+            next(r for r in candidate['records'] if r['authority_key'] == 'other')['name'] = 'Unreviewed change'
+        elif defect == 'modified_existing_report':
+            next(r for r in candidate['meta']['sources'] if r['authority_key'] == 'other')['document_checked_at'] = '2026-11-15T12:00:00Z'
+        elif defect == 'incomplete_population':
+            for row in candidate['records']:
+                if row['authority_key'] == 'unpublished':
+                    row['population_scope'] = 'listed'
+            candidate = _complete(reconcile(candidate['records']))
+            args['config'] = {'sources': deepcopy(candidate['meta']['sources'])}
+            args['intent']['source_config_sha256'] = handoff._digest(args['config'])
+        manifest, files = _manifest(candidate, 'public-data-expanded')
+        args.update(candidate_manifest=manifest, candidate_bytes=files['registry.json'])
+    with pytest.raises(ValueError):
+        handoff.prepare_proposal(**args)

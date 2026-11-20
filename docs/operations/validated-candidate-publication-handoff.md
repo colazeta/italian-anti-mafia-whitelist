@@ -55,8 +55,10 @@ entry. Its closed fields are:
 public value, sorted by physical record locator. It includes original identity
 and parser lineage; it is not a company identity or administrative event. The
 values come from independently reviewed source QA, never automatic adoption of a
-new candidate's unexpected output. Scope expansion needs its own review; this
-handoff keeps authority/register/source coverage unchanged.
+new candidate's unexpected output. An expansion intent also lists the sorted `expansion_authorities` that are
+absent from the selected release. It pins every added source in `changes`.
+The handoff rejects any existing source modification or removal and applies
+the same exact-value, provenance and complete-population checks to new sources.
 
 Both populations must exist for each changed register; an unchanged sibling may
 satisfy its population. A combined source represents both without duplication.

@@ -78,13 +78,32 @@ def prepare_proposal(*, selected_manifest, candidate_manifest, selected_bytes, c
         checked = datetime.fromisoformat(report.get("document_checked_at", "").replace("Z", "+00:00"))
         if checked.tzinfo is None:
             raise ValueError("Candidate source has no unambiguous verification time")
-    if set(before) != set(after):
+    added = set(after) - set(before)
+    if set(before) - set(after):
+        raise ValueError("Handoff cannot remove selected sources")
+    expansion = isinstance(intent, dict) and "expansion_authorities" in intent
+    if added and not expansion:
         raise ValueError("Incremental handoff cannot change source coverage")
-    for field in ("authority_count", "register_count", "source_count"):
-        if selected["meta"][field] != candidate["meta"][field]:
-            raise ValueError("Incremental handoff changed public coverage")
-    changed = {key for key in before if records_digest(before[key]) != records_digest(after[key])
-               or _without_check_time(old_reports[key]) != _without_check_time(reports[key])}
+    existing_changes = {key for key in before if records_digest(before[key]) != records_digest(after[key])
+                        or _without_check_time(old_reports[key]) != _without_check_time(reports[key])}
+    if expansion:
+        authorities = intent["expansion_authorities"]
+        expected = {reports[key]["authority_key"] for key in added}
+        monitored = {row["authority_key"] for row in monitoring["prefectures"]}
+        selected_authorities = {report["authority_key"] for report in old_reports.values()}
+        if (not isinstance(authorities, list) or not authorities
+                or any(not isinstance(key, str) or not key for key in authorities)
+                or authorities != sorted(expected) or expected & selected_authorities
+                or not expected <= monitored or existing_changes):
+            raise ValueError("Expansion requires exactly the newly reviewed authorities and unchanged selected sources")
+        if (candidate["meta"]["authority_count"] != len(selected_authorities | expected)
+                or candidate["meta"]["register_count"] != len({row["register_key"] for row in reports.values()})):
+            raise ValueError("Expanded public authority or register counts disagree")
+    else:
+        for field in ("authority_count", "register_count", "source_count"):
+            if selected["meta"][field] != candidate["meta"][field]:
+                raise ValueError("Incremental handoff changed public coverage")
+    changed = existing_changes | added
     receipt = {"schema_version": 1, "state": "no_release_delta" if not changed else "review_intent_required",
                "candidate_release_tag": candidate_manifest["release_tag"],
                "selected_release_tag": selected_manifest["release_tag"],
@@ -94,7 +113,10 @@ def prepare_proposal(*, selected_manifest, candidate_manifest, selected_bytes, c
                "publications": 0, "approval_granted": False}
     if not changed or intent is None:
         return receipt, {}
-    if (set(intent) != {"schema_version", "baseline_manifest_sha256", "source_config_sha256", "review_document", "changes"}
+    intent_fields = {"schema_version", "baseline_manifest_sha256", "source_config_sha256", "review_document", "changes"}
+    if expansion:
+        intent_fields.add("expansion_authorities")
+    if (set(intent) != intent_fields
             or type(intent["schema_version"]) is not int or intent["schema_version"] != 1
             or intent["baseline_manifest_sha256"] != _digest(selected_manifest)
             or intent["source_config_sha256"] != _digest(config)):
@@ -136,7 +158,7 @@ def prepare_proposal(*, selected_manifest, candidate_manifest, selected_bytes, c
         for field in ("authority_key", "register_key", "population_scope"):
             if reports[key].get(field) != cfg[field]:
                 raise ValueError("Reviewed source scope mismatch")
-        if not spec["reference_date"] or spec["reference_date"] < old_reports[key]["reference_date"]:
+        if not spec["reference_date"] or (key in old_reports and spec["reference_date"] < old_reports[key]["reference_date"]):
             raise ValueError("Incremental handoff cannot backdate a selected source")
         if records_digest(after[key]) != spec["records_sha256"]:
             raise ValueError("Reviewed full public observation digest mismatch")
