@@ -126,9 +126,9 @@ function registryBaseRows(){
     return true;
   });
 }
-function registryRows(){
+function registryRows(base=registryBaseRows()){
   const q=registryState.query.trim().toLocaleLowerCase('it');
-  return registryBaseRows().filter(r=>{
+  return base.filter(r=>{
     if(registryState.status!=='all'&&r.source_status!==registryState.status)return false;
     if(!q)return true;
     const hay=[
@@ -159,7 +159,7 @@ function drawRegistry(){
   if(registryState.register!=='all'&&!availableRegisters.some(([key])=>key===registryState.register))registryState.register='all';
   const base=registryBaseRows();
   const counts=base.reduce((acc,r)=>(acc[r.source_status]=(acc[r.source_status]||0)+1,acc),{});
-  const all=registryRows();
+  const all=registryRows(base);
   const pages=Math.max(1,Math.ceil(all.length/registryState.size));
   registryState.page=Math.min(registryState.page,pages);
   const start=(registryState.page-1)*registryState.size;
@@ -182,8 +182,9 @@ function drawRegistry(){
     ['expired_observed','Scadenza osservata'],['rejected_or_denied','Diniego / rigetto'],
     ['cancellation_related','Cancellazione / cessazione'],['other_or_unknown','Altro / non classificato']
   ].map(([key,label])=>option(key,`${label} (${fmt(counts[key])})`,registryState.status)).join('');
+  const summary=archiveSummary(REGISTRY,PREFECTURES);
   $('#view-registry').innerHTML=
-    `<div class="public-banner"><div>${fmt(archiveSummary(REGISTRY,PREFECTURES).authorities)} Prefetture con dati pubblicati · ${fmt(REGISTRY.records.length)} presenze negli elenchi · Edizione più recente nel dataset pubblico: ${esc(displayDate(archiveSummary(REGISTRY,PREFECTURES).latest))}</div><div class="public-freshness-note">Le Prefetture possono avere pubblicato edizioni successive. Le acquisizioni automatiche non aggiornano questo registro prima delle verifiche e dell’approvazione della release. <a href="https://github.com/colazeta/italian-anti-mafia-whitelist/issues/225" target="_blank" rel="noopener">Stato dell’aggiornamento</a>.</div></div>`+
+    `<div class="public-banner"><div>${fmt(summary.authorities)} Prefetture con dati pubblicati · ${fmt(REGISTRY.records.length)} presenze negli elenchi · Edizione più recente nel dataset pubblico: ${esc(displayDate(summary.latest))}</div><div class="public-freshness-note">Le Prefetture possono avere pubblicato edizioni successive. Le acquisizioni automatiche non aggiornano questo registro prima delle verifiche e dell’approvazione della release. <a href="https://github.com/colazeta/italian-anti-mafia-whitelist/issues/225" target="_blank" rel="noopener">Stato dell’aggiornamento</a>.</div></div>`+
     `<details class="coverage"><summary>Territori coperti (${authorities.length} Prefetture)</summary><p>${authorities.map(([,name])=>esc(name)).join(' · ')}.</p></details>`+
     section('RICERCA NEL REGISTRO',`<div class="toolbar registry-filters">
       <div class="filter-field filter-query"><label for="reg-q">Cerca</label><input id="reg-q" type="search" value="${esc(registryState.query)}" placeholder="Ragione sociale, CF/P.IVA, sede, attività…"></div>
@@ -371,16 +372,17 @@ function dateDistributionPanel(d,period,scale){
       ${d.outsideYears.length?`<table class="grid stat-table"><caption>Date fuori periodo, conservate senza correzioni</caption><thead><tr><th scope="col">Anno riportato</th><th scope="col">Presenze</th></tr></thead><tbody>${d.outsideYears.map(x=>`<tr><th scope="row">${x.year}</th><td class="num">${fmt(x.count)}</td></tr>`).join('')}</tbody></table>`:'<p>Nessuna data interpretabile fuori periodo.</p>'}
     </details>`,id+'-title')}</div>`;
 }
-function renderDateDistributions(selected){
+function renderDateDistributions(selected,period=statisticsPeriod){
   const target=$('#stats-dates');
   try {
-    const distributions=publicDateDistributions(selected,statisticsPeriod);
+    const distributions=publicDateDistributions(selected,period);
     const maximum=distributions.reduce((max,d)=>d.bins.reduce((m,b)=>Math.max(m,b.count),max),0);
     const unit=10**Math.max(0,Math.floor(Math.log10(Math.max(1,maximum/4))));
     const scale=Math.max(1,Math.ceil(maximum/4/unit))*unit*4;
-    target.innerHTML=distributions.map(d=>dateDistributionPanel(d,statisticsPeriod,scale)).join('');
-    $('#stats-date-status').textContent=`Nel periodo ${statisticsPeriod.fromYear}–${statisticsPeriod.toYear}: ${fmt(distributions[0].inPeriod)} presenze in istruttoria con data di invio; ${fmt(distributions[1].inPeriod)} in aggiornamento con data di scadenza.`;
+    target.innerHTML=distributions.map(d=>dateDistributionPanel(d,period,scale)).join('');
+    $('#stats-date-status').textContent=`Nel periodo ${period.fromYear}–${period.toYear}: ${fmt(distributions[0].inPeriod)} presenze in istruttoria con data di invio; ${fmt(distributions[1].inPeriod)} in aggiornamento con data di scadenza.`;
     $('#stats-period-error').textContent='';
+    statisticsPeriod=period;
   } catch(error) {
     target.innerHTML='';
     $('#stats-date-status').textContent='';
@@ -413,8 +415,8 @@ function renderStatistics(){
     $('#stats-authority').addEventListener('change',e=>{statisticsAuthority=e.target.value;redrawFilter(renderStatistics,e.target)});
     $('#stats-period').addEventListener('submit',e=>{
       e.preventDefault();
-      statisticsPeriod={fromYear:$('#stats-from-year').valueAsNumber,toYear:$('#stats-to-year').valueAsNumber,interval:$('#stats-interval').value};
-      renderDateDistributions(s.selected);
+      const period={fromYear:$('#stats-from-year').valueAsNumber,toYear:$('#stats-to-year').valueAsNumber,interval:$('#stats-interval').value};
+      renderDateDistributions(s.selected,period);
     });
     $('#stats-period-reset').addEventListener('click',()=>{
       statisticsPeriod=defaultStatisticsPeriod(s.latest);
