@@ -264,6 +264,30 @@ REVIEWED_STRUCTURE = json.loads('''{
 }''')
 
 
+def printed_provenance_flags(page, page_number, total_pages):
+    """Only aggregate clues from the page header/footer; never approve an edition.
+
+    Cropped text is intentionally not returned or logged. A matching printed
+    footer is corroboration, not a source-date, capture or privacy approval.
+    """
+    width, height = page.width, page.height
+    header = " ".join((page.crop((0, 0, width, height * .16)).extract_text() or "").casefold().split())
+    footer = " ".join((page.crop((0, height * .84, width, height)).extract_text() or "").casefold().split())
+    authority = bool(re.search(r"\bprefettura\s+di\s+reggio\s+calabria\b", header))
+    pagination = re.search(r"\bpag(?:ina)?\.?\s*(\d{1,3})\s*(?:di|/)\s*(\d{1,3})\b", footer)
+    page_marker = bool(pagination and int(pagination.group(1)) == page_number
+                       and int(pagination.group(2)) == total_pages)
+    printed_date = bool(re.search(
+        r"(?<!\d)16\s*[/.-]\s*11\s*[/.-]\s*2026(?!\d)|\b16\s+novembre\s+2026\b",
+        footer))
+    return {
+        "authority_in_header": authority,
+        "exact_footer_pagination": page_marker,
+        "16_nov_2026_in_footer": printed_date,
+        "joint_footer_date_and_pagination": printed_date and page_marker,
+    }
+
+
 def candidate_record(cells, population, digest, page, row):
     ordinal, name, office, secondary, identifier, *values = cells
     listed = population == "listed"
@@ -314,11 +338,15 @@ def census(raw, population, digest):
     number_only = 0
     profile = Counter()
     records = []
+    printed_evidence = Counter()
     number_only_ordinals = []
     header_like_rows = 0
     other_nonblank_rows = 0
     with pdfplumber.open(BytesIO(raw)) as pdf:
         for page_number, page in enumerate(pdf.pages, 1):
+            printed_evidence.update(key for key, seen in
+                                    printed_provenance_flags(page, page_number, len(pdf.pages)).items()
+                                    if seen)
             tables = page.find_tables()
             tables_per_page.append(len(tables))
             start = numbers.total()
@@ -364,6 +392,10 @@ def census(raw, population, digest):
             or tables_per_page != [1] * len(expected["numbered_rows_per_page"])
             or other_nonblank_rows != expected["header_like_rows"]):
         raise ValueError("November source does not match independently verified census")
+    summary["printed_provenance_evidence_pages"] = dict(printed_evidence)
+    summary["edition_reference_date_approved"] = False
+    summary["capture_provenance_approved"] = False
+    summary["privacy_approved"] = False
     summary["candidate_observations"] = len(records)
     summary["candidate_status_counts"] = Counter(record["source_status"] for record in records)
     summary["candidate_records_sha256"] = records_digest(records)
