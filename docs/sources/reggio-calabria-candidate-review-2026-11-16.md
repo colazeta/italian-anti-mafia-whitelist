@@ -58,3 +58,9 @@ requires execution and readback against both exact archived original SHA pins;
 the change alone is not a result and does not resolve date attribution,
 privacy, unknown status classifications or approval. No individual source
 text is written to the repository or runner logs.
+
+## Redacted lexical triage of unclassified source outcomes (pending protected readback)
+
+The pending source-only code change adds a **fixed-vocabulary, aggregate-only** split of the previously verified **30 listed + 2 applicant** `other_or_unknown` outcomes. It distinguishes lexical cues for adverse wording, expiry/suspension wording, procedure wording, enrolment wording, empty source outcomes and otherwise unmapped wording. Precedence makes these mutually exclusive *review queues*, **not legal-effect statuses**; actual original text, rows, names, identifiers, document locators and dates are never emitted in this summary. It fails closed unless the six category counts sum to the original physical `outcome_other` denominator for each population. Synthetic regression tests cover ambiguous overlapping terms and no leakage.
+
+**Production result: unknown until the existing protected worker has executed this exact merged code and its SHA-pinned source readback has been reviewed.** No change is authorised to the candidate records, full-value digests, source dates, provenance, parser binding, privacy assessment, public intent or selector. This additional triage cannot establish that an adverse administrative event occurred. The independently reviewed 16 November date and the complete source-cell/sector/status/privacy checks remain open. If the worker fails at an unrelated stage, preserve both its failure and the separately observed result of this read-only step.
