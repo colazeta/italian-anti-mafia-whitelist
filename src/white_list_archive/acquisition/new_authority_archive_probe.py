@@ -61,10 +61,11 @@ def cell_shape(value: object) -> str:
 
 
 def workbook_structure(raw: bytes) -> dict:
-    """Inspect all physical sheets, bounded, without returning source cells.
+    """Bound all *actual* worksheet rows/cells even if XLSX dimension tags are absent.
 
-    This deliberately cannot estimate enterprise counts from spreadsheet rows
-    or approve listed/applicant semantics. A second parser/census review is needed.
+    A missing or misleading declared dimension is a review flag, not licence
+    to skip the physical maximum. A declared dimension exceeding a limit still
+    fails closed. No worksheet titles, cell values or private locators leave QA.
     """
     if not isinstance(raw, bytes) or not raw.startswith(b"PK") or len(raw) > MAX_BYTES:
         raise ValueError("Not a bounded original XLSX")
@@ -75,19 +76,27 @@ def workbook_structure(raw: bytes) -> dict:
         sheets = []
         total_cells = 0
         for index, ws in enumerate(workbook.worksheets, 1):
-            rows, cols = ws.max_row, ws.max_column
-            if (not isinstance(rows, int) or not isinstance(cols, int)
-                    or rows <= 0 or cols <= 0 or rows > MAX_ROWS
-                    or cols > MAX_COLUMNS or rows * cols > MAX_CELLS
-                    or total_cells + rows * cols > MAX_CELLS):
-                raise ValueError("Unbounded or unknown worksheet dimensions")
-            total_cells += rows * cols
+            declared_rows, declared_cols = ws.max_row, ws.max_column
+            if ((declared_rows is not None and
+                 (not isinstance(declared_rows, int) or declared_rows < 0 or declared_rows > MAX_ROWS))
+                    or (declared_cols is not None and
+                        (not isinstance(declared_cols, int) or declared_cols < 0 or declared_cols > MAX_COLUMNS))
+                    or (declared_rows is not None and declared_cols is not None
+                        and declared_rows * declared_cols > MAX_CELLS)):
+                raise ValueError("Declared worksheet dimensions exceed safe limits")
             if ws.sheet_state not in ("visible", "hidden", "veryHidden"):
                 raise ValueError("Unknown worksheet visibility")
             row_kinds = Counter()
             shapes = Counter()
-            observed = 0
+            observed_rows = 0
+            observed_columns = 0
             for row in ws.iter_rows(values_only=True):
+                observed_rows += 1
+                observed_columns = max(observed_columns, len(row))
+                total_cells += len(row)
+                if (observed_rows > MAX_ROWS or observed_columns > MAX_COLUMNS
+                        or total_cells > MAX_CELLS):
+                    raise ValueError("Observed worksheet dimensions exceed safe limits")
                 present = 0
                 for value in row:
                     kind = cell_shape(value)
@@ -95,25 +104,43 @@ def workbook_structure(raw: bytes) -> dict:
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
-                observed += 1
-                if observed > rows:
-                    raise ValueError("Worksheet exceeds reported physical dimensions")
-            if observed != rows:
-                raise ValueError("Worksheet row dimensions are not reproducible")
+            if not observed_rows or not observed_columns:
+                raise ValueError("Empty physical worksheet")
+            if declared_rows is not None and observed_rows != declared_rows:
+                raise ValueError("Declared worksheet row count mismatch")
+            if declared_cols is not None and observed_columns > declared_cols:
+                raise ValueError("Observed worksheet exceeds declared columns")
             sheets.append({
                 "sheet_index": index,
                 "visibility": ws.sheet_state,
-                "physical_rows": observed,
-                "physical_columns": cols,
+                "physical_rows": observed_rows,
+                "physical_columns": observed_columns,
+                "declared_dimensions_present": declared_rows is not None and declared_cols is not None,
                 "row_shapes": dict(row_kinds),
                 "cell_shapes": dict(shapes),
             })
         if not any(s["row_shapes"].get("multi_cell", 0) for s in sheets):
             raise ValueError("No multi-cell rows for source census")
         return {"worksheets": sheets, "sheet_count": len(sheets),
-                "bounded_cell_capacity": total_cells}
+                "physically_scanned_cells": total_cells}
     finally:
         workbook.close()
+
+
+# Whitelist error text from this module only; never output library exception
+# strings, potentially containing source cells or archive coordinates.
+SAFE_STRUCTURE_ERROR_CODES = {
+    "Not a bounded original XLSX": "invalid_or_oversized_xlsx",
+    "Unexpected number of XLSX worksheets": "unexpected_sheet_count",
+    "Declared worksheet dimensions exceed safe limits": "declared_dimensions_out_of_bounds",
+    "Observed worksheet dimensions exceed safe limits": "physical_scan_bounds_exceeded",
+    "Unknown worksheet visibility": "unexpected_visibility",
+    "Empty physical worksheet": "empty_sheet",
+    "Declared worksheet row count mismatch": "dimension_row_conflict",
+    "Observed worksheet exceeds declared columns": "dimension_column_conflict",
+    "No multi-cell rows for source census": "no_multi_cell_rows",
+    "Original failed exact size or digest check": "remote_byte_identity_mismatch",
+}
 
 
 def audit(store: EvidenceStore, pins: dict = PINS) -> dict:
@@ -132,6 +159,8 @@ def audit(store: EvidenceStore, pins: dict = PINS) -> dict:
                 entry["physical_workbook_structure"] = workbook_structure(raw)
             except Exception as exc:
                 entry["error_type"] = type(exc).__name__
+                entry["review_code"] = SAFE_STRUCTURE_ERROR_CODES.get(
+                    str(exc), "unclassified_library_or_archive_failure")
             results.append(entry)
     return {"review_only": True, "source_edition_approved": False,
             "listed_applicant_semantics_approved": False,
