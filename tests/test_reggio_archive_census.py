@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 from white_list_archive.acquisition.reggio_archive_census import (
-    printed_provenance_flags, printed_title_date_flags)
+    printed_provenance_flags, printed_title_date_flags, source_identifier_shape)
 
 
 class Page:
@@ -102,3 +102,28 @@ def test_missing_title_cannot_turn_record_date_into_printed_edition():
              "Ragione sociale 16/11/2026", None)
     for population in ("listed", "applicant"):
         assert not any(printed_title_date_flags(p, population).values())
+
+
+def test_redacted_identifier_shape_privacy_prescreen_never_emits_values():
+    examples = {
+        "12345678901": "eleven_digit_shape",
+        "RSSMRA85M01H501Z": "sixteen_character_shape_privacy_review",
+        "12345678901 / RSSMRA85M01H501Z": "other_raw_shape_privacy_review",
+        "": "blank",
+        "  ": "blank",
+    }
+    for source_cell, expected in examples.items():
+        result = source_identifier_shape(source_cell)
+        assert result == expected
+        assert source_cell.strip() not in result if source_cell.strip() else True
+        assert set(result) <= set("abcdefghijklmnopqrstuvwxyz_")
+
+
+def test_sixteen_character_shape_does_not_imply_legal_identity():
+    # Only an aggregate physical-shape clue: not a personal-data approval,
+    # nor evidence of a legal person, sole trader, or canonical identifier.
+    assert source_identifier_shape("ABCDEFGHIJKLMNOP") == (
+        "sixteen_character_shape_privacy_review")
+    assert source_identifier_shape("1234567890123456") == (
+        "sixteen_character_shape_privacy_review")
+    assert source_identifier_shape("1234567890") == "other_raw_shape_privacy_review"
