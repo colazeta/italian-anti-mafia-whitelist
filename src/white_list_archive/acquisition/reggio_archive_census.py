@@ -288,6 +288,38 @@ def printed_provenance_flags(page, page_number, total_pages):
     }
 
 
+
+def printed_title_date_flags(page, population):
+    """Redacted, *non-approving* printed-title clues from the upper page margin.
+
+    Require a population-specific source title and a date printed on the same
+    title line or in an explicitly labelled adjacent date line. A business row's
+    application/listing date, PDF metadata, and a filename are not edition proof.
+    Never return extracted text or individual values.
+    """
+    upper = page.crop((0, 0, page.width, page.height * .12))
+    lines = [" ".join(line.casefold().split()) for line in
+             (upper.extract_text() or "").splitlines()]
+    title_pattern = (
+        r"\b(?:elenco|foglio)\b.{0,110}\b(?:iscritte|iscritti|white\s*list)\b"
+        if population == "listed"
+        else r"\b(?:elenco|foglio)\b.{0,110}\b(?:richiedent[ie]|richiest[ae])\b"
+    )
+    date_pattern = r"(?<!\d)16\s*[/.-]\s*11\s*[/.-]\s*2026(?!\d)|\b16\s+novembre\s+2026\b"
+    title_lines = [i for i, line in enumerate(lines) if re.search(title_pattern, line)]
+    dated = any(
+        re.search(date_pattern, lines[i]) or
+        (i + 1 < len(lines) and re.search(
+            r"^(?:aggiornat[oaie]\s+al|data\s+(?:di\s+)?aggiornamento\s*[:]?|del\s+)",
+            lines[i + 1]) and re.search(date_pattern, lines[i + 1]))
+        for i in title_lines
+    )
+    return {
+        "population_title_in_upper_margin": bool(title_lines),
+        "16_nov_2026_attached_to_title": bool(dated),
+    }
+
+
 def candidate_record(cells, population, digest, page, row):
     ordinal, name, office, secondary, identifier, *values = cells
     listed = population == "listed"
@@ -339,6 +371,7 @@ def census(raw, population, digest):
     profile = Counter()
     records = []
     printed_evidence = Counter()
+    title_evidence = Counter()
     number_only_ordinals = []
     header_like_rows = 0
     other_nonblank_rows = 0
@@ -347,6 +380,8 @@ def census(raw, population, digest):
             printed_evidence.update(key for key, seen in
                                     printed_provenance_flags(page, page_number, len(pdf.pages)).items()
                                     if seen)
+            title_evidence.update(key for key, seen in
+                                  printed_title_date_flags(page, population).items() if seen)
             tables = page.find_tables()
             tables_per_page.append(len(tables))
             start = numbers.total()
@@ -393,6 +428,10 @@ def census(raw, population, digest):
             or other_nonblank_rows != expected["header_like_rows"]):
         raise ValueError("November source does not match independently verified census")
     summary["printed_provenance_evidence_pages"] = dict(printed_evidence)
+    summary["printed_title_evidence_pages"] = {
+        key: title_evidence[key] for key in
+        ("population_title_in_upper_margin", "16_nov_2026_attached_to_title")
+    }
     summary["edition_reference_date_approved"] = False
     summary["capture_provenance_approved"] = False
     summary["privacy_approved"] = False
