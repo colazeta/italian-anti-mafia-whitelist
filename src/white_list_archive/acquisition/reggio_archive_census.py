@@ -68,6 +68,28 @@ def source_identifier_shape(identifier):
     return "other_raw_shape_privacy_review"
 
 
+def unknown_outcome_review_cue(value):
+    """Redacted lexical triage only; never translate source wording into legal status.
+
+    Apply only to records whose provisional status is other_or_unknown.
+    The fixed output vocabulary cannot contain a source value or record locator.
+    Substring cues can overlap; precedence only creates disjoint review bins,
+    not evidence of an administrative event or a privacy clearance.
+    """
+    norm = " ".join(value.casefold().split())
+    if not norm:
+        return "empty_outcome_review"
+    if any(term in norm for term in ("interditt", "revoc", "cancell", "dinieg", "esclus")):
+        return "adverse_wording_review"
+    if any(term in norm for term in ("sospes", "scadut", "decad")):
+        return "expiry_or_suspension_wording_review"
+    if any(term in norm for term in ("rinnov", "aggiorn", "istruttor", "istrutor", "permanen", "in corso")):
+        return "procedure_wording_review"
+    if any(term in norm for term in ("iscritt", "ammess")):
+        return "enrolment_wording_review"
+    return "unmapped_wording_review"
+
+
 def date_shape(value):
     return "calendar_value" if source_date(value) else "needs_review"
 
@@ -387,6 +409,7 @@ def census(raw, population, digest):
     number_only = 0
     profile = Counter()
     identifier_shapes = Counter()
+    unknown_outcome_cues = Counter()
     records = []
     printed_evidence = Counter()
     title_evidence = Counter()
@@ -414,7 +437,10 @@ def census(raw, population, digest):
                         if any(cells[1:]):
                             content_profile(cells, population, profile)
                             identifier_shapes[source_identifier_shape(cells[4])] += 1
-                            records.append(candidate_record(cells, population, digest, page_number, row_number))
+                            projected = candidate_record(cells, population, digest, page_number, row_number)
+                            records.append(projected)
+                            if projected["source_status"] == "other_or_unknown":
+                                unknown_outcome_cues[unknown_outcome_review_cue(cells[-1])] += 1
                         else:
                             number_only += 1
                             number_only_ordinals.append(int(cells[0]))
@@ -455,6 +481,20 @@ def census(raw, population, digest):
             identifier_shapes["sixteen_character_shape_privacy_review"] !=
             profile["identifier_standard_shape"]):
         raise ValueError("Identifier shapes disagree with frozen census")
+    # Triage exactly the still-unclassified source outcomes. Neither cue names
+    # nor counts approve the source meaning, dates, public projection or privacy.
+    if sum(unknown_outcome_cues.values()) != profile["outcome_other"]:
+        raise ValueError("Unclassified outcome cue counts differ from frozen source profile")
+    summary["unclassified_outcome_wording_review"] = {
+        key: unknown_outcome_cues[key] for key in (
+            "empty_outcome_review",
+            "adverse_wording_review",
+            "expiry_or_suspension_wording_review",
+            "procedure_wording_review",
+            "enrolment_wording_review",
+            "unmapped_wording_review",
+        )
+    }
     summary["source_identifier_shape_review"] = {
         key: identifier_shapes[key] for key in (
             "eleven_digit_shape",
