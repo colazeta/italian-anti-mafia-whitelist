@@ -180,7 +180,7 @@ jobs:
         run: python -m white_list_archive.storage.historical_capture_reconciliation
       - name: Validate transformer and candidate-extraction selection contracts
         id: transform-contracts
-        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_catania_tail_private_review.py tests/test_catania_capture_provenance_audit.py tests/test_approved_snapshot_backfill.py tests/test_ascoli_private_source_qa.py tests/test_ascoli_private_snapshot_backfill.py
+        run: python -m pytest -q tests/test_auto_transform.py tests/test_candidate_extract.py tests/test_catania_candidate.py tests/test_catania_november13_archive_qa.py tests/test_catania_tail_private_review.py tests/test_catania_capture_provenance_audit.py tests/test_approved_snapshot_backfill.py tests/test_ascoli_private_source_qa.py tests/test_ascoli_private_snapshot_backfill.py tests/test_reggio_archive_census.py
       - name: Load safe current capture index
         id: load-capture-index
         run: |
