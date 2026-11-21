@@ -273,12 +273,12 @@ def printed_provenance_flags(page, page_number, total_pages):
     width, height = page.width, page.height
     header = " ".join((page.crop((0, 0, width, height * .16)).extract_text() or "").casefold().split())
     footer = " ".join((page.crop((0, height * .84, width, height)).extract_text() or "").casefold().split())
-    authority = bool(re.search(r"\\bprefettura\\s+di\\s+reggio\\s+calabria\\b", header))
-    pagination = re.search(r"\\bpag(?:ina)?\\.?\\s*(\\d{1,3})\\s*(?:di|/)\\s*(\\d{1,3})\\b", footer)
+    authority = bool(re.search(r"\bprefettura\s+di\s+reggio\s+calabria\b", header))
+    pagination = re.search(r"\bpag(?:ina)?\.?\s*(\d{1,3})\s*(?:di|/)\s*(\d{1,3})\b", footer)
     page_marker = bool(pagination and int(pagination.group(1)) == page_number
                        and int(pagination.group(2)) == total_pages)
     printed_date = bool(re.search(
-        r"(?<!\\d)16\\s*[/.-]\\s*11\\s*[/.-]\\s*2026(?!\\d)|\\b16\\s+novembre\\s+2026\\b",
+        r"(?<!\d)16\s*[/.-]\s*11\s*[/.-]\s*2026(?!\d)|\b16\s+novembre\s+2026\b",
         footer))
     return {
         "authority_in_header": authority,
