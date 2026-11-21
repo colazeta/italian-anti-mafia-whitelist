@@ -101,3 +101,56 @@ def test_probe_is_existing_protected_worker_not_an_external_writer():
     assert "matrix.shard == 0 && !cancelled()" in fragment
     assert "continue-on-error: true" in fragment
     assert "white_list_archive.acquisition.new_authority_archive_probe" in fragment
+
+
+def test_undimensioned_sheet_is_physically_scanned_not_silently_trusted():
+    """Real XLSX producers may omit the dimension hint; enforce actual caps."""
+    import re
+    from zipfile import ZipFile
+    original = sample_workbook()
+    out = BytesIO()
+    with ZipFile(BytesIO(original)) as source, ZipFile(out, "w") as target:
+        for item in source.infolist():
+            payload = source.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                payload, count = re.subn(rb'<dimension\s+ref="[^"]+"\s*/>', b'', payload)
+                assert count == 1
+            target.writestr(item, payload)
+    shape = workbook_structure(out.getvalue())
+    assert shape["worksheets"][0]["physical_rows"] == 3
+    assert shape["worksheets"][0]["physical_columns"] == 3
+    assert shape["worksheets"][0]["declared_dimensions_present"] is False
+
+
+def test_excessive_dimensions_and_sensitive_library_errors_fail_closed(monkeypatch):
+    from white_list_archive.acquisition import new_authority_archive_probe as mod
+    book = Workbook()
+    ws = book.active
+    ws.cell(1, 121).value = "too wide"
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    try:
+        workbook_structure(out.getvalue())
+    except ValueError as exc:
+        assert str(exc) == "Declared worksheet dimensions exceed safe limits"
+    else:
+        raise AssertionError("Overwide worksheet accepted")
+
+    raw = sample_workbook()
+    digest = sha256(raw).hexdigest()
+
+    class Store:
+        def read_digest_verified(self, _):
+            return raw
+
+    def sensitive_failure(_):
+        raise ValueError("SECRET COMPANY AND PRIVATE IDENTIFIER")
+    monkeypatch.setattr(mod, "workbook_structure", sensitive_failure)
+    data = mod.audit(Store(), {"rieti": (
+        ("listed", digest, len(raw)), ("applicant", digest, len(raw)),
+    )})
+    assert data["originals_verified"] == 0
+    assert all(x["review_code"] == "unclassified_library_or_archive_failure"
+               for x in data["results"])
+    assert "SECRET COMPANY" not in json.dumps(data)
