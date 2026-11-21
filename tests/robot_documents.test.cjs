@@ -154,4 +154,25 @@ assert.equal([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'not_
 assert.deepEqual([...prefectures].sort((a,b)=>robotPriorityCompare(a,b,ranking,'name')).map(x=>x.authority_key),
   ['agrigento','chieti','cosenza','trento']);
 
+
+// Applicant-language regression: a grammatical infinitive "to be enrolled"
+// is not a currently enrolled business or a combined source.
+const {robotDocumentPopulation}=require('../public-site/robots.js');
+const udineApplicantName='elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_1.pdf';
+assert.equal(robotDocumentPopulation(udineApplicantName),'applicant');
+assert.equal(robotDocumentPopulation('fornitori_che_hanno_chiesto_di_essere_iscritti.pdf'),'applicant');
+assert.equal(robotDocumentPopulation('elenco-ditte-iscritte-nelle-white-list_1.pdf'),'listed');
+assert.equal(robotDocumentPopulation('elenco-iscritti-e-richiedenti-20-novembre-2026.pdf'),'listed_and_applicant');
+const udineUrl='https://prefettura.interno.gov.it/sites/default/files/13/2026-11/'+udineApplicantName;
+const udineUndatedReport={status:'unchanged',resources:{[udineUrl]:{
+  role:'candidate',sha256:'udine-candidate',archived_sha256:'udine-candidate'}}};
+const udineSelected=[
+  source('udine-listed','listed','2026-09-09'),
+  source('udine-applicants','applicant','2026-09-09')
+];
+const udineGap=robotPublicationGap(udineUndatedReport,udineSelected);
+assert.equal(udineGap.count,0); // Filename has no official edition date.
+assert.equal(udineGap.unclassified.length,1);
+assert.equal(udineGap.unclassified[0].population,'applicant');
+
 console.log('Document history, publication baseline and candidate counts passed');
