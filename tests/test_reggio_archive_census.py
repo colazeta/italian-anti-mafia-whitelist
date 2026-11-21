@@ -4,7 +4,8 @@ from types import SimpleNamespace
 from pathlib import Path
 
 from white_list_archive.acquisition.reggio_archive_census import (
-    printed_provenance_flags, printed_title_date_flags, source_identifier_shape)
+    printed_provenance_flags, printed_title_date_flags, source_identifier_shape,
+    unknown_outcome_review_cue, REVIEWED_STRUCTURE)
 
 
 class Page:
@@ -127,3 +128,29 @@ def test_sixteen_character_shape_does_not_imply_legal_identity():
     assert source_identifier_shape("1234567890123456") == (
         "sixteen_character_shape_privacy_review")
     assert source_identifier_shape("1234567890") == "other_raw_shape_privacy_review"
+
+
+def test_unknown_outcome_wording_is_aggregate_only_and_never_a_status():
+    examples = {
+        "provvedimento di revoca della domanda": "adverse_wording_review",
+        "istanza in istruttoria di aggiornamento": "procedure_wording_review",
+        "iscritta su richiesta": "enrolment_wording_review",
+        "sospesa in attesa di rinnovo": "expiry_or_suspension_wording_review",
+        "testo atipico XXX999": "unmapped_wording_review",
+        "": "empty_outcome_review",
+    }
+    for raw_source_text, expected in examples.items():
+        cue = unknown_outcome_review_cue(raw_source_text)
+        assert cue == expected
+        assert set(cue) <= set("abcdefghijklmnopqrstuvwxyz_")
+        assert "approved" not in cue
+        if raw_source_text:
+            assert raw_source_text.casefold() not in cue
+
+
+def test_unknown_outcome_review_is_bounded_by_frozen_legacy_counts():
+    assert REVIEWED_STRUCTURE["listed"]["content_profile"]["outcome_other"] == 30
+    assert REVIEWED_STRUCTURE["applicant"]["content_profile"]["outcome_other"] == 2
+    # These are review counts, not a new semantic mapping of legal events.
+    assert unknown_outcome_review_cue("istruttoria rinnovo") == "procedure_wording_review"
+    assert unknown_outcome_review_cue("diniego istruttoria") == "adverse_wording_review"
