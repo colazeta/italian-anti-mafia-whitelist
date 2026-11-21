@@ -42,3 +42,19 @@ The two resources were discovered as attachments labelled **16 November 2026**; 
 4. Until complete, status is **source candidate physically counted; semantic/date/privacy review required; no selector proposal**. The prior public tag remains selected. The reviewer must not treat the candidate's `2026-11-16` string or provisional digest as authority to create a SourceEdition or public release.
 
 **Evidence separation:** The protected workflow's overall `failure` includes expected quarantines in independent stages; the Reggio census step itself succeeded. Neither successful census nor the `review_only` candidate projection verifies a new public release. The independent restore assurance under #16 also remains a separate control. No additional privilege, writer, scheduler, publisher or geography-enrichment dependency is proposed.
+
+
+## Additional printed-title review gate (21 November 2026, pending protected readback)
+
+The existing read-only archived-PDF census has a narrowly scoped, non-approving
+check for the printed **population-specific title** in the upper 12% of each
+page and an explicit 16 November 2026 date on that title line (or on an
+immediately adjacent line explicitly labelled as an update/date). It emits
+**counts only**, separately from the already verified bottom-margin date and
+pagination clues. A date in a company row, an unlabelled adjacent line, a
+filename, or PDF metadata does not count as title-date evidence. A missing
+match is **unknown**, not evidence that a date is absent elsewhere. This
+requires execution and readback against both exact archived original SHA pins;
+the change alone is not a result and does not resolve date attribution,
+privacy, unknown status classifications or approval. No individual source
+text is written to the repository or runner logs.
