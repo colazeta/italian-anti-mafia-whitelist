@@ -1,6 +1,7 @@
 """Synthetic-only regression of redacted printed provenance clues for Reggio."""
 import json
 from types import SimpleNamespace
+from pathlib import Path
 
 from white_list_archive.acquisition.reggio_archive_census import printed_provenance_flags
 
@@ -55,3 +56,15 @@ def test_wrong_pagination_or_wrong_source_date_never_proves_a_match():
 def test_missing_or_undecodable_headings_are_unknown_not_success():
     evidence = printed_provenance_flags(Page(None, None), 1, 1)
     assert not any(evidence.values())
+
+
+def test_read_only_reggio_probe_not_skipped_by_independent_ascoli_failure():
+    workflow = (Path(__file__).resolve().parents[1]
+                / ".github/workflows/transform-reviewed-captures.yml").read_text()
+    reggio = workflow.split(
+        "- name: Census exact Reggio Calabria 16 November candidate originals (read-only)", 1)[1]
+    block = reggio.split("- name:", 1)[0]
+    assert "if: ${{ matrix.shard == 0 && !cancelled() }}" in block
+    assert "continue-on-error: true" in block
+    ascoli = workflow.split("- name: Materialise exact reviewed Ascoli source snapshot (private only)", 1)[1]
+    assert "continue-on-error: true" not in ascoli.split("- name:", 1)[0]
