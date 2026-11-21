@@ -84,8 +84,12 @@ function robotLatestFile(report){return robotDocumentHistory(report)[0]||null;}
 // A candidate URL/date is not a parser-approved or legally confirmed new list.
 function robotDocumentPopulation(name){
   const lower=String(name||'').toLocaleLowerCase('it');
-  const applicant=/richiedent|richiest|aspirant/i.test(lower);
-  const listed=/iscritt|permanenz|imprese.iscritte/i.test(lower);
+  // "Fornitori che hanno chiesto di essere iscritti" denotes an applicant
+  // list, not an enrolled list or a combined register. Preserve the raw name;
+  // this is only a discovery hint, never an approved source binding.
+  const requestToBeListed=/\bhanno[\s_-]+chiesto[\s_-]+di[\s_-]+essere[\s_-]+iscritt[ie]\b/i.test(lower);
+  const applicant=/richiedent|richiest|aspirant/i.test(lower)||requestToBeListed;
+  const listed=/iscritt|permanenz|imprese.iscritte/i.test(lower)&&!requestToBeListed;
   return applicant&&listed?'listed_and_applicant':applicant?'applicant':listed?'listed':'';
 }
 function robotPublicationGap(report,selectedSources){
