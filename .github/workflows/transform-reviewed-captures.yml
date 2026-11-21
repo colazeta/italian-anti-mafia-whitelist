@@ -153,8 +153,10 @@ jobs:
       - name: Materialise exact reviewed Ascoli source snapshot (private only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.ascoli_private_snapshot_backfill
+      # The preceding Ascoli materialisation may fail independently. Keep its
+      # job failure visible while still running this read-only Reggio probe.
       - name: Census exact Reggio Calabria 16 November candidate originals (read-only)
-        if: matrix.shard == 0
+        if: ${{ matrix.shard == 0 && !cancelled() }}
         continue-on-error: true
         run: python -m white_list_archive.acquisition.reggio_archive_census
       - name: Check exact Catania 13 November candidate originals (read-only)
