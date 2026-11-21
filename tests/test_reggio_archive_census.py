@@ -72,8 +72,8 @@ def test_read_only_reggio_probe_not_skipped_by_independent_ascoli_failure():
 
 
 def test_applicant_title_date_is_redacted_and_not_an_approved_edition():
-    p = Page("PREFETTURA DI REGGIO CALABRIA\\n"
-             "Elenco imprese richiedenti iscrizione White List 16/11/2026\\n"
+    p = Page("PREFETTURA DI REGGIO CALABRIA\n"
+             "Elenco imprese richiedenti iscrizione White List 16/11/2026\n"
              "PRIVATE COMPANY CF 12345678901", None)
     flags = printed_title_date_flags(p, "applicant")
     assert flags == {
@@ -85,20 +85,20 @@ def test_applicant_title_date_is_redacted_and_not_an_approved_edition():
 
 
 def test_row_date_unlabelled_adjacent_date_is_not_title_date():
-    p = Page("PREFETTURA DI REGGIO CALABRIA\\n"
-             "Elenco imprese richiedenti iscrizione\\n"
+    p = Page("PREFETTURA DI REGGIO CALABRIA\n"
+             "Elenco imprese richiedenti iscrizione\n"
              "16/11/2026 PRIVATE COMPANY 12345678901", None)
     flags = printed_title_date_flags(p, "applicant")
     assert flags["population_title_in_upper_margin"]
     assert not flags["16_nov_2026_attached_to_title"]
-    explicitly_labelled = Page("Elenco imprese richiedenti iscrizione\\n"
+    explicitly_labelled = Page("Elenco imprese richiedenti iscrizione\n"
                                "Aggiornato al 16 novembre 2026", None)
     assert printed_title_date_flags(explicitly_labelled, "applicant")[
         "16_nov_2026_attached_to_title"]
 
 
 def test_missing_title_cannot_turn_record_date_into_printed_edition():
-    p = Page("PREFETTURA DI REGGIO CALABRIA\\n"
+    p = Page("PREFETTURA DI REGGIO CALABRIA\n"
              "Ragione sociale 16/11/2026", None)
     for population in ("listed", "applicant"):
         assert not any(printed_title_date_flags(p, population).values())
