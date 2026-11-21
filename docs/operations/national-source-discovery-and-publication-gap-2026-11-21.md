@@ -73,3 +73,14 @@ The current selected source manifest has **`lecco-listed` and `lecco-applicants`
 **Udine — already selected, newer indexed pair.** The [official Udine White List page](https://prefettura.interno.gov.it/it/prefetture/udine/evidenza/white-list) indexes a listed attachment labelled **4 November 2026** (**2.75 MB**) and an applicant attachment labelled **4 November 2026** (**143.37 KB**); the page's own last-update metadata is 4 November at 12:37. The actual selected `multi_prefecture_pilot.json` binds `udine-listed` to **9 September 2026**, source SHA-256 `0bd74200cbe5d96b313f943a889acbfe1fe6278293516a76ad0702e28b293fba`, and `udine-applicants` to **9 September 2026**, SHA-256 `4ea03173171bda5df4a3abba120feae3842506f436f28f5c0604099388523971`. This is a **potential 56-day gap** in each population between the selected reference date and *indexed attachment label*, **not** an authenticated source edition or validated release delta. The public page GET was HTTP 403. Classify both `acquisition_or_review_required`: retrieve and independently hash both exact original attachment bytes through the existing archive, establish dates *within* originals, validate page/table/row census, status/sector/identity/privacy and complete record digests, and preserve intervening historical editions. The unchanged selected September pair must not be overwritten.
 
 These findings are **two official indexed publication surfaces** with distinct operational outcomes, **zero** newly validated source editions, **zero** new approved parser/bindings, **zero** publication intents and **zero** new live releases. Other 32 missing-authority and 316 candidate-document counters require independent current robot-state recomputation; this limited source-index check did not refresh the robot receipt or database. Direct Neon readback remains unavailable (HTTP 402 quota in the latest independent attempt), so no current database totals are asserted.
+
+**Robot publication-gap classification regression (21 November).** Current persisted Udine
+robot-state includes acquired undated attachment names of the form
+`elenco-dei-fornitori-che-hanno-chiesto-di-essere-iscritti_1.pdf`.
+The older UI filename heuristic treated the `iscritti` in *hanno chiesto
+di essere iscritti* as an enrolled population. The narrow source-discovery
+classifier now recognises this exact request phrase as **applicant**, without
+claiming a complete capture binding, a publication date, a parsed record or
+any approval. Regression tests retain the ordinary listed and actual combined
+population cases. Undated candidates remain `unclassified` pending source QA;
+the fix must not convert robot discovery into an approved public edition.
