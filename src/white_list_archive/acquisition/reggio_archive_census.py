@@ -51,6 +51,23 @@ def content_profile(cells, population, counters):
             counters[f"outcome_{label}"] += 1
 
 
+def source_identifier_shape(identifier):
+    """Classify a physical source-cell shape; never infer entity type or approval.
+
+    A 16-character identifier can be personal data; neither its shape nor an
+    11-digit number proves that the holder is or is not a natural person.
+    Return only fixed category names, never the original identifier.
+    """
+    value = identifier.strip()
+    if not value:
+        return "blank"
+    if re.fullmatch(r"[0-9]{11}", value):
+        return "eleven_digit_shape"
+    if re.fullmatch(r"[A-Za-z0-9]{16}", value):
+        return "sixteen_character_shape_privacy_review"
+    return "other_raw_shape_privacy_review"
+
+
 def date_shape(value):
     return "calendar_value" if source_date(value) else "needs_review"
 
@@ -369,6 +386,7 @@ def census(raw, population, digest):
     numbers = Counter()
     number_only = 0
     profile = Counter()
+    identifier_shapes = Counter()
     records = []
     printed_evidence = Counter()
     title_evidence = Counter()
@@ -395,6 +413,7 @@ def census(raw, population, digest):
                         widths[len(cells)] += 1
                         if any(cells[1:]):
                             content_profile(cells, population, profile)
+                            identifier_shapes[source_identifier_shape(cells[4])] += 1
                             records.append(candidate_record(cells, population, digest, page_number, row_number))
                         else:
                             number_only += 1
@@ -427,6 +446,23 @@ def census(raw, population, digest):
             or tables_per_page != [1] * len(expected["numbered_rows_per_page"])
             or other_nonblank_rows != expected["header_like_rows"]):
         raise ValueError("November source does not match independently verified census")
+    # Aggregate only: count potential personal-identifier shapes before any
+    # future public approval decision. Do not publish identifiers or assume
+    # that VAT-shaped cells exclude sole traders. This is not privacy clearance.
+    if sum(identifier_shapes.values()) != len(records):
+        raise ValueError("Identifier review totals do not match physical records")
+    if (identifier_shapes["eleven_digit_shape"] +
+            identifier_shapes["sixteen_character_shape_privacy_review"] !=
+            profile["identifier_standard_shape"]):
+        raise ValueError("Identifier shapes disagree with frozen census")
+    summary["source_identifier_shape_review"] = {
+        key: identifier_shapes[key] for key in (
+            "eleven_digit_shape",
+            "sixteen_character_shape_privacy_review",
+            "other_raw_shape_privacy_review",
+            "blank",
+        )
+    }
     summary["printed_provenance_evidence_pages"] = dict(printed_evidence)
     summary["printed_title_evidence_pages"] = {
         key: title_evidence[key] for key in
