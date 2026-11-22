@@ -144,3 +144,19 @@ of public lag reduction**. The robot's previously observed 17 Prato newer
 attachment candidates must not be equated with 17 approved editions or
 subtracted from the national backlog by this investigation. Neon readback
 remains unknown while HTTP 402 persists.
+
+
+## Brescia and Cagliari — official indexed paired updates (22 November 2026)
+
+**Current-document review alongside national expansion, not a source acquisition or new public edition.** The exact current selected `public-data-44159882124-1` configuration preserves both existing population sources and their reviewed immutable byte hashes. The official indexed landing-page attachment labels below were rechecked on 22 November. Both direct public page requests returned HTTP 403, so these indexed labels are **not** readbacks of genuine attachment bytes or proof of in-document reference dates.
+
+| Authority / SourceSeries and population | Current selected reviewed source | Later official indexed attachment label | Potential difference and classification |
+| --- | --- | --- | --- |
+| **Brescia** `brescia-listed` / `listed` | 10 September 2026; SHA-256 `509e6724de2d4d63f403e254236ec2c5b77077d676ee8c17382464d5c9da07a7`; 2,071 source presences | [Official Brescia White List](https://prefettura.interno.gov.it/it/prefetture/brescia/evidenza/white-list): *iscritte* updated to **2 November 2026** (286.13 KB shown) | **53 days potential**, `acquisition_or_review_required` |
+| **Brescia** `brescia-applicants` / `applicant` | 10 September 2026; SHA-256 `0ab15af0f0f2838aa162177cbc07b91f3d7d80b561ca490611b8ec368c595f34`; 1,263 source presences | Same official page: *richiedenti* updated to **2 November 2026** (113.57 KB shown) | **53 days potential**, `acquisition_or_review_required` |
+| **Cagliari** `cagliari-listed` / `listed` | 6 September 2026; SHA-256 `dfbc00403ee287511a48df5314c663f5a1c6173803d87c4ce27b1d80e2c13114`; 750 source presences | [Official Cagliari White List](https://prefettura.interno.gov.it/it/prefetture/cagliari/evidenza/white-list): *iscritte* **8 November 2026** (766.2 KB shown) | **63 days potential**, `acquisition_or_review_required` |
+| **Cagliari** `cagliari-applicants` / `applicant` | 6 September 2026; SHA-256 `7429040f5945ecb72cc7b152dbd8aaeee0e0a5df9bb7414e951a4cec4a4f50f7`; 51 source presences | Same official page: *richiedenti* **8 November 2026** (93.74 KB shown); page updated 11 November | **63 days potential**, `acquisition_or_review_required` |
+
+These are **four distinct SourceSeries**, not four verified new SourceEditions, and the potential day counts are deltas of a selected reviewed reference date against later *website labels*. Neither the Cagliari page-update timestamp nor a download timestamp can replace the date inside an exact verified original. Reported website file sizes are not validated original byte lengths. The selected 142-source manifest, all existing public observations and previous releases remain untouched.
+
+**Bounded next acquisition/review action:** through the **existing** robot/R2 capture worker, match both authentic attachment targets per Prefettura to previously archived immutable originals first (avoid duplicates), retrieve SHA-pinned complete bytes, determine genuine formats/document dates and reconcile all physical records and per-population denominators. Independently review parser version, status, sector, identifiers and privacy, compare full digests and preserve intermediate historic editions. Classify each candidate as current, already selected, historical, duplicate, irrelevant or still acquisition/review required **only on evidence**. No approved release or lag reduction until finite intent, exact-head CI, serial selection, single Public retro portal deployment and five SHA/byte-size readbacks.
