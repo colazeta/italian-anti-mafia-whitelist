@@ -98,7 +98,13 @@ def workbook_structure(raw: bytes) -> dict:
             row_kinds = Counter()
             shapes = Counter()
             row_signals = Counter()
-            formula_cache_counts = Counter()
+            formula_cache_counts = Counter({
+                "formula_cells": 0,
+                "formula_cells_with_cache": 0,
+                "formula_cells_without_cache": 0,
+                "rows_with_cached_formula": 0,
+                "rows_with_uncached_formula": 0,
+            })
             cached_rows = iter(cached_ws.iter_rows(values_only=True))
             observed_rows = 0
             observed_columns = 0
