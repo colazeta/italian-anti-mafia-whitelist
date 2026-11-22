@@ -48,3 +48,36 @@ status/sector and privacy acceptance. Only a complete reviewed pair can
 proceed to the existing finite-intent, immutable-publication and five-asset
 live-readback gates. Both 13 and 20 November candidates remain historical
 captures independently of which later edition is approved.
+
+## Protected private row-level review packet (pending production readback)
+
+The protected 20 November source-only check on
+[run 45048325550](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/45048325550)
+independently SHA-verified both primary originals. It reported **1,901 listed
+full-anchor physical rows** and **10 additional name-and-office-only
+data-like rows after the last full anchor**, with no identifier or sector.
+The applicant source yielded **146 provisional pending source observations**.
+These are neither approved edition counts nor distinct legal entities.
+The older 13 November candidate and the public 6 November edition remain intact.
+
+The next controlled stage reuses the existing *Catania tail private review*
+writer and the same protected evidence-store environment. It freezes the exact
+listed original SHA `f5715c1f2ec8a07e4cc1a4a3c76db9c2c5d257241114851d6f0881496c352c6f`,
+the **1,901 + 10** source-layout reconciliation, the private document-review
+scope `catania_2026_11_20_listed_private_tail_review` and a **distinct
+content-addressed private packet key**. The prior 13 November packet identity
+and its bytes are unchanged. On a second execution, the exact packet must be
+reused, with complete readback, matching digest and no new object. An unexpected
+row, missing original, bad hash, existing conflicting packet or modified layout
+fails closed. No private rows, physical coordinates, storage keys or provider
+exceptions are emitted to public workflow logs.
+
+The existing protected shard-0 workflow performs this stage independently of
+earlier Ascoli materialisation failures, with no new schedule, runner,
+credential, publisher or table write. Production staging remains **unknown**
+until its exact-run output, packet hash and repeat-readback receipt are checked.
+Even a successful packet means only that the ten unresolved source rows are
+available **privately for document review**; it does not decide whether they
+are companies, summaries, applicant rows or other content. Date, authority,
+row classification, identifiers, status, sector and privacy gates remain
+**open**. Public selector, intent and published observations remain unchanged.
