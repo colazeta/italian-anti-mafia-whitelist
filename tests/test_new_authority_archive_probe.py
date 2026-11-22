@@ -240,3 +240,36 @@ def test_coordinate_diagnostic_rejects_malicious_xml_and_zip_expansion():
         assert str(exc) == "Worksheet XML exceeds diagnostic limits"
     else:
         raise AssertionError("Oversized worksheet XML accepted")
+
+
+
+def test_coordinate_diagnostic_includes_explicit_rows_without_cell_refs():
+    """Redacted extent must not silently omit row-only coordinates."""
+    from zipfile import ZipFile
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+    original = sample_workbook()
+
+    def with_sheet(xml):
+        out = BytesIO()
+        with ZipFile(BytesIO(original)) as src, ZipFile(out, "w") as dst:
+            for info in src.infolist():
+                dst.writestr(info, xml if info.filename ==
+                             "xl/worksheets/sheet1.xml" else src.read(info.filename))
+        return out.getvalue()
+
+    template = (b'<worksheet xmlns="http://schemas.openxmlformats.org/'
+                b'spreadsheetml/2006/main"><sheetData><row r="%s">'
+                b'<c t="inlineStr"><is><t>PRIVATE VALUE</t></is></c>'
+                b'</row></sheetData></worksheet>')
+    parsed = workbook_coordinate_diagnostic(with_sheet(template % b"70000"))
+    assert parsed["xml_parts"][0]["greatest_encoded_row"] == 70000
+    assert parsed["xml_parts"][0]["cells_without_coordinates"] == 1
+    assert "PRIVATE VALUE" not in json.dumps(parsed)
+    try:
+        workbook_coordinate_diagnostic(with_sheet(template % b"INVALID"))
+    except ValueError as exc:
+        assert str(exc) == "Invalid worksheet coordinate metadata"
+    else:
+        raise AssertionError("Malformed row coordinate was accepted")
