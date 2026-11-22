@@ -359,3 +359,34 @@ def test_unlocated_possible_payload_never_silently_classified_in_range():
     assert part["unlocated_cell_with_payload_marker"] == 1
     assert part["out_of_policy_cell_elements"] == 0
     assert "SECRET" not in json.dumps(part)
+
+
+def test_source_only_row_signals_do_not_infer_firms_or_disclose_values():
+    """Rieti-type workbook signal counts are aggregate only, never approval."""
+    from white_list_archive.acquisition.new_authority_archive_probe import workbook_structure
+    book = Workbook()
+    ws = book.active
+    ws.title = "PRIVATE RIETI WORKSHEET"
+    ws.append(["header", "columns"])
+    ws.append(["01234567890", "PRIVATE COMPANY"])
+    ws.append(["RSSMRA85M01H501Z", "PRIVATE PERSON"])
+    ws.append(["01234567890", "RSSMRA85M01H501Z"])
+    ws.append(["=SUM(1,2)", "other"])
+    ws.append(["summary"])
+    buff = BytesIO()
+    book.save(buff)
+    book.close()
+    report = workbook_structure(buff.getvalue())
+    rows = report["worksheets"][0]
+    assert rows["row_shapes"] == {"multi_cell": 5, "single_cell": 1}
+    assert rows["row_signals"] == {
+        "multi_cell_with_11_digit_text": 2,
+        "multi_cell_with_16_char_text": 2,
+        "multi_cell_with_both_text_shapes": 1,
+        "multi_cell_with_neither_text_shape": 2,
+        "multi_cell_with_formula": 1,
+    }
+    redacted = json.dumps(report)
+    for secret in ("PRIVATE", "01234567890", "RSSMRA85M01H501Z"):
+        assert secret not in redacted
+    assert "source_edition_approved" not in redacted

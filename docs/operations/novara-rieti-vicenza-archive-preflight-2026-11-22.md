@@ -98,3 +98,12 @@ identity and privacy gates stay in force. No source/parser binding, finite
 publication intent, selector, release, historical capture or storage privilege
 is changed. Work on the independent current-edition delta continues; a
 diagnostic does not reduce any publicly selected lag.
+
+
+## Rieti — aggregate row-signal audit for physical-to-logical qualification (proposed, 22 November 2026)
+
+The [official Rieti White List page](https://prefettura.interno.gov.it/it/prefetture/rieti/evidenza/white-list) separately indexes `iscritti-new.xlsx` and `richiedenti-iscrizione-new.xlsx`. Its attachment labels do **not** establish an explicit edition-reference date, and the page does not authenticate an approval of the candidate robot SHA pins. The previously verified exact R2 source originals remain 274 × 13 physically scanned rows/columns for listed and 296 × 13 for applicants; worksheet rows include headers, formulas and other non-company material.
+
+For structurally accepted worksheets only, the existing bounded source-only preflight now proposes additional **per-worksheet aggregate** counts of multi-cell rows that have eleven-digit text shapes, sixteen-character alphanumeric text shapes, both, neither, or at least one formula cell. These categories intentionally overlap where stated. They neither assert tax identifiers nor distinguish legal persons, natural persons, company records, continuation rows or administrative events. Numeric identifiers stored as numeric Excel cells, as well as cached outcomes of formulas, are not promoted by string-shaped heuristics. No workbook titles, row indexes, original source values or per-entity evidence are output. Existing structural bounds and all four Novara/Vicenza quarantines remain unchanged.
+
+**Pending gate:** CI, exact-head review, serial merge and the single existing protected R2 worker must run on these exact SHA-pinned originals before the new signal counts are a verified production observation. Even a successful run still requires independent physical-to-logical record census, authoritative date attribution, row/status/sector semantics, per-population completeness and personal-data controls before parser binding or a finite public expansion intent. **No approved SourceEdition, no public selection and no published increase** is proposed by this source-only audit.

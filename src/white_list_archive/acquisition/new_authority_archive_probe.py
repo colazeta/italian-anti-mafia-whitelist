@@ -90,6 +90,7 @@ def workbook_structure(raw: bytes) -> dict:
                 raise ValueError("Unknown worksheet visibility")
             row_kinds = Counter()
             shapes = Counter()
+            row_signals = Counter()
             observed_rows = 0
             observed_columns = 0
             for row in ws.iter_rows(values_only=True):
@@ -100,12 +101,25 @@ def workbook_structure(raw: bytes) -> dict:
                         or total_cells > MAX_CELLS):
                     raise ValueError("Observed worksheet dimensions exceed safe limits")
                 present = 0
+                row_shape_counts = Counter()
                 for value in row:
                     kind = cell_shape(value)
                     shapes[kind] += 1
+                    row_shape_counts[kind] += 1
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
+                if present >= 2:
+                    # Shape-only evidence for future physical-to-logical review.
+                    # These text patterns are NOT confirmed company identifiers
+                    # or record boundaries; Excel numeric/formula cells differ.
+                    has_11 = row_shape_counts["eleven_digit_shape"] > 0
+                    has_16 = row_shape_counts["sixteen_character_shape_privacy_review"] > 0
+                    row_signals["multi_cell_with_11_digit_text"] += int(has_11)
+                    row_signals["multi_cell_with_16_char_text"] += int(has_16)
+                    row_signals["multi_cell_with_both_text_shapes"] += int(has_11 and has_16)
+                    row_signals["multi_cell_with_neither_text_shape"] += int(not (has_11 or has_16))
+                    row_signals["multi_cell_with_formula"] += int(row_shape_counts["formula"] > 0)
             if not observed_rows or not observed_columns:
                 raise ValueError("Empty physical worksheet")
             if declared_rows is not None and observed_rows != declared_rows:
@@ -119,6 +133,7 @@ def workbook_structure(raw: bytes) -> dict:
                 "physical_columns": observed_columns,
                 "declared_dimensions_present": declared_rows is not None and declared_cols is not None,
                 "row_shapes": dict(row_kinds),
+                "row_signals": dict(row_signals),
                 "cell_shapes": dict(shapes),
             })
         if not any(s["row_shapes"].get("multi_cell", 0) for s in sheets):
