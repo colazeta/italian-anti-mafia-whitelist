@@ -22,7 +22,6 @@ on:
       - 'src/white_list_archive/acquisition/catania_november13_archive_qa.py'
       - 'src/white_list_archive/acquisition/catania_november20_archive_qa.py'
       - 'src/white_list_archive/acquisition/catania_november20_tail_review.py'
-      - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
       - 'src/white_list_archive/acquisition/reggio_archive_census.py'
       - 'src/white_list_archive/acquisition/new_authority_archive_probe.py'
       - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
