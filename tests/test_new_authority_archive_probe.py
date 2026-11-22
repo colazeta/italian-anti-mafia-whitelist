@@ -390,3 +390,52 @@ def test_source_only_row_signals_do_not_infer_firms_or_disclose_values():
     for secret in ("PRIVATE", "01234567890", "RSSMRA85M01H501Z"):
         assert secret not in redacted
     assert "source_edition_approved" not in redacted
+
+
+def test_rieti_formula_cache_audit_only_counts_presence_not_results():
+    """Cached values need independent review: formula strings are not outcomes."""
+    import re
+    from zipfile import ZipFile
+    book = Workbook()
+    ws = book.active
+    ws.title = "PRIVATE RIETI FORMULAE"
+    ws.append(["heading", "heading"])
+    ws.append(["=1+1", "PRIVATE BUSINESS"])
+    ws.append(["=1+2", "PRIVATE PERSON"])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    patched = BytesIO()
+    with ZipFile(BytesIO(out.getvalue())) as source, ZipFile(patched, "w") as target:
+        for item in source.infolist():
+            payload = source.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                payload, changed = re.subn(
+                    rb"(<f>1\+1</f><v>)[^<]*(</v>)",
+                    rb"\g<1>12345678901\g<2>", payload)
+                assert changed == 1
+            target.writestr(item, payload)
+    result = workbook_structure(patched.getvalue())
+    counts = result["worksheets"][0]["formula_cache_counts"]
+    assert counts["formula_cells"] == 2
+    assert counts["formula_cells_with_cache"] == 1
+    assert counts["formula_cells_without_cache"] == 1
+    assert counts["rows_with_cached_formula"] == 1
+    assert counts["rows_with_uncached_formula"] == 1
+    assert counts["formula_cells_with_cache"] + counts["formula_cells_without_cache"] == counts["formula_cells"]
+    # The old physical row-census signals are unchanged by the cache view.
+    assert result["worksheets"][0]["row_shapes"] == {"multi_cell": 3}
+    redacted = json.dumps(result)
+    for value in ("PRIVATE BUSINESS", "PRIVATE PERSON", "PRIVATE RIETI FORMULAE",
+                  "12345678901", "=1+1", "=1+2"):
+        assert value not in redacted
+
+
+def test_no_cached_formula_is_explicit_and_no_public_approval_is_inferred():
+    source = sample_workbook()
+    report = workbook_structure(source)
+    formula = report["worksheets"][0]["formula_cache_counts"]
+    assert formula["formula_cells"] == 1
+    assert formula["formula_cells_with_cache"] == 0
+    assert formula["formula_cells_without_cache"] == 1
+    assert "source_edition_approved" not in json.dumps(report)
