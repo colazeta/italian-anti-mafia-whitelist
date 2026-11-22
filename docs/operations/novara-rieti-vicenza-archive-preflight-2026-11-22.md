@@ -56,3 +56,45 @@ official edition date, source identity and privacy checks succeed. This is
 code proposed for review; no claim of successful production diagnostics,
 approved edition or released authority follows until exact-head CI and
 protected runtime readback are verified.
+
+
+## Production geometry baseline and next diagnostic gate — 22 November 2026
+
+The previous diagnostic was **actually verified in production** by protected
+[run #44973521337](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/44973521337),
+shard 0/job 137058266684, on merged main \`9db184f01f4ec0e1bdeb96722412809fe5b3b67e\`.
+Exact R2 SHA/size readbacks were **6/6**; strict structural audits remained
+**2/6** (Rieti both populations only), with Novara/Vicenza **4/4** retained as
+\`declared_dimensions_out_of_bounds\`. This is not edition approval or a
+globally successful transform run.
+
+- Novara listed: declared 385 rows × 1,024 columns; primary XML part 385
+  encoded row markers/2,695 cell markers, maximum encoded coordinate 385 × 7.
+  A separate 10 × 8, 80-cell XML part also exists.
+- Novara applicants: declared 242 × 1,024; primary part 242 rows/1,694 cells,
+  maximum coordinate 242 × 7.
+- Vicenza listed: declared 1,048,576 × 10; 1,279 row markers/8,746 cell
+  markers, with an encoded coordinate reaching row 1,048,576.
+- Vicenza applicants: declared 1,048,576 × 6; 189 row markers/320 cell
+  markers, also reaching the terminal worksheet row.
+
+The next revision **only proposes a diagnostic** to distinguish cell/row
+geometry from potential XML payload markers. For every bounded worksheet part,
+it counts how many cell elements exceed the existing 50,000-row/120-column
+acceptance envelope, how many contain an XLSX value, formula or inline-string
+*element marker* (not actual approved or necessarily nonempty content), how
+many do not, how many contain formula markers, and the maximum row/column
+bearing those markers. Missing cell coordinates are counted separately, never
+assumed to fall within the permitted region. All source values and individual
+locations remain unobserved/unlogged; parsing remains bounded and DTDs remain
+prohibited. These marker counters can help distinguish empty styled terminal
+cells from potentially substantive far-row content, **not** prove that a row
+may be ignored or that an edition is ready.
+
+Production acceptance of these **new** counters remains pending until
+exact-head CI, serial merge, and independent protected run readback. The
+original four structural quarantines and full edition/date/status/sector,
+identity and privacy gates stay in force. No source/parser binding, finite
+publication intent, selector, release, historical capture or storage privilege
+is changed. Work on the independent current-edition delta continues; a
+diagnostic does not reduce any publicly selected lag.
