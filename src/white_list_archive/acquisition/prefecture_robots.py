@@ -43,6 +43,32 @@ def generate_catalog(root=Path('.')):
     series = csv_rows('source_series_inventory.csv')
     ledger = {x['authority_key']: x for x in json.loads((root/'data/monitoring/national_coverage.json').read_text())['prefectures']}
     publication = json.loads((root/'data/publication/multi_prefecture_pilot.json').read_text())['sources']
+    # Candidate official-page hints can improve bounded discovery without
+    # assigning any source population, parser, date or approval.
+    hints = csv_rows('unreviewed_official_pages.csv')
+    hinted_by_authority = {}
+    authority_keys = {a['authority_key'] for a in authorities}
+    selected_keys = {s['authority_key'] for s in publication}
+    seen_hints = set()
+    for hint in hints:
+        key, url = hint['authority_key'], hint['page_url']
+        if (key not in authority_keys or key in selected_keys
+                or hint['evidence_state'] != 'indexed_official_page_unverified_bytes'
+                or not re.fullmatch(r'20[0-9]{2}-[0-9]{2}-[0-9]{2}', hint['observed_on'])
+                or (key, url) in seen_hints):
+            raise ValueError('Invalid unreviewed official page hint')
+        # The official baseline determines the territorial slug; never crawl
+        # another Prefecture merely because it shares the ministry's host.
+        base = urlsplit(ledger[key]['official_landing_page'])
+        candidate = urlsplit(url)
+        prefix = re.match(r'^/it/prefetture/[^/]+/', base.path)
+        if (not prefix or not allowed(url, ['prefettura.interno.gov.it'])
+                or candidate.path == base.path
+                or not candidate.path.startswith(prefix.group(0))
+                or candidate.query or candidate.fragment):
+            raise ValueError('Unreviewed page hint outside territorial official origin')
+        seen_hints.add((key, url))
+        hinted_by_authority.setdefault(key, set()).add(url)
     robots = []
     for authority in authorities:
         key = authority['authority_key']
@@ -50,6 +76,7 @@ def generate_catalog(root=Path('.')):
         pages = {ledger[key]['official_landing_page']}
         pages.update(x['landing_url'] for x in verified if x['authority_key'] == key)
         pages.update(x['series_url'] for x in series if x['authority_key'] == key)
+        pages.update(hinted_by_authority.get(key, set()))
         pages.update(x['source_page_url'] for x in approved)
         resources = []
         for source in approved:

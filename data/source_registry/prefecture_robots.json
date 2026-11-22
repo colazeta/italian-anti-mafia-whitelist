@@ -1492,6 +1492,8 @@
       "name": "La Spezia",
       "region": "Liguria",
       "landing_pages": [
+        "https://prefettura.interno.gov.it/it/prefetture/spezia/elenco-ditte-hanno-richiesto-iscrizione-alla-white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/spezia/elenco-ditte-iscritte-alla-white-list",
         "https://prefettura.interno.gov.it/it/prefetture/spezia/evidenza/white-list"
       ],
       "allowed_hosts": [
@@ -1980,7 +1982,9 @@
       "name": "Oristano",
       "region": "Sardegna",
       "landing_pages": [
-        "https://prefettura.interno.gov.it/it/prefetture/oristano/evidenza/white-list"
+        "https://prefettura.interno.gov.it/it/prefetture/oristano/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/oristano/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/oristano/white-list-elenco-imprese-richiedenti-iscrizione"
       ],
       "allowed_hosts": [
         "prefettura.interno.gov.it"
@@ -3090,7 +3094,9 @@
       "name": "Verona",
       "region": "Veneto",
       "landing_pages": [
-        "https://prefettura.interno.gov.it/it/prefetture/verona/evidenza/white-list"
+        "https://prefettura.interno.gov.it/it/prefetture/verona/evidenza/white-list",
+        "https://prefettura.interno.gov.it/it/prefetture/verona/white-list-elenco-imprese-iscritte",
+        "https://prefettura.interno.gov.it/it/prefetture/verona/white-list-elenco-imprese-richiedenti-iscrizione"
       ],
       "allowed_hosts": [
         "prefettura.interno.gov.it"

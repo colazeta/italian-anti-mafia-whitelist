@@ -57,3 +57,23 @@ The national index is treated as a **discovery/provenance source**, not as a can
 6. Historical URLs and current URLs are both valuable but must be classified by source origin and capture time.
 7. A source-series row is added only when its population/regime/publication identity is supported by public evidence.
 8. A verified authority/register is not source-population complete until both `listed` and `applicant` populations are explicitly accounted for; failure to find one is not evidence that it is not published.
+
+### Unreviewed official publication-page hints (22 November 2026)
+
+`unreviewed_official_pages.csv` lists two dedicated official-domain HTML
+pages per authority for **La Spezia, Oristano and Verona**. Their existence
+and population labels are corroborated by the Ministry's publicly indexed
+pages; direct web retrieval currently returns HTTP 403. The `observed_on`
+field records the research observation, **not** an official source date.
+
+The existing 106-authority robot reads these as extra bounded discovery
+landing pages. They add no public population, parser binding, source edition,
+data record or approval. Each hint must match the exact territorial URL
+prefix of an already configured official baseline. An unknown authority,
+off-origin URL, duplicate, invalid status or already selected authority
+fails closed. Existing capture and retry budgets are unchanged.
+
+Current authority coverage is not increased by adding hints. Only an exact
+archival capture, independent byte/row QA, both-population review, a finite
+intent and the sole publisher's five-asset live readback can do so. A 403
+remains an access result rather than evidence that the publication is absent.
