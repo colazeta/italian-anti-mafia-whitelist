@@ -29,3 +29,30 @@ This is incremental **source-qualification work** on three previously unpublishe
 The actual existing protected worker [run #44962065577](https://github.com/colazeta/italian-anti-mafia-whitelist/actions/runs/44962065577), shard 0, independently retrieved and SHA/size-verified **all six** R2 originals. The first structural pass validated the two Rieti XLSX workbooks: listed worksheet **274 physical rows / 13 columns** (266 multi-cell rows, 258 formulas), applicant worksheet **296 physical rows / 13 columns** (279 multi-cell rows, no formula cells). These are physical worksheet rows including non-record material, **not** 274/296 approved firms. The observed 16-character cell-shape counts (64/63 respectively) are privacy-screening clues, not proof of personal or legal identity. All other four original bytes were intact, but their workbook structural audit returned a redacted \`ValueError\`, so only **2/6** structures passed and the standalone audit exited with code 1. The GHA step's continuing-on-error is not success of that audit or of the full worker (which completed \`failure\` for distinct independent reasons).
 
 This follow-up supports XLSX producers whose dimension hints are **absent**, but it still enforces exact SHA/byte length, byte-size, sheet/row/column/cell bounds on the **physically traversed cells**, declared-dimension bounds when present, and rejects contradictions, unknown sheet types and empty/one-cell-only sheets. All safely reportable failure reasons are mapped to a fixed vocabulary, while unexpected library errors are redacted. A new CI/production run is necessary before claiming any additional workbook structurally accepted; no potential date, firm count, source status, sector mapping, privacy result or public release is thereby approved.
+
+
+## Finite coordinate diagnostic for quarantined worksheet declarations (proposed)
+
+For the four Novara/Vicenza sources rejected by the original strict workbook
+scanner as \`declared_dimensions_out_of_bounds\`, the same existing protected,
+read-only preflight can now report a **diagnostic-only** comparison between
+declared worksheet dimensions and bounded encoded XML cell/row marker counts
+and maxima. It never logs worksheet titles, private source strings, individual
+cell coordinates, original document bytes or archive paths. Only exact
+SHA-256/size verified R2 originals enter this diagnostic.
+
+The XML inspection has separate finite constraints (24 MB per worksheet,
+48 MB total declared uncompressed XML, 600,000 cell elements and 150,000 row
+elements per part), rejects document type declarations, and reports controlled
+reason codes on failure. This does **not** increase the original production
+acceptance limits of 50,000 rows, 120 columns and 500,000 physically scanned
+cells, nor does a coordinate marker prove a nonempty business record. The
+independent counters \`source_bytes_verified\` and \`originals_verified\` now
+separate authenticated original-byte readbacks from accepted structural audits.
+
+**Acceptance remains blocked** for all four until source-specific physical
+extent/format QA, complete listed/applicant reconciliation, sector/status,
+official edition date, source identity and privacy checks succeed. This is
+code proposed for review; no claim of successful production diagnostics,
+approved edition or released authority follows until exact-head CI and
+protected runtime readback are verified.

@@ -12,6 +12,8 @@ from hashlib import sha256
 from io import BytesIO
 import json
 import re
+from xml.parsers import expat
+from zipfile import ZipFile
 
 from openpyxl import load_workbook
 
@@ -127,6 +129,120 @@ def workbook_structure(raw: bytes) -> dict:
         workbook.close()
 
 
+
+# Diagnostic-only limits, independent of the release parser's stricter
+# physical worksheet acceptance bounds. Never use these to approve a source.
+MAX_COORDINATE_XML_BYTES = 24_000_000
+MAX_TOTAL_COORDINATE_XML_BYTES = 48_000_000
+MAX_COORDINATE_CELL_ELEMENTS = 600_000
+MAX_COORDINATE_ROW_ELEMENTS = 150_000
+_CELL_REFERENCE = re.compile(r"([A-Z]{1,3})([1-9][0-9]{0,6})\Z")
+
+
+def _coordinate_numbers(value: str) -> tuple[int, int]:
+    """Decode a cell reference, without returning or logging the locator."""
+    match = _CELL_REFERENCE.fullmatch(value)
+    if match is None:
+        raise ValueError("Invalid worksheet coordinate metadata")
+    column = 0
+    for letter in match.group(1):
+        column = column * 26 + ord(letter) - ord("A") + 1
+    row = int(match.group(2))
+    if not 1 <= column <= 16384 or not 1 <= row <= 1048576:
+        raise ValueError("Invalid worksheet coordinate metadata")
+    return row, column
+
+
+def workbook_coordinate_diagnostic(raw: bytes) -> dict:
+    """Inspect only bounded XLSX worksheet XML *geometry*, not its values.
+
+    This is for reviewing unexpectedly large declared XLSX dimensions: XML
+    encoded cell/row tags are not business records, and sparse formatting can
+    make worksheet declared dimensions larger than actual semantic content.
+    No source cell strings, individual coordinates, sheet names or XML paths
+    are included in output. No published/source approval can result.
+    """
+    if not isinstance(raw, bytes) or not raw.startswith(b"PK") or len(raw) > MAX_BYTES:
+        raise ValueError("Not a bounded original XLSX")
+    parts = []
+    total_xml_bytes = 0
+    with ZipFile(BytesIO(raw)) as archive:
+        sheet_members = [item for item in archive.infolist()
+                         if re.fullmatch(r"xl/worksheets/sheet[0-9]+\.xml", item.filename)]
+        if not 1 <= len(sheet_members) <= MAX_SHEETS:
+            raise ValueError("Unexpected worksheet XML part count")
+        for item in sheet_members:
+            total_xml_bytes += item.file_size
+            if (item.file_size > MAX_COORDINATE_XML_BYTES or
+                    total_xml_bytes > MAX_TOTAL_COORDINATE_XML_BYTES):
+                raise ValueError("Worksheet XML exceeds diagnostic limits")
+            counters = {"encoded_row_elements": 0, "encoded_cell_elements": 0,
+                        "cells_without_coordinates": 0, "rows_without_coordinates": 0,
+                        "greatest_encoded_row": 0, "greatest_encoded_column": 0,
+                        "declared_rows": None, "declared_columns": None}
+            parser = expat.ParserCreate(namespace_separator="}")
+
+            def prohibit_doctype(*_args):
+                raise ValueError("Prohibited worksheet XML doctype")
+
+            def start_element(name, attributes):
+                tag = name.rsplit("}", 1)[-1]
+                if tag == "dimension":
+                    reference = attributes.get("ref", "")
+                    if len(reference) > 30:
+                        raise ValueError("Invalid worksheet coordinate metadata")
+                    declared_row, declared_column = _coordinate_numbers(
+                        reference.split(":")[-1])
+                    counters["declared_rows"] = declared_row
+                    counters["declared_columns"] = declared_column
+                elif tag == "row":
+                    counters["encoded_row_elements"] += 1
+                    if counters["encoded_row_elements"] > MAX_COORDINATE_ROW_ELEMENTS:
+                        raise ValueError("Worksheet XML exceeds diagnostic limits")
+                    explicit_row = attributes.get("r")
+                    if explicit_row is None:
+                        counters["rows_without_coordinates"] += 1
+                    else:
+                        if not re.fullmatch(r"[1-9][0-9]{0,6}", explicit_row):
+                            raise ValueError("Invalid worksheet coordinate metadata")
+                        row_number = int(explicit_row)
+                        if row_number > 1048576:
+                            raise ValueError("Invalid worksheet coordinate metadata")
+                        counters["greatest_encoded_row"] = max(
+                            counters["greatest_encoded_row"], row_number)
+                elif tag == "c":
+                    counters["encoded_cell_elements"] += 1
+                    if counters["encoded_cell_elements"] > MAX_COORDINATE_CELL_ELEMENTS:
+                        raise ValueError("Worksheet XML exceeds diagnostic limits")
+                    reference = attributes.get("r")
+                    if reference is None:
+                        counters["cells_without_coordinates"] += 1
+                    else:
+                        row, column = _coordinate_numbers(reference)
+                        counters["greatest_encoded_row"] = max(
+                            counters["greatest_encoded_row"], row)
+                        counters["greatest_encoded_column"] = max(
+                            counters["greatest_encoded_column"], column)
+
+            parser.StartElementHandler = start_element
+            parser.StartDoctypeDeclHandler = prohibit_doctype
+            consumed = 0
+            with archive.open(item, "r") as stream:
+                while True:
+                    chunk = stream.read(65536)
+                    if not chunk:
+                        break
+                    consumed += len(chunk)
+                    if consumed > MAX_COORDINATE_XML_BYTES:
+                        raise ValueError("Worksheet XML exceeds diagnostic limits")
+                    parser.Parse(chunk, False)
+                parser.Parse(b"", True)
+            parts.append({"xml_part_index": len(parts) + 1, **counters})
+    return {"diagnostic_only": True, "record_census": False,
+            "source_edition_approved": False, "privacy_approved": False,
+            "xml_parts": parts}
+
+
 # Whitelist error text from this module only; never output library exception
 # strings, potentially containing source cells or archive coordinates.
 SAFE_STRUCTURE_ERROR_CODES = {
@@ -140,6 +256,10 @@ SAFE_STRUCTURE_ERROR_CODES = {
     "Observed worksheet exceeds declared columns": "dimension_column_conflict",
     "No multi-cell rows for source census": "no_multi_cell_rows",
     "Original failed exact size or digest check": "remote_byte_identity_mismatch",
+    "Unexpected worksheet XML part count": "unexpected_worksheet_xml_parts",
+    "Worksheet XML exceeds diagnostic limits": "diagnostic_xml_bounds_exceeded",
+    "Invalid worksheet coordinate metadata": "invalid_coordinate_metadata",
+    "Prohibited worksheet XML doctype": "prohibited_xml_doctype",
 }
 
 
@@ -161,10 +281,21 @@ def audit(store: EvidenceStore, pins: dict = PINS) -> dict:
                 entry["error_type"] = type(exc).__name__
                 entry["review_code"] = SAFE_STRUCTURE_ERROR_CODES.get(
                     str(exc), "unclassified_library_or_archive_failure")
+                # Diagnostic is read-only and cannot override rejected structure.
+                # Attempt only on exact R2 originals with oversized dimensions.
+                if (entry.get("original_bytes_readback_verified") is True and
+                        entry["review_code"] == "declared_dimensions_out_of_bounds"):
+                    try:
+                        entry["redacted_coordinate_diagnostic"] = (
+                            workbook_coordinate_diagnostic(raw))
+                    except Exception as diagnostic_exc:
+                        entry["coordinate_diagnostic_code"] = SAFE_STRUCTURE_ERROR_CODES.get(
+                            str(diagnostic_exc), "unclassified_diagnostic_failure")
             results.append(entry)
     return {"review_only": True, "source_edition_approved": False,
             "listed_applicant_semantics_approved": False,
             "privacy_approved": False, "public_release_eligible": False,
+            "source_bytes_verified": sum(r.get("original_bytes_readback_verified") is True for r in results),
             "originals_verified": sum("physical_workbook_structure" in r for r in results),
             "originals_expected": len(results), "results": results}
 
