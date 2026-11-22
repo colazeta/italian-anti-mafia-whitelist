@@ -72,12 +72,19 @@ def workbook_structure(raw: bytes) -> dict:
     if not isinstance(raw, bytes) or not raw.startswith(b"PK") or len(raw) > MAX_BYTES:
         raise ValueError("Not a bounded original XLSX")
     workbook = load_workbook(BytesIO(raw), read_only=True, data_only=False)
+    cached_workbook = None
     try:
+        # Excel's data_only view reads stored cached outcomes; it does not
+        # evaluate formulae. Never log either formula text or cached values.
+        cached_workbook = load_workbook(BytesIO(raw), read_only=True, data_only=True)
+        if len(cached_workbook.worksheets) != len(workbook.worksheets):
+            raise ValueError("Formula/cache worksheet geometry mismatch")
         if not 1 <= len(workbook.worksheets) <= MAX_SHEETS:
             raise ValueError("Unexpected number of XLSX worksheets")
         sheets = []
         total_cells = 0
-        for index, ws in enumerate(workbook.worksheets, 1):
+        for index, (ws, cached_ws) in enumerate(
+                zip(workbook.worksheets, cached_workbook.worksheets), 1):
             declared_rows, declared_cols = ws.max_row, ws.max_column
             if ((declared_rows is not None and
                  (not isinstance(declared_rows, int) or declared_rows < 0 or declared_rows > MAX_ROWS))
@@ -91,9 +98,14 @@ def workbook_structure(raw: bytes) -> dict:
             row_kinds = Counter()
             shapes = Counter()
             row_signals = Counter()
+            formula_cache_counts = Counter()
+            cached_rows = iter(cached_ws.iter_rows(values_only=True))
             observed_rows = 0
             observed_columns = 0
             for row in ws.iter_rows(values_only=True):
+                cached_row = next(cached_rows, None)
+                if cached_row is None or len(cached_row) != len(row):
+                    raise ValueError("Formula/cache worksheet geometry mismatch")
                 observed_rows += 1
                 observed_columns = max(observed_columns, len(row))
                 total_cells += len(row)
@@ -102,13 +114,29 @@ def workbook_structure(raw: bytes) -> dict:
                     raise ValueError("Observed worksheet dimensions exceed safe limits")
                 present = 0
                 row_shape_counts = Counter()
-                for value in row:
+                row_has_cached_formula = False
+                row_has_uncached_formula = False
+                for value, cached_value in zip(row, cached_row):
                     kind = cell_shape(value)
                     shapes[kind] += 1
                     row_shape_counts[kind] += 1
+                    if kind == "formula":
+                        formula_cache_counts["formula_cells"] += 1
+                        # A value's mere presence is not evidence that Excel
+                        # recalculated it, nor that it is semantically correct.
+                        has_cache = (cached_value is not None and
+                                     (not isinstance(cached_value, str) or
+                                      bool(cached_value.strip())))
+                        formula_cache_counts[
+                            "formula_cells_with_cache" if has_cache
+                            else "formula_cells_without_cache"] += 1
+                        row_has_cached_formula |= has_cache
+                        row_has_uncached_formula |= not has_cache
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
+                formula_cache_counts["rows_with_cached_formula"] += int(row_has_cached_formula)
+                formula_cache_counts["rows_with_uncached_formula"] += int(row_has_uncached_formula)
                 if present >= 2:
                     # Shape-only evidence for future physical-to-logical review.
                     # These text patterns are NOT confirmed company identifiers
@@ -120,6 +148,12 @@ def workbook_structure(raw: bytes) -> dict:
                     row_signals["multi_cell_with_both_text_shapes"] += int(has_11 and has_16)
                     row_signals["multi_cell_with_neither_text_shape"] += int(not (has_11 or has_16))
                     row_signals["multi_cell_with_formula"] += int(row_shape_counts["formula"] > 0)
+            if next(cached_rows, None) is not None:
+                raise ValueError("Formula/cache worksheet geometry mismatch")
+            if (formula_cache_counts["formula_cells_with_cache"] +
+                    formula_cache_counts["formula_cells_without_cache"] !=
+                    formula_cache_counts["formula_cells"]):
+                raise ValueError("Formula/cache worksheet geometry mismatch")
             if not observed_rows or not observed_columns:
                 raise ValueError("Empty physical worksheet")
             if declared_rows is not None and observed_rows != declared_rows:
@@ -134,6 +168,7 @@ def workbook_structure(raw: bytes) -> dict:
                 "declared_dimensions_present": declared_rows is not None and declared_cols is not None,
                 "row_shapes": dict(row_kinds),
                 "row_signals": dict(row_signals),
+                "formula_cache_counts": dict(formula_cache_counts),
                 "cell_shapes": dict(shapes),
             })
         if not any(s["row_shapes"].get("multi_cell", 0) for s in sheets):
@@ -142,6 +177,8 @@ def workbook_structure(raw: bytes) -> dict:
                 "physically_scanned_cells": total_cells}
     finally:
         workbook.close()
+        if cached_workbook is not None:
+            cached_workbook.close()
 
 
 
@@ -324,6 +361,7 @@ SAFE_STRUCTURE_ERROR_CODES = {
     "Declared worksheet row count mismatch": "dimension_row_conflict",
     "Observed worksheet exceeds declared columns": "dimension_column_conflict",
     "No multi-cell rows for source census": "no_multi_cell_rows",
+    "Formula/cache worksheet geometry mismatch": "formula_cache_geometry_mismatch",
     "Original failed exact size or digest check": "remote_byte_identity_mismatch",
     "Unexpected worksheet XML part count": "unexpected_worksheet_xml_parts",
     "Worksheet XML exceeds diagnostic limits": "diagnostic_xml_bounds_exceeded",
