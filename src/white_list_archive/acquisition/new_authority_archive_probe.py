@@ -177,7 +177,7 @@ def workbook_coordinate_diagnostic(raw: bytes) -> dict:
                     total_xml_bytes > MAX_TOTAL_COORDINATE_XML_BYTES):
                 raise ValueError("Worksheet XML exceeds diagnostic limits")
             counters = {"encoded_row_elements": 0, "encoded_cell_elements": 0,
-                        "cells_without_coordinates": 0,
+                        "cells_without_coordinates": 0, "rows_without_coordinates": 0,
                         "greatest_encoded_row": 0, "greatest_encoded_column": 0,
                         "declared_rows": None, "declared_columns": None}
             parser = expat.ParserCreate(namespace_separator="}")
@@ -199,6 +199,17 @@ def workbook_coordinate_diagnostic(raw: bytes) -> dict:
                     counters["encoded_row_elements"] += 1
                     if counters["encoded_row_elements"] > MAX_COORDINATE_ROW_ELEMENTS:
                         raise ValueError("Worksheet XML exceeds diagnostic limits")
+                    explicit_row = attributes.get("r")
+                    if explicit_row is None:
+                        counters["rows_without_coordinates"] += 1
+                    else:
+                        if not re.fullmatch(r"[1-9][0-9]{0,6}", explicit_row):
+                            raise ValueError("Invalid worksheet coordinate metadata")
+                        row_number = int(explicit_row)
+                        if row_number > 1048576:
+                            raise ValueError("Invalid worksheet coordinate metadata")
+                        counters["greatest_encoded_row"] = max(
+                            counters["greatest_encoded_row"], row_number)
                 elif tag == "c":
                     counters["encoded_cell_elements"] += 1
                     if counters["encoded_cell_elements"] > MAX_COORDINATE_CELL_ELEMENTS:
