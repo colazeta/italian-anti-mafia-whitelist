@@ -21,6 +21,17 @@ REVIEW_VERSION = 1
 EXPECTED_FULL = 1887
 EXPECTED_AMBIGUOUS = 10
 MAX_PACKET_BYTES = 1_000_000
+LEGACY_SCOPE = "catania_2026_11_13_listed_private_tail_review"
+NOV20_SCOPE = "catania_2026_11_20_listed_private_tail_review"
+NOV20_SHA256 = "f5715c1f2ec8a07e4cc1a4a3c76db9c2c5d257241114851d6f0881496c352c6f"
+
+
+def _check_review_scope(scope: str, sha: str, full: int, ambiguous: int) -> None:
+    if scope == LEGACY_SCOPE:
+        return  # Preserve the old key and synthetic-test entrypoint unchanged.
+    if (scope != NOV20_SCOPE or sha != NOV20_SHA256
+            or full != 1901 or ambiguous != 10):
+        raise ValueError("Unreviewed Catania tail source/scope contract")
 
 
 def _cell_value(value):
@@ -33,7 +44,8 @@ def _cell_value(value):
 
 
 def _packet_from_original(raw: bytes, digest: str, *, expected_full: int,
-                          expected_ambiguous: int) -> dict:
+                          expected_ambiguous: int, review_scope: str = LEGACY_SCOPE) -> dict:
+    _check_review_scope(review_scope, digest, expected_full, expected_ambiguous)
     workbook = openpyxl.load_workbook(BytesIO(raw), read_only=False, data_only=False)
     try:
         if workbook.sheetnames != ["Foglio1"]:
@@ -71,7 +83,7 @@ def _packet_from_original(raw: bytes, digest: str, *, expected_full: int,
             raise ValueError("Ambiguous-tail layout requires a new review")
         return {
             "schema_version": REVIEW_VERSION,
-            "scope": "catania_2026_11_13_listed_private_tail_review",
+            "scope": review_scope,
             "original_sha256": digest,
             "source_population": "listed",
             "record_contract": "unapproved_source_rows",
@@ -87,10 +99,17 @@ def _packet_from_original(raw: bytes, digest: str, *, expected_full: int,
         workbook.close()
 
 
-def _private_key(digest: str) -> str:
-    identity = f"catania-listed-tail-review:v{REVIEW_VERSION}:{digest}"
+def _private_key(digest: str, *, review_scope: str = LEGACY_SCOPE) -> str:
+    if review_scope == LEGACY_SCOPE:
+        identity = f"catania-listed-tail-review:v{REVIEW_VERSION}:{digest}"
+        namespace = "catania-tail-review"
+    elif review_scope == NOV20_SCOPE and digest == NOV20_SHA256:
+        identity = f"catania-listed-tail-review-20261120:v{REVIEW_VERSION}:{digest}"
+        namespace = "catania-tail-review-20261120"
+    else:
+        raise ValueError("Unreviewed private Catania review key")
     key_hash = hashlib.sha256(identity.encode("ascii")).hexdigest()
-    return f"operations/v1/catania-tail-review/{key_hash[:2]}/{key_hash}.json"
+    return f"operations/v1/{namespace}/{key_hash[:2]}/{key_hash}.json"
 
 
 def _readback(store, key: str, byte_cap: int) -> bytes:
@@ -107,7 +126,8 @@ def _readback(store, key: str, byte_cap: int) -> bytes:
 
 def prepare_private_tail_review(store, *, source_sha: str = PINS[0][2],
                                 expected_full: int = EXPECTED_FULL,
-                                expected_ambiguous: int = EXPECTED_AMBIGUOUS) -> dict:
+                                expected_ambiguous: int = EXPECTED_AMBIGUOUS,
+                                review_scope: str = LEGACY_SCOPE) -> dict:
     """Append once and fully read back a source-row review packet privately.
 
     Same original and schema version reuse exactly the same key and JSON bytes.
@@ -116,19 +136,20 @@ def prepare_private_tail_review(store, *, source_sha: str = PINS[0][2],
     if (not isinstance(source_sha, str) or len(source_sha) != 64
             or any(c not in "0123456789abcdef" for c in source_sha)):
         raise ValueError("Invalid exact source pin")
+    _check_review_scope(review_scope, source_sha, expected_full, expected_ambiguous)
     raw = store.read_digest_verified(source_sha)
     if (type(raw) is not bytes or not (0 < len(raw) <= MAX_SOURCE_BYTES)
             or hashlib.sha256(raw).hexdigest() != source_sha):
         raise ValueError("Source original is not verified")
     packet = _packet_from_original(
         raw, source_sha, expected_full=expected_full,
-        expected_ambiguous=expected_ambiguous,
+        expected_ambiguous=expected_ambiguous, review_scope=review_scope,
     )
     encoded = json.dumps(packet, sort_keys=True, ensure_ascii=False,
                          separators=(",", ":"), allow_nan=False).encode("utf-8")
     if not (0 < len(encoded) <= MAX_PACKET_BYTES):
         raise ValueError("Private review packet size contract failed")
-    key = _private_key(source_sha)
+    key = _private_key(source_sha, review_scope=review_scope)
     created = True
     try:
         store.client.put_object(
@@ -158,7 +179,8 @@ def prepare_private_tail_review(store, *, source_sha: str = PINS[0][2],
 
 def prepare_and_verify_repeat(store, *, source_sha: str = PINS[0][2],
                               expected_full: int = EXPECTED_FULL,
-                              expected_ambiguous: int = EXPECTED_AMBIGUOUS) -> dict:
+                              expected_ambiguous: int = EXPECTED_AMBIGUOUS,
+                              review_scope: str = LEGACY_SCOPE) -> dict:
     """Prove same-code/source private packet reuse, not just first-write readback.
 
     Re-run the real staging contract against the same verified bytes and immutable
@@ -166,7 +188,7 @@ def prepare_and_verify_repeat(store, *, source_sha: str = PINS[0][2],
     Neither call approves source rows, creates a capture or publishes data.
     """
     args = {"source_sha": source_sha, "expected_full": expected_full,
-            "expected_ambiguous": expected_ambiguous}
+            "expected_ambiguous": expected_ambiguous, "review_scope": review_scope}
     first = prepare_private_tail_review(store, **args)
     repeat = prepare_private_tail_review(store, **args)
     if (not first["private_review_packet_verified"]
