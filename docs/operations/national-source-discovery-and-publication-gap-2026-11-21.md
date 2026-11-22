@@ -107,3 +107,40 @@ This is an independent **current-publication-gap** lane beside the Reggio covera
 | **Bologna provincial only**: `bologna-provincial-listed` (14 August 2026; 1,260 source observations; SHA `50dd5d2a02089c58a09a646e889fdc030b978ddc9a257238a86426fc2691f87c`) and `bologna-provincial-applicants` (14 August 2026; 312; SHA `bfa91cd9b4d3f802b71ae569c3dc9d9169924b3793bfb79c87f2b7b6a946046c`) | [Official Bologna provincial registered-list page](https://prefettura.interno.gov.it/it/prefetture/bologna/white-list-provinciali-elenco-imprese-iscritte) indexes 13 November 2026 attachments for iscritte (767.57 KB), iscritte suddivise per settore (713.72 KB), and richiedenti (152.46 KB). The two listed renderings may describe overlapping observations; neither is automatically a separate population or a second edition. | **91 days for each, potential only** | `acquisition_or_review_required` for both provincial populations. SHA/census the selected official listed representation(s) and applicants independently, reconcile alphabetical/sector overlap without deleting physical occurrences, and verify dates, sector/status/identity/privacy and full digests. The **separate Bologna post-sisma listed/applicants scopes are not covered by this finding**; do not change their pins, denominators or completeness state. |
 
 The 140- and 91-day figures are differences between selected *verified* reference dates and later **attachment-label dates**, not verified publication lag reduction. A dated filename, workbook/page update timestamp, robot discovery or multiple listed views cannot approve SourceEdition or a public selector. These four SourceSeries remain `acquisition_or_review_required`; their public rows and the existing rollback remain untouched. Protected source acquisition must first search for already preserved exact originals and coordinate with active workers, avoiding duplicate capture and writer dispatch.
+
+
+## Prato — independently indexed paired current-edition delta (22 November 2026)
+
+This is a separate **current-document review** task for an already publicly
+selected authority, not a new national coverage case. The exact selected
+142-source manifest at main \`9db184f01f4ec0e1bdeb96722412809fe5b3b67e\`
+contains two independently reviewed historical source pins:
+
+| SourceSeries / population | Selected source-reference date and frozen SHA-256 | Later official indexed attachment | Candidate difference / outcome |
+| --- | --- | --- | --- |
+| \`prato-listed\` / \`listed\` | 21 September 2026, \`f3d5644d57f9162d35de7f7f972deecda969824324d1b82c3cb3c21cac99c540\`; 137 source observations | [Prefettura di Prato, elenco imprese iscritte](https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-iscritte), indexed attachment **29 October 2026** (77.9 KB listed) | **38 days potential**; \`acquisition_or_review_required\` |
+| \`prato-applicants\` / \`applicant\` | 21 September 2026, \`cbf5c84522db544adb495272ebe170d105d35a9131e1853396b0584b7865a27d\`; 23 source observations | [Prefettura di Prato, elenco imprese richiedenti](https://prefettura.interno.gov.it/it/prefetture/prato/white-list-elenco-imprese-richiedenti-iscrizione), indexed attachment **30 October 2026** (104 KB listed) | **39 days potential**; \`acquisition_or_review_required\` |
+
+The two sources have **different official attachment labels and dates**:
+do not force a single combined edition date. The selected September listed
+source is XLSX and the applicant source is DOC, so version-specific physical
+format compatibility is an additional gate; new attachments' exact formats
+and bytes are **not yet authenticated**. Indexed labels and webpage update
+timestamps are clues only, not a verified in-document source-reference date.
+
+**Bounded next action:** through existing authorised capture/readback
+infrastructure, first check whether each latest labelled attachment is already
+preserved in the robot archive, then pin exact original SHA-256 and bytes,
+independently verify official in-document reference dates, all table/row
+continuations, identifiers, statuses, sectors, privacy and parser compatibility,
+and cross-check source-observation counts and full public digests. Preserve
+all relevant intermediate historical editions. Release neither source until
+the validated latest complete pair passes finite intent, CI, serial selector
+and the sole publisher with five post-deploy live readbacks.
+
+This discovery produces **zero authenticated new original bytes, zero approved
+editions, zero changed selected source identities and zero demonstrated days
+of public lag reduction**. The robot's previously observed 17 Prato newer
+attachment candidates must not be equated with 17 approved editions or
+subtracted from the national backlog by this investigation. Neon readback
+remains unknown while HTTP 402 persists.
