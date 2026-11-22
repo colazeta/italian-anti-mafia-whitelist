@@ -366,3 +366,42 @@ def test_published_sheet_export_redirect_is_narrowly_scoped():
                 target.replace('/pub/', '/other/'), target.replace('https://', 'https://user@'),
                 target.replace('doc-10-c0-sheets', 'other')]:
         assert not published_sheet_redirect(source, bad, ['docs.google.com'])
+
+def test_candidate_official_pages_are_landing_hints_not_approved_sources():
+    hints = list(csv.DictReader(
+        (ROOT/'data/source_registry/unreviewed_official_pages.csv').open(encoding='utf-8')))
+    assert len(hints) == 6
+    assert {h['authority_key'] for h in hints} == {'la-spezia', 'oristano', 'verona'}
+    assert all(h['evidence_state'] == 'indexed_official_page_unverified_bytes' for h in hints)
+    by_key = {r['authority_key']: r for r in generate_catalog(ROOT)['robots']}
+    for hint in hints:
+        candidate = by_key[hint['authority_key']]
+        assert hint['page_url'] in candidate['landing_pages']
+        assert candidate['sources'] == []
+        assert candidate['population_mapping_reviewed'] is False
+    assert len({r['authority_key'] for r in by_key.values() if r['sources']}) == 74
+
+
+@pytest.mark.parametrize('bad_url', [
+    'http://prefettura.interno.gov.it/it/prefetture/spezia/white-list',
+    'https://prefettura.interno.gov.it/it/prefetture/roma/white-list',
+    'https://wrong.example/it/prefetture/spezia/white-list',
+])
+def test_unreviewed_discovery_hints_fail_closed_on_bad_origins(tmp_path, bad_url):
+    import shutil
+    for file in ('territorial_authorities.csv', 'verified_primary_pages.csv',
+                 'source_series_inventory.csv', 'unreviewed_official_pages.csv'):
+        directory = tmp_path/'data'/'source_registry'
+        directory.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT/'data'/'source_registry'/file, directory/file)
+    for file in ('data/monitoring/national_coverage.json',
+                 'data/publication/multi_prefecture_pilot.json'):
+        dest = tmp_path/file
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT/file, dest)
+    candidate_file = tmp_path/'data'/'source_registry'/'unreviewed_official_pages.csv'
+    candidate_file.write_text(candidate_file.read_text().replace(
+        'https://prefettura.interno.gov.it/it/prefetture/spezia/elenco-ditte-iscritte-alla-white-list',
+        bad_url), encoding='utf-8')
+    with pytest.raises(ValueError, match='official origin'):
+        generate_catalog(tmp_path)
