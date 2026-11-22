@@ -154,3 +154,89 @@ def test_excessive_dimensions_and_sensitive_library_errors_fail_closed(monkeypat
     assert all(x["review_code"] == "unclassified_library_or_archive_failure"
                for x in data["results"])
     assert "SECRET COMPANY" not in json.dumps(data)
+
+
+
+def test_oversized_declared_dimension_gets_metadata_only_coordinate_evidence():
+    """A format-only far cell is diagnosed without approving its semantics."""
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+    book = Workbook()
+    ws = book.active
+    ws.title = "PRIVATE PERSON DO NOT OUTPUT"
+    ws.cell(1, 1).value = "PRIVATE BUSINESS NAME"
+    ws.cell(1, 121).value = "RSSMRA85M01H501Z"
+    raw_io = BytesIO()
+    book.save(raw_io)
+    book.close()
+    raw = raw_io.getvalue()
+    result = workbook_coordinate_diagnostic(raw)
+    assert result["diagnostic_only"] is True
+    assert result["record_census"] is False
+    assert result["source_edition_approved"] is False
+    assert result["privacy_approved"] is False
+    part = result["xml_parts"][0]
+    assert part["declared_columns"] == 121
+    assert part["greatest_encoded_column"] == 121
+    assert part["encoded_cell_elements"] == 2
+    assert part["greatest_encoded_row"] == 1
+    for private in ("PRIVATE PERSON", "PRIVATE BUSINESS NAME", "RSSMRA85M01H501Z"):
+        assert private not in json.dumps(result)
+
+    digest = sha256(raw).hexdigest()
+
+    class Store:
+        def read_digest_verified(self, _digest):
+            assert _digest == digest
+            return raw
+
+    response = audit(Store(), {"novara": (
+        ("listed", digest, len(raw)), ("applicant", digest, len(raw)),
+    )})
+    assert response["source_bytes_verified"] == 2
+    assert response["originals_verified"] == 0
+    for item in response["results"]:
+        assert item["review_code"] == "declared_dimensions_out_of_bounds"
+        assert item["redacted_coordinate_diagnostic"]["diagnostic_only"]
+    assert not response["public_release_eligible"]
+    assert "PRIVATE BUSINESS NAME" not in json.dumps(response)
+
+
+def test_coordinate_diagnostic_rejects_malicious_xml_and_zip_expansion():
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+    from zipfile import ZipFile
+    original = sample_workbook()
+
+    def replace_sheet(new_xml):
+        dst = BytesIO()
+        with ZipFile(BytesIO(original)) as source, ZipFile(dst, "w") as output:
+            for info in source.infolist():
+                payload = new_xml if info.filename == "xl/worksheets/sheet1.xml" \
+                    else source.read(info.filename)
+                output.writestr(info, payload)
+        return dst.getvalue()
+
+    for xml in (
+        b'<!DOCTYPE worksheet [<!ENTITY secret SYSTEM "file:///etc/passwd">]>'
+        b'<worksheet><row><c r="A1"/></row></worksheet>',
+        b'<worksheet><row><c r="ZZZZ99999999"/></row></worksheet>',
+    ):
+        try:
+            workbook_coordinate_diagnostic(replace_sheet(xml))
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Unreviewed XML accepted")
+
+    # Before parsing, reject an inflated worksheet whose declared size
+    # exceeds the finite read-only diagnostic maximum.
+    huge_xml = b'<worksheet>' + b' ' * 24000001 + b'</worksheet>'
+    try:
+        workbook_coordinate_diagnostic(replace_sheet(huge_xml))
+    except ValueError as exc:
+        assert str(exc) == "Worksheet XML exceeds diagnostic limits"
+    else:
+        raise AssertionError("Oversized worksheet XML accepted")
