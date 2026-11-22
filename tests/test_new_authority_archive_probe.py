@@ -273,3 +273,89 @@ def test_coordinate_diagnostic_includes_explicit_rows_without_cell_refs():
         assert str(exc) == "Invalid worksheet coordinate metadata"
     else:
         raise AssertionError("Malformed row coordinate was accepted")
+
+
+def test_out_of_policy_payload_markers_distinguish_metadata_from_possible_values():
+    """Far XLSX cells are NOT automatically harmless formatting."""
+    from zipfile import ZipFile
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+
+    source = sample_workbook()
+    out = BytesIO()
+    xml = (
+        b'<worksheet xmlns="http://schemas.openxmlformats.org/'
+        b'spreadsheetml/2006/main"><dimension ref="A1:J1048576"/>'
+        b'<sheetData><row r="1"><c r="A1"><v>PRIVATE DATA</v></c></row>'
+        b'<row r="1048576"><c r="A1048576" s="1"/>'
+        b'<c r="B1048576"><v>0</v></c>'
+        b'<c r="C1048576"><f>PRIVATE FORMULA</f></c>'
+        b'<c r="D1048576" t="inlineStr"><is><t>PRIVATE PERSON</t></is></c>'
+        b'</row></sheetData></worksheet>'
+    )
+    with ZipFile(BytesIO(source)) as archive, ZipFile(out, "w") as target:
+        for info in archive.infolist():
+            target.writestr(info, xml if info.filename ==
+                            "xl/worksheets/sheet1.xml" else archive.read(info.filename))
+    report = workbook_coordinate_diagnostic(out.getvalue())
+    part = report["xml_parts"][0]
+    assert part["out_of_policy_explicit_row_elements"] == 1
+    assert part["out_of_policy_cell_elements"] == 4
+    assert part["out_of_policy_cell_with_payload_marker"] == 3
+    assert part["out_of_policy_cell_without_payload_marker"] == 1
+    assert part["out_of_policy_formula_cell_elements"] == 1
+    assert part["greatest_payload_marker_row"] == 1048576
+    assert part["greatest_payload_marker_column"] == 4
+    assert not report["source_edition_approved"]
+    assert not report["privacy_approved"]
+    assert not report["record_census"]
+    for secret in ("PRIVATE DATA", "PRIVATE FORMULA", "PRIVATE PERSON"):
+        assert secret not in json.dumps(report)
+
+
+def test_declared_1024_columns_not_confused_with_physical_encoded_cells():
+    """Pure dimensions remain an unapproved clue, not a changed row contract."""
+    from zipfile import ZipFile
+    from openpyxl.utils.cell import get_column_letter
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+    width = get_column_letter(1024).encode("ascii")
+    xml = (b'<worksheet><dimension ref="A1:' + width + b'385"/>'
+           b'<sheetData><row r="385"><c r="G385"><v>PRIVATE</v></c>'
+           b'</row></sheetData></worksheet>')
+    original = sample_workbook()
+    out = BytesIO()
+    with ZipFile(BytesIO(original)) as archive, ZipFile(out, "w") as target:
+        for info in archive.infolist():
+            target.writestr(info, xml if info.filename ==
+                            "xl/worksheets/sheet1.xml" else archive.read(info.filename))
+    report = workbook_coordinate_diagnostic(out.getvalue())
+    part = report["xml_parts"][0]
+    assert part["declared_columns"] == 1024
+    assert part["greatest_encoded_column"] == 7
+    assert part["out_of_policy_cell_elements"] == 0
+    assert part["greatest_payload_marker_row"] == 385
+    assert part["greatest_payload_marker_column"] == 7
+    assert "PRIVATE" not in json.dumps(report)
+    assert report["diagnostic_only"] and not report["source_edition_approved"]
+
+
+def test_unlocated_possible_payload_never_silently_classified_in_range():
+    from zipfile import ZipFile
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        workbook_coordinate_diagnostic,
+    )
+    xml = b'<worksheet><sheetData><row r="1"><c><v>SECRET</v></c></row></sheetData></worksheet>'
+    original = sample_workbook()
+    out = BytesIO()
+    with ZipFile(BytesIO(original)) as archive, ZipFile(out, "w") as target:
+        for info in archive.infolist():
+            target.writestr(info, xml if info.filename ==
+                            "xl/worksheets/sheet1.xml" else archive.read(info.filename))
+    part = workbook_coordinate_diagnostic(out.getvalue())["xml_parts"][0]
+    assert part["cells_without_coordinates"] == 1
+    assert part["unlocated_cell_with_payload_marker"] == 1
+    assert part["out_of_policy_cell_elements"] == 0
+    assert "SECRET" not in json.dumps(part)

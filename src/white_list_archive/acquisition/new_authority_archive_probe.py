@@ -179,13 +179,26 @@ def workbook_coordinate_diagnostic(raw: bytes) -> dict:
             counters = {"encoded_row_elements": 0, "encoded_cell_elements": 0,
                         "cells_without_coordinates": 0, "rows_without_coordinates": 0,
                         "greatest_encoded_row": 0, "greatest_encoded_column": 0,
-                        "declared_rows": None, "declared_columns": None}
+                        "declared_rows": None, "declared_columns": None,
+                        "out_of_policy_explicit_row_elements": 0,
+                        "out_of_policy_cell_elements": 0,
+                        "out_of_policy_cell_with_payload_marker": 0,
+                        "out_of_policy_cell_without_payload_marker": 0,
+                        "out_of_policy_formula_cell_elements": 0,
+                        "unlocated_cell_with_payload_marker": 0,
+                        "greatest_payload_marker_row": 0,
+                        "greatest_payload_marker_column": 0}
             parser = expat.ParserCreate(namespace_separator="}")
+            # Presence of an XLSX value/formula/inline-string XML element is
+            # only a *potential* data marker, not an interpreted cell value.
+            # Keep no cell strings, references or individual locations.
+            current_cell = None
 
             def prohibit_doctype(*_args):
                 raise ValueError("Prohibited worksheet XML doctype")
 
             def start_element(name, attributes):
+                nonlocal current_cell
                 tag = name.rsplit("}", 1)[-1]
                 if tag == "dimension":
                     reference = attributes.get("ref", "")
@@ -210,21 +223,62 @@ def workbook_coordinate_diagnostic(raw: bytes) -> dict:
                             raise ValueError("Invalid worksheet coordinate metadata")
                         counters["greatest_encoded_row"] = max(
                             counters["greatest_encoded_row"], row_number)
+                        if row_number > MAX_ROWS:
+                            counters["out_of_policy_explicit_row_elements"] += 1
                 elif tag == "c":
+                    if current_cell is not None:
+                        raise ValueError("Invalid worksheet coordinate metadata")
                     counters["encoded_cell_elements"] += 1
                     if counters["encoded_cell_elements"] > MAX_COORDINATE_CELL_ELEMENTS:
                         raise ValueError("Worksheet XML exceeds diagnostic limits")
                     reference = attributes.get("r")
+                    coordinates = None
                     if reference is None:
                         counters["cells_without_coordinates"] += 1
                     else:
                         row, column = _coordinate_numbers(reference)
+                        coordinates = (row, column)
                         counters["greatest_encoded_row"] = max(
                             counters["greatest_encoded_row"], row)
                         counters["greatest_encoded_column"] = max(
                             counters["greatest_encoded_column"], column)
+                    current_cell = {"coordinates": coordinates,
+                                    "potential_payload_marker": False,
+                                    "formula_marker": False}
+                elif current_cell is not None and tag in ("v", "f", "is"):
+                    # Never inspect, retain or print element text or values.
+                    current_cell["potential_payload_marker"] = True
+                    if tag == "f":
+                        current_cell["formula_marker"] = True
+
+            def end_element(name):
+                nonlocal current_cell
+                if name.rsplit("}", 1)[-1] != "c":
+                    return
+                if current_cell is None:
+                    raise ValueError("Invalid worksheet coordinate metadata")
+                coordinates = current_cell["coordinates"]
+                marked = current_cell["potential_payload_marker"]
+                if coordinates is None:
+                    if marked:
+                        counters["unlocated_cell_with_payload_marker"] += 1
+                else:
+                    row, column = coordinates
+                    if marked:
+                        counters["greatest_payload_marker_row"] = max(
+                            counters["greatest_payload_marker_row"], row)
+                        counters["greatest_payload_marker_column"] = max(
+                            counters["greatest_payload_marker_column"], column)
+                    if row > MAX_ROWS or column > MAX_COLUMNS:
+                        counters["out_of_policy_cell_elements"] += 1
+                        counters["out_of_policy_cell_with_payload_marker" if marked
+                                 else "out_of_policy_cell_without_payload_marker"] += 1
+                        if current_cell["formula_marker"]:
+                            counters["out_of_policy_formula_cell_elements"] += 1
+                current_cell = None
 
             parser.StartElementHandler = start_element
+            parser.EndElementHandler = end_element
             parser.StartDoctypeDeclHandler = prohibit_doctype
             consumed = 0
             with archive.open(item, "r") as stream:
