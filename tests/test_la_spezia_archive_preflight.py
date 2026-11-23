@@ -116,3 +116,35 @@ def test_protected_workflow_only_and_no_untrusted_public_promotion():
     assert "matrix.shard == 0 && !cancelled()" in block
     assert "continue-on-error: true" in block
     assert "python -m white_list_archive.acquisition.la_spezia_archive_preflight" in block
+
+
+def test_each_physical_table_is_reconciled_without_approving_headerless_rows():
+    original = sample("Elenco ditte iscritte").decode()
+    two_tables = original.replace("</body></html>", """
+      <table><tr><td>PRIVATE HEADERLESS SOURCE ROW</td><td>12345678901</td></tr>
+      </table></body></html>""").encode()
+    report = qa.profile_html(two_tables, "listed")
+    tables = report["table_profiles"]
+    assert [p["table_ordinal"] for p in tables] == [1, 2]
+    assert report["html_tables"] == 2
+    assert report["physical_table_rows"] == 4
+    assert [p["physical_rows"] for p in tables] == [3, 1]
+    assert [p["header_shaped_rows"] for p in tables] == [1, 0]
+    assert [p["th_tag_rows"] for p in tables] == [1, 0]
+    assert [p["possible_data_shaped_rows_not_records"] for p in tables] == [2, 1]
+    assert tables[1]["row_widths"] == {"2": 1}
+    assert tables[1]["header_cues"] == {}
+    assert report["logical_record_census"] is False
+    assert report["privacy_approved"] is False
+    assert "PRIVATE" not in json.dumps(report)
+    assert "12345678901" not in json.dumps(report)
+    assert "RISERVATO" not in json.dumps(report)
+    assert sum(p["physical_rows"] for p in tables) == report["physical_table_rows"]
+    assert sum(p["header_shaped_rows"] for p in tables) == report["header_shaped_rows"]
+
+
+def test_too_many_tables_fail_closed_without_exposing_contents():
+    raw = ("<html>" + "<table><tr><td>PRIVATE</td></tr></table>"
+           * (qa.MAX_TABLES + 1) + "</html>").encode()
+    with pytest.raises(ValueError, match="Excessive number of HTML tables"):
+        qa.profile_html(raw, "listed")
