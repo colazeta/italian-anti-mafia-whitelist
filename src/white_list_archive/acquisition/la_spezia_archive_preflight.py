@@ -38,6 +38,10 @@ _TITLE_CUE = {
 }
 
 
+# Only structural heading hints. A label is never a sector attribution.
+_SECTION_CUE = re.compile(r"\bsezione\s*(?:n[.]?\s*)?(?:\d{1,2}|[IVXLCDM]{1,5})(?=\b|[.):])", re.I)
+
+
 class _Structure(HTMLParser):
     """Retain only row/heading text until it has been reduced to safe counts."""
 
@@ -55,6 +59,10 @@ class _Structure(HTMLParser):
         self.heading_parts: list[str] = []
         self.h1_population_cue = False
         self.section_heading_cues = 0
+        self.section_label_cues = 0
+        self.pending_section_labels = 0
+        self.emphasis_tag = None
+        self.emphasis_parts: list[str] = []
         self.tables = 0
         self.table_profiles: list[dict] = []
         self.active_table: dict | None = None
@@ -75,8 +83,11 @@ class _Structure(HTMLParser):
             if self.tables >= MAX_TABLES:
                 raise ValueError("Excessive number of HTML tables")
             self.tables += 1
+            pending_labels = self.pending_section_labels
+            self.pending_section_labels = 0
             self.active_table = {
                 "table_ordinal": self.tables,
+                "preceding_section_label_cues": pending_labels,
                 "physical_rows": 0, "nonblank_rows": 0,
                 "th_tag_rows": 0, "header_shaped_rows": 0,
                 "possible_data_shaped_rows_not_records": 0,
@@ -99,6 +110,10 @@ class _Structure(HTMLParser):
             if self.heading is None:
                 self.heading = tag
                 self.heading_parts = []
+        elif (tag in ("strong", "b") and self.table_depth == 0
+              and self.heading is None and self.emphasis_tag is None):
+            self.emphasis_tag = tag
+            self.emphasis_parts = []
 
     def handle_data(self, data):
         if self.cell_tag is not None:
@@ -109,6 +124,10 @@ class _Structure(HTMLParser):
             self.heading_parts.append(data)
             if sum(map(len, self.heading_parts)) > MAX_CELL_CHARS:
                 raise ValueError("Oversized HTML heading")
+        elif self.emphasis_tag is not None:
+            self.emphasis_parts.append(data)
+            if sum(map(len, self.emphasis_parts)) > MAX_CELL_CHARS:
+                raise ValueError("Oversized HTML emphasis")
 
     def handle_endtag(self, tag):
         if self.cell_tag == tag:
@@ -142,10 +161,21 @@ class _Structure(HTMLParser):
             value = " ".join(" ".join(self.heading_parts).split())
             if tag == "h1" and _TITLE_CUE[self.population].search(value):
                 self.h1_population_cue = True
-            if re.search(r"\bsezione\s*(?:n\.?\s*)?\d{1,2}\b", value, re.I):
-                self.section_heading_cues += 1
+            self._record_section_label(value, from_heading=True)
             self.heading = None
             self.heading_parts = []
+        elif tag == self.emphasis_tag:
+            value = " ".join(" ".join(self.emphasis_parts).split())
+            self._record_section_label(value, from_heading=False)
+            self.emphasis_tag = None
+            self.emphasis_parts = []
+
+    def _record_section_label(self, value: str, *, from_heading: bool):
+        if _SECTION_CUE.search(value):
+            self.section_label_cues += 1
+            self.pending_section_labels += 1
+            if from_heading:
+                self.section_heading_cues += 1
 
     def _finish_row(self):
         if self.active_table is None:
@@ -187,6 +217,8 @@ class _Structure(HTMLParser):
             raise ValueError("Unclosed HTML table structure")
         if len(self.table_profiles) != self.tables or self.active_table is not None:
             raise ValueError("Unreconciled HTML table profiles")
+        if sum(p["preceding_section_label_cues"] for p in self.table_profiles) + self.pending_section_labels != self.section_label_cues:
+            raise ValueError("Unreconciled structural section label hints")
         if any(sum(p[key] for p in self.table_profiles) != total for key, total in (
             ("physical_rows", self.rows), ("nonblank_rows", self.nonblank_rows),
             ("header_shaped_rows", self.header_rows),
@@ -205,6 +237,9 @@ class _Structure(HTMLParser):
             "header_cues_in_header_shaped_rows": dict(sorted(self.header_cues.items())),
             "population_h1_cue": self.h1_population_cue,
             "section_heading_cues": self.section_heading_cues,
+            "structural_section_label_cues": self.section_label_cues,
+            "trailing_section_label_cues": self.pending_section_labels,
+            "sector_to_table_mapping_approved": False,
             "logical_record_census": False,
             "date_authenticated": False,
             "status_or_sector_validated": False,
