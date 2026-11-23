@@ -20,6 +20,11 @@ PINS = (
     ("applicant", "50cc45c03517013084d626a1415ca5bd003579c1594ebc65273cad37cb690f8d", 83851),
 )
 ROBOT_REVISION = "7ec6f97"
+LATEST_REVIEW_REVISION = "d59c67677586b0b6cb373d69bcdcb1713fc0d1bd"
+LATEST_PINS = (
+    ("listed", "c99bb76cb85d13bc7dcd4c92819591b96121fb0390a4671f021d16e4e8c797bd", 147048),
+    ("applicant", "f8a80612da73298d21812bbc966e5cf5b351d8f8b7d1aca246791f7621b494e0", 83852),
+)
 MAX_HTML_BYTES = 500_000
 MAX_TABLE_ROWS = 20_000
 MAX_TABLES = 128
@@ -297,10 +302,86 @@ def audit_pair(store, *, pins=PINS, scanner=profile_html) -> dict:
     }
 
 
+class _TableIdentity(_Structure):
+    """Compare ordered normalised physical table cells without exporting them."""
+
+    def __init__(self, population):
+        super().__init__(population)
+        self.identity = sha256()
+
+    def _finish_row(self):
+        super()._finish_row()
+        payload = json.dumps(
+            [self.tables, self.row_has_th, self.row_cells],
+            ensure_ascii=False, separators=(",", ":"),
+        ).encode("utf-8")
+        self.identity.update(len(payload).to_bytes(8, "big"))
+        self.identity.update(payload)
+
+
+def _table_identity(raw, population):
+    if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_HTML_BYTES:
+        raise ValueError("HTML input exceeds bounded source review")
+    if not raw.lstrip().lower().startswith((b"<!doctype html", b"<html")):
+        raise ValueError("Archived original does not begin as HTML")
+    parser = _TableIdentity(population)
+    parser.feed(raw.decode("utf-8", errors="strict"))
+    parser.close()
+    profile = parser.summary()
+    if not profile["html_tables"] or not profile["physical_table_rows"]:
+        raise ValueError("No physical HTML table rows")
+    return profile, parser.identity.digest()
+
+
+def compare_archived_versions(store, *, previous=PINS, current=LATEST_PINS):
+    """Distinguish byte drift from ordered normalised physical cell drift."""
+    for pins in (previous, current):
+        if len(pins) != 2 or {x[0] for x in pins} != {"listed", "applicant"}:
+            raise ValueError("Both population originals required per revision")
+    rows = []
+    for population in ("listed", "applicant"):
+        item = {"population": population, "versions_verified": 0,
+                "ordered_normalised_table_cells_equal": None,
+                "physical_structure_equal": None}
+        identities = []
+        profiles = []
+        for pins in (previous, current):
+            _, digest, size = next(pin for pin in pins if pin[0] == population)
+            try:
+                raw = store.read_digest_verified(digest)
+                if len(raw) != size or sha256(raw).hexdigest() != digest:
+                    raise ValueError("Original size or digest mismatch")
+                item["versions_verified"] += 1
+                profile, identity = _table_identity(raw, population)
+                profiles.append(profile)
+                identities.append(identity)
+            except Exception:
+                item["review_code"] = "version_comparison_incomplete"
+        if len(identities) == 2:
+            item["ordered_normalised_table_cells_equal"] = identities[0] == identities[1]
+            item["physical_structure_equal"] = profiles[0] == profiles[1]
+            item["review_code"] = "source_cell_comparison_only"
+        rows.append(item)
+    return {
+        "scope": "la_spezia_exact_archived_version_comparison",
+        "previous_robot_revision": ROBOT_REVISION,
+        "current_robot_revision": LATEST_REVIEW_REVISION,
+        "versions_expected": 4,
+        "versions_verified": sum(row["versions_verified"] for row in rows),
+        "population_comparisons_completed": sum(
+            row["ordered_normalised_table_cells_equal"] is not None for row in rows),
+        "source_edition_approved": False, "privacy_approved": False,
+        "public_release_eligible": False, "postgresql_writes": 0,
+        "public_promotions": 0, "results": rows,
+    }
+
+
 def main() -> int:
     try:
         cfg = StoreConfig.from_env()
-        result = audit_pair(EvidenceStore(client_for(cfg), cfg))
+        store = EvidenceStore(client_for(cfg), cfg)
+        result = audit_pair(store)
+        result["version_comparison"] = compare_archived_versions(store)
     except Exception:
         result = {
             "scope": "la_spezia_official_html_pair_source_only",

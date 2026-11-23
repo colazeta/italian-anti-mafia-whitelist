@@ -176,3 +176,36 @@ def test_non_section_emphasis_is_not_treated_as_sector_header():
     assert report["structural_section_label_cues"] == 1
     assert report["table_profiles"][1]["preceding_section_label_cues"] == 0
     assert report["sector_to_table_mapping_approved"] is False
+
+
+def test_archived_version_comparison_distinguishes_markup_from_cell_changes():
+    originals = {
+        "listed": sample("Elenco ditte iscritte"),
+        "applicant": sample("Elenco ditte che hanno richiesto iscrizione"),
+    }
+    later = {
+        "listed": originals["listed"].replace(b"<body>", b"<body><!-- technical markup -->"),
+        "applicant": originals["applicant"].replace(b"12345678901", b"12345678902"),
+    }
+    blobs = {sha256(raw).hexdigest(): raw for raw in [*originals.values(), *later.values()]}
+    def pins(items):
+        return tuple((pop, sha256(raw).hexdigest(), len(raw)) for pop, raw in items.items())
+    class Store:
+        def read_digest_verified(self, digest):
+            return blobs[digest]
+    report = qa.compare_archived_versions(Store(), previous=pins(originals), current=pins(later))
+    assert report["versions_verified"] == 4
+    assert report["population_comparisons_completed"] == 2
+    assert report["results"][0]["ordered_normalised_table_cells_equal"] is True
+    assert report["results"][1]["ordered_normalised_table_cells_equal"] is False
+    assert report["public_release_eligible"] is False
+    assert report["privacy_approved"] is False
+    serial = json.dumps(report)
+    assert "RISERVATO" not in serial and "12345678901" not in serial and "12345678902" not in serial
+    broken = list(pins(later))
+    pop, digest, size = broken[1]
+    broken[1] = (pop, digest, size + 1)
+    report = qa.compare_archived_versions(Store(), previous=pins(originals), current=tuple(broken))
+    assert report["versions_verified"] == 3
+    assert report["population_comparisons_completed"] == 1
+    assert report["results"][1]["ordered_normalised_table_cells_equal"] is None
