@@ -92,7 +92,7 @@ def test_wrong_size_never_qualifies_original_and_errors_are_redacted():
 
 def test_oversize_and_table_limit_fail_closed():
     with pytest.raises(ValueError):
-        qa.census_pdf(b"BAD")
+        qa.census_pdf(b"BAD", "listed")
     huge = FakePage("x", "x", [["x", "y"]] * (qa.MAX_TABLE_ROWS_PER_PAGE + 1))
     with pytest.raises(ValueError, match="bounded review"):
         qa.page_profile(huge, "listed")
