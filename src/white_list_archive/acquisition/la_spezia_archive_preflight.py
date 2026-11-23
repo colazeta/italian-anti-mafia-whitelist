@@ -22,6 +22,7 @@ PINS = (
 ROBOT_REVISION = "7ec6f97"
 MAX_HTML_BYTES = 500_000
 MAX_TABLE_ROWS = 20_000
+MAX_TABLES = 128
 MAX_COLUMNS = 60
 MAX_CELL_CHARS = 20_000
 _HEADER_CUES = {
@@ -55,6 +56,9 @@ class _Structure(HTMLParser):
         self.h1_population_cue = False
         self.section_heading_cues = 0
         self.tables = 0
+        self.table_profiles: list[dict] = []
+        self.active_table: dict | None = None
+        self.row_has_th = False
         self.rows = 0
         self.nonblank_rows = 0
         self.multicell_rows = 0
@@ -68,16 +72,28 @@ class _Structure(HTMLParser):
             self.table_depth += 1
             if self.table_depth != 1:
                 raise ValueError("Nested HTML tables need separate review")
+            if self.tables >= MAX_TABLES:
+                raise ValueError("Excessive number of HTML tables")
             self.tables += 1
+            self.active_table = {
+                "table_ordinal": self.tables,
+                "physical_rows": 0, "nonblank_rows": 0,
+                "th_tag_rows": 0, "header_shaped_rows": 0,
+                "possible_data_shaped_rows_not_records": 0,
+                "row_widths": Counter(), "header_cues": Counter(),
+            }
         elif tag == "tr" and self.table_depth == 1:
             if self.row_open:
                 raise ValueError("Nested HTML rows need separate review")
             self.row_open = True
             self.row_cells = []
+            self.row_has_th = False
         elif tag in ("th", "td") and self.row_open:
             if self.cell_tag is not None:
                 raise ValueError("Nested HTML cells need separate review")
             self.cell_tag = tag
+            if tag == "th":
+                self.row_has_th = True
             self.cell_parts = []
         elif tag in ("h1", "h2", "h3", "h4") and self.table_depth == 0:
             if self.heading is None:
@@ -107,9 +123,20 @@ class _Structure(HTMLParser):
             self._finish_row()
             self.row_open = False
             self.row_cells = []
+            self.row_has_th = False
         elif tag == "table" and self.table_depth:
             if self.row_open:
                 raise ValueError("Unclosed HTML row")
+            if self.active_table is None:
+                raise ValueError("Missing HTML table profile")
+            profile = self.active_table
+            self.table_profiles.append({
+                **{k: v for k, v in profile.items()
+                   if k not in ("row_widths", "header_cues")},
+                "row_widths": dict(sorted(profile["row_widths"].items())),
+                "header_cues": dict(sorted(profile["header_cues"].items())),
+            })
+            self.active_table = None
             self.table_depth -= 1
         elif tag == self.heading:
             value = " ".join(" ".join(self.heading_parts).split())
@@ -121,6 +148,10 @@ class _Structure(HTMLParser):
             self.heading_parts = []
 
     def _finish_row(self):
+        if self.active_table is None:
+            raise ValueError("Missing HTML table during row audit")
+        profile = self.active_table
+        profile["physical_rows"] += 1
         self.rows += 1
         if self.rows > MAX_TABLE_ROWS:
             raise ValueError("Excessive HTML table rows")
@@ -128,9 +159,13 @@ class _Structure(HTMLParser):
         if width > MAX_COLUMNS:
             raise ValueError("Excessive HTML table width")
         self.columns[str(width)] += 1
+        profile["row_widths"][str(width)] += 1
+        if self.row_has_th:
+            profile["th_tag_rows"] += 1
         filled = [value for value in self.row_cells if value]
         if filled:
             self.nonblank_rows += 1
+            profile["nonblank_rows"] += 1
         if len(filled) >= 2:
             self.multicell_rows += 1
         # Mark header-shaped rows as such; never turn a row into an approved
@@ -141,14 +176,26 @@ class _Structure(HTMLParser):
         if len(cues) >= 2:
             self.header_rows += 1
             self.header_cues.update(cues)
+            profile["header_shaped_rows"] += 1
+            profile["header_cues"].update(cues)
         elif filled:
             self.possible_data_rows += 1
+            profile["possible_data_shaped_rows_not_records"] += 1
 
     def summary(self) -> dict:
         if self.table_depth or self.row_open or self.cell_tag is not None:
             raise ValueError("Unclosed HTML table structure")
+        if len(self.table_profiles) != self.tables or self.active_table is not None:
+            raise ValueError("Unreconciled HTML table profiles")
+        if any(sum(p[key] for p in self.table_profiles) != total for key, total in (
+            ("physical_rows", self.rows), ("nonblank_rows", self.nonblank_rows),
+            ("header_shaped_rows", self.header_rows),
+            ("possible_data_shaped_rows_not_records", self.possible_data_rows),
+        )):
+            raise ValueError("HTML table profile totals disagree")
         return {
             "html_tables": self.tables,
+            "table_profiles": self.table_profiles,
             "physical_table_rows": self.rows,
             "nonblank_table_rows": self.nonblank_rows,
             "multicell_table_rows": self.multicell_rows,
