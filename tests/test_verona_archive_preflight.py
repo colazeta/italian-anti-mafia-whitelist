@@ -107,3 +107,65 @@ def test_workflow_only_existing_protected_worker():
     assert "matrix.shard == 0 && !cancelled()" in block
     assert "continue-on-error: true" in block
     assert "python -m white_list_archive.acquisition.verona_archive_preflight" in block
+
+
+def test_bounded_row_shapes_provide_counts_not_identity_or_continuation_decisions():
+    private_name = "PERSONA PRIVATA"
+    private_cf = "RSSMRA85M01H501Z"
+    rows = [
+        ["Ragione sociale", "Codice fiscale", "Sezione"],
+        [private_name, private_cf, "I"],
+        ["Impresa riservata", "12345678901", "II"],
+        ["Segue dalla riga precedente", None, None],
+        ["", "", ""],
+        ["Societa", "12345678901", private_cf],
+    ]
+    page = FakePage("Elenco imprese iscritte 19/11/2026", "Prefettura di Verona", rows)
+    result = qa.page_profile(page, "listed")
+    counts = result["unapproved_row_shape_counts"]
+    assert result["physical_table_rows"] == 6
+    assert counts["header_like_rows"] == 1
+    assert counts["eleven_digit_whole_cell_rows"] == 2
+    assert counts["sixteen_character_whole_cell_rows"] == 2
+    assert counts["both_syntactic_shapes_rows"] == 1
+    assert counts["unanchored_nonheader_nonblank_rows"] == 1
+    assert counts["empty_table_rows"] == 1
+    assert counts["single_nonblank_cell_rows"] == 1
+    assert result["filename_date_anywhere_in_page_text_cue"]
+    assert not result["filename_date_in_title_line_cue"]
+    serialized = json.dumps(result)
+    assert private_name not in serialized
+    assert private_cf not in serialized
+    assert "12345678901" not in serialized
+    assert "Segue dalla riga" not in serialized
+
+
+def test_substring_identifier_or_unvalidated_header_cannot_become_anchor():
+    counts = qa.row_shape_clues(["CF: RSSMRA85M01H501Z", "PIVA: 12345678901", "record"])
+    assert not counts["eleven_digit_whole_cell_rows"]
+    assert not counts["sixteen_character_whole_cell_rows"]
+    assert counts["unanchored_nonheader_nonblank_rows"]
+    with pytest.raises(ValueError, match="bounded review"):
+        qa.row_shape_clues(["PRIVATE " * 2000])
+
+
+def test_pdf_total_aggregates_shape_clues_but_never_approves(monkeypatch):
+    page = FakePage(
+        "Elenco imprese richiedenti",
+        "Prefettura di Verona",
+        [["Denominazione", "Partita IVA", "Settore"],
+         ["Societa privata", "12345678901", "I"]],
+    )
+    class FakePdf:
+        pages = [page]
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+    monkeypatch.setattr(qa.pdfplumber, "open", lambda _: FakePdf())
+    result = qa.census_pdf(b"%PDF-1.4 test", "applicant")
+    assert result["unapproved_row_shape_counts"]["eleven_digit_whole_cell_rows"] == 1
+    assert result["unapproved_row_shape_counts"]["header_like_rows"] == 1
+    assert result["identifier_syntax_only_not_validated"] is True
+    assert result["logical_record_census"] is False
+    assert result["official_document_date_authenticated"] is False
