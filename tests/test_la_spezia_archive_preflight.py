@@ -148,3 +148,31 @@ def test_too_many_tables_fail_closed_without_exposing_contents():
            * (qa.MAX_TABLES + 1) + "</html>").encode()
     with pytest.raises(ValueError, match="Excessive number of HTML tables"):
         qa.profile_html(raw, "listed")
+
+def test_emphasised_section_label_is_counted_by_table_boundary_without_sector_inference():
+    original = sample("Elenco ditte iscritte").decode()
+    second = original.replace("</body></html>", """
+       <p><strong>SEZIONE N. 3 - PRIVATE SECTOR LABEL</strong></p>
+       <table><tr><td>PRIVATE PERSON</td><td>12345678901</td></tr></table>
+       <p><b>Sezione IV - PRIVATE TRAILING LABEL</b></p>
+       </body></html>""").encode()
+    report = qa.profile_html(second, "listed")
+    assert report["structural_section_label_cues"] == 3
+    assert report["section_heading_cues"] == 1
+    assert [p["preceding_section_label_cues"] for p in report["table_profiles"]] == [1, 1]
+    assert report["trailing_section_label_cues"] == 1
+    assert report["sector_to_table_mapping_approved"] is False
+    assert report["logical_record_census"] is False
+    serial = json.dumps(report)
+    assert "PRIVATE" not in serial and "12345678901" not in serial
+
+
+def test_non_section_emphasis_is_not_treated_as_sector_header():
+    original = sample("Elenco ditte iscritte").decode()
+    revised = original.replace("</body></html>", """
+      <p><strong>PRIVATE PERSONAL NAME</strong></p>
+      <table><tr><td>PRIVATE ROW</td></tr></table></body></html>""").encode()
+    report = qa.profile_html(revised, "listed")
+    assert report["structural_section_label_cues"] == 1
+    assert report["table_profiles"][1]["preceding_section_label_cues"] == 0
+    assert report["sector_to_table_mapping_approved"] is False
