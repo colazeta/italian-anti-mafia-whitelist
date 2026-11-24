@@ -450,3 +450,29 @@ def test_latest_rieti_vicenza_candidate_pins_remain_population_specific():
         ("listed", "f1af1fe0a99c8fafcf05537721b39a80c2072a4ea524f2c61b4b9f5466c43f50", 68748),
         ("applicant", "624d3b2214b3afae309d1f12787dc4957093d96e7bf0ccf3ff5c952ceb7385f4", 14695),
     )
+
+
+def test_finite_header_row_roles_reconcile_without_assuming_records():
+    from white_list_archive.acquisition.new_authority_archive_probe import workbook_structure
+    book = Workbook()
+    ws = book.active
+    ws.append(["PRIVATE TITLE"])
+    ws.append(["Ragione sociale", "Codice fiscale", "Sede legale", "Data iscrizione"])
+    ws.append(["PRIVATE BUSINESS", 12345678901, "PRIVATE ADDRESS", date(2026, 11, 1)])
+    ws.append(["PRIVATE PERSON", "RSSMRA85M01H501Z", "PRIVATE ADDRESS"])
+    ws.append(["PRIVATE NOTE", "other"])
+    ws.append(["PRIVATE FOOTER"])
+    buff = BytesIO()
+    book.save(buff)
+    book.close()
+    sheet = workbook_structure(buff.getvalue())["worksheets"][0]
+    assert sheet["row_role_clues_not_record_census"] == {
+        "before_recognised_header": 1, "header_clue": 1,
+        "post_header_multicell_with_identifier_clue": 2,
+        "post_header_multicell_without_identifier_clue": 1,
+        "post_header_single_cell": 1,
+    }
+    assert sum(sheet["row_role_clues_not_record_census"].values()) == sheet["physical_rows"]
+    assert sheet["recognised_header_role_counts"]["listing_date"] == 1
+    for value in ("PRIVATE", "12345678901", "RSSMRA85M01H501Z"):
+        assert value not in json.dumps(sheet)
