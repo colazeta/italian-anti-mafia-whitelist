@@ -308,6 +308,7 @@ class _TableIdentity(_Structure):
     def __init__(self, population):
         super().__init__(population)
         self.identity = sha256()
+        self.physical_rows: list[tuple] = []
 
     def _finish_row(self):
         super()._finish_row()
@@ -317,6 +318,7 @@ class _TableIdentity(_Structure):
         ).encode("utf-8")
         self.identity.update(len(payload).to_bytes(8, "big"))
         self.identity.update(payload)
+        self.physical_rows.append((self.tables, self.row_has_th, tuple(self.row_cells)))
 
 
 def _table_identity(raw, population):
@@ -330,7 +332,33 @@ def _table_identity(raw, population):
     profile = parser.summary()
     if not profile["html_tables"] or not profile["physical_table_rows"]:
         raise ValueError("No physical HTML table rows")
-    return profile, parser.identity.digest()
+    return profile, parser.identity.digest(), parser.physical_rows
+
+
+def _aligned_cell_delta(previous, current):
+    """Count positional changes only if every physical row has the same shape.
+
+    Never expose row positions, column values, or per-row identities. Alignment
+    is physical, not entity matching; a reordered row can change many cells.
+    """
+    if len(previous) != len(current) or any(
+        old[0] != new[0] or len(old[2]) != len(new[2])
+        for old, new in zip(previous, current)
+    ):
+        return {"comparison": "unaligned_physical_shape", "changed_cells": None,
+                "changed_cell_rows": None, "changed_header_tag_rows": None,
+                "changed_cells_by_column_ordinal": None}
+    columns = Counter()
+    changed_rows = tag_rows = 0
+    for old, new in zip(previous, current):
+        tag_rows += old[1] != new[1]
+        changed = [i for i, (a, b) in enumerate(zip(old[2], new[2]), 1) if a != b]
+        changed_rows += bool(changed)
+        columns.update(str(i) for i in changed)
+    return {"comparison": "aligned_physical_positions_only",
+            "changed_cells": sum(columns.values()), "changed_cell_rows": changed_rows,
+            "changed_header_tag_rows": tag_rows,
+            "changed_cells_by_column_ordinal": dict(sorted(columns.items()))}
 
 
 def compare_archived_versions(store, *, previous=PINS, current=LATEST_PINS):
@@ -345,6 +373,7 @@ def compare_archived_versions(store, *, previous=PINS, current=LATEST_PINS):
                 "physical_structure_equal": None}
         identities = []
         profiles = []
+        physical_rows = []
         for pins in (previous, current):
             _, digest, size = next(pin for pin in pins if pin[0] == population)
             try:
@@ -352,14 +381,16 @@ def compare_archived_versions(store, *, previous=PINS, current=LATEST_PINS):
                 if len(raw) != size or sha256(raw).hexdigest() != digest:
                     raise ValueError("Original size or digest mismatch")
                 item["versions_verified"] += 1
-                profile, identity = _table_identity(raw, population)
+                profile, identity, physical = _table_identity(raw, population)
                 profiles.append(profile)
                 identities.append(identity)
+                physical_rows.append(physical)
             except Exception:
                 item["review_code"] = "version_comparison_incomplete"
         if len(identities) == 2:
             item["ordered_normalised_table_cells_equal"] = identities[0] == identities[1]
             item["physical_structure_equal"] = profiles[0] == profiles[1]
+            item["aligned_cell_delta"] = _aligned_cell_delta(*physical_rows)
             item["review_code"] = "source_cell_comparison_only"
         rows.append(item)
     return {
