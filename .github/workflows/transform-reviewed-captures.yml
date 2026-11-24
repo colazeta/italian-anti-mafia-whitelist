@@ -26,6 +26,7 @@ on:
       - 'src/white_list_archive/acquisition/new_authority_archive_probe.py'
       - 'src/white_list_archive/acquisition/verona_archive_preflight.py'
       - 'src/white_list_archive/acquisition/la_spezia_archive_preflight.py'
+      - 'src/white_list_archive/acquisition/lecce_archive_preflight.py'
       - 'src/white_list_archive/acquisition/catania_tail_private_review.py'
       - 'src/white_list_archive/parsers/catania_candidate.py'
       - 'src/white_list_archive/acquisition/production_checkpoint.py'
@@ -182,6 +183,11 @@ jobs:
         if: ${{ matrix.shard == 0 && !cancelled() }}
         continue-on-error: true
         run: python -m white_list_archive.acquisition.la_spezia_archive_preflight
+      # Current-delta review, independent of database and unrelated failures.
+      - name: Audit archived Lecce 19 November PDF pair (source only)
+        if: ${{ matrix.shard == 0 && !cancelled() }}
+        continue-on-error: true
+        run: python -m white_list_archive.acquisition.lecce_archive_preflight
       - name: Check exact Catania 13 November candidate originals (read-only)
         if: matrix.shard == 0
         run: python -m white_list_archive.acquisition.catania_november13_archive_qa
