@@ -8,9 +8,9 @@ class Page:
         return "ELENCO DELLE IMPRESE RICHIEDENTI 15/11/2026 DATA ISCRIZIONE DATA SCADENZA"
 
     def extract_tables(self):
-        return [[["1", "Sez. I", "PRIVATE NAME", "PRIVATE ADDRESS", "",
+        return [[["1", "Sez. 1", "PRIVATE NAME", "PRIVATE ADDRESS", "",
                   "12345678901", "01/11/2026", "01/11/2027", ""],
-                 ["2", "Sez. II", "PRIVATE NAME", "PRIVATE ADDRESS", "",
+                 ["2", "Sez. 2", "PRIVATE NAME", "PRIVATE ADDRESS", "",
                   "12345678901", "01/11/2026", "01/11/2027", ""],
                  ["1", "PRIVATE APPLICANT", "PRIVATE ADDRESS", "12345678901",
                   "I", "31/11/2026", "In istruttoria"],
