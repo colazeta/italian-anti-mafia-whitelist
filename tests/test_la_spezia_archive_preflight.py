@@ -198,6 +198,13 @@ def test_archived_version_comparison_distinguishes_markup_from_cell_changes():
     assert report["population_comparisons_completed"] == 2
     assert report["results"][0]["ordered_normalised_table_cells_equal"] is True
     assert report["results"][1]["ordered_normalised_table_cells_equal"] is False
+    assert report["results"][0]["aligned_cell_delta"]["changed_cells"] == 0
+    assert report["results"][1]["aligned_cell_delta"] == {
+        "comparison": "aligned_physical_positions_only",
+        "changed_cells": 1, "changed_cell_rows": 1,
+        "changed_header_tag_rows": 0,
+        "changed_cells_by_column_ordinal": {"2": 1},
+    }
     assert report["public_release_eligible"] is False
     assert report["privacy_approved"] is False
     serial = json.dumps(report)
@@ -209,3 +216,20 @@ def test_archived_version_comparison_distinguishes_markup_from_cell_changes():
     assert report["versions_verified"] == 3
     assert report["population_comparisons_completed"] == 1
     assert report["results"][1]["ordered_normalised_table_cells_equal"] is None
+
+
+def test_aligned_cell_delta_refuses_different_shapes_and_distinguishes_header_markup():
+    old = [(1, True, ("PRIVATE", "12345678901"))]
+    different_shape = [(1, True, ("PRIVATE",))]
+    result = qa._aligned_cell_delta(old, different_shape)
+    assert result["comparison"] == "unaligned_physical_shape"
+    assert result["changed_cells"] is None
+    assert result["changed_cells_by_column_ordinal"] is None
+    assert "PRIVATE" not in json.dumps(result)
+    assert qa._aligned_cell_delta(old, [(2, True, old[0][2])]) == result
+    assert qa._aligned_cell_delta(old, []) == result
+    result = qa._aligned_cell_delta(old, [(1, False, old[0][2])])
+    assert result["changed_cells"] == 0
+    assert result["changed_header_tag_rows"] == 1
+    assert result["changed_cell_rows"] == 0
+    assert "12345678901" not in json.dumps(result)
