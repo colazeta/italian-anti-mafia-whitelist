@@ -64,6 +64,48 @@ def cell_shape(value: object) -> str:
     return "other_nonblank"
 
 
+
+# Finite vocabulary for header clues; exact whole-cell matches only.
+# This is not a parser binding and never returns raw cell text.
+_HEADER_ALIASES = {
+    "name": {"denominazione", "ragione sociale", "denominazione impresa", "impresa"},
+    "identifier": {"codice fiscale", "partita iva", "codice fiscale partita iva",
+                   "codice fiscale / partita iva", "c.f.", "p.iva"},
+    "address": {"sede legale", "indirizzo", "sede"},
+    "sector": {"sezione", "settore", "settori", "attività"},
+    "application_date": {"data istanza", "data richiesta", "data presentazione istanza",
+                         "data di presentazione dell'istanza"},
+    "listing_date": {"data iscrizione", "data di iscrizione"},
+    "expiry_date": {"data scadenza", "data scadenza iscrizione"},
+    "status": {"stato", "esito", "note", "annotazioni"},
+}
+
+
+def header_clues(row):
+    clues = set()
+    for value in row:
+        if isinstance(value, str):
+            token = " ".join(value.casefold().split())
+            for role, labels in _HEADER_ALIASES.items():
+                if token in labels:
+                    clues.add(role)
+    return clues
+
+
+def header_row_role(row):
+    clues = header_clues(row)
+    # A single coincidental word never creates a header.
+    return len(clues) >= 3 and "name" in clues and "identifier" in clues
+
+
+def cached_shape(value):
+    if isinstance(value, bool):
+        return "other_nonblank"
+    if isinstance(value, (int, float)) and 10**10 <= value < 10**11 and value == int(value):
+        return "eleven_digit_numeric_shape"
+    return cell_shape(value)
+
+
 def workbook_structure(raw: bytes) -> dict:
     """Bound all *actual* worksheet rows/cells even if XLSX dimension tags are absent.
 
@@ -100,6 +142,10 @@ def workbook_structure(raw: bytes) -> dict:
             row_kinds = Counter()
             shapes = Counter()
             row_signals = Counter()
+            header_roles = Counter()
+            candidate_row_roles = Counter()
+            cached_formula_shapes = Counter()
+            header_seen = False
             formula_cache_counts = Counter({
                 "formula_cells": 0,
                 "formula_cells_with_cache": 0,
@@ -138,11 +184,31 @@ def workbook_structure(raw: bytes) -> dict:
                         formula_cache_counts[
                             "formula_cells_with_cache" if has_cache
                             else "formula_cells_without_cache"] += 1
+                        cached_formula_shapes[cached_shape(cached_value)] += 1
                         row_has_cached_formula |= has_cache
                         row_has_uncached_formula |= not has_cache
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
+                if present == 0:
+                    candidate_row_roles["empty"] += 1
+                elif header_row_role(row):
+                    header_seen = True
+                    candidate_row_roles["header_clue"] += 1
+                    header_roles.update(header_clues(row))
+                elif not header_seen:
+                    candidate_row_roles["before_recognised_header"] += 1
+                elif present < 2:
+                    candidate_row_roles["post_header_single_cell"] += 1
+                else:
+                    effective = [cached if cell_shape(v) == "formula" else v
+                                 for v, cached in zip(row, cached_row)]
+                    identifier_clue = any(cached_shape(v) in {
+                        "eleven_digit_shape", "eleven_digit_numeric_shape",
+                        "sixteen_character_shape_privacy_review"} for v in effective)
+                    candidate_row_roles[
+                        "post_header_multicell_with_identifier_clue" if identifier_clue
+                        else "post_header_multicell_without_identifier_clue"] += 1
                 formula_cache_counts["rows_with_cached_formula"] += int(row_has_cached_formula)
                 formula_cache_counts["rows_with_uncached_formula"] += int(row_has_uncached_formula)
                 if present >= 2:
@@ -168,6 +234,8 @@ def workbook_structure(raw: bytes) -> dict:
                 raise ValueError("Declared worksheet row count mismatch")
             if declared_cols is not None and observed_columns > declared_cols:
                 raise ValueError("Observed worksheet exceeds declared columns")
+            if sum(candidate_row_roles.values()) != observed_rows:
+                raise ValueError("Unreconciled row-role clues")
             sheets.append({
                 "sheet_index": index,
                 "visibility": ws.sheet_state,
@@ -176,6 +244,9 @@ def workbook_structure(raw: bytes) -> dict:
                 "declared_dimensions_present": declared_rows is not None and declared_cols is not None,
                 "row_shapes": dict(row_kinds),
                 "row_signals": dict(row_signals),
+                "row_role_clues_not_record_census": dict(candidate_row_roles),
+                "recognised_header_role_counts": dict(header_roles),
+                "cached_formula_value_shapes": dict(cached_formula_shapes),
                 "formula_cache_counts": dict(formula_cache_counts),
                 "cell_shapes": dict(shapes),
             })
