@@ -20,7 +20,9 @@ from openpyxl import load_workbook
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
 
 
-# Exact 21 November 2026 robot-state@2890d347... archive candidate metadata.
+# Exact candidate metadata from 21 November (Novara) and 23 November
+# robot-state@d59c67677586b0b6cb373d69bcdcb1713fc0d1bd (Rieti/Vicenza).
+# Earlier exact pins and receipts remain in Git history and the immutable archive.
 # The November filename, HTTP Last-Modified or discovery timestamp is NOT an
 # approved document edition date. Alternative Novara PDFs are separate evidence.
 PINS = {
@@ -29,12 +31,12 @@ PINS = {
         ("applicant", "ef0486870ddb136fdf2e876a563e1b3c91e814bfcaf27a1d3a9baf10dd76cdcf", 32038),
     ),
     "rieti": (
-        ("listed", "09386dcff207a094cfd796b9f040966d232dcd8967b293a8b5d66b99a45114f4", 50161),
-        ("applicant", "e229ded9a6098d7f5ffea5ad6599cfdf46f146655676fe5a2288f3c79dca4a75", 46244),
+        ("listed", "9ca5fcf9be4e7447c197f3dd94ba5b7f4a8b7656853aca0a7f2837159a4892f7", 50306),
+        ("applicant", "8eed8bfc3b094c3750a5410063e9142365945e1a56a939177849e07f51c55b03", 46364),
     ),
     "vicenza": (
         ("listed", "f1af1fe0a99c8fafcf05537721b39a80c2072a4ea524f2c61b4b9f5466c43f50", 68748),
-        ("applicant", "88c10b8aee68ec4359f33572dc72d7222195684f7a5b0ae392586d29c3975c9d", 11101),
+        ("applicant", "624d3b2214b3afae309d1f12787dc4957093d96e7bf0ccf3ff5c952ceb7385f4", 14695),
     ),
 }
 

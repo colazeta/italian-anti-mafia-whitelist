@@ -439,3 +439,14 @@ def test_no_cached_formula_is_explicit_and_no_public_approval_is_inferred():
     assert formula["formula_cells_with_cache"] == 0
     assert formula["formula_cells_without_cache"] == 1
     assert "source_edition_approved" not in json.dumps(report)
+
+
+def test_latest_rieti_vicenza_candidate_pins_remain_population_specific():
+    assert PINS["rieti"] == (
+        ("listed", "9ca5fcf9be4e7447c197f3dd94ba5b7f4a8b7656853aca0a7f2837159a4892f7", 50306),
+        ("applicant", "8eed8bfc3b094c3750a5410063e9142365945e1a56a939177849e07f51c55b03", 46364),
+    )
+    assert PINS["vicenza"] == (
+        ("listed", "f1af1fe0a99c8fafcf05537721b39a80c2072a4ea524f2c61b4b9f5466c43f50", 68748),
+        ("applicant", "624d3b2214b3afae309d1f12787dc4957093d96e7bf0ccf3ff5c952ceb7385f4", 14695),
+    )
