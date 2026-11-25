@@ -75,3 +75,15 @@ def test_residuals_and_notes_remain_unapproved_and_reconciled():
     assert not result["logical_record_census_approved"]
     assert "PRIVATE" not in json.dumps(result)
     assert "12345678901" not in json.dumps(result)
+
+
+
+def test_candidate_group_notes_and_cross_population_evidence_are_aggregate():
+    result = profile_pages([Page()], "2026-11-15")
+    assert result["listed_group_note_clues_not_statuses"] == {"blank_note": 1}
+    assert result["applicant_shape_evidence_not_classifications"] == {
+        "legacy_outcome_invalid_date": 1, "request_tokens_known_roman": 1,
+    }
+    assert result["applicant_repeated_ordinal_rows"] == 0
+    assert not result["logical_record_census_approved"]
+    assert "PRIVATE" not in json.dumps(result)

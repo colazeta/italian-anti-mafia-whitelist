@@ -96,6 +96,23 @@ def header_clues(row):
     return clues
 
 
+def aligned_header_columns(row):
+    """Finite column-role clues, never an approved logical schema."""
+    roles = {}
+    for i, value in enumerate(row):
+        for role in header_clues((value,)):
+            roles.setdefault(role, []).append(i)
+    if any(len(columns) != 1 for columns in roles.values()):
+        return {}
+    keys = set(roles)
+    # The exact Rieti partial role combination was observed in the protected
+    # 25-Nov run. Name remains unbound when it has no recognised header.
+    partial = {"address", "expiry_date", "identifier", "listing_date", "status"}
+    if not (header_row_role(row) or keys == partial):
+        return {}
+    return {role: columns[0] for role, columns in roles.items()}
+
+
 def header_row_role(row):
     clues = header_clues(row)
     # A single coincidental word never creates a header.
@@ -152,6 +169,9 @@ def workbook_structure(raw: bytes) -> dict:
             candidate_row_roles = Counter()
             cached_formula_shapes = Counter()
             header_seen = False
+            alignment = {}
+            aligned_rows = Counter()
+            aligned_field_shapes = Counter()
             formula_cache_counts = Counter({
                 "formula_cells": 0,
                 "formula_cells_with_cache": 0,
@@ -196,6 +216,22 @@ def workbook_structure(raw: bytes) -> dict:
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
+                # Separate diagnostic partition; do not change the existing
+                # recognised-header or row-role census. Never emit column
+                # locators, formula text, cached values or field contents.
+                new_alignment = aligned_header_columns(row)
+                if new_alignment:
+                    alignment = new_alignment
+                    aligned_rows["header_anchor"] += 1
+                elif not present:
+                    aligned_rows["empty"] += 1
+                elif not alignment:
+                    aligned_rows["before_anchor"] += 1
+                else:
+                    aligned_rows["after_anchor"] += 1
+                    for role, col in alignment.items():
+                        value = cached_row[col] if cell_shape(row[col]) == "formula" else row[col]
+                        aligned_field_shapes[role + ":" + cached_shape(value)] += 1
                 clues = header_clues(row)
                 if clues and not header_row_role(row):
                     # Finite vocabulary only: no raw heading, value or row locator.
@@ -253,6 +289,8 @@ def workbook_structure(raw: bytes) -> dict:
                 raise ValueError("Declared worksheet row count mismatch")
             if declared_cols is not None and observed_columns > declared_cols:
                 raise ValueError("Observed worksheet exceeds declared columns")
+            if sum(aligned_rows.values()) != observed_rows:
+                raise ValueError("Unreconciled aligned header diagnostic")
             if sum(candidate_row_roles.values()) != observed_rows:
                 raise ValueError("Unreconciled row-role clues")
             sheets.append({
@@ -265,6 +303,8 @@ def workbook_structure(raw: bytes) -> dict:
                 "row_signals": dict(row_signals),
                 "row_role_clues_not_record_census": dict(candidate_row_roles),
                 "recognised_header_role_counts": dict(header_roles),
+                "aligned_rows_not_record_census": dict(aligned_rows),
+                "aligned_field_shapes_not_values": dict(aligned_field_shapes),
                 "partial_header_role_combinations": dict(partial_header_combinations),
                 "unresolved_multicell_shape_counts": dict(unresolved_multicell_shapes),
                 "cached_formula_value_shapes": dict(cached_formula_shapes),
