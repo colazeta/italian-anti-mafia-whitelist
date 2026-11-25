@@ -476,3 +476,26 @@ def test_finite_header_row_roles_reconcile_without_assuming_records():
     assert sheet["recognised_header_role_counts"]["listing_date"] == 1
     for value in ("PRIVATE", "12345678901", "RSSMRA85M01H501Z"):
         assert value not in json.dumps(sheet)
+
+
+def test_partial_header_and_unresolved_row_clues_are_finite_and_redacted():
+    book = Workbook()
+    ws = book.active
+    ws.append(["Ragione sociale", "PRIVATE HEADING"])
+    ws.append(["PRIVATE BUSINESS", 12345678901])
+    ws.append(["PRIVATE NOTE", "other"])
+    ws.append(["Denominazione / ragione sociale", "Codice fiscale/partita iva", "Sede legale"])
+    ws.append(["PRIVATE RESIDUAL", "other"])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    sheet = workbook_structure(out.getvalue())["worksheets"][0]
+    assert sheet["partial_header_role_combinations"] == {"name": 1}
+    assert sheet["unresolved_multicell_shape_counts"] == {
+        "before_header_without_identifier_clue": 2,
+        "before_header_with_identifier_clue": 1,
+        "after_header_without_identifier_clue": 1,
+    }
+    assert sheet["row_role_clues_not_record_census"]["header_clue"] == 1
+    assert "PRIVATE" not in json.dumps(sheet)
+    assert "12345678901" not in json.dumps(sheet)

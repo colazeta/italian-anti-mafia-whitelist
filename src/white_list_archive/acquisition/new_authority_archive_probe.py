@@ -68,9 +68,13 @@ def cell_shape(value: object) -> str:
 # Finite vocabulary for header clues; exact whole-cell matches only.
 # This is not a parser binding and never returns raw cell text.
 _HEADER_ALIASES = {
-    "name": {"denominazione", "ragione sociale", "denominazione impresa", "impresa"},
+    "name": {"denominazione", "ragione sociale", "denominazione impresa", "impresa",
+             "denominazione/ragione sociale", "denominazione / ragione sociale",
+             "denominazione ditta", "ragione sociale / denominazione"},
     "identifier": {"codice fiscale", "partita iva", "codice fiscale partita iva",
-                   "codice fiscale / partita iva", "c.f.", "p.iva"},
+                   "codice fiscale / partita iva", "c.f.", "p.iva", "c.f./p.iva",
+                   "c.f. / p. iva", "codice fiscale/partita iva", "partita iva/codice fiscale",
+                   "codice fiscale e partita iva", "c.f. e p.iva", "p. iva"},
     "address": {"sede legale", "indirizzo", "sede"},
     "sector": {"sezione", "settore", "settori", "attività"},
     "application_date": {"data istanza", "data richiesta", "data presentazione istanza",
@@ -143,6 +147,8 @@ def workbook_structure(raw: bytes) -> dict:
             shapes = Counter()
             row_signals = Counter()
             header_roles = Counter()
+            partial_header_combinations = Counter()
+            unresolved_multicell_shapes = Counter()
             candidate_row_roles = Counter()
             cached_formula_shapes = Counter()
             header_seen = False
@@ -190,6 +196,10 @@ def workbook_structure(raw: bytes) -> dict:
                     if kind != "blank":
                         present += 1
                 row_kinds["empty" if present == 0 else "single_cell" if present == 1 else "multi_cell"] += 1
+                clues = header_clues(row)
+                if clues and not header_row_role(row):
+                    # Finite vocabulary only: no raw heading, value or row locator.
+                    partial_header_combinations["+".join(sorted(clues))] += 1
                 if present == 0:
                     candidate_row_roles["empty"] += 1
                 elif header_row_role(row):
@@ -198,6 +208,13 @@ def workbook_structure(raw: bytes) -> dict:
                     header_roles.update(header_clues(row))
                 elif not header_seen:
                     candidate_row_roles["before_recognised_header"] += 1
+                    if present >= 2:
+                        effective = [cached if cell_shape(v) == "formula" else v
+                                     for v, cached in zip(row, cached_row)]
+                        unresolved_multicell_shapes["before_header_with_identifier_clue" if any(
+                            cached_shape(v) in {"eleven_digit_shape", "eleven_digit_numeric_shape",
+                                                "sixteen_character_shape_privacy_review"}
+                            for v in effective) else "before_header_without_identifier_clue"] += 1
                 elif present < 2:
                     candidate_row_roles["post_header_single_cell"] += 1
                 else:
@@ -209,6 +226,8 @@ def workbook_structure(raw: bytes) -> dict:
                     candidate_row_roles[
                         "post_header_multicell_with_identifier_clue" if identifier_clue
                         else "post_header_multicell_without_identifier_clue"] += 1
+                    if not identifier_clue:
+                        unresolved_multicell_shapes["after_header_without_identifier_clue"] += 1
                 formula_cache_counts["rows_with_cached_formula"] += int(row_has_cached_formula)
                 formula_cache_counts["rows_with_uncached_formula"] += int(row_has_uncached_formula)
                 if present >= 2:
@@ -246,6 +265,8 @@ def workbook_structure(raw: bytes) -> dict:
                 "row_signals": dict(row_signals),
                 "row_role_clues_not_record_census": dict(candidate_row_roles),
                 "recognised_header_role_counts": dict(header_roles),
+                "partial_header_role_combinations": dict(partial_header_combinations),
+                "unresolved_multicell_shape_counts": dict(unresolved_multicell_shapes),
                 "cached_formula_value_shapes": dict(cached_formula_shapes),
                 "formula_cache_counts": dict(formula_cache_counts),
                 "cell_shapes": dict(shapes),
