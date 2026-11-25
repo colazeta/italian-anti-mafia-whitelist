@@ -35,6 +35,8 @@ def profile_docbook(docbook, population):
         root = ET.fromstring(xml)
         tables = root.findall(".//informaltable")
         counts["tables"] = len(tables)
+        if not tables:
+            return {"counts": dict(counts), "review_code": "unresolved_table_layout", "logical_census_approved": False}
         for table in tables:
             for row in table.findall(".//row"):
                 cells = [_clean("".join(entry.itertext())) for entry in row.findall("./entry")]
@@ -93,7 +95,12 @@ def profile_docbook(docbook, population):
             raise ValueError("Unreconciled blocks")
     else:
         raise ValueError("Unexpected population")
-    return {"counts": dict(counts), "widths": dict(widths), "logical_census_approved": False}
+    profile = {"counts": dict(counts), "widths": dict(widths), "logical_census_approved": False}
+    if population == "listed" and (not counts["six_column_data_clue"] or counts["unclassified"]):
+        profile["review_code"] = "unresolved_listed_rows"
+    if population == "applicant" and (not counts["seven_column_data_clue"] or counts["residual_tokens"] or counts["unclassified_blocks"]):
+        profile["review_code"] = "unresolved_applicant_blocks"
+    return profile
 
 
 def profile_doc(raw, population):
@@ -128,6 +135,8 @@ def audit(store, pins=PINS, scanner=profile_doc):
     return {"scope": "chieti_november20_archived_pair_source_only", "results": result,
             "originals_sha_verified": sum(x["source_bytes_verified"] for x in result),
             "physical_profiles_returned": sum("physical_profile" in x for x in result),
+            "structural_profiles_without_residual_flags": sum(
+                "physical_profile" in x and "review_code" not in x["physical_profile"] for x in result),
             "official_edition_date_approved": False, "privacy_approved": False,
             "source_edition_approved": False, "public_release_eligible": False,
             "postgresql_writes": 0, "public_promotions": 0}
@@ -141,7 +150,7 @@ def main():
         result = {"review_code": "protected_source_read_unavailable", "source_edition_approved": False,
                   "privacy_approved": False, "public_release_eligible": False}
     print(json.dumps(result, sort_keys=True))
-    return int(result.get("physical_profiles_returned", 0) != 2)
+    return int(result.get("structural_profiles_without_residual_flags", 0) != 2)
 
 
 if __name__ == "__main__":

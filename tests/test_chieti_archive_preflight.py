@@ -10,6 +10,7 @@ def test_listed_shape_census_preserves_residual_and_never_prints_values():
     assert profile["counts"]["physical_rows"] == 3
     assert profile["counts"]["six_column_data_clue"] == 1
     assert profile["counts"]["unclassified"] == 1
+    assert profile["review_code"] == "unresolved_listed_rows"
     assert profile["counts"]["identifier_syntax"] == 1
     assert not profile["logical_census_approved"]
     assert "PRIVATE" not in json.dumps(profile)
@@ -25,6 +26,7 @@ def test_applicant_bel_header_and_residual_are_not_approved():
     result = profile_docbook("<para>" + "\x07".join(header + row + ["PRIVATE RESIDUAL"]) + "</para>", "applicant")
     assert result["counts"]["seven_column_data_clue"] == 1
     assert result["counts"]["residual_tokens"] == 1
+    assert result["review_code"] == "unresolved_applicant_blocks"
     assert not result["logical_census_approved"]
     assert "PRIVATE" not in json.dumps(result)
     assert "01234567890" not in json.dumps(result)
@@ -41,3 +43,9 @@ def test_mismatched_originals_are_not_scanned_or_approved():
     assert report["physical_profiles_returned"] == 0
     assert not report["source_edition_approved"]
     assert not report["privacy_approved"]
+
+
+def test_missing_table_is_explicit_review_block():
+    result = profile_docbook("<book/>", "listed")
+    assert result["review_code"] == "unresolved_table_layout"
+    assert not result["logical_census_approved"]
