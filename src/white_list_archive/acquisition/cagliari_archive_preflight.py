@@ -35,6 +35,9 @@ def date_shape(value):
 def profile_pages(pages, filename_date):
     counts, widths, sectors = Counter(), Counter(), Counter()
     groups = set()
+    group_sectors = set()
+    residual_shapes = Counter()
+    listed_status_clues = Counter()
     day = date.fromisoformat(filename_date)
     marker = day.strftime("%d/%m/%Y")
     for page in pages:
@@ -65,7 +68,15 @@ def profile_pages(pages, filename_date):
                     counts["listed_rows_with_identifier_syntax"] += bool(re.fullmatch(r"\d{11}|[A-Za-z0-9]{16}", cells[5]))
                     # Exclude ordinal and sector, retain every other cell for a
                     # conservative shape-group count, not distinct entities.
-                    groups.add(tuple(v.casefold() for v in cells[2:]))
+                    key = tuple(v.casefold() for v in cells[2:])
+                    groups.add(key)
+                    group_sector = (key, SECTION.fullmatch(cells[1]).group(1))
+                    counts["repeated_same_section_rows"] += group_sector in group_sectors
+                    group_sectors.add(group_sector)
+                    note = " ".join(cells[-1].casefold().split())
+                    listed_status_clues["blank_note" if not note else
+                        "explicit_update_in_progress" if note == "aggiornamento in corso"
+                        else "other_note_requires_review"] += 1
                 elif len(cells) in (7, 8) and cells[0].isdigit():
                     counts["applicant_shaped_rows"] += 1
                     counts["applicant_rows_invalid_date"] += not date_shape(cells[-2])
@@ -73,15 +84,30 @@ def profile_pages(pages, filename_date):
                     counts["applicant_rows_with_identifier_syntax"] += bool(re.fullmatch(r"\d{11}|[A-Za-z0-9]{16}", cells[-4]))
                 else:
                     counts["unclassified_rows"] += 1
+                    # Finite aggregate evidence only; residuals remain unclassified.
+                    tokens = {" ".join(v.casefold().split()) for v in cells if v}
+                    labels = {"ragione sociale", "denominazione", "codice fiscale",
+                              "partita iva", "sede legale", "data iscrizione",
+                              "data scadenza iscrizione", "data istanza", "esito",
+                              "sezione", "note"}
+                    n = sum(bool(v) for v in cells)
+                    role = ("multiple_known_header_labels" if len(tokens & labels) >= 2
+                            else "single_nonblank_cell" if n == 1 else "other_multicell")
+                    residual_shapes[role] += 1
     keys = ("blank_rows", "listed_shaped_rows", "applicant_shaped_rows", "unclassified_rows")
     if not counts["physical_rows"] or sum(counts[k] for k in keys) != counts["physical_rows"]:
         raise ValueError("Unreconciled physical census")
+    if (sum(residual_shapes.values()) != counts["unclassified_rows"] or
+            sum(listed_status_clues.values()) != counts["listed_shaped_rows"]):
+        raise ValueError("Unreconciled aggregate clues")
     return {"counts": {k: counts[k] for k in (
         "pages", "filename_date_marker_pages", "applicant_title_clue_pages",
         "listed_title_clue_pages", "registration_expiry_label_pages", "physical_rows",
         *keys, "listed_rows_invalid_date", "listed_rows_with_identifier_syntax",
         "applicant_rows_invalid_date", "applicant_rows_istruttoria_clue",
-        "applicant_rows_with_identifier_syntax")},
+        "applicant_rows_with_identifier_syntax", "repeated_same_section_rows")},
+        "residual_shape_clues_not_classifications": dict(residual_shapes),
+        "listed_note_clues_not_statuses": dict(listed_status_clues),
         "widths": dict(widths), "listed_sector_clues": dict(sectors),
         "listed_shape_groups_not_entities": len(groups),
         "logical_record_census_approved": False}
