@@ -96,21 +96,27 @@ def header_clues(row):
     return clues
 
 
-def aligned_header_columns(row):
-    """Finite column-role clues, never an approved logical schema."""
+def _header_role_columns(row):
     roles = {}
     for i, value in enumerate(row):
         for role in header_clues((value,)):
             roles.setdefault(role, []).append(i)
-    if any(len(columns) != 1 for columns in roles.values()):
-        return {}
+    return roles
+
+
+def aligned_header_columns(row):
+    """Finite column-role clues, never an approved logical schema."""
+    roles = _header_role_columns(row)
     keys = set(roles)
     # The exact Rieti partial role combination was observed in the protected
     # 25-Nov run. Name remains unbound when it has no recognised header.
     partial = {"address", "expiry_date", "identifier", "listing_date", "status"}
     if not (header_row_role(row) or keys == partial):
         return {}
-    return {role: columns[0] for role, columns in roles.items()}
+    # Duplicate roles remain explicitly unbound. This diagnostic can count
+    # uniquely aligned fields without resolving the repeated header labels.
+    return {role: columns[0] for role, columns in roles.items()
+            if len(columns) == 1}
 
 
 def header_row_role(row):
@@ -172,6 +178,8 @@ def workbook_structure(raw: bytes) -> dict:
             alignment = {}
             aligned_rows = Counter()
             aligned_field_shapes = Counter()
+            ambiguous_header_roles = Counter()
+            ambiguous_header_rows = 0
             formula_cache_counts = Counter({
                 "formula_cells": 0,
                 "formula_cells_with_cache": 0,
@@ -220,8 +228,15 @@ def workbook_structure(raw: bytes) -> dict:
                 # recognised-header or row-role census. Never emit column
                 # locators, formula text, cached values or field contents.
                 new_alignment = aligned_header_columns(row)
-                if new_alignment:
+                roles = _header_role_columns(row)
+                strong_partial = {"address", "expiry_date", "identifier", "listing_date", "status"}
+                candidate_anchor = header_row_role(row) or set(roles) == strong_partial
+                if candidate_anchor:
                     alignment = new_alignment
+                    repeated = {role: len(cols) for role, cols in roles.items() if len(cols) > 1}
+                    if repeated:
+                        ambiguous_header_rows += 1
+                        ambiguous_header_roles.update(repeated)
                     aligned_rows["header_anchor"] += 1
                 elif not present:
                     aligned_rows["empty"] += 1
@@ -308,6 +323,8 @@ def workbook_structure(raw: bytes) -> dict:
                 "recognised_header_role_counts": dict(header_roles),
                 "aligned_rows_not_record_census": dict(aligned_rows),
                 "aligned_field_shapes_not_values": dict(aligned_field_shapes),
+                "ambiguous_header_rows": ambiguous_header_rows,
+                "ambiguous_header_role_column_occurrences": dict(ambiguous_header_roles),
                 "partial_header_role_combinations": dict(partial_header_combinations),
                 "unresolved_multicell_shape_counts": dict(unresolved_multicell_shapes),
                 "cached_formula_value_shapes": dict(cached_formula_shapes),

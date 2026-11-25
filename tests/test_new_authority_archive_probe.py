@@ -523,3 +523,21 @@ def test_strong_partial_header_alignment_does_not_approve_or_disclose():
     assert not sheet["recognised_header_role_counts"]
     assert "PRIVATE" not in json.dumps(sheet)
     assert "01234567890" not in json.dumps(sheet)
+
+
+def test_repeated_header_roles_remain_unbound_but_unique_roles_are_diagnosed():
+    book = Workbook()
+    ws = book.active
+    ws.append(["Ragione sociale", "Codice fiscale", "Partita IVA", "Sede legale"])
+    ws.append(["PRIVATE BUSINESS", "01234567890", "09876543210", "PRIVATE ADDRESS"])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    sheet = workbook_structure(out.getvalue())["worksheets"][0]
+    assert sheet["aligned_rows_not_record_census"] == {"header_anchor": 1, "after_anchor": 1}
+    assert sheet["ambiguous_header_rows"] == 1
+    assert sheet["ambiguous_header_role_column_occurrences"] == {"identifier": 2}
+    assert sheet["aligned_field_shapes_not_values"] == {"name:other_nonblank": 1, "address:other_nonblank": 1}
+    assert "PRIVATE" not in json.dumps(sheet)
+    assert "01234567890" not in json.dumps(sheet)
+    assert "09876543210" not in json.dumps(sheet)
