@@ -499,3 +499,27 @@ def test_partial_header_and_unresolved_row_clues_are_finite_and_redacted():
     assert sheet["row_role_clues_not_record_census"]["header_clue"] == 1
     assert "PRIVATE" not in json.dumps(sheet)
     assert "12345678901" not in json.dumps(sheet)
+
+
+def test_strong_partial_header_alignment_does_not_approve_or_disclose():
+    book = Workbook()
+    ws = book.active
+    ws.append(["PRIVATE TITLE"])
+    ws.append(["PRIVATE NAME LABEL", "Codice fiscale", "Sede legale",
+               "Data iscrizione", "Data scadenza", "Note"])
+    ws.append(["PRIVATE BUSINESS", "01234567890", "PRIVATE ADDRESS",
+               date(2026, 11, 1), date(2027, 11, 1), "PRIVATE NOTE"])
+    ws.append(["PRIVATE RESIDUAL", None, None, None, None, None])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    sheet = workbook_structure(out.getvalue())["worksheets"][0]
+    assert sheet["aligned_rows_not_record_census"] == {
+        "before_anchor": 1, "header_anchor": 1, "after_anchor": 2,
+    }
+    assert sheet["aligned_field_shapes_not_values"]["identifier:eleven_digit_shape"] == 1
+    assert sheet["aligned_field_shapes_not_values"]["identifier:blank"] == 1
+    assert sheet["aligned_field_shapes_not_values"]["listing_date:date_typed_cell"] == 1
+    assert not sheet["recognised_header_role_counts"]
+    assert "PRIVATE" not in json.dumps(sheet)
+    assert "01234567890" not in json.dumps(sheet)

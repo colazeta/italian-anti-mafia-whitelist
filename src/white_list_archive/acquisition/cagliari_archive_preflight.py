@@ -36,6 +36,9 @@ def profile_pages(pages, filename_date):
     counts, widths, sectors = Counter(), Counter(), Counter()
     groups = set()
     group_sectors = set()
+    group_notes = {}
+    applicant_ordinals = Counter()
+    applicant_shape_evidence = Counter()
     residual_shapes = Counter()
     listed_status_clues = Counter()
     day = date.fromisoformat(filename_date)
@@ -74,14 +77,31 @@ def profile_pages(pages, filename_date):
                     counts["repeated_same_section_rows"] += group_sector in group_sectors
                     group_sectors.add(group_sector)
                     note = " ".join(cells[-1].casefold().split())
-                    listed_status_clues["blank_note" if not note else
+                    note_class = ("blank_note" if not note else
                         "explicit_update_in_progress" if note == "aggiornamento in corso"
-                        else "other_note_requires_review"] += 1
+                        else "other_note_requires_review")
+                    listed_status_clues[note_class] += 1
+                    group_notes[key] = note_class
                 elif len(cells) in (7, 8) and cells[0].isdigit():
                     counts["applicant_shaped_rows"] += 1
                     counts["applicant_rows_invalid_date"] += not date_shape(cells[-2])
                     counts["applicant_rows_istruttoria_clue"] += "istruttoria" in cells[-1].casefold()
                     counts["applicant_rows_with_identifier_syntax"] += bool(re.fullmatch(r"\d{11}|[A-Za-z0-9]{16}", cells[-4]))
+                    applicant_ordinals[int(cells[0])] += 1
+                    # Applicant-shaped rows can occur in the listed attachment.
+                    # Distinguish the legacy parser's actual outcome predicate
+                    # and date/request clues without promoting either population.
+                    outcome = "istruttoria" in cells[-1].casefold()
+                    valid_date = date_shape(cells[-2])
+                    applicant_shape_evidence[
+                        "legacy_outcome_and_calendar_date" if outcome and valid_date
+                        else "legacy_outcome_invalid_date" if outcome
+                        else "no_legacy_outcome_clue"] += 1
+                    tokens = [t.strip().upper() for t in cells[-3].split(",") if t.strip()]
+                    applicant_shape_evidence["request_tokens_blank" if not tokens else
+                        "request_tokens_known_roman" if all(t in {
+                            "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"
+                        } for t in tokens) else "request_tokens_require_review"] += 1
                 else:
                     counts["unclassified_rows"] += 1
                     # Finite aggregate evidence only; residuals remain unclassified.
@@ -108,6 +128,9 @@ def profile_pages(pages, filename_date):
         "applicant_rows_with_identifier_syntax", "repeated_same_section_rows")},
         "residual_shape_clues_not_classifications": dict(residual_shapes),
         "listed_note_clues_not_statuses": dict(listed_status_clues),
+        "listed_group_note_clues_not_statuses": dict(Counter(group_notes.values())),
+        "applicant_shape_evidence_not_classifications": dict(applicant_shape_evidence),
+        "applicant_repeated_ordinal_rows": sum(n - 1 for n in applicant_ordinals.values()),
         "widths": dict(widths), "listed_sector_clues": dict(sectors),
         "listed_shape_groups_not_entities": len(groups),
         "logical_record_census_approved": False}
