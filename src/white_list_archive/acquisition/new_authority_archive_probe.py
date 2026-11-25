@@ -230,6 +230,9 @@ def workbook_structure(raw: bytes) -> dict:
                 else:
                     aligned_rows["after_anchor"] += 1
                     for role, col in alignment.items():
+                        if col >= len(row):
+                            aligned_field_shapes[role + ":missing_column"] += 1
+                            continue
                         value = cached_row[col] if cell_shape(row[col]) == "formula" else row[col]
                         aligned_field_shapes[role + ":" + cached_shape(value)] += 1
                 clues = header_clues(row)
