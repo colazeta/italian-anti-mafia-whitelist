@@ -16,6 +16,9 @@ from xml.parsers import expat
 from zipfile import ZipFile
 
 from openpyxl import load_workbook
+import pdfplumber
+
+from white_list_archive.acquisition.verona_archive_preflight import row_shape_clues
 
 from white_list_archive.storage.evidence import EvidenceStore, StoreConfig, client_for
 
@@ -567,12 +570,118 @@ def audit(store: EvidenceStore, pins: dict = PINS) -> dict:
             "originals_expected": len(results), "results": results}
 
 
+# Separate exact PDF alternatives; preserve the old workbook audit and bounds.
+NOVARA_PDF_PINS = (
+    ("listed", "68bf14d684b39e04a434b56fbab239ad43de7a25f1ebc3113d04be4838c1d315", 1071220),
+    ("applicant", "48a287404d1a4cd9824c5b7b2d4f9f9f460719df39d9e0339db2f6b203a8f4c7", 875632),
+)
+NOVARA_PDF_ROBOT_REVISION = "29c42da64d4d4f97725da4c2509ed8fafd08b981"
+_PDF_EDITION_CUE = re.compile(
+    r"\b(?:aggiornat[oaie]|aggiornamento|situazione)\s+(?:al|del|alla data del)\s+"
+    r"(\d{1,2}[/.-]\d{1,2}[/.-]20\d{2})\b", re.I)
+_PDF_POPULATION_CUES = {
+    "listed": re.compile(r"\b(?:imprese|ditte|elenco)\b.{0,100}\biscritt[ei]\b", re.I),
+    "applicant": re.compile(r"\b(?:richiest[ae]|richiedenti|istanze)\b", re.I),
+}
+
+
+def novara_pdf_pages(pages, population):
+    """Independent physical PDF census; date labels only, never record values."""
+    if population not in _PDF_POPULATION_CUES:
+        raise ValueError("Unknown population")
+    counts, widths, shapes, dates = Counter(), Counter(), Counter(), Counter()
+    for page in pages:
+        counts["pages"] += 1
+        if counts["pages"] > 250 or not (0 < page.width <= 5000 and 0 < page.height <= 5000):
+            raise ValueError("PDF page bounds")
+        header = page.crop((0, 0, page.width, page.height * .18)).extract_text() or ""
+        if len(header) > 250000:
+            raise ValueError("PDF header bounds")
+        counts["authority_header_cue_pages"] += bool(re.search(r"\bprefettura\s+(?:di\s+)?novara\b", header, re.I))
+        counts["population_header_cue_pages"] += bool(_PDF_POPULATION_CUES[population].search(header))
+        page_dates = set()
+        for match in _PDF_EDITION_CUE.finditer(header):
+            try:
+                day, month, year = map(int, re.split(r"[/.-]", match.group(1)))
+                page_dates.add(date(year, month, day).isoformat())
+            except ValueError:
+                counts["invalid_labelled_date_clues"] += 1
+        dates.update(page_dates)
+        tables = page.find_tables()
+        counts["tables"] += len(tables)
+        counts["tableless_pages"] += not tables
+        for table in tables:
+            for row in table.extract():
+                counts["physical_rows"] += 1
+                counts["physical_cells"] += len(row)
+                if counts["physical_rows"] > 20000 or counts["physical_cells"] > 200000:
+                    raise ValueError("PDF census bounds")
+                widths[str(len(row))] += 1
+                flags = row_shape_clues(row)
+                shapes.update(key for key, flag in flags.items() if flag)
+                # Mutually exclusive physical categories; never imply logical records.
+                if flags["empty_table_rows"]:
+                    counts["blank_rows"] += 1
+                elif flags["header_like_rows"]:
+                    counts["header_shape_rows"] += 1
+                elif flags["single_nonblank_cell_rows"]:
+                    counts["single_cell_rows"] += 1
+                elif flags["eleven_digit_whole_cell_rows"] or flags["sixteen_character_whole_cell_rows"]:
+                    counts["multicell_identifier_shape_rows"] += 1
+                else:
+                    counts["unresolved_multicell_rows"] += 1
+    if not counts["pages"] or not counts["physical_rows"]:
+        raise ValueError("No physical census")
+    buckets = ("blank_rows", "header_shape_rows", "single_cell_rows",
+               "multicell_identifier_shape_rows", "unresolved_multicell_rows")
+    if sum(counts[k] for k in buckets) != counts["physical_rows"]:
+        raise ValueError("Unreconciled census")
+    return {"counts": dict(counts), "widths": dict(widths),
+            "row_shape_clues": dict(shapes), "labelled_header_date_clues": dict(dates),
+            "logical_record_census_approved": False, "official_edition_date_approved": False}
+
+
+def novara_pdf_profile(raw, population):
+    if not isinstance(raw, bytes) or not raw.startswith(b"%PDF-") or len(raw) > 2000000:
+        raise ValueError("Invalid bounded PDF")
+    with pdfplumber.open(BytesIO(raw)) as pdf:
+        return novara_pdf_pages(pdf.pages, population)
+
+
+def audit_novara_pdfs(store, *, pins=NOVARA_PDF_PINS, scanner=novara_pdf_profile):
+    if len(pins) != 2 or {p[0] for p in pins} != {"listed", "applicant"}:
+        raise ValueError("Exact pair required")
+    results = []
+    for population, digest, size in pins:
+        entry = {"population": population, "original_sha256": digest,
+                 "expected_bytes": size, "source_bytes_verified": False}
+        try:
+            raw = store.read_digest_verified(digest)
+            if len(raw) != size or sha256(raw).hexdigest() != digest:
+                raise ValueError("Original identity mismatch")
+            entry["source_bytes_verified"] = True
+            entry["physical_pdf_profile"] = scanner(raw, population)
+        except Exception as exc:
+            entry["error_type"] = type(exc).__name__
+            entry["review_code"] = "source_only_review_incomplete"
+        results.append(entry)
+    return {"scope": "novara_pdf_alternatives_source_only", "robot_revision": NOVARA_PDF_ROBOT_REVISION,
+            "originals_expected": 2, "originals_sha_verified": sum(x["source_bytes_verified"] for x in results),
+            "physical_profiles_completed": sum("physical_pdf_profile" in x for x in results),
+            "source_edition_approved": False, "official_edition_date_approved": False,
+            "privacy_approved": False, "public_release_eligible": False,
+            "postgresql_writes": 0, "public_promotions": 0, "results": results}
+
+
 def main() -> int:
     config = StoreConfig.from_env()
     store = EvidenceStore(client_for(config), config)
     result = audit(store)
     print(json.dumps(result, sort_keys=True))
-    return int(result["originals_verified"] != result["originals_expected"])
+    pdf_result = audit_novara_pdfs(store)
+    print(json.dumps(pdf_result, sort_keys=True))
+    return int(result["originals_verified"] != result["originals_expected"] or
+               pdf_result["physical_profiles_completed"] != pdf_result["originals_expected"])
 
 
 if __name__ == "__main__":

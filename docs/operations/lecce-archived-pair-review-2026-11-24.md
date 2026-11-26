@@ -29,3 +29,8 @@ job. The existing transformer runs this independent lane on shard zero.
 No manifest, intent, parser approval, database write, publisher or privileges
 change. Both sources remain acquisition_or_review_required pending exact
 provenance, complete source QA, versioned parser and privacy review.
+
+
+## 26 November — finite residual review (proposed)
+
+The previous protected run found one listed residual row, three unreviewed status clues and four nonblank unparseable dates. Add aggregate diagnostics for residual width/nonblank count and reason, bounded keyword clues on unresolved notes (overlapping, not mappings), and invalid numeric-date versus other nonblank field shapes. No raw note, source values or individual locators are emitted, no earlier residual is removed, and no administrative event or date is inferred. The protected readback on the exact previously pinned pair remains pending; the September parser, selector and all source/privacy gates are unchanged.

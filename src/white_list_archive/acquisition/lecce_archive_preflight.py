@@ -42,6 +42,12 @@ def profile_pages(pages, population):
         raise ValueError("Unknown population")
     counts, widths, sections, statuses = Counter(), Counter(), Counter(), Counter()
     grouped = set()
+    residual_shapes, unresolved_status_shapes, unresolved_date_shapes = Counter(), Counter(), Counter()
+
+    def residual(cells, reason):
+        counts["unclassified_rows"] += 1
+        nonblank = sum(bool(v) for v in cells)
+        residual_shapes[f"{reason}:width_{len(cells)}:nonblank_{nonblank}"] += 1
     section = None
     expected_width = 7 if population == "listed" else 4
     for page in pages:
@@ -63,7 +69,7 @@ def profile_pages(pages, population):
                     counts["blank_rows"] += 1
                     continue
                 if len(cells) != expected_width:
-                    counts["unclassified_rows"] += 1
+                    residual(cells, "unexpected_width")
                     continue
                 first = cells[0]
                 if population == "listed":
@@ -72,7 +78,7 @@ def profile_pages(pages, population):
                         section = match.group(1).upper() if match else None
                         if section not in SECTIONS:
                             section = None
-                            counts["unclassified_rows"] += 1
+                            residual(cells, "unknown_section")
                         else:
                             counts["section_heading_rows"] += 1
                         continue
@@ -80,13 +86,21 @@ def profile_pages(pages, population):
                         counts["administrative_header_rows"] += 1
                         continue
                     if not first or section is None:
-                        counts["unclassified_rows"] += 1
+                        residual(cells, "missing_name_or_section")
                         continue
                     identifier, dates = cells[3], cells[4:6]
                     try:
                         status = _status(cells[6])
                     except RuntimeError:
                         status = "unreviewed"
+                        note = cells[6].casefold()
+                        for key, pattern in (("renewal", r"\brinnov\w*"),
+                                             ("pending", r"\b(?:istruttoria|attesa|corso)\b"),
+                                             ("expiry", r"\bscad\w*"),
+                                             ("adverse", r"\b(?:revoc\w*|dinieg\w*|cancell\w*|interditt\w*)")):
+                            if re.search(pattern, note):
+                                unresolved_status_shapes[key] += 1
+                        unresolved_status_shapes["unreviewed_total"] += 1
                     statuses[status] += 1
                     sections[section] += 1
                     grouped.add(tuple(cells))
@@ -95,7 +109,7 @@ def profile_pages(pages, population):
                         counts["administrative_header_rows"] += 1
                         continue
                     if not first or not cells[2]:
-                        counts["unclassified_rows"] += 1
+                        residual(cells, "missing_name_or_identifier")
                         continue
                     identifier, dates = cells[2], cells[3:4]
                 counts["candidate_data_shaped_rows"] += 1
@@ -104,6 +118,11 @@ def profile_pages(pages, population):
                 counts["rows_with_unparseable_nonblank_date"] += any(
                     value and not _iso_if_valid(value) for value in dates)
                 counts["rows_with_blank_date"] += any(not value for value in dates)
+                for value in dates:
+                    if value and not _iso_if_valid(value):
+                        kind = ("numeric_date_shape" if re.fullmatch(r"\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}", value)
+                                else "other_nonblank")
+                        unresolved_date_shapes[kind] += 1
     if not counts["pages"] or not counts["physical_rows"]:
         raise ValueError("No physical census")
     categories = ("blank_rows", "unclassified_rows", "section_heading_rows",
@@ -119,6 +138,9 @@ def profile_pages(pages, population):
         "widths": dict(sorted(widths.items())),
         "candidate_sector_rows": dict(sorted(sections.items())),
         "listed_status_clues": dict(sorted(statuses.items())),
+        "unclassified_row_shape_counts": dict(sorted(residual_shapes.items())),
+        "unreviewed_status_shape_counts_not_status_mapping": dict(sorted(unresolved_status_shapes.items())),
+        "unparseable_date_field_shapes": dict(sorted(unresolved_date_shapes.items())),
         "listed_exact_cell_tuple_groups_not_entities": len(grouped) if population == "listed" else None,
         "source_edition_approved": False,
         "privacy_approved": False,
