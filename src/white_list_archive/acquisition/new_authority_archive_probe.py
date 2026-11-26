@@ -590,6 +590,7 @@ def novara_pdf_pages(pages, population):
     if population not in _PDF_POPULATION_CUES:
         raise ValueError("Unknown population")
     counts, widths, shapes, dates = Counter(), Counter(), Counter(), Counter()
+    anchor_counts, aligned_shapes, residual_alignment = Counter(), Counter(), Counter()
     for page in pages:
         counts["pages"] += 1
         if counts["pages"] > 250 or not (0 < page.width <= 5000 and 0 < page.height <= 5000):
@@ -611,6 +612,8 @@ def novara_pdf_pages(pages, population):
         counts["tables"] += len(tables)
         counts["tableless_pages"] += not tables
         for table in tables:
+            # Never inherit a guessed layout across table boundaries.
+            alignment = {}
             for row in table.extract():
                 counts["physical_rows"] += 1
                 counts["physical_cells"] += len(row)
@@ -619,6 +622,28 @@ def novara_pdf_pages(pages, population):
                 widths[str(len(row))] += 1
                 flags = row_shape_clues(row)
                 shapes.update(key for key, flag in flags.items() if flag)
+                if flags["header_like_rows"] or header_row_role(row):
+                    alignment = aligned_header_columns(row) if header_row_role(row) else {}
+                    anchor_counts["header_rows"] += 1
+                    if {"name", "identifier"} <= alignment.keys():
+                        anchor_counts["name_identifier_bound_headers"] += 1
+                    else:
+                        anchor_counts["unbound_headers"] += 1
+                elif not flags["empty_table_rows"]:
+                    if not {"name", "identifier"} <= alignment.keys() or max(alignment.values()) >= len(row):
+                        residual_alignment["no_complete_table_local_anchor"] += 1
+                    else:
+                        residual_alignment["aligned_nonheader_rows"] += 1
+                        for role, column in alignment.items():
+                            aligned_shapes[f"{role}:{cell_shape(row[column])}"] += 1
+                        name_present = cell_shape(row[alignment["name"]]) != "blank"
+                        identifier_shape = cell_shape(row[alignment["identifier"]])
+                        if name_present and identifier_shape in {"eleven_digit_shape", "sixteen_character_shape_privacy_review"}:
+                            residual_alignment["name_and_identifier_shape"] += 1
+                        elif name_present:
+                            residual_alignment["name_without_standard_identifier_shape"] += 1
+                        else:
+                            residual_alignment["missing_name_in_aligned_row"] += 1
                 # Mutually exclusive physical categories; never imply logical records.
                 if flags["empty_table_rows"]:
                     counts["blank_rows"] += 1
@@ -638,6 +663,9 @@ def novara_pdf_pages(pages, population):
         raise ValueError("Unreconciled census")
     return {"counts": dict(counts), "widths": dict(widths),
             "row_shape_clues": dict(shapes), "labelled_header_date_clues": dict(dates),
+            "table_local_header_alignment_counts": dict(anchor_counts),
+            "aligned_field_shapes_not_values": dict(aligned_shapes),
+            "aligned_row_review_counts_not_logical_census": dict(residual_alignment),
             "logical_record_census_approved": False, "official_edition_date_approved": False}
 
 

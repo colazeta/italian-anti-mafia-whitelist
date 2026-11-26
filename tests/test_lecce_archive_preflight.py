@@ -83,3 +83,23 @@ def test_residual_status_and_date_diagnostics_do_not_resolve_or_disclose():
     assert report["listed_status_clues"] == {"unreviewed": 1}
     assert not report["privacy_approved"]
     assert "PRIVATE" not in json.dumps(report)
+
+
+def test_exact_tuple_review_counts_groups_not_sector_rows():
+    row = ["PRIVATE-NAME", "PRIVATE-OFFICE", "", "12345678901",
+           "01/01/2026", "INVALID", "UNKNOWN-PRIVATE-NOTE"]
+    report = profile_pages([Page([
+        ["SEZIONE I"] + [""] * 6, row, row,
+        ["SEZIONE II"] + [""] * 6, row,
+    ])], "listed")
+    assert report["counts"]["candidate_data_shaped_rows"] == 3
+    assert report["listed_exact_cell_tuple_groups_not_entities"] == 1
+    assert report["listed_group_status_clues_not_approved"] == {"unreviewed": 1}
+    review = report["listed_group_review_flags_not_approved"]
+    assert review["unreviewed_status"] == 1
+    assert review["unparseable_nonblank_date"] == 1
+    assert review["groups_with_any_review_flag"] == 1
+    assert review["groups_with_repeated_same_section"] == 1
+    assert not report["privacy_approved"]
+    assert "PRIVATE" not in json.dumps(report)
+    assert "12345678901" not in json.dumps(report)

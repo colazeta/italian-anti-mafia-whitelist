@@ -42,6 +42,9 @@ def profile_pages(pages, population):
         raise ValueError("Unknown population")
     counts, widths, sections, statuses = Counter(), Counter(), Counter(), Counter()
     grouped = set()
+    group_sections = {}
+    group_statuses = {}
+    group_exception_flags = {}
     residual_shapes, unresolved_status_shapes, unresolved_date_shapes = Counter(), Counter(), Counter()
 
     def residual(cells, reason):
@@ -103,7 +106,15 @@ def profile_pages(pages, population):
                         unresolved_status_shapes["unreviewed_total"] += 1
                     statuses[status] += 1
                     sections[section] += 1
-                    grouped.add(tuple(cells))
+                    group_key = tuple(cells)
+                    grouped.add(group_key)
+                    group_statuses[group_key] = status
+                    group_sections.setdefault(group_key, Counter())[section] += 1
+                    group_exception_flags[group_key] = (
+                        status == "unreviewed",
+                        any(value and not _iso_if_valid(value) for value in dates),
+                        not bool(_strict_identifiers(identifier)),
+                    )
                 else:
                     if cells == APPLICANT_HEADER:
                         counts["administrative_header_rows"] += 1
@@ -129,6 +140,15 @@ def profile_pages(pages, population):
                   "administrative_header_rows", "candidate_data_shaped_rows")
     if sum(counts[k] for k in categories) != counts["physical_rows"]:
         raise ValueError("Unreconciled physical census")
+    group_review = Counter()
+    if population == "listed":
+        for key, flags in group_exception_flags.items():
+            for label, flag in zip(("unreviewed_status", "unparseable_nonblank_date", "identifier_syntax_missing"), flags):
+                group_review[label] += bool(flag)
+            group_review["groups_with_any_review_flag"] += any(flags)
+            group_review["groups_with_repeated_same_section"] += any(n > 1 for n in group_sections[key].values())
+        if len(group_statuses) != len(grouped) or sum(sum(v.values()) for v in group_sections.values()) != counts["candidate_data_shaped_rows"]:
+            raise ValueError("Unreconciled exact tuple groups")
     return {
         "counts": {k: counts[k] for k in (
             "pages", "filename_date_marker_pages", "tables", "pages_not_one_table",
@@ -142,6 +162,8 @@ def profile_pages(pages, population):
         "unreviewed_status_shape_counts_not_status_mapping": dict(sorted(unresolved_status_shapes.items())),
         "unparseable_date_field_shapes": dict(sorted(unresolved_date_shapes.items())),
         "listed_exact_cell_tuple_groups_not_entities": len(grouped) if population == "listed" else None,
+        "listed_group_status_clues_not_approved": dict(sorted(Counter(group_statuses.values()).items())),
+        "listed_group_review_flags_not_approved": dict(sorted(group_review.items())),
         "source_edition_approved": False,
         "privacy_approved": False,
         "logical_record_census_approved": False,

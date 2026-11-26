@@ -583,3 +583,42 @@ def test_novara_pdf_pair_is_bounded_and_redacted():
     assert not report["public_release_eligible"]
     assert "PRIVATE" not in json.dumps(report)
     assert "12345678901" not in json.dumps(report)
+
+
+def test_novara_table_local_alignment_never_inherits_or_discloses():
+    from white_list_archive.acquisition.new_authority_archive_probe import novara_pdf_pages
+
+    class Table:
+        def __init__(self, rows):
+            self.rows = rows
+        def extract(self):
+            return self.rows
+
+    class Page:
+        width, height = 600, 800
+        def crop(self, _):
+            return self
+        def extract_text(self):
+            return "Prefettura di Novara"
+        def find_tables(self):
+            return [
+                Table([["Ragione sociale", "Codice fiscale", "Sede legale"],
+                       ["PRIVATE NAME", "12345678901", "PRIVATE ADDRESS"],
+                       ["PRIVATE CONTINUATION", "", ""],
+                       ["", "09876543210", "PRIVATE ADDRESS"]]),
+                Table([["PRIVATE UNANCHORED", "12345678901", "PRIVATE ADDRESS"]]),
+            ]
+
+    result = novara_pdf_pages([Page()], "listed")
+    assert result["counts"]["physical_rows"] == 5
+    assert result["table_local_header_alignment_counts"]["name_identifier_bound_headers"] == 1
+    assert result["aligned_row_review_counts_not_logical_census"] == {
+        "aligned_nonheader_rows": 3,
+        "name_and_identifier_shape": 1,
+        "name_without_standard_identifier_shape": 1,
+        "missing_name_in_aligned_row": 1,
+        "no_complete_table_local_anchor": 1,
+    }
+    assert not result["logical_record_census_approved"]
+    assert "PRIVATE" not in json.dumps(result)
+    assert "12345678901" not in json.dumps(result)
