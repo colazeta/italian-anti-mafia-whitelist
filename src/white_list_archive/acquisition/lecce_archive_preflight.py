@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import Counter
 from hashlib import sha256
 from io import BytesIO
+import argparse
 import json
 import re
 
@@ -28,6 +29,16 @@ MAX_BYTES = 5_000_000
 MAX_PAGES = 150
 MAX_ROWS = 20_000
 MARKER = "19/11/2026"
+NEWER_PINS = (
+    ("listed", "30171690a3431cb8aea0d16d477004e4fdd6d5c96640659dcf39a281f4f751b7", 1633693),
+    ("applicant", "f30127220a9e5b6faed9d48a98ccf8913311c8f49c3bd415f8d2c1df8a6e9e0e", 284516),
+)
+# The date labels are discovery clues only, not approved reference dates.
+EDITION_PROFILES = {
+    "2026-11-19": (PINS, ROBOT_REVISION, MARKER, "lecce_2026_11_19_archived_pair_source_only"),
+    "2026-11-25": (NEWER_PINS, "f0bfd25aaa98e8aba43e1a452601cb33942149db", "25/11/2026",
+                   "lecce_2026_11_25_archived_pair_source_only"),
+}
 APPLICANT_HEADER = [
     "RAGIONE SOCIALE", "SEDE LEGALE", "CODICE FISCALE",
     "DATA DI PRESENTAZIONE DELL'ISTANZA",
@@ -36,7 +47,7 @@ SECTION = re.compile(r"^SEZIONE\s+([IVX]+)\b", re.I)
 SECTIONS = frozenset(("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"))
 
 
-def profile_pages(pages, population):
+def profile_pages(pages, population, *, marker=MARKER):
     """Census every physical row; report only bounded, aggregate review clues."""
     if population not in {"listed", "applicant"}:
         raise ValueError("Unknown population")
@@ -57,7 +68,7 @@ def profile_pages(pages, population):
         counts["pages"] += 1
         if counts["pages"] > MAX_PAGES:
             raise ValueError("Page limit exceeded")
-        counts["filename_date_marker_pages"] += MARKER in (page.extract_text() or "")
+        counts["filename_date_marker_pages"] += marker in (page.extract_text() or "")
         tables = page.find_tables()
         counts["tables"] += len(tables)
         counts["pages_not_one_table"] += len(tables) != 1
@@ -170,14 +181,17 @@ def profile_pages(pages, population):
     }
 
 
-def profile_pdf(raw, population):
+def profile_pdf(raw, population, *, marker=MARKER):
     if not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_BYTES or not raw.startswith(b"%PDF-"):
         raise ValueError("Invalid bounded PDF")
     with pdfplumber.open(BytesIO(raw)) as pdf:
-        return profile_pages(pdf.pages, population)
+        return profile_pages(pdf.pages, population, marker=marker)
 
 
-def audit_pair(store, *, pins=PINS, scanner=profile_pdf):
+def audit_pair(store, *, pins=PINS, scanner=None, marker=MARKER,
+               scope=EDITION_PROFILES['2026-11-19'][3], robot_revision=ROBOT_REVISION):
+    if scanner is None:
+        scanner = lambda raw, population: profile_pdf(raw, population, marker=marker)
     if len(pins) != 2 or {p[0] for p in pins} != {"listed", "applicant"}:
         raise ValueError("Both population pins required")
     results = []
@@ -196,8 +210,8 @@ def audit_pair(store, *, pins=PINS, scanner=profile_pdf):
             item["review_code"] = "source_review_incomplete"
         results.append(item)
     return {
-        "scope": "lecce_2026_11_19_archived_pair_source_only",
-        "robot_revision": ROBOT_REVISION,
+        "scope": scope,
+        "robot_revision": robot_revision,
         "originals_expected": 2,
         "originals_sha_verified": sum(x["source_bytes_verified"] for x in results),
         "physical_profiles_completed": sum("physical_profile" in x for x in results),
@@ -208,12 +222,23 @@ def audit_pair(store, *, pins=PINS, scanner=profile_pdf):
     }
 
 
-def main():
+def audit_edition(store, edition, *, scanner=None):
+    # Closed profile lookup: no unreviewed digest/date overrides from CLI.
+    pins, revision, marker, scope = EDITION_PROFILES[edition]
+    return audit_pair(store, pins=pins, scanner=scanner, marker=marker,
+                      scope=scope, robot_revision=revision)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--edition", choices=tuple(EDITION_PROFILES), default="2026-11-19")
+    edition = parser.parse_args(argv).edition
+    _, revision, _, scope = EDITION_PROFILES[edition]
     try:
         cfg = StoreConfig.from_env()
-        report = audit_pair(EvidenceStore(client_for(cfg), cfg))
+        report = audit_edition(EvidenceStore(client_for(cfg), cfg), edition)
     except Exception:
-        report = {"scope": "lecce_2026_11_19_archived_pair_source_only",
+        report = {"scope": scope, "robot_revision": revision,
                   "review_code": "protected_source_read_unavailable",
                   "originals_expected": 2, "originals_sha_verified": 0,
                   "physical_profiles_completed": 0, "public_release_eligible": False,
