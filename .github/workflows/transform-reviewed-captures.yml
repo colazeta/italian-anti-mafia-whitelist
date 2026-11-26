@@ -186,10 +186,10 @@ jobs:
         continue-on-error: true
         run: python -m white_list_archive.acquisition.la_spezia_archive_preflight
       # Current-delta review, independent of database and unrelated failures.
-      - name: Audit archived Lecce 19 November PDF pair (source only)
+      - name: Audit archived Lecce 25 November PDF pair (source only)
         if: ${{ matrix.shard == 0 && !cancelled() }}
         continue-on-error: true
-        run: python -m white_list_archive.acquisition.lecce_archive_preflight
+        run: python -m white_list_archive.acquisition.lecce_archive_preflight --edition 2026-11-25
       # Independent archived current-delta pair review; no source approval.
       - name: Audit archived Cagliari November pairs (source only)
         if: ${{ matrix.shard == 0 && !cancelled() }}

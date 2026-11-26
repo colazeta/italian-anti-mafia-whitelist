@@ -103,3 +103,34 @@ def test_exact_tuple_review_counts_groups_not_sector_rows():
     assert not report["privacy_approved"]
     assert "PRIVATE" not in json.dumps(report)
     assert "12345678901" not in json.dumps(report)
+
+
+def test_newer_edition_pins_do_not_reuse_old_date_marker_or_originals():
+    from white_list_archive.acquisition.lecce_archive_preflight import (
+        EDITION_PROFILES, audit_edition,
+    )
+    old_pins, _, _, old_scope = EDITION_PROFILES['2026-11-19']
+    new_pins, revision, marker, new_scope = EDITION_PROFILES['2026-11-25']
+    assert old_scope != new_scope
+    assert {p[1] for p in old_pins}.isdisjoint(p[1] for p in new_pins)
+    assert marker == '25/11/2026'
+    report = profile_pages([Page([APPLICANT_HEADER])], 'applicant', marker=marker)
+    assert report['counts']['filename_date_marker_pages'] == 0
+    assert not report['source_edition_approved']
+    class Store:
+        def __init__(self):
+            self.requested = []
+        def read_digest_verified(self, digest):
+            self.requested.append(digest)
+            return b'PRIVATE-WRONG-BYTES'
+    store = Store()
+    result = audit_edition(store, '2026-11-25')
+    assert store.requested == [p[1] for p in new_pins]
+    assert result['scope'] == new_scope and result['robot_revision'] == revision
+    assert result['originals_sha_verified'] == 0
+    assert result['physical_profiles_completed'] == 0
+    assert not result['privacy_approved'] and not result['public_release_eligible']
+    assert 'PRIVATE' not in json.dumps(result)
+    import pytest
+    with pytest.raises(KeyError):
+        audit_edition(store, '2026-11-26')
