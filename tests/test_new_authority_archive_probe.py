@@ -541,3 +541,45 @@ def test_repeated_header_roles_remain_unbound_but_unique_roles_are_diagnosed():
     assert "PRIVATE" not in json.dumps(sheet)
     assert "01234567890" not in json.dumps(sheet)
     assert "09876543210" not in json.dumps(sheet)
+
+
+def test_novara_pdf_pair_is_bounded_and_redacted():
+    from white_list_archive.acquisition.new_authority_archive_probe import (
+        NOVARA_PDF_PINS, audit_novara_pdfs, novara_pdf_pages,
+    )
+    assert len(NOVARA_PDF_PINS) == 2
+    assert {x[0] for x in NOVARA_PDF_PINS} == {"listed", "applicant"}
+
+    class Table:
+        def extract(self):
+            return [["Ragione sociale", "Codice fiscale"], ["PRIVATE-NAME", "12345678901"],
+                    ["PRIVATE-OTHER", "unknown"], ["PRIVATE-NOTE"], ["", ""]]
+
+    class Page:
+        width, height = 600, 800
+        def crop(self, _):
+            return self
+        def extract_text(self):
+            return "Prefettura di Novara\nElenco imprese iscritte\nAggiornato al 25/11/2026\nPRIVATE-NAME"
+        def find_tables(self):
+            return [Table()]
+
+    profile = novara_pdf_pages([Page()], "listed")
+    assert profile["counts"]["physical_rows"] == 5
+    assert profile["counts"]["multicell_identifier_shape_rows"] == 1
+    assert profile["counts"]["unresolved_multicell_rows"] == 1
+    assert profile["labelled_header_date_clues"] == {"2026-11-25": 1}
+    assert not profile["official_edition_date_approved"]
+    raw = b"synthetic"
+    digest = sha256(raw).hexdigest()
+    class Store:
+        def read_digest_verified(self, _):
+            return raw
+    report = audit_novara_pdfs(Store(), pins=(("listed", digest, len(raw)),
+                                             ("applicant", digest, len(raw)+1)),
+                               scanner=lambda *_: profile)
+    assert report["originals_sha_verified"] == 1
+    assert report["physical_profiles_completed"] == 1
+    assert not report["public_release_eligible"]
+    assert "PRIVATE" not in json.dumps(report)
+    assert "12345678901" not in json.dumps(report)

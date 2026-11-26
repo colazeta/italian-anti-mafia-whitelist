@@ -68,3 +68,18 @@ def test_exact_pair_readback_and_redacted_failure():
     assert result["physical_profiles_completed"] == 0
     assert result["public_promotions"] == 0
     assert "PRIVATE" not in json.dumps(result)
+
+
+def test_residual_status_and_date_diagnostics_do_not_resolve_or_disclose():
+    report = profile_pages([Page([
+        ["SEZIONE I"] + [""] * 6,
+        ["PRIVATE-NAME", "", "", "12345678901", "31/02/2026", "PRIVATE-DATE", "PRIVATE-NOTE"],
+        ["PRIVATE-RESIDUAL"],
+    ])], "listed")
+    assert report["counts"]["unclassified_rows"] == 1
+    assert report["unclassified_row_shape_counts"] == {"unexpected_width:width_1:nonblank_1": 1}
+    assert report["unreviewed_status_shape_counts_not_status_mapping"] == {"unreviewed_total": 1}
+    assert report["unparseable_date_field_shapes"] == {"numeric_date_shape": 1, "other_nonblank": 1}
+    assert report["listed_status_clues"] == {"unreviewed": 1}
+    assert not report["privacy_approved"]
+    assert "PRIVATE" not in json.dumps(report)
