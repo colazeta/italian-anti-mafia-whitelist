@@ -134,3 +134,38 @@ def test_newer_edition_pins_do_not_reuse_old_date_marker_or_originals():
     import pytest
     with pytest.raises(KeyError):
         audit_edition(store, '2026-11-26')
+
+
+def test_edition_marker_requires_label_in_bounded_or_administrative_header():
+    from white_list_archive.acquisition.lecce_archive_preflight import labelled_marker_clue
+    assert labelled_marker_clue("Aggiornato al 25/11/2026", "25/11/2026")
+    assert not labelled_marker_clue("Data iscrizione 25/11/2026", "25/11/2026")
+    assert not labelled_marker_clue("Aggiornato al 25/11/20260", "25/11/2026")
+
+    class HeaderPage(Page):
+        width, height = 600, 800
+        def __init__(self, rows, header):
+            super().__init__(rows)
+            self.header = header
+        def find_tables(self):
+            table = Table(self.rows)
+            table.bbox = (0, 100, 600, 700)
+            return [table]
+        def crop(self, box):
+            assert box == (0, 0, 600, 100)
+            class Header:
+                def extract_text(inner):
+                    return self.header
+            return Header()
+
+    row = ["PRIVATE NAME", "PRIVATE ADDRESS", "11111111111", "25/11/2026"]
+    report = profile_pages([
+        HeaderPage([APPLICANT_HEADER, row], "Aggiornato al 25/11/2026 PRIVATE HEADER"),
+        HeaderPage([APPLICANT_HEADER, row], "Data istanza 25/11/2026"),
+        Page([APPLICANT_HEADER, row]),
+    ], "applicant", marker="25/11/2026")
+    assert report["counts"]["pages_with_bounded_header_geometry"] == 2
+    assert report["counts"]["labelled_edition_marker_clue_pages"] == 1
+    assert not report["source_edition_approved"]
+    assert "PRIVATE" not in json.dumps(report)
+    assert "11111111111" not in json.dumps(report)
