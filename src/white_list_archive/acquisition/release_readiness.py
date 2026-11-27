@@ -216,6 +216,92 @@ def taranto_complete_physical_rows(path: Path, population: str) -> int:
     return count
 
 
+
+# Fixed pair: review only, not an approved publication profile.
+_BIELLA_DELTA_SHA = "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca"
+_BIELLA_DELTA_DATE = "2026-11-25"
+_BIELLA_DELTA_BYTES = 204481
+_BIELLA_DELTA_COUNTERS = frozenset({
+    "old_observations", "new_observations", "old_only_text_keys", "new_only_text_keys",
+    "shared_text_keys", "shared_keys_changed_multiplicity", "shared_keys_changed_status",
+    "shared_keys_changed_values", "old_unmatched_observations", "new_unmatched_observations",
+    "old_identifier_shape_rows", "new_identifier_shape_rows",
+    "old_other_field_shape_rows", "new_other_field_shape_rows",
+})
+# Broad shape clue, including omocodia-like values; never a verified tax code.
+_CF_SHAPE = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]{6}[A-Za-z0-9]{2}[A-Za-z][A-Za-z0-9]{2}[A-Za-z][A-Za-z0-9]{3}[A-Za-z](?![A-Za-z0-9])")
+
+
+def _contains_cf_shape(value):
+    if isinstance(value, str):
+        return bool(_CF_SHAPE.search(value))
+    if isinstance(value, list):
+        return any(_contains_cf_shape(item) for item in value)
+    if isinstance(value, dict):
+        return any(_contains_cf_shape(item) for item in value.values())
+    return False
+
+
+def biella_observation_delta(old, new):
+    """Compare exact documentary text keys and multisets; never resolve entities."""
+    ignored = {"record_locator", "source_row_ordinal", "reference_date", "capture_sha256"}
+    def grouped(rows):
+        groups = {}
+        for row in rows:
+            key = (row["name"], row["identifier_field_raw"])
+            value = json.dumps({k: v for k, v in row.items() if k not in ignored},
+                               sort_keys=True, ensure_ascii=False)
+            entries = groups.setdefault(key, (Counter(), Counter()))
+            entries[0][value] += 1
+            entries[1][row["source_status"]] += 1
+        return groups
+    a, b = grouped(old), grouped(new)
+    shared = a.keys() & b.keys()
+    def unmatched(left, right):
+        return sum(sum((values[0] - right.get(key, (Counter(), Counter()))[0]).values())
+                   for key, values in left.items())
+    result = {
+        "old_observations": len(old), "new_observations": len(new),
+        "old_only_text_keys": len(a.keys() - b.keys()), "new_only_text_keys": len(b.keys() - a.keys()),
+        "shared_text_keys": len(shared),
+        "shared_keys_changed_multiplicity": sum(sum(a[k][0].values()) != sum(b[k][0].values()) for k in shared),
+        "shared_keys_changed_status": sum(a[k][1] != b[k][1] for k in shared),
+        "shared_keys_changed_values": sum(a[k][0] != b[k][0] for k in shared),
+        "old_unmatched_observations": unmatched(a, b), "new_unmatched_observations": unmatched(b, a),
+    }
+    for label, rows in (("old", old), ("new", new)):
+        identifier_fields = {"identifier_field_raw", "identifiers"}
+        result[label + "_identifier_shape_rows"] = sum(
+            _contains_cf_shape({k: v for k, v in row.items() if k in identifier_fields}) for row in rows)
+        result[label + "_other_field_shape_rows"] = sum(
+            _contains_cf_shape({k: v for k, v in row.items() if k not in identifier_fields | ignored}) for row in rows)
+    return result
+
+
+def _biella_pinned_delta(store, job, manifest, new_records, updated):
+    from white_list_archive.publishing import biella_review
+    from white_list_archive.publishing.public_contract import public_record
+    cfg = job["config"]
+    if (cfg.get("sha256") != biella_review.SOURCE_SHA256
+            or cfg.get("reference_date") != biella_review.REFERENCE_DATE
+            or manifest.get("sha256") != _BIELLA_DELTA_SHA
+            or manifest.get("byte_size") != _BIELLA_DELTA_BYTES
+            or updated != _BIELLA_DELTA_DATE):
+        return {"status": "outside_frozen_pair"}
+    try:
+        raw = store.read_digest_verified(biella_review.SOURCE_SHA256)
+        with tempfile.TemporaryDirectory(prefix="biella-delta-review-") as td:
+            path = Path(td) / "previous.html"
+            path.write_bytes(raw)
+            # Existing finite profile independently rechecks the old exact bytes,
+            # date, physical census and complete semantic digest before comparison.
+            old = biella_review.qualify(path, cfg, checked_at=manifest["captured_at"])
+        return {"status": "documentary_comparison_ready",
+                **biella_observation_delta([public_record(r) for r in old.records], new_records)}
+    except Exception:
+        return {"status": "comparison_requires_review"}
+
+
 def inspect_job(job, store):
     """Strict source triage; QA drift from the old edition remains explicit."""
     from white_list_archive.publishing import public_national_registry as registry
@@ -247,7 +333,10 @@ def inspect_job(job, store):
             physical = taranto_complete_physical_rows(path, cfg["population_scope"])
             if physical != batch.diagnostics.get("source_rows") or physical != len(batch.records):
                 raise ValueError("Taranto physical source denominator mismatch")
+    delta = (_biella_pinned_delta(store, job, manifest, public_records, updated)
+             if cfg["authority_key"] == "biella" else None)
     return {
+        "biella_documentary_delta": delta,
         "source_key": job["source_key"], "status": "source_candidate_requires_review",
         "sha256": manifest["sha256"], "bytes": manifest["byte_size"],
         "reference_date": updated, "previous_reference_date": job["config"].get("reference_date"),
@@ -339,6 +428,11 @@ def public_summary(report):
             projected["quality_counts"] = {k: v for k, v in diag.items() if k in numeric and type(v) is int}
             projected["status_counts"] = {k: v for k, v in diag.get("status_counts", {}).items()
                 if k in {"listed", "pending", "renewal_update_in_progress", "other_or_unknown"} and type(v) is int}
+            delta = row.get("biella_documentary_delta")
+            if isinstance(delta, dict) and delta.get("status") in {
+                    "outside_frozen_pair", "comparison_requires_review", "documentary_comparison_ready"}:
+                projected["biella_documentary_delta"] = {"status": delta["status"], **{
+                    k: v for k, v in delta.items() if k in _BIELLA_DELTA_COUNTERS and type(v) is int and v >= 0}}
             safe["sources"].append(projected)
         result["results"].append(safe)
     return result
