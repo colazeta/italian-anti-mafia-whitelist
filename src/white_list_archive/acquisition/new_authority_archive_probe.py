@@ -107,6 +107,30 @@ def _header_role_columns(row):
     return roles
 
 
+# Preserve the broad legacy role vocabulary. These exact label subtypes
+# are independent evidence only: generic address and combined identifiers
+# are never assigned a narrower role by position or shape.
+_HEADER_SUBTYPES = {
+    "registered_office": {"sede legale"},
+    "generic_address": {"indirizzo", "sede"},
+    "tax_code": {"codice fiscale", "c.f."},
+    "vat_number": {"partita iva", "p.iva", "p. iva"},
+    "combined_identifier": _HEADER_ALIASES["identifier"] - {
+        "codice fiscale", "c.f.", "partita iva", "p.iva", "p. iva"},
+}
+
+
+def header_subtype_columns(row):
+    result = {}
+    for col, value in enumerate(row):
+        if isinstance(value, str):
+            token = " ".join(value.casefold().split())
+            for subtype, aliases in _HEADER_SUBTYPES.items():
+                if token in aliases:
+                    result.setdefault(subtype, []).append(col)
+    return result
+
+
 def aligned_header_columns(row):
     """Finite column-role clues, never an approved logical schema."""
     roles = _header_role_columns(row)
@@ -183,6 +207,10 @@ def workbook_structure(raw: bytes) -> dict:
             aligned_field_shapes = Counter()
             ambiguous_header_roles = Counter()
             ambiguous_header_rows = 0
+            subtype_alignment = {}
+            subtype_column_counts = Counter()
+            repeated_subtype_counts = Counter()
+            subtype_field_shapes = Counter()
             formula_cache_counts = Counter({
                 "formula_cells": 0,
                 "formula_cells_with_cache": 0,
@@ -236,6 +264,10 @@ def workbook_structure(raw: bytes) -> dict:
                 candidate_anchor = header_row_role(row) or set(roles) == strong_partial
                 if candidate_anchor:
                     alignment = new_alignment
+                    subtypes = header_subtype_columns(row)
+                    subtype_column_counts.update({k: len(v) for k, v in subtypes.items()})
+                    repeated_subtype_counts.update({k: len(v) for k, v in subtypes.items() if len(v) > 1})
+                    subtype_alignment = {k: v[0] for k, v in subtypes.items() if len(v) == 1}
                     repeated = {role: len(cols) for role, cols in roles.items() if len(cols) > 1}
                     if repeated:
                         ambiguous_header_rows += 1
@@ -253,6 +285,12 @@ def workbook_structure(raw: bytes) -> dict:
                             continue
                         value = cached_row[col] if cell_shape(row[col]) == "formula" else row[col]
                         aligned_field_shapes[role + ":" + cached_shape(value)] += 1
+                    for subtype, col in subtype_alignment.items():
+                        if col >= len(row):
+                            subtype_field_shapes[subtype + ":missing_column"] += 1
+                            continue
+                        value = cached_row[col] if cell_shape(row[col]) == "formula" else row[col]
+                        subtype_field_shapes[subtype + ":" + cached_shape(value)] += 1
                 clues = header_clues(row)
                 if clues and not header_row_role(row):
                     # Finite vocabulary only: no raw heading, value or row locator.
@@ -327,6 +365,9 @@ def workbook_structure(raw: bytes) -> dict:
                 "aligned_rows_not_record_census": dict(aligned_rows),
                 "aligned_field_shapes_not_values": dict(aligned_field_shapes),
                 "ambiguous_header_rows": ambiguous_header_rows,
+                "header_subtype_column_clues": dict(subtype_column_counts),
+                "repeated_header_subtype_columns_unbound": dict(repeated_subtype_counts),
+                "header_subtype_field_shapes_not_values": dict(subtype_field_shapes),
                 "ambiguous_header_role_column_occurrences": dict(ambiguous_header_roles),
                 "partial_header_role_combinations": dict(partial_header_combinations),
                 "unresolved_multicell_shape_counts": dict(unresolved_multicell_shapes),

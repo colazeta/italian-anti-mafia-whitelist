@@ -47,6 +47,13 @@ SECTION = re.compile(r"^SEZIONE\s+([IVX]+)\b", re.I)
 SECTIONS = frozenset(("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"))
 
 
+def labelled_marker_clue(text, marker):
+    # A matching date in a source row is not a labelled edition header.
+    # Keep this finite and do not log the text or other dates.
+    label = r"\b(?:aggiornat[oaie]|aggiornamento|situazione)\s+(?:al|del|alla data del)\s*:?\s*"
+    return bool(re.search(label + re.escape(marker) + r"(?!\d)", text, re.I))
+
+
 def profile_pages(pages, population, *, marker=MARKER):
     """Census every physical row; report only bounded, aggregate review clues."""
     if population not in {"listed", "applicant"}:
@@ -72,6 +79,18 @@ def profile_pages(pages, population, *, marker=MARKER):
         tables = page.find_tables()
         counts["tables"] += len(tables)
         counts["pages_not_one_table"] += len(tables) != 1
+        # Inspect only positively bounded space before the first table. Do
+        # not assume a header when geometry is absent or a table starts at 0.
+        page_labelled = False
+        tops = [getattr(table, "bbox", None) for table in tables]
+        width, height = getattr(page, "width", 0), getattr(page, "height", 0)
+        if (tops and all(box is not None and len(box) == 4 for box in tops)
+                and 0 < width <= 5000 and 0 < height <= 5000):
+            top = min(box[1] for box in tops)
+            if 0 < top <= height:
+                header = page.crop((0, 0, width, top)).extract_text() or ""
+                page_labelled = labelled_marker_clue(header, marker)
+                counts["pages_with_bounded_header_geometry"] += 1
         for table in tables:
             for raw in table.extract():
                 counts["physical_rows"] += 1
@@ -98,6 +117,7 @@ def profile_pages(pages, population, *, marker=MARKER):
                         continue
                     if any(first.startswith(prefix) for prefix in _ADMIN_PREFIXES):
                         counts["administrative_header_rows"] += 1
+                        page_labelled |= labelled_marker_clue(" ".join(cells), marker)
                         continue
                     if not first or section is None:
                         residual(cells, "missing_name_or_section")
@@ -145,6 +165,7 @@ def profile_pages(pages, population, *, marker=MARKER):
                         kind = ("numeric_date_shape" if re.fullmatch(r"\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}", value)
                                 else "other_nonblank")
                         unresolved_date_shapes[kind] += 1
+        counts["labelled_edition_marker_clue_pages"] += page_labelled
     if not counts["pages"] or not counts["physical_rows"]:
         raise ValueError("No physical census")
     categories = ("blank_rows", "unclassified_rows", "section_heading_rows",
@@ -163,6 +184,7 @@ def profile_pages(pages, population, *, marker=MARKER):
     return {
         "counts": {k: counts[k] for k in (
             "pages", "filename_date_marker_pages", "tables", "pages_not_one_table",
+            "pages_with_bounded_header_geometry", "labelled_edition_marker_clue_pages",
             "physical_rows", *categories, "rows_with_identifier_syntax",
             "rows_with_blank_identifier_field", "rows_with_unparseable_nonblank_date",
             "rows_with_blank_date")},

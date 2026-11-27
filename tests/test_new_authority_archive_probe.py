@@ -622,3 +622,29 @@ def test_novara_table_local_alignment_never_inherits_or_discloses():
     assert not result["logical_record_census_approved"]
     assert "PRIVATE" not in json.dumps(result)
     assert "12345678901" not in json.dumps(result)
+
+
+def test_distinct_identifier_and_address_label_subtypes_preserve_ambiguity():
+    book = Workbook()
+    ws = book.active
+    ws.append(["Ragione sociale", "Codice fiscale", "Partita IVA", "Sede legale", "Indirizzo"])
+    ws.append(["PRIVATE NAME", "11111111111", "22222222222", "PRIVATE LEGAL", "PRIVATE GENERIC"])
+    ws.append(["Ragione sociale", "Codice fiscale", "Codice fiscale", "Sede legale", "Indirizzo"])
+    ws.append(["PRIVATE OTHER", "33333333333", "44444444444", "PRIVATE LEGAL", "PRIVATE GENERIC"])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    sheet = workbook_structure(out.getvalue())["worksheets"][0]
+    assert sheet["ambiguous_header_rows"] == 2
+    assert sheet["header_subtype_column_clues"] == {
+        "tax_code": 3, "vat_number": 1, "registered_office": 2, "generic_address": 2,
+    }
+    assert sheet["repeated_header_subtype_columns_unbound"] == {"tax_code": 2}
+    assert sheet["header_subtype_field_shapes_not_values"] == {
+        "tax_code:eleven_digit_shape": 1, "vat_number:eleven_digit_shape": 1,
+        "registered_office:other_nonblank": 2, "generic_address:other_nonblank": 2,
+    }
+    assert "identifier" not in sheet["aligned_field_shapes_not_values"]
+    assert "PRIVATE" not in json.dumps(sheet)
+    for identifier in ("11111111111", "22222222222", "33333333333", "44444444444"):
+        assert identifier not in json.dumps(sheet)
