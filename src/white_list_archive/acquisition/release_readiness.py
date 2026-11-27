@@ -218,7 +218,12 @@ def taranto_complete_physical_rows(path: Path, population: str) -> int:
 
 
 # Fixed pair: review only, not an approved publication profile.
-_BIELLA_DELTA_SHA = "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca"
+# Two separately read-back, byte-distinct originals for the same official update.
+# These are finite comparison inputs only, never approved publication hashes.
+_BIELLA_DELTA_SHAS = frozenset({
+    "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca",
+    "3291b2d7614d961ec2c9ed16fb211ce11132f9ec09659b20c7f85508d802413e",
+})
 _BIELLA_DELTA_DATE = "2026-11-25"
 _BIELLA_DELTA_BYTES = 204481
 _BIELLA_DELTA_COUNTERS = frozenset({
@@ -284,7 +289,7 @@ def _biella_pinned_delta(store, job, manifest, new_records, updated):
     cfg = job["config"]
     if (cfg.get("sha256") != biella_review.SOURCE_SHA256
             or cfg.get("reference_date") != biella_review.REFERENCE_DATE
-            or manifest.get("sha256") != _BIELLA_DELTA_SHA
+            or manifest.get("sha256") not in _BIELLA_DELTA_SHAS
             or manifest.get("byte_size") != _BIELLA_DELTA_BYTES
             or updated != _BIELLA_DELTA_DATE):
         return {"status": "outside_frozen_pair"}
