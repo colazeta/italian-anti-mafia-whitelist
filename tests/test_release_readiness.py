@@ -293,3 +293,30 @@ def test_biella_delta_summary_cannot_emit_raw_values():
 def test_biella_pinned_comparison_rejects_other_original_without_store_access():
     assert readiness._biella_pinned_delta(object(), {"config": {}}, {}, [], "2026-11-25") == {
         "status": "outside_frozen_pair"}
+
+
+@pytest.mark.parametrize("digest", [
+    "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca",
+    "3291b2d7614d961ec2c9ed16fb211ce11132f9ec09659b20c7f85508d802413e",
+])
+def test_biella_same_date_review_pins_reach_old_original_gate(digest):
+    from white_list_archive.publishing import biella_review
+    class Store:
+        def __init__(self):
+            self.calls = []
+        def read_digest_verified(self, sha):
+            self.calls.append(sha)
+            raise ValueError("synthetic unavailable original")
+    store = Store()
+    cfg = {"sha256": biella_review.SOURCE_SHA256, "reference_date": biella_review.REFERENCE_DATE}
+    manifest = {"sha256": digest, "byte_size": 204481}
+    result = readiness._biella_pinned_delta(store, {"config": cfg}, manifest, [], "2026-11-25")
+    assert result == {"status": "comparison_requires_review"}
+    assert store.calls == [biella_review.SOURCE_SHA256]
+    for changed, updated in [
+        ({**manifest, "sha256": "0" * 64}, "2026-11-25"),
+        ({**manifest, "byte_size": 204482}, "2026-11-25"),
+        (manifest, "2026-11-26"),
+    ]:
+        assert readiness._biella_pinned_delta(object(), {"config": cfg}, changed, [], updated) == {
+            "status": "outside_frozen_pair"}
