@@ -255,3 +255,41 @@ def test_taranto_census_never_promotes_source_observations(monkeypatch, tmp_path
     assert published["blank_names"] == result["blank_names"]
     assert published["blank_activities"] == result["blank_activities"]
     assert published["publication_approved"] is False
+
+
+def test_biella_delta_is_multiset_observational_and_redacted():
+    def row(name, raw, status="listed", **extra):
+        return {"name": name, "identifier_field_raw": raw, "source_status": status, **extra}
+    old = [row("SYNTHETIC A", "ABCDEF00A00A000A"), row("SYNTHETIC A", "ABCDEF00A00A000A"),
+           row("SYNTHETIC B", "00000000000"), row("SYNTHETIC D", "11111111111")]
+    new = [row("SYNTHETIC A", "ABCDEF00A00A000A", "renewal_update_in_progress"),
+           row("SYNTHETIC B", "00000000000", reference_date="2026-11-25"),
+           row("SYNTHETIC C", "22222222222", outcome_raw="ABCDEF00A00A000A")]
+    report = readiness.biella_observation_delta(old, new)
+    assert report["shared_text_keys"] == 2
+    assert report["old_only_text_keys"] == report["new_only_text_keys"] == 1
+    assert report["shared_keys_changed_multiplicity"] == report["shared_keys_changed_status"] == 1
+    assert report["shared_keys_changed_values"] == 1
+    assert report["old_unmatched_observations"] == 3
+    assert report["new_unmatched_observations"] == 2
+    assert report["old_identifier_shape_rows"] == 2 and report["new_identifier_shape_rows"] == 1
+    assert report["new_other_field_shape_rows"] == 1
+    assert "SYNTHETIC" not in json.dumps(report)
+    assert "ABCDEF00A00A000A" not in json.dumps(report)
+
+
+def test_biella_delta_summary_cannot_emit_raw_values():
+    safe = readiness.public_summary({"kind": "archived-release-readiness", "results": [
+        {"authority_key": "biella", "status": "review_metadata_ready", "sources": [{
+            "source_key": "biella-listed", "biella_documentary_delta": {
+                "status": "documentary_comparison_ready", "new_observations": 133,
+                "old_observations": "PRIVATE", "unexpected": "PRIVATE"}}]}]})
+    assert safe["results"][0]["sources"][0]["biella_documentary_delta"] == {
+        "status": "documentary_comparison_ready", "new_observations": 133}
+    assert "PRIVATE" not in json.dumps(safe)
+    assert safe["approvals"] == safe["publications"] == 0
+
+
+def test_biella_pinned_comparison_rejects_other_original_without_store_access():
+    assert readiness._biella_pinned_delta(object(), {"config": {}}, {}, [], "2026-11-25") == {
+        "status": "outside_frozen_pair"}
