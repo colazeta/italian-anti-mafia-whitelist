@@ -370,8 +370,8 @@ def test_published_sheet_export_redirect_is_narrowly_scoped():
 def test_candidate_official_pages_are_landing_hints_not_approved_sources():
     hints = list(csv.DictReader(
         (ROOT/'data/source_registry/unreviewed_official_pages.csv').open(encoding='utf-8')))
-    assert len(hints) == 6
-    assert {h['authority_key'] for h in hints} == {'la-spezia', 'oristano', 'verona'}
+    assert len(hints) == 7
+    assert {h['authority_key'] for h in hints} == {'la-spezia', 'oristano', 'verona', 'nuoro'}
     assert all(h['evidence_state'] == 'indexed_official_page_unverified_bytes' for h in hints)
     by_key = {r['authority_key']: r for r in generate_catalog(ROOT)['robots']}
     for hint in hints:
