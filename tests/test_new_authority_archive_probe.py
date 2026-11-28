@@ -648,3 +648,59 @@ def test_distinct_identifier_and_address_label_subtypes_preserve_ambiguity():
     assert "PRIVATE" not in json.dumps(sheet)
     for identifier in ("11111111111", "22222222222", "33333333333", "44444444444"):
         assert identifier not in json.dumps(sheet)
+
+
+def test_nuoro_single_population_is_never_complete_and_wrong_bytes_fail_closed(monkeypatch):
+    from white_list_archive.acquisition import new_authority_archive_probe as qa
+    raw = b"%PDF-1.4 PRIVATE TEST"
+    digest = sha256(raw).hexdigest()
+    class Store:
+        def read_digest_verified(self, _):
+            return raw
+    def scanner(data, population, *, authority):
+        assert data == raw and population == "listed" and authority == "nuoro"
+        return {"logical_record_census_approved": False}
+    monkeypatch.setattr(qa, "novara_pdf_profile", scanner)
+    report = qa.audit_nuoro_listed(Store(), pin=("listed", digest, len(raw)))
+    assert report["originals_sha_verified"] == report["physical_profiles_completed"] == 1
+    assert report["applicant_population"] == "UNRESOLVED_REQUIRES_REVIEW"
+    assert not report["population_complete"] and not report["privacy_approved"]
+    assert not report["public_release_eligible"] and not report["official_edition_date_approved"]
+    assert report["postgresql_writes"] == report["public_promotions"] == 0
+    rejected = qa.audit_nuoro_listed(Store(), pin=("listed", digest, len(raw) + 1))
+    assert rejected["originals_sha_verified"] == rejected["physical_profiles_completed"] == 0
+    assert "PRIVATE" not in json.dumps(report) + json.dumps(rejected)
+
+
+def test_nuoro_pdf_authority_clue_not_novara_and_no_approval():
+    from white_list_archive.acquisition.new_authority_archive_probe import novara_pdf_pages
+    class Table:
+        def extract(self):
+            return [["Ragione sociale", "Codice fiscale", "Settore"],
+                    ["PRIVATE NAME", "12345678901", "I"]]
+    class Page:
+        width, height = 600, 800
+        def crop(self, _):
+            return self
+        def extract_text(self):
+            return "Prefettura di Nuoro\nElenco imprese iscritte\nAggiornato al 25/11/2026"
+        def find_tables(self):
+            return [Table()]
+    profile = novara_pdf_pages([Page()], "listed", authority="nuoro")
+    assert profile["counts"]["authority_header_cue_pages"] == 1
+    assert novara_pdf_pages([Page()], "listed")["counts"]["authority_header_cue_pages"] == 0
+    assert not profile["official_edition_date_approved"]
+    assert "12345678901" not in json.dumps(profile)
+
+
+def test_brescia_current_pair_uses_existing_exact_workbook_audit(monkeypatch):
+    from white_list_archive.acquisition import new_authority_archive_probe as qa
+    def fake_audit(store, pins):
+        assert set(pins) == {"brescia"}
+        assert {p[0] for p in pins["brescia"]} == {"listed", "applicant"}
+        return {"source_edition_approved": False, "public_release_eligible": False}
+    monkeypatch.setattr(qa, "audit", fake_audit)
+    report = qa.audit_current_brescia(object())
+    assert not report["official_edition_date_approved"]
+    assert not report["public_release_eligible"]
+    assert report["postgresql_writes"] == report["public_promotions"] == 0
