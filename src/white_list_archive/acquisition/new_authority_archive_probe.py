@@ -593,9 +593,11 @@ def audit(store: EvidenceStore, pins: dict = PINS) -> dict:
                 entry["review_code"] = SAFE_STRUCTURE_ERROR_CODES.get(
                     str(exc), "unclassified_library_or_archive_failure")
                 # Diagnostic is read-only and cannot override rejected structure.
-                # Attempt only on exact R2 originals with oversized dimensions.
+                # Attempt only on exact R2 originals with a structural geometry
+                # rejection. Empty auxiliary sheets are a possibility, not a
+                # conclusion: diagnose all XML parts without accepting any.
                 if (entry.get("original_bytes_readback_verified") is True and
-                        entry["review_code"] == "declared_dimensions_out_of_bounds"):
+                        entry["review_code"] in {"declared_dimensions_out_of_bounds", "empty_sheet"}):
                     try:
                         entry["redacted_coordinate_diagnostic"] = (
                             workbook_coordinate_diagnostic(raw))
@@ -791,6 +793,23 @@ def audit_current_brescia(store):
             "public_promotions": 0}
 
 
+# Additional exact pair, not a replacement of previously frozen review inputs.
+NOVARA_CURRENT_WORKBOOK_PINS = {
+    "novara": (
+        ("listed", "6749d8c1b9e5f9ec5bcd6c15a7bbc7b84d17cc6502ff135e4447a37c88eee5b2", 37006),
+        ("applicant", "f1f0976ae3c10226cd4973eb7786e48070c1d63c6eb8a6483b42106434f5689d", 32214),
+    ),
+}
+
+
+def audit_current_novara_workbooks(store):
+    report = audit(store, NOVARA_CURRENT_WORKBOOK_PINS)
+    return {**report, "scope": "novara_current_workbook_source_only",
+            "robot_revision": "fc1de2663233ae3f6e119768fa1454c4ce43aa6b",
+            "official_edition_date_approved": False, "postgresql_writes": 0,
+            "public_promotions": 0}
+
+
 def main() -> int:
     config = StoreConfig.from_env()
     store = EvidenceStore(client_for(config), config)
@@ -802,10 +821,13 @@ def main() -> int:
     print(json.dumps(nuoro, sort_keys=True))
     brescia = audit_current_brescia(store)
     print(json.dumps(brescia, sort_keys=True))
+    novara_current = audit_current_novara_workbooks(store)
+    print(json.dumps(novara_current, sort_keys=True))
     return int(result["originals_verified"] != result["originals_expected"] or
                pdf_result["physical_profiles_completed"] != pdf_result["originals_expected"] or
                nuoro["physical_profiles_completed"] != nuoro["originals_expected"] or
-               brescia["originals_verified"] != brescia["originals_expected"])
+               brescia["originals_verified"] != brescia["originals_expected"] or
+               novara_current["originals_verified"] != novara_current["originals_expected"])
 
 
 if __name__ == "__main__":
