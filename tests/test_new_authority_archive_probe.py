@@ -704,3 +704,56 @@ def test_brescia_current_pair_uses_existing_exact_workbook_audit(monkeypatch):
     assert not report["official_edition_date_approved"]
     assert not report["public_release_eligible"]
     assert report["postgresql_writes"] == report["public_promotions"] == 0
+
+
+def test_empty_auxiliary_sheet_gets_only_redacted_geometry_not_acceptance():
+    book = Workbook()
+    book.active.title = "PRIVATE AUXILIARY NAME"
+    ws = book.create_sheet("PRIVATE DATA NAME")
+    ws.append(["denominazione", "codice fiscale", "sede legale"])
+    ws.append(["PRIVATE BUSINESS", "12345678901", "PRIVATE ADDRESS"])
+    out = BytesIO()
+    book.save(out)
+    book.close()
+    raw = out.getvalue()
+    digest = sha256(raw).hexdigest()
+
+    class Store:
+        def read_digest_verified(self, _):
+            return raw
+
+    report = audit(Store(), {"brescia": (
+        ("listed", digest, len(raw)), ("applicant", digest, len(raw)),
+    )})
+    assert report["source_bytes_verified"] == 2
+    assert report["originals_verified"] == 0
+    assert not report["public_release_eligible"]
+    for item in report["results"]:
+        assert item["review_code"] == "empty_sheet"
+        assert "physical_workbook_structure" not in item
+        diagnostic = item["redacted_coordinate_diagnostic"]
+        assert diagnostic["diagnostic_only"]
+        assert not diagnostic["record_census"]
+        assert len(diagnostic["xml_parts"]) == 2
+        assert sorted(x["encoded_cell_elements"] for x in diagnostic["xml_parts"]) == [0, 6]
+    encoded = json.dumps(report)
+    for value in ("PRIVATE AUXILIARY NAME", "PRIVATE DATA NAME",
+                  "PRIVATE BUSINESS", "12345678901", "PRIVATE ADDRESS"):
+        assert value not in encoded
+
+
+def test_novara_current_pair_is_separate_and_source_only(monkeypatch):
+    from white_list_archive.acquisition import new_authority_archive_probe as mod
+    def fake_audit(store, pins):
+        assert pins is mod.NOVARA_CURRENT_WORKBOOK_PINS
+        assert {p for p, _, _ in pins["novara"]} == {"listed", "applicant"}
+        assert {h for _, h, _ in pins["novara"]}.isdisjoint(
+            {h for _, h, _ in mod.PINS["novara"]})
+        return {"source_edition_approved": False, "privacy_approved": False,
+                "public_release_eligible": False}
+    monkeypatch.setattr(mod, "audit", fake_audit)
+    report = mod.audit_current_novara_workbooks(None)
+    assert report["scope"] == "novara_current_workbook_source_only"
+    assert not report["official_edition_date_approved"]
+    assert not report["public_release_eligible"]
+    assert report["postgresql_writes"] == report["public_promotions"] == 0
