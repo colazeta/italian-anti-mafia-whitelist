@@ -77,3 +77,5 @@ Current authority coverage is not increased by adding hints. Only an exact
 archival capture, independent byte/row QA, both-population review, a finite
 intent and the sole publisher's five-asset live readback can do so. A 403
 remains an access result rather than evidence that the publication is absent.
+
+**28 November 2026 — Nuoro.** The Ministry's indexed [listed-company page](https://prefettura.interno.gov.it/it/prefetture/nuoro/white-list-elenco-imprese-iscritte) explicitly advertises an attachment labelled White List – Elenco imprese iscritte (314.37 KB in the index). It is an additional discovery-only seed, not a verified original or a source-edition date. The older official applicant page is explicitly historical and not updateable; no current applicant source is established. Keep that population unresolved and the authority mapping unreviewed. The existing host, territorial prefix, request/depth/time budgets and capture workflow are unchanged; do not infer absence from access failures. No public source or approval is added.
