@@ -25,3 +25,25 @@ verified-capture, date, census and projection gates before comparison; neither
 pin authorises publication. Semantic equality is not a byte-level equivalence
 claim or privacy clearance. A new protected comparison and source review remain
 necessary; no selector, source configuration, parser profile or intent changed.
+
+
+## 28 November: third exact capture and aggregate field comparison
+
+Protected run 46112481995/job 140878941174 independently verified a third
+byte-distinct original, SHA a16b3558ea56d4770efaea46973036a4da1fa8dbc53f33a664aec07c8a46e379,
+204481 bytes, explicit 25 November page update, 240/133 listed and 111/111
+applicant physical/logical counts. Both semantic digests match the previous
+25 November candidate; the full public digests differ with capture identity.
+The existing comparison correctly returned outside_frozen_pair. Add only this
+exact review pin, not a publication pin. Unknown variants still fail closed.
+
+The existing full documentary counters are preserved. Additional aggregate
+counters distinguish changes in nested source physical locators from changes
+in substantive values (only the two exact nested locator fields are excluded).
+A private multiset compares CF-shaped token occurrences and their placements
+by documentary text key and field path (list membership, not list index).
+Only unmatched occurrence counts are emitted: never token values, keys,
+individual digests or paths. Equal counts or equal token multisets cannot
+prove privacy clearance, identity, administrative events or the acceptability
+of other personal data. This is a bounded review aid, not an automated
+approval rule. Production acceptance remains necessary.
