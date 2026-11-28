@@ -218,11 +218,12 @@ def taranto_complete_physical_rows(path: Path, population: str) -> int:
 
 
 # Fixed pair: review only, not an approved publication profile.
-# Two separately read-back, byte-distinct originals for the same official update.
+# Three separately read-back, byte-distinct originals for the same official update.
 # These are finite comparison inputs only, never approved publication hashes.
 _BIELLA_DELTA_SHAS = frozenset({
     "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca",
     "3291b2d7614d961ec2c9ed16fb211ce11132f9ec09659b20c7f85508d802413e",
+    "a16b3558ea56d4770efaea46973036a4da1fa8dbc53f33a664aec07c8a46e379",
 })
 _BIELLA_DELTA_DATE = "2026-11-25"
 _BIELLA_DELTA_BYTES = 204481
@@ -232,6 +233,9 @@ _BIELLA_DELTA_COUNTERS = frozenset({
     "shared_keys_changed_values", "old_unmatched_observations", "new_unmatched_observations",
     "old_identifier_shape_rows", "new_identifier_shape_rows",
     "old_other_field_shape_rows", "new_other_field_shape_rows",
+    "shared_keys_changed_substantive_values", "shared_keys_locator_only_changes",
+    "old_unmatched_cf_value_occurrences", "new_unmatched_cf_value_occurrences",
+    "old_unmatched_cf_placement_occurrences", "new_unmatched_cf_placement_occurrences",
 })
 # Broad shape clue, including omocodia-like values; never a verified tax code.
 _CF_SHAPE = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]{6}[A-Za-z0-9]{2}[A-Za-z][A-Za-z0-9]{2}[A-Za-z][A-Za-z0-9]{3}[A-Za-z](?![A-Za-z0-9])")
@@ -262,6 +266,48 @@ def biella_observation_delta(old, new):
         return groups
     a, b = grouped(old), grouped(new)
     shared = a.keys() & b.keys()
+
+    def substantive(rows):
+        groups = {}
+        for row in rows:
+            key = (row["name"], row["identifier_field_raw"])
+            values = {k: v for k, v in row.items() if k not in ignored}
+            if "source_fields" in values:
+                values["source_fields"] = {
+                    k: v for k, v in values["source_fields"].items()
+                    if k not in {"physical_locator", "physical_locators"}}
+            groups.setdefault(key, Counter())[json.dumps(
+                values, sort_keys=True, ensure_ascii=False)] += 1
+        return groups
+
+    sa, sb = substantive(old), substantive(new)
+
+    def cf_occurrences(rows):
+        values, placements = Counter(), Counter()
+        def visit(value, path, key):
+            if isinstance(value, str):
+                for match in _CF_SHAPE.finditer(value):
+                    token = match.group()
+                    values[token] += 1
+                    placements[(key, path, token)] += 1
+            elif isinstance(value, dict):
+                for field, child in value.items():
+                    if path == ("source_fields",) and field in {
+                            "physical_locator", "physical_locators"}:
+                        continue
+                    visit(child, path + (field,), key)
+            elif isinstance(value, list):
+                for child in value:
+                    visit(child, path + ("[]",), key)
+        for row in rows:
+            key = (row["name"], row["identifier_field_raw"])
+            for field, value in row.items():
+                if field not in ignored:
+                    visit(value, (field,), key)
+        return values, placements
+
+    av, ap = cf_occurrences(old)
+    bv, bp = cf_occurrences(new)
     def unmatched(left, right):
         return sum(sum((values[0] - right.get(key, (Counter(), Counter()))[0]).values())
                    for key, values in left.items())
@@ -272,6 +318,12 @@ def biella_observation_delta(old, new):
         "shared_keys_changed_multiplicity": sum(sum(a[k][0].values()) != sum(b[k][0].values()) for k in shared),
         "shared_keys_changed_status": sum(a[k][1] != b[k][1] for k in shared),
         "shared_keys_changed_values": sum(a[k][0] != b[k][0] for k in shared),
+        "shared_keys_changed_substantive_values": sum(sa[k] != sb[k] for k in shared),
+        "shared_keys_locator_only_changes": sum(a[k][0] != b[k][0] and sa[k] == sb[k] for k in shared),
+        "old_unmatched_cf_value_occurrences": sum((av - bv).values()),
+        "new_unmatched_cf_value_occurrences": sum((bv - av).values()),
+        "old_unmatched_cf_placement_occurrences": sum((ap - bp).values()),
+        "new_unmatched_cf_placement_occurrences": sum((bp - ap).values()),
         "old_unmatched_observations": unmatched(a, b), "new_unmatched_observations": unmatched(b, a),
     }
     for label, rows in (("old", old), ("new", new)):

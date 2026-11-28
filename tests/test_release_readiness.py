@@ -298,6 +298,7 @@ def test_biella_pinned_comparison_rejects_other_original_without_store_access():
 @pytest.mark.parametrize("digest", [
     "60fa8903200505d0621f17685fb9520ed129cdf71cdd8bb582e132743fad23ca",
     "3291b2d7614d961ec2c9ed16fb211ce11132f9ec09659b20c7f85508d802413e",
+    "a16b3558ea56d4770efaea46973036a4da1fa8dbc53f33a664aec07c8a46e379",
 ])
 def test_biella_same_date_review_pins_reach_old_original_gate(digest):
     from white_list_archive.publishing import biella_review
@@ -320,3 +321,40 @@ def test_biella_same_date_review_pins_reach_old_original_gate(digest):
     ]:
         assert readiness._biella_pinned_delta(object(), {"config": cfg}, changed, [], updated) == {
             "status": "outside_frozen_pair"}
+
+
+def test_biella_delta_distinguishes_nested_locator_and_substantive_changes():
+    old = {"name": "SYNTHETIC", "identifier_field_raw": "", "source_status": "listed",
+           "source_fields": {"physical_locators": ["row:1"], "notes": ["unchanged"]}}
+    new = {**old, "source_fields": {**old["source_fields"], "physical_locators": ["row:2"]}}
+    report = readiness.biella_observation_delta([old], [new])
+    assert report["shared_keys_changed_values"] == 1
+    assert report["shared_keys_locator_only_changes"] == 1
+    assert report["shared_keys_changed_substantive_values"] == 0
+    new["source_fields"]["notes"] = ["changed"]
+    report = readiness.biella_observation_delta([old], [new])
+    assert report["shared_keys_locator_only_changes"] == 0
+    assert report["shared_keys_changed_substantive_values"] == 1
+
+
+def test_biella_cf_delta_detects_equal_shape_counts_but_changed_values_and_placement():
+    first, second = "ABCDEF00A00A000A", "GHIJKL00A00A000B"
+    old = {"name": "SYNTHETIC", "identifier_field_raw": "", "source_status": "listed",
+           "source_fields": {"notes": [first]}}
+    new = {**old, "source_fields": {"notes": [second]}}
+    report = readiness.biella_observation_delta([old], [new])
+    assert report["old_other_field_shape_rows"] == report["new_other_field_shape_rows"] == 1
+    assert report["old_unmatched_cf_value_occurrences"] == report["new_unmatched_cf_value_occurrences"] == 1
+    assert report["old_unmatched_cf_placement_occurrences"] == report["new_unmatched_cf_placement_occurrences"] == 1
+    moved = {**old, "source_fields": {"registered_office_variants": [first]}}
+    report = readiness.biella_observation_delta([old], [moved])
+    assert report["old_unmatched_cf_value_occurrences"] == report["new_unmatched_cf_value_occurrences"] == 0
+    assert report["old_unmatched_cf_placement_occurrences"] == report["new_unmatched_cf_placement_occurrences"] == 1
+    safe = readiness.public_summary({"kind": "archived-release-readiness", "results": [
+        {"authority_key": "biella", "status": "review_metadata_ready", "sources": [
+            {"source_key": "biella-listed", "biella_documentary_delta": {
+                "status": "documentary_comparison_ready", **report, "raw_token": first}}]}]})
+    delta = safe["results"][0]["sources"][0]["biella_documentary_delta"]
+    assert delta["new_unmatched_cf_placement_occurrences"] == 1
+    assert all(token not in json.dumps(safe) for token in (first, second, "SYNTHETIC", "raw_token"))
+    assert safe["approvals"] == safe["publications"] == 0
