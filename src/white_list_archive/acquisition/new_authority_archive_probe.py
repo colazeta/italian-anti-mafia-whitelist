@@ -626,10 +626,12 @@ _PDF_POPULATION_CUES = {
 }
 
 
-def novara_pdf_pages(pages, population):
+def novara_pdf_pages(pages, population, *, authority="novara"):
     """Independent physical PDF census; date labels only, never record values."""
     if population not in _PDF_POPULATION_CUES:
         raise ValueError("Unknown population")
+    if authority not in {"novara", "nuoro"}:
+        raise ValueError("Unknown reviewed authority")
     counts, widths, shapes, dates = Counter(), Counter(), Counter(), Counter()
     anchor_counts, aligned_shapes, residual_alignment = Counter(), Counter(), Counter()
     for page in pages:
@@ -639,7 +641,7 @@ def novara_pdf_pages(pages, population):
         header = page.crop((0, 0, page.width, page.height * .18)).extract_text() or ""
         if len(header) > 250000:
             raise ValueError("PDF header bounds")
-        counts["authority_header_cue_pages"] += bool(re.search(r"\bprefettura\s+(?:di\s+)?novara\b", header, re.I))
+        counts["authority_header_cue_pages"] += bool(re.search(r"\bprefettura\s+(?:di\s+)?" + re.escape(authority) + r"\b", header, re.I))
         counts["population_header_cue_pages"] += bool(_PDF_POPULATION_CUES[population].search(header))
         page_dates = set()
         for match in _PDF_EDITION_CUE.finditer(header):
@@ -710,11 +712,11 @@ def novara_pdf_pages(pages, population):
             "logical_record_census_approved": False, "official_edition_date_approved": False}
 
 
-def novara_pdf_profile(raw, population):
+def novara_pdf_profile(raw, population, *, authority="novara"):
     if not isinstance(raw, bytes) or not raw.startswith(b"%PDF-") or len(raw) > 2000000:
         raise ValueError("Invalid bounded PDF")
     with pdfplumber.open(BytesIO(raw)) as pdf:
-        return novara_pdf_pages(pdf.pages, population)
+        return novara_pdf_pages(pdf.pages, population, authority=authority)
 
 
 def audit_novara_pdfs(store, *, pins=NOVARA_PDF_PINS, scanner=novara_pdf_profile):
@@ -742,6 +744,53 @@ def audit_novara_pdfs(store, *, pins=NOVARA_PDF_PINS, scanner=novara_pdf_profile
             "postgresql_writes": 0, "public_promotions": 0, "results": results}
 
 
+# Frozen robot-state e8898f4db6d266436fff08b64072e354cdce0990.
+# Filename dates are clues, never authenticated edition dates.
+NUORO_LISTED_PIN = ("listed", "0b0182d31ace7b7c8ad20268d5eb0efe3f77281994816b7a8b3a7dd87d3327fa", 319097)
+BRESCIA_CURRENT_PINS = {
+    "brescia": (
+        ("listed", "5dd616b3ed60daa03ab74690992fe7f26a2256b8dc3ec91c9a8205d638c0fc61", 295547),
+        ("applicant", "cca55fc9573e242691feeb6b111814d6fad3e2af1546ef50f0ee767e6af9e259", 111605),
+    ),
+}
+
+
+def audit_nuoro_listed(store, *, pin=NUORO_LISTED_PIN):
+    """Single-population preflight only: no fabricated applicant completeness."""
+    population, digest, size = pin
+    if population != "listed":
+        raise ValueError("Only the exact listed discovery scope is available")
+    entry = {"population": population, "original_sha256": digest,
+             "expected_bytes": size, "source_bytes_verified": False}
+    try:
+        raw = store.read_digest_verified(digest)
+        if len(raw) != size or sha256(raw).hexdigest() != digest:
+            raise ValueError("Original identity mismatch")
+        entry["source_bytes_verified"] = True
+        entry["physical_pdf_profile"] = novara_pdf_profile(raw, population, authority="nuoro")
+    except Exception as exc:
+        entry["error_type"] = type(exc).__name__
+        entry["review_code"] = "source_only_review_incomplete"
+    return {"scope": "nuoro_listed_source_only",
+            "robot_revision": "e8898f4db6d266436fff08b64072e354cdce0990",
+            "review_only": True, "originals_expected": 1,
+            "originals_sha_verified": int(entry["source_bytes_verified"]),
+            "physical_profiles_completed": int("physical_pdf_profile" in entry),
+            "applicant_population": "UNRESOLVED_REQUIRES_REVIEW",
+            "population_complete": False, "source_edition_approved": False,
+            "official_edition_date_approved": False, "privacy_approved": False,
+            "public_release_eligible": False, "postgresql_writes": 0,
+            "public_promotions": 0, "results": [entry]}
+
+
+def audit_current_brescia(store):
+    report = audit(store, BRESCIA_CURRENT_PINS)
+    return {**report, "scope": "brescia_current_delta_source_only",
+            "robot_revision": "e8898f4db6d266436fff08b64072e354cdce0990",
+            "official_edition_date_approved": False, "postgresql_writes": 0,
+            "public_promotions": 0}
+
+
 def main() -> int:
     config = StoreConfig.from_env()
     store = EvidenceStore(client_for(config), config)
@@ -749,8 +798,14 @@ def main() -> int:
     print(json.dumps(result, sort_keys=True))
     pdf_result = audit_novara_pdfs(store)
     print(json.dumps(pdf_result, sort_keys=True))
+    nuoro = audit_nuoro_listed(store)
+    print(json.dumps(nuoro, sort_keys=True))
+    brescia = audit_current_brescia(store)
+    print(json.dumps(brescia, sort_keys=True))
     return int(result["originals_verified"] != result["originals_expected"] or
-               pdf_result["physical_profiles_completed"] != pdf_result["originals_expected"])
+               pdf_result["physical_profiles_completed"] != pdf_result["originals_expected"] or
+               nuoro["physical_profiles_completed"] != nuoro["originals_expected"] or
+               brescia["originals_verified"] != brescia["originals_expected"])
 
 
 if __name__ == "__main__":
